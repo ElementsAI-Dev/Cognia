@@ -268,6 +268,46 @@ export async function executeAgentLoop(
   const tasks: AgentTask[] = [];
   let totalSteps = 0;
 
+  // Observability: track workflow execution via Langfuse and OpenTelemetry
+  let endWorkflowTracking: ((result: AgentLoopResult) => void) | undefined;
+  try {
+    const [langfuseModule, tracingModule] = await Promise.all([
+      import('../observability/langfuse-client').catch(() => null),
+      import('../observability/tracing').catch(() => null),
+    ]);
+
+    // Langfuse workflow tracking
+    if (langfuseModule?.isLangfuseEnabled()) {
+      const { LangfuseUtils } = langfuseModule;
+      const workflowTracker = LangfuseUtils.trackWorkflowExecution(
+        `agent-loop-${Date.now()}`,
+        { task, provider, model, planningEnabled, maxStepsPerTask, maxTotalSteps }
+      );
+      endWorkflowTracking = (result: AgentLoopResult) => {
+        workflowTracker.end(result.success, {
+          duration: result.duration,
+          totalSteps: result.totalSteps,
+          taskCount: result.tasks.length,
+          error: result.error,
+        });
+      };
+    }
+
+    // OpenTelemetry workflow tracking (wraps the entire function via span)
+    if (tracingModule) {
+      const { OpenTelemetryUtils } = tracingModule;
+      OpenTelemetryUtils.trackWorkflowExecution(
+        `agent-loop`,
+        { task: task.slice(0, 200), provider, model },
+        async () => {
+          // No-op: actual execution happens below; this just creates the span context
+        }
+      );
+    }
+  } catch {
+    // Observability is optional — continue execution
+  }
+
   // Helper to check cancellation
   const checkCancellation = (): boolean => {
     return cancellationToken?.isCancelled ?? false;
@@ -431,7 +471,7 @@ export async function executeAgentLoop(
 
     const allSucceeded = tasks.every((t) => t.status === 'completed');
 
-    return {
+    const loopResult: AgentLoopResult = {
       success: allSucceeded,
       tasks,
       totalSteps,
@@ -439,14 +479,18 @@ export async function executeAgentLoop(
       finalSummary,
       error: allSucceeded ? undefined : 'Some tasks failed',
     };
+    endWorkflowTracking?.(loopResult);
+    return loopResult;
   } catch (error) {
-    return {
+    const errorResult: AgentLoopResult = {
       success: false,
       tasks,
       totalSteps,
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : 'Agent loop failed',
     };
+    endWorkflowTracking?.(errorResult);
+    return errorResult;
   }
 }
 

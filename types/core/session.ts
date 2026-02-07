@@ -118,6 +118,13 @@ export interface Session {
   // Pin status
   pinned?: boolean;
 
+  // Tags for multi-dimensional categorization
+  tags?: string[];
+
+  // Archive status
+  isArchived?: boolean;
+  archivedAt?: Date;
+
   // Compression overrides (per-session settings)
   compressionOverrides?: SessionCompressionOverrides;
 
@@ -145,6 +152,9 @@ export interface Session {
 
   // Multi-model arena mode configuration
   multiModelConfig?: MultiModelConfig;
+
+  // Active skill IDs for this session (per-session skill tracking)
+  activeSkillIds?: string[];
 }
 
 export interface SessionWithMessages extends Session {
@@ -197,6 +207,10 @@ export interface UpdateSessionInput {
   flowCanvasState?: FlowChatCanvasState;
   goal?: ChatGoal;
   multiModelConfig?: MultiModelConfig;
+  tags?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
+  activeSkillIds?: string[];
 }
 
 export interface CreateGoalInput {

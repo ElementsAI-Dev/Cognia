@@ -7,6 +7,14 @@
     "projectsDesc": "Manage knowledge & contexts",
     "tryPrompts": "Try these prompts to get started",
     "tryIt": "Try it",
+    "currentModel": "Current AI model",
+    "fullMode": "Full Mode",
+    "switchToFullInterface": "Switch to full interface",
+    "typeMessage": "Type a message or press",
+    "toSend": "to send",
+    "zenMode": "Zen Mode",
+    "focusedMode": "Focused Mode",
+    "pressForFullInterface": "Press Ctrl+Shift+S for full interface",
     "modes": {
       "chat": {
         "title": "Chat Mode",

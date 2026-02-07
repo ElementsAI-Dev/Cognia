@@ -107,7 +107,11 @@
     "goalCompleted": "目标已完成！🎉",
     "goalPaused": "目标已暂停",
     "goalResumed": "目标已恢复",
-    "goalCleared": "目标已清除"
+    "goalCleared": "目标已清除",
+    "saveAsPreset": "保存为预设",
+    "savedAsPreset": "会话已保存为预设",
+    "savedFromSession": "从当前会话保存",
+    "newPreset": "新预设"
   },
   "chatInput": {
     "dropFilesHere": "拖放文件到这里",

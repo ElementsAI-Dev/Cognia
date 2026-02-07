@@ -133,18 +133,18 @@ describe('ExecutionStatisticsPanel', () => {
 
   it('displays average duration', () => {
     render(<ExecutionStatisticsPanel />);
-    const durationElements = screen.getAllByText('5.00s');
+    const durationElements = screen.getAllByText('5s');
     expect(durationElements.length).toBeGreaterThan(0);
   });
 
   it('displays min duration', () => {
     render(<ExecutionStatisticsPanel />);
-    expect(screen.getByText('1.00s')).toBeInTheDocument();
+    expect(screen.getByText('1s')).toBeInTheDocument();
   });
 
   it('displays max duration', () => {
     render(<ExecutionStatisticsPanel />);
-    expect(screen.getByText('10.00s')).toBeInTheDocument();
+    expect(screen.getByText('10s')).toBeInTheDocument();
   });
 
   it('displays execution breakdown badges', () => {

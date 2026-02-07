@@ -9,6 +9,7 @@ export * from './search-constants';
 export * from './search-cache';
 export * from './search-type-router';
 export * from './search-provider-manager';
+export * from './search-query-optimizer';
 export { testProviderConnection as testProviderConnectionClient } from './provider-test';
 
 export {

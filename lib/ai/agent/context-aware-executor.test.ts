@@ -10,7 +10,15 @@ import {
   type ContextAwareAgentResult,
 } from './context-aware-executor';
 import { executeAgent } from './agent-executor';
-import { processToolOutput, createContextTools, getContextToolsPrompt } from '@/lib/context';
+import {
+  processToolOutput,
+  createContextTools,
+  getContextToolsPrompt,
+  listTerminalSessions,
+  generateTerminalStaticPrompt,
+  getSkillRefs,
+  generateSkillsStaticPrompt,
+} from '@/lib/context';
 import { z } from 'zod';
 
 // Mock dependencies
@@ -25,12 +33,20 @@ jest.mock('@/lib/context', () => ({
     grep_context: { name: 'grep_context', execute: jest.fn() },
   })),
   getContextToolsPrompt: jest.fn(() => '## Context Tools Prompt'),
+  listTerminalSessions: jest.fn(() => Promise.resolve([])),
+  generateTerminalStaticPrompt: jest.fn(() => ''),
+  getSkillRefs: jest.fn(() => Promise.resolve([])),
+  generateSkillsStaticPrompt: jest.fn(() => ''),
 }));
 
 const mockExecuteAgent = executeAgent as jest.MockedFunction<typeof executeAgent>;
 const mockProcessToolOutput = processToolOutput as jest.MockedFunction<typeof processToolOutput>;
 const mockCreateContextTools = createContextTools as jest.MockedFunction<typeof createContextTools>;
 const _mockGetContextToolsPrompt = getContextToolsPrompt as jest.MockedFunction<typeof getContextToolsPrompt>;
+const mockListTerminalSessions = listTerminalSessions as jest.MockedFunction<typeof listTerminalSessions>;
+const mockGenerateTerminalStaticPrompt = generateTerminalStaticPrompt as jest.MockedFunction<typeof generateTerminalStaticPrompt>;
+const mockGetSkillRefs = getSkillRefs as jest.MockedFunction<typeof getSkillRefs>;
+const mockGenerateSkillsStaticPrompt = generateSkillsStaticPrompt as jest.MockedFunction<typeof generateSkillsStaticPrompt>;
 
 describe('context-aware-executor', () => {
   beforeEach(() => {
@@ -162,6 +178,43 @@ describe('context-aware-executor', () => {
       const result = await executeContextAwareAgent('Test prompt', baseConfig);
 
       expect(result).toBeDefined();
+    });
+
+    it('should include terminal sessions in system prompt when available', async () => {
+      mockListTerminalSessions.mockResolvedValueOnce([
+        { sessionId: 'term-1', path: '.cognia/context/terminal/term-1.txt', sizeBytes: 1024, createdAt: new Date(), accessedAt: new Date() },
+      ]);
+      mockGenerateTerminalStaticPrompt.mockReturnValueOnce('## Terminal Sessions Available\n- term-1');
+
+      await executeContextAwareAgent('Test prompt', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      expect(callArgs.systemPrompt).toContain('Terminal Sessions Available');
+    });
+
+    it('should include skills refs in system prompt when available', async () => {
+      mockGetSkillRefs.mockResolvedValueOnce([
+        { id: 'skill-1', name: 'Code Review', briefDescription: 'Reviews code', keywords: ['code'] },
+      ]);
+      mockGenerateSkillsStaticPrompt.mockReturnValueOnce('## Agent Skills Available\n- Code Review');
+
+      await executeContextAwareAgent('Test prompt', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      expect(callArgs.systemPrompt).toContain('Agent Skills Available');
+    });
+
+    it('should gracefully handle terminal sessions fetch failure', async () => {
+      mockListTerminalSessions.mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await executeContextAwareAgent('Test prompt', baseConfig);
+      expect(result.success).toBe(true);
     });
 
     it('should pass through other config options', async () => {

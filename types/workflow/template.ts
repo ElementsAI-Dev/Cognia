@@ -31,7 +31,7 @@ export interface TemplateMetadata {
   rating: number;
   ratingCount: number;
   isOfficial: boolean;
-  source: 'built-in' | 'user' | 'git';
+  source: 'built-in' | 'user' | 'git' | 'community' | 'github';
   gitUrl?: string;
   gitBranch?: string;
   gitCommit?: string;
@@ -59,7 +59,7 @@ export interface TemplateFilters {
   category?: string;
   tags?: string[];
   author?: string;
-  source?: ('built-in' | 'user' | 'git')[];
+  source?: ('built-in' | 'user' | 'git' | 'community' | 'github')[];
   minRating?: number;
   searchQuery?: string;
   sortBy?: 'name' | 'rating' | 'usage' | 'date' | 'author';

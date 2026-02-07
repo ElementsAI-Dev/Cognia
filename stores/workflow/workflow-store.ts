@@ -463,6 +463,20 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
     }),
     {
       name: 'cognia-workflows',
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure presentations field exists
+          if (!state.presentations || typeof state.presentations !== 'object') {
+            state.presentations = {};
+          }
+          if (!state.maxHistorySize) {
+            state.maxHistorySize = 50;
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         history: state.history,
         presentations: state.presentations,

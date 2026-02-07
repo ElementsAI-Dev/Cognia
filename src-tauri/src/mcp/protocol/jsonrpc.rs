@@ -213,8 +213,16 @@ pub mod methods {
     // Resources
     pub const RESOURCES_LIST: &str = "resources/list";
     pub const RESOURCES_READ: &str = "resources/read";
+    pub const RESOURCES_TEMPLATES_LIST: &str = "resources/templates/list";
     pub const RESOURCES_SUBSCRIBE: &str = "resources/subscribe";
     pub const RESOURCES_UNSUBSCRIBE: &str = "resources/unsubscribe";
+
+    // Completion
+    pub const COMPLETION_COMPLETE: &str = "completion/complete";
+
+    // Roots (client feature — server requests from client)
+    pub const ROOTS_LIST: &str = "roots/list";
+    pub const NOTIFICATION_ROOTS_LIST_CHANGED: &str = "notifications/roots/list_changed";
 
     // Prompts
     pub const PROMPTS_LIST: &str = "prompts/list";

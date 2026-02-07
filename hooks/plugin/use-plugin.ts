@@ -2,7 +2,7 @@
  * usePlugin - Hook for accessing a specific plugin
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { usePluginStore } from '@/stores/plugin';
 import type { Plugin, PluginManifest } from '@/types/plugin';
 
@@ -96,10 +96,11 @@ export function usePluginEvents(
   eventType: string,
   callback: (event: { type: string; pluginId: string; data?: unknown }) => void
 ) {
-  const { addEventListener } = usePluginStore();
+  const addEventListener = usePluginStore((state) => state.addEventListener);
 
   // Subscribe on mount, unsubscribe on unmount
-  useMemo(() => {
-    return addEventListener(eventType, callback);
+  useEffect(() => {
+    const unsubscribe = addEventListener(eventType, callback);
+    return unsubscribe;
   }, [eventType, callback, addEventListener]);
 }

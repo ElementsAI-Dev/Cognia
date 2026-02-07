@@ -5,95 +5,32 @@
  */
 
 import { useState, useCallback } from 'react';
-import {
-  Annotation,
-  AnnotatedScreenshotResult,
-  SelectionValidationResult,
-  SnapConfig,
-} from '@/lib/native/screenshot';
-import { invoke } from '@tauri-apps/api/core';
+import * as screenshotApi from '@/lib/native/screenshot';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.native;
 
-export interface ScreenshotMetadata {
-  width: number;
-  height: number;
-  mode: string;
-  timestamp: number;
-  window_title?: string;
-  monitor_index?: number;
-}
+// Re-export types from the native API for consumers
+export type {
+  ScreenshotMetadata,
+  ScreenshotResult,
+  ScreenshotHistoryEntry,
+  MonitorInfo,
+  WinOcrResult,
+  WindowInfo,
+  Annotation,
+  AnnotatedScreenshotResult,
+  SelectionValidationResult,
+  SnapConfig,
+} from '@/lib/native/screenshot';
 
-export interface ScreenshotResult {
-  image_base64: string;
-  metadata: ScreenshotMetadata;
-}
-
-export interface ScreenshotHistoryEntry {
-  id: string;
-  timestamp: number;
-  thumbnail_base64?: string;
-  file_path?: string;
-  width: number;
-  height: number;
-  mode: string;
-  window_title?: string;
-  ocr_text?: string;
-  label?: string;
-  tags: string[];
-  is_pinned: boolean;
-}
-
-export interface MonitorInfo {
-  index: number;
-  name: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  is_primary: boolean;
-  scale_factor: number;
-}
-
-export interface WinOcrResult {
-  text: string;
-  lines: Array<{
-    text: string;
-    words: Array<{
-      text: string;
-      bounds: { x: number; y: number; width: number; height: number };
-      confidence: number;
-    }>;
-    bounds: { x: number; y: number; width: number; height: number };
-  }>;
-  language?: string;
-  confidence: number;
-}
-
-export interface WindowInfo {
-  hwnd: number;
-  title: string;
-  process_name: string;
-  pid: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  is_minimized: boolean;
-  is_maximized: boolean;
-  is_visible: boolean;
-  thumbnail_base64?: string;
-}
-
-export interface SnapResult {
-  x: number | null;
-  y: number | null;
-  horizontal_edge: string;
-  vertical_edge: string;
-  snap_target: string | null;
-}
+import type {
+  ScreenshotResult,
+  ScreenshotHistoryEntry,
+  Annotation,
+  SnapConfig,
+} from '@/lib/native/screenshot';
 
 export function useScreenshot() {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -106,9 +43,7 @@ export function useScreenshot() {
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_fullscreen_with_history', {
-        monitorIndex,
-      });
+      const result = await screenshotApi.captureFullscreenWithHistory(monitorIndex);
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -123,10 +58,7 @@ export function useScreenshot() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<AnnotatedScreenshotResult>('screenshot_apply_annotations', {
-        imageBase64,
-        annotations,
-      });
+      return await screenshotApi.applyAnnotations(imageBase64, annotations);
     } catch (err) {
       log.error('Failed to apply annotations', err as Error);
       return null;
@@ -138,12 +70,7 @@ export function useScreenshot() {
       if (!isTauri()) return null;
 
       try {
-        return await invoke<SelectionValidationResult>('screenshot_validate_selection', {
-          startX,
-          startY,
-          currentX,
-          currentY,
-        });
+        return await screenshotApi.validateSelection(startX, startY, currentX, currentY);
       } catch (err) {
         log.error('Failed to validate selection', err as Error);
         return null;
@@ -158,7 +85,7 @@ export function useScreenshot() {
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_window_with_history');
+      const result = await screenshotApi.captureWindowWithHistory();
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -175,12 +102,7 @@ export function useScreenshot() {
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>('screenshot_capture_region_with_history', {
-        x,
-        y,
-        width,
-        height,
-      });
+      const result = await screenshotApi.captureRegionWithHistory(x, y, width, height);
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -195,10 +117,7 @@ export function useScreenshot() {
     if (!isTauri()) return null;
 
     try {
-      const region = await invoke<{ x: number; y: number; width: number; height: number }>(
-        'screenshot_start_region_selection'
-      );
-      return region;
+      return await screenshotApi.startRegionSelection();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       return null;
@@ -209,7 +128,7 @@ export function useScreenshot() {
     if (!isTauri()) return '';
 
     try {
-      return await invoke<string>('screenshot_ocr', { imageBase64 });
+      return await screenshotApi.extractText(imageBase64);
     } catch (err) {
       log.error('OCR failed', err as Error);
       return '';
@@ -220,7 +139,7 @@ export function useScreenshot() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<WinOcrResult>('screenshot_ocr_windows', { imageBase64 });
+      return await screenshotApi.extractTextWindows(imageBase64);
     } catch (err) {
       log.error('Windows OCR failed', err as Error);
       return null;
@@ -231,7 +150,7 @@ export function useScreenshot() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<MonitorInfo[]>('screenshot_get_monitors');
+      return await screenshotApi.getMonitors();
     } catch (err) {
       log.error('Failed to get monitors', err as Error);
       return [];
@@ -242,7 +161,7 @@ export function useScreenshot() {
     if (!isTauri()) return '';
 
     try {
-      return await invoke<string>('screenshot_save', { imageBase64, path });
+      return await screenshotApi.saveToFile(imageBase64, path);
     } catch (err) {
       log.error('Failed to save screenshot', err as Error);
       return '';
@@ -253,7 +172,7 @@ export function useScreenshot() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<WindowInfo[]>('screenshot_get_windows');
+      return await screenshotApi.getWindows();
     } catch (err) {
       log.error('Failed to get windows', err as Error);
       return [];
@@ -264,9 +183,7 @@ export function useScreenshot() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<WindowInfo[]>('screenshot_get_windows_with_thumbnails', {
-        thumbnailSize,
-      });
+      return await screenshotApi.getWindowsWithThumbnails(thumbnailSize);
     } catch (err) {
       log.error('Failed to get windows with thumbnails', err as Error);
       return [];
@@ -279,10 +196,7 @@ export function useScreenshot() {
     setIsCapturing(true);
     setError(null);
     try {
-      const result = await invoke<ScreenshotResult>(
-        'screenshot_capture_window_by_hwnd_with_history',
-        { hwnd }
-      );
+      const result = await screenshotApi.captureWindowByHwndWithHistory(hwnd);
       setLastScreenshot(result);
       return result;
     } catch (err) {
@@ -304,13 +218,7 @@ export function useScreenshot() {
       if (!isTauri()) return null;
 
       try {
-        return await invoke<SnapResult>('screenshot_calculate_snap', {
-          windowHwnd,
-          proposedX,
-          proposedY,
-          windowWidth,
-          windowHeight,
-        });
+        return await screenshotApi.calculateSnap(windowHwnd, proposedX, proposedY, windowWidth, windowHeight);
       } catch (err) {
         log.error('Failed to calculate snap', err as Error);
         return null;
@@ -323,7 +231,7 @@ export function useScreenshot() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<SnapConfig>('screenshot_get_snap_config');
+      return await screenshotApi.getSnapConfig();
     } catch (err) {
       log.error('Failed to get snap config', err as Error);
       return null;
@@ -333,7 +241,7 @@ export function useScreenshot() {
   const setSnapConfig = useCallback(async (config: SnapConfig) => {
     if (!isTauri()) return false;
     try {
-      await invoke('screenshot_set_snap_config', { config });
+      await screenshotApi.setSnapConfig(config);
       return true;
     } catch (err) {
       log.error('Failed to set snap config', err as Error);
@@ -344,7 +252,7 @@ export function useScreenshot() {
   const setOcrLanguage = useCallback(async (language: string) => {
     if (!isTauri()) return false;
     try {
-      await invoke('screenshot_set_ocr_language', { language });
+      await screenshotApi.setOcrLanguage(language);
       return true;
     } catch (err) {
       log.error('Failed to set OCR language', err as Error);
@@ -386,7 +294,7 @@ export function useScreenshotHistory() {
 
     setIsLoading(true);
     try {
-      const result = await invoke<ScreenshotHistoryEntry[]>('screenshot_get_history', { count });
+      const result = await screenshotApi.getHistory(count);
       setHistory(result);
     } catch (err) {
       log.error('Failed to fetch screenshot history', err as Error);
@@ -398,7 +306,7 @@ export function useScreenshotHistory() {
   const fetchAllHistory = useCallback(async () => {
     if (!isTauri()) return [] as ScreenshotHistoryEntry[];
     try {
-      return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_all_history');
+      return await screenshotApi.getAllHistory();
     } catch (err) {
       log.error('Failed to fetch all history', err as Error);
       return [];
@@ -408,7 +316,7 @@ export function useScreenshotHistory() {
   const fetchPinnedHistory = useCallback(async () => {
     if (!isTauri()) return [] as ScreenshotHistoryEntry[];
     try {
-      return await invoke<ScreenshotHistoryEntry[]>('screenshot_get_pinned_history');
+      return await screenshotApi.getPinnedHistory();
     } catch (err) {
       log.error('Failed to fetch pinned history', err as Error);
       return [];
@@ -419,7 +327,7 @@ export function useScreenshotHistory() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history', { query });
+      return await screenshotApi.searchHistory(query);
     } catch (err) {
       log.error('Failed to search screenshot history', err as Error);
       return [];
@@ -430,7 +338,7 @@ export function useScreenshotHistory() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<ScreenshotHistoryEntry | null>('screenshot_get_by_id', { id });
+      return await screenshotApi.getScreenshotById(id);
     } catch (err) {
       log.error('Failed to get screenshot', err as Error);
       return null;
@@ -442,7 +350,7 @@ export function useScreenshotHistory() {
       if (!isTauri()) return false;
 
       try {
-        const result = await invoke<boolean>('screenshot_pin', { id });
+        const result = await screenshotApi.pinScreenshot(id);
         if (result) await fetchHistory();
         return result;
       } catch (err) {
@@ -456,9 +364,7 @@ export function useScreenshotHistory() {
   const searchHistoryByLabel = useCallback(async (label: string) => {
     if (!isTauri()) return [] as ScreenshotHistoryEntry[];
     try {
-      return await invoke<ScreenshotHistoryEntry[]>('screenshot_search_history_by_label', {
-        label,
-      });
+      return await screenshotApi.searchHistoryByLabel(label);
     } catch (err) {
       log.error('Failed to search history by label', err as Error);
       return [];
@@ -470,7 +376,7 @@ export function useScreenshotHistory() {
       if (!isTauri()) return false;
 
       try {
-        const result = await invoke<boolean>('screenshot_unpin', { id });
+        const result = await screenshotApi.unpinScreenshot(id);
         if (result) await fetchHistory();
         return result;
       } catch (err) {
@@ -486,7 +392,7 @@ export function useScreenshotHistory() {
       if (!isTauri()) return false;
 
       try {
-        const result = await invoke<boolean>('screenshot_delete', { id });
+        const result = await screenshotApi.deleteScreenshot(id);
         if (result) await fetchHistory();
         return result;
       } catch (err) {
@@ -501,7 +407,7 @@ export function useScreenshotHistory() {
     if (!isTauri()) return;
 
     try {
-      await invoke('screenshot_clear_history');
+      await screenshotApi.clearHistory();
       setHistory([]);
     } catch (err) {
       log.error('Failed to clear history', err as Error);
@@ -511,7 +417,7 @@ export function useScreenshotHistory() {
   const clearAllHistory = useCallback(async () => {
     if (!isTauri()) return;
     try {
-      await invoke('screenshot_clear_all_history');
+      await screenshotApi.clearAllHistory();
       setHistory([]);
     } catch (err) {
       log.error('Failed to clear all history', err as Error);
@@ -521,7 +427,7 @@ export function useScreenshotHistory() {
   const getHistoryStats = useCallback(async () => {
     if (!isTauri()) return null;
     try {
-      return await invoke<[number, boolean]>('screenshot_get_history_stats');
+      return await screenshotApi.getHistoryStats();
     } catch (err) {
       log.error('Failed to get history stats', err as Error);
       return null;

@@ -128,6 +128,87 @@ pub async fn mcp_get_prompt(
         .map_err(|e| (&e).into())
 }
 
+/// Respond to a pending sampling/createMessage request from an MCP server
+#[tauri::command]
+pub async fn mcp_respond_sampling(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    request_id: String,
+    result: serde_json::Value,
+) -> Result<(), McpErrorInfo> {
+    manager
+        .respond_to_sampling(&server_id, &request_id, result)
+        .await
+        .map_err(|e| (&e).into())
+}
+
+/// Set roots for an MCP server and notify it
+#[tauri::command]
+pub async fn mcp_set_roots(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    roots: Vec<crate::mcp::types::Root>,
+) -> Result<(), McpErrorInfo> {
+    manager
+        .set_roots(&server_id, roots)
+        .await
+        .map_err(|e| (&e).into())
+}
+
+/// Get the current roots for an MCP server
+#[tauri::command]
+pub async fn mcp_get_roots(
+    manager: State<'_, McpManager>,
+    server_id: String,
+) -> Result<Vec<crate::mcp::types::Root>, McpErrorInfo> {
+    manager
+        .get_roots(&server_id)
+        .await
+        .map_err(|e| (&e).into())
+}
+
+/// List resource templates from an MCP server
+#[tauri::command]
+pub async fn mcp_list_resource_templates(
+    manager: State<'_, McpManager>,
+    server_id: String,
+) -> Result<Vec<crate::mcp::protocol::resources::ResourceTemplate>, McpErrorInfo> {
+    manager
+        .list_resource_templates(&server_id)
+        .await
+        .map_err(|e| (&e).into())
+}
+
+/// Request argument auto-completion from an MCP server
+#[tauri::command]
+pub async fn mcp_complete(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    ref_type: String,
+    ref_name: String,
+    argument_name: String,
+    argument_value: String,
+) -> Result<serde_json::Value, McpErrorInfo> {
+    manager
+        .complete(&server_id, &ref_type, &ref_name, &argument_name, &argument_value)
+        .await
+        .map_err(|e| (&e).into())
+}
+
+/// Cancel an in-progress request on an MCP server
+#[tauri::command]
+pub async fn mcp_cancel_request(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    request_id: String,
+    reason: Option<String>,
+) -> Result<(), McpErrorInfo> {
+    manager
+        .cancel_request(&server_id, &request_id, reason.as_deref())
+        .await
+        .map_err(|e| (&e).into())
+}
+
 /// Reload MCP configuration from disk
 #[tauri::command]
 pub async fn mcp_reload_config(manager: State<'_, McpManager>) -> Result<(), McpErrorInfo> {

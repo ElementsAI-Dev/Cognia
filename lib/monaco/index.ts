@@ -6,3 +6,4 @@
 export * from './config';
 export * from './languages/mermaid';
 export * from './typescript-config';
+export * from './snippets';

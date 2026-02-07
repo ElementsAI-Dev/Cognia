@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
@@ -21,7 +21,11 @@ import {
   Code2,
   PenLine,
   Zap,
+  Download,
+  Upload,
 } from "lucide-react";
+import { useSelectionStore } from "@/stores/context";
+import type { SelectionTemplate } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -49,18 +53,8 @@ import {
 } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/layout/empty-state";
 
-export interface Template {
-  id: string;
-  name: string;
-  description?: string;
-  prompt: string;
-  category: string;
-  icon?: string;
-  isFavorite?: boolean;
-  usageCount?: number;
-  createdAt: number;
-  updatedAt: number;
-}
+// Re-export SelectionTemplate as Template for backward compatibility
+export type Template = SelectionTemplate;
 
 interface TemplatesPanelProps {
   isOpen: boolean;
@@ -70,126 +64,77 @@ interface TemplatesPanelProps {
   className?: string;
 }
 
-const DEFAULT_TEMPLATES: Template[] = [
+// Default templates used to seed the store on first use
+const DEFAULT_TEMPLATES_SEED: Array<{ name: string; description?: string; prompt: string; category: string; icon?: string }> = [
   {
-    id: "translate-zh",
     name: "Translate to Chinese",
     description: "Translate text to Simplified Chinese",
     prompt: "Translate the following text to Simplified Chinese:\n\n{{text}}",
     category: "Translation",
     icon: "languages",
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "translate-en",
     name: "Translate to English",
     description: "Translate text to English",
     prompt: "Translate the following text to English:\n\n{{text}}",
     category: "Translation",
     icon: "languages",
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "explain-simple",
     name: "Explain Simply",
     description: "Explain in simple terms",
     prompt: "Explain the following in simple terms that anyone can understand:\n\n{{text}}",
     category: "Explanation",
     icon: "sparkles",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "summarize-bullets",
     name: "Summarize as Bullets",
     description: "Create bullet point summary",
     prompt: "Summarize the following text as concise bullet points:\n\n{{text}}",
     category: "Summary",
     icon: "file-text",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "rewrite-formal",
     name: "Rewrite Formally",
     description: "Rewrite in formal tone",
     prompt: "Rewrite the following text in a formal, professional tone:\n\n{{text}}",
     category: "Rewriting",
     icon: "pen-line",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "rewrite-casual",
     name: "Rewrite Casually",
     description: "Rewrite in casual tone",
     prompt: "Rewrite the following text in a casual, friendly tone:\n\n{{text}}",
     category: "Rewriting",
     icon: "pen-line",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "code-explain",
     name: "Explain Code",
     description: "Explain code step by step",
     prompt: "Explain this code step by step, including what each part does:\n\n```\n{{text}}\n```",
     category: "Code",
     icon: "code",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "code-review",
     name: "Code Review",
     description: "Review code for issues",
     prompt: "Review this code and identify potential issues, bugs, or improvements:\n\n```\n{{text}}\n```",
     category: "Code",
     icon: "code",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "extract-keywords",
     name: "Extract Keywords",
     description: "Extract key terms and concepts",
     prompt: "Extract the key terms, concepts, and important phrases from this text:\n\n{{text}}",
     category: "Analysis",
     icon: "zap",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
   {
-    id: "grammar-fix",
     name: "Fix Grammar",
     description: "Fix grammar and spelling",
     prompt: "Fix any grammar, spelling, and punctuation errors in this text. Return only the corrected text:\n\n{{text}}",
     category: "Editing",
     icon: "pen-line",
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
   },
 ];
 
@@ -212,7 +157,36 @@ export function TemplatesPanel({
   className,
 }: TemplatesPanelProps) {
   const t = useTranslations("templates");
-  const [templates, setTemplates] = useState<Template[]>(DEFAULT_TEMPLATES);
+  const {
+    config,
+    addTemplate: storeAddTemplate,
+    updateTemplate: storeUpdateTemplate,
+    removeTemplate: storeRemoveTemplate,
+    toggleTemplateFavorite,
+    incrementTemplateUsage,
+    importTemplates: storeImportTemplates,
+    exportTemplates: storeExportTemplates,
+  } = useSelectionStore();
+
+  // Use store-backed templates, seed defaults if empty
+  const templates = config.templates;
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (!initializedRef.current && templates.length === 0) {
+      initializedRef.current = true;
+      DEFAULT_TEMPLATES_SEED.forEach((tpl) => {
+        storeAddTemplate({
+          name: tpl.name,
+          description: tpl.description,
+          prompt: tpl.prompt,
+          category: tpl.category,
+          icon: tpl.icon,
+        });
+      });
+    }
+  }, [templates.length, storeAddTemplate]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
@@ -258,30 +232,19 @@ export function TemplatesPanel({
 
   const handleApplyTemplate = useCallback(
     (template: Template) => {
-      // Update usage count
-      setTemplates((prev) =>
-        prev.map((t) =>
-          t.id === template.id
-            ? { ...t, usageCount: (t.usageCount || 0) + 1 }
-            : t
-        )
-      );
+      incrementTemplateUsage(template.id);
       onApplyTemplate(template, selectedText);
     },
-    [onApplyTemplate, selectedText]
+    [onApplyTemplate, selectedText, incrementTemplateUsage]
   );
 
   const handleToggleFavorite = useCallback((templateId: string) => {
-    setTemplates((prev) =>
-      prev.map((t) =>
-        t.id === templateId ? { ...t, isFavorite: !t.isFavorite } : t
-      )
-    );
-  }, []);
+    toggleTemplateFavorite(templateId);
+  }, [toggleTemplateFavorite]);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== templateId));
-  }, []);
+    storeRemoveTemplate(templateId);
+  }, [storeRemoveTemplate]);
 
   const handleCopyPrompt = useCallback((template: Template) => {
     const prompt = template.prompt.replace("{{text}}", selectedText || "[selected text]");
@@ -293,35 +256,53 @@ export function TemplatesPanel({
   const handleCreateTemplate = useCallback(() => {
     if (!newTemplate.name || !newTemplate.prompt) return;
 
-    const template: Template = {
-      id: `custom-${Date.now()}`,
+    storeAddTemplate({
       name: newTemplate.name,
       description: newTemplate.description,
       prompt: newTemplate.prompt,
       category: newTemplate.category || "Custom",
-      isFavorite: false,
-      usageCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    setTemplates((prev) => [...prev, template]);
+      icon: newTemplate.icon,
+    });
     setNewTemplate({ name: "", description: "", prompt: "", category: "Custom" });
     setIsCreateDialogOpen(false);
-  }, [newTemplate]);
+  }, [newTemplate, storeAddTemplate]);
 
   const handleUpdateTemplate = useCallback(() => {
     if (!editingTemplate) return;
 
-    setTemplates((prev) =>
-      prev.map((t) =>
-        t.id === editingTemplate.id
-          ? { ...editingTemplate, updatedAt: Date.now() }
-          : t
-      )
-    );
+    storeUpdateTemplate(editingTemplate.id, {
+      name: editingTemplate.name,
+      description: editingTemplate.description,
+      prompt: editingTemplate.prompt,
+      category: editingTemplate.category,
+    });
     setEditingTemplate(null);
-  }, [editingTemplate]);
+  }, [editingTemplate, storeUpdateTemplate]);
+
+  // Import/Export handlers
+  const handleExport = useCallback(() => {
+    const json = storeExportTemplates();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `selection-templates-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [storeExportTemplates]);
+
+  const handleImport = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      storeImportTemplates(text);
+    };
+    input.click();
+  }, [storeImportTemplates]);
 
   if (!isOpen) return null;
 
@@ -350,6 +331,32 @@ export function TemplatesPanel({
             </Badge>
           </div>
           <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-white/60 hover:text-white"
+                  onClick={handleImport}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Import Templates</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-white/60 hover:text-white"
+                  onClick={handleExport}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export Templates</TooltipContent>
+            </Tooltip>
             <Button
               variant="ghost"
               size="sm"

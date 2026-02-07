@@ -21,12 +21,12 @@ pub use ime_state::{ImeState, ImeMonitor};
 use ime_state::InputMode;
 pub use keyboard_monitor::{KeyboardMonitor, KeyEvent, KeyEventType};
 pub use types::{
-    CompletionContext, CompletionResult, CompletionSuggestion, CompletionStatus,
-    InputCompletionEvent,
+    CompletionContext, CompletionFeedback, CompletionResult, CompletionSuggestion,
+    CompletionStatus, InputCompletionEvent,
 };
 
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
@@ -53,6 +53,8 @@ pub struct InputCompletionManager {
     current_suggestion: Arc<RwLock<Option<CompletionSuggestion>>>,
     /// Debounce task handle
     debounce_handle: Arc<RwLock<Option<tauri::async_runtime::JoinHandle<()>>>>,
+    /// Last key event timestamp (ms) for adaptive debounce typing speed calculation
+    last_key_timestamp: Arc<AtomicU64>,
 }
 
 impl InputCompletionManager {
@@ -75,6 +77,7 @@ impl InputCompletionManager {
             input_buffer: Arc::new(RwLock::new(String::new())),
             current_suggestion: Arc::new(RwLock::new(None)),
             debounce_handle: Arc::new(RwLock::new(None)),
+            last_key_timestamp: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -113,6 +116,7 @@ impl InputCompletionManager {
         let completion_service = self.completion_service.clone();
         let app_handle = self.app_handle.clone();
         let debounce_handle = self.debounce_handle.clone();
+        let last_key_timestamp = self.last_key_timestamp.clone();
 
         tauri::async_runtime::spawn(async move {
             log::info!("Input completion event loop started");
@@ -130,6 +134,7 @@ impl InputCompletionManager {
                             &completion_service,
                             &app_handle,
                             &debounce_handle,
+                            &last_key_timestamp,
                         ).await;
                     }
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
@@ -152,9 +157,9 @@ impl InputCompletionManager {
         // Emit stopped event
         let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Stopped);
         
-        // Only stop keyboard monitor if it's running
+        // Stop keyboard monitor with timeout for graceful shutdown
         if self.keyboard_monitor.is_running() {
-            self.keyboard_monitor.stop();
+            self.keyboard_monitor.stop_with_timeout(2000);
         }
         self.ime_monitor.stop();
         
@@ -166,6 +171,46 @@ impl InputCompletionManager {
         // Clear state
         self.input_buffer.write().clear();
         *self.current_suggestion.write() = None;
+        self.last_key_timestamp.store(0, Ordering::Relaxed);
+    }
+
+    /// Compute adaptive debounce delay based on typing speed
+    fn compute_adaptive_debounce(
+        cfg: &CompletionConfig,
+        last_key_timestamp: &Arc<AtomicU64>,
+        current_timestamp: u64,
+    ) -> u64 {
+        let adaptive = &cfg.trigger.adaptive_debounce;
+        if !adaptive.enabled {
+            return cfg.trigger.debounce_ms;
+        }
+
+        let prev_timestamp = last_key_timestamp.load(Ordering::Relaxed);
+        if prev_timestamp == 0 {
+            return cfg.trigger.debounce_ms;
+        }
+
+        let interval_ms = current_timestamp.saturating_sub(prev_timestamp);
+        if interval_ms == 0 {
+            return adaptive.min_debounce_ms;
+        }
+
+        // chars_per_sec = 1000 / interval_ms
+        let typing_speed = 1000.0 / interval_ms as f64;
+
+        if typing_speed >= adaptive.fast_typing_threshold {
+            // Fast typing: use minimum debounce (wait less, user knows what they're typing)
+            adaptive.min_debounce_ms
+        } else if typing_speed <= adaptive.slow_typing_threshold {
+            // Slow typing: use maximum debounce (give them time to think)
+            adaptive.max_debounce_ms
+        } else {
+            // Interpolate linearly between min and max
+            let range = adaptive.fast_typing_threshold - adaptive.slow_typing_threshold;
+            let ratio = (typing_speed - adaptive.slow_typing_threshold) / range;
+            let debounce_range = adaptive.max_debounce_ms as f64 - adaptive.min_debounce_ms as f64;
+            (adaptive.max_debounce_ms as f64 - ratio * debounce_range) as u64
+        }
     }
 
     /// Handle a key event
@@ -178,6 +223,7 @@ impl InputCompletionManager {
         completion_service: &Arc<CompletionService>,
         app_handle: &AppHandle,
         debounce_handle: &Arc<RwLock<Option<tauri::async_runtime::JoinHandle<()>>>>,
+        last_key_timestamp: &Arc<AtomicU64>,
     ) {
         let cfg = config.read().clone();
         
@@ -266,6 +312,7 @@ impl InputCompletionManager {
                 // Trigger completion after debounce
                 let buffer = input_buffer.read();
                 let buffer_len = buffer.len();
+                let buffer_text = buffer.clone();
                 
                 // Check word boundary trigger if enabled
                 if cfg.trigger.trigger_on_word_boundary {
@@ -293,14 +340,36 @@ impl InputCompletionManager {
                 drop(buffer);
                 
                 if buffer_len >= cfg.trigger.min_context_length {
+                    // Try prefix cache matching first (instant, no API call needed)
+                    // If user types characters that match an existing cached suggestion,
+                    // return the remaining portion immediately
+                    if let Some(prefix_result) = completion_service.get_cached_by_prefix(&buffer_text) {
+                        if let Some(suggestion) = prefix_result.suggestions.first() {
+                            log::debug!("Prefix cache hit: {}", suggestion.text.chars().take(50).collect::<String>());
+                            *current_suggestion.write() = Some(suggestion.clone());
+                            let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Suggestion(suggestion.clone()));
+                            // Update timestamp for adaptive debounce
+                            last_key_timestamp.store(key_event.timestamp.max(0) as u64, Ordering::Relaxed);
+                            return;
+                        }
+                    }
+
                     // Cancel previous debounce
                     if let Some(handle) = debounce_handle.write().take() {
                         handle.abort();
                     }
 
-                    // Start new debounce
-                    let debounce_ms = cfg.trigger.debounce_ms;
-                    let buffer_clone = input_buffer.read().clone();
+                    // Compute adaptive debounce delay based on typing speed
+                    let current_ts = key_event.timestamp.max(0) as u64;
+                    let debounce_ms = Self::compute_adaptive_debounce(
+                        &cfg,
+                        last_key_timestamp,
+                        current_ts,
+                    );
+                    
+                    // Update last key timestamp for next adaptive debounce calculation
+                    last_key_timestamp.store(current_ts, Ordering::Relaxed);
+
                     let completion_service = completion_service.clone();
                     let current_suggestion = current_suggestion.clone();
                     let app_handle = app_handle.clone();
@@ -312,7 +381,7 @@ impl InputCompletionManager {
                         
                         // Request completion
                         let context = CompletionContext {
-                            text: buffer_clone,
+                            text: buffer_text,
                             cursor_position: None,
                             file_path: None,
                             language: None,
@@ -417,6 +486,11 @@ impl InputCompletionManager {
     /// Reset completion service statistics
     pub fn reset_stats(&self) {
         self.completion_service.reset_stats();
+    }
+
+    /// Submit quality feedback for a completion suggestion
+    pub fn submit_feedback(&self, feedback: CompletionFeedback) {
+        self.completion_service.submit_feedback(feedback);
     }
 
     /// Clear completion cache

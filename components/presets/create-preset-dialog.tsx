@@ -41,11 +41,12 @@ import {
 } from 'lucide-react';
 import { usePresetStore, useSettingsStore, usePromptTemplateStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import { PRESET_COLORS, PRESET_ICONS, type Preset, type BuiltinPrompt } from '@/types/content/preset';
+import { PRESET_COLORS, PRESET_ICONS, PRESET_CATEGORIES, type Preset, type BuiltinPrompt, type PresetCategory } from '@/types/content/preset';
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
 import { PromptTemplateSelector } from '@/components/prompt';
+import { generatePresetFromDescription, optimizePresetPrompt, generateBuiltinPrompts as generateBuiltinPromptsAI } from '@/lib/ai/presets';
 
 interface CreatePresetDialogProps {
   open: boolean;
@@ -87,6 +88,9 @@ export function CreatePresetDialog({
   // Feature toggles
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  
+  // Category
+  const [category, setCategory] = useState<PresetCategory | undefined>(undefined);
   
   // Built-in prompts
   const [builtinPrompts, setBuiltinPrompts] = useState<BuiltinPrompt[]>([]);
@@ -156,6 +160,7 @@ export function CreatePresetDialog({
         setWebSearchEnabled(editPreset.webSearchEnabled || false);
         setThinkingEnabled(editPreset.thinkingEnabled || false);
         setBuiltinPrompts(editPreset.builtinPrompts || []);
+        setCategory(editPreset.category);
       } else {
         // Reset form for new preset
         setName('');
@@ -172,6 +177,7 @@ export function CreatePresetDialog({
         setThinkingEnabled(false);
         setBuiltinPrompts([]);
         setAiDescription('');
+        setCategory(undefined);
       }
     });
   }, [editPreset, open]);
@@ -200,21 +206,15 @@ export function CreatePresetDialog({
 
     setIsGeneratingPreset(true);
     try {
-      const response = await fetch('/api/generate-preset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: aiDescription,
-          provider: 'openai',
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        }),
+      const providerName = provider === 'auto' ? 'openai' : provider;
+      const result = await generatePresetFromDescription(aiDescription, {
+        provider: providerName as ProviderName,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const preset = data.preset;
-        
+      if (result.success && result.preset) {
+        const preset = result.preset;
         setName(preset.name || '');
         setDescription(preset.description || '');
         setIcon(preset.icon || '💬');
@@ -224,9 +224,10 @@ export function CreatePresetDialog({
         setTemperature(preset.temperature ?? 0.7);
         setWebSearchEnabled(preset.webSearchEnabled || false);
         setThinkingEnabled(preset.thinkingEnabled || false);
+        setCategory(preset.category as PresetCategory | undefined);
         
         if (preset.builtinPrompts?.length) {
-          setBuiltinPrompts(preset.builtinPrompts.map((p: { name: string; content: string; description?: string }) => ({
+          setBuiltinPrompts(preset.builtinPrompts.map((p) => ({
             id: nanoid(),
             name: p.name,
             content: p.content,
@@ -236,8 +237,7 @@ export function CreatePresetDialog({
         setAiDescription('');
         toast.success(t('aiGenerateSuccess'));
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || t('errors.generateFailed'));
+        toast.error(result.error || t('errors.generateFailed'));
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
@@ -245,7 +245,7 @@ export function CreatePresetDialog({
     } finally {
       setIsGeneratingPreset(false);
     }
-  }, [aiDescription, getApiSettings, t]);
+  }, [aiDescription, getApiSettings, provider, t]);
 
   // AI Optimize system prompt
   const handleOptimizePrompt = useCallback(async () => {
@@ -259,24 +259,18 @@ export function CreatePresetDialog({
 
     setIsOptimizingPrompt(true);
     try {
-      const response = await fetch('/api/optimize-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: systemPrompt,
-          provider: provider === 'auto' ? 'openai' : provider,
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        }),
+      const providerName = provider === 'auto' ? 'openai' : provider;
+      const result = await optimizePresetPrompt(systemPrompt, {
+        provider: providerName as ProviderName,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSystemPrompt(data.optimizedPrompt);
+      if (result.success && result.optimizedPrompt) {
+        setSystemPrompt(result.optimizedPrompt);
         toast.success(t('optimizeSuccess'));
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || t('errors.optimizeFailed'));
+        toast.error(result.error || t('errors.optimizeFailed'));
       }
     } catch (error) {
       console.error('Failed to optimize prompt:', error);
@@ -298,25 +292,22 @@ export function CreatePresetDialog({
 
     setIsGeneratingPrompts(true);
     try {
-      const response = await fetch('/api/enhance-builtin-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          presetName: name,
-          presetDescription: description,
-          systemPrompt,
-          existingPrompts: builtinPrompts,
-          action: builtinPrompts.length > 0 ? 'enhance' : 'generate',
-          count: 3,
-          provider: provider === 'auto' ? 'openai' : provider,
+      const providerName = provider === 'auto' ? 'openai' : provider;
+      const result = await generateBuiltinPromptsAI(
+        name,
+        description || undefined,
+        systemPrompt || undefined,
+        builtinPrompts.map(p => ({ name: p.name, content: p.content })),
+        {
+          provider: providerName as ProviderName,
           apiKey: settings.apiKey,
           baseURL: settings.baseURL,
-        }),
-      });
+        },
+        3
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        const newPrompts = data.prompts.map((p: { name: string; content: string; description?: string }) => ({
+      if (result.success && result.prompts) {
+        const newPrompts = result.prompts.map((p) => ({
           id: nanoid(),
           name: p.name,
           content: p.content,
@@ -325,8 +316,7 @@ export function CreatePresetDialog({
         setBuiltinPrompts(prev => [...prev, ...newPrompts]);
         toast.success(t('generatePromptsSuccess'));
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || t('errors.generatePromptsFailed'));
+        toast.error(result.error || t('errors.generatePromptsFailed'));
       }
     } catch (error) {
       console.error('Failed to generate prompts:', error);
@@ -398,6 +388,7 @@ export function CreatePresetDialog({
         maxTokens,
         webSearchEnabled,
         thinkingEnabled,
+        category,
       });
       onSuccess?.({ 
         ...editPreset, 
@@ -414,6 +405,7 @@ export function CreatePresetDialog({
         maxTokens,
         webSearchEnabled,
         thinkingEnabled,
+        category,
       } as Preset);
     } else {
       const newPreset = createPreset({
@@ -430,6 +422,7 @@ export function CreatePresetDialog({
         maxTokens,
         webSearchEnabled,
         thinkingEnabled,
+        category,
       });
       onSuccess?.(newPreset);
     }
@@ -511,6 +504,22 @@ export function CreatePresetDialog({
                   placeholder={tPlaceholders('enterPresetDescription')}
                   rows={2}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('category')}</Label>
+                <Select value={category || ''} onValueChange={(v) => setCategory(v as PresetCategory || undefined)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('selectCategory')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRESET_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {t(`categories.${cat}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

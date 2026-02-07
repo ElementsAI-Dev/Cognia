@@ -5,55 +5,18 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AgentTraceSettings } from './agent-trace-settings';
 
-// Mock next-intl
-jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    const translations: Record<string, string> = {
-      title: 'Agent Trace',
-      description: 'View and manage agent trace records',
-      refresh: 'Refresh',
-      filtersTitle: 'Filters',
-      filtersDescription: 'Filter traces by session, file path, VCS revision, or event type',
-      sessionId: 'Session ID',
-      sessionIdPlaceholder: 'Enter session ID...',
-      filePath: 'File Path',
-      filePathPlaceholder: 'Enter file path...',
-      vcsRevision: 'VCS Revision',
-      vcsRevisionPlaceholder: 'Enter VCS revision...',
-      eventType: 'Event Type',
-      eventTypePlaceholder: 'Select event type',
-      eventTypeAll: 'All events',
-      eventTypeToolCallRequest: 'Tool call request',
-      eventTypeToolCallResult: 'Tool call result',
-      eventTypeStepStart: 'Step start',
-      eventTypeStepFinish: 'Step finish',
-      eventTypePlanning: 'Planning',
-      eventTypeResponse: 'Response',
-      showingCount: `Showing ${params?.count ?? 0} traces`,
-      clearFilters: 'Clear Filters',
-      emptyTitle: 'No Traces Found',
-      emptyDescription: 'No agent traces match your current filters',
-      listTitle: 'Trace Records',
-      listDescription: 'Click on a trace to view details',
-      view: 'View',
-      detailsTitle: 'Trace Details',
-      detailsHint: 'JSON representation of the trace record',
-      copy: 'Copy',
-    };
-    return translations[key] || key;
-  },
-}));
-
-// Mock common translations
+// Mock next-intl with all translation keys
 jest.mock('next-intl', () => ({
   useTranslations: (namespace?: string) => (key: string, params?: Record<string, unknown>) => {
     if (namespace === 'common') {
       const common: Record<string, string> = {
         copied: 'Copied!',
+        cancel: 'Cancel',
+        delete: 'Delete',
       };
       return common[key] || key;
     }
-    const translations: Record<string, string> = {
+    const agentTraceTranslations: Record<string, string | ((...a: unknown[]) => string)> = {
       title: 'Agent Trace',
       description: 'View and manage agent trace records',
       refresh: 'Refresh',
@@ -74,7 +37,6 @@ jest.mock('next-intl', () => ({
       eventTypeStepFinish: 'Step finish',
       eventTypePlanning: 'Planning',
       eventTypeResponse: 'Response',
-      showingCount: `Showing ${params?.count ?? 0} traces`,
       clearFilters: 'Clear Filters',
       emptyTitle: 'No Traces Found',
       emptyDescription: 'No agent traces match your current filters',
@@ -84,8 +46,49 @@ jest.mock('next-intl', () => ({
       detailsTitle: 'Trace Details',
       detailsHint: 'JSON representation of the trace record',
       copy: 'Copy',
+      // Recording
+      'recording.title': 'Agent Trace Recording',
+      'recording.description': 'Control whether agent actions are traced.',
+      'status.enabled': 'Enabled',
+      'status.disabled': 'Disabled',
+      // Actions
+      'actions.clearAll': 'Clear All',
+      'actions.deleteAll': 'Delete All',
+      // Dialogs
+      'dialogs.clearAllTitle': 'Clear All Traces?',
+      'dialogs.clearAllDescription': 'This will permanently delete all agent trace records.',
+      'dialogs.deleteTitle': 'Delete Trace?',
+      'dialogs.deleteDescription': 'This will permanently delete this agent trace record.',
+      // Config
+      'config.title': 'Recording Options',
+      'config.description': 'Configure what gets traced.',
+      'config.maxRecords': 'Maximum Records',
+      'config.maxRecordsDescription': 'Maximum number of trace records to keep',
+      'config.maxRecordsUnlimited': 'Unlimited',
+      'config.autoCleanup': 'Auto Cleanup',
+      'config.autoCleanupDescription': 'Auto delete old traces',
+      'config.autoCleanupNever': 'Never',
+      'config.traceShellCommands': 'Trace Shell Commands',
+      'config.traceShellCommandsDescription': 'Include shell commands',
+      'config.traceCodeEdits': 'Trace Code Edits',
+      'config.traceCodeEditsDescription': 'Include code edits',
+      'config.traceFailedCalls': 'Trace Failed Calls',
+      'config.traceFailedCallsDescription': 'Include failed calls',
+      'config.resetToDefaults': 'Reset to Defaults',
+      // Session summary
+      'sessionSummary.title': 'Session Analytics',
+      'sessionSummary.description': 'Select a session to view analytics.',
+      'sessionSummary.selectSession': 'Select a session...',
+      // View modes
+      'viewModes.list': 'List',
+      'viewModes.timeline': 'Timeline',
     };
-    return translations[key] || key;
+    // Handle params-based translations
+    if (key === 'showingCount') return `Showing ${params?.count ?? 0} traces`;
+    if (key === 'config.autoCleanupDays') return `${params?.days ?? 0} days`;
+    const val = agentTraceTranslations[key];
+    if (typeof val === 'function') return val(params);
+    return val || key;
   },
 }));
 
@@ -95,6 +98,32 @@ jest.mock('@/hooks/agent-trace/use-agent-trace', () => ({
     traces: [],
     refresh: jest.fn(),
   })),
+}));
+
+// Mock analytics hook
+jest.mock('@/hooks/agent-trace/use-agent-trace-analytics', () => ({
+  useAgentTraceAnalytics: jest.fn(() => ({
+    stats: null,
+    sessionSummary: null,
+    loadSessionSummary: jest.fn(),
+    refresh: jest.fn(),
+  })),
+}));
+
+// Mock new sub-components
+jest.mock('./agent-trace-timeline', () => ({
+  AgentTraceTimeline: ({ traces }: { traces: unknown[] }) => (
+    <div data-testid="agent-trace-timeline">Timeline ({traces.length})</div>
+  ),
+}));
+
+jest.mock('./agent-trace-stats', () => ({
+  AgentTraceStatsOverview: ({ stats }: { stats: unknown }) => (
+    stats ? <div data-testid="agent-trace-stats-overview">Stats</div> : null
+  ),
+  AgentTraceSessionSummary: ({ summary }: { summary: unknown }) => (
+    summary ? <div data-testid="agent-trace-session-summary">Summary</div> : null
+  ),
 }));
 
 // Mock agent trace repository - use jest.fn at module level for hoisting
@@ -149,6 +178,8 @@ jest.mock('lucide-react', () => ({
   Trash2: () => <span data-testid="icon-trash">Trash2</span>,
   Download: () => <span data-testid="icon-download">Download</span>,
   Power: () => <span data-testid="icon-power">Power</span>,
+  RotateCcw: () => <span data-testid="icon-rotate">RotateCcw</span>,
+  Clock: () => <span data-testid="icon-clock">Clock</span>,
 }));
 
 // Mock cn utility
@@ -181,6 +212,13 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div data-testid="scroll-area" className={className}>{children}</div>
   ),
+}));
+
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, value }: { children: React.ReactNode; value?: string }) => <div data-testid="tabs" data-value={value}>{children}</div>,
+  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
+  TabsTrigger: ({ children, value }: { children: React.ReactNode; value?: string }) => <button data-testid={`tab-${value}`}>{children}</button>,
+  TabsContent: ({ children, value }: { children: React.ReactNode; value?: string }) => <div data-testid={`tab-content-${value}`}>{children}</div>,
 }));
 
 jest.mock('@/components/ui/select', () => ({
@@ -264,6 +302,13 @@ jest.mock('@/components/settings/common/settings-section', () => ({
   ),
   SettingsGrid: ({ children, columns }: { children: React.ReactNode; columns?: number }) => (
     <div data-testid="settings-grid" data-columns={columns}>{children}</div>
+  ),
+  SettingsRow: ({ children, label, description }: { children: React.ReactNode; label?: string; description?: string }) => (
+    <div data-testid="settings-row">
+      {label && <span>{label}</span>}
+      {description && <span className="text-xs">{description}</span>}
+      {children}
+    </div>
   ),
   SettingsPageHeader: ({ title, description, icon, actions }: { title?: string; description?: string; icon?: React.ReactNode; actions?: React.ReactNode }) => (
     <div data-testid="settings-page-header">
@@ -510,10 +555,12 @@ describe('AgentTraceSettings with traces', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Override useLiveQuery mock to return traces
-    const dexieHooks = jest.requireMock('dexie-react-hooks');
-    const { useLiveQuery } = dexieHooks;
-    useLiveQuery.mockReturnValue(mockTraces);
+    // Override useAgentTrace mock to return traces
+    const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+    useAgentTrace.mockReturnValue({
+      traces: mockTraces,
+      refresh: jest.fn(),
+    });
     
     URL.createObjectURL = jest.fn(() => 'blob:mock-url');
     URL.revokeObjectURL = jest.fn();
@@ -550,7 +597,8 @@ describe('AgentTraceSettings with traces', () => {
 
   it('displays session ID badge', () => {
     render(<AgentTraceSettings />);
-    expect(screen.getByText('session-1')).toBeInTheDocument();
+    const sessionElements = screen.getAllByText('session-1');
+    expect(sessionElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays file count indicator for traces with multiple files', () => {
@@ -635,32 +683,34 @@ describe('AgentTraceSettings with traces', () => {
 describe('AgentTraceSettings helper functions', () => {
   describe('parseRecordFiles', () => {
     it('handles valid JSON with files array', () => {
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          record: JSON.stringify({
-            files: [{ path: '/test/file.ts' }],
-          }),
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            record: JSON.stringify({ files: [{ path: '/test/file.ts' }] }),
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       expect(screen.getByText('/test/file.ts')).toBeInTheDocument();
     });
 
     it('handles empty files array', () => {
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          record: JSON.stringify({ files: [] }),
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            record: JSON.stringify({ files: [] }),
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       expect(screen.getByText('test-1')).toBeInTheDocument();
@@ -668,15 +718,17 @@ describe('AgentTraceSettings helper functions', () => {
 
     it('handles malformed JSON gracefully', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          record: 'invalid json',
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            record: 'invalid json',
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       expect(screen.getByText('test-1')).toBeInTheDocument();
@@ -686,32 +738,36 @@ describe('AgentTraceSettings helper functions', () => {
 
   describe('formatVcs', () => {
     it('formats vcs type and revision', () => {
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          vcsType: 'git',
-          vcsRevision: '1234567890abcdef',
-          record: JSON.stringify({ files: [] }),
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            vcsType: 'git',
+            vcsRevision: '1234567890abcdef',
+            record: JSON.stringify({ files: [] }),
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       expect(screen.getByText('git:1234567890ab')).toBeInTheDocument();
     });
 
     it('handles missing vcs info', () => {
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          record: JSON.stringify({ files: [] }),
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            record: JSON.stringify({ files: [] }),
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       // Should not find any vcs badge
@@ -721,16 +777,18 @@ describe('AgentTraceSettings helper functions', () => {
     });
 
     it('handles vcs type only', () => {
-      const dexieHooks = jest.requireMock('dexie-react-hooks');
-      const { useLiveQuery } = dexieHooks;
-      useLiveQuery.mockReturnValue([
-        {
-          id: 'test-1',
-          timestamp: new Date(),
-          vcsType: 'git',
-          record: JSON.stringify({ files: [] }),
-        },
-      ]);
+      const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+      useAgentTrace.mockImplementation(() => ({
+        traces: [
+          {
+            id: 'test-1',
+            timestamp: new Date(),
+            vcsType: 'git',
+            record: JSON.stringify({ files: [] }),
+          },
+        ],
+        refresh: jest.fn(),
+      }));
       
       render(<AgentTraceSettings />);
       expect(screen.getByText('git')).toBeInTheDocument();
@@ -785,9 +843,9 @@ describe('AgentTraceSettings file path filtering', () => {
 });
 
 describe('AgentTraceSettings delete operations', () => {
-  const mockTraces = [
+  const mockDeleteTraces = [
     {
-      id: 'trace-1',
+      id: 'trace-del-1',
       timestamp: new Date(),
       record: JSON.stringify({ files: [] }),
     },
@@ -795,9 +853,12 @@ describe('AgentTraceSettings delete operations', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    const dexieHooks = jest.requireMock('dexie-react-hooks');
-    const { useLiveQuery } = dexieHooks;
-    useLiveQuery.mockReturnValue(mockTraces);
+    // Override useAgentTrace mock with mockImplementation for reliable override
+    const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+    useAgentTrace.mockImplementation(() => ({
+      traces: mockDeleteTraces,
+      refresh: jest.fn(),
+    }));
     
     URL.createObjectURL = jest.fn(() => 'blob:mock-url');
     URL.revokeObjectURL = jest.fn();
@@ -806,11 +867,18 @@ describe('AgentTraceSettings delete operations', () => {
   afterEach(() => {
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+    // Restore default useAgentTrace mock
+    const { useAgentTrace } = jest.requireMock('@/hooks/agent-trace/use-agent-trace');
+    useAgentTrace.mockImplementation(() => ({
+      traces: [],
+      refresh: jest.fn(),
+    }));
   });
 
   it('renders trace list with View button', () => {
     render(<AgentTraceSettings />);
-    expect(screen.getByText('View')).toBeInTheDocument();
+    const viewButtons = screen.getAllByText('View');
+    expect(viewButtons.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders Clear All dialog trigger', () => {

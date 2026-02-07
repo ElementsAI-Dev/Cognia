@@ -94,16 +94,31 @@ export async function createFullBackup(
   // Export IndexedDB data
   if (opts.includeIndexedDB) {
     try {
-      const [sessions, messages, documents, projects, workflows, summaries, knowledgeFiles] =
-        await Promise.all([
-          db.sessions.toArray(),
-          db.messages.toArray(),
-          db.documents.toArray(),
-          db.projects.toArray(),
-          db.workflows.toArray(),
-          db.summaries.toArray(),
-          db.knowledgeFiles.toArray(),
-        ]);
+      const [
+        sessions,
+        messages,
+        documents,
+        projects,
+        workflows,
+        workflowExecutions,
+        summaries,
+        knowledgeFiles,
+        agentTraces,
+        folders,
+        mcpServers,
+      ] = await Promise.all([
+        db.sessions.toArray(),
+        db.messages.toArray(),
+        db.documents.toArray(),
+        db.projects.toArray(),
+        db.workflows.toArray(),
+        db.workflowExecutions.toArray(),
+        db.summaries.toArray(),
+        db.knowledgeFiles.toArray(),
+        db.agentTraces.toArray(),
+        db.folders.toArray(),
+        db.mcpServers.toArray(),
+      ]);
 
       exportData.indexedDB = {
         sessions,
@@ -112,16 +127,14 @@ export async function createFullBackup(
         projects,
       };
 
-      // Add extended data if available
-      if (workflows.length > 0) {
-        (exportData.indexedDB as Record<string, unknown>).workflows = workflows;
-      }
-      if (summaries.length > 0) {
-        (exportData.indexedDB as Record<string, unknown>).summaries = summaries;
-      }
-      if (knowledgeFiles.length > 0) {
-        (exportData.indexedDB as Record<string, unknown>).knowledgeFiles = knowledgeFiles;
-      }
+      // Include non-empty tables
+      if (workflows.length > 0) exportData.indexedDB.workflows = workflows;
+      if (workflowExecutions.length > 0) exportData.indexedDB.workflowExecutions = workflowExecutions;
+      if (summaries.length > 0) exportData.indexedDB.summaries = summaries;
+      if (knowledgeFiles.length > 0) exportData.indexedDB.knowledgeFiles = knowledgeFiles;
+      if (agentTraces.length > 0) exportData.indexedDB.agentTraces = agentTraces;
+      if (folders.length > 0) exportData.indexedDB.folders = folders;
+      if (mcpServers.length > 0) exportData.indexedDB.mcpServers = mcpServers;
     } catch (error) {
       log.error('Failed to export IndexedDB', error as Error);
     }
@@ -209,14 +222,28 @@ export async function getExportSizeEstimate(): Promise<{
       db.messages.count(),
       db.documents.count(),
       db.projects.count(),
+      db.workflows.count(),
+      db.workflowExecutions.count(),
+      db.summaries.count(),
+      db.knowledgeFiles.count(),
+      db.agentTraces.count(),
+      db.folders.count(),
+      db.mcpServers.count(),
     ]);
 
-    // Rough estimates per record
+    // Rough estimates per record (bytes)
     indexedDB =
-      counts[0] * 512 + // sessions
-      counts[1] * 2048 + // messages
-      counts[2] * 4096 + // documents
-      counts[3] * 1024; // projects
+      counts[0] * 512 +   // sessions
+      counts[1] * 2048 +  // messages
+      counts[2] * 4096 +  // documents
+      counts[3] * 1024 +  // projects
+      counts[4] * 2048 +  // workflows
+      counts[5] * 4096 +  // workflowExecutions
+      counts[6] * 1024 +  // summaries
+      counts[7] * 2048 +  // knowledgeFiles
+      counts[8] * 4096 +  // agentTraces
+      counts[9] * 256 +   // folders
+      counts[10] * 1024;  // mcpServers
   } catch (error) {
     log.error('Failed to estimate export size', error as Error);
   }

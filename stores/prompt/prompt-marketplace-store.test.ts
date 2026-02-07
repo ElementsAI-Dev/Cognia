@@ -30,6 +30,21 @@ jest.mock('./prompt-template-store', () => ({
       createTemplate: jest.fn(() => ({ id: 'template-123' })),
       deleteTemplate: jest.fn(),
       updateTemplate: jest.fn(),
+      getTemplate: jest.fn((id: string) => {
+        if (id === 'template-123') {
+          return {
+            id: 'template-123',
+            name: 'Mock Template',
+            description: 'A mock template',
+            content: 'Hello {{name}}',
+            tags: ['test'],
+            variables: [{ name: 'name', type: 'text', required: true }],
+            targets: ['chat'],
+            source: 'user',
+          };
+        }
+        return undefined;
+      }),
     }),
   },
 }));
@@ -703,6 +718,118 @@ describe('usePromptMarketplaceStore', () => {
       });
 
       expect(selectError(result.current)).toBe('Test error');
+    });
+  });
+
+  describe('Publishing', () => {
+    it('should publish a prompt from template', async () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      let marketplaceId = '';
+      await act(async () => {
+        marketplaceId = await result.current.publishPrompt('template-123', {
+          name: 'Published Prompt',
+          description: 'A published prompt',
+          category: 'coding',
+          tags: ['test'],
+        });
+      });
+
+      expect(marketplaceId).toBe('mock-id-123');
+      expect(result.current.prompts['mock-id-123']).toBeDefined();
+      expect(result.current.prompts['mock-id-123'].name).toBe('Published Prompt');
+      expect(result.current.prompts['mock-id-123'].category).toBe('coding');
+      expect(result.current.prompts['mock-id-123'].source).toBe('user');
+      expect(result.current.prompts['mock-id-123'].publishedAt).toBeDefined();
+      expect(result.current.userActivity.published).toContain('mock-id-123');
+    });
+
+    it('should unpublish a prompt', async () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      // First publish
+      await act(async () => {
+        await result.current.publishPrompt('template-123', {
+          name: 'To Unpublish',
+          description: 'Will be unpublished',
+        });
+      });
+
+      expect(result.current.prompts['mock-id-123']).toBeDefined();
+      expect(result.current.userActivity.published).toContain('mock-id-123');
+
+      // Then unpublish
+      await act(async () => {
+        await result.current.unpublishPrompt('mock-id-123');
+      });
+
+      expect(result.current.prompts['mock-id-123']).toBeUndefined();
+      expect(result.current.userActivity.published).not.toContain('mock-id-123');
+    });
+
+    it('should remove unpublished prompt from featured and trending', async () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      // Publish and add to featured/trending
+      await act(async () => {
+        await result.current.publishPrompt('template-123', { name: 'Featured' });
+      });
+
+      act(() => {
+        usePromptMarketplaceStore.setState({
+          featuredIds: ['mock-id-123'],
+          trendingIds: ['mock-id-123'],
+        });
+      });
+
+      await act(async () => {
+        await result.current.unpublishPrompt('mock-id-123');
+      });
+
+      expect(result.current.featuredIds).not.toContain('mock-id-123');
+      expect(result.current.trendingIds).not.toContain('mock-id-123');
+    });
+  });
+
+  describe('Sample Data with Collections', () => {
+    it('should initialize collections alongside prompts', () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      act(() => {
+        result.current.initializeSampleData();
+      });
+
+      expect(Object.keys(result.current.collections).length).toBeGreaterThan(0);
+    });
+
+    it('should set collection promptIds based on category', () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      act(() => {
+        result.current.initializeSampleData();
+      });
+
+      const collections = Object.values(result.current.collections);
+      // Collections should exist
+      expect(collections.length).toBeGreaterThan(0);
+
+      // Each collection should have valid promptCount matching promptIds length
+      for (const collection of collections) {
+        expect(collection.promptCount).toBe(collection.promptIds.length);
+        expect(collection.createdAt).toBeInstanceOf(Date);
+        expect(collection.updatedAt).toBeInstanceOf(Date);
+      }
+    });
+
+    it('should set trending from top-downloaded prompts', () => {
+      const { result } = renderHook(() => usePromptMarketplaceStore());
+
+      act(() => {
+        result.current.initializeSampleData();
+      });
+
+      expect(result.current.trendingIds.length).toBeGreaterThan(0);
+      expect(result.current.trendingIds.length).toBeLessThanOrEqual(6);
     });
   });
 

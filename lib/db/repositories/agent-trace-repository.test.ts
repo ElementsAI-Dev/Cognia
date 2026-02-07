@@ -280,4 +280,295 @@ describe('agentTraceRepository', () => {
       expect(results).toHaveLength(0);
     });
   });
+
+  describe('getSessionSummary', () => {
+    it('returns null for non-existent session', async () => {
+      const summary = await agentTraceRepository.getSessionSummary('non-existent');
+      expect(summary).toBeNull();
+    });
+
+    it('returns summary with correct trace count', async () => {
+      const now = new Date();
+      for (let i = 0; i < 3; i++) {
+        await agentTraceRepository.create({
+          record: {
+            version: '0.1.0',
+            id: `sum-${i}`,
+            timestamp: new Date(now.getTime() + i * 1000).toISOString(),
+            eventType: 'step_start',
+            files: [{ path: `/src/file${i}.ts`, conversations: [] }],
+          },
+          sessionId: 'session-summary',
+        });
+      }
+
+      const summary = await agentTraceRepository.getSessionSummary('session-summary');
+      expect(summary).not.toBeNull();
+      expect(summary!.sessionId).toBe('session-summary');
+      expect(summary!.traceCount).toBe(3);
+      expect(summary!.totalSteps).toBe(3);
+    });
+
+    it('aggregates event type counts', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'evt-1',
+          timestamp: new Date().toISOString(),
+          eventType: 'step_start',
+          files: [],
+        },
+        sessionId: 'session-evt',
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'evt-2',
+          timestamp: new Date().toISOString(),
+          eventType: 'tool_call_result',
+          files: [],
+          metadata: { toolName: 'file_write', success: true },
+        },
+        sessionId: 'session-evt',
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'evt-3',
+          timestamp: new Date().toISOString(),
+          eventType: 'tool_call_result',
+          files: [],
+          metadata: { toolName: 'code_edit', success: false, error: 'File not found' },
+        },
+        sessionId: 'session-evt',
+      });
+
+      const summary = await agentTraceRepository.getSessionSummary('session-evt');
+      expect(summary!.eventTypeCounts.step_start).toBe(1);
+      expect(summary!.eventTypeCounts.tool_call_result).toBe(2);
+      expect(summary!.toolCallCount).toBe(2);
+      expect(summary!.toolSuccessCount).toBe(1);
+      expect(summary!.toolFailureCount).toBe(1);
+      expect(summary!.toolSuccessRate).toBe(0.5);
+      expect(summary!.uniqueToolNames).toEqual(expect.arrayContaining(['file_write', 'code_edit']));
+    });
+
+    it('collects unique file paths', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'fp-sum-1',
+          timestamp: new Date().toISOString(),
+          files: [
+            { path: '/src/a.ts', conversations: [] },
+            { path: '/src/b.ts', conversations: [] },
+          ],
+        },
+        sessionId: 'session-fp',
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'fp-sum-2',
+          timestamp: new Date().toISOString(),
+          files: [{ path: '/src/a.ts', conversations: [] }],
+        },
+        sessionId: 'session-fp',
+      });
+
+      const summary = await agentTraceRepository.getSessionSummary('session-fp');
+      expect(summary!.uniqueFilePaths).toEqual(expect.arrayContaining(['/src/a.ts', '/src/b.ts']));
+      expect(summary!.uniqueFilePaths).toHaveLength(2);
+    });
+
+    it('computes duration from first to last timestamp', async () => {
+      const t1 = new Date('2024-01-15T10:00:00Z');
+      const t2 = new Date('2024-01-15T10:05:00Z');
+
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'dur-1', timestamp: t1.toISOString(), files: [] },
+        sessionId: 'session-dur',
+      });
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'dur-2', timestamp: t2.toISOString(), files: [] },
+        sessionId: 'session-dur',
+      });
+
+      const summary = await agentTraceRepository.getSessionSummary('session-dur');
+      expect(summary!.durationMs).toBe(300000); // 5 minutes
+    });
+
+    it('aggregates token usage from metadata', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'tok-1',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: {
+            tokenUsage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+          },
+        },
+        sessionId: 'session-tok',
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'tok-2',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: {
+            tokenUsage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 },
+          },
+        },
+        sessionId: 'session-tok',
+      });
+
+      const summary = await agentTraceRepository.getSessionSummary('session-tok');
+      expect(summary!.tokenUsage.promptTokens).toBe(300);
+      expect(summary!.tokenUsage.completionTokens).toBe(150);
+      expect(summary!.tokenUsage.totalTokens).toBe(450);
+    });
+
+    it('computes average latency', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'lat-1',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: { latencyMs: 100 },
+        },
+        sessionId: 'session-lat',
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'lat-2',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: { latencyMs: 300 },
+        },
+        sessionId: 'session-lat',
+      });
+
+      const summary = await agentTraceRepository.getSessionSummary('session-lat');
+      expect(summary!.avgLatencyMs).toBe(200);
+      expect(summary!.totalLatencyMs).toBe(400);
+    });
+  });
+
+  describe('getStats', () => {
+    it('returns zeroed stats when empty', async () => {
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.totalTraces).toBe(0);
+      expect(stats.sessionCount).toBe(0);
+      expect(stats.totalTokens).toBe(0);
+      expect(stats.oldestTimestamp).toBeNull();
+      expect(stats.newestTimestamp).toBeNull();
+    });
+
+    it('returns correct total trace count', async () => {
+      for (let i = 0; i < 3; i++) {
+        await agentTraceRepository.create({
+          record: { version: '0.1.0', id: `stat-${i}`, timestamp: new Date().toISOString(), files: [] },
+        });
+      }
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.totalTraces).toBe(3);
+    });
+
+    it('counts unique sessions', async () => {
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'sc-1', timestamp: new Date().toISOString(), files: [] },
+        sessionId: 'sa',
+      });
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'sc-2', timestamp: new Date().toISOString(), files: [] },
+        sessionId: 'sa',
+      });
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'sc-3', timestamp: new Date().toISOString(), files: [] },
+        sessionId: 'sb',
+      });
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.sessionCount).toBe(2);
+    });
+
+    it('aggregates event type counts', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'etc-1',
+          timestamp: new Date().toISOString(),
+          eventType: 'step_start',
+          files: [],
+        },
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'etc-2',
+          timestamp: new Date().toISOString(),
+          eventType: 'response',
+          files: [],
+        },
+      });
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.eventTypeCounts.step_start).toBe(1);
+      expect(stats.eventTypeCounts.response).toBe(1);
+    });
+
+    it('tracks oldest and newest timestamps', async () => {
+      const old = new Date('2024-01-01T00:00:00Z');
+      const recent = new Date('2024-01-15T00:00:00Z');
+
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'ts-1', timestamp: old.toISOString(), files: [] },
+      });
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'ts-2', timestamp: recent.toISOString(), files: [] },
+      });
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.oldestTimestamp).toBe(old.toISOString());
+      expect(stats.newestTimestamp).toBe(recent.toISOString());
+    });
+
+    it('estimates storage size', async () => {
+      await agentTraceRepository.create({
+        record: { version: '0.1.0', id: 'stor-1', timestamp: new Date().toISOString(), files: [] },
+      });
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.storageEstimateBytes).toBeGreaterThan(0);
+    });
+
+    it('aggregates total tokens from metadata', async () => {
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'toks-1',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: { tokenUsage: { totalTokens: 500 } },
+        },
+      });
+      await agentTraceRepository.create({
+        record: {
+          version: '0.1.0',
+          id: 'toks-2',
+          timestamp: new Date().toISOString(),
+          files: [],
+          metadata: { tokenUsage: { totalTokens: 300 } },
+        },
+      });
+
+      const stats = await agentTraceRepository.getStats();
+      expect(stats.totalTokens).toBe(800);
+    });
+  });
 });

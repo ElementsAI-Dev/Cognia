@@ -20,6 +20,9 @@ export function TextPart({ part, isError }: TextPartProps) {
   const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
   const enableVegaLiteCharts = useSettingsStore((state) => state.enableVegaLiteCharts);
   const showLineNumbers = useSettingsStore((state) => state.showLineNumbers);
+  const mathFontScale = useSettingsStore((state) => state.mathFontScale);
+  const mathDisplayAlignment = useSettingsStore((state) => state.mathDisplayAlignment);
+  const mathShowCopyButton = useSettingsStore((state) => state.mathShowCopyButton);
 
   return (
     <MarkdownRenderer
@@ -29,6 +32,9 @@ export function TextPart({ part, isError }: TextPartProps) {
       enableMermaid={enableMermaidDiagrams}
       enableVegaLite={enableVegaLiteCharts}
       showLineNumbers={showLineNumbers}
+      mathFontScale={mathFontScale}
+      mathDisplayAlignment={mathDisplayAlignment}
+      mathShowCopyButton={mathShowCopyButton}
     />
   );
 }

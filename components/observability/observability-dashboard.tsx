@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -42,6 +43,7 @@ import { EmptyState } from './empty-state';
 import { RecommendationsPanel } from './recommendations-panel';
 import { SessionAnalyticsPanel } from './session-analytics-panel';
 import { EfficiencyMetricsCard } from './efficiency-metrics-card';
+import { PerformanceMetricsPanel } from './performance-metrics-panel';
 import {
   UsageTrendChart,
   ProviderChart,
@@ -51,7 +53,10 @@ import {
   calculateEfficiencyScores,
 } from './charts';
 import { useSettingsStore, useUsageStore } from '@/stores';
-import { useObservabilityData } from '@/hooks/observability';
+import { useObservabilityData, usePerformanceMetrics } from '@/hooks/observability';
+import { useAgentTrace } from '@/hooks/agent-trace';
+import type { AgentTraceRecord } from '@/types/agent-trace';
+import type { DBAgentTrace } from '@/lib/db';
 import { getTopSessionsByUsage } from '@/lib/ai/usage-analytics';
 import {
   downloadRecordsAsCSV,
@@ -114,6 +119,81 @@ export interface MetricsData {
 
 export type TimeRange = '1h' | '24h' | '7d' | '30d';
 
+/**
+ * Convert a DBAgentTrace record to TraceData for the trace viewer
+ */
+function dbTraceToTraceData(dbTrace: DBAgentTrace): TraceData | null {
+  try {
+    const record: AgentTraceRecord = JSON.parse(dbTrace.record);
+    const meta = record.metadata as Record<string, unknown> | undefined;
+
+    const toolName = meta?.toolName as string | undefined;
+    const name = toolName
+      ? `Tool: ${toolName}`
+      : record.eventType
+        ? record.eventType.replace(/_/g, ' ')
+        : 'Trace';
+
+    const success = meta?.success;
+    const status: TraceData['status'] = success === false ? 'error' : 'success';
+
+    const tokenUsage = meta?.tokenUsage as
+      | { promptTokens?: number; completionTokens?: number; totalTokens?: number }
+      | undefined;
+    const usage = meta?.usage as
+      | { promptTokens?: number; completionTokens?: number; totalTokens?: number }
+      | undefined;
+    const tu = tokenUsage || usage;
+
+    const latencyMs = meta?.latencyMs as number | undefined;
+    const modelId = meta?.modelId as string | undefined;
+
+    const spans: SpanData[] = record.files.map((file, index) => ({
+      id: `${record.id}-file-${index}`,
+      name: file.path,
+      startTime: new Date(record.timestamp),
+      status: 'success' as const,
+      type: 'span' as const,
+      metadata: { conversations: file.conversations.length },
+    }));
+
+    if (toolName) {
+      spans.unshift({
+        id: `${record.id}-tool`,
+        name: toolName,
+        startTime: new Date(record.timestamp),
+        duration: latencyMs,
+        status: success === false ? 'error' : 'success',
+        type: 'tool' as const,
+        input: meta?.toolArgs,
+        output: meta?.result,
+        metadata: { toolName },
+      });
+    }
+
+    return {
+      id: record.id,
+      name,
+      sessionId: dbTrace.sessionId || (meta?.sessionId as string | undefined),
+      startTime: new Date(record.timestamp),
+      duration: latencyMs,
+      status,
+      model: modelId,
+      tokenUsage: tu
+        ? {
+            prompt: tu.promptTokens || 0,
+            completion: tu.completionTokens || 0,
+            total: tu.totalTokens || 0,
+          }
+        : undefined,
+      spans,
+      metadata: meta,
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface ObservabilityDashboardProps {
   onClose?: () => void;
 }
@@ -124,10 +204,11 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const tCommon = useTranslations('observability');
 
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
-  const [selectedTrace, _setSelectedTrace] = useState<TraceData | null>(null);
+  const [selectedTrace, setSelectedTrace] = useState<TraceData | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [traceStatusFilter, setTraceStatusFilter] = useState<'all' | 'success' | 'error'>('all');
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
   const usageRecords = useUsageStore((state) => state.records);
@@ -144,6 +225,42 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     efficiency,
     providerBreakdown,
   } = useObservabilityData(timeRange);
+
+  // Agent trace data for Traces tab
+  const { traces: agentTraces, totalCount: traceTotalCount, isLoading: tracesLoading } = useAgentTrace({ limit: 50 });
+
+  // Convert agent traces to TraceData format
+  const traceDataList = useMemo(() => {
+    return agentTraces
+      .map(dbTraceToTraceData)
+      .filter((t): t is TraceData => t !== null);
+  }, [agentTraces]);
+
+  // Apply status filter to traces
+  const filteredTraces = useMemo(() => {
+    if (traceStatusFilter === 'all') return traceDataList;
+    return traceDataList.filter((t) => t.status === traceStatusFilter);
+  }, [traceDataList, traceStatusFilter]);
+
+  // Export traces as JSON
+  const handleExportTraces = useCallback(() => {
+    const data = JSON.stringify(filteredTraces, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `traces-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredTraces]);
+
+  // Performance metrics from agent executor
+  const {
+    summary: perfSummary,
+    history: perfHistory,
+    activeExecutions: perfActiveExecutions,
+    hasData: hasPerfData,
+  } = usePerformanceMetrics();
 
   // Get top sessions
   const topSessions = useMemo(() => {
@@ -249,9 +366,23 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
           </div>
           <div>
             <h2 className="text-xl font-semibold">{t('title')}</h2>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              {t('subtitle') || 'Monitor AI usage and performance'}
-            </p>
+            <div className="flex items-center gap-2 hidden sm:flex">
+              <p className="text-xs text-muted-foreground">
+                {t('subtitle') || 'Monitor AI usage and performance'}
+              </p>
+              {observabilitySettings?.langfuseEnabled && (
+                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  Langfuse
+                </Badge>
+              )}
+              {observabilitySettings?.openTelemetryEnabled && (
+                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  OTel
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -415,6 +546,12 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
                 height={220}
               />
               <EfficiencyMetricsCard metrics={efficiency} />
+              <PerformanceMetricsPanel
+                summary={perfSummary}
+                history={perfHistory}
+                activeExecutions={perfActiveExecutions}
+                hasData={hasPerfData}
+              />
               {topSessions.length > 0 && (
                 <SessionAnalyticsPanel sessions={topSessions} maxSessions={5} />
               )}
@@ -443,13 +580,83 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         <TabsContent value="traces" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
             <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="text-sm">{t('recentTraces')}</CardTitle>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">{t('recentTraces')}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Select value={traceStatusFilter} onValueChange={(v) => setTraceStatusFilter(v as 'all' | 'success' | 'error')}>
+                      <SelectTrigger className="h-7 w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('filterAll') || 'All'}</SelectItem>
+                        <SelectItem value="success">{t('filterSuccess') || 'Success'}</SelectItem>
+                        <SelectItem value="error">{t('filterError') || 'Error'}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleExportTraces}
+                      disabled={filteredTraces.length === 0}
+                      title={t('exportTraces') || 'Export traces'}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">{filteredTraces.length}/{traceTotalCount}</span>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="max-h-96">
+                <ScrollArea className="max-h-[500px]">
                   <div className="divide-y">
-                    <div className="p-4 text-center text-muted-foreground">{t('noTraces')}</div>
+                    {tracesLoading ? (
+                      <div className="p-4 text-center text-muted-foreground">
+                        <RefreshCw className="h-4 w-4 animate-spin inline mr-2" />
+                        {t('traceRunning')}
+                      </div>
+                    ) : filteredTraces.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">{t('noTraces')}</div>
+                    ) : (
+                      filteredTraces.map((trace) => (
+                        <div
+                          key={trace.id}
+                          className={cn(
+                            'p-3 cursor-pointer hover:bg-muted/50 transition-colors',
+                            selectedTrace?.id === trace.id && 'bg-muted'
+                          )}
+                          onClick={() => setSelectedTrace(trace)}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium truncate">{trace.name}</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-xs shrink-0',
+                                trace.status === 'success'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                  : trace.status === 'error'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                              )}
+                            >
+                              {trace.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>{new Date(trace.startTime).toLocaleTimeString()}</span>
+                            {trace.duration != null && <span>{trace.duration}ms</span>}
+                            {trace.model && (
+                              <span className="truncate max-w-[120px]">{trace.model}</span>
+                            )}
+                            {trace.tokenUsage && (
+                              <span>{trace.tokenUsage.total} tok</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </ScrollArea>
               </CardContent>

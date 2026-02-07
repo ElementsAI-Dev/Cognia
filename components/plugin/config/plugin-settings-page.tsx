@@ -761,36 +761,20 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         <TabsContent value="marketplace" className="mt-0">
           <PluginMarketplace
             onInstall={async (pluginId) => {
-              if (!detectTauri()) {
-                toast.error('Plugin installation requires desktop environment');
-                return;
-              }
-
-              let selected: string | null = null;
               try {
-                const picked = await open({
-                  directory: true,
-                  multiple: false,
-                  title: 'Select Plugin Folder',
-                });
-                if (picked && typeof picked === 'string') {
-                  selected = picked;
+                const { PluginMarketplace: MarketplaceClient } = await import('@/lib/plugin');
+                const client = new MarketplaceClient();
+                const result = await client.installPlugin(pluginId);
+                if (result.success) {
+                  await scanPlugins();
+                  toast.success(t('marketplace.installSuccess'));
+                  setActiveTab('my-plugins');
+                } else {
+                  toast.error(result.error || t('marketplace.installFailed'));
                 }
-              } catch {
-                return;
-              }
-
-              if (!selected) return;
-
-              try {
-                const manager = getPluginManager();
-                await manager.installPlugin(selected, { type: 'local', name: pluginId });
-                await scanPlugins();
-                toast.success('Plugin installed');
-                setActiveTab('my-plugins');
               } catch (error) {
-                toast.error('Plugin install failed');
-                console.error('Failed to install plugin:', error);
+                toast.error(t('marketplace.installFailed'));
+                console.error('Failed to install plugin from marketplace:', error);
               }
             }}
             onViewDetails={(plugin) => {
@@ -1018,37 +1002,21 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
         onInstall={async (pluginId) => {
-          if (!detectTauri()) {
-            toast.error('Plugin installation requires desktop environment');
-            return;
-          }
-
-          let selected: string | null = null;
           try {
-            const picked = await open({
-              directory: true,
-              multiple: false,
-              title: 'Select Plugin Folder',
-            });
-            if (picked && typeof picked === 'string') {
-              selected = picked;
+            const { PluginMarketplace: MarketplaceClient } = await import('@/lib/plugin');
+            const client = new MarketplaceClient();
+            const result = await client.installPlugin(pluginId);
+            if (result.success) {
+              await scanPlugins();
+              toast.success(t('marketplace.installSuccess'));
+              setIsDetailModalOpen(false);
+              setActiveTab('my-plugins');
+            } else {
+              toast.error(result.error || t('marketplace.installFailed'));
             }
-          } catch {
-            return;
-          }
-
-          if (!selected) return;
-
-          try {
-            const manager = getPluginManager();
-            await manager.installPlugin(selected, { type: 'local', name: pluginId });
-            await scanPlugins();
-            toast.success('Plugin installed');
-            setIsDetailModalOpen(false);
-            setActiveTab('my-plugins');
           } catch (error) {
-            toast.error('Plugin install failed');
-            console.error('Failed to install plugin:', error);
+            toast.error(t('marketplace.installFailed'));
+            console.error('Failed to install plugin from marketplace:', error);
           }
         }}
       />

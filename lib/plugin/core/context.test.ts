@@ -11,6 +11,45 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn().mockResolvedValue(null),
 }));
 
+// Mock the logger so it routes to console for test assertions
+jest.mock('./logger', () => ({
+  loggers: {
+    manager: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+  },
+  createPluginSystemLogger: jest.fn(() => ({
+    info: (...args: unknown[]) => console.info(...args),
+    warn: (...args: unknown[]) => console.warn(...args),
+    error: (...args: unknown[]) => console.error(...args),
+    debug: (...args: unknown[]) => console.debug(...args),
+  })),
+}));
+
+// Mock rate limiter
+jest.mock('@/lib/plugin/security/rate-limiter', () => ({
+  getPluginRateLimiter: () => ({
+    checkLimit: jest.fn().mockReturnValue(true),
+  }),
+}));
+
+// Mock IPC, message-bus, i18n-loader, debugger
+jest.mock('../messaging/ipc', () => ({
+  createIPCAPI: jest.fn(() => ({})),
+}));
+jest.mock('../messaging/message-bus', () => ({
+  createEventAPI: jest.fn(() => ({})),
+}));
+jest.mock('../utils/i18n-loader', () => ({
+  getPluginI18nLoader: jest.fn(() => ({
+    createPluginAPI: jest.fn(() => ({})),
+  })),
+}));
+jest.mock('../devtools/debugger', () => ({
+  getPluginDebugger: jest.fn(() => ({
+    startSession: jest.fn(),
+    createDebugContext: jest.fn(),
+  })),
+}));
+
 // Mock plugin store
 jest.mock('@/stores/plugin', () => ({
   usePluginStore: {

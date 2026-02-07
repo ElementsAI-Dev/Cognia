@@ -298,7 +298,24 @@ export const useUsageStore = create<UsageState>()(
     }),
     {
       name: 'cognia-usage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure quotaLimits field exists
+          if (!state.quotaLimits || typeof state.quotaLimits !== 'object') {
+            state.quotaLimits = {};
+          }
+          if (state.totalTokens === undefined) {
+            state.totalTokens = 0;
+          }
+          if (state.totalCost === undefined) {
+            state.totalCost = 0;
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         records: state.records.map((r) => ({
           ...r,

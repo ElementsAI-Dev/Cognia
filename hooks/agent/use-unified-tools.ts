@@ -134,13 +134,19 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
   }, [activeSkillIds, skills]);
 
   // Sync built-in tools
+  const { searchProviders, defaultSearchProvider } = useSettingsStore();
   const syncBuiltinTools = useCallback(() => {
     if (!enableBuiltinTools) return;
 
     const tavilyApiKey = providerSettings.tavily?.apiKey;
+    const hasEnabledSearchProvider = Object.values(searchProviders).some(
+      (p) => p.enabled && p.apiKey
+    );
     const builtinTools = initializeAgentTools({
       tavilyApiKey,
-      enableWebSearch: !!tavilyApiKey,
+      searchProviders: hasEnabledSearchProvider ? searchProviders : undefined,
+      defaultSearchProvider,
+      enableWebSearch: hasEnabledSearchProvider || !!tavilyApiKey,
       enableWebScraper,
       enableCalculator: true,
       enableRAGSearch: false, // We handle RAG separately
@@ -153,7 +159,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
 
     // Register new builtin tools
     registerBuiltinTools(registry, builtinTools);
-  }, [enableBuiltinTools, enableWebScraper, enableProcessTools, enableEnvironmentTools, providerSettings.tavily?.apiKey, registry]);
+  }, [enableBuiltinTools, enableWebScraper, enableProcessTools, enableEnvironmentTools, providerSettings.tavily?.apiKey, searchProviders, defaultSearchProvider, registry]);
 
   // Sync skill tools
   const syncSkillTools = useCallback(() => {

@@ -30,8 +30,11 @@ import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
 import { useMention, useSpeech } from '@/hooks';
-import { cn } from '@/lib/utils';
+import { cn, isTauri } from '@/lib/utils';
 import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
+import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import * as nativeCompletion from '@/lib/native/input-completion';
 import { getLanguageFlag } from '@/types/media/speech';
 import { nanoid } from 'nanoid';
 import { AttachmentsPreview } from './chat-input/attachments-preview';
@@ -253,6 +256,15 @@ export function ChatInput({
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
+  // AI Ghost text completion (desktop only)
+  const isDesktop = useMemo(() => isTauri(), []);
+  const aiCompletionEnabled = useCompletionSettingsStore((s) => s.aiCompletionEnabled);
+  const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
+  const aiDebounceMs = useCompletionSettingsStore((s) => s.aiCompletionDebounce);
+  const [ghostText, setGhostText] = useState<string | null>(null);
+  const ghostDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastGhostTriggerRef = useRef<string>('');
+
   // Mention popover positioning
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
@@ -291,6 +303,14 @@ export function ChatInput({
   useEffect(() => {
     initializePromptTemplates();
   }, [initializePromptTemplates]);
+
+  // Cleanup ghost text debounce timer on unmount
+  useEffect(() => {
+    const timer = ghostDebounceRef;
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
 
   // Attachments state
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -342,10 +362,61 @@ export function ChatInput({
   const isProcessing = isLoading || isStreaming;
   const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
 
+  // Trigger AI ghost text completion with debounce
+  const triggerGhostText = useCallback(
+    (text: string) => {
+      if (!isDesktop || !aiCompletionEnabled) return;
+      if (text.length < 5) {
+        setGhostText(null);
+        return;
+      }
+      if (lastGhostTriggerRef.current === text) return;
+      lastGhostTriggerRef.current = text;
+
+      if (ghostDebounceRef.current) clearTimeout(ghostDebounceRef.current);
+      ghostDebounceRef.current = setTimeout(async () => {
+        try {
+          const result = await nativeCompletion.triggerCompletion(text);
+          if (result && result.suggestions.length > 0) {
+            setGhostText(result.suggestions[0].text);
+          }
+        } catch {
+          // Ghost text is best-effort
+        }
+      }, aiDebounceMs);
+    },
+    [isDesktop, aiCompletionEnabled, aiDebounceMs]
+  );
+
+  const acceptGhostTextFn = useCallback(async () => {
+    if (!ghostText) return;
+    const newValue = value + ghostText;
+    onChange(newValue);
+    setGhostText(null);
+    lastGhostTriggerRef.current = '';
+    if (isDesktop) {
+      nativeCompletion.acceptSuggestion().catch(() => {});
+    }
+  }, [ghostText, value, onChange, isDesktop]);
+
+  const dismissGhostTextFn = useCallback(() => {
+    if (!ghostText) return;
+    setGhostText(null);
+    lastGhostTriggerRef.current = '';
+    if (isDesktop) {
+      nativeCompletion.dismissSuggestion().catch(() => {});
+    }
+  }, [ghostText, isDesktop]);
+
   // Handle input change with mention and slash command detection
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
+      // Dismiss ghost text when user types
+      if (ghostText) {
+        setGhostText(null);
+        lastGhostTriggerRef.current = '';
+      }
       const textarea = textareaRef.current;
       if (textarea) {
         const pos = textarea.selectionStart || 0;
@@ -377,9 +448,14 @@ export function ChatInput({
         if (slashCommandState.isOpen) {
           setSlashCommandState((prev) => ({ ...prev, isOpen: false }));
         }
+
+        // Trigger AI ghost text if no popover is active
+        if (!mentionState.isOpen && !slashCommandState.isOpen) {
+          triggerGhostText(newValue);
+        }
       }
     },
-    [onChange, handleTextChange, slashCommandState.isOpen]
+    [onChange, handleTextChange, slashCommandState.isOpen, mentionState.isOpen, ghostText, triggerGhostText]
   );
 
   const handleTemplateSelect = useCallback(
@@ -1040,6 +1116,16 @@ export function ChatInput({
               aria-label={t('inputAriaLabel')}
               aria-describedby={speechError ? 'speech-error' : undefined}
             />
+            {/* AI Ghost text overlay */}
+            {ghostText && textareaRef.current && (
+              <GhostTextOverlay
+                text={ghostText}
+                textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}
+                onAccept={acceptGhostTextFn}
+                onDismiss={dismissGhostTextFn}
+                opacity={ghostTextOpacity}
+              />
+            )}
             {/* Character counter */}
             {value.length > 0 && (
               <span

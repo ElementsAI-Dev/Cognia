@@ -12,8 +12,9 @@ import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
 import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
 import type { ProviderName } from '@/types/provider';
-import type { PPTPresentation, PPTSlide, PPTTheme } from '@/types/workflow';
+import type { PPTPresentation, PPTSlide, PPTTheme, PPTMaterial, PPTEnhancedGenerationOptions, PPTImageStyle } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
+import { PPTWorkflowExecutor, type PPTExecutorConfig } from '@/lib/ai/workflows/ppt-executor';
 import {
   buildSystemPrompt,
   buildOutlinePrompt,
@@ -54,6 +55,12 @@ export interface PPTOutlineData {
   }>;
 }
 
+export interface PPTMaterialGenerationConfig extends PPTGenerationConfig {
+  materials: PPTMaterial[];
+  generateImages?: boolean;
+  imageStyle?: PPTImageStyle;
+}
+
 export interface UsePPTGenerationReturn {
   // State
   isGenerating: boolean;
@@ -69,6 +76,7 @@ export interface UsePPTGenerationReturn {
     outline: PPTOutlineData
   ) => Promise<PPTPresentation | null>;
   generate: (config: PPTGenerationConfig) => Promise<PPTPresentation | null>;
+  generateFromMaterials: (config: PPTMaterialGenerationConfig) => Promise<PPTPresentation | null>;
   cancel: () => void;
   reset: () => void;
 
@@ -556,6 +564,105 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     [callAI, parseJSONResponse, loadPresentation, addPresentation]
   );
 
+  // Generate presentation from materials using PPTWorkflowExecutor
+  const generateFromMaterials = useCallback(
+    async (config: PPTMaterialGenerationConfig): Promise<PPTPresentation | null> => {
+      const controller = new AbortController();
+      setAbortController(controller);
+      setIsGenerating(true);
+      setError(null);
+      setProgress({
+        stage: 'outline',
+        currentSlide: 0,
+        totalSlides: config.slideCount,
+        message: '正在处理素材并生成演示文稿...',
+      });
+
+      try {
+        const apiConfig = getAPIConfig();
+
+        const executorConfig: PPTExecutorConfig = {
+          apiKey: apiConfig.apiKey,
+          onProgress: (workflowProgress) => {
+            setProgress({
+              stage: workflowProgress.currentStepName?.includes('outline') ? 'outline'
+                : workflowProgress.currentStepName?.includes('slide') ? 'content'
+                : 'finalizing',
+              currentSlide: workflowProgress.completedSteps,
+              totalSlides: workflowProgress.totalSteps,
+              message: workflowProgress.currentStepName || '处理中...',
+            });
+          },
+          onError: (err) => {
+            console.error('Workflow step error:', err.message);
+          },
+          generateAIContent: async (prompt: string) => {
+            const systemPrompt = 'You are a professional presentation content creator. Generate high-quality content in the requested format.';
+            return callAI(systemPrompt, prompt, controller.signal);
+          },
+        };
+
+        const executor = new PPTWorkflowExecutor(executorConfig);
+
+        const enhancedOptions: PPTEnhancedGenerationOptions = {
+          topic: config.topic,
+          description: config.description,
+          targetAudience: config.audience,
+          slideCount: config.slideCount,
+          style: (config.tone === 'formal' ? 'professional' : config.tone) || 'professional',
+          language: config.language || 'zh-CN',
+          materials: config.materials,
+          generateImages: config.generateImages ?? false,
+          imageStyle: config.imageStyle,
+          theme: config.theme ? {
+            primaryColor: config.theme.primaryColor,
+            secondaryColor: config.theme.secondaryColor,
+            backgroundColor: config.theme.backgroundColor,
+            textColor: config.theme.textColor,
+            headingFont: config.theme.headingFont,
+            bodyFont: config.theme.bodyFont,
+          } : undefined,
+        };
+
+        const result = await executor.execute(enhancedOptions);
+
+        if (!result.success || !result.presentation) {
+          throw new Error(result.errors?.join(', ') || 'Failed to generate presentation from materials');
+        }
+
+        const newPresentation = result.presentation;
+        setPresentation(newPresentation);
+        loadPresentation(newPresentation);
+        addPresentation(newPresentation);
+
+        setProgress({
+          stage: 'complete',
+          currentSlide: newPresentation.slides.length,
+          totalSlides: newPresentation.slides.length,
+          message: '演示文稿生成完成！',
+        });
+
+        return newPresentation;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Material generation failed';
+        if (message !== 'Generation cancelled') {
+          setError(message);
+          setProgress({
+            stage: 'error',
+            currentSlide: 0,
+            totalSlides: config.slideCount,
+            message: `素材生成失败: ${message}`,
+          });
+        }
+        return null;
+      } finally {
+        setIsGenerating(false);
+        setAbortController(null);
+      }
+    },
+    [callAI, getAPIConfig, loadPresentation, addPresentation]
+  );
+
   // Reset state
   const reset = useCallback(() => {
     setIsGenerating(false);
@@ -585,6 +692,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
     generateOutline,
     generateFromOutline,
     generate,
+    generateFromMaterials,
     cancel,
     reset,
     getEstimatedTime,

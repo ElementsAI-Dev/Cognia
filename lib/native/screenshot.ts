@@ -469,6 +469,27 @@ export async function getHistoryStats(): Promise<[number, boolean]> {
   return invoke("screenshot_get_history_stats");
 }
 
+/**
+ * Add tag to screenshot
+ */
+export async function addTag(id: string, tag: string): Promise<boolean> {
+  return invoke("screenshot_add_tag", { id, tag });
+}
+
+/**
+ * Remove tag from screenshot
+ */
+export async function removeTag(id: string, tag: string): Promise<boolean> {
+  return invoke("screenshot_remove_tag", { id, tag });
+}
+
+/**
+ * Set label for screenshot
+ */
+export async function setLabel(id: string, label: string): Promise<boolean> {
+  return invoke("screenshot_set_label", { id, label });
+}
+
 // ============== Configuration ==============
 
 /**
@@ -568,6 +589,35 @@ export async function captureWindowByHwndWithHistory(
   hwnd: number
 ): Promise<ScreenshotResult> {
   return invoke("screenshot_capture_window_by_hwnd_with_history", { hwnd });
+}
+
+// ============== Window Snap Functions ==============
+
+export interface SnapResult {
+  x: number | null;
+  y: number | null;
+  horizontal_edge: string;
+  vertical_edge: string;
+  snap_target: string | null;
+}
+
+/**
+ * Calculate snap position for window movement
+ */
+export async function calculateSnap(
+  windowHwnd: number,
+  proposedX: number,
+  proposedY: number,
+  windowWidth: number,
+  windowHeight: number
+): Promise<SnapResult> {
+  return invoke("screenshot_calculate_snap", {
+    windowHwnd,
+    proposedX,
+    proposedY,
+    windowWidth,
+    windowHeight,
+  });
 }
 
 // ============== Selection Snap Functions ==============

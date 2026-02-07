@@ -255,9 +255,32 @@ pub async fn scheduler_request_elevation(
     }
 }
 
+/// Confirm a pending task operation
+#[tauri::command]
+pub async fn scheduler_confirm_task(
+    state: State<'_, SchedulerState>,
+    task_id: SystemTaskId,
+) -> Result<Option<SystemTask>, String> {
+    debug!("Confirming pending task: {}", task_id);
+
+    match state.confirm_task(&task_id).await {
+        Ok(task) => {
+            if task.is_some() {
+                info!("Task confirmed: {}", task_id);
+            }
+            Ok(task)
+        }
+        Err(e) => {
+            error!("Failed to confirm task: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
 /// Validate a system task input without creating it
 #[tauri::command]
 pub fn scheduler_validate_task(
+    state: State<'_, SchedulerState>,
     input: CreateSystemTaskInput,
 ) -> Result<ValidationResult, String> {
     let mut errors = Vec::new();
@@ -283,7 +306,7 @@ pub fn scheduler_validate_task(
             }
         }
         crate::scheduler::SystemTaskTrigger::Once { run_at } => {
-            if chrono::DateTime::parse_from_rfc3339(run_at).is_err() {
+            if crate::scheduler::service::parse_datetime(run_at).is_none() {
                 errors.push("Invalid datetime format for run_at".to_string());
             }
         }
@@ -333,7 +356,7 @@ pub fn scheduler_validate_task(
     };
 
     let risk_level = temp_task.calculate_risk_level();
-    let requires_admin = temp_task.check_requires_admin();
+    let requires_admin = temp_task.check_requires_admin() || state.requires_admin(&temp_task);
     warnings.extend(temp_task.generate_warnings());
 
     Ok(ValidationResult {

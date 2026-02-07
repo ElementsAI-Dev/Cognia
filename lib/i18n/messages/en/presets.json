@@ -67,7 +67,19 @@
     "aiGenerate": "AI Generate",
     "add": "Add",
     "noBuiltinPrompts": "No built-in prompts. Add one to include quick-access prompts with this preset.",
-    "default": "Default"
+    "default": "Default",
+    "category": "Category",
+    "selectCategory": "Select category",
+    "categories": {
+      "general": "General",
+      "coding": "Coding",
+      "writing": "Writing",
+      "research": "Research",
+      "education": "Education",
+      "business": "Business",
+      "creative": "Creative",
+      "productivity": "Productivity"
+    }
   },
   "presets": {
     "title": "Presets",
@@ -145,6 +157,19 @@
     "removeFromFavoritesTitle": "Remove from favorites",
     "addToFavoritesTitle": "Add to favorites",
     "removePrompt": "Remove prompt",
+    "allCategories": "All Categories",
+    "category": "Category",
+    "selectCategory": "Select category",
+    "categories": {
+      "general": "General",
+      "coding": "Coding",
+      "writing": "Writing",
+      "research": "Research",
+      "education": "Education",
+      "business": "Business",
+      "creative": "Creative",
+      "productivity": "Productivity"
+    },
     "errors": {
       "noApiKey": "Please configure an API key in settings first.",
       "generateFailed": "Failed to generate preset",

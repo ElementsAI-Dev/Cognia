@@ -32,6 +32,8 @@ export { AIChatPanel } from './ai';
 export { AISuggestionsPanel } from './ai';
 
 // Editor components
+export { MonacoSandpackEditor } from './editor';
+export { MonacoDiffEditor } from './editor';
 export { ReactSandbox } from './editor';
 export { SandboxFileExplorer } from './editor';
 export { SandboxErrorBoundary, useErrorBoundaryReset, useConsoleErrorInterceptor } from './editor';
@@ -52,6 +54,8 @@ export { PreviewLoading, usePreviewStatus } from './preview';
 export { ResponsiveControls } from './preview';
 export { LayoutGridOverlay } from './preview';
 export { BreadcrumbNav } from './preview';
+export { PreviewConsole } from './preview';
+export { PreviewToolbar } from './preview';
 
 // Toolbar components
 export { DesignerToolbar } from './toolbar';

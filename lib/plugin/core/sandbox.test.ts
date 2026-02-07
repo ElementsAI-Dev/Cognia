@@ -6,6 +6,24 @@
 import { PluginSandbox, createPluginSandbox } from './sandbox';
 import type { PluginPermission } from '@/types/plugin';
 
+// Mock the logger system so sandbox console calls are routed to real console
+jest.mock('./logger', () => ({
+  loggers: {
+    sandbox: {
+      info: (...args: unknown[]) => console.log(...args),
+      warn: (...args: unknown[]) => console.warn(...args),
+      error: (...args: unknown[]) => console.error(...args),
+      debug: (...args: unknown[]) => console.debug(...args),
+    },
+  },
+  createPluginSystemLogger: jest.fn(() => ({
+    info: (...args: unknown[]) => console.log(...args),
+    warn: (...args: unknown[]) => console.warn(...args),
+    error: (...args: unknown[]) => console.error(...args),
+    debug: (...args: unknown[]) => console.debug(...args),
+  })),
+}));
+
 // Mock localStorage
 const mockLocalStorage = {
   getItem: jest.fn(),

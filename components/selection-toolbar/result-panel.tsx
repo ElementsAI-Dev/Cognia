@@ -62,6 +62,8 @@ export interface ResultPanelProps {
   onResumeSpeak?: () => void;
   // Follow-up action props
   onFollowUpAction?: (action: 'explain' | 'simplify' | 'formal' | 'casual') => void;
+  // Replace-in-place
+  onReplace?: (text: string) => void;
 }
 
 export function ResultPanel({
@@ -89,6 +91,8 @@ export function ResultPanel({
   onResumeSpeak,
   // Follow-up actions
   onFollowUpAction,
+  // Replace-in-place
+  onReplace,
 }: ResultPanelProps) {
   const t = useTranslations("resultPanel");
   const [copied, setCopied] = useState(false);
@@ -322,6 +326,15 @@ export function ResultPanel({
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     {showCompareView ? t("hideOriginal") : t("showOriginal")}
+                  </DropdownMenuItem>
+                )}
+                {onReplace && displayContent && (
+                  <DropdownMenuItem 
+                    onClick={() => onReplace(displayContent)}
+                    className="text-xs gap-2"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    {t("replaceOriginal") ?? "Replace Original"}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem className="text-xs gap-2">

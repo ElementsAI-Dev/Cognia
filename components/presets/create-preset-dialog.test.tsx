@@ -42,6 +42,14 @@ jest.mock('@/stores', () => ({
 jest.mock('@/types/content/preset', () => ({
   PRESET_COLORS: ['#6366f1', '#3B82F6', '#10B981', '#F59E0B'],
   PRESET_ICONS: ['💬', '🤖', '📝', '🔬'],
+  PRESET_CATEGORIES: ['general', 'coding', 'writing', 'research', 'education', 'business', 'creative', 'productivity'],
+}));
+
+// Mock AI service
+jest.mock('@/lib/ai/presets', () => ({
+  generatePresetFromDescription: jest.fn(),
+  optimizePresetPrompt: jest.fn(),
+  generateBuiltinPrompts: jest.fn(),
 }));
 
 jest.mock('@/types/provider', () => ({

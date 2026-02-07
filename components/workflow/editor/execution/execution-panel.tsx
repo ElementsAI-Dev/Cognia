@@ -11,9 +11,18 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatDuration } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
+import {
+  formatExecutionDuration,
+  getExecutionSummary,
+  getFailedNodes,
+  estimateRemainingTime,
+  filterLogsByLevel,
+  getNodeStatusColor,
+  canRetryExecution,
+} from '@/lib/workflow-editor';
 import {
   Play,
   Pause,
@@ -25,8 +34,10 @@ import {
   AlertCircle,
   ChevronRight,
   Terminal,
+  RotateCcw,
+  Filter,
 } from 'lucide-react';
-import type { NodeExecutionStatus } from '@/types/workflow/workflow-editor';
+import type { NodeExecutionStatus, ExecutionLog } from '@/types/workflow/workflow-editor';
 
 interface ExecutionPanelProps {
   className?: string;
@@ -56,6 +67,7 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
     resumeExecution,
     cancelExecution,
     clearExecutionState,
+    startExecution,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
@@ -64,18 +76,51 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
       resumeExecution: state.resumeExecution,
       cancelExecution: state.cancelExecution,
       clearExecutionState: state.clearExecutionState,
+      startExecution: state.startExecution,
     }))
   );
 
-  const progress = useMemo(() => {
-    if (!executionState) return 0;
-    const nodeStates = Object.values(executionState.nodeStates);
-    if (nodeStates.length === 0) return 0;
-    const completed = nodeStates.filter(
-      (s) => s.status === 'completed' || s.status === 'failed' || s.status === 'skipped'
-    ).length;
-    return (completed / nodeStates.length) * 100;
+  const handleRun = () => {
+    if (currentWorkflow) {
+      clearExecutionState();
+      startExecution({});
+    }
+  };
+
+  const [logFilter, setLogFilter] = useState<ExecutionLog['level'] | 'all'>('all');
+
+  const executionSummary = useMemo(() => {
+    if (!executionState) return null;
+    return getExecutionSummary(executionState);
   }, [executionState]);
+
+  const progress = useMemo(() => {
+    if (!executionSummary) return 0;
+    const { totalNodes, completedNodes, failedNodes } = executionSummary;
+    if (totalNodes === 0) return 0;
+    return ((completedNodes + failedNodes) / totalNodes) * 100;
+  }, [executionSummary]);
+
+  const remainingTime = useMemo(() => {
+    if (!executionState) return null;
+    return estimateRemainingTime(executionState);
+  }, [executionState]);
+
+  const failedNodes = useMemo(() => {
+    if (!executionState) return [];
+    return getFailedNodes(executionState);
+  }, [executionState]);
+
+  const isRetryable = useMemo(() => {
+    if (!executionState) return false;
+    return canRetryExecution(executionState);
+  }, [executionState]);
+
+  const filteredLogs = useMemo(() => {
+    if (!executionState) return [];
+    if (logFilter === 'all') return executionState.logs;
+    return filterLogsByLevel(executionState.logs, logFilter);
+  }, [executionState, logFilter]);
 
   const nodeSteps = useMemo(() => {
     if (!currentWorkflow || !executionState) return [];
@@ -119,17 +164,8 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
     return node ? { id: node.id, label: node.data.label } : null;
   }, [executionState, currentWorkflow]);
 
-  // Calculate completed and total nodes
-  const { completedCount, totalCount } = useMemo(() => {
-    if (!executionState) return { completedCount: 0, totalCount: 0 };
-    const states = Object.values(executionState.nodeStates);
-    return {
-      completedCount: states.filter(
-        (s) => s.status === 'completed' || s.status === 'failed' || s.status === 'skipped'
-      ).length,
-      totalCount: states.length,
-    };
-  }, [executionState]);
+  const completedCount = executionSummary ? executionSummary.completedNodes + executionSummary.failedNodes : 0;
+  const totalCount = executionSummary?.totalNodes ?? 0;
 
 
   if (!executionState) {
@@ -172,9 +208,17 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Elapsed</span>
               <span className="text-sm font-mono font-medium text-blue-500">
-                {formatDuration(elapsedTime)}
+                {formatExecutionDuration(elapsedTime)}
               </span>
             </div>
+            {remainingTime !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Est. remaining</span>
+                <span className="text-xs font-mono text-muted-foreground">
+                  ~{formatExecutionDuration(remainingTime)}
+                </span>
+              </div>
+            )}
             {currentNode && (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
@@ -233,16 +277,46 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
           {(executionState.status === 'completed' ||
             executionState.status === 'failed' ||
             executionState.status === 'cancelled') && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={clearExecutionState}
-            >
-              {t('clear')}
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={clearExecutionState}
+              >
+                {t('clear')}
+              </Button>
+              {isRetryable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleRun}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              )}
+            </>
           )}
         </div>
+
+        {/* Failed Nodes Summary */}
+        {failedNodes.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-destructive">
+              {failedNodes.length} node(s) failed
+            </h4>
+            {failedNodes.map((fn) => (
+              <div
+                key={fn.nodeId}
+                className="text-xs bg-red-500/10 rounded p-1.5 text-red-600 dark:text-red-400"
+              >
+                <span className="font-mono">{fn.nodeId}</span>: {fn.error}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Steps */}
@@ -256,6 +330,7 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
               const status = step.state?.status || 'idle';
               const config = STATUS_CONFIG[status];
               const Icon = config.icon;
+              const statusColor = getNodeStatusColor(status);
 
               return (
                 <div
@@ -267,6 +342,10 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
                     status === 'failed' && 'bg-red-500/10'
                   )}
                 >
+                  <div
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: statusColor }}
+                  />
                   <Icon
                     className={cn(
                       'h-4 w-4',
@@ -278,7 +357,7 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
                     <div className="truncate font-medium">{step.label}</div>
                     {step.state?.duration && (
                       <div className="text-xs text-muted-foreground">
-                        {(step.state.duration / 1000).toFixed(2)}s
+                        {formatExecutionDuration(step.state.duration)}
                       </div>
                     )}
                   </div>
@@ -296,18 +375,37 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
 
       {/* Logs */}
       <div className="h-48 flex flex-col">
-        <div className="p-3 border-b flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-muted-foreground" />
-          <h4 className="text-xs font-medium text-muted-foreground">{t('logs')}</h4>
+        <div className="p-3 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-muted-foreground" />
+            <h4 className="text-xs font-medium text-muted-foreground">{t('logs')}</h4>
+            <Badge variant="outline" className="text-xs">
+              {filteredLogs.length}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-1">
+            <Filter className="h-3 w-3 text-muted-foreground" />
+            {(['all', 'info', 'warn', 'error', 'debug'] as const).map((level) => (
+              <Button
+                key={level}
+                variant={logFilter === level ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-5 px-1.5 text-[10px]"
+                onClick={() => setLogFilter(level)}
+              >
+                {level}
+              </Button>
+            ))}
+          </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1 font-mono text-xs">
-            {executionState.logs.length === 0 ? (
+            {filteredLogs.length === 0 ? (
               <div className="text-muted-foreground text-center py-4">
                 {t('noLogs')}
               </div>
             ) : (
-              executionState.logs.map((log, index) => (
+              filteredLogs.map((log, index) => (
                 <div
                   key={index}
                   className={cn(

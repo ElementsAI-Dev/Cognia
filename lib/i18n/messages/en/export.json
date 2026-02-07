@@ -89,6 +89,8 @@
     "exportedAs": "Successfully exported as {format}",
     "exportFormat": "Export {ext}",
     "wordOptions": "Word Document Options",
+    "pageLayout": "Page Layout",
+    "pageLayoutDesc": "Configure page size, margins and orientation",
     "share": "Share",
     "shareToSocial": "Share to Social Media",
     "shareDescription": "Share this conversation to social media or copy content",

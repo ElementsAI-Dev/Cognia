@@ -12,7 +12,9 @@ use crate::mcp::protocol::jsonrpc::{
     methods, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION,
 };
 use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsListResponse};
-use crate::mcp::protocol::resources::{ResourcesListResponse, ResourcesReadParams};
+use crate::mcp::protocol::resources::{
+    ResourceTemplate, ResourcesListResponse, ResourcesReadParams, ResourcesTemplatesListResponse,
+};
 use crate::mcp::protocol::tools::{ToolsCallParams, ToolsListResponse};
 use crate::mcp::transport::sse::SseTransport;
 use crate::mcp::transport::stdio::StdioTransport;
@@ -40,6 +42,10 @@ pub struct McpClient {
     server_info: TokioMutex<Option<ServerInfo>>,
     /// Background task handle
     receive_task: TokioMutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Client roots exposed to the server
+    roots: Arc<TokioMutex<Vec<Root>>>,
+    /// Pending sampling requests awaiting frontend response (request_id_string → RequestId)
+    pending_sampling_requests: Arc<TokioMutex<HashMap<String, crate::mcp::protocol::jsonrpc::RequestId>>>,
 }
 
 impl McpClient {
@@ -120,6 +126,8 @@ impl McpClient {
             capabilities: TokioMutex::new(None),
             server_info: TokioMutex::new(None),
             receive_task: TokioMutex::new(None),
+            roots: Arc::new(TokioMutex::new(Vec::new())),
+            pending_sampling_requests: Arc::new(TokioMutex::new(HashMap::new())),
         };
 
         log::debug!("MCP client instance created successfully");
@@ -132,6 +140,8 @@ impl McpClient {
         let transport = self.transport.clone();
         let pending_requests = self.pending_requests.clone();
         let notification_tx = self.notification_tx.clone();
+        let roots = self.roots.clone();
+        let pending_sampling = self.pending_sampling_requests.clone();
 
         let handle = tokio::spawn(async move {
             log::trace!("Receive loop task started");
@@ -156,6 +166,53 @@ impl McpClient {
                                         Ok(response.result.unwrap_or(serde_json::Value::Null))
                                     };
                                     let _ = request.response_tx.send(result);
+                                }
+                            }
+                            continue;
+                        }
+
+                        // Try to parse as incoming request (server → client)
+                        if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(&message) {
+                            log::debug!("Received server→client request: {}", request.method);
+                            match request.method.as_str() {
+                                methods::ROOTS_LIST => {
+                                    let current_roots = roots.lock().await.clone();
+                                    let response = JsonRpcResponse::success(
+                                        request.id,
+                                        serde_json::json!({ "roots": current_roots }),
+                                    );
+                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                        if let Err(e) = transport.send(&resp_msg).await {
+                                            log::error!("Failed to send roots/list response: {}", e);
+                                        }
+                                    }
+                                }
+                                methods::SAMPLING_CREATE_MESSAGE => {
+                                    // Store the request ID for later response
+                                    let req_id_str = match &request.id {
+                                        crate::mcp::protocol::jsonrpc::RequestId::Number(n) => n.to_string(),
+                                        crate::mcp::protocol::jsonrpc::RequestId::String(s) => s.clone(),
+                                    };
+                                    log::info!("Received sampling/createMessage request: id={}", req_id_str);
+                                    pending_sampling.lock().await.insert(req_id_str.clone(), request.id.clone());
+
+                                    // Forward as a notification so the manager can emit to frontend
+                                    let sampling_notification = JsonRpcNotification {
+                                        jsonrpc: crate::mcp::protocol::jsonrpc::JSONRPC_VERSION.to_string(),
+                                        method: methods::SAMPLING_CREATE_MESSAGE.to_string(),
+                                        params: request.params,
+                                    };
+                                    let _ = notification_tx.send(sampling_notification).await;
+                                }
+                                _ => {
+                                    log::warn!("Unhandled server→client request: {}", request.method);
+                                    let response = JsonRpcResponse::error(
+                                        request.id,
+                                        crate::mcp::protocol::jsonrpc::JsonRpcError::method_not_found(&request.method),
+                                    );
+                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                        let _ = transport.send(&resp_msg).await;
+                                    }
                                 }
                             }
                             continue;
@@ -268,7 +325,10 @@ impl McpClient {
         let params = serde_json::json!({
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": {
-                "sampling": {}
+                "sampling": {},
+                "roots": {
+                    "listChanged": true
+                }
             },
             "clientInfo": client_info
         });
@@ -402,6 +462,52 @@ impl McpClient {
         Ok(response)
     }
 
+    /// List resource templates
+    pub async fn list_resource_templates(&self) -> McpResult<Vec<ResourceTemplate>> {
+        log::debug!("Listing resource templates from MCP server");
+        let result = self
+            .send_request(methods::RESOURCES_TEMPLATES_LIST, None)
+            .await?;
+        let response: ResourcesTemplatesListResponse = serde_json::from_value(result)?;
+        log::info!(
+            "Retrieved {} resource templates from MCP server",
+            response.resource_templates.len()
+        );
+        Ok(response.resource_templates)
+    }
+
+    /// Request argument auto-completion from the server
+    pub async fn complete(
+        &self,
+        ref_type: &str,
+        ref_name: &str,
+        argument_name: &str,
+        argument_value: &str,
+    ) -> McpResult<serde_json::Value> {
+        log::debug!(
+            "Requesting completion: ref={}:{}, arg={}='{}'",
+            ref_type,
+            ref_name,
+            argument_name,
+            argument_value
+        );
+        let params = serde_json::json!({
+            "ref": {
+                "type": ref_type,
+                "name": ref_name,
+            },
+            "argument": {
+                "name": argument_name,
+                "value": argument_value,
+            },
+        });
+        let result = self
+            .send_request(methods::COMPLETION_COMPLETE, Some(params))
+            .await?;
+        log::debug!("Completion result received");
+        Ok(result)
+    }
+
     /// Subscribe to resource updates
     pub async fn subscribe_resource(&self, uri: &str) -> McpResult<()> {
         log::info!("Subscribing to resource updates: '{}'", uri);
@@ -488,6 +594,68 @@ impl McpClient {
         self.send_request(methods::PING, None).await?;
         let elapsed = start.elapsed();
         log::trace!("Ping response received in {:?}", elapsed);
+        Ok(())
+    }
+
+    /// Set the roots that this client exposes to the server
+    pub async fn set_roots(&self, new_roots: Vec<Root>) {
+        let mut roots = self.roots.lock().await;
+        *roots = new_roots;
+    }
+
+    /// Get the current roots
+    pub async fn get_roots(&self) -> Vec<Root> {
+        self.roots.lock().await.clone()
+    }
+
+    /// Respond to a pending sampling/createMessage request from the server
+    pub async fn respond_to_sampling(
+        &self,
+        request_id_str: &str,
+        result: serde_json::Value,
+    ) -> McpResult<()> {
+        let request_id = {
+            let mut pending = self.pending_sampling_requests.lock().await;
+            pending.remove(request_id_str).ok_or_else(|| {
+                log::error!("No pending sampling request found for id: {}", request_id_str);
+                McpError::ProtocolError(format!(
+                    "No pending sampling request: {}",
+                    request_id_str
+                ))
+            })?
+        };
+
+        log::info!("Sending sampling response for request: {}", request_id_str);
+        let response = JsonRpcResponse::success(request_id, result);
+        let message = serde_json::to_string(&response)?;
+        self.transport.send(&message).await?;
+        log::debug!("Sampling response sent successfully");
+        Ok(())
+    }
+
+    /// Notify the server that the roots list has changed
+    pub async fn notify_roots_changed(&self) -> McpResult<()> {
+        log::info!("Notifying server that roots list has changed");
+        self.send_notification(methods::NOTIFICATION_ROOTS_LIST_CHANGED, None)
+            .await
+    }
+
+    /// Send a cancellation notification for an in-progress request
+    pub async fn cancel_request(&self, request_id: &str, reason: Option<&str>) -> McpResult<()> {
+        log::info!(
+            "Sending cancellation for request '{}', reason: {:?}",
+            request_id,
+            reason
+        );
+        let mut params = serde_json::json!({
+            "requestId": request_id,
+        });
+        if let Some(r) = reason {
+            params["reason"] = serde_json::Value::String(r.to_string());
+        }
+        self.send_notification(methods::NOTIFICATION_CANCELLED, Some(params))
+            .await?;
+        log::debug!("Cancellation notification sent for request '{}'", request_id);
         Ok(())
     }
 

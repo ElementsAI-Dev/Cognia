@@ -5,3 +5,4 @@
 export * from './bradley-terry';
 export * from './bootstrap';
 export * from './rlhf-export';
+export * from './leaderboard-api';

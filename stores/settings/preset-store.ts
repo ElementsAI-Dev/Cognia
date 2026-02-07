@@ -9,8 +9,26 @@ import {
   type Preset,
   type CreatePresetInput,
   type UpdatePresetInput,
+  type PresetCategory,
   DEFAULT_PRESETS,
 } from '@/types/content/preset';
+
+export interface CreateFromSessionInput {
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  provider: string;
+  model: string;
+  mode: string;
+  systemPrompt?: string;
+  builtinPrompts?: Preset['builtinPrompts'];
+  temperature?: number;
+  maxTokens?: number;
+  webSearchEnabled?: boolean;
+  thinkingEnabled?: boolean;
+  category?: PresetCategory;
+}
 
 interface PresetState {
   // State
@@ -21,6 +39,7 @@ interface PresetState {
   // Actions
   initializeDefaults: () => void;
   createPreset: (input: CreatePresetInput) => Preset;
+  createFromSession: (input: CreateFromSessionInput) => Preset;
   updatePreset: (id: string, input: UpdatePresetInput) => void;
   deletePreset: (id: string) => void;
   duplicatePreset: (id: string) => Preset | null;
@@ -37,6 +56,7 @@ interface PresetState {
   getRecentPresets: (limit?: number) => Preset[];
   getMostUsedPresets: (limit?: number) => Preset[];
   searchPresets: (query: string) => Preset[];
+  getPresetsByCategory: (category: PresetCategory) => Preset[];
 }
 
 export const usePresetStore = create<PresetState>()(
@@ -95,6 +115,7 @@ export const usePresetStore = create<PresetState>()(
           maxTokens: input.maxTokens,
           webSearchEnabled: input.webSearchEnabled,
           thinkingEnabled: input.thinkingEnabled,
+          category: input.category,
           isDefault: false,
           usageCount: 0,
           createdAt: now,
@@ -106,6 +127,26 @@ export const usePresetStore = create<PresetState>()(
         }));
 
         return newPreset;
+      },
+
+      createFromSession: (input) => {
+        const { createPreset } = get();
+        return createPreset({
+          name: input.name,
+          description: input.description,
+          icon: input.icon || '💬',
+          color: input.color || '#6366f1',
+          provider: input.provider as CreatePresetInput['provider'],
+          model: input.model,
+          mode: input.mode as CreatePresetInput['mode'],
+          systemPrompt: input.systemPrompt,
+          builtinPrompts: input.builtinPrompts,
+          temperature: input.temperature,
+          maxTokens: input.maxTokens,
+          webSearchEnabled: input.webSearchEnabled,
+          thinkingEnabled: input.thinkingEnabled,
+          category: input.category,
+        });
       },
 
       updatePreset: (id, input) => {
@@ -149,6 +190,7 @@ export const usePresetStore = create<PresetState>()(
           maxTokens: original.maxTokens,
           webSearchEnabled: original.webSearchEnabled,
           thinkingEnabled: original.thinkingEnabled,
+          category: original.category,
         });
       },
 
@@ -248,8 +290,13 @@ export const usePresetStore = create<PresetState>()(
         return get().presets.filter(
           (p) =>
             p.name.toLowerCase().includes(lowerQuery) ||
-            p.description?.toLowerCase().includes(lowerQuery)
+            p.description?.toLowerCase().includes(lowerQuery) ||
+            p.category?.toLowerCase().includes(lowerQuery)
         );
+      },
+
+      getPresetsByCategory: (category) => {
+        return get().presets.filter((p) => p.category === category);
       },
     }),
     {

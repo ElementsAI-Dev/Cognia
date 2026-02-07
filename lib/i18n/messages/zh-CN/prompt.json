@@ -19,6 +19,10 @@
     "academicDesc": "学术和研究导向",
     "technical": "技术",
     "technicalDesc": "精确的技术语言",
+    "stepByStep": "逐步推理",
+    "stepByStepDesc": "链式思维推理结构",
+    "structured": "结构化",
+    "structuredDesc": "指定输出格式",
     "custom": "自定义",
     "customDesc": "您自己的指令",
     "customInstructions": "自定义指令",
@@ -268,7 +272,9 @@
       "anyRating": "任意",
       "stars": "星",
       "quickFilters": "快速筛选",
-      "clearFilters": "清除筛选"
+      "clearFilters": "清除筛选",
+      "clearAll": "全部清除",
+      "activeFilters": "已启用的筛选"
     },
     "sections": {
       "featured": "精选",
@@ -368,6 +374,26 @@
         "rating": "评分",
         "newest": "最新"
       }
+    },
+    "publish": {
+      "title": "发布到市场",
+      "description": "与社区分享您的提示模板",
+      "step1": "选择模板",
+      "step2": "配置",
+      "step3": "预览",
+      "noTemplates": "没有可发布的自定义模板。请先创建一个。",
+      "name": "提示名称",
+      "namePlaceholder": "输入一个描述性名称",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "描述此提示的用途和使用场景",
+      "category": "分类",
+      "icon": "图标",
+      "addTagPlaceholder": "添加标签后按回车",
+      "next": "下一步",
+      "publishButton": "发布提示",
+      "publishing": "发布中...",
+      "success": "提示发布成功！",
+      "failed": "发布提示失败"
     },
     "detail": {
       "ratings": "评分",

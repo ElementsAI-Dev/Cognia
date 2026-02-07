@@ -41,6 +41,8 @@ jest.mock('../tools', () => ({
   calculatorInputSchema: z.object({ expression: z.string() }),
   executeRAGSearch: jest.fn().mockResolvedValue({ success: true, results: [] }),
   ragSearchInputSchema: z.object({ query: z.string() }),
+  artifactTools: [],
+  memoryTools: [],
 }));
 
 jest.mock('@/lib/skills', () => ({
@@ -56,7 +58,7 @@ jest.mock('@/lib/skills', () => ({
   buildMultiSkillSystemPrompt: jest.fn((skills) => `Skills: ${skills.map((s: Skill) => s.metadata.name).join(', ')}`),
 }));
 
-jest.mock('./mcp-tools', () => ({
+jest.mock('../tools/mcp-tools', () => ({
   createMcpToolsFromStore: jest.fn(() => ({
     mcp_tool: {
       name: 'mcp_tool',
@@ -67,7 +69,7 @@ jest.mock('./mcp-tools', () => ({
   })),
 }));
 
-jest.mock('./environment-tools', () => ({
+jest.mock('../tools/environment-tools', () => ({
   initializeEnvironmentTools: jest.fn(() => ({
     create_venv: {
       name: 'create_venv',
@@ -80,7 +82,7 @@ jest.mock('./environment-tools', () => ({
   getEnvironmentToolsPromptSnippet: jest.fn(() => 'Brief environment tools prompt'),
 }));
 
-jest.mock('./jupyter-tools', () => ({
+jest.mock('../tools/jupyter-tools', () => ({
   getJupyterTools: jest.fn(() => ({
     execute_python: {
       name: 'execute_python',
@@ -111,7 +113,7 @@ describe('createCalculatorTool', () => {
 });
 
 describe('createWebSearchTool', () => {
-  it('creates a web search tool with API key', () => {
+  it('creates a web search tool with API key string', () => {
     const tool = createWebSearchTool('test-api-key');
 
     expect(tool.name).toBe('web_search');
@@ -119,11 +121,44 @@ describe('createWebSearchTool', () => {
     expect(tool.requiresApproval).toBe(false);
   });
 
-  it('executes web search', async () => {
+  it('executes web search with API key string', async () => {
     const tool = createWebSearchTool('test-api-key');
     const result = await tool.execute({ query: 'test query' });
 
     expect(result).toEqual({ success: true, results: [] });
+  });
+
+  it('creates a web search tool with multi-provider config object', () => {
+    const tool = createWebSearchTool({
+      providerSettings: {
+        tavily: { providerId: 'tavily', apiKey: 'key1', enabled: true, priority: 1 },
+        perplexity: { providerId: 'perplexity', apiKey: 'key2', enabled: true, priority: 2 },
+      },
+      provider: 'tavily',
+    });
+
+    expect(tool.name).toBe('web_search');
+    expect(tool.description).toContain('Search the web');
+    expect(tool.requiresApproval).toBe(false);
+  });
+
+  it('executes web search with multi-provider config', async () => {
+    const tool = createWebSearchTool({
+      providerSettings: {
+        tavily: { providerId: 'tavily', apiKey: 'key1', enabled: true, priority: 1 },
+      },
+      provider: 'tavily',
+    });
+    const result = await tool.execute({ query: 'test query' });
+
+    expect(result).toEqual({ success: true, results: [] });
+  });
+
+  it('creates a web search tool with apiKey in config object', () => {
+    const tool = createWebSearchTool({ apiKey: 'test-api-key', provider: 'brave' });
+
+    expect(tool.name).toBe('web_search');
+    expect(tool.requiresApproval).toBe(false);
   });
 });
 
@@ -337,14 +372,60 @@ describe('initializeAgentTools', () => {
     expect(tools.open_designer).toBeDefined();
   });
 
-  it('excludes web search when no API key provided', () => {
+  it('excludes web search when no API key or providers provided', () => {
     const tools = initializeAgentTools({});
 
     expect(tools.web_search).toBeUndefined();
   });
 
-  it('includes web search when API key provided', () => {
+  it('includes web search when tavily API key provided', () => {
     const tools = initializeAgentTools({ tavilyApiKey: 'test-key' });
+
+    expect(tools.web_search).toBeDefined();
+  });
+
+  it('includes web search when searchProviders with enabled provider provided', () => {
+    const tools = initializeAgentTools({
+      searchProviders: {
+        tavily: { providerId: 'tavily', apiKey: 'key1', enabled: true, priority: 1 },
+        perplexity: { providerId: 'perplexity', apiKey: 'key2', enabled: true, priority: 2 },
+      },
+      defaultSearchProvider: 'tavily',
+    });
+
+    expect(tools.web_search).toBeDefined();
+  });
+
+  it('excludes web search when searchProviders has no enabled provider', () => {
+    const tools = initializeAgentTools({
+      searchProviders: {
+        tavily: { providerId: 'tavily', apiKey: '', enabled: false, priority: 1 },
+      },
+    });
+
+    expect(tools.web_search).toBeUndefined();
+  });
+
+  it('prefers searchProviders over tavilyApiKey', () => {
+    const tools = initializeAgentTools({
+      tavilyApiKey: 'legacy-key',
+      searchProviders: {
+        perplexity: { providerId: 'perplexity', apiKey: 'pp-key', enabled: true, priority: 1 },
+      },
+      defaultSearchProvider: 'perplexity',
+    });
+
+    expect(tools.web_search).toBeDefined();
+    expect(tools.web_search.name).toBe('web_search');
+  });
+
+  it('falls back to tavilyApiKey when searchProviders has no enabled provider', () => {
+    const tools = initializeAgentTools({
+      tavilyApiKey: 'legacy-key',
+      searchProviders: {
+        perplexity: { providerId: 'perplexity', apiKey: '', enabled: false, priority: 1 },
+      },
+    });
 
     expect(tools.web_search).toBeDefined();
   });

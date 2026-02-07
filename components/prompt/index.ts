@@ -30,6 +30,11 @@ export {
   PromptMarketplaceCard,
   PromptMarketplaceDetail,
   PromptMarketplaceSidebar,
+  PromptPreviewDialog,
+  PromptCollectionCard,
+  PromptAuthorProfile,
+  PromptImportExport,
+  PromptPublishDialog,
 } from './marketplace';
 
 // Template components

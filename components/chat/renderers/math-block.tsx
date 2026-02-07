@@ -43,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCopy } from '@/hooks/ui';
-import { exportMath, generateMathFilename } from '@/lib/export/image/math-export';
+import { exportMath, copyMathAsImage, generateMathFilename } from '@/lib/export/image/math-export';
 import { toast } from 'sonner';
 import { renderMathSafe } from '@/lib/latex/cache';
 import { withMathErrorBoundary } from './math-error-boundary';
@@ -52,9 +52,10 @@ interface MathBlockProps {
   content: string;
   className?: string;
   scale?: number;
+  alignment?: 'center' | 'left';
 }
 
-function MathBlockBase({ content, className, scale = 1 }: MathBlockProps) {
+function MathBlockBase({ content, className, scale = 1, alignment = 'center' }: MathBlockProps) {
   const t = useTranslations('renderer');
   const tToasts = useTranslations('toasts');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -102,6 +103,25 @@ function MathBlockBase({ content, className, scale = 1 }: MathBlockProps) {
       setIsExporting(false);
     }
   }, [cleanContent, isFullscreen, tToasts]);
+
+  const handleCopyAsImage = useCallback(async () => {
+    const element = isFullscreen ? fullscreenMathRef.current : mathRef.current;
+    if (!element) return;
+
+    setIsExporting(true);
+    try {
+      const isDark = document.documentElement.classList.contains('dark');
+      await copyMathAsImage(element, {
+        scale: 2,
+        backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+      });
+      toast.success(tToasts('copiedToClipboard'));
+    } catch (err) {
+      toast.error(tToasts('exportFailed', { error: err instanceof Error ? err.message : 'Unknown error' }));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isFullscreen, tToasts]);
 
   const handleRetry = useCallback(() => {
     // Force re-render by toggling a state
@@ -229,6 +249,10 @@ function MathBlockBase({ content, className, scale = 1 }: MathBlockProps) {
                 <FileCode className="h-4 w-4 mr-2" />
                 {t('exportSvg')}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyAsImage}>
+                <Copy className="h-4 w-4 mr-2" aria-hidden="true" />
+                {t('copyAsImage', { defaultValue: 'Copy as Image' })}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -258,7 +282,7 @@ function MathBlockBase({ content, className, scale = 1 }: MathBlockProps) {
         {/* Rendered math */}
         <div
           ref={mathRef}
-          className="overflow-x-auto py-2 text-center katex-block"
+          className={cn('overflow-x-auto py-2 katex-block', alignment === 'left' ? 'text-left' : 'text-center')}
           style={scaleStyle}
           dangerouslySetInnerHTML={{ __html: result.html }}
         />

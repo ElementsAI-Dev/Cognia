@@ -270,25 +270,6 @@ export function createChatTrace(
 /**
  * Create a generation within a trace
  */
-export function createGenerationTrace(
-  trace: LangfuseTrace,
-  model: string,
-  input: string,
-  output: string,
-  metadata?: LangfuseGenerationMetadata
-): LangfuseGeneration {
-  return trace.generation({
-    name: 'ai-generation',
-    model,
-    input,
-    output,
-    metadata,
-  });
-}
-
-/**
- * Create a generation within a trace
- */
 export function createGeneration(
   trace: LangfuseTrace,
   options: GenerationOptions

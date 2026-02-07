@@ -2122,3 +2122,484 @@ pub async fn git_blame_line(
         Err(e) => GitOperationResult::error(e),
     }
 }
+
+// ==================== Revert ====================
+
+/// Revert options
+#[derive(Debug, Clone, Deserialize)]
+pub struct GitRevertOptions {
+    #[serde(rename = "repoPath")]
+    pub repo_path: String,
+    #[serde(rename = "commitHash")]
+    pub commit_hash: String,
+    #[serde(rename = "noCommit")]
+    pub no_commit: Option<bool>,
+}
+
+/// Revert a commit (create a new commit that undoes changes)
+#[tauri::command]
+pub async fn git_revert(options: GitRevertOptions) -> GitOperationResult<GitCommitInfo> {
+    let mut args = vec!["revert".to_string()];
+
+    if options.no_commit.unwrap_or(false) {
+        args.push("--no-commit".to_string());
+    }
+
+    args.push(options.commit_hash.clone());
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+    match run_git_command(&args_refs, Some(&options.repo_path)) {
+        Ok(output) => {
+            if options.no_commit.unwrap_or(false) {
+                // No commit created, return placeholder
+                GitOperationResult::success_with_output(
+                    GitCommitInfo {
+                        hash: String::new(),
+                        short_hash: String::new(),
+                        author: String::new(),
+                        author_email: String::new(),
+                        date: String::new(),
+                        message: format!("Revert {} (staged, not committed)", options.commit_hash),
+                        message_body: None,
+                    },
+                    output,
+                )
+            } else {
+                // Get the new revert commit info
+                match run_git_command(
+                    &["log", "-1", "--format=%H%x00%an%x00%ae%x00%aI%x00%s"],
+                    Some(&options.repo_path),
+                ) {
+                    Ok(log_output) => {
+                        let parts: Vec<&str> = log_output.split('\x00').collect();
+                        if parts.len() >= 5 {
+                            GitOperationResult::success_with_output(
+                                GitCommitInfo {
+                                    hash: parts[0].to_string(),
+                                    short_hash: parts[0].chars().take(7).collect(),
+                                    author: parts[1].to_string(),
+                                    author_email: parts[2].to_string(),
+                                    date: parts[3].to_string(),
+                                    message: parts[4].to_string(),
+                                    message_body: None,
+                                },
+                                output,
+                            )
+                        } else {
+                            GitOperationResult::error("Failed to parse revert commit info".to_string())
+                        }
+                    }
+                    Err(e) => GitOperationResult::error(e),
+                }
+            }
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Tags ====================
+
+/// Git tag info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitTagInfo {
+    pub name: String,
+    #[serde(rename = "commitHash")]
+    pub commit_hash: String,
+    #[serde(rename = "shortHash")]
+    pub short_hash: String,
+    pub message: Option<String>,
+    pub tagger: Option<String>,
+    pub date: Option<String>,
+    #[serde(rename = "isAnnotated")]
+    pub is_annotated: bool,
+}
+
+/// List all tags
+#[tauri::command]
+pub async fn git_tag_list(repo_path: String) -> GitOperationResult<Vec<GitTagInfo>> {
+    // Use --sort=-creatordate for reverse chronological order
+    match run_git_command(
+        &[
+            "tag",
+            "-l",
+            "--sort=-creatordate",
+            "--format=%(refname:short)%00%(objectname:short)%00%(*objectname:short)%00%(objecttype)%00%(creatordate:iso)%00%(subject)%00%(taggername)",
+        ],
+        Some(&repo_path),
+    ) {
+        Ok(output) => {
+            let tags: Vec<GitTagInfo> = output
+                .lines()
+                .filter(|line| !line.is_empty())
+                .map(|line| {
+                    let parts: Vec<&str> = line.split('\x00').collect();
+                    let name = parts.first().unwrap_or(&"").to_string();
+                    let short_hash = parts.get(1).unwrap_or(&"").to_string();
+                    let deref_hash = parts.get(2).unwrap_or(&"").to_string();
+                    let obj_type = parts.get(3).unwrap_or(&"").to_string();
+                    let date = parts.get(4).filter(|s| !s.is_empty()).map(|s| s.to_string());
+                    let message = parts.get(5).filter(|s| !s.is_empty()).map(|s| s.to_string());
+                    let tagger = parts.get(6).filter(|s| !s.is_empty()).map(|s| s.to_string());
+                    let is_annotated = obj_type == "tag";
+                    // For annotated tags, the deref hash points to the commit
+                    let commit_hash = if !deref_hash.is_empty() {
+                        deref_hash
+                    } else {
+                        short_hash.clone()
+                    };
+
+                    GitTagInfo {
+                        name,
+                        commit_hash,
+                        short_hash,
+                        message,
+                        tagger,
+                        date,
+                        is_annotated,
+                    }
+                })
+                .collect();
+
+            GitOperationResult::success(tags)
+        }
+        Err(e) => {
+            // Empty tag list is not an error
+            if e.is_empty() {
+                GitOperationResult::success(vec![])
+            } else {
+                GitOperationResult::error(e)
+            }
+        }
+    }
+}
+
+/// Tag create options
+#[derive(Debug, Clone, Deserialize)]
+pub struct GitTagCreateOptions {
+    #[serde(rename = "repoPath")]
+    pub repo_path: String,
+    pub name: String,
+    pub message: Option<String>,
+    pub target: Option<String>,
+    pub force: Option<bool>,
+}
+
+/// Create a tag
+#[tauri::command]
+pub async fn git_tag_create(options: GitTagCreateOptions) -> GitOperationResult<GitTagInfo> {
+    let mut args = vec!["tag".to_string()];
+
+    if let Some(ref msg) = options.message {
+        // Annotated tag
+        args.push("-a".to_string());
+        args.push(options.name.clone());
+        args.push("-m".to_string());
+        args.push(msg.clone());
+    } else {
+        // Lightweight tag
+        args.push(options.name.clone());
+    }
+
+    if options.force.unwrap_or(false) {
+        args.push("-f".to_string());
+    }
+
+    if let Some(ref target) = options.target {
+        args.push(target.clone());
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+    match run_git_command(&args_refs, Some(&options.repo_path)) {
+        Ok(output) => {
+            // Get the tag info
+            let commit_hash = run_git_command(
+                &["rev-parse", &options.name],
+                Some(&options.repo_path),
+            )
+            .unwrap_or_default();
+
+            GitOperationResult::success_with_output(
+                GitTagInfo {
+                    name: options.name,
+                    commit_hash: commit_hash.chars().take(7).collect(),
+                    short_hash: commit_hash.chars().take(7).collect(),
+                    is_annotated: options.message.is_some(),
+                    message: options.message,
+                    tagger: None,
+                    date: Some(chrono::Utc::now().to_rfc3339()),
+                },
+                output,
+            )
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Delete a tag
+#[tauri::command]
+pub async fn git_tag_delete(repo_path: String, name: String) -> GitOperationResult<()> {
+    match run_git_command(&["tag", "-d", &name], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Push a tag to remote
+#[tauri::command]
+pub async fn git_tag_push(
+    repo_path: String,
+    name: String,
+    remote: Option<String>,
+) -> GitOperationResult<()> {
+    let remote_name = remote.unwrap_or_else(|| "origin".to_string());
+    match run_git_command(&["push", &remote_name, &name], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Cherry-pick ====================
+
+/// Cherry-pick options
+#[derive(Debug, Clone, Deserialize)]
+pub struct GitCherryPickOptions {
+    #[serde(rename = "repoPath")]
+    pub repo_path: String,
+    #[serde(rename = "commitHash")]
+    pub commit_hash: String,
+    #[serde(rename = "noCommit")]
+    pub no_commit: Option<bool>,
+}
+
+/// Cherry-pick a commit
+#[tauri::command]
+pub async fn git_cherry_pick(options: GitCherryPickOptions) -> GitOperationResult<GitCommitInfo> {
+    let mut args = vec!["cherry-pick".to_string()];
+
+    if options.no_commit.unwrap_or(false) {
+        args.push("--no-commit".to_string());
+    }
+
+    args.push(options.commit_hash.clone());
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+
+    match run_git_command(&args_refs, Some(&options.repo_path)) {
+        Ok(output) => {
+            if options.no_commit.unwrap_or(false) {
+                GitOperationResult::success_with_output(
+                    GitCommitInfo {
+                        hash: String::new(),
+                        short_hash: String::new(),
+                        author: String::new(),
+                        author_email: String::new(),
+                        date: String::new(),
+                        message: format!("Cherry-pick {} (staged, not committed)", options.commit_hash),
+                        message_body: None,
+                    },
+                    output,
+                )
+            } else {
+                match run_git_command(
+                    &["log", "-1", "--format=%H%x00%an%x00%ae%x00%aI%x00%s"],
+                    Some(&options.repo_path),
+                ) {
+                    Ok(log_output) => {
+                        let parts: Vec<&str> = log_output.split('\x00').collect();
+                        if parts.len() >= 5 {
+                            GitOperationResult::success_with_output(
+                                GitCommitInfo {
+                                    hash: parts[0].to_string(),
+                                    short_hash: parts[0].chars().take(7).collect(),
+                                    author: parts[1].to_string(),
+                                    author_email: parts[2].to_string(),
+                                    date: parts[3].to_string(),
+                                    message: parts[4].to_string(),
+                                    message_body: None,
+                                },
+                                output,
+                            )
+                        } else {
+                            GitOperationResult::error("Failed to parse cherry-pick commit info".to_string())
+                        }
+                    }
+                    Err(e) => GitOperationResult::error(e),
+                }
+            }
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Abort an in-progress cherry-pick
+#[tauri::command]
+pub async fn git_cherry_pick_abort(repo_path: String) -> GitOperationResult<()> {
+    match run_git_command(&["cherry-pick", "--abort"], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Branch Rename ====================
+
+/// Rename a branch
+#[tauri::command]
+pub async fn git_rename_branch(
+    repo_path: String,
+    old_name: String,
+    new_name: String,
+    force: Option<bool>,
+) -> GitOperationResult<()> {
+    let flag = if force.unwrap_or(false) { "-M" } else { "-m" };
+    match run_git_command(&["branch", flag, &old_name, &new_name], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Show Commit ====================
+
+/// Show full commit details (diff content for a specific commit)
+#[tauri::command]
+pub async fn git_show_commit(
+    repo_path: String,
+    commit_hash: String,
+    max_lines: Option<u32>,
+) -> GitOperationResult<GitCommitDetail> {
+    // Get commit metadata
+    let meta = run_git_command(
+        &[
+            "log",
+            "-1",
+            "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00%b",
+            &commit_hash,
+        ],
+        Some(&repo_path),
+    );
+
+    let commit_info = match meta {
+        Ok(output) => {
+            let parts: Vec<&str> = output.splitn(6, '\x00').collect();
+            if parts.len() >= 5 {
+                GitCommitInfo {
+                    hash: parts[0].to_string(),
+                    short_hash: parts[0].chars().take(7).collect(),
+                    author: parts[1].to_string(),
+                    author_email: parts[2].to_string(),
+                    date: parts[3].to_string(),
+                    message: parts[4].to_string(),
+                    message_body: parts.get(5).filter(|s| !s.is_empty()).map(|s| s.to_string()),
+                }
+            } else {
+                return GitOperationResult::error("Failed to parse commit metadata".to_string());
+            }
+        }
+        Err(e) => return GitOperationResult::error(e),
+    };
+
+    // Get diff stats
+    let stats = run_git_command(
+        &["diff-tree", "--no-commit-id", "--numstat", "-r", &commit_hash],
+        Some(&repo_path),
+    )
+    .unwrap_or_default();
+
+    let file_changes: Vec<GitDiffInfo> = stats
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                Some(GitDiffInfo {
+                    additions: parts[0].parse().unwrap_or(0),
+                    deletions: parts[1].parse().unwrap_or(0),
+                    path: parts[2..].join(" "),
+                    content: None,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Get diff content (truncated)
+    let max = max_lines.unwrap_or(3000);
+    let diff_content = run_git_command(
+        &["show", "--format=", &commit_hash],
+        Some(&repo_path),
+    )
+    .map(|output| {
+        let lines: Vec<&str> = output.lines().collect();
+        if lines.len() > max as usize {
+            format!(
+                "{}\n\n... (truncated, {} more lines)",
+                lines[..max as usize].join("\n"),
+                lines.len() - max as usize
+            )
+        } else {
+            output
+        }
+    })
+    .ok();
+
+    // Get parent hashes
+    let parents = run_git_command(
+        &["log", "-1", "--format=%P", &commit_hash],
+        Some(&repo_path),
+    )
+    .map(|output| {
+        output
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    })
+    .unwrap_or_default();
+
+    let total_additions = file_changes.iter().map(|f| f.additions).sum();
+    let total_deletions = file_changes.iter().map(|f| f.deletions).sum();
+
+    GitOperationResult::success(GitCommitDetail {
+        commit: commit_info,
+        file_changes,
+        diff_content,
+        parents,
+        total_additions,
+        total_deletions,
+    })
+}
+
+/// Full commit detail with diff
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitCommitDetail {
+    pub commit: GitCommitInfo,
+    #[serde(rename = "fileChanges")]
+    pub file_changes: Vec<GitDiffInfo>,
+    #[serde(rename = "diffContent")]
+    pub diff_content: Option<String>,
+    pub parents: Vec<String>,
+    #[serde(rename = "totalAdditions")]
+    pub total_additions: i32,
+    #[serde(rename = "totalDeletions")]
+    pub total_deletions: i32,
+}
+
+// ==================== Revert Abort / Merge Abort ====================
+
+/// Abort an in-progress revert
+#[tauri::command]
+pub async fn git_revert_abort(repo_path: String) -> GitOperationResult<()> {
+    match run_git_command(&["revert", "--abort"], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Abort an in-progress merge
+#[tauri::command]
+pub async fn git_merge_abort(repo_path: String) -> GitOperationResult<()> {
+    match run_git_command(&["merge", "--abort"], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(e),
+    }
+}

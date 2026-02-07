@@ -83,7 +83,8 @@
     "sync": "Data Sync",
     "backup": "Backup",
     "custom": "Custom",
-    "plugin": "Plugin"
+    "plugin": "Plugin",
+    "script": "Script"
   },
   "triggerTypes": {
     "cron": "Schedule (Cron)",
@@ -166,6 +167,9 @@
   "systemSchedulerUnavailable": "System scheduler is unavailable in this environment",
   "requestElevation": "Request Elevation",
   "requestElevationDescription": "Administrator privileges are required for this task",
+  "quickActions": "Quick Actions",
+  "scheduleBackup": "Schedule Backup",
+  "scheduleWorkflowAction": "Schedule Workflow",
   "backup": {
     "schedule": "Schedule Backup",
     "scheduleTitle": "Schedule Automatic Backup",

@@ -104,18 +104,44 @@ class SyncSchedulerImpl {
       return false;
     }
 
+    // Emit sync:started event for event-triggered tasks
+    this.emitEvent('sync:started', { direction, provider: state.activeProvider });
+
     try {
       const result = await state.startSync(direction);
       
       // Notify callbacks
       this.callbacks.forEach((cb) => cb(result.success, result.error));
+
+      // Emit sync completion/failure event
+      if (result.success) {
+        this.emitEvent('sync:completed', { direction, provider: state.activeProvider });
+      } else {
+        this.emitEvent('sync:failed', { direction, provider: state.activeProvider, error: result.error });
+      }
       
       return result.success;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Sync failed';
       this.callbacks.forEach((cb) => cb(false, errorMsg));
+      this.emitEvent('sync:failed', { direction, provider: state.activeProvider, error: errorMsg });
       return false;
     }
+  }
+
+  /**
+   * Emit a scheduler event (non-blocking)
+   */
+  private emitEvent(eventType: string, data?: Record<string, unknown>): void {
+    import('@/lib/scheduler/event-integration').then(({ emitSchedulerEvent, isValidEventType }) => {
+      if (isValidEventType(eventType)) {
+        emitSchedulerEvent(eventType, data).catch((err) => {
+          log.error(`Failed to emit scheduler event ${eventType}:`, err);
+        });
+      }
+    }).catch(() => {
+      // Scheduler module may not be initialized yet
+    });
   }
 
   /**

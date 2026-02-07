@@ -160,6 +160,7 @@ pub struct FeedbackStats {
 
 /// Quality feedback type for a completion
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum CompletionFeedback {
     /// User accepted the full suggestion
     FullAccept {

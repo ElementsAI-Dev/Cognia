@@ -7,7 +7,7 @@
 export type TaskTriggerType = 'cron' | 'interval' | 'once' | 'event';
 
 // Task types that can be scheduled
-export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom' | 'plugin';
+export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom' | 'plugin' | 'script';
 
 // Task execution status
 export type TaskExecutionStatus =

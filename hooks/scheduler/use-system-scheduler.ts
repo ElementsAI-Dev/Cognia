@@ -60,8 +60,10 @@ export interface UseSystemSchedulerActions {
   disableTask: (taskId: SystemTaskId) => Promise<boolean>;
   /** Run a task immediately */
   runTaskNow: (taskId: SystemTaskId) => Promise<TaskRunResult>;
-  /** Confirm pending operation */
+  /** Confirm pending operation (re-submits with confirmed=true) */
   confirmPending: () => Promise<void>;
+  /** Confirm a specific task by ID */
+  confirmTask: (taskId: SystemTaskId) => Promise<SystemTask | null>;
   /** Cancel pending confirmation */
   cancelPending: () => void;
   /** Validate task input */
@@ -299,6 +301,21 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
     }
   }, [pendingInput, createTask, updateTask]);
 
+  const confirmTask = useCallback(async (taskId: SystemTaskId): Promise<SystemTask | null> => {
+    try {
+      const result = await systemScheduler.confirmSystemTask(taskId);
+      if (result) {
+        setTasks((prev) => [...prev, result]);
+        setPendingConfirmation(null);
+        setPendingInput(null);
+      }
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return null;
+    }
+  }, []);
+
   const cancelPending = useCallback(() => {
     if (pendingConfirmation?.task_id) {
       systemScheduler.cancelTaskConfirmation(pendingConfirmation.task_id);
@@ -345,6 +362,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
     disableTask,
     runTaskNow,
     confirmPending,
+    confirmTask,
     cancelPending,
     validateTask,
     requestElevation,

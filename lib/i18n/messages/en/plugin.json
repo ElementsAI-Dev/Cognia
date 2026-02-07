@@ -28,6 +28,10 @@
       "health": "Health",
       "settings": "Settings"
     },
+    "marketplace": {
+      "installSuccess": "Plugin installed successfully",
+      "installFailed": "Plugin installation failed"
+    },
     "stats": {
       "installed": "Installed",
       "enabled": "Enabled",
@@ -294,10 +298,15 @@
     },
     "reviews": {
       "title": "User Reviews",
-      "writeReview": "Write Review"
+      "writeReview": "Write Review",
+      "yourRating": "Your Rating",
+      "reviewPlaceholder": "Share your experience with this plugin...",
+      "submitReview": "Submit Review",
+      "yourReview": "Your Review"
     },
     "changelog": {
-      "title": "Version History"
+      "title": "Version History",
+      "breaking": "Breaking"
     }
   },
   "pluginDevTools": {

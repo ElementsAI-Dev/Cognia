@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import {
@@ -34,10 +34,21 @@ import {
   RefreshCw,
   FileText,
   AppWindow,
+  Timer,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { WindowSelectorDialog } from './window-selector-dialog';
 import { PlatformWarning, PlatformBadge } from './platform-warning';
+import { ScreenshotEditor } from '@/components/screenshot/screenshot-editor';
+import type { Annotation } from '@/types/screenshot';
+import * as screenshotApi from '@/lib/native/screenshot';
 
 interface ScreenshotPanelProps {
   className?: string;
@@ -72,6 +83,10 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
   const [searchResults, setSearchResults] = useState<ScreenshotHistoryEntry[] | null>(null);
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const [windowSelectorOpen, setWindowSelectorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorImageData, setEditorImageData] = useState<string | null>(null);
+  const [captureDelay, setCaptureDelay] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -87,37 +102,84 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     setSearchResults(null);
   };
 
-  const handleCaptureFullscreen = async () => {
-    const result = await captureFullscreen();
-    if (result) {
-      onScreenshotTaken?.(result.image_base64);
-      fetchHistory();
+  const openEditor = useCallback((imageBase64: string) => {
+    setEditorImageData(imageBase64);
+    setEditorOpen(true);
+  }, []);
+
+  const withDelay = useCallback(async (fn: () => Promise<void>) => {
+    if (captureDelay <= 0) {
+      await fn();
+      return;
     }
+    for (let i = captureDelay; i > 0; i--) {
+      setCountdown(i);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    setCountdown(null);
+    await fn();
+  }, [captureDelay]);
+
+  const handleEditorConfirm = useCallback(async (imageData: string, _annotations: Annotation[]) => {
+    onScreenshotTaken?.(imageData);
+    setEditorOpen(false);
+    setEditorImageData(null);
+    // Save annotated screenshot via native API
+    try {
+      const timestamp = Date.now();
+      const filename = `screenshot_${timestamp}.png`;
+      const { join, downloadDir } = await import('@tauri-apps/api/path');
+      const dir = await downloadDir();
+      const path = await join(dir, filename);
+      await screenshotApi.saveToFile(imageData, path);
+    } catch {
+      // Save is best-effort; user already has the image via callback
+    }
+    fetchHistory();
+  }, [onScreenshotTaken, fetchHistory]);
+
+  const handleEditorCancel = useCallback(() => {
+    setEditorOpen(false);
+    setEditorImageData(null);
+  }, []);
+
+  const handleCaptureFullscreen = async () => {
+    await withDelay(async () => {
+      const result = await captureFullscreen();
+      if (result) {
+        openEditor(result.image_base64);
+        fetchHistory();
+      }
+    });
   };
 
   const handleCaptureWindow = async () => {
-    const result = await captureWindow();
-    if (result) {
-      onScreenshotTaken?.(result.image_base64);
-      fetchHistory();
-    }
+    await withDelay(async () => {
+      const result = await captureWindow();
+      if (result) {
+        openEditor(result.image_base64);
+        fetchHistory();
+      }
+    });
   };
 
   const handleCaptureRegion = async () => {
     const region = await startRegionSelection();
     if (region) {
-      const result = await captureRegion(region.x, region.y, region.width, region.height);
-      if (result) {
-        onScreenshotTaken?.(result.image_base64);
-        fetchHistory();
-      }
+      await withDelay(async () => {
+        const result = await captureRegion(region.x, region.y, region.width, region.height);
+        if (result) {
+          openEditor(result.image_base64);
+          fetchHistory();
+        }
+      });
     }
   };
 
   const handleCaptureSelectedWindow = async (window: WindowInfo) => {
     const result = await captureWindowByHwnd(window.hwnd);
     if (result) {
-      onScreenshotTaken?.(result.image_base64);
+      openEditor(result.image_base64);
       fetchHistory();
     }
   };
@@ -137,6 +199,20 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     fetchHistory(20);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If editor is open, show it full-screen
+  if (editorOpen && editorImageData) {
+    return (
+      <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
+        <ScreenshotEditor
+          imageData={editorImageData}
+          onConfirm={handleEditorConfirm}
+          onCancel={handleEditorCancel}
+          className="flex-1"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
@@ -164,6 +240,14 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
           mode="alert"
           className="mb-2"
         />
+
+        {/* Countdown overlay */}
+        {countdown !== null && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Timer className="h-4 w-4 animate-pulse" />
+            <span>{t('captureIn')} {countdown}s...</span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <Button
@@ -199,6 +283,18 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
             <span className="hidden xs:inline">{t('region')}</span>
             <span className="xs:hidden">R</span>
           </Button>
+          <Select value={String(captureDelay)} onValueChange={(v) => setCaptureDelay(Number(v))}>
+            <SelectTrigger className="h-8 w-[70px]">
+              <Timer className="h-3.5 w-3.5 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">{t('noDelay')}</SelectItem>
+              <SelectItem value="3">3s</SelectItem>
+              <SelectItem value="5">5s</SelectItem>
+              <SelectItem value="10">10s</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="sm"

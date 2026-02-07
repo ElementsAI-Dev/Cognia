@@ -315,7 +315,24 @@ export const useSyncStore = create<SyncStore>()(
     }),
     {
       name: 'cognia-sync',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure googleDriveConfig and device fields exist
+          if (!state.googleDriveConfig) {
+            state.googleDriveConfig = initialState.googleDriveConfig;
+          }
+          if (!state.deviceId) {
+            state.deviceId = initialState.deviceId;
+          }
+          if (!state.deviceName) {
+            state.deviceName = initialState.deviceName;
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         webdavConfig: state.webdavConfig,
         githubConfig: state.githubConfig,

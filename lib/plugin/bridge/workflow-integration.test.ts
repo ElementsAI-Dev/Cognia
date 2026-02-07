@@ -30,7 +30,7 @@ const mockHooksManager = {
   dispatchShortcut: jest.fn().mockResolvedValue(false),
 };
 
-jest.mock('./hooks-system', () => ({
+jest.mock('../messaging/hooks-system', () => ({
   getPluginEventHooks: jest.fn(() => mockHooksManager),
 }));
 
@@ -53,12 +53,18 @@ jest.mock('@/stores/plugin', () => ({
   },
 }));
 
-jest.mock('./logger', () => ({
+jest.mock('../core/logger', () => ({
   loggers: {
     manager: {
       error: jest.fn(),
       info: jest.fn(),
       warn: jest.fn(),
+    },
+    workflow: {
+      error: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
     },
   },
 }));

@@ -19,7 +19,15 @@ jest.mock('./backup', () => ({
     getBackups: jest.fn(() => []),
     createBackup: jest.fn().mockResolvedValue({ success: true }),
     restoreBackup: jest.fn().mockResolvedValue({ success: true }),
+    restoreToVersion: jest.fn().mockResolvedValue({ success: true }),
   })),
+}));
+
+// Mock logger
+jest.mock('../core/logger', () => ({
+  loggers: {
+    rollback: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+  },
 }));
 
 import { invoke } from '@tauri-apps/api/core';
@@ -108,19 +116,18 @@ describe('PluginRollbackManager', () => {
       expect(plan.steps.length).toBeGreaterThan(0);
     });
 
-    it('should add warning for unavailable target version', async () => {
+    it('should throw for unavailable target version', async () => {
       mockGetBackupManager.mockReturnValue({
         getBackups: jest.fn(() => []),
         createBackup: jest.fn(),
         restoreBackup: jest.fn(),
+        restoreToVersion: jest.fn(),
       } as never);
 
       mockInvoke.mockResolvedValueOnce({ version: '2.0.0' });
 
-      const plan = await manager.createRollbackPlan('plugin-a', '1.0.0');
-
-      // Plan is created even if target not available (with warnings or empty steps)
-      expect(plan.pluginId).toBe('plugin-a');
+      await expect(manager.createRollbackPlan('plugin-a', '1.0.0'))
+        .rejects.toThrow('Version 1.0.0 is not available for rollback');
     });
   });
 
@@ -170,11 +177,27 @@ describe('PluginRollbackManager', () => {
         ]),
         createBackup: jest.fn().mockResolvedValue({ success: true }),
         restoreBackup: jest.fn().mockResolvedValue({ success: true }),
+        restoreToVersion: jest.fn().mockResolvedValue({ success: true }),
       } as never);
 
+      // getRollbackInfo invoke (plugin_get_manifest)
       mockInvoke.mockResolvedValueOnce({ version: '2.0.0' });
-      mockInvoke.mockResolvedValueOnce({ success: true });
+      // rollback: createBackup is handled by mock above
+      // rollback: plugin_disable
+      mockInvoke.mockResolvedValueOnce(null);
+      // rollback: plugin_unload
+      mockInvoke.mockResolvedValueOnce(null);
+      // rollback: getRollbackInfo inside rollback (plugin_get_manifest)
+      mockInvoke.mockResolvedValueOnce({ version: '2.0.0' });
+      // rollback: restoreToVersion is handled by mock above
+      // rollback: plugin_load
+      mockInvoke.mockResolvedValueOnce(null);
+      // rollback: plugin_enable
+      mockInvoke.mockResolvedValueOnce(null);
+      // rollback: verifyRollback (plugin_get_manifest returns target version)
       mockInvoke.mockResolvedValueOnce({ version: '1.5.0' });
+      // rollback: checkRequiresRestart
+      mockInvoke.mockResolvedValueOnce(false);
 
       const result = await manager.rollbackToLatestBackup('plugin-a');
 
@@ -186,6 +209,7 @@ describe('PluginRollbackManager', () => {
         getBackups: jest.fn(() => []),
         createBackup: jest.fn(),
         restoreBackup: jest.fn(),
+        restoreToVersion: jest.fn(),
       } as never);
 
       const result = await manager.rollbackToLatestBackup('plugin-a');

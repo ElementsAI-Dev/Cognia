@@ -157,6 +157,17 @@ impl PluginManager {
             return Err(PluginError::InvalidManifest("Missing plugin version".to_string()));
         }
 
+        // Validate semver format (basic check: at least X.Y.Z pattern)
+        {
+            let parts: Vec<&str> = manifest.version.split('.').collect();
+            if parts.len() < 2 || !parts.iter().all(|p| p.chars().all(|c| c.is_ascii_digit() || c == '-' || c.is_ascii_alphanumeric())) {
+                return Err(PluginError::InvalidManifest(format!(
+                    "Invalid version '{}': must follow semver format (e.g., 1.0.0)",
+                    manifest.version
+                )));
+            }
+        }
+
         // Validate ID format (lowercase, alphanumeric, hyphens, dots, underscores)
         if !manifest.id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '.' || c == '_') {
             return Err(PluginError::InvalidManifest(format!(
@@ -175,6 +186,17 @@ impl PluginManager {
                         required_version, current_version
                     )));
                 }
+            }
+        }
+
+        // Validate minAppVersion if present (alternative to engines.cognia)
+        if let Some(ref min_version) = manifest.min_app_version {
+            let current_version = env!("CARGO_PKG_VERSION");
+            if !Self::is_version_compatible(current_version, &format!(">={}", min_version)) {
+                return Err(PluginError::VersionMismatch(format!(
+                    "Plugin requires minimum app version {}, but current version is {}",
+                    min_version, current_version
+                )));
             }
         }
 
@@ -809,6 +831,12 @@ mod tests {
             tools: None,
             modes: None,
             activate_on_startup: None,
+            screenshots: None,
+            activation_events: None,
+            scheduled_tasks: None,
+            a2ui_templates: None,
+            min_app_version: None,
+            commands: None,
         }
     }
 

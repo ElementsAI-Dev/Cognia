@@ -374,12 +374,28 @@ export class PluginManager {
   private async verifyPluginSignature(pluginPath: string, pluginId: string): Promise<boolean> {
     try {
       const verifier = getPluginSignatureVerifier();
+      const config = verifier.getConfig();
+
+      // Skip verification entirely if signatures are not required and untrusted plugins are allowed
+      // This is the default configuration - signature backend commands may not be available
+      if (!config.requireSignatures && config.allowUntrusted) {
+        return true;
+      }
+
       const result = await verifier.verify(pluginPath);
       if (!result.valid) {
         loggers.manager.warn(`Signature verification failed for ${pluginId}:`, result.reason);
       }
       return result.valid;
     } catch (error) {
+      // If signature verification fails due to missing backend support,
+      // allow loading if signatures are not strictly required
+      const verifier = getPluginSignatureVerifier();
+      const config = verifier.getConfig();
+      if (!config.requireSignatures) {
+        loggers.manager.debug(`Signature verification skipped for ${pluginId} (backend unavailable)`);
+        return true;
+      }
       loggers.manager.warn(`Signature verification error for ${pluginId}:`, error);
       return false;
     }

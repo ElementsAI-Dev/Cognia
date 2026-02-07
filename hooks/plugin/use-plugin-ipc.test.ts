@@ -6,7 +6,7 @@ import { renderHook, act } from '@testing-library/react';
 import { usePluginIPC, usePluginEvents, useEventSubscription } from './use-plugin-ipc';
 
 // Mock the IPC and MessageBus modules
-jest.mock('@/lib/plugin/ipc', () => ({
+jest.mock('@/lib/plugin/messaging/ipc', () => ({
   getPluginIPC: () => ({
     send: jest.fn().mockResolvedValue(undefined),
     sendAndWait: jest.fn().mockResolvedValue('response'),
@@ -17,7 +17,7 @@ jest.mock('@/lib/plugin/ipc', () => ({
   }),
 }));
 
-jest.mock('@/lib/plugin/message-bus', () => ({
+jest.mock('@/lib/plugin/messaging/message-bus', () => ({
   getMessageBus: () => ({
     emit: jest.fn().mockReturnValue('event-id'),
     on: jest.fn().mockReturnValue(() => {}),

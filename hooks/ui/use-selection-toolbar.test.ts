@@ -33,6 +33,8 @@ const mockStore = {
   clearSelection: jest.fn(),
   setSelectionMode: jest.fn(),
   setFeedback: jest.fn(),
+  updateConfig: jest.fn(),
+  trackActionUsage: jest.fn(),
 };
 
 jest.mock('@/stores/context', () => ({

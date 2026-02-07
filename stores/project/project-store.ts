@@ -388,7 +388,22 @@ export const useProjectStore = create<ProjectState>()(
     }),
     {
       name: 'cognia-projects',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure knowledgeBase and tags exist on each project
+          if (Array.isArray(state.projects)) {
+            state.projects = (state.projects as Record<string, unknown>[]).map((p) => ({
+              ...p,
+              knowledgeBase: Array.isArray(p.knowledgeBase) ? p.knowledgeBase : [],
+              tags: Array.isArray(p.tags) ? p.tags : [],
+            }));
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         projects: state.projects.map((p) => ({
           ...p,

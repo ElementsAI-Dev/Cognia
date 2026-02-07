@@ -11,8 +11,9 @@ import type { Plugin, PluginManifest, PluginDefinition } from '@/types/plugin';
 const mockCreateElement = jest.fn();
 const mockAppendChild = jest.fn();
 
-// Store original document
+// Store original document and fetch
 const originalDocument = global.document;
+const originalFetch = global.fetch;
 
 beforeAll(() => {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -23,10 +24,13 @@ beforeAll(() => {
       appendChild: mockAppendChild,
     },
   };
+  // Mock fetch to reject immediately so loader falls through to script tag strategy
+  global.fetch = jest.fn().mockRejectedValue(new Error('fetch not available in test'));
 });
 
 afterAll(() => {
   global.document = originalDocument;
+  global.fetch = originalFetch;
 });
 
 describe('PluginLoader', () => {
@@ -155,17 +159,19 @@ describe('PluginLoader', () => {
       const plugin = createMockPlugin('hybrid-plugin', 'hybrid');
       plugin.manifest.main = 'index.js';
 
-      // Mock script loading
-      const mockScript = { type: '', src: '', onerror: null };
-      mockCreateElement.mockReturnValue(mockScript);
+      // Mock fetch to return valid CJS module code so the loader can evaluate it
+      const mockActivate = 'function() {}';
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        text: async () => `module.exports = { activate: ${mockActivate}, manifest: { id: 'hybrid-plugin' } };`,
+      });
 
-      // Start loading (will timeout in this test)
-      const loadPromise = loader.load(plugin);
-      
-      // Fast forward past timeout
-      jest.advanceTimersByTime(31000);
+      jest.useRealTimers();
+      const definition = await loader.load(plugin);
 
-      await expect(loadPromise).rejects.toThrow();
+      expect(definition).toBeDefined();
+      expect(typeof definition.activate).toBe('function');
+      jest.useFakeTimers();
     });
 
     it('should return combined definition', async () => {

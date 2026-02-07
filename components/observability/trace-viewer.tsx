@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, ExternalLink, Clock, Zap, Hash } from 'lucide-react';
+import { useSettingsStore } from '@/stores';
 import type { TraceData, SpanData } from './observability-dashboard';
 
 interface TraceViewerProps {
@@ -123,6 +124,12 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
 
 export function TraceViewer({ trace }: TraceViewerProps) {
   const t = useTranslations('observability.traceViewer');
+  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+
+  const langfuseTraceUrl = useMemo(() => {
+    const host = observabilitySettings?.langfuseHost || 'https://cloud.langfuse.com';
+    return `${host.replace(/\/$/, '')}/trace/${trace.id}`;
+  }, [observabilitySettings?.langfuseHost, trace.id]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString();
@@ -245,12 +252,19 @@ export function TraceViewer({ trace }: TraceViewerProps) {
           </Collapsible>
         )}
 
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" className="gap-2">
-            <ExternalLink className="h-4 w-4" />
-            {t('openInLangfuse')}
-          </Button>
-        </div>
+        {observabilitySettings?.langfuseEnabled && (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => window.open(langfuseTraceUrl, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {t('openInLangfuse')}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

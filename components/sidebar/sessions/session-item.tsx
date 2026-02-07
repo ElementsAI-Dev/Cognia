@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Link2, Check } from 'lucide-react';
+import { MessageSquare, MoreHorizontal, Pencil, Trash2, Copy, Link2, Check, Archive, Pin, PinOff } from 'lucide-react';
 import { createDeepLink } from '@/lib/native/deep-link';
 import { useNativeStore } from '@/stores';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,9 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
   const updateSession = useSessionStore((state) => state.updateSession);
   const deleteSession = useSessionStore((state) => state.deleteSession);
   const duplicateSession = useSessionStore((state) => state.duplicateSession);
+  const togglePinSession = useSessionStore((state) => state.togglePinSession);
+  const archiveSession = useSessionStore((state) => state.archiveSession);
+  const unarchiveSession = useSessionStore((state) => state.unarchiveSession);
 
   const handleCopyLink = async () => {
     const deepLink = createDeepLink('chat/open', { id: session.id });
@@ -145,6 +148,24 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
             <Copy className="mr-2 h-4 w-4" />
             {t('duplicate')}
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => togglePinSession(session.id)}>
+            {session.pinned ? (
+              <><PinOff className="mr-2 h-4 w-4" />{t('unpin') || 'Unpin'}</>
+            ) : (
+              <><Pin className="mr-2 h-4 w-4" />{t('pin') || 'Pin'}</>
+            )}
+          </DropdownMenuItem>
+          {session.isArchived ? (
+            <DropdownMenuItem onClick={() => unarchiveSession(session.id)}>
+              <Archive className="mr-2 h-4 w-4" />
+              {t('unarchive') || 'Unarchive'}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => archiveSession(session.id)}>
+              <Archive className="mr-2 h-4 w-4" />
+              {t('archive') || 'Archive'}
+            </DropdownMenuItem>
+          )}
           {isDesktop && (
             <DropdownMenuItem onClick={handleCopyLink}>
               {linkCopied ? (

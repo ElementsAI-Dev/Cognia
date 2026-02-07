@@ -16,7 +16,7 @@ import type {
   PromptCollection,
   PromptReview,
 } from '@/types/content/prompt-marketplace';
-import { SAMPLE_MARKETPLACE_PROMPTS } from '@/types/content/prompt-marketplace';
+import { SAMPLE_MARKETPLACE_PROMPTS, SAMPLE_MARKETPLACE_COLLECTIONS } from '@/types/content/prompt-marketplace';
 import { usePromptTemplateStore } from './prompt-template-store';
 
 interface PromptMarketplaceState {
@@ -520,13 +520,62 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       },
 
       // Publishing Actions
-      publishPrompt: async (_templateId: string, _metadata: Partial<MarketplacePrompt>) => {
-        // In production, this would publish to marketplace API
-        return nanoid();
+      publishPrompt: async (templateId: string, metadata: Partial<MarketplacePrompt>) => {
+        const templateStore = usePromptTemplateStore.getState();
+        const template = templateStore.getTemplate(templateId);
+
+        const marketplaceId = nanoid();
+        const now = new Date();
+
+        const marketplacePrompt: MarketplacePrompt = {
+          id: marketplaceId,
+          name: metadata.name || template?.name || 'Untitled Prompt',
+          description: metadata.description || template?.description || '',
+          content: metadata.content || template?.content || '',
+          category: (metadata.category as MarketplaceCategory) || 'chat',
+          tags: metadata.tags || template?.tags || [],
+          variables: metadata.variables || template?.variables || [],
+          targets: metadata.targets || template?.targets || ['chat'],
+          author: metadata.author || { id: 'local-user', name: 'You' },
+          source: 'user',
+          qualityTier: 'community',
+          version: '1.0.0',
+          versions: [],
+          stats: { downloads: 0, weeklyDownloads: 0, favorites: 0, shares: 0, views: 0 },
+          rating: { average: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+          reviewCount: 0,
+          icon: metadata.icon,
+          color: metadata.color,
+          createdAt: now,
+          updatedAt: now,
+          publishedAt: now,
+        };
+
+        set((state) => ({
+          prompts: { ...state.prompts, [marketplaceId]: marketplacePrompt },
+          userActivity: {
+            ...state.userActivity,
+            published: [...state.userActivity.published, marketplaceId],
+          },
+        }));
+
+        return marketplaceId;
       },
 
-      unpublishPrompt: async (_marketplaceId: string) => {
-        // In production, this would unpublish via API
+      unpublishPrompt: async (marketplaceId: string) => {
+        set((state) => {
+          const newPrompts = { ...state.prompts };
+          delete newPrompts[marketplaceId];
+          return {
+            prompts: newPrompts,
+            featuredIds: state.featuredIds.filter((id) => id !== marketplaceId),
+            trendingIds: state.trendingIds.filter((id) => id !== marketplaceId),
+            userActivity: {
+              ...state.userActivity,
+              published: state.userActivity.published.filter((id) => id !== marketplaceId),
+            },
+          };
+        });
       },
 
       // Collection Actions
@@ -588,10 +637,40 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
           }
         });
 
+        // Build trending from top-downloaded prompts
+        const trendingIds = Object.entries(samplePrompts)
+          .sort(([, a], [, b]) => b.stats.weeklyDownloads - a.stats.weeklyDownloads)
+          .slice(0, 6)
+          .map(([id]) => id);
+
+        // Build collections with actual prompt IDs matched by category
+        const sampleCollections: Record<string, PromptCollection> = {};
+        SAMPLE_MARKETPLACE_COLLECTIONS.forEach((sample) => {
+          const collectionId = nanoid();
+          const matchingPromptIds = Object.entries(samplePrompts)
+            .filter(([, p]) => {
+              if (sample.categoryFilter) {
+                return p.category === sample.categoryFilter;
+              }
+              return sample.tags?.some((tag) => p.tags.includes(tag));
+            })
+            .map(([id]) => id);
+
+          sampleCollections[collectionId] = {
+            ...sample,
+            id: collectionId,
+            promptIds: matchingPromptIds,
+            promptCount: matchingPromptIds.length,
+            createdAt: now,
+            updatedAt: now,
+          };
+        });
+
         set({
           prompts: samplePrompts,
+          collections: sampleCollections,
           featuredIds,
-          trendingIds: featuredIds,
+          trendingIds,
           lastSyncedAt: now,
         });
       },
@@ -655,6 +734,13 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
             p.updatedAt = new Date(p.updatedAt);
             if (p.publishedAt) p.publishedAt = new Date(p.publishedAt);
           });
+          // Rehydrate collection dates
+          if (state.collections) {
+            Object.values(state.collections).forEach((c) => {
+              c.createdAt = new Date(c.createdAt);
+              c.updatedAt = new Date(c.updatedAt);
+            });
+          }
           // Rehydrate review dates
           if (state.reviews) {
             Object.keys(state.reviews).forEach((promptId) => {

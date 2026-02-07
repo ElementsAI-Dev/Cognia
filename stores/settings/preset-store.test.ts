@@ -294,6 +294,136 @@ describe('usePresetStore', () => {
     });
   });
 
+  describe('category support', () => {
+    it('should create preset with category', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Coding Helper',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'coding',
+        });
+      });
+
+      expect(preset!.category).toBe('coding');
+    });
+
+    it('should create preset without category (undefined)', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'No Category',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      expect(preset!.category).toBeUndefined();
+    });
+
+    it('should update preset category', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createPreset({
+          name: 'Test',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'general',
+        });
+      });
+
+      act(() => {
+        usePresetStore.getState().updatePreset(preset!.id, { category: 'writing' });
+      });
+
+      expect(usePresetStore.getState().presets[0].category).toBe('writing');
+    });
+
+    it('should duplicate preset with category preserved', () => {
+      let original;
+      act(() => {
+        original = usePresetStore.getState().createPreset({
+          name: 'Original',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'research',
+        });
+      });
+
+      let duplicate;
+      act(() => {
+        duplicate = usePresetStore.getState().duplicatePreset(original!.id);
+      });
+
+      expect(duplicate!.category).toBe('research');
+    });
+  });
+
+  describe('createFromSession', () => {
+    it('should create a preset from session input', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createFromSession({
+          name: 'Session Preset',
+          description: 'Saved from session',
+          provider: 'anthropic',
+          model: 'claude-3',
+          mode: 'agent',
+          systemPrompt: 'You are a coder',
+          temperature: 0.3,
+          maxTokens: 4000,
+          webSearchEnabled: true,
+          thinkingEnabled: false,
+          category: 'coding',
+        });
+      });
+
+      expect(preset).toBeDefined();
+      expect(preset!.name).toBe('Session Preset');
+      expect(preset!.description).toBe('Saved from session');
+      expect(preset!.provider).toBe('anthropic');
+      expect(preset!.model).toBe('claude-3');
+      expect(preset!.mode).toBe('agent');
+      expect(preset!.systemPrompt).toBe('You are a coder');
+      expect(preset!.temperature).toBe(0.3);
+      expect(preset!.maxTokens).toBe(4000);
+      expect(preset!.webSearchEnabled).toBe(true);
+      expect(preset!.thinkingEnabled).toBe(false);
+      expect(preset!.category).toBe('coding');
+      expect(preset!.usageCount).toBe(0);
+      expect(preset!.isDefault).toBe(false);
+    });
+
+    it('should use default icon and color when not provided', () => {
+      let preset;
+      act(() => {
+        preset = usePresetStore.getState().createFromSession({
+          name: 'Minimal',
+          provider: 'openai',
+          model: 'gpt-4',
+          mode: 'chat',
+        });
+      });
+
+      expect(preset!.icon).toBe('💬');
+      expect(preset!.color).toBe('#6366f1');
+    });
+
+    it('should be added to the presets list', () => {
+      act(() => {
+        usePresetStore.getState().createFromSession({
+          name: 'Test',
+          provider: 'openai',
+          model: 'gpt-4',
+          mode: 'chat',
+        });
+      });
+
+      expect(usePresetStore.getState().presets).toHaveLength(1);
+    });
+  });
+
   describe('selectors', () => {
     beforeEach(() => {
       act(() => {
@@ -347,6 +477,29 @@ describe('usePresetStore', () => {
       expect(results[0].name).toBe('Recent');
     });
 
+    it('should search presets by category name', () => {
+      // Reset and create categorized presets
+      usePresetStore.setState({ presets: [] });
+      act(() => {
+        usePresetStore.getState().createPreset({
+          name: 'Coder',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'coding',
+        });
+        usePresetStore.getState().createPreset({
+          name: 'Writer',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'writing',
+        });
+      });
+
+      const results = usePresetStore.getState().searchPresets('coding');
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe('Coder');
+    });
+
     it('should use selectPresets selector', () => {
       expect(selectPresets(usePresetStore.getState())).toHaveLength(2);
     });
@@ -369,6 +522,58 @@ describe('usePresetStore', () => {
       const favorites = usePresetStore.getState().presets.filter((p) => p.isFavorite);
       expect(favorites).toHaveLength(1);
       expect(favorites[0].id).toBe(id);
+    });
+  });
+
+  describe('getPresetsByCategory', () => {
+    beforeEach(() => {
+      act(() => {
+        usePresetStore.getState().createPreset({
+          name: 'Coding 1',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'coding',
+        });
+        usePresetStore.getState().createPreset({
+          name: 'Coding 2',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'coding',
+        });
+        usePresetStore.getState().createPreset({
+          name: 'Writing 1',
+          provider: 'openai',
+          model: 'gpt-4',
+          category: 'writing',
+        });
+        usePresetStore.getState().createPreset({
+          name: 'No Category',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+    });
+
+    it('should return presets filtered by category', () => {
+      const coding = usePresetStore.getState().getPresetsByCategory('coding');
+      expect(coding).toHaveLength(2);
+      expect(coding.every((p) => p.category === 'coding')).toBe(true);
+    });
+
+    it('should return different category presets', () => {
+      const writing = usePresetStore.getState().getPresetsByCategory('writing');
+      expect(writing).toHaveLength(1);
+      expect(writing[0].name).toBe('Writing 1');
+    });
+
+    it('should return empty array for category with no presets', () => {
+      const business = usePresetStore.getState().getPresetsByCategory('business');
+      expect(business).toHaveLength(0);
+    });
+
+    it('should not include presets without category', () => {
+      const general = usePresetStore.getState().getPresetsByCategory('general');
+      expect(general).toHaveLength(0);
     });
   });
 });

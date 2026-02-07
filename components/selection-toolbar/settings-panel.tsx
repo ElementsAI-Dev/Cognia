@@ -41,9 +41,23 @@ import {
   Copy,
   FileText,
   Network,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Replace,
 } from "lucide-react";
 import { useState } from "react";
-import { SelectionAction, LANGUAGES } from "@/types";
+import { SelectionAction, LANGUAGES, SEARCH_ENGINES } from "@/types";
+import type { SearchEngine, CustomUserAction } from "@/types";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const THEMES = [
   { value: "auto", labelKey: "themeAuto", descKey: "themeAutoDesc" },
@@ -166,10 +180,22 @@ function SettingsSection({ title, description, icon: Icon, children, defaultOpen
 
 export function SelectionToolbarSettings() {
   const t = useTranslations("settingsPanel");
-  const { config, isEnabled, updateConfig, setEnabled, resetConfig, toggleToolbarMode } =
-    useSelectionStore();
+  const {
+    config, isEnabled, updateConfig, setEnabled, resetConfig, toggleToolbarMode,
+    addCustomAction, updateCustomAction, removeCustomAction,
+    setSearchEngine, setEnableReplaceInPlace,
+  } = useSelectionStore();
   const toolbarMode = useSelectionStore(selectToolbarMode);
   const [_activeSection, _setActiveSection] = useState<SettingsSection>("general");
+  const [isCreateActionDialogOpen, setIsCreateActionDialogOpen] = useState(false);
+  const [editingAction, setEditingAction] = useState<CustomUserAction | null>(null);
+  const [newAction, setNewAction] = useState({
+    name: "",
+    description: "",
+    prompt: "",
+    category: "ai" as const,
+    shortcut: "",
+  });
 
   const applyPreset = (preset: typeof PRESETS[0]) => {
     updateConfig(preset.config);
@@ -550,6 +576,124 @@ export function SelectionToolbarSettings() {
           </div>
         </SettingsSection>
 
+        {/* Custom Actions */}
+        <SettingsSection
+          title={t("customActions") ?? "Custom Actions"}
+          description={t("customActionsDesc") ?? "Create your own AI actions with custom prompts"}
+          icon={Sparkles}
+          defaultOpen={false}
+        >
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => setIsCreateActionDialogOpen(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t("addCustomAction") ?? "Add Custom Action"}
+            </Button>
+
+            {config.customUserActions?.length > 0 ? (
+              <div className="space-y-2">
+                {config.customUserActions.map((action) => (
+                  <div
+                    key={action.id}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg border",
+                      action.enabled ? "border-primary/30 bg-primary/5" : "border-border"
+                    )}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{action.name}</div>
+                        {action.description && (
+                          <p className="text-xs text-muted-foreground truncate">{action.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Switch
+                        checked={action.enabled}
+                        onCheckedChange={(enabled) => updateCustomAction(action.id, { enabled })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setEditingAction(action)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => removeCustomAction(action.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                {t("noCustomActions") ?? "No custom actions yet. Create one to get started."}
+              </p>
+            )}
+          </div>
+        </SettingsSection>
+
+        {/* Search & Replace */}
+        <SettingsSection
+          title={t("searchAndReplace") ?? "Search & Replace"}
+          description={t("searchAndReplaceDesc") ?? "Configure search engine and text replacement"}
+          icon={Search}
+          defaultOpen={false}
+        >
+          {/* Search Engine */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2 text-sm">
+              <Search className="w-4 h-4" />
+              {t("searchEngine") ?? "Search Engine"}
+            </Label>
+            <Select
+              value={config.searchEngine}
+              onValueChange={(value: SearchEngine) => setSearchEngine(value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SEARCH_ENGINES.map((engine) => (
+                  <SelectItem key={engine.engine} value={engine.engine}>
+                    {engine.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Replace-in-place */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="flex items-center gap-2 text-sm">
+                <Replace className="w-4 h-4" />
+                {t("replaceInPlace") ?? "Replace in Place"}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t("replaceInPlaceDesc") ?? "Replace selected text with AI result (desktop only)"}
+              </p>
+            </div>
+            <Switch
+              checked={config.enableReplaceInPlace}
+              onCheckedChange={setEnableReplaceInPlace}
+            />
+          </div>
+        </SettingsSection>
+
         {/* Reset Button */}
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-xs text-muted-foreground">
@@ -561,6 +705,141 @@ export function SelectionToolbarSettings() {
           </Button>
         </div>
       </div>
+
+      {/* Create Custom Action Dialog */}
+      <Dialog open={isCreateActionDialogOpen} onOpenChange={setIsCreateActionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("createCustomAction") ?? "Create Custom Action"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm">{t("name") ?? "Name"}</Label>
+              <Input
+                value={newAction.name}
+                onChange={(e) => setNewAction((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder={t("actionNamePlaceholder") ?? "e.g., Fix Typos"}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">{t("descriptionOptional") ?? "Description (optional)"}</Label>
+              <Input
+                value={newAction.description}
+                onChange={(e) => setNewAction((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder={t("actionDescPlaceholder") ?? "Brief description of the action"}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">{t("promptTemplate") ?? "Prompt Template"}</Label>
+              <Textarea
+                value={newAction.prompt}
+                onChange={(e) => setNewAction((prev) => ({ ...prev, prompt: e.target.value }))}
+                placeholder={t("actionPromptPlaceholder") ?? "Use {{text}} as placeholder for selected text"}
+                className="min-h-[100px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                {"Use {{text}} as a placeholder for the selected text."}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">{t("shortcutOptional") ?? "Shortcut (optional)"}</Label>
+              <Input
+                value={newAction.shortcut}
+                onChange={(e) => setNewAction((prev) => ({ ...prev, shortcut: e.target.value }))}
+                placeholder={t("shortcutPlaceholder") ?? "e.g., Shift+F"}
+                maxLength={10}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsCreateActionDialogOpen(false)}>
+              {t("cancel") ?? "Cancel"}
+            </Button>
+            <Button
+              onClick={() => {
+                if (newAction.name && newAction.prompt) {
+                  addCustomAction({
+                    name: newAction.name,
+                    description: newAction.description || undefined,
+                    prompt: newAction.prompt,
+                    category: newAction.category,
+                    shortcut: newAction.shortcut || undefined,
+                    enabled: true,
+                  });
+                  setNewAction({ name: "", description: "", prompt: "", category: "ai", shortcut: "" });
+                  setIsCreateActionDialogOpen(false);
+                }
+              }}
+              disabled={!newAction.name || !newAction.prompt}
+            >
+              {t("create") ?? "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Custom Action Dialog */}
+      <Dialog open={editingAction !== null} onOpenChange={(open) => !open && setEditingAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("editCustomAction") ?? "Edit Custom Action"}</DialogTitle>
+          </DialogHeader>
+          {editingAction && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label className="text-sm">{t("name") ?? "Name"}</Label>
+                <Input
+                  value={editingAction.name}
+                  onChange={(e) => setEditingAction((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t("descriptionOptional") ?? "Description"}</Label>
+                <Input
+                  value={editingAction.description || ""}
+                  onChange={(e) => setEditingAction((prev) => prev ? { ...prev, description: e.target.value } : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t("promptTemplate") ?? "Prompt Template"}</Label>
+                <Textarea
+                  value={editingAction.prompt}
+                  onChange={(e) => setEditingAction((prev) => prev ? { ...prev, prompt: e.target.value } : null)}
+                  className="min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t("shortcutOptional") ?? "Shortcut"}</Label>
+                <Input
+                  value={editingAction.shortcut || ""}
+                  onChange={(e) => setEditingAction((prev) => prev ? { ...prev, shortcut: e.target.value } : null)}
+                  maxLength={10}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingAction(null)}>
+              {t("cancel") ?? "Cancel"}
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingAction) {
+                  updateCustomAction(editingAction.id, {
+                    name: editingAction.name,
+                    description: editingAction.description,
+                    prompt: editingAction.prompt,
+                    shortcut: editingAction.shortcut,
+                  });
+                  setEditingAction(null);
+                }
+              }}
+            >
+              {t("saveChanges") ?? "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

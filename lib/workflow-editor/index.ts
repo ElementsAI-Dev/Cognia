@@ -53,3 +53,22 @@ export {
   type IOCompatibilityError,
   type IOCompatibilityWarning,
 } from './validation';
+
+export {
+  formatExecutionDuration,
+  getExecutionSummary,
+  filterLogsByLevel,
+  getLogsForNode,
+  getFailedNodes,
+  getExecutionTimeline,
+  estimateRemainingTime,
+  exportExecutionState,
+  formatExecutionStatus,
+  getStatusColor,
+  getNodeStatusColor,
+  canRetryExecution,
+  getRetryableNodes,
+  calculateExecutionStats,
+  validateWorkflowInput,
+  sanitizeWorkflowOutput,
+} from './execution-utils';

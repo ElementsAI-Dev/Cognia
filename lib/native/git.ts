@@ -42,6 +42,11 @@ import type {
   GitCredential,
   GitCredentialInput,
   SshKeyInfo,
+  GitTagInfo,
+  GitTagCreateOptions,
+  GitRevertOptions,
+  GitCherryPickOptions,
+  GitCommitDetail,
 } from '@/types/system/git';
 
 // ==================== Git Installation Management ====================
@@ -888,6 +893,43 @@ export const gitService = {
   removeCredential,
   detectSshKeys,
   testCredential,
+
+  // Revert
+  revert: revertCommit,
+  revertAbort,
+
+  // Tags
+  getTagList,
+  createTag,
+  deleteTag,
+  pushTag,
+
+  // Cherry-pick
+  cherryPick,
+  cherryPickAbort,
+
+  // Branch rename
+  renameBranch,
+
+  // Commit detail
+  showCommit,
+
+  // Abort operations
+  mergeAbort,
+
+  // Git2 native library
+  git2: {
+    isAvailable: git2IsAvailable,
+    isRepo: git2IsRepo,
+    getStatus: git2GetStatus,
+    getFileStatus: git2GetFileStatus,
+    getBranches: git2GetBranches,
+    stageFiles: git2StageFiles,
+    stageAll: git2StageAll,
+    createCommit: git2CreateCommit,
+    initRepo: git2InitRepo,
+    fetchRemote: git2FetchRemote,
+  },
 };
 
 export default gitService;
@@ -949,4 +991,340 @@ export async function testCredential(host: string): Promise<boolean> {
   }
 
   return invoke<boolean>('git_test_credential', { host });
+}
+
+// ==================== Revert Operations ====================
+
+/** Revert a commit (create a new commit that undoes changes) */
+export async function revertCommit(
+  options: GitRevertOptions
+): Promise<GitOperationResult<GitCommitInfo>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<GitCommitInfo>>('git_revert', { options });
+  } catch (error) {
+    log.error('Failed to revert commit', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Abort an in-progress revert */
+export async function revertAbort(repoPath: string): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_revert_abort', { repoPath });
+  } catch (error) {
+    log.error('Failed to abort revert', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Tag Operations ====================
+
+/** List all tags in a repository */
+export async function getTagList(
+  repoPath: string
+): Promise<GitOperationResult<GitTagInfo[]>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<GitTagInfo[]>>('git_tag_list', { repoPath });
+  } catch (error) {
+    log.error('Failed to list tags', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Create a new tag */
+export async function createTag(
+  options: GitTagCreateOptions
+): Promise<GitOperationResult<GitTagInfo>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<GitTagInfo>>('git_tag_create', { options });
+  } catch (error) {
+    log.error('Failed to create tag', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Delete a tag */
+export async function deleteTag(
+  repoPath: string,
+  name: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_tag_delete', { repoPath, name });
+  } catch (error) {
+    log.error('Failed to delete tag', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Push a tag to remote */
+export async function pushTag(
+  repoPath: string,
+  name: string,
+  remote?: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_tag_push', { repoPath, name, remote });
+  } catch (error) {
+    log.error('Failed to push tag', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Cherry-pick Operations ====================
+
+/** Cherry-pick a commit */
+export async function cherryPick(
+  options: GitCherryPickOptions
+): Promise<GitOperationResult<GitCommitInfo>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<GitCommitInfo>>('git_cherry_pick', { options });
+  } catch (error) {
+    log.error('Failed to cherry-pick commit', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Abort an in-progress cherry-pick */
+export async function cherryPickAbort(repoPath: string): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_cherry_pick_abort', { repoPath });
+  } catch (error) {
+    log.error('Failed to abort cherry-pick', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Branch Rename ====================
+
+/** Rename a branch */
+export async function renameBranch(
+  repoPath: string,
+  oldName: string,
+  newName: string,
+  force?: boolean
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_rename_branch', {
+      repoPath,
+      oldName,
+      newName,
+      force,
+    });
+  } catch (error) {
+    log.error('Failed to rename branch', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Show Commit ====================
+
+/** Get full commit details including diff content */
+export async function showCommit(
+  repoPath: string,
+  commitHash: string,
+  maxLines?: number
+): Promise<GitOperationResult<GitCommitDetail>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<GitCommitDetail>>('git_show_commit', {
+      repoPath,
+      commitHash,
+      maxLines,
+    });
+  } catch (error) {
+    log.error('Failed to show commit', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Merge Abort ====================
+
+/** Abort an in-progress merge */
+export async function mergeAbort(repoPath: string): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+
+  try {
+    return await invoke<GitOperationResult<void>>('git_merge_abort', { repoPath });
+  } catch (error) {
+    log.error('Failed to abort merge', error as Error);
+    return { success: false, error: String(error) };
+  }
+}
+
+// ==================== Git2 Native Library Operations ====================
+
+/** Check if git2 native library is available */
+export async function git2IsAvailable(): Promise<boolean> {
+  if (!isTauri()) return false;
+  try {
+    return await invoke<boolean>('git2_is_available');
+  } catch {
+    return false;
+  }
+}
+
+/** Check if a path is a git repo (using git2) */
+export async function git2IsRepo(path: string): Promise<boolean> {
+  if (!isTauri()) return false;
+  try {
+    return await invoke<boolean>('git2_is_repo', { path });
+  } catch {
+    return false;
+  }
+}
+
+/** Get repository status using git2 native library */
+export async function git2GetStatus(
+  path: string
+): Promise<GitOperationResult<GitRepoInfo>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<GitRepoInfo>>('git2_get_status', { path });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Get file status using git2 native library */
+export async function git2GetFileStatus(
+  path: string
+): Promise<GitOperationResult<GitFileStatus[]>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<GitFileStatus[]>>('git2_get_file_status', { path });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Get branches using git2 native library */
+export async function git2GetBranches(
+  path: string
+): Promise<GitOperationResult<GitBranchInfo[]>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<GitBranchInfo[]>>('git2_get_branches', { path });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Stage files using git2 native library */
+export async function git2StageFiles(
+  path: string,
+  files: string[]
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<void>>('git2_stage_files', { path, files });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Stage all files using git2 native library */
+export async function git2StageAll(
+  path: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<void>>('git2_stage_all', { path });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Create a commit using git2 native library */
+export async function git2CreateCommit(
+  path: string,
+  message: string
+): Promise<GitOperationResult<GitCommitInfo>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<GitCommitInfo>>('git2_create_commit', { path, message });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Initialize a repository using git2 native library */
+export async function git2InitRepo(
+  path: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<void>>('git2_init_repo', { path });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Fetch from remote using git2 native library */
+export async function git2FetchRemote(
+  path: string,
+  remote?: string
+): Promise<GitOperationResult<void>> {
+  if (!isTauri()) {
+    return { success: false, error: 'Requires Tauri desktop environment' };
+  }
+  try {
+    return await invoke<GitOperationResult<void>>('git2_fetch_remote', { path, remote });
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
 }

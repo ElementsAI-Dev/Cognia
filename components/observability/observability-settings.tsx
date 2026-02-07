@@ -58,16 +58,31 @@ export function ObservabilitySettings() {
     setTestMessage(t('testingConnection'));
 
     try {
-      // In a real implementation, this would test the Langfuse connection
-      // For now, we'll simulate a test
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      if (settings.langfusePublicKey && settings.langfuseSecretKey) {
-        setTestStatus('success');
-        setTestMessage(t('connectionSuccess'));
-      } else {
+      if (!settings.langfusePublicKey || !settings.langfuseSecretKey) {
         setTestStatus('error');
         setTestMessage(t('configureKeysFirst'));
+        return;
+      }
+
+      const host = (settings.langfuseHost || 'https://cloud.langfuse.com').replace(/\/$/, '');
+      const credentials = btoa(`${settings.langfusePublicKey}:${settings.langfuseSecretKey}`);
+
+      const response = await fetch(`${host}/api/public/health`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+        },
+      });
+
+      if (response.ok) {
+        setTestStatus('success');
+        setTestMessage(t('connectionSuccess'));
+      } else if (response.status === 401 || response.status === 403) {
+        setTestStatus('error');
+        setTestMessage(t('invalidCredentials'));
+      } else {
+        setTestStatus('error');
+        setTestMessage(`${t('connectionFailed')}: HTTP ${response.status}`);
       }
     } catch (error) {
       setTestStatus('error');

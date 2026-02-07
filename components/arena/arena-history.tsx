@@ -6,6 +6,7 @@
  */
 
 import { memo, useState, useMemo, useCallback } from 'react';
+import { useLocale } from 'next-intl';
 import { useTranslations } from 'next-intl';
 import {
   History,
@@ -55,11 +56,11 @@ interface ArenaHistoryProps {
   maxItems?: number;
 }
 
-type FilterStatus = 'all' | 'completed' | 'tie' | 'pending';
+type FilterStatus = 'all' | 'completed' | 'tie' | 'pending' | 'error';
 type SortOrder = 'newest' | 'oldest';
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+function formatDate(date: Date, locale: string = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -80,10 +81,12 @@ function BattleCard({
   battle,
   onView,
   onDelete,
+  locale,
 }: {
   battle: ArenaBattle;
   onView?: () => void;
   onDelete?: () => void;
+  locale?: string;
 }) {
   const t = useTranslations('arena');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -123,7 +126,7 @@ function BattleCard({
             <div className="flex items-center gap-2 mb-1">
               {getStatusBadge()}
               <span className="text-xs text-muted-foreground">
-                {formatDate(new Date(battle.createdAt))}
+                {formatDate(new Date(battle.createdAt), locale)}
               </span>
               {battle.mode === 'blind' && (
                 <Badge variant="outline" className="text-[10px]">
@@ -286,6 +289,7 @@ function BattleCard({
 
 function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: ArenaHistoryProps) {
   const t = useTranslations('arena');
+  const locale = useLocale();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
@@ -325,7 +329,14 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
       filtered = filtered.filter((b) => {
         if (statusFilter === 'completed') return b.winnerId && !b.isTie;
         if (statusFilter === 'tie') return b.isTie;
-        if (statusFilter === 'pending') return !b.winnerId && !b.isTie;
+        if (statusFilter === 'error') {
+          return !b.winnerId && !b.isTie && b.contestants.every((c) => c.status === 'error');
+        }
+        if (statusFilter === 'pending') {
+          return !b.winnerId && !b.isTie && b.contestants.some(
+            (c) => c.status === 'streaming' || c.status === 'pending' || c.status === 'completed'
+          );
+        }
         return true;
       });
     }
@@ -402,6 +413,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
             <SelectItem value="completed">{t('history.completed')}</SelectItem>
             <SelectItem value="tie">{t('history.tie')}</SelectItem>
             <SelectItem value="pending">{t('history.pending')}</SelectItem>
+            <SelectItem value="error">{t('error')}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -447,6 +459,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
               <BattleCard
                 key={battle.id}
                 battle={battle}
+                locale={locale}
                 onView={onViewBattle ? () => onViewBattle(battle.id) : undefined}
                 onDelete={() => handleDelete(battle.id)}
               />

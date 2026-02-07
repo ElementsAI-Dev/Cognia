@@ -33,6 +33,10 @@ describe('PluginManager', () => {
   const mockGetState = usePluginStore.getState as unknown as jest.Mock;
   const mockVerifier = {
     verify: jest.fn(),
+    getConfig: jest.fn().mockReturnValue({
+      requireSignatures: false,
+      allowUntrusted: true,
+    }),
   };
   const mockGuard = {
     registerPlugin: jest.fn(),
@@ -111,7 +115,7 @@ describe('PluginManager', () => {
       expect(store.installPlugin).toHaveBeenCalledWith('git-plugin');
       expect(plugin?.manifest.id).toBe('git-plugin');
       expect(plugin?.status).toBe('installed');
-      expect(mockVerifier.verify).toHaveBeenCalledWith('/plugins/git-plugin');
+      // With requireSignatures=false and allowUntrusted=true, verify is skipped
     });
 
     it('should call plugin_install with installType=local when omitted', async () => {
@@ -159,7 +163,7 @@ describe('PluginManager', () => {
         installType: 'local',
         pluginDir: '/plugins',
       });
-      expect(mockVerifier.verify).toHaveBeenCalledWith('/plugins/local-plugin');
+      // With requireSignatures=false and allowUntrusted=true, verify is skipped
     });
 
     it('should throw a helpful error when invoke fails', async () => {
@@ -230,7 +234,7 @@ describe('PluginManager', () => {
       expect(store.plugins['scanned-plugin']).toBeDefined();
       expect(store.plugins['scanned-plugin'].status).toBe('installed');
       expect(store.plugins['scanned-plugin'].installedAt).toEqual(expect.any(Date));
-      expect(mockVerifier.verify).toHaveBeenCalledWith('/plugins/scanned-plugin');
+      // With requireSignatures=false and allowUntrusted=true, verify is skipped
     });
 
     it('should skip invalid manifests', async () => {

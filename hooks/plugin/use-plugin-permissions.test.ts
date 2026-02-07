@@ -24,7 +24,7 @@ const mockGuard = {
   request: jest.fn().mockResolvedValue(true),
 };
 
-jest.mock('@/lib/plugin/permission-guard', () => ({
+jest.mock('@/lib/plugin/security/permission-guard', () => ({
   getPermissionGuard: () => mockGuard,
 }));
 
@@ -92,11 +92,12 @@ describe('usePermissionCheck', () => {
   });
 
   it('should return false for missing permission', () => {
-    mockGuard.check.mockReturnValueOnce(false);
+    mockGuard.check.mockReturnValue(false);
 
     const { result } = renderHook(() => usePermissionCheck('plugin-a', 'filesystem:write'));
 
     expect(result.current).toBe(false);
+    mockGuard.check.mockReturnValue(true);
   });
 });
 
@@ -141,7 +142,7 @@ describe('usePermissionRequest', () => {
   });
 
   it('should skip request if already granted', async () => {
-    mockGuard.check.mockReturnValueOnce(true);
+    mockGuard.check.mockReturnValue(true);
 
     const { result } = renderHook(() => usePermissionRequest('plugin-a', 'network:fetch'));
 
@@ -151,13 +152,15 @@ describe('usePermissionRequest', () => {
     });
 
     expect(mockGuard.request).not.toHaveBeenCalled();
+    mockGuard.check.mockReturnValue(false);
   });
 
   it('should indicate already granted on mount', () => {
-    mockGuard.check.mockReturnValueOnce(true);
+    mockGuard.check.mockReturnValue(true);
 
     const { result } = renderHook(() => usePermissionRequest('plugin-a', 'network:fetch'));
 
     expect(result.current.granted).toBe(true);
+    mockGuard.check.mockReturnValue(false);
   });
 });

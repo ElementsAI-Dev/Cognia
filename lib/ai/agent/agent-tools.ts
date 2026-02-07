@@ -43,6 +43,10 @@ import { artifactTools, memoryTools } from '../tools';
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
   openaiApiKey?: string;
+  /** Multi-provider search settings (preferred over tavilyApiKey) */
+  searchProviders?: Record<string, { providerId: string; apiKey: string; enabled: boolean; priority: number }>;
+  /** Default search provider to use */
+  defaultSearchProvider?: string;
   enableWebSearch?: boolean;
   enableWebScraper?: boolean;
   enableCalculator?: boolean;
@@ -120,16 +124,30 @@ export function createCalculatorTool(): AgentTool {
 }
 
 /**
- * Create web search tool for agent
+ * Create web search tool for agent with multi-provider support
  */
-export function createWebSearchTool(apiKey: string): AgentTool {
+export function createWebSearchTool(
+  apiKeyOrConfig: string | {
+    apiKey?: string;
+    provider?: string;
+    providerSettings?: Record<string, { providerId: string; apiKey: string; enabled: boolean; priority: number }>;
+  }
+): AgentTool {
+  const config = typeof apiKeyOrConfig === 'string'
+    ? { apiKey: apiKeyOrConfig }
+    : apiKeyOrConfig;
+
   return {
     name: 'web_search',
     description: 'Search the web for current information, news, facts, or any topic. Use this when you need up-to-date information.',
     parameters: webSearchInputSchema,
     execute: async (args) => {
       const input = args as z.infer<typeof webSearchInputSchema>;
-      return executeWebSearch(input, { apiKey });
+      return executeWebSearch(input, {
+        apiKey: config.apiKey,
+        provider: config.provider as import('@/types/search').SearchProviderType | undefined,
+        providerSettings: config.providerSettings as Record<import('@/types/search').SearchProviderType, import('@/types/search').SearchProviderSettings> | undefined,
+      });
     },
     requiresApproval: false,
   };
@@ -442,9 +460,25 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     tools.calculator = createCalculatorTool();
   }
 
-  // Web search (requires API key)
-  if (config.enableWebSearch !== false && config.tavilyApiKey) {
-    tools.web_search = createWebSearchTool(config.tavilyApiKey);
+  // Web search (multi-provider with fallback to single API key)
+  if (config.enableWebSearch !== false) {
+    let searchToolCreated = false;
+    if (config.searchProviders) {
+      const hasEnabledProvider = Object.values(config.searchProviders).some(
+        (p) => p.enabled && p.apiKey
+      );
+      if (hasEnabledProvider) {
+        tools.web_search = createWebSearchTool({
+          providerSettings: config.searchProviders,
+          provider: config.defaultSearchProvider,
+        });
+        searchToolCreated = true;
+      }
+    }
+    // Fallback to legacy tavily key when searchProviders has no enabled provider
+    if (!searchToolCreated && config.tavilyApiKey) {
+      tools.web_search = createWebSearchTool(config.tavilyApiKey);
+    }
   }
 
   // Web scraper tools

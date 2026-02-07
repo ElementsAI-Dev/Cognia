@@ -16,6 +16,8 @@ import {
   Settings,
   List,
   FileText,
+  Database,
+  Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,11 +51,13 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AdminElevationDialog,
+  BackupScheduleDialog,
   SystemTaskForm,
   TaskConfirmationDialog,
   TaskDetails,
   TaskForm,
   TaskList,
+  WorkflowScheduleDialog,
 } from '@/components/scheduler';
 import { useScheduler, useSystemScheduler } from '@/hooks/scheduler';
 import type {
@@ -419,6 +423,35 @@ export default function SchedulerPage() {
           </div>
         )}
       </div>
+
+      {/* Quick Actions */}
+      {!isSystemView && (
+        <div className="px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground mr-1">
+            {t('quickActions') || 'Quick Actions'}:
+          </span>
+          <WorkflowScheduleDialog
+            workflowId="default"
+            workflowName="Workflow"
+            trigger={
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                <Workflow className="h-3.5 w-3.5" />
+                {t('scheduleWorkflowAction') || 'Schedule Workflow'}
+              </Button>
+            }
+            onScheduled={() => refresh()}
+          />
+          <BackupScheduleDialog
+            trigger={
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                <Database className="h-3.5 w-3.5" />
+                {t('scheduleBackup') || 'Schedule Backup'}
+              </Button>
+            }
+            onScheduled={() => refresh()}
+          />
+        </div>
+      )}
 
       <div className="px-3 sm:px-4 pb-2">
         <Tabs value={schedulerTab} onValueChange={(v) => setSchedulerTab(v as 'app' | 'system')}>

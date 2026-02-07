@@ -12,6 +12,7 @@ export interface MarketplacePlugin {
     name: string;
     avatar?: string;
     verified?: boolean;
+    url?: string;
   };
   version: string;
   type: PluginType;
@@ -28,6 +29,35 @@ export interface MarketplacePlugin {
   verified?: boolean;
   price?: number;
   installed?: boolean;
+  // Extended fields for detail view
+  repository?: string;
+  homepage?: string;
+  documentation?: string;
+  license?: string;
+  downloadUrl?: string;
+  screenshots?: string[];
+  readme?: string;
+  minAppVersion?: string;
+  changelog?: ChangelogEntry[];
+  reviews?: PluginReview[];
+  ratingBreakdown?: Record<number, number>;
+}
+
+export interface PluginReview {
+  id: string;
+  author: string;
+  avatar?: string;
+  rating: number;
+  date: string;
+  content: string;
+  helpful: number;
+}
+
+export interface ChangelogEntry {
+  version: string;
+  date: string;
+  changes: string[];
+  breaking?: boolean;
 }
 
 export type ViewMode = 'grid' | 'list';
@@ -48,4 +78,16 @@ export interface PluginCardProps {
   plugin: MarketplacePlugin;
   onInstall?: (pluginId: string) => Promise<void>;
   onViewDetails?: (plugin: MarketplacePlugin) => void;
+  installProgress?: number;
+  isInstalling?: boolean;
+}
+
+export type InstallStage = 'idle' | 'downloading' | 'extracting' | 'installing' | 'configuring' | 'complete' | 'error';
+
+export interface InstallProgressInfo {
+  pluginId: string;
+  stage: InstallStage;
+  progress: number;
+  message: string;
+  error?: string;
 }

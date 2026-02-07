@@ -47,6 +47,7 @@ export async function getCogniaDBStats(): Promise<DatabaseStats> {
     { name: 'workflows', avgSize: 2048 },
     { name: 'workflowExecutions', avgSize: 4096 },
     { name: 'summaries', avgSize: 1024 },
+    { name: 'agentTraces', avgSize: 4096 },
     { name: 'assets', avgSize: 8192 },
     { name: 'folders', avgSize: 256 },
   ];
@@ -237,6 +238,33 @@ export async function cleanupOrphanedRecords(dryRun = false): Promise<number> {
       cleaned += orphanedExecutions.length;
     }
 
+    // Find summaries without valid sessions
+    const allSummaries = await db.summaries.toArray();
+    const orphanedSummaries = allSummaries.filter((s) => !sessionIds.has(s.sessionId));
+
+    if (orphanedSummaries.length > 0 && !dryRun) {
+      await db.summaries.bulkDelete(orphanedSummaries.map((s) => s.id));
+      cleaned += orphanedSummaries.length;
+    }
+
+    // Find agent traces without valid sessions (only those with sessionId set)
+    const allTraces = await db.agentTraces.toArray();
+    const orphanedTraces = allTraces.filter((t) => t.sessionId && !sessionIds.has(t.sessionId));
+
+    if (orphanedTraces.length > 0 && !dryRun) {
+      await db.agentTraces.bulkDelete(orphanedTraces.map((t) => t.id));
+      cleaned += orphanedTraces.length;
+    }
+
+    // Find documents without valid projects (only those with projectId set)
+    const allDocuments = await db.documents.toArray();
+    const orphanedDocs = allDocuments.filter((d) => d.projectId && !projectIds.has(d.projectId));
+
+    if (orphanedDocs.length > 0 && !dryRun) {
+      await db.documents.bulkDelete(orphanedDocs.map((d) => d.id));
+      cleaned += orphanedDocs.length;
+    }
+
   } catch (error) {
     log.error('Failed to cleanup orphaned records', error as Error);
   }
@@ -263,14 +291,38 @@ export async function exportAllData(): Promise<{
   documents: unknown[];
   projects: unknown[];
   workflows: unknown[];
+  workflowExecutions: unknown[];
+  summaries: unknown[];
+  knowledgeFiles: unknown[];
+  agentTraces: unknown[];
+  folders: unknown[];
+  mcpServers: unknown[];
   exportedAt: string;
 }> {
-  const [sessions, messages, documents, projects, workflows] = await Promise.all([
+  const [
+    sessions,
+    messages,
+    documents,
+    projects,
+    workflows,
+    workflowExecutions,
+    summaries,
+    knowledgeFiles,
+    agentTraces,
+    folders,
+    mcpServers,
+  ] = await Promise.all([
     db.sessions.toArray(),
     db.messages.toArray(),
     db.documents.toArray(),
     db.projects.toArray(),
     db.workflows.toArray(),
+    db.workflowExecutions.toArray(),
+    db.summaries.toArray(),
+    db.knowledgeFiles.toArray(),
+    db.agentTraces.toArray(),
+    db.folders.toArray(),
+    db.mcpServers.toArray(),
   ]);
 
   return {
@@ -279,8 +331,84 @@ export async function exportAllData(): Promise<{
     documents,
     projects,
     workflows,
+    workflowExecutions,
+    summaries,
+    knowledgeFiles,
+    agentTraces,
+    folders,
+    mcpServers,
     exportedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Import all data into IndexedDB (counterpart to exportAllData)
+ */
+export async function importAllData(
+  data: {
+    sessions?: unknown[];
+    messages?: unknown[];
+    documents?: unknown[];
+    projects?: unknown[];
+    workflows?: unknown[];
+    workflowExecutions?: unknown[];
+    summaries?: unknown[];
+    knowledgeFiles?: unknown[];
+    agentTraces?: unknown[];
+    folders?: unknown[];
+    mcpServers?: unknown[];
+  },
+  options?: { clearExisting?: boolean }
+): Promise<{ imported: Record<string, number>; errors: string[] }> {
+  const imported: Record<string, number> = {};
+  const errors: string[] = [];
+
+  try {
+    if (options?.clearExisting) {
+      await Promise.all([
+        db.sessions.clear(),
+        db.messages.clear(),
+        db.documents.clear(),
+        db.projects.clear(),
+        db.workflows.clear(),
+        db.workflowExecutions.clear(),
+        db.summaries.clear(),
+        db.knowledgeFiles.clear(),
+        db.agentTraces.clear(),
+        db.folders.clear(),
+        db.mcpServers.clear(),
+      ]);
+    }
+
+    const tableMap: Array<{ key: string; items: unknown[] | undefined; table: { bulkPut: (items: never[]) => Promise<unknown> } }> = [
+      { key: 'sessions', items: data.sessions, table: db.sessions as never },
+      { key: 'messages', items: data.messages, table: db.messages as never },
+      { key: 'documents', items: data.documents, table: db.documents as never },
+      { key: 'projects', items: data.projects, table: db.projects as never },
+      { key: 'workflows', items: data.workflows, table: db.workflows as never },
+      { key: 'workflowExecutions', items: data.workflowExecutions, table: db.workflowExecutions as never },
+      { key: 'summaries', items: data.summaries, table: db.summaries as never },
+      { key: 'knowledgeFiles', items: data.knowledgeFiles, table: db.knowledgeFiles as never },
+      { key: 'agentTraces', items: data.agentTraces, table: db.agentTraces as never },
+      { key: 'folders', items: data.folders, table: db.folders as never },
+      { key: 'mcpServers', items: data.mcpServers, table: db.mcpServers as never },
+    ];
+
+    for (const { key, items, table } of tableMap) {
+      if (items && items.length > 0) {
+        try {
+          await table.bulkPut(items as never[]);
+          imported[key] = items.length;
+        } catch (error) {
+          errors.push(`Failed to import ${key}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+  } catch (error) {
+    errors.push(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return { imported, errors };
 }
 
 /**

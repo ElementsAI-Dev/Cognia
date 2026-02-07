@@ -82,7 +82,9 @@
     "uploadImage": "Upload Image",
     "latex": "LaTeX",
     "observability": "Observability",
-    "scheduler": "Scheduler"
+    "scheduler": "Scheduler",
+    "speedPass": "SpeedPass",
+    "academic": "Academic"
   },
   "mobileNav": {
     "home": "Home",

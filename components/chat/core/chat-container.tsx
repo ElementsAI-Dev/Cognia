@@ -85,7 +85,7 @@ import { PPTPreview } from '@/components/ppt';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/skills';
-import { buildProgressiveSkillsPrompt } from '@/lib/skills/executor';
+import { buildProgressiveSkillsPrompt, findMatchingSkills } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
 import {
   initializeAgentTools,
@@ -104,6 +104,7 @@ import {
 import { translateText } from '@/lib/ai/generation/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
 import { SourceVerificationDialog } from '@/components/search/source-verification-dialog';
+import { SearchSourcesIndicator } from '@/components/search/search-sources-indicator';
 import { useSourceVerification } from '@/hooks/search/use-source-verification';
 import {
   useSessionStore,
@@ -221,8 +222,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const getFormattedQuotes = useQuoteStore((state) => state.getFormattedQuotes);
   const clearQuotes = useQuoteStore((state) => state.clearQuotes);
 
-  // Skill store for active skills injection
+  // Skill store for active skills injection and auto-matching
   const getActiveSkills = useSkillStore((state) => state.getActiveSkills);
+  const skillStoreSkills = useSkillStore((state) => state.skills);
+  const skillStoreActiveIds = useSkillStore((state) => state.activeSkillIds);
+  const activateSkill = useSkillStore((state) => state.activateSkill);
+  const recordSkillUsage = useSkillStore((state) => state.recordSkillUsage);
 
   // Learning store for Socratic method learning mode
   const getLearningSessionByChat = useLearningStore((state) => state.getLearningSessionByChat);
@@ -548,14 +553,20 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return customModes[agentModeId] || null;
   }, [currentMode, agentModeId, customModes]);
 
-  // Initialize agent tools based on available API keys
+  // Initialize agent tools based on available API keys and search providers
+  const { searchProviders: agentSearchProviders, defaultSearchProvider: agentDefaultSearchProvider } = useSettingsStore();
   const allAgentTools = useMemo(() => {
     const tavilyApiKey = providerSettings.tavily?.apiKey;
     const openaiApiKey = providerSettings.openai?.apiKey;
+    const hasEnabledSearchProvider = Object.values(agentSearchProviders).some(
+      (p) => p.enabled && p.apiKey
+    );
     return initializeAgentTools({
       tavilyApiKey,
       openaiApiKey,
-      enableWebSearch: !!tavilyApiKey,
+      searchProviders: hasEnabledSearchProvider ? agentSearchProviders : undefined,
+      defaultSearchProvider: agentDefaultSearchProvider,
+      enableWebSearch: hasEnabledSearchProvider || !!tavilyApiKey,
       enableCalculator: true,
       enableRAGSearch: true,
       enableWebScraper: true,
@@ -565,7 +576,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       enablePPTTools: true,
       enableLearningTools: true,
     });
-  }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey]);
+  }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey, agentSearchProviders, agentDefaultSearchProvider]);
 
   // Create MCP tools for custom mode if configured
   const customModeMcpTools = useMemo(() => {
@@ -601,19 +612,38 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return { ...tools, ...customModeMcpTools };
   }, [allAgentTools, currentCustomMode, customModeMcpTools]);
 
-  // Process system prompt with template variables
+  // Process system prompt with template variables and active skills
   const processedSystemPrompt = useMemo(() => {
     const basePrompt =
       session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
+    let prompt = basePrompt;
     if (currentCustomMode) {
-      return processPromptTemplateVariables(basePrompt, {
+      prompt = processPromptTemplateVariables(basePrompt, {
         modeName: currentCustomMode.name,
         modeDescription: currentCustomMode.description,
         tools: currentCustomMode.tools,
       });
     }
-    return basePrompt;
-  }, [session?.systemPrompt, currentCustomMode]);
+
+    // Inject active skills into agent mode system prompt
+    const activeSkills = getActiveSkills();
+    if (activeSkills.length > 0) {
+      const {
+        prompt: skillsPrompt,
+        level,
+        tokenEstimate,
+      } = buildProgressiveSkillsPrompt(activeSkills, 4000);
+      if (skillsPrompt) {
+        console.log(
+          `[Agent] Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
+        );
+        prompt = `${skillsPrompt}\n\n${prompt}`;
+      }
+    }
+
+    return prompt;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.systemPrompt, currentCustomMode, getActiveSkills, skillStoreActiveIds]);
 
   // Agent hook for multi-step execution
   const {
@@ -983,24 +1013,40 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     }
   }, [inputValue]);
 
-  // Format search results for system prompt
+  // Format search results for system prompt with enhanced context
   const formatSearchResults = useCallback((searchResponse: SearchResponse): string => {
-    const parts: string[] = ['## Web Search Results', `Query: "${searchResponse.query}"`, ''];
+    const parts: string[] = [
+      '## Web Search Results',
+      `**Search Query:** "${searchResponse.query}"`,
+      `**Provider:** ${searchResponse.provider} | **Response Time:** ${searchResponse.responseTime}ms`,
+      '',
+    ];
 
     if (searchResponse.answer) {
-      parts.push(`**Quick Answer:** ${searchResponse.answer}`, '');
+      parts.push(`### Quick Answer`, searchResponse.answer, '');
     }
 
-    parts.push('**Sources:**');
+    parts.push('### Sources');
     searchResponse.results.forEach((result: SearchResult, index: number) => {
-      parts.push(`${index + 1}. [${result.title}](${result.url})`);
-      parts.push(`   ${result.content.slice(0, 200)}...`);
+      parts.push(`**[${index + 1}] ${result.title}**`);
+      parts.push(`URL: ${result.url}`);
+      if (result.publishedDate) {
+        parts.push(`Published: ${result.publishedDate}`);
+      }
+      // Include more content for better LLM context (up to 500 chars)
+      const contentPreview = result.content.length > 500
+        ? result.content.slice(0, 500) + '...'
+        : result.content;
+      parts.push(`Content: ${contentPreview}`);
       parts.push('');
     });
 
     parts.push('---');
     parts.push(
-      'Use the above search results to provide an informed, up-to-date response. Cite sources when relevant.'
+      '**Instructions:** Use the above web search results to provide an accurate, up-to-date response. ' +
+      'Cite sources using [N] notation (e.g., [1], [2]) when referencing specific information. ' +
+      'If search results conflict, note the discrepancy. ' +
+      'If the search results are insufficient, say so honestly.'
     );
 
     return parts.join('\n');
@@ -1270,6 +1316,20 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
       // Use Agent mode execution if in agent mode
       if (currentMode === 'agent') {
+        // Auto-match skills based on message content for agent mode
+        const agentEnabledSkills = Object.values(skillStoreSkills).filter(
+          (s) => s.status === 'enabled'
+        );
+        if (agentEnabledSkills.length > 0 && effectiveContent.length >= 5) {
+          const agentMatchedSkills = findMatchingSkills(agentEnabledSkills, effectiveContent, 3);
+          for (const matched of agentMatchedSkills) {
+            if (!matched.isActive) {
+              activateSkill(matched.id);
+              console.log(`[Agent] Auto-activated skill: ${matched.metadata.name}`);
+            }
+          }
+        }
+
         try {
           // For agent mode, also process video attachments if present
           let agentContent = messageContent;
@@ -1331,7 +1391,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         let actualModel = currentModel;
 
         if (isAutoMode) {
-          const selection = selectModel(content);
+          // Gather active skill categories for skill-aware routing
+          const currentActiveSkills = getActiveSkills();
+          const skillCategories = [...new Set(currentActiveSkills.map((s) => s.category))];
+          const selection = selectModel(content, {
+            activeSkillCategories: skillCategories.length > 0 ? skillCategories : undefined,
+            activeSkillCount: currentActiveSkills.length || undefined,
+          });
           actualProvider = selection.provider;
           actualModel = selection.model;
           console.log('Auto-selected:', selection.reason);
@@ -1491,61 +1557,87 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           enhancedSystemPrompt = session.systemPrompt;
         }
 
-        // Perform web search if enabled
+        // Track search sources for attaching to assistant message
+        let searchSources: import('@/types/core/message').Source[] | undefined;
+
+        // Perform web search if enabled (multi-provider with fallback)
         if (webSearchEnabled) {
+          const { searchProviders, defaultSearchProvider, searchMaxResults } = useSettingsStore.getState();
+          const hasEnabledProvider = Object.values(searchProviders).some(
+            (p) => p.enabled && p.apiKey
+          );
+          // Fallback to legacy tavily key
           const tavilyApiKey = providerSettings.tavily?.apiKey;
-          if (tavilyApiKey) {
+
+          if (hasEnabledProvider || tavilyApiKey) {
             try {
-              const searchRes = await fetch('/api/search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  query: effectiveContent,
-                  apiKey: tavilyApiKey,
-                  options: {
-                    maxResults: 5,
-                    searchDepth: 'basic',
-                    includeAnswer: true,
-                  },
-                }),
-              });
+              const { executeWebSearch } = await import('@/lib/ai/tools/web-search');
+              const { optimizeSearchQuery } = await import('@/lib/search/search-query-optimizer');
+              // Optimize search query: extract focused query from user message
+              const searchQuery = optimizeSearchQuery(effectiveContent);
 
-              if (searchRes.ok) {
-                const searchResponse: SearchResponse = await searchRes.json();
-                if (searchResponse.results && searchResponse.results.length > 0) {
-                  // Apply source verification if enabled
-                  const verificationSettings = sourceVerification.settings;
+              const searchResult = await executeWebSearch(
+                {
+                  query: searchQuery,
+                  maxResults: searchMaxResults || 5,
+                  searchDepth: 'basic',
+                },
+                hasEnabledProvider
+                  ? { providerSettings: searchProviders, provider: defaultSearchProvider }
+                  : { apiKey: tavilyApiKey }
+              );
 
-                  if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
-                    // Verify and show dialog - user will select sources
-                    await sourceVerification.verifyResults(searchResponse);
-                    // The dialog will be shown, and user can select sources
-                    // For now, use all results (dialog selection is async)
-                    const searchContext = formatSearchResults(searchResponse);
-                    enhancedSystemPrompt = enhancedSystemPrompt
-                      ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                      : searchContext;
-                  } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
-                    // Auto-verify and filter low credibility sources
-                    const verified = await sourceVerification.verifyResults(searchResponse);
-                    const filteredResults = verified.results.filter((r) => r.isEnabled);
-                    if (filteredResults.length > 0) {
-                      const filteredResponse: SearchResponse = {
-                        ...searchResponse,
-                        results: filteredResults,
-                      };
-                      const searchContext = formatSearchResults(filteredResponse);
-                      enhancedSystemPrompt = enhancedSystemPrompt
-                        ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                        : searchContext;
-                    }
-                  } else {
-                    // Verification disabled - use all results
-                    const searchContext = formatSearchResults(searchResponse);
+              if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
+                const searchResponse: SearchResponse = {
+                  provider: searchResult.provider || defaultSearchProvider || 'tavily',
+                  query: searchResult.query || searchQuery,
+                  answer: searchResult.answer,
+                  results: searchResult.results.map((r) => ({
+                    title: r.title,
+                    url: r.url,
+                    content: r.content,
+                    score: r.score,
+                    publishedDate: r.publishedDate,
+                  })),
+                  responseTime: searchResult.responseTime || 0,
+                };
+
+                // Store sources for attaching to assistant message
+                searchSources = searchResult.results.map((r, i) => ({
+                  id: `search-${i}`,
+                  title: r.title,
+                  url: r.url,
+                  snippet: r.content?.slice(0, 200) || '',
+                  relevance: r.score || 0,
+                }));
+
+                // Apply source verification if enabled
+                const verificationSettings = sourceVerification.settings;
+
+                if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
+                  await sourceVerification.verifyResults(searchResponse);
+                  const searchContext = formatSearchResults(searchResponse);
+                  enhancedSystemPrompt = enhancedSystemPrompt
+                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                    : searchContext;
+                } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
+                  const verified = await sourceVerification.verifyResults(searchResponse);
+                  const filteredResults = verified.results.filter((r) => r.isEnabled);
+                  if (filteredResults.length > 0) {
+                    const filteredResponse: SearchResponse = {
+                      ...searchResponse,
+                      results: filteredResults,
+                    };
+                    const searchContext = formatSearchResults(filteredResponse);
                     enhancedSystemPrompt = enhancedSystemPrompt
                       ? `${enhancedSystemPrompt}\n\n${searchContext}`
                       : searchContext;
                   }
+                } else {
+                  const searchContext = formatSearchResults(searchResponse);
+                  enhancedSystemPrompt = enhancedSystemPrompt
+                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
+                    : searchContext;
                 }
               }
             } catch (searchError) {
@@ -1587,6 +1679,20 @@ Be thorough in your thinking but concise in your final answer.`;
             : toolContext;
         }
 
+        // Auto-match skills based on message content and activate them
+        const enabledSkills = Object.values(skillStoreSkills).filter(
+          (s) => s.status === 'enabled'
+        );
+        if (enabledSkills.length > 0 && effectiveContent.length >= 5) {
+          const matchedSkills = findMatchingSkills(enabledSkills, effectiveContent, 3);
+          for (const matched of matchedSkills) {
+            if (!matched.isActive) {
+              activateSkill(matched.id);
+              console.log(`Auto-activated skill: ${matched.metadata.name}`);
+            }
+          }
+        }
+
         // Add active skills to context using Progressive Disclosure
         const activeSkills = getActiveSkills();
         if (activeSkills.length > 0) {
@@ -1605,6 +1711,16 @@ Be thorough in your thinking but concise in your final answer.`;
             enhancedSystemPrompt = enhancedSystemPrompt
               ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
               : skillsPrompt;
+          }
+
+          // Track active skill IDs on the session for per-session skill awareness
+          if (session) {
+            const skillIds = activeSkills.map((s) => s.id);
+            const currentSessionSkillIds = session.activeSkillIds || [];
+            const mergedIds = [...new Set([...currentSessionSkillIds, ...skillIds])];
+            if (mergedIds.length !== currentSessionSkillIds.length) {
+              updateSession(session.id, { activeSkillIds: mergedIds });
+            }
           }
         }
 
@@ -1692,6 +1808,7 @@ Be thorough in your thinking but concise in your final answer.`;
             content: finalContent,
             model: actualModel,
             provider: actualProvider,
+            ...(searchSources && searchSources.length > 0 ? { sources: searchSources } : {}),
           });
 
           // Add any additional messages from plugins
@@ -1706,6 +1823,14 @@ Be thorough in your thinking but concise in your final answer.`;
 
           // Generate suggestions after successful response
           loadSuggestions(effectiveContent, finalContent);
+
+          // Track usage for active skills that were injected into this message
+          if (activeSkills.length > 0) {
+            const duration = Date.now() - (assistantMessage.createdAt?.getTime?.() || Date.now());
+            for (const skill of activeSkills) {
+              recordSkillUsage(skill.id, true, duration);
+            }
+          }
 
           // Auto-detect and create artifacts from the response content
           try {
@@ -1763,6 +1888,10 @@ Be thorough in your thinking but concise in your final answer.`;
       getFormattedQuotes,
       clearQuotes,
       getActiveSkills,
+      skillStoreSkills,
+      activateSkill,
+      recordSkillUsage,
+      updateSession,
       getLearningSessionByChat,
       autoCreateFromContent,
       processA2UIMessage,
@@ -2702,6 +2831,23 @@ function ChatMessageItem({
     });
     // Persist to database
     await messageRepository.update(message.id, { reactions });
+
+    // Send quality score to Langfuse for 👍/👎 on assistant messages
+    if (message.role === 'assistant' && (emoji === '👍' || emoji === '👎')) {
+      try {
+        const { addScore, isLangfuseEnabled } = await import('@/lib/ai/observability/langfuse-client');
+        if (isLangfuseEnabled()) {
+          addScore({
+            traceId: sessionId,
+            name: 'user-feedback',
+            value: emoji === '👍' ? 1 : 0,
+            comment: `User reacted with ${emoji} to message ${message.id}`,
+          });
+        }
+      } catch {
+        // Langfuse not available — ignore silently
+      }
+    }
   };
 
   const handleCopy = useCallback(async () => {
@@ -2856,6 +3002,12 @@ function ChatMessageItem({
                   content={message.content}
                   isError={!!message.error}
                 />
+              )}
+              {/* Web search sources indicator */}
+              {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                <div className="mt-2">
+                  <SearchSourcesIndicator sources={message.sources} />
+                </div>
               )}
               {/* Text selection popover for quoting */}
               <TextSelectionPopover

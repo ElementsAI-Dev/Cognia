@@ -52,6 +52,32 @@ export interface VectorSettings {
   /** Default collection name for RAG searches when not specified */
   defaultCollectionName: string;
   setupCompleted: boolean;
+
+  // RAG-in-Chat settings
+  /** Enable automatic RAG context injection into chat system prompts */
+  enableRAGInChat: boolean;
+  /** Number of top results to retrieve for RAG context */
+  ragTopK: number;
+  /** Minimum similarity threshold for RAG results (0-1) */
+  ragSimilarityThreshold: number;
+  /** Maximum context length in characters for RAG injection */
+  ragMaxContextLength: number;
+
+  // Advanced RAG settings
+  /** Enable hybrid search (vector + BM25 keyword) */
+  enableHybridSearch: boolean;
+  /** Vector search weight for hybrid search (0-1) */
+  vectorWeight: number;
+  /** Keyword search weight for hybrid search (0-1) */
+  keywordWeight: number;
+  /** Enable reranking of search results */
+  enableReranking: boolean;
+  /** Enable query expansion for better recall */
+  enableQueryExpansion: boolean;
+  /** Enable citation formatting in RAG responses */
+  enableCitations: boolean;
+  /** Citation style */
+  citationStyle: 'simple' | 'apa' | 'mla' | 'chicago' | 'harvard' | 'ieee';
 }
 
 const DEFAULT_SETTINGS: VectorSettings = {
@@ -74,6 +100,21 @@ const DEFAULT_SETTINGS: VectorSettings = {
   autoEmbed: true,
   defaultCollectionName: 'default',
   setupCompleted: false,
+
+  // RAG-in-Chat defaults
+  enableRAGInChat: false,
+  ragTopK: 5,
+  ragSimilarityThreshold: 0.3,
+  ragMaxContextLength: 4000,
+
+  // Advanced RAG defaults
+  enableHybridSearch: false,
+  vectorWeight: 0.7,
+  keywordWeight: 0.3,
+  enableReranking: false,
+  enableQueryExpansion: false,
+  enableCitations: false,
+  citationStyle: 'simple',
 };
 
 interface VectorState {

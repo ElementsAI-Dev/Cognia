@@ -53,6 +53,7 @@ import { PromptMarketplaceDetail } from './prompt-marketplace-detail';
 import { PromptCollectionCard } from './prompt-collection-card';
 import { PromptAuthorProfile } from './prompt-author-profile';
 import { PromptImportExport } from './prompt-import-export';
+import { PromptPublishDialog } from './prompt-publish-dialog';
 import type { PromptAuthor } from '@/types/content/prompt-marketplace';
 
 type ViewMode = 'grid' | 'list';
@@ -763,6 +764,7 @@ export function PromptMarketplaceBrowser({
                       <RefreshCw className={cn('h-3.5 w-3.5', isCheckingUpdates && 'animate-spin')} />
                       {isCheckingUpdates ? t('updates.checking') : t('updates.checkForUpdates')}
                     </Button>
+                    <PromptPublishDialog />
                     <PromptImportExport />
                     <Badge variant="secondary" className="font-mono text-xs tabular-nums">
                       {installedPromptsList.length}

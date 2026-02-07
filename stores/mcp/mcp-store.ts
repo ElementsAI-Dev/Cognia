@@ -18,10 +18,16 @@ import type {
   McpToolSelectionConfig,
   ToolUsageRecord,
   ToolSelectionResult,
+  ServerHealth,
+  ResourceTemplate,
+  CompletionResult,
+  Root,
 } from '@/types/mcp';
 import type { MCPLogEntry } from '@/components/mcp/mcp-log-viewer';
 import { DEFAULT_TOOL_SELECTION_CONFIG } from '@/types/mcp';
 import { getToolCacheManager } from '@/lib/mcp/tool-cache';
+import { syncMcpServer, clearMcpServerTools } from '@/lib/context/mcp-tools-sync';
+import { mcpServerRepository } from '@/lib/db/repositories/mcp-server-repository';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
@@ -57,6 +63,9 @@ interface McpState {
   // Active tool calls tracking for parallel execution
   activeToolCalls: Map<string, ActiveToolCall>;
 
+  // Server health tracking
+  serverHealthMap: Map<string, ServerHealth>;
+
   // Tool selection state
   toolSelectionConfig: McpToolSelectionConfig;
   toolUsageHistory: Map<string, ToolUsageRecord>;
@@ -86,6 +95,20 @@ interface McpState {
   pingServer: (serverId: string) => Promise<number>;
   testConnection: (serverId: string) => Promise<boolean>;
   setLogLevel: (serverId: string, level: LogLevel) => Promise<void>;
+  setRoots: (serverId: string, roots: Root[]) => Promise<void>;
+  getRoots: (serverId: string) => Promise<Root[]>;
+  listResourceTemplates: (serverId: string) => Promise<ResourceTemplate[]>;
+  complete: (
+    serverId: string,
+    refType: string,
+    refName: string,
+    argumentName: string,
+    argumentValue: string
+  ) => Promise<CompletionResult>;
+  respondToSampling: (serverId: string, requestId: string, result: Record<string, unknown>) => Promise<void>;
+  cancelRequest: (serverId: string, requestId: string, reason?: string) => Promise<void>;
+  subscribeResource: (serverId: string, uri: string) => Promise<void>;
+  unsubscribeResource: (serverId: string, uri: string) => Promise<void>;
   clearError: () => void;
   
   // Log actions
@@ -98,6 +121,10 @@ interface McpState {
   getToolUsageHistory: () => Map<string, ToolUsageRecord>;
   setLastToolSelection: (selection: ToolSelectionResult | null) => void;
   resetToolUsageHistory: () => void;
+
+  // Server health actions
+  getServerHealth: (serverId: string) => ServerHealth | undefined;
+  getAllServerHealth: () => ServerHealth[];
 
   // Active tool call tracking actions
   trackToolCallStart: (
@@ -124,6 +151,7 @@ let unlistenServersChanged: UnlistenFn | null = null;
 let unlistenNotification: UnlistenFn | null = null;
 let unlistenToolProgress: UnlistenFn | null = null;
 let unlistenLogMessage: UnlistenFn | null = null;
+let unlistenServerHealth: UnlistenFn | null = null;
 
 export const useMcpStore = create<McpState>((set, get) => ({
   servers: [],
@@ -134,6 +162,9 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
   // Active tool calls tracking
   activeToolCalls: new Map<string, ActiveToolCall>(),
+
+  // Server health tracking
+  serverHealthMap: new Map<string, ServerHealth>(),
 
   // Tool selection state
   toolSelectionConfig: { ...DEFAULT_TOOL_SELECTION_CONFIG },
@@ -212,6 +243,16 @@ export const useMcpStore = create<McpState>((set, get) => ({
         });
       });
 
+      // Listen for server health updates
+      unlistenServerHealth = await listen<ServerHealth>('mcp:server-health', (event) => {
+        const health = event.payload;
+        set((prev) => {
+          const healthMap = new Map(prev.serverHealthMap);
+          healthMap.set(health.serverId, health);
+          return { serverHealthMap: healthMap };
+        });
+      });
+
       // Load initial servers
       await get().loadServers();
 
@@ -239,6 +280,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
     try {
       await invoke('mcp_add_server', { id, config });
       await get().loadServers();
+      // Sync to IndexedDB
+      mcpServerRepository.create({ name: config.name, url: config.url || '' }).catch((err) =>
+        log.error(`Failed to sync server add to IndexedDB: ${id}`, err as Error)
+      );
     } catch (error) {
       set({ error: String(error) });
       throw error;
@@ -249,6 +294,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
     try {
       await invoke('mcp_remove_server', { id });
       await get().loadServers();
+      // Remove from IndexedDB
+      mcpServerRepository.delete(id).catch((err) =>
+        log.error(`Failed to sync server remove to IndexedDB: ${id}`, err as Error)
+      );
     } catch (error) {
       set({ error: String(error) });
       throw error;
@@ -259,6 +308,10 @@ export const useMcpStore = create<McpState>((set, get) => ({
     try {
       await invoke('mcp_update_server', { id, config });
       await get().loadServers();
+      // Sync to IndexedDB
+      mcpServerRepository.update(id, { name: config.name, url: config.url }).catch((err) =>
+        log.error(`Failed to sync server update to IndexedDB: ${id}`, err as Error)
+      );
     } catch (error) {
       set({ error: String(error) });
       throw error;
@@ -345,6 +398,44 @@ export const useMcpStore = create<McpState>((set, get) => ({
     return invoke('mcp_set_log_level', { serverId, level });
   },
 
+  setRoots: async (serverId, roots) => {
+    return invoke('mcp_set_roots', { serverId, roots });
+  },
+
+  getRoots: async (serverId) => {
+    return invoke<Root[]>('mcp_get_roots', { serverId });
+  },
+
+  listResourceTemplates: async (serverId) => {
+    return invoke<ResourceTemplate[]>('mcp_list_resource_templates', { serverId });
+  },
+
+  complete: async (serverId, refType, refName, argumentName, argumentValue) => {
+    return invoke<CompletionResult>('mcp_complete', {
+      serverId,
+      refType,
+      refName,
+      argumentName,
+      argumentValue,
+    });
+  },
+
+  respondToSampling: async (serverId, requestId, result) => {
+    return invoke('mcp_respond_sampling', { serverId, requestId, result });
+  },
+
+  cancelRequest: async (serverId, requestId, reason) => {
+    return invoke('mcp_cancel_request', { serverId, requestId, reason });
+  },
+
+  subscribeResource: async (serverId, uri) => {
+    return invoke('mcp_subscribe_resource', { serverId, uri });
+  },
+
+  unsubscribeResource: async (serverId, uri) => {
+    return invoke('mcp_unsubscribe_resource', { serverId, uri });
+  },
+
   clearError: () => {
     set({ error: null });
   },
@@ -422,6 +513,15 @@ export const useMcpStore = create<McpState>((set, get) => ({
 
   resetToolUsageHistory: () => {
     set({ toolUsageHistory: new Map<string, ToolUsageRecord>() });
+  },
+
+  // Server health actions
+  getServerHealth: (serverId) => {
+    return get().serverHealthMap.get(serverId);
+  },
+
+  getAllServerHealth: () => {
+    return Array.from(get().serverHealthMap.values());
   },
 
   // Active tool call tracking actions
@@ -505,13 +605,46 @@ export const useMcpStore = create<McpState>((set, get) => ({
   },
 
   _updateServer: (state) => {
-    set((prev) => ({
-      servers: prev.servers.map((s) => (s.id === state.id ? state : s)),
+    const prev = get().servers.find((s) => s.id === state.id);
+    set((p) => ({
+      servers: p.servers.map((s) => (s.id === state.id ? state : s)),
     }));
+
+    // Auto-sync tool descriptions when server status changes
+    const wasConnected = prev?.status.type === 'connected';
+    const isConnected = state.status.type === 'connected';
+    if (isConnected && !wasConnected) {
+      // Server just connected — sync tools to context files
+      syncMcpServer(state.id, state.name, state.tools || [], 'connected').catch((err) =>
+        log.error(`Failed to sync MCP tools for ${state.id}`, err as Error)
+      );
+    } else if (!isConnected && wasConnected) {
+      // Server disconnected — clear synced tools
+      clearMcpServerTools(state.id).catch((err) =>
+        log.error(`Failed to clear MCP tools for ${state.id}`, err as Error)
+      );
+    }
   },
 
   _setServers: (servers) => {
+    const prevServers = get().servers;
     set({ servers });
+
+    // Auto-sync tool descriptions for newly connected / disconnected servers
+    for (const server of servers) {
+      const prev = prevServers.find((s) => s.id === server.id);
+      const wasConnected = prev?.status.type === 'connected';
+      const isConnected = server.status.type === 'connected';
+      if (isConnected && !wasConnected) {
+        syncMcpServer(server.id, server.name, server.tools || [], 'connected').catch((err) =>
+          log.error(`Failed to sync MCP tools for ${server.id}`, err as Error)
+        );
+      } else if (!isConnected && wasConnected) {
+        clearMcpServerTools(server.id).catch((err) =>
+          log.error(`Failed to clear MCP tools for ${server.id}`, err as Error)
+        );
+      }
+    }
   },
 
   _cleanup: () => {
@@ -535,7 +668,11 @@ export const useMcpStore = create<McpState>((set, get) => ({
       unlistenLogMessage();
       unlistenLogMessage = null;
     }
-    set({ isInitialized: false });
+    if (unlistenServerHealth) {
+      unlistenServerHealth();
+      unlistenServerHealth = null;
+    }
+    set({ isInitialized: false, serverHealthMap: new Map<string, ServerHealth>() });
   },
 }));
 

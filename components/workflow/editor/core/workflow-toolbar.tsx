@@ -50,7 +50,15 @@ import {
   Plus,
   Settings,
   MoreHorizontal,
+  Zap,
 } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { useToolbarActions } from '@/hooks/workflow';
 import { VersionHistoryPanel, ImportExportDialog } from '../panels/version-history-panel';
 import { ExecutionStatisticsPanel } from '../execution/execution-statistics-panel';
@@ -59,6 +67,7 @@ import { VariableManagerPanel } from '../panels/variable-manager-panel';
 import { KeyboardShortcutsPanel } from '../panels/keyboard-shortcuts-panel';
 import { WorkflowSettingsPanel } from '../panels/workflow-settings-panel';
 import { WorkflowInputTestPanel } from '../panels/workflow-input-test-panel';
+import { WorkflowTriggerPanel } from '../panels/workflow-trigger-panel';
 import { DebugToolbar } from '../debug/debug-toolbar';
 import { NodeSearchPanel } from '../search/node-search-panel';
 
@@ -685,6 +694,24 @@ export function WorkflowToolbar({
           </Tooltip>
 
           <VariableManagerPanel />
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Triggers">
+                <Zap className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[400px] sm:w-[450px]">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Triggers
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 h-[calc(100%-60px)]">
+                <WorkflowTriggerPanel />
+              </div>
+            </SheetContent>
+          </Sheet>
           <WorkflowSettingsPanel />
           <KeyboardShortcutsPanel />
         </div>

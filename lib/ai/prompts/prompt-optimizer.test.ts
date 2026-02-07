@@ -2,7 +2,7 @@
  * Tests for Prompt Optimizer
  */
 
-import { optimizePrompt, quickOptimize, batchOptimize } from './prompt-optimizer';
+import { optimizePrompt, quickOptimize, batchOptimize, detectPromptLanguage } from './prompt-optimizer';
 import type { PromptOptimizationStyle, PromptOptimizationConfig } from '@/types/content/prompt';
 
 // Mock the AI SDK
@@ -61,6 +61,8 @@ describe('optimizePrompt', () => {
       'professional',
       'academic',
       'technical',
+      'step-by-step',
+      'structured',
     ];
 
     for (const style of styles) {
@@ -370,6 +372,46 @@ describe('batchOptimize', () => {
     expect(results[1]).toBeDefined();
   });
 
+  it('handles new step-by-step and structured styles', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: 'Step-by-step optimized' })
+      .mockResolvedValueOnce({ text: '["Added CoT reasoning"]' })
+      .mockResolvedValueOnce({ text: 'Structured optimized' })
+      .mockResolvedValueOnce({ text: '["Added output format"]' });
+
+    const result1 = await optimizePrompt({
+      prompt: 'Explain how databases work',
+      config: {
+        style: 'step-by-step',
+        targetProvider: 'openai',
+        targetModel: 'gpt-4o',
+        preserveIntent: false,
+        enhanceClarity: false,
+        addContext: false,
+      },
+      apiKey: 'test-api-key',
+    });
+
+    expect(result1.success).toBe(true);
+    expect(result1.optimizedPrompt?.style).toBe('step-by-step');
+
+    const result2 = await optimizePrompt({
+      prompt: 'List the top programming languages',
+      config: {
+        style: 'structured',
+        targetProvider: 'openai',
+        targetModel: 'gpt-4o',
+        preserveIntent: false,
+        enhanceClarity: false,
+        addContext: false,
+      },
+      apiKey: 'test-api-key',
+    });
+
+    expect(result2.success).toBe(true);
+    expect(result2.optimizedPrompt?.style).toBe('structured');
+  });
+
   it('passes baseURL to all optimizations', async () => {
     mockGenerateText
       .mockResolvedValueOnce({ text: 'Optimized' })
@@ -395,5 +437,50 @@ describe('batchOptimize', () => {
       'test-api-key',
       'https://custom.api.com'
     );
+  });
+});
+
+describe('detectPromptLanguage', () => {
+  it('detects English text', () => {
+    expect(detectPromptLanguage('Write a function that sorts an array')).toBe('en');
+    expect(detectPromptLanguage('You are an expert programmer')).toBe('en');
+  });
+
+  it('detects Chinese text', () => {
+    expect(detectPromptLanguage('请写一个排序算法')).toBe('zh');
+    expect(detectPromptLanguage('你是一个编程专家，请帮我分析代码')).toBe('zh');
+  });
+
+  it('detects mixed text', () => {
+    const mixed = '请帮我优化这段 JavaScript code，使用 React hooks';
+    const result = detectPromptLanguage(mixed);
+    expect(['zh', 'mixed']).toContain(result);
+  });
+
+  it('returns en for empty or numeric text', () => {
+    expect(detectPromptLanguage('')).toBe('en');
+    expect(detectPromptLanguage('12345')).toBe('en');
+  });
+
+  it('adds Chinese language instruction for Chinese prompts', async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: '优化后的提示' })
+      .mockResolvedValueOnce({ text: '["改进了清晰度"]' });
+
+    await optimizePrompt({
+      prompt: '请帮我写一个排序算法',
+      config: {
+        style: 'concise',
+        targetProvider: 'openai',
+        targetModel: 'gpt-4o',
+        preserveIntent: false,
+        enhanceClarity: false,
+        addContext: false,
+      },
+      apiKey: 'test-api-key',
+    });
+
+    const firstCall = mockGenerateText.mock.calls[0][0];
+    expect(firstCall.system).toContain('Chinese');
   });
 });

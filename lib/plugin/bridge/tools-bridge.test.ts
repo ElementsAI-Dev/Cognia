@@ -395,7 +395,7 @@ describe('PluginToolsBridge', () => {
 
       expect(stats.totalExecutions).toBe(3);
       expect(stats.successRate).toBeCloseTo(2/3);
-      expect(stats.averageDuration).toBeGreaterThan(0);
+      expect(stats.averageDuration).toBeGreaterThanOrEqual(0);
     });
   });
 

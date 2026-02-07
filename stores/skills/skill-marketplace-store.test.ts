@@ -26,19 +26,32 @@ jest.mock('@/lib/skills/marketplace', () => ({
   getUniqueSkillCategories: jest.fn(() => []),
 }));
 
+// Mock parser
+jest.mock('@/lib/skills/parser', () => ({
+  parseSkillMd: jest.fn((content: string) => ({
+    metadata: { name: 'parsed-skill', description: 'Parsed description' },
+    content: content.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, ''),
+  })),
+  inferCategoryFromContent: jest.fn(() => 'development'),
+  extractTagsFromContent: jest.fn(() => ['auto-tag']),
+}));
+
 // Mock skill store
+const mockImportSkill = jest.fn(() => ({ id: 'installed-skill-id', metadata: { name: 'test' } }));
 jest.mock('./skill-store', () => ({
   useSkillStore: {
     getState: () => ({
       createSkill: jest.fn(() => ({ id: 'test-skill-id' })),
       updateSkill: jest.fn(),
       getAllSkills: jest.fn(() => []),
+      importSkill: mockImportSkill,
     }),
   },
 }));
 
 // Get mocked functions
 const mockMarketplace = jest.requireMock('@/lib/skills/marketplace');
+const mockParser = jest.requireMock('@/lib/skills/parser');
 
 describe('Skill Marketplace Store', () => {
   beforeEach(() => {
@@ -330,6 +343,88 @@ describe('Skill Marketplace Store', () => {
       const { result } = renderHook(() => useSkillMarketplaceStore());
 
       expect(result.current.getInstallStatus('unknown-id')).toBe('not_installed');
+    });
+  });
+
+  describe('Install Skill', () => {
+    it('should install skill with parsed content and resources', async () => {
+      const mockItem: SkillsMarketplaceItem = {
+        id: 'test/skill',
+        name: 'Test Skill',
+        description: 'A test skill',
+        author: 'test-author',
+        repository: 'test/skill-repo',
+        directory: 'skills/test',
+        stars: 100,
+        tags: ['existing-tag'],
+        version: '1.2.0',
+        license: 'MIT',
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-02',
+      };
+
+      mockMarketplace.downloadSkillContent.mockResolvedValueOnce({
+        skillmd: '---\nname: Test Skill\ndescription: A test skill\n---\nSkill content here',
+        resources: [
+          { name: 'helper.py', path: 'scripts/helper.py', content: 'print("hello")' },
+        ],
+      });
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+
+      act(() => {
+        result.current.setApiKey('test-key');
+      });
+
+      await act(async () => {
+        await result.current.installSkill(mockItem);
+      });
+
+      // downloadSkillContent should be called with id and apiKey
+      expect(mockMarketplace.downloadSkillContent).toHaveBeenCalledWith('test/skill', 'test-key');
+
+      // parseSkillMd should be called with the skillmd content
+      expect(mockParser.parseSkillMd).toHaveBeenCalled();
+
+      // importSkill should be called with proper metadata
+      expect(mockImportSkill).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({ name: 'parsed-skill' }),
+          source: 'marketplace',
+          version: '1.2.0',
+          author: 'test-author',
+          license: 'MIT',
+        })
+      );
+    });
+
+    it('should handle download failure', async () => {
+      const mockItem: SkillsMarketplaceItem = {
+        id: 'fail/skill',
+        name: 'Fail Skill',
+        description: 'Will fail',
+        author: 'test',
+        repository: 'fail/repo',
+        directory: 'skills/fail',
+        stars: 0,
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-02',
+      };
+
+      mockMarketplace.downloadSkillContent.mockResolvedValueOnce(null);
+
+      const { result } = renderHook(() => useSkillMarketplaceStore());
+
+      act(() => {
+        result.current.setApiKey('test-key');
+      });
+
+      await act(async () => {
+        await result.current.installSkill(mockItem);
+      });
+
+      // Should have an install error for this item
+      expect(result.current.installErrors.get('fail/skill')).toBeDefined();
     });
   });
 

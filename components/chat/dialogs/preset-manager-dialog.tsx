@@ -49,13 +49,16 @@ import {
   type Preset,
   type CreatePresetInput,
   type BuiltinPrompt,
+  type PresetCategory,
   PRESET_COLORS,
   PRESET_ICONS,
+  PRESET_CATEGORIES,
 } from '@/types/content/preset';
-import { PROVIDERS } from '@/types/provider';
+import { PROVIDERS, type ProviderName } from '@/types/provider';
 import type { ChatMode } from '@/types/core/session';
 import { cn } from '@/lib/utils';
 import { nanoid } from 'nanoid';
+import { generatePresetFromDescription, optimizePresetPrompt, generateBuiltinPrompts } from '@/lib/ai/presets';
 
 interface PresetManagerDialogProps {
   open: boolean;
@@ -183,23 +186,19 @@ export function PresetManagerDialog({
     setIsOptimizing(true);
 
     try {
-      const response = await fetch('/api/optimize-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: editingPreset.systemPrompt,
-          provider: currentProvider,
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        }),
+      const result = await optimizePresetPrompt(editingPreset.systemPrompt, {
+        provider: currentProvider as ProviderName,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (result.success && result.optimizedPrompt) {
         setEditingPreset((prev) => ({
           ...prev,
-          systemPrompt: data.optimizedPrompt,
+          systemPrompt: result.optimizedPrompt,
         }));
+      } else {
+        toast.error(result.error || 'Failed to optimize prompt');
       }
     } catch (error) {
       console.error('Failed to optimize prompt:', error);
@@ -227,8 +226,12 @@ export function PresetManagerDialog({
   const handleAIGeneratePreset = useCallback(async () => {
     if (!aiDescription.trim()) return;
 
-    const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
-    if (!settings?.apiKey) {
+    const openaiSettings = providerSettings['openai'];
+    const anySettings = Object.entries(providerSettings).find(([, s]) => s?.apiKey);
+    const providerName = openaiSettings?.apiKey ? 'openai' : anySettings?.[0];
+    const settings = openaiSettings?.apiKey ? openaiSettings : anySettings?.[1];
+
+    if (!settings?.apiKey || !providerName) {
       toast.warning('Please configure an API key first.');
       return;
     }
@@ -236,21 +239,14 @@ export function PresetManagerDialog({
     setIsGeneratingPreset(true);
 
     try {
-      const response = await fetch('/api/generate-preset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: aiDescription,
-          provider: 'openai',
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        }),
+      const result = await generatePresetFromDescription(aiDescription, {
+        provider: providerName as ProviderName,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const generatedPreset = data.preset;
-        
+      if (result.success && result.preset) {
+        const generatedPreset = result.preset;
         setEditingPreset({
           name: generatedPreset.name,
           description: generatedPreset.description,
@@ -263,13 +259,16 @@ export function PresetManagerDialog({
           temperature: generatedPreset.temperature,
           webSearchEnabled: generatedPreset.webSearchEnabled,
           thinkingEnabled: generatedPreset.thinkingEnabled,
-          builtinPrompts: generatedPreset.builtinPrompts?.map((p: { name: string; content: string; description?: string }) => ({
+          category: generatedPreset.category as PresetCategory | undefined,
+          builtinPrompts: generatedPreset.builtinPrompts?.map((p) => ({
             id: nanoid(),
             ...p,
           })) || [],
         });
         setActiveTab('edit');
         setAiDescription('');
+      } else {
+        toast.error(result.error || 'Failed to generate preset');
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
@@ -293,25 +292,21 @@ export function PresetManagerDialog({
     setIsGeneratingPrompts(true);
 
     try {
-      const response = await fetch('/api/enhance-builtin-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          presetName: editingPreset.name,
-          presetDescription: editingPreset.description,
-          systemPrompt: editingPreset.systemPrompt,
-          existingPrompts: editingPreset.builtinPrompts,
-          action: editingPreset.builtinPrompts?.length ? 'enhance' : 'generate',
-          count: 3,
-          provider: currentProvider,
+      const result = await generateBuiltinPrompts(
+        editingPreset.name,
+        editingPreset.description || undefined,
+        editingPreset.systemPrompt || undefined,
+        (editingPreset.builtinPrompts || []).map(p => ({ name: p.name, content: p.content })),
+        {
+          provider: currentProvider as ProviderName,
           apiKey: settings.apiKey,
           baseURL: settings.baseURL,
-        }),
-      });
+        },
+        3
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        const newPrompts = data.prompts.map((p: { name: string; content: string; description?: string }) => ({
+      if (result.success && result.prompts) {
+        const newPrompts = result.prompts.map((p) => ({
           id: nanoid(),
           name: p.name,
           content: p.content,
@@ -322,6 +317,8 @@ export function PresetManagerDialog({
           ...prev,
           builtinPrompts: [...(prev?.builtinPrompts || []), ...newPrompts],
         }));
+      } else {
+        toast.error(result.error || 'Failed to generate prompts');
       }
     } catch (error) {
       console.error('Failed to generate prompts:', error);
@@ -669,6 +666,25 @@ function PresetEditForm({
             onChange={(e) => onChange({ ...preset, description: e.target.value })}
             placeholder={tPlaceholders('enterPresetDescription')}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label>{t('category')}</Label>
+          <Select
+            value={preset.category || ''}
+            onValueChange={(v) => onChange({ ...preset, category: v as PresetCategory || undefined })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t('selectCategory')} />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {t(`categories.${cat}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -78,11 +78,16 @@ export function ResponsiveControls({ className }: ResponsiveControlsProps) {
   const [showDeviceList, setShowDeviceList] = useState(false);
 
   const viewport = useDesignerStore((state) => state.viewport);
+  const customViewport = useDesignerStore((state) => state.customViewport);
   const setViewport = useDesignerStore((state) => state.setViewport);
+  const setCustomViewport = useDesignerStore((state) => state.setCustomViewport);
   const zoom = useDesignerStore((state) => state.zoom);
   const setZoom = useDesignerStore((state) => state.setZoom);
 
   const getCurrentDimensions = useCallback(() => {
+    if (customViewport) {
+      return { width: customViewport.width, height: customViewport.height };
+    }
     switch (viewport) {
       case 'mobile':
         return { width: 375, height: 667 };
@@ -93,43 +98,27 @@ export function ResponsiveControls({ className }: ResponsiveControlsProps) {
       default:
         return { width: 0, height: 0 };
     }
-  }, [viewport]);
+  }, [viewport, customViewport]);
 
   const handleApplyCustom = useCallback(() => {
     const width = parseInt(customWidth, 10);
     const height = parseInt(customHeight, 10);
     
     if (width > 0 && height > 0) {
-      if (width <= 480) {
-        setViewport('mobile');
-      } else if (width <= 1024) {
-        setViewport('tablet');
-      } else {
-        setViewport('desktop');
-      }
+      setCustomViewport({ width, height, label: `${width}×${height}` });
     }
-  }, [customWidth, customHeight, setViewport]);
+  }, [customWidth, customHeight, setCustomViewport]);
 
   const handleDevicePreset = useCallback((preset: DevicePreset) => {
-    if (preset.category === 'mobile') {
-      setViewport('mobile');
-    } else if (preset.category === 'tablet') {
-      setViewport('tablet');
-    } else {
-      setViewport('desktop');
-    }
+    // Set the actual device dimensions via customViewport for precise sizing
+    setCustomViewport({ width: preset.width, height: preset.height, label: preset.name });
     setShowDeviceList(false);
-  }, [setViewport]);
+  }, [setCustomViewport]);
 
   const handleBreakpoint = useCallback((width: number) => {
-    if (width < 768) {
-      setViewport('mobile');
-    } else if (width < 1024) {
-      setViewport('tablet');
-    } else {
-      setViewport('desktop');
-    }
-  }, [setViewport]);
+    // Use custom viewport with breakpoint width and a reasonable height
+    setCustomViewport({ width, height: 800, label: `≥${width}px` });
+  }, [setCustomViewport]);
 
   const dimensions = getCurrentDimensions();
 
@@ -251,6 +240,7 @@ export function ResponsiveControls({ className }: ResponsiveControlsProps) {
               className="h-7 w-7"
               onClick={() => {
                 setViewport('desktop');
+                setCustomViewport(null);
                 setZoom(100);
               }}
             >

@@ -160,7 +160,17 @@
         "startLearningForReport": "Start learning to generate reports",
         "hours": "hours",
         "minutes": "minutes",
-        "hoursMinutes": "{hours}h{minutes}m"
+        "hoursMinutes": "{hours}h{minutes}m",
+        "error": "Operation failed",
+        "quizComplete": "Quiz completed!",
+        "selectTextbookForQuiz": "Select a textbook to start practice",
+        "noQuestions": "No questions available",
+        "parseTextbookFirst": "Please parse the textbook first to extract questions",
+        "pendingReview": "Pending Review",
+        "mastered": "Mastered",
+        "totalWrongQuestions": "Total Wrong Questions",
+        "markedReviewed": "Marked as reviewed",
+        "markReviewed": "Mark Reviewed"
       }
     },
     "notes": {

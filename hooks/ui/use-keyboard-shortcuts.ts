@@ -59,6 +59,9 @@ interface UseKeyboardShortcutsOptions {
   onStopGeneration?: () => void;
   onToggleCanvas?: () => void;
   onToggleArtifact?: () => void;
+  onDeleteSession?: () => void;
+  onArchiveSession?: () => void;
+  onExportSession?: () => void;
   enabled?: boolean;
 }
 
@@ -71,10 +74,19 @@ export function useKeyboardShortcuts({
   onStopGeneration,
   onToggleCanvas,
   onToggleArtifact,
+  onDeleteSession,
+  onArchiveSession,
+  onExportSession,
   enabled = true,
 }: UseKeyboardShortcutsOptions = {}) {
   const router = useRouter();
   const createSession = useSessionStore((state) => state.createSession);
+  const sessions = useSessionStore((state) => state.sessions);
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const setActiveSession = useSessionStore((state) => state.setActiveSession);
+  const deleteSession = useSessionStore((state) => state.deleteSession);
+  const togglePinSession = useSessionStore((state) => state.togglePinSession);
+  const archiveSession = useSessionStore((state) => state.archiveSession);
   const setCommandPaletteOpen = useUIStore((state) => state.setCommandPaletteOpen);
   const setKeyboardShortcutsOpen = useUIStore((state) => state.setKeyboardShortcutsOpen);
   const panelOpen = useArtifactStore((state) => state.panelOpen);
@@ -187,11 +199,77 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // Ctrl/Cmd + W - Delete/close current session
+      if ((e.ctrlKey || e.metaKey) && e.key === 'w' && !e.shiftKey) {
+        e.preventDefault();
+        if (onDeleteSession) {
+          onDeleteSession();
+        } else if (activeSessionId) {
+          deleteSession(activeSessionId);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + A - Archive current session
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        if (onArchiveSession) {
+          onArchiveSession();
+        } else if (activeSessionId) {
+          archiveSession(activeSessionId);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + I - Pin/unpin current session
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        if (activeSessionId) {
+          togglePinSession(activeSessionId);
+        }
+        return;
+      }
+
+      // Alt + ↑ - Navigate to previous session
+      if (e.altKey && e.key === 'ArrowUp' && !isInputField) {
+        e.preventDefault();
+        const activeSessions = sessions.filter((s) => !s.isArchived);
+        const currentIndex = activeSessions.findIndex((s) => s.id === activeSessionId);
+        if (currentIndex > 0) {
+          setActiveSession(activeSessions[currentIndex - 1].id);
+        }
+        return;
+      }
+
+      // Alt + ↓ - Navigate to next session
+      if (e.altKey && e.key === 'ArrowDown' && !isInputField) {
+        e.preventDefault();
+        const activeSessions = sessions.filter((s) => !s.isArchived);
+        const currentIndex = activeSessions.findIndex((s) => s.id === activeSessionId);
+        if (currentIndex < activeSessions.length - 1) {
+          setActiveSession(activeSessions[currentIndex + 1].id);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + E - Export current session
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        onExportSession?.();
+        return;
+      }
+
       // Ctrl/Cmd + Enter - Submit (handled by individual components)
     },
     [
       enabled,
       createSession,
+      sessions,
+      activeSessionId,
+      setActiveSession,
+      deleteSession,
+      togglePinSession,
+      archiveSession,
       router,
       setCommandPaletteOpen,
       setKeyboardShortcutsOpen,
@@ -203,6 +281,9 @@ export function useKeyboardShortcuts({
       onStopGeneration,
       onToggleCanvas,
       onToggleArtifact,
+      onDeleteSession,
+      onArchiveSession,
+      onExportSession,
       panelOpen,
       openPanel,
       closePanel,
@@ -271,6 +352,57 @@ export function useKeyboardShortcuts({
       description: 'Show keyboard shortcuts',
       category: 'system',
       action: () => setKeyboardShortcutsOpen(true),
+    },
+    {
+      key: 'w',
+      ctrl: true,
+      description: 'Close/delete current session',
+      category: 'chat',
+      action: () => {
+        if (activeSessionId) deleteSession(activeSessionId);
+      },
+    },
+    {
+      key: 'A',
+      ctrl: true,
+      shift: true,
+      description: 'Archive current session',
+      category: 'chat',
+      action: () => {
+        if (activeSessionId) archiveSession(activeSessionId);
+      },
+    },
+    {
+      key: 'I',
+      ctrl: true,
+      shift: true,
+      description: 'Pin/unpin current session',
+      category: 'chat',
+      action: () => {
+        if (activeSessionId) togglePinSession(activeSessionId);
+      },
+    },
+    {
+      key: 'ArrowUp',
+      alt: true,
+      description: 'Previous session',
+      category: 'chat',
+      action: () => {},
+    },
+    {
+      key: 'ArrowDown',
+      alt: true,
+      description: 'Next session',
+      category: 'chat',
+      action: () => {},
+    },
+    {
+      key: 'E',
+      ctrl: true,
+      shift: true,
+      description: 'Export current session',
+      category: 'chat',
+      action: () => onExportSession?.(),
     },
     {
       key: 'Enter',

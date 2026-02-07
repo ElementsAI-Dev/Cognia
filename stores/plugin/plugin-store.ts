@@ -748,7 +748,21 @@ export const usePluginStore = create<PluginState>()(
     }),
     {
       name: 'cognia-plugins',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure pluginDirectory field exists
+          if (!state.pluginDirectory) {
+            state.pluginDirectory = null;
+          }
+          if (!state.plugins || typeof state.plugins !== 'object') {
+            state.plugins = {};
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         // Only persist essential plugin state
         plugins: Object.fromEntries(
@@ -767,6 +781,21 @@ export const usePluginStore = create<PluginState>()(
         ),
         pluginDirectory: state.pluginDirectory,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<PluginState> | undefined;
+        return {
+          ...currentState,
+          ...persisted,
+          // Ensure non-serializable fields are always proper types after hydration
+          loading: new Set<string>(),
+          eventListeners: new Map<string, Set<(event: PluginSystemEvent) => void>>(),
+          // Merge plugins from persisted state, keeping current state's runtime fields
+          plugins: {
+            ...currentState.plugins,
+            ...(persisted?.plugins || {}),
+          },
+        };
+      },
     }
   )
 );

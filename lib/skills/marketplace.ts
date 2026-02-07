@@ -309,8 +309,8 @@ export async function fetchSkillDetail(
     const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${directory ? directory + '/' : ''}README.md`;
 
     const [skillmdResponse, readmeResponse] = await Promise.allSettled([
-      fetch(skillmdUrl),
-      fetch(readmeUrl),
+      fetchWithTimeout(skillmdUrl, { retries: 1, timeout: 10000, headers: { 'User-Agent': USER_AGENT } }),
+      fetchWithTimeout(readmeUrl, { retries: 1, timeout: 10000, headers: { 'User-Agent': USER_AGENT } }),
     ]);
 
     const skillmdContent =
@@ -348,9 +348,11 @@ export async function fetchSkillDetail(
 
 /**
  * Download skill content for installation
+ * Fetches SKILL.md and discovers resources via GitHub API
  */
 export async function downloadSkillContent(
-  skillId: string
+  skillId: string,
+  apiKey?: string
 ): Promise<{ skillmd: string; resources: Array<{ name: string; path: string; content: string }> } | null> {
   try {
     const parts = skillId.split('/');
@@ -361,22 +363,102 @@ export async function downloadSkillContent(
     const owner = parts[0];
     const repo = parts[1];
     const directory = parts.slice(2).join('/') || '';
+    const basePath = directory ? `${directory}/` : '';
 
-    // Fetch SKILL.md
-    const skillmdUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${directory ? directory + '/' : ''}SKILL.md`;
-    const response = await fetch(skillmdUrl);
+    // Fetch SKILL.md with retry support
+    const skillmdUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${basePath}SKILL.md`;
+    const skillmdResponse = await fetchWithTimeout(skillmdUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        ...(apiKey ? { Authorization: `token ${apiKey}` } : {}),
+      },
+    });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch SKILL.md');
+    if (!skillmdResponse.ok) {
+      throw new Error(`Failed to fetch SKILL.md: ${skillmdResponse.statusText}`);
     }
 
-    const skillmd = await response.text();
+    const skillmd = await skillmdResponse.text();
 
-    // For now, we only return the SKILL.md content
-    // Resource fetching would require GitHub API to list directory contents
+    // Fetch resources via GitHub API tree endpoint
+    const resources: Array<{ name: string; path: string; content: string }> = [];
+    const resourceDirs = ['scripts', 'references', 'assets'];
+
+    try {
+      const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
+      const treeResponse = await fetchWithTimeout(treeUrl, {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': USER_AGENT,
+          ...(apiKey ? { Authorization: `token ${apiKey}` } : {}),
+        },
+        retries: 1,
+      });
+
+      if (treeResponse.ok) {
+        const treeData = await treeResponse.json();
+        const tree = (treeData.tree || []) as Array<{ path: string; type: string; size?: number }>;
+
+        // Find resource files within the skill directory
+        const resourceFiles = tree.filter((item) => {
+          if (item.type !== 'blob') return false;
+          const itemPath = item.path;
+          // Must be within the skill directory
+          if (directory && !itemPath.startsWith(basePath)) return false;
+          // Must not be SKILL.md itself
+          const relativePath = directory ? itemPath.slice(basePath.length) : itemPath;
+          if (relativePath === 'SKILL.md' || relativePath === 'README.md') return false;
+          // Must be in a recognized resource directory or root of skill
+          const firstSegment = relativePath.split('/')[0];
+          return resourceDirs.includes(firstSegment) || !relativePath.includes('/');
+        });
+
+        // Fetch each resource file (limit to reasonable size)
+        const MAX_RESOURCE_SIZE = 100_000; // 100KB per resource
+        const MAX_RESOURCES = 20;
+
+        const filesToFetch = resourceFiles
+          .filter((f) => !f.size || f.size <= MAX_RESOURCE_SIZE)
+          .slice(0, MAX_RESOURCES);
+
+        const fetchPromises = filesToFetch.map(async (file) => {
+          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${file.path}`;
+          try {
+            const resp = await fetchWithTimeout(rawUrl, {
+              headers: { 'User-Agent': USER_AGENT },
+              retries: 1,
+              timeout: 10000,
+            });
+            if (resp.ok) {
+              const content = await resp.text();
+              const relativePath = directory ? file.path.slice(basePath.length) : file.path;
+              return {
+                name: relativePath.split('/').pop() || relativePath,
+                path: relativePath,
+                content,
+              };
+            }
+          } catch {
+            // Skip individual resource failures silently
+          }
+          return null;
+        });
+
+        const results = await Promise.allSettled(fetchPromises);
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            resources.push(result.value);
+          }
+        }
+      }
+    } catch (resourceError) {
+      // Resource fetching is best-effort; log but don't fail
+      log.warn('Failed to fetch skill resources, continuing with SKILL.md only', { error: String(resourceError) });
+    }
+
     return {
       skillmd,
-      resources: [],
+      resources,
     };
   } catch (error) {
     log.error('Failed to download skill content', error as Error);

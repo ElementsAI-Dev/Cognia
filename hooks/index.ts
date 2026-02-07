@@ -92,3 +92,6 @@ export * from './scheduler';
 // Map hooks (geolocation, geocoding)
 export * from './map';
 
+// Document processing hooks
+export * from './document';
+

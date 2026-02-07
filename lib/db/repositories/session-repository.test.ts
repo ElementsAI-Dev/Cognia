@@ -325,4 +325,164 @@ describe('sessionRepository', () => {
       expect(messages).toHaveLength(1);
     });
   });
+
+  describe('importWithValidation', () => {
+    const createTestSession = (id: string, title: string) => ({
+      id,
+      title,
+      provider: 'openai' as const,
+      model: 'gpt-4o',
+      mode: 'chat' as const,
+      messageCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    it('imports valid sessions successfully', async () => {
+      const data = {
+        sessions: [createTestSession('valid-1', 'Valid Session')],
+        messages: [],
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'skip',
+      });
+
+      expect(result.imported).toBe(1);
+      expect(result.skipped).toBe(0);
+      expect(result.errors).toHaveLength(0);
+
+      const sessions = await sessionRepository.getAll();
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].title).toBe('Valid Session');
+    });
+
+    it('skips conflicting sessions with skip strategy', async () => {
+      await sessionRepository.create({ title: 'Existing Session' });
+      const existingSession = (await sessionRepository.getAll())[0];
+
+      const data = {
+        sessions: [{ ...createTestSession(existingSession.id, 'Conflicting Session') }],
+        messages: [],
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'skip',
+      });
+
+      expect(result.skipped).toBe(1);
+      expect(result.imported).toBe(0);
+
+      const sessions = await sessionRepository.getAll();
+      expect(sessions[0].title).toBe('Existing Session');
+    });
+
+    it('replaces conflicting sessions with replace strategy', async () => {
+      await sessionRepository.create({ title: 'Existing Session' });
+      const existingSession = (await sessionRepository.getAll())[0];
+
+      const data = {
+        sessions: [{ ...createTestSession(existingSession.id, 'Replaced Session') }],
+        messages: [],
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'replace',
+      });
+
+      expect(result.replaced).toBe(1);
+      expect(result.imported).toBe(0);
+
+      const sessions = await sessionRepository.getAll();
+      expect(sessions[0].title).toBe('Replaced Session');
+    });
+
+    it('renames conflicting sessions with rename strategy', async () => {
+      await sessionRepository.create({ title: 'Existing Session' });
+      const existingSession = (await sessionRepository.getAll())[0];
+
+      const data = {
+        sessions: [{ ...createTestSession(existingSession.id, 'Conflicting Session') }],
+        messages: [],
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'rename',
+      });
+
+      expect(result.imported).toBe(1);
+
+      const sessions = await sessionRepository.getAll();
+      expect(sessions).toHaveLength(2);
+      const renamed = sessions.find((s) => s.id !== existingSession.id);
+      expect(renamed?.title).toBe('Conflicting Session (imported)');
+    });
+
+    it('validates session data and reports errors', async () => {
+      const data = {
+        sessions: [
+          { id: '', title: 'No ID', provider: 'openai', model: 'gpt-4o', mode: 'chat', messageCount: 0, createdAt: new Date(), updatedAt: new Date() } as never,
+          { id: 'valid-id', title: '', provider: 'openai', model: 'gpt-4o', mode: 'chat', messageCount: 0, createdAt: new Date(), updatedAt: new Date() } as never,
+          createTestSession('good-1', 'Good Session'),
+        ],
+        messages: [],
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'skip',
+        validateData: true,
+      });
+
+      expect(result.errors).toHaveLength(2);
+      expect(result.imported).toBe(1);
+    });
+
+    it('calls progress callback during import', async () => {
+      const progressCalls: Array<{ current: number; total: number; phase: string }> = [];
+
+      const data = {
+        sessions: [
+          createTestSession('progress-1', 'Session 1'),
+          createTestSession('progress-2', 'Session 2'),
+        ],
+        messages: [
+          { id: 'msg-1', sessionId: 'progress-1', role: 'user', content: 'Hello', createdAt: new Date() },
+        ],
+      };
+
+      await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'skip',
+        onProgress: (progress) => progressCalls.push({ ...progress }),
+      });
+
+      expect(progressCalls.length).toBeGreaterThan(0);
+      const lastProgress = progressCalls[progressCalls.length - 1];
+      expect(lastProgress.phase).toBe('complete');
+    });
+
+    it('imports messages in batches', async () => {
+      const messages = Array.from({ length: 5 }, (_, i) => ({
+        id: `batch-msg-${i}`,
+        sessionId: 'batch-session',
+        role: 'user',
+        content: `Message ${i}`,
+        createdAt: new Date(),
+      }));
+
+      const data = {
+        sessions: [createTestSession('batch-session', 'Batch Test')],
+        messages,
+      };
+
+      const result = await sessionRepository.importWithValidation(data, {
+        conflictStrategy: 'skip',
+      });
+
+      expect(result.imported).toBe(1);
+      expect(result.errors).toHaveLength(0);
+
+      const dbMessages = await db.messages.toArray();
+      expect(dbMessages).toHaveLength(5);
+    });
+  });
 });

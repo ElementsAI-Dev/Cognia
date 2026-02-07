@@ -8,6 +8,7 @@ import type { ProviderName } from '@/types/provider';
 import { registerTaskExecutor } from '../task-scheduler';
 import { loggers } from '@/lib/logger';
 import { executePluginTask } from './plugin-executor';
+import { executeScript } from '../script-executor';
 
 // Logger
 const log = loggers.app;
@@ -248,6 +249,55 @@ async function executeBackupTask(
 }
 
 /**
+ * Script task executor
+ * Executes scripts via the sandbox service
+ */
+async function executeScriptTask(
+  task: ScheduledTask,
+  _execution: TaskExecution
+): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
+  try {
+    const { language, code, timeout_secs, memory_mb, use_sandbox } = task.payload as {
+      language?: string;
+      code?: string;
+      timeout_secs?: number;
+      memory_mb?: number;
+      use_sandbox?: boolean;
+    };
+
+    if (!language || !code) {
+      return { success: false, error: 'Script language and code are required in task payload' };
+    }
+
+    log.info(`Executing script task: ${language}`);
+
+    const result = await executeScript({
+      type: 'execute_script',
+      language,
+      code,
+      timeout_secs,
+      memory_mb,
+      use_sandbox,
+    });
+
+    return {
+      success: result.success,
+      output: {
+        exit_code: result.exit_code,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        duration_ms: result.duration_ms,
+      },
+      error: result.error,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Script execution failed:`, error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Custom task executor (calls a custom function)
  */
 async function executeCustomTask(
@@ -314,6 +364,7 @@ export function registerBuiltinExecutors(): void {
   registerTaskExecutor('backup', executeBackupTask);
   registerTaskExecutor('custom', executeCustomTask);
   registerTaskExecutor('plugin', executePluginTask);
+  registerTaskExecutor('script', executeScriptTask);
   
   log.info('Registered all built-in task executors');
 }
@@ -325,4 +376,5 @@ export {
   executeBackupTask,
   executeCustomTask,
   executePluginTask,
+  executeScriptTask,
 };

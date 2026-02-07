@@ -21,6 +21,7 @@ export {
 export {
   SidebarUsageStats,
   SidebarBackgroundTasks,
+  SidebarAgentTeams,
   SidebarQuickActions,
   SidebarRecentFiles,
   SidebarWorkflows,

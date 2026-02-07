@@ -20,7 +20,7 @@ jest.mock('@/stores/plugin', () => ({
 }));
 
 // Mock analytics
-jest.mock('./analytics', () => ({
+jest.mock('../utils/analytics', () => ({
   trackPluginEvent: jest.fn().mockResolvedValue(undefined),
 }));
 

@@ -76,7 +76,15 @@ export {
 export { useMemoryStore, useVectorStore } from './data';
 
 // Designer stores
-export { useDesignerStore, useDesignerHistoryStore, type DesignerHistoryEntry } from './designer';
+export {
+  useDesignerStore,
+  useDesignerHistoryStore,
+  type DesignerHistoryEntry,
+  type PreviewConsoleEntry,
+  type CustomViewportDimensions,
+  type PanelLayout,
+  DEFAULT_PANEL_LAYOUT,
+} from './designer';
 
 // Document stores
 export { useDocumentStore } from './document';
@@ -232,6 +240,7 @@ export {
   selectIsFullscreen,
   selectIsAlwaysOnTop,
   useVirtualEnvStore,
+  useBackupStore,
   type ModalType,
   type ShortcutConfig,
   type NativeState,

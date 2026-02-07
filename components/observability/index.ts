@@ -20,6 +20,7 @@ export { EmptyState } from './empty-state';
 export { RecommendationsPanel } from './recommendations-panel';
 export { SessionAnalyticsPanel } from './session-analytics-panel';
 export { EfficiencyMetricsCard } from './efficiency-metrics-card';
+export { PerformanceMetricsPanel } from './performance-metrics-panel';
 
 // Charts
 export {

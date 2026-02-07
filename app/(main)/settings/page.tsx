@@ -120,6 +120,7 @@ import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
 import { PluginSettingsPage } from '@/components/plugin';
+import { CompletionSettings } from '@/components/input-completion';
 
 import { SettingsSection, SettingsGroup } from '@/types/settings';
 import { SETTINGS_SEARCH_INDEX } from '@/lib/settings';
@@ -598,6 +599,13 @@ export default function SettingsPage() {
               description: t('descLoggingConfig') || 'Configure logging levels and transports',
               group: 'system' as const,
             },
+            {
+              id: 'input-completion' as const,
+              label: 'Input Completion',
+              icon: <Keyboard className="h-4 w-4" />,
+              description: 'AI-powered Tab completion settings',
+              group: 'system' as const,
+            },
           ]
         : []),
     ],
@@ -683,6 +691,8 @@ export default function SettingsPage() {
         return <LogViewer />;
       case 'logging-config':
         return <LoggingSettings />;
+      case 'input-completion':
+        return <CompletionSettings />;
       default:
         return <ProviderSettings />;
     }

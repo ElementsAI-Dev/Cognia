@@ -124,6 +124,25 @@ jest.mock('./create-preset-dialog', () => ({
   ),
 }));
 
+// Mock AI service
+jest.mock('@/lib/ai/presets', () => ({
+  generatePresetFromDescription: jest.fn(),
+}));
+
+// Mock types
+jest.mock('@/types/content/preset', () => ({
+  PRESET_COLORS: ['#6366f1', '#3B82F6', '#10B981', '#F59E0B'],
+  PRESET_ICONS: ['💬', '🤖', '📝', '🔬'],
+  PRESET_CATEGORIES: ['general', 'coding', 'writing', 'research', 'education', 'business', 'creative', 'productivity'],
+}));
+
+// Mock Badge
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className, variant }: { children: React.ReactNode; className?: string; variant?: string }) => (
+    <span data-testid="badge" className={className} data-variant={variant}>{children}</span>
+  ),
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onClick, className, variant, disabled, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; className?: string }) => (
@@ -135,6 +154,24 @@ jest.mock('@/components/ui/input', () => ({
   Input: ({ value, onChange, placeholder, className }: React.InputHTMLAttributes<HTMLInputElement> & { className?: string }) => (
     <input value={value} onChange={onChange} placeholder={placeholder} className={className} data-testid="search-input" />
   ),
+}));
+
+jest.mock('@/components/ui/input-group', () => ({
+  InputGroup: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="input-group" className={className}>{children}</div>
+  ),
+  InputGroupAddon: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  InputGroupInput: ({ value, onChange, placeholder }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input value={value} onChange={onChange} placeholder={placeholder} data-testid="search-input" />
+  ),
+}));
+
+jest.mock('@/components/ui/empty', () => ({
+  Empty: ({ children }: { children: React.ReactNode }) => <div data-testid="empty">{children}</div>,
+  EmptyHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  EmptyTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  EmptyDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  EmptyMedia: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 jest.mock('@/components/ui/alert-dialog', () => ({

@@ -6,8 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import katex from 'katex';
-import { getKatexOptions } from '@/lib/latex/config';
+import { renderMathSafe } from '@/lib/latex/cache';
 import type { MathDisplayAlignment } from '@/types/settings/chat';
 
 interface MathPreviewProps {
@@ -18,14 +17,11 @@ interface MathPreviewProps {
 
 export function MathPreview({ scale, alignment, previewLabel }: MathPreviewProps) {
   const sampleMath = useMemo(() => {
-    try {
-      return katex.renderToString(
-        'E = mc^2 \\quad \\text{and} \\quad \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}',
-        getKatexOptions(true)
-      );
-    } catch {
-      return '';
-    }
+    const result = renderMathSafe(
+      'E = mc^2 \\quad \\text{and} \\quad \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}',
+      true
+    );
+    return result.html;
   }, []);
 
   return (

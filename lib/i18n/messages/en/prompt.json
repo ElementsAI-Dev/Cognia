@@ -19,6 +19,10 @@
     "academicDesc": "Scholarly and research-oriented",
     "technical": "Technical",
     "technicalDesc": "Precise technical language",
+    "stepByStep": "Step-by-Step",
+    "stepByStepDesc": "Chain-of-thought reasoning",
+    "structured": "Structured",
+    "structuredDesc": "Specify output format",
     "custom": "Custom",
     "customDesc": "Your own instructions",
     "customInstructions": "Custom Instructions",
@@ -269,7 +273,9 @@
       "anyRating": "Any",
       "stars": "stars",
       "quickFilters": "Quick Filters",
-      "clearFilters": "Clear Filters"
+      "clearFilters": "Clear Filters",
+      "clearAll": "Clear All",
+      "activeFilters": "Active Filters"
     },
     "sections": {
       "featured": "Featured",
@@ -369,6 +375,26 @@
         "rating": "Rating",
         "newest": "Newest"
       }
+    },
+    "publish": {
+      "title": "Publish to Marketplace",
+      "description": "Share your prompt template with the community",
+      "step1": "Select Template",
+      "step2": "Configure",
+      "step3": "Review",
+      "noTemplates": "No custom templates to publish. Create one first.",
+      "name": "Prompt Name",
+      "namePlaceholder": "Enter a descriptive name",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Describe what this prompt does and when to use it",
+      "category": "Category",
+      "icon": "Icon",
+      "addTagPlaceholder": "Add tag and press Enter",
+      "next": "Next",
+      "publishButton": "Publish Prompt",
+      "publishing": "Publishing...",
+      "success": "Prompt published successfully!",
+      "failed": "Failed to publish prompt"
     },
     "detail": {
       "ratings": "ratings",

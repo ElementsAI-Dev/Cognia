@@ -46,6 +46,17 @@ jest.mock('next-intl', () => ({
       noBuiltinPrompts: 'No built-in prompts',
       cancel: 'Cancel',
       savePreset: 'Save Preset',
+      category: 'Category',
+      selectCategory: 'Select category',
+      default: 'Default',
+      'categories.general': 'General',
+      'categories.coding': 'Coding',
+      'categories.writing': 'Writing',
+      'categories.research': 'Research',
+      'categories.education': 'Education',
+      'categories.business': 'Business',
+      'categories.creative': 'Creative',
+      'categories.productivity': 'Productivity',
     };
     return translations[key] || key;
   },
@@ -97,6 +108,14 @@ jest.mock('@/stores', () => ({
 jest.mock('@/types/content/preset', () => ({
   PRESET_COLORS: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'],
   PRESET_ICONS: ['💬', '🤖', '📝', '🎯'],
+  PRESET_CATEGORIES: ['general', 'coding', 'writing', 'research', 'education', 'business', 'creative', 'productivity'],
+}));
+
+// Mock AI service
+jest.mock('@/lib/ai/presets', () => ({
+  generatePresetFromDescription: jest.fn(),
+  optimizePresetPrompt: jest.fn(),
+  generateBuiltinPrompts: jest.fn(),
 }));
 
 jest.mock('@/types/provider', () => ({

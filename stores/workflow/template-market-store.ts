@@ -27,7 +27,7 @@ const TemplateMetadataSchema = z.object({
   rating: z.number().min(0).max(5).default(0),
   ratingCount: z.number().int().min(0).default(0),
   isOfficial: z.boolean().default(false),
-  source: z.enum(['built-in', 'user', 'community', 'github']).default('user'),
+  source: z.enum(['built-in', 'user', 'git', 'community', 'github']).default('user'),
   lastSyncAt: z.union([z.string(), z.date()]).transform((val) => (typeof val === 'string' ? new Date(val) : val)).optional(),
 });
 
@@ -164,6 +164,14 @@ interface TemplateMarketState {
   // Import/Export
   importTemplate: (data: string, format: 'json' | 'yaml') => WorkflowTemplate | null;
   exportTemplate: (id: string, format: 'json' | 'yaml', includeMetadata?: boolean) => string | null;
+
+  // Publish/Share
+  publishTemplate: (id: string) => boolean;
+  unpublishTemplate: (id: string) => boolean;
+  getPublishedTemplates: () => WorkflowTemplate[];
+  getFeaturedTemplates: (limit?: number) => WorkflowTemplate[];
+  getPopularTemplates: (limit?: number) => WorkflowTemplate[];
+  getRecentTemplates: (limit?: number) => WorkflowTemplate[];
 
   // Initialization
   loadBuiltInTemplates: () => Promise<void>;
@@ -481,6 +489,96 @@ export const useTemplateMarketStore = create<TemplateMarketState>()(
           log.error('Failed to export template', error as Error);
           return null;
         }
+      },
+
+      // Publish/Share
+      publishTemplate: (id) => {
+        const template = get().templates[id];
+        if (!template) return false;
+
+        set((state) => ({
+          templates: {
+            ...state.templates,
+            [id]: {
+              ...template,
+              metadata: {
+                ...template.metadata,
+                source: 'community' as const,
+                updatedAt: new Date(),
+              },
+            },
+          },
+          userTemplates: {
+            ...state.userTemplates,
+            [id]: {
+              ...template,
+              metadata: {
+                ...template.metadata,
+                source: 'community' as const,
+                updatedAt: new Date(),
+              },
+            },
+          },
+        }));
+        log.info(`Published template: ${template.name}`);
+        return true;
+      },
+
+      unpublishTemplate: (id) => {
+        const template = get().templates[id];
+        if (!template) return false;
+
+        set((state) => ({
+          templates: {
+            ...state.templates,
+            [id]: {
+              ...template,
+              metadata: {
+                ...template.metadata,
+                source: 'user' as const,
+                updatedAt: new Date(),
+              },
+            },
+          },
+          userTemplates: {
+            ...state.userTemplates,
+            [id]: {
+              ...template,
+              metadata: {
+                ...template.metadata,
+                source: 'user' as const,
+                updatedAt: new Date(),
+              },
+            },
+          },
+        }));
+        log.info(`Unpublished template: ${template.name}`);
+        return true;
+      },
+
+      getPublishedTemplates: () => {
+        return Object.values(get().templates).filter(
+          (t) => t.metadata.source === 'community'
+        );
+      },
+
+      getFeaturedTemplates: (limit = 6) => {
+        return Object.values(get().templates)
+          .filter((t) => t.metadata.isOfficial || t.metadata.rating >= 4.0)
+          .sort((a, b) => b.metadata.rating - a.metadata.rating)
+          .slice(0, limit);
+      },
+
+      getPopularTemplates: (limit = 6) => {
+        return Object.values(get().templates)
+          .sort((a, b) => b.metadata.usageCount - a.metadata.usageCount)
+          .slice(0, limit);
+      },
+
+      getRecentTemplates: (limit = 6) => {
+        return Object.values(get().templates)
+          .sort((a, b) => b.metadata.createdAt.getTime() - a.metadata.createdAt.getTime())
+          .slice(0, limit);
       },
 
       // Initialization

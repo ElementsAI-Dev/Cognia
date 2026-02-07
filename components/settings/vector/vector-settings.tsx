@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Database, Cpu, Key, Settings2, HelpCircle } from 'lucide-react';
+import { Database, Cpu, Key, Settings2, HelpCircle, BrainCircuit, Search, Quote } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -394,6 +394,167 @@ export function VectorSettings() {
               />
               <p className="text-[10px] text-muted-foreground">{t('defaultCollectionHint')}</p>
             </div>
+          </div>
+
+          {/* RAG-in-Chat Settings */}
+          <div className="space-y-3">
+            <SectionHeader icon={BrainCircuit} title={t('ragChat.title')} />
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t('ragChat.enable')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('ragChat.enableDesc')}</p>
+              </div>
+              <Switch
+                checked={settings.enableRAGInChat}
+                onCheckedChange={(checked) => updateSettings({ enableRAGInChat: checked })}
+              />
+            </div>
+
+            {settings.enableRAGInChat && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('ragChat.topK')}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={settings.ragTopK}
+                    onChange={(e) => updateSettings({ ragTopK: Number(e.target.value) || 5 })}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('ragChat.threshold')}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings.ragSimilarityThreshold}
+                    onChange={(e) => updateSettings({ ragSimilarityThreshold: Number(e.target.value) || 0.3 })}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('ragChat.maxContext')}</Label>
+                  <Input
+                    type="number"
+                    min={500}
+                    max={16000}
+                    step={500}
+                    value={settings.ragMaxContextLength}
+                    onChange={(e) => updateSettings({ ragMaxContextLength: Number(e.target.value) || 4000 })}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Advanced RAG Settings */}
+          <div className="space-y-3">
+            <SectionHeader icon={Search} title={t('advancedRag.title')} />
+
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t('advancedRag.hybridSearch')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('advancedRag.hybridSearchDesc')}</p>
+              </div>
+              <Switch
+                checked={settings.enableHybridSearch}
+                onCheckedChange={(checked) => updateSettings({ enableHybridSearch: checked })}
+              />
+            </div>
+
+            {settings.enableHybridSearch && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('advancedRag.vectorWeight')}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={settings.vectorWeight}
+                    onChange={(e) => updateSettings({ vectorWeight: Number(e.target.value) || 0.7 })}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">{t('advancedRag.keywordWeight')}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={settings.keywordWeight}
+                    onChange={(e) => updateSettings({ keywordWeight: Number(e.target.value) || 0.3 })}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t('advancedRag.reranking')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('advancedRag.rerankingDesc')}</p>
+              </div>
+              <Switch
+                checked={settings.enableReranking}
+                onCheckedChange={(checked) => updateSettings({ enableReranking: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t('advancedRag.queryExpansion')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('advancedRag.queryExpansionDesc')}</p>
+              </div>
+              <Switch
+                checked={settings.enableQueryExpansion}
+                onCheckedChange={(checked) => updateSettings({ enableQueryExpansion: checked })}
+              />
+            </div>
+          </div>
+
+          {/* Citation Settings */}
+          <div className="space-y-3">
+            <SectionHeader icon={Quote} title={t('citations.title')} />
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t('citations.enable')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('citations.enableDesc')}</p>
+              </div>
+              <Switch
+                checked={settings.enableCitations}
+                onCheckedChange={(checked) => updateSettings({ enableCitations: checked })}
+              />
+            </div>
+
+            {settings.enableCitations && (
+              <div className="space-y-1.5">
+                <Label className="text-sm">{t('citations.style')}</Label>
+                <Select
+                  value={settings.citationStyle}
+                  onValueChange={(value) =>
+                    updateSettings({ citationStyle: value as typeof settings.citationStyle })
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="simple">Simple</SelectItem>
+                    <SelectItem value="apa">APA</SelectItem>
+                    <SelectItem value="mla">MLA</SelectItem>
+                    <SelectItem value="chicago">Chicago</SelectItem>
+                    <SelectItem value="harvard">Harvard</SelectItem>
+                    <SelectItem value="ieee">IEEE</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Test Connection */}

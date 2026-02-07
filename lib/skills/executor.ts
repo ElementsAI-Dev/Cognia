@@ -670,6 +670,193 @@ export function buildSkillMcpPrompt(
   return parts.join('\n');
 }
 
+// =============================================================================
+// Skill Version Check
+// =============================================================================
+
+/**
+ * Compare two semantic version strings
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
+ */
+export function compareVersions(a: string, b: string): number {
+  const partsA = a.split('.').map(Number);
+  const partsB = b.split('.').map(Number);
+  const maxLen = Math.max(partsA.length, partsB.length);
+  
+  for (let i = 0; i < maxLen; i++) {
+    const numA = partsA[i] || 0;
+    const numB = partsB[i] || 0;
+    if (numA < numB) return -1;
+    if (numA > numB) return 1;
+  }
+  return 0;
+}
+
+/**
+ * Result of a version check for a single skill
+ */
+export interface SkillVersionCheckResult {
+  skillId: string;
+  skillName: string;
+  currentVersion: string;
+  latestVersion?: string;
+  hasUpdate: boolean;
+  source: string;
+}
+
+/**
+ * Check if skills have newer versions available
+ * Compares local skill versions against a source of truth (e.g., marketplace items)
+ */
+export function checkSkillVersions(
+  skills: Skill[],
+  availableVersions: Array<{ name: string; version?: string; id?: string }>
+): SkillVersionCheckResult[] {
+  const results: SkillVersionCheckResult[] = [];
+
+  for (const skill of skills) {
+    const currentVersion = skill.version || '1.0.0';
+    
+    // Find matching available version by name
+    const match = availableVersions.find(
+      (av) =>
+        av.name === skill.metadata.name ||
+        av.id === skill.id
+    );
+
+    if (match && match.version) {
+      const hasUpdate = compareVersions(currentVersion, match.version) < 0;
+      results.push({
+        skillId: skill.id,
+        skillName: skill.metadata.name,
+        currentVersion,
+        latestVersion: match.version,
+        hasUpdate,
+        source: skill.source,
+      });
+    } else {
+      results.push({
+        skillId: skill.id,
+        skillName: skill.metadata.name,
+        currentVersion,
+        hasUpdate: false,
+        source: skill.source,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get only skills that have updates available
+ */
+export function getSkillsWithUpdates(
+  skills: Skill[],
+  availableVersions: Array<{ name: string; version?: string; id?: string }>
+): SkillVersionCheckResult[] {
+  return checkSkillVersions(skills, availableVersions).filter((r) => r.hasUpdate);
+}
+
+// =============================================================================
+// Active Skill Conflict Detection
+// =============================================================================
+
+/**
+ * Potential conflict between two active skills
+ */
+export interface SkillConflict {
+  skillA: { id: string; name: string };
+  skillB: { id: string; name: string };
+  conflictType: 'category' | 'tag' | 'mcp-server' | 'tool-keyword';
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Detect potential conflicts between active skills
+ * Two skills may conflict if they operate in the same domain
+ * with potentially contradictory instructions
+ */
+export function detectSkillConflicts(activeSkills: Skill[]): SkillConflict[] {
+  const conflicts: SkillConflict[] = [];
+
+  for (let i = 0; i < activeSkills.length; i++) {
+    for (let j = i + 1; j < activeSkills.length; j++) {
+      const a = activeSkills[i];
+      const b = activeSkills[j];
+
+      // Check for same category (low severity - common and often fine)
+      if (a.category === b.category && a.category !== 'custom') {
+        conflicts.push({
+          skillA: { id: a.id, name: a.metadata.name },
+          skillB: { id: b.id, name: b.metadata.name },
+          conflictType: 'category',
+          description: `Both skills are in the "${a.category}" category`,
+          severity: 'low',
+        });
+      }
+
+      // Check for overlapping MCP server associations (high severity)
+      const sharedServers = (a.associatedMcpServers || []).filter(
+        (s) => (b.associatedMcpServers || []).includes(s)
+      );
+      if (sharedServers.length > 0) {
+        conflicts.push({
+          skillA: { id: a.id, name: a.metadata.name },
+          skillB: { id: b.id, name: b.metadata.name },
+          conflictType: 'mcp-server',
+          description: `Both skills target MCP server(s): ${sharedServers.join(', ')}`,
+          severity: 'high',
+        });
+      }
+
+      // Check for overlapping tool keywords (medium severity)
+      const sharedKeywords = (a.toolMatchKeywords || []).filter(
+        (k) => (b.toolMatchKeywords || []).some(
+          (bk) => bk.toLowerCase() === k.toLowerCase()
+        )
+      );
+      if (sharedKeywords.length > 0) {
+        conflicts.push({
+          skillA: { id: a.id, name: a.metadata.name },
+          skillB: { id: b.id, name: b.metadata.name },
+          conflictType: 'tool-keyword',
+          description: `Shared tool keywords: ${sharedKeywords.join(', ')}`,
+          severity: 'medium',
+        });
+      }
+
+      // Check for significant tag overlap (medium severity)
+      const sharedTags = a.tags.filter((t) => b.tags.includes(t));
+      if (sharedTags.length >= 3) {
+        conflicts.push({
+          skillA: { id: a.id, name: a.metadata.name },
+          skillB: { id: b.id, name: b.metadata.name },
+          conflictType: 'tag',
+          description: `Many shared tags: ${sharedTags.join(', ')}`,
+          severity: 'medium',
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Check if activating a new skill would cause high-severity conflicts
+ */
+export function wouldCauseConflicts(
+  candidateSkill: Skill,
+  activeSkills: Skill[]
+): SkillConflict[] {
+  return detectSkillConflicts([...activeSkills, candidateSkill]).filter(
+    (c) =>
+      c.skillA.id === candidateSkill.id || c.skillB.id === candidateSkill.id
+  );
+}
+
 const skillExecutor = {
   buildSkillSystemPrompt,
   buildMultiSkillSystemPrompt,
@@ -694,6 +881,13 @@ const skillExecutor = {
   matchSkillsToMcpTool,
   getAutoLoadSkillsForTools,
   buildSkillMcpPrompt,
+  // Version Check
+  compareVersions,
+  checkSkillVersions,
+  getSkillsWithUpdates,
+  // Conflict Detection
+  detectSkillConflicts,
+  wouldCauseConflicts,
 };
 
 export default skillExecutor;

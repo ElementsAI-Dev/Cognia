@@ -581,7 +581,25 @@ export const useMemoryStore = create<MemoryState>()(
     }),
     {
       name: 'cognia-memories',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure settings field exists
+          if (!state.settings || typeof state.settings !== 'object') {
+            state.settings = {
+              maxMemories: 100,
+              autoLearn: true,
+              minConfidence: 0.5,
+            };
+          }
+          if (!Array.isArray(state.memories)) {
+            state.memories = [];
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         memories: state.memories.map((m) => ({
           ...m,

@@ -11,3 +11,4 @@ export { PromptPreviewDialog } from './prompt-preview-dialog';
 export { PromptCollectionCard } from './prompt-collection-card';
 export { PromptAuthorProfile } from './prompt-author-profile';
 export { PromptImportExport } from './prompt-import-export';
+export { PromptPublishDialog } from './prompt-publish-dialog';

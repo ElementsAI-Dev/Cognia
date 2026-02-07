@@ -104,6 +104,42 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
     };
   }, []);
 
+  // Enhanced analysis using native Rust backend
+  const analyzeContentNative = useCallback(
+    async (text: string): Promise<ClipboardAnalysis> => {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const nativeAnalysis = await invoke<{
+          category: string;
+          language: string | null;
+          entities: { entity_type: string }[];
+          suggested_actions: { action_id: string }[];
+          stats: { word_count: number; char_count: number };
+          is_sensitive: boolean;
+        }>('clipboard_analyze_content', { content: text });
+
+        const isCode = ['Code', 'Json', 'Markup'].includes(nativeAnalysis.category);
+        const isUrl = nativeAnalysis.category === 'Url';
+        const isEmail = nativeAnalysis.category === 'Email';
+
+        return {
+          category: nativeAnalysis.category.toLowerCase(),
+          isCode,
+          isUrl,
+          isEmail,
+          language: nativeAnalysis.language?.toLowerCase(),
+          wordCount: nativeAnalysis.stats.word_count,
+          charCount: nativeAnalysis.stats.char_count,
+          suggestedActions: nativeAnalysis.suggested_actions.map((a) => a.action_id),
+        };
+      } catch {
+        // Fallback to JS-based analysis if native fails
+        return analyzeContent(text);
+      }
+    },
+    [analyzeContent]
+  );
+
   // Check clipboard content
   const checkClipboard = useCallback(async () => {
     if (!enabled) return;
@@ -119,7 +155,7 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
           if (text && text !== lastContentRef.current) {
             lastContentRef.current = text;
 
-            const analysis = analyzeContent(text);
+            const analysis = await analyzeContentNative(text);
             const content: ClipboardContent = {
               text,
               timestamp: Date.now(),
@@ -171,7 +207,7 @@ export function useClipboardMonitor(options: UseClipboardMonitorOptions = {}) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to read clipboard');
     }
-  }, [enabled, maxHistorySize, analyzeContent, onClipboardChange]);
+  }, [enabled, maxHistorySize, analyzeContent, analyzeContentNative, onClipboardChange]);
 
   // Start monitoring
   const startMonitoring = useCallback(() => {

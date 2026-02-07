@@ -5,7 +5,7 @@
  * Supports customization via welcomeSettings from settings store
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles,
@@ -31,6 +31,7 @@ import {
   GraduationCap,
   HelpCircle,
   Target,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { TemplateSelector } from '../selectors';
@@ -39,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { ChatTemplate } from '@/types/content/template';
 import { cn } from '@/lib/utils';
 import type { ChatMode } from '@/types';
@@ -47,7 +49,12 @@ import { AgentModeSelector } from '@/components/agent';
 import { WelcomeA2UIDemo } from './welcome-a2ui-demo';
 import { SimplifiedWelcome } from './simplified-welcome';
 import { useSettingsStore } from '@/stores';
-import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome';
+import {
+  DEFAULT_QUICK_ACCESS_LINKS,
+  getCurrentTimePeriod,
+  DEFAULT_TIME_GREETINGS,
+} from '@/types/settings/welcome';
+import type { GreetingTimePeriod } from '@/types/settings/welcome';
 
 interface WelcomeStateProps {
   mode: ChatMode;
@@ -215,6 +222,7 @@ export function WelcomeState({
   // Get welcome settings from store
   const welcomeSettings = useSettingsStore((state) => state.welcomeSettings);
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const language = useSettingsStore((state) => state.language);
   const isSimplifiedMode = simplifiedModeSettings.enabled;
   const currentPreset = simplifiedModeSettings.preset;
 
@@ -227,7 +235,20 @@ export function WelcomeState({
     quickAccessLinks,
     customGreeting,
     customDescription,
+    userName,
+    timeBasedGreeting,
+    iconConfig,
+    gradientConfig,
   } = welcomeSettings;
+
+  // Track current time period for time-based greetings
+  const [timePeriod, setTimePeriod] = useState<GreetingTimePeriod>(getCurrentTimePeriod);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimePeriod(getCurrentTimePeriod());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Adjust visibility based on simplified mode
   const effectiveSectionsVisibility = useMemo(() => {
@@ -278,9 +299,55 @@ export function WelcomeState({
     return DEFAULT_QUICK_ACCESS_LINKS.filter((l) => l.enabled);
   }, [useCustomQuickAccess, quickAccessLinks]);
 
-  // Get greeting and description (custom or default)
-  const displayGreeting = customGreeting || t(`modes.${mode}.title`);
+  // Build personalized greeting with time-based support
+  const displayGreeting = useMemo(() => {
+    if (customGreeting) {
+      return userName ? customGreeting.replace('{name}', userName) : customGreeting;
+    }
+    if (timeBasedGreeting.enabled) {
+      const customTimeGreeting = timeBasedGreeting[timePeriod];
+      const localeKey = language === 'zh-CN' ? 'zh-CN' : 'en';
+      const timePrefix = customTimeGreeting || DEFAULT_TIME_GREETINGS[timePeriod][localeKey];
+      return userName ? `${timePrefix}, ${userName}` : timePrefix;
+    }
+    const modeTitle = t(`modes.${mode}.title`);
+    return userName ? `${modeTitle}, ${userName}` : modeTitle;
+  }, [customGreeting, userName, timeBasedGreeting, timePeriod, language, t, mode]);
+
   const displayDescription = customDescription || t(`modes.${mode}.description`);
+
+  // Render welcome icon based on iconConfig
+  const welcomeIcon = useMemo(() => {
+    switch (iconConfig.type) {
+      case 'emoji':
+        return <span className="text-2xl sm:text-3xl">{iconConfig.emoji || '✨'}</span>;
+      case 'avatar':
+        return (
+          <Avatar className="h-7 w-7 sm:h-10 sm:w-10 border border-primary/20">
+            <AvatarImage src={iconConfig.avatarUrl} alt={userName || 'User'} />
+            <AvatarFallback className="bg-primary/10 text-primary text-sm">
+              {userName ? userName.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+            </AvatarFallback>
+          </Avatar>
+        );
+      case 'text':
+        return (
+          <span className="text-xl sm:text-2xl font-bold text-primary">
+            {iconConfig.text || (userName ? userName.charAt(0).toUpperCase() : 'C')}
+          </span>
+        );
+      default:
+        return modeIcons[mode];
+    }
+  }, [iconConfig, userName, mode]);
+
+  // Determine header gradient
+  const headerGradient = useMemo(() => {
+    if (gradientConfig.enabled && gradientConfig.customGradient) {
+      return gradientConfig.customGradient;
+    }
+    return modeGradients[mode];
+  }, [gradientConfig, mode]);
 
   // Use SimplifiedWelcome for focused and zen presets (ChatGPT/Claude-like experience)
   const useSimplifiedWelcome = isSimplifiedMode && (currentPreset === 'focused' || currentPreset === 'zen');
@@ -305,12 +372,12 @@ export function WelcomeState({
           <div
             className={cn(
               'flex flex-col items-center rounded-xl sm:rounded-2xl bg-linear-to-br p-3 sm:p-5 animate-in fade-in-0 slide-in-from-bottom-4 duration-500',
-              modeGradients[mode]
+              headerGradient
             )}
           >
             <div className="flex flex-col items-center gap-1.5 sm:gap-2">
               <div className="text-primary [&>svg]:h-7 [&>svg]:w-7 sm:[&>svg]:h-10 sm:[&>svg]:w-10">
-                {modeIcons[mode]}
+                {welcomeIcon}
               </div>
               <h1 className="text-base sm:text-xl font-bold tracking-tight text-center">
                 {displayGreeting}

@@ -170,7 +170,17 @@
         "startLearningForReport": "开始学习后将生成学习报告",
         "hours": "小时",
         "minutes": "分钟",
-        "hoursMinutes": "{hours}小时{minutes}分"
+        "hoursMinutes": "{hours}小时{minutes}分",
+        "error": "操作失败",
+        "quizComplete": "测验完成！",
+        "selectTextbookForQuiz": "选择一本教材开始练习",
+        "noQuestions": "暂无题目",
+        "parseTextbookFirst": "请先完成教材解析以提取题目",
+        "pendingReview": "待复习",
+        "mastered": "已掌握",
+        "totalWrongQuestions": "总错题数",
+        "markedReviewed": "已标记为已复习",
+        "markReviewed": "标记已复习"
       },
       "library": {
         "title": "我的教材",

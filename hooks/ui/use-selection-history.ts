@@ -4,7 +4,7 @@
  * Provides access to selection and clipboard history functionality.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
@@ -157,6 +157,20 @@ export function useSelectionHistory() {
     [fetchHistory]
   );
 
+  const searchByTime = useCallback(async (start: number, end: number) => {
+    if (!isTauri()) return [];
+
+    try {
+      return await invoke<SelectionHistoryEntry[]>('selection_search_history_by_time', {
+        start,
+        end,
+      });
+    } catch (err) {
+      log.error('Failed to search by time', err as Error);
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     fetchHistory(50);
     fetchStats();
@@ -172,6 +186,7 @@ export function useSelectionHistory() {
     searchHistory,
     searchByApp,
     searchByType,
+    searchByTime,
     clearHistory,
     exportHistory,
     importHistory,
@@ -324,15 +339,51 @@ export function useClipboardHistory() {
     }
   }, [fetchHistory]);
 
+  // Clipboard monitoring polling
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+
+  const startMonitoring = useCallback(
+    (intervalMs: number = 2000) => {
+      if (!isTauri() || pollingRef.current) return;
+
+      setIsMonitoring(true);
+      pollingRef.current = setInterval(async () => {
+        try {
+          const updated = await invoke<boolean>('clipboard_check_update');
+          if (updated) {
+            await fetchHistory();
+          }
+        } catch (err) {
+          log.error('Clipboard monitor error', err as Error);
+        }
+      }, intervalMs);
+    },
+    [fetchHistory]
+  );
+
+  const stopMonitoring = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setIsMonitoring(false);
+  }, []);
+
   useEffect(() => {
     fetchHistory(50);
     fetchPinned();
-  }, [fetchHistory, fetchPinned]);
+
+    return () => {
+      stopMonitoring();
+    };
+  }, [fetchHistory, fetchPinned, stopMonitoring]);
 
   return {
     history,
     pinnedItems,
     isLoading,
+    isMonitoring,
     fetchHistory,
     fetchPinned,
     searchHistory,
@@ -343,5 +394,7 @@ export function useClipboardHistory() {
     clearUnpinned,
     clearAll,
     checkAndUpdate,
+    startMonitoring,
+    stopMonitoring,
   };
 }

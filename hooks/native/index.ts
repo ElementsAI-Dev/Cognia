@@ -37,3 +37,4 @@ export {
 } from './use-screen-recording';
 export { useSelectionSettings, type UseSelectionSettingsReturn } from './use-selection-settings';
 export { useTray, type UseTrayReturn } from './use-tray';
+export { useMediaShortcuts } from './use-media-shortcuts';

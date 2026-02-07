@@ -21,7 +21,7 @@ import { getProxyProviderModel } from '../core/proxy-client';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
-import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore } from '@/stores';
+import { useSettingsStore, useMemoryStore, useUsageStore, useSessionStore, useVectorStore } from '@/stores';
 import { getNextApiKey } from '../infrastructure/api-key-rotation';
 import {
   circuitBreakerRegistry,
@@ -152,6 +152,9 @@ export function useAIChat({
   const detectMemoryFromText = useMemoryStore((state) => state.detectMemoryFromText);
   const createMemory = useMemoryStore((state) => state.createMemory);
   const memorySettings = useMemoryStore((state) => state.settings);
+
+  // RAG settings
+  const vectorSettings = useVectorStore((state) => state.settings);
 
   // Custom instructions settings
   const customInstructions = useSettingsStore((state) => state.customInstructions);
@@ -348,13 +351,49 @@ export function useAIChat({
       // Inject memories into system prompt
       const memoriesSection = getMemoriesForPrompt();
 
-      // Build enhanced system prompt: base + custom instructions + memories
+      // RAG context retrieval - inject knowledge base context into system prompt
+      let ragContextSection = '';
+      if (vectorSettings.enableRAGInChat) {
+        const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
+        if (lastUserMessage && typeof lastUserMessage.content === 'string') {
+          try {
+            const embeddingApiKey = providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey;
+            if (embeddingApiKey) {
+              const { retrieveContext } = await import('../rag');
+              const ragResult = await retrieveContext(lastUserMessage.content, {
+                collectionName: vectorSettings.defaultCollectionName || 'default',
+                topK: vectorSettings.ragTopK,
+                similarityThreshold: vectorSettings.ragSimilarityThreshold,
+                maxContextLength: vectorSettings.ragMaxContextLength,
+                chromaUrl: vectorSettings.serverUrl,
+                embeddingConfig: {
+                  provider: vectorSettings.embeddingProvider,
+                  model: vectorSettings.embeddingModel,
+                },
+                embeddingApiKey,
+              });
+
+              if (ragResult.formattedContext && ragResult.documents.length > 0) {
+                ragContextSection = `\n\n[Knowledge Base Context]\nThe following information was retrieved from the knowledge base and may be relevant to the user's question. Use it to provide accurate answers when applicable:\n\n${ragResult.formattedContext}`;
+                log.debug(`RAG injected ${ragResult.documents.length} chunks (${ragResult.totalTokensEstimate} tokens est.)`);
+              }
+            }
+          } catch (ragError) {
+            log.warn('RAG context retrieval failed, continuing without RAG context', { error: String(ragError) });
+          }
+        }
+      }
+
+      // Build enhanced system prompt: base + custom instructions + memories + RAG context
       let enhancedSystemPrompt = systemPrompt || '';
       if (customInstructionsSection) {
         enhancedSystemPrompt += customInstructionsSection;
       }
       if (memoriesSection) {
         enhancedSystemPrompt += memoriesSection;
+      }
+      if (ragContextSection) {
+        enhancedSystemPrompt += ragContextSection;
       }
       // Only set system prompt if there's content
       const finalSystemPrompt = enhancedSystemPrompt.trim() || undefined;
@@ -766,7 +805,7 @@ export function useAIChat({
         throw error;
       }
     },
-    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession, safetyModeSettings, observabilitySettings?.enabled, observabilitySettings?.langfuseEnabled, observabilitySettings?.openTelemetryEnabled]
+    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, vectorSettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession, safetyModeSettings, observabilitySettings?.enabled, observabilitySettings?.langfuseEnabled, observabilitySettings?.openTelemetryEnabled]
   );
 
   // Get the last extracted reasoning

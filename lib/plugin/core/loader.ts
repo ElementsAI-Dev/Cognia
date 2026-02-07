@@ -166,48 +166,115 @@ export class PluginLoader {
 
   /**
    * Import a module dynamically
+   * 
+   * In Tauri, file system paths cannot be used directly as script src.
+   * We use multiple strategies:
+   * 1. Tauri asset protocol (convertFileSrc) for loading bundled plugins
+   * 2. Fetch + eval for loading plugin code from the file system
+   * 3. Script tag with blob URL as fallback
    */
   private async importModule(modulePath: string): Promise<unknown> {
-    // In a browser/Tauri environment, we need special handling
-    // Option 1: Use eval with fetched code (security concerns)
-    // Option 2: Use a bundler to create runtime-loadable modules
-    // Option 3: Use a plugin sandbox with postMessage
-    
-    // Use script tag loading as the primary method to avoid bundler issues
-    // with dynamic imports (Next.js/Turbopack can't statically analyze dynamic paths)
+    // Strategy 1: Try Tauri asset protocol if available
+    try {
+      const { convertFileSrc } = await import('@tauri-apps/api/core');
+      const assetUrl = convertFileSrc(modulePath);
+      return await this.loadViaFetch(assetUrl, modulePath);
+    } catch {
+      // Tauri not available or convertFileSrc failed
+    }
+
+    // Strategy 2: Try fetch + eval with file:// protocol or direct path
+    try {
+      return await this.loadViaFetch(modulePath, modulePath);
+    } catch {
+      // Fetch failed
+    }
+
+    // Strategy 3: Fallback to script tag with blob URL
     return this.loadAsScript(modulePath);
   }
 
   /**
-   * Load module as script (fallback)
+   * Load module by fetching its content and evaluating it
+   */
+  private async loadViaFetch(url: string, originalPath: string): Promise<unknown> {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch plugin: ${response.status} ${response.statusText}`);
+    }
+
+    const code = await response.text();
+
+    // Create a module-like environment for the plugin
+    const pluginExports: Record<string, unknown> = {};
+    const pluginModule: { exports: Record<string, unknown> } = { exports: pluginExports };
+
+    // Wrap the plugin code in a function to provide module/exports
+    const wrappedCode = `(function(module, exports, require) { ${code} })`;
+
+    try {
+      const factory = (0, eval)(wrappedCode);
+      factory(pluginModule, pluginExports, () => {
+        throw new Error(`require() is not supported in plugins. Use ES module imports in your build. Path: ${originalPath}`);
+      });
+
+      // Return either module.exports or the exports object
+      return pluginModule.exports !== pluginExports ? pluginModule.exports : pluginExports;
+    } catch (error) {
+      throw new Error(`Failed to evaluate plugin code from ${originalPath}: ${error}`);
+    }
+  }
+
+  /**
+   * Load module as script tag with blob URL (fallback)
    */
   private async loadAsScript(modulePath: string): Promise<unknown> {
     return new Promise((resolve, reject) => {
-      // Create a unique callback name
-      const callbackName = `__pluginCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      // Create a unique global variable name for the plugin to export to
+      const exportVar = `__pluginExport_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-      // Set up callback
-      (window as unknown as Record<string, unknown>)[callbackName] = (exports: unknown) => {
-        delete (window as unknown as Record<string, unknown>)[callbackName];
-        resolve(exports);
+      // Set up the global receiver
+      (window as unknown as Record<string, unknown>)[exportVar] = undefined;
+
+      // For script tag loading, the plugin must call window[exportVar] = { activate, deactivate }
+      // or assign to window.__cognia_plugin
+      const checkExport = () => {
+        const result = (window as unknown as Record<string, unknown>)[exportVar] 
+          || (window as unknown as Record<string, unknown>).__cognia_plugin;
+        delete (window as unknown as Record<string, unknown>)[exportVar];
+        delete (window as unknown as Record<string, unknown>).__cognia_plugin;
+        return result;
       };
 
       // Create script element
       const script = document.createElement('script');
-      script.type = 'module';
+      script.type = 'text/javascript';
+      
+      // Try to convert file path to asset URL for Tauri
       script.src = modulePath;
+      script.onload = () => {
+        const result = checkExport();
+        if (result) {
+          resolve(result);
+        } else {
+          reject(new Error(`Plugin loaded but did not export anything: ${modulePath}`));
+        }
+        script.remove();
+      };
       script.onerror = () => {
-        delete (window as unknown as Record<string, unknown>)[callbackName];
+        checkExport();
         reject(new Error(`Failed to load script: ${modulePath}`));
+        script.remove();
       };
 
       document.head.appendChild(script);
 
       // Timeout after 30 seconds
       setTimeout(() => {
-        if ((window as unknown as Record<string, unknown>)[callbackName]) {
-          delete (window as unknown as Record<string, unknown>)[callbackName];
+        const result = checkExport();
+        if (!result) {
           reject(new Error(`Timeout loading script: ${modulePath}`));
+          script.remove();
         }
       }, 30000);
     });

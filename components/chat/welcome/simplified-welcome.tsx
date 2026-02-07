@@ -6,13 +6,18 @@
  * 
  * Key features:
  * - ChatGPT-like centered design with large greeting
+ * - Time-based personalized greeting (Good morning/afternoon/evening)
+ * - Custom user name support for personalized experience
+ * - Custom icon/emoji/avatar display
+ * - Custom suggestions from welcome settings
  * - Mode switcher pills for easy mode switching
  * - Model indicator showing current AI model
  * - Quick toggle to switch back to full mode
  * - Smooth animations and transitions
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { 
   Sparkles, 
   ArrowUp, 
@@ -21,12 +26,14 @@ import {
   GraduationCap,
   Maximize2,
   ChevronDown,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Kbd } from '@/components/ui/kbd';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +46,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { ChatMode } from '@/types';
+import {
+  getCurrentTimePeriod,
+  DEFAULT_TIME_GREETINGS,
+} from '@/types/settings/welcome';
+import type { GreetingTimePeriod } from '@/types/settings/welcome';
 
 interface SimplifiedWelcomeProps {
   mode: ChatMode;
@@ -48,7 +60,7 @@ interface SimplifiedWelcomeProps {
   providerName?: string;
 }
 
-// Minimal suggestion prompts for each mode
+// Minimal suggestion prompts for each mode (defaults)
 const SIMPLIFIED_SUGGESTIONS: Record<ChatMode, string[]> = {
   chat: [
     'Explain quantum computing in simple terms',
@@ -76,7 +88,7 @@ const SIMPLIFIED_SUGGESTIONS: Record<ChatMode, string[]> = {
   ],
 };
 
-// Mode-specific greetings
+// Mode-specific greetings (default fallbacks)
 const MODE_GREETINGS: Record<ChatMode, { title: string; subtitle: string }> = {
   chat: {
     title: 'How can I help you today?',
@@ -95,6 +107,43 @@ const MODE_GREETINGS: Record<ChatMode, { title: string; subtitle: string }> = {
     subtitle: 'I\'ll guide you through any topic step by step',
   },
 };
+
+/**
+ * Build personalized greeting with time-based prefix and user name
+ */
+function buildPersonalizedGreeting(
+  timePeriod: GreetingTimePeriod,
+  timeBasedEnabled: boolean,
+  timeGreetings: { morning: string; afternoon: string; evening: string; night: string },
+  userName: string,
+  customGreeting: string,
+  modeGreeting: string,
+  locale: string,
+): string {
+  // If custom greeting is set, use it directly (with optional name substitution)
+  if (customGreeting) {
+    const nameGreeting = userName ? customGreeting.replace('{name}', userName) : customGreeting;
+    return nameGreeting;
+  }
+
+  // If time-based greeting is enabled, build a time-aware greeting
+  if (timeBasedEnabled) {
+    const customTimeGreeting = timeGreetings[timePeriod];
+    const localeKey = locale === 'zh-CN' ? 'zh-CN' : 'en';
+    const timePrefix = customTimeGreeting || DEFAULT_TIME_GREETINGS[timePeriod][localeKey];
+    if (userName) {
+      return `${timePrefix}, ${userName}`;
+    }
+    return timePrefix;
+  }
+
+  // If user name is set but no time-based or custom greeting, prepend name to mode greeting
+  if (userName) {
+    return `${modeGreeting}, ${userName}`;
+  }
+
+  return modeGreeting;
+}
 
 function SuggestionPill({
   suggestion,
@@ -149,14 +198,60 @@ export function SimplifiedWelcome({
   modelName,
   providerName,
 }: SimplifiedWelcomeProps) {
+  const t = useTranslations('welcome');
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
+  const welcomeSettings = useSettingsStore((state) => state.welcomeSettings);
+  const language = useSettingsStore((state) => state.language);
   const setSimplifiedModePreset = useSettingsStore((state) => state.setSimplifiedModePreset);
   const hideSuggestionDescriptions = simplifiedModeSettings.hideSuggestionDescriptions;
   const hideModeSelector = simplifiedModeSettings.hideModeSelector;
   const currentPreset = simplifiedModeSettings.preset;
 
-  const greeting = MODE_GREETINGS[mode];
-  const suggestions = SIMPLIFIED_SUGGESTIONS[mode];
+  const {
+    userName,
+    timeBasedGreeting,
+    customGreeting,
+    customDescription,
+    iconConfig,
+    useCustomSimplifiedSuggestions,
+    simplifiedSuggestions,
+  } = welcomeSettings;
+
+  // Get current time period (updates on mount)
+  const [timePeriod, setTimePeriod] = useState<GreetingTimePeriod>(getCurrentTimePeriod);
+  useEffect(() => {
+    // Update time period every minute
+    const interval = setInterval(() => {
+      setTimePeriod(getCurrentTimePeriod());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const defaultGreeting = MODE_GREETINGS[mode];
+
+  // Build personalized greeting
+  const displayGreeting = useMemo(() => {
+    return buildPersonalizedGreeting(
+      timePeriod,
+      timeBasedGreeting.enabled,
+      timeBasedGreeting,
+      userName,
+      customGreeting,
+      defaultGreeting.title,
+      language,
+    );
+  }, [timePeriod, timeBasedGreeting, userName, customGreeting, defaultGreeting.title, language]);
+
+  const displayDescription = customDescription || defaultGreeting.subtitle;
+
+  // Get suggestions: custom simplified suggestions or defaults
+  const suggestions = useMemo(() => {
+    if (useCustomSimplifiedSuggestions) {
+      const custom = simplifiedSuggestions[mode];
+      if (custom && custom.length > 0) return custom;
+    }
+    return SIMPLIFIED_SUGGESTIONS[mode];
+  }, [mode, useCustomSimplifiedSuggestions, simplifiedSuggestions]);
 
   // Only show 4 suggestions in simplified mode
   const visibleSuggestions = useMemo(() => {
@@ -172,6 +267,64 @@ export function SimplifiedWelcome({
   const handleModeChange = useCallback((newMode: ChatMode) => {
     onModeChange?.(newMode);
   }, [onModeChange]);
+
+  // Render welcome icon based on iconConfig
+  const renderWelcomeIcon = useMemo(() => {
+    switch (iconConfig.type) {
+      case 'emoji':
+        return (
+          <div
+            className={cn(
+              'flex items-center justify-center w-16 h-16 rounded-2xl',
+              'bg-gradient-to-br from-primary/20 to-primary/5',
+              'animate-in fade-in-0 zoom-in-95 duration-500'
+            )}
+          >
+            <span className="text-3xl">{iconConfig.emoji || '✨'}</span>
+          </div>
+        );
+      case 'avatar':
+        return (
+          <Avatar
+            className={cn(
+              'w-16 h-16 border-2 border-primary/20',
+              'animate-in fade-in-0 zoom-in-95 duration-500'
+            )}
+          >
+            <AvatarImage src={iconConfig.avatarUrl} alt={userName || 'User'} />
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-lg">
+              {userName ? userName.charAt(0).toUpperCase() : <User className="h-6 w-6" />}
+            </AvatarFallback>
+          </Avatar>
+        );
+      case 'text':
+        return (
+          <div
+            className={cn(
+              'flex items-center justify-center w-16 h-16 rounded-2xl',
+              'bg-gradient-to-br from-primary/20 to-primary/5',
+              'animate-in fade-in-0 zoom-in-95 duration-500'
+            )}
+          >
+            <span className="text-xl font-bold text-primary">
+              {iconConfig.text || (userName ? userName.charAt(0).toUpperCase() : 'C')}
+            </span>
+          </div>
+        );
+      default:
+        return (
+          <div
+            className={cn(
+              'flex items-center justify-center w-16 h-16 rounded-2xl',
+              'bg-gradient-to-br from-primary/20 to-primary/5',
+              'animate-in fade-in-0 zoom-in-95 duration-500'
+            )}
+          >
+            <Sparkles className="h-8 w-8 text-primary" />
+          </div>
+        );
+    }
+  }, [iconConfig, userName]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 py-8 relative">
@@ -198,7 +351,7 @@ export function SimplifiedWelcome({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>Current AI model</p>
+                <p>{t('currentModel')}</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -214,27 +367,19 @@ export function SimplifiedWelcome({
               className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
             >
               <Maximize2 className="h-4 w-4" />
-              <span className="text-xs hidden sm:inline">Full Mode</span>
+              <span className="text-xs hidden sm:inline">{t('fullMode')}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Switch to full interface</p>
+            <p>{t('switchToFullInterface')}</p>
             <p className="text-xs text-muted-foreground">Ctrl+Shift+S</p>
           </TooltipContent>
         </Tooltip>
       </div>
 
       <div className="w-full max-w-2xl flex flex-col items-center space-y-8">
-        {/* Logo/Icon */}
-        <div 
-          className={cn(
-            'flex items-center justify-center w-16 h-16 rounded-2xl',
-            'bg-gradient-to-br from-primary/20 to-primary/5',
-            'animate-in fade-in-0 zoom-in-95 duration-500'
-          )}
-        >
-          <Sparkles className="h-8 w-8 text-primary" />
-        </div>
+        {/* Welcome Icon/Emoji/Avatar */}
+        {renderWelcomeIcon}
 
         {/* Greeting */}
         <div 
@@ -245,11 +390,11 @@ export function SimplifiedWelcome({
           style={{ animationDelay: '100ms' }}
         >
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
-            {greeting.title}
+            {displayGreeting}
           </h1>
           {!hideSuggestionDescriptions && (
             <p className="text-muted-foreground text-sm sm:text-base">
-              {greeting.subtitle}
+              {displayDescription}
             </p>
           )}
         </div>
@@ -319,11 +464,11 @@ export function SimplifiedWelcome({
           )}
           style={{ animationDelay: '400ms' }}
         >
-          <span>Type a message or press</span>
+          <span>{t('typeMessage')}</span>
           <Kbd className="h-auto px-1.5 py-0.5 text-[10px]">
             <ArrowUp className="h-2.5 w-2.5" />
           </Kbd>
-          <span>to send</span>
+          <span>{t('toSend')}</span>
         </p>
 
         {/* Simplified mode indicator */}
@@ -335,7 +480,7 @@ export function SimplifiedWelcome({
             )}
             style={{ animationDelay: '500ms' }}
           >
-            {currentPreset === 'zen' ? 'Zen Mode' : 'Focused Mode'} • Press Ctrl+Shift+S for full interface
+            {currentPreset === 'zen' ? t('zenMode') : t('focusedMode')} • {t('pressForFullInterface')}
           </p>
         )}
       </div>

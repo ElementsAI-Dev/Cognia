@@ -40,15 +40,32 @@ export function SkillProvider({
     initialized.current = true;
 
     const initializeSkills = async () => {
-      // Get current skills count from store directly to avoid dependency issues
+      // Get current skills from store directly to avoid dependency issues
       const currentSkills = useSkillStore.getState().skills;
       const existingSkillCount = Object.keys(currentSkills).length;
       
-      // Load built-in skills if enabled and none exist
-      if (loadBuiltinSkills && existingSkillCount === 0) {
+      if (loadBuiltinSkills) {
         const builtinSkills = getAllBuiltinSkills();
-        importBuiltinSkills(builtinSkills);
-        console.log(`[SkillProvider] Loaded ${builtinSkills.length} built-in skills`);
+
+        if (existingSkillCount === 0) {
+          // No skills at all - load all built-in skills
+          importBuiltinSkills(builtinSkills);
+          console.log(`[SkillProvider] Loaded ${builtinSkills.length} built-in skills`);
+        } else {
+          // Check if any built-in skills are missing and re-import them
+          const existingNames = new Set(
+            Object.values(currentSkills)
+              .filter((s) => s.source === 'builtin')
+              .map((s) => s.metadata.name)
+          );
+          const missingBuiltins = builtinSkills.filter(
+            (b) => !existingNames.has(b.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))
+          );
+          if (missingBuiltins.length > 0) {
+            importBuiltinSkills(missingBuiltins);
+            console.log(`[SkillProvider] Re-imported ${missingBuiltins.length} missing built-in skills`);
+          }
+        }
       }
 
       // Load custom skills if provided

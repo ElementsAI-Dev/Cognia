@@ -429,6 +429,221 @@ describe('useDesignerStore', () => {
     });
   });
 
+  describe('custom viewport', () => {
+    it('should have null customViewport initially', () => {
+      const state = useDesignerStore.getState();
+      expect(state.customViewport).toBeNull();
+    });
+
+    it('should set custom viewport', () => {
+      act(() => {
+        useDesignerStore.getState().setCustomViewport({ width: 1440, height: 900 });
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.customViewport).toEqual({ width: 1440, height: 900 });
+    });
+
+    it('should set custom viewport with label', () => {
+      act(() => {
+        useDesignerStore.getState().setCustomViewport({ width: 375, height: 667, label: 'iPhone SE' });
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.customViewport).toEqual({ width: 375, height: 667, label: 'iPhone SE' });
+    });
+
+    it('should clear custom viewport by setting null', () => {
+      act(() => {
+        useDesignerStore.getState().setCustomViewport({ width: 800, height: 600 });
+        useDesignerStore.getState().setCustomViewport(null);
+      });
+
+      expect(useDesignerStore.getState().customViewport).toBeNull();
+    });
+
+    it('setViewport should reset customViewport to null', () => {
+      act(() => {
+        useDesignerStore.getState().setCustomViewport({ width: 500, height: 400 });
+        useDesignerStore.getState().setViewport('mobile');
+      });
+
+      const state = useDesignerStore.getState();
+      expect(state.viewport).toBe('mobile');
+      expect(state.customViewport).toBeNull();
+    });
+  });
+
+  describe('console state', () => {
+    it('should have showConsole false initially', () => {
+      expect(useDesignerStore.getState().showConsole).toBe(false);
+    });
+
+    it('should toggle console on', () => {
+      act(() => {
+        useDesignerStore.getState().toggleConsole();
+      });
+      expect(useDesignerStore.getState().showConsole).toBe(true);
+    });
+
+    it('should toggle console off', () => {
+      act(() => {
+        useDesignerStore.getState().toggleConsole();
+        useDesignerStore.getState().toggleConsole();
+      });
+      expect(useDesignerStore.getState().showConsole).toBe(false);
+    });
+  });
+
+  describe('console logs', () => {
+    it('should have empty consoleLogs initially', () => {
+      expect(useDesignerStore.getState().consoleLogs).toEqual([]);
+    });
+
+    it('should add a console log entry', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({
+          level: 'log',
+          message: 'Hello world',
+          timestamp: 1000,
+        });
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(1);
+      expect(logs[0].level).toBe('log');
+      expect(logs[0].message).toBe('Hello world');
+      expect(logs[0].timestamp).toBe(1000);
+      expect(logs[0].count).toBe(1);
+      expect(logs[0].id).toBeTruthy();
+    });
+
+    it('should add entries for all log levels', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'log', timestamp: 1 });
+        useDesignerStore.getState().addConsoleLog({ level: 'info', message: 'info', timestamp: 2 });
+        useDesignerStore.getState().addConsoleLog({ level: 'warn', message: 'warn', timestamp: 3 });
+        useDesignerStore.getState().addConsoleLog({ level: 'error', message: 'error', timestamp: 4 });
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(4);
+      expect(logs.map((l: { level: string }) => l.level)).toEqual(['log', 'info', 'warn', 'error']);
+    });
+
+    it('should group duplicate messages by incrementing count', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'repeated', timestamp: 100 });
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'repeated', timestamp: 200 });
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'repeated', timestamp: 300 });
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(1);
+      expect(logs[0].count).toBe(3);
+      expect(logs[0].timestamp).toBe(300); // updated to latest
+    });
+
+    it('should not group messages with different levels', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'same msg', timestamp: 1 });
+        useDesignerStore.getState().addConsoleLog({ level: 'warn', message: 'same msg', timestamp: 2 });
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(2);
+    });
+
+    it('should not group messages with different content', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'msg A', timestamp: 1 });
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'msg B', timestamp: 2 });
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(2);
+    });
+
+    it('should keep max 200 entries', () => {
+      act(() => {
+        for (let i = 0; i < 210; i++) {
+          useDesignerStore.getState().addConsoleLog({
+            level: 'log',
+            message: `msg-${i}`,
+            timestamp: i,
+          });
+        }
+      });
+
+      const logs = useDesignerStore.getState().consoleLogs;
+      expect(logs).toHaveLength(200);
+      // Oldest entries should be trimmed
+      expect(logs[0].message).toBe('msg-10');
+      expect(logs[199].message).toBe('msg-209');
+    });
+
+    it('should clear all console logs', () => {
+      act(() => {
+        useDesignerStore.getState().addConsoleLog({ level: 'log', message: 'a', timestamp: 1 });
+        useDesignerStore.getState().addConsoleLog({ level: 'error', message: 'b', timestamp: 2 });
+        useDesignerStore.getState().clearConsoleLogs();
+      });
+
+      expect(useDesignerStore.getState().consoleLogs).toEqual([]);
+    });
+  });
+
+  describe('preview errors', () => {
+    it('should have empty previewErrors initially', () => {
+      expect(useDesignerStore.getState().previewErrors).toEqual([]);
+    });
+
+    it('should add a preview error', () => {
+      act(() => {
+        useDesignerStore.getState().addPreviewError('TypeError: x is not a function');
+      });
+
+      const errors = useDesignerStore.getState().previewErrors;
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBe('TypeError: x is not a function');
+    });
+
+    it('should add multiple preview errors', () => {
+      act(() => {
+        useDesignerStore.getState().addPreviewError('Error 1');
+        useDesignerStore.getState().addPreviewError('Error 2');
+        useDesignerStore.getState().addPreviewError('Error 3');
+      });
+
+      const errors = useDesignerStore.getState().previewErrors;
+      expect(errors).toHaveLength(3);
+    });
+
+    it('should keep max 50 preview errors', () => {
+      act(() => {
+        for (let i = 0; i < 60; i++) {
+          useDesignerStore.getState().addPreviewError(`error-${i}`);
+        }
+      });
+
+      const errors = useDesignerStore.getState().previewErrors;
+      expect(errors).toHaveLength(50);
+      // Oldest entries should be trimmed
+      expect(errors[0]).toBe('error-10');
+      expect(errors[49]).toBe('error-59');
+    });
+
+    it('should clear all preview errors', () => {
+      act(() => {
+        useDesignerStore.getState().addPreviewError('err1');
+        useDesignerStore.getState().addPreviewError('err2');
+        useDesignerStore.getState().clearPreviewErrors();
+      });
+
+      expect(useDesignerStore.getState().previewErrors).toEqual([]);
+    });
+  });
+
   describe('parseCodeToElements', () => {
     it('should generate deterministic element IDs (el-0, el-1, etc.)', async () => {
       await act(async () => {

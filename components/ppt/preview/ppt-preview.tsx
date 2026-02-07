@@ -33,6 +33,7 @@ import {
   Presentation,
 } from 'lucide-react';
 
+import { downloadPPTX } from '@/lib/export/document/pptx-export';
 import { SingleSlideView } from './single-slide-view';
 import { GridView } from './grid-view';
 import { OutlineView } from './outline-view';
@@ -137,7 +138,22 @@ export function PPTPreview({
     try {
       onExport?.(format);
 
-      // Import the export function dynamically
+      // For PPTX format, use real pptxgenjs to generate native .pptx file
+      if (format === 'pptx') {
+        const pptxResult = await downloadPPTX(presentation, {
+          includeNotes: true,
+          includeSlideNumbers: true,
+          author: presentation.author || 'Cognia',
+          quality: 'high',
+        });
+        if (!pptxResult.success) {
+          setExportError(pptxResult.error || 'PPTX export failed');
+          console.error('PPTX export failed:', pptxResult.error);
+        }
+        return;
+      }
+
+      // Import the export function dynamically for other formats
       const { executePPTExport } = await import('@/lib/ai/tools/ppt-tool');
       
       const result = executePPTExport({
@@ -156,8 +172,8 @@ export function PPTPreview({
 
       const { content, filename } = result.data as { content: string; filename: string };
       
-      // For PDF and PPTX, open in new window (they have interactive download UI)
-      if (format === 'pdf' || format === 'pptx') {
+      // For PDF, open print-ready HTML in new window
+      if (format === 'pdf') {
         const blob = new Blob([content], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');

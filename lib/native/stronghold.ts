@@ -23,6 +23,7 @@ export const KEY_PREFIX = {
   CUSTOM_PROVIDER_API_KEY: 'custom:apikey:',
   OAUTH_TOKEN: 'oauth:token:',
   OAUTH_REFRESH: 'oauth:refresh:',
+  SYNC_CREDENTIAL: 'sync:credential:',
 } as const;
 
 // Singleton instances
@@ -349,6 +350,76 @@ export async function removeOAuthTokens(providerId: string): Promise<boolean> {
   const refreshRemoved = await removeSecret(refreshKey);
 
   return accessRemoved || refreshRemoved;
+}
+
+// ============================================================================
+// Sync Credential Management
+// ============================================================================
+
+/**
+ * Store a sync provider credential securely
+ */
+export async function storeSyncCredential(
+  provider: string,
+  credentialKey: string,
+  value: string
+): Promise<boolean> {
+  const key = `${KEY_PREFIX.SYNC_CREDENTIAL}${provider}:${credentialKey}`;
+  return storeSecret(key, value);
+}
+
+/**
+ * Get a sync provider credential
+ */
+export async function getSyncCredential(
+  provider: string,
+  credentialKey: string
+): Promise<string | null> {
+  const key = `${KEY_PREFIX.SYNC_CREDENTIAL}${provider}:${credentialKey}`;
+  return getSecret(key);
+}
+
+/**
+ * Remove a sync provider credential
+ */
+export async function removeSyncCredential(
+  provider: string,
+  credentialKey: string
+): Promise<boolean> {
+  const key = `${KEY_PREFIX.SYNC_CREDENTIAL}${provider}:${credentialKey}`;
+  return removeSecret(key);
+}
+
+/**
+ * Store all credentials for a sync provider
+ */
+export async function storeSyncCredentials(
+  provider: string,
+  credentials: Record<string, string>
+): Promise<boolean> {
+  let success = true;
+  for (const [credKey, value] of Object.entries(credentials)) {
+    if (value) {
+      const stored = await storeSyncCredential(provider, credKey, value);
+      if (!stored) success = false;
+    }
+  }
+  return success;
+}
+
+/**
+ * Remove all credentials for a sync provider
+ */
+export async function removeSyncCredentials(
+  provider: string,
+  credentialKeys: string[]
+): Promise<boolean> {
+  let success = true;
+  for (const credKey of credentialKeys) {
+    const removed = await removeSyncCredential(provider, credKey);
+    if (!removed) success = false;
+  }
+  return success;
 }
 
 // ============================================================================

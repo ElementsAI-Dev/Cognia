@@ -18,8 +18,6 @@ mod video_processor;
 pub mod window_snap;
 
 pub use error::RecordingError;
-// RecordingErrorCode exported for API consumers to match error types
-#[allow(unused_imports)]
 pub use error::RecordingErrorCode;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
 pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
@@ -244,10 +242,17 @@ impl ScreenRecordingManager {
             config.format, config.codec, config.frame_rate, config.quality
         );
 
+        // Use persistent history if we have a recordings directory
+        let history = if let Some(ref rec_dir) = recordings_dir {
+            RecordingHistory::new_persistent(rec_dir)
+        } else {
+            RecordingHistory::new()
+        };
+
         Self {
             config: Arc::new(RwLock::new(config.clone())),
             recorder: ScreenRecorder::new(app_handle.clone()),
-            history: RecordingHistory::new(),
+            history,
             storage: StorageManager::new(storage_config),
             app_handle,
         }

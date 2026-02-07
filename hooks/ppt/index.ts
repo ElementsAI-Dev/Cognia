@@ -8,4 +8,5 @@ export type {
   PPTGenerationConfig,
   PPTGenerationProgress,
   PPTOutlineData,
+  PPTMaterialGenerationConfig,
 } from './use-ppt-generation';

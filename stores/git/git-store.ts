@@ -17,6 +17,9 @@ import type {
   ProjectGitConfig,
   AutoCommitConfig,
   GitOperationStatus,
+  GitTagInfo,
+  GitRemoteInfo,
+  GitCommitDetail,
 } from '@/types/system/git';
 import { gitService } from '@/lib/native/git';
 
@@ -39,6 +42,8 @@ export interface GitState {
   commits: GitCommitInfo[];
   fileStatus: GitFileStatus[];
   stashList: { index: number; message: string; branch?: string; date?: string }[];
+  remotes: GitRemoteInfo[];
+  tags: GitTagInfo[];
 
   // Operation state
   operationStatus: GitOperationStatus;
@@ -115,6 +120,34 @@ export interface GitActions {
   stashDrop: (index?: number) => Promise<boolean>;
   stashClear: () => Promise<boolean>;
 
+  // Remote management
+  loadRemotes: () => Promise<void>;
+  addRemote: (name: string, url: string) => Promise<boolean>;
+  removeRemote: (name: string) => Promise<boolean>;
+
+  // Tag operations
+  loadTags: () => Promise<void>;
+  createTag: (name: string, options?: { message?: string; target?: string; force?: boolean }) => Promise<boolean>;
+  deleteTag: (name: string) => Promise<boolean>;
+  pushTag: (name: string, remote?: string) => Promise<boolean>;
+
+  // Revert
+  revertCommit: (commitHash: string, noCommit?: boolean) => Promise<boolean>;
+  revertAbort: () => Promise<boolean>;
+
+  // Cherry-pick
+  cherryPick: (commitHash: string, noCommit?: boolean) => Promise<boolean>;
+  cherryPickAbort: () => Promise<boolean>;
+
+  // Branch rename
+  renameBranch: (oldName: string, newName: string, force?: boolean) => Promise<boolean>;
+
+  // Show commit detail
+  showCommit: (commitHash: string, maxLines?: number) => Promise<GitCommitDetail | null>;
+
+  // Merge abort
+  mergeAbort: () => Promise<boolean>;
+
   // Project Git configuration
   getProjectConfig: (projectId: string) => ProjectGitConfig;
   setProjectConfig: (projectId: string, config: Partial<ProjectGitConfig>) => void;
@@ -167,6 +200,8 @@ const initialState: GitState = {
   commits: [],
   fileStatus: [],
   stashList: [],
+  remotes: [],
+  tags: [],
   operationStatus: 'idle',
   operationProgress: null,
   lastError: null,
@@ -287,6 +322,7 @@ export const useGitStore = create<GitState & GitActions>()(
               commits: result.data.commits,
               fileStatus: result.data.fileStatus,
               stashList: result.data.stashList as GitStashEntry[],
+              remotes: result.data.remotes || [],
               operationStatus: 'idle',
             });
           } else {
@@ -981,6 +1017,375 @@ export const useGitStore = create<GitState & GitActions>()(
         }
       },
 
+      // Remote management
+      loadRemotes: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.getRemotes(currentRepoPath);
+          if (result.success && result.data) {
+            set({ remotes: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      addRemote: async (name, url) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.addRemote(currentRepoPath, name, url);
+          if (result.success) {
+            await get().loadRemotes();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to add remote',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      removeRemote: async (name) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.removeRemote(currentRepoPath, name);
+          if (result.success) {
+            await get().loadRemotes();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to remove remote',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      // Tag operations
+      loadTags: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.getTagList(currentRepoPath);
+          if (result.success && result.data) {
+            set({ tags: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      createTag: async (name, options) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.createTag({
+            repoPath: currentRepoPath,
+            name,
+            message: options?.message,
+            target: options?.target,
+            force: options?.force,
+          });
+          if (result.success) {
+            await get().loadTags();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to create tag',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      deleteTag: async (name) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.deleteTag(currentRepoPath, name);
+          if (result.success) {
+            await get().loadTags();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to delete tag',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      pushTag: async (name, remote) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.pushTag(currentRepoPath, name, remote);
+          if (result.success) {
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to push tag',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      // Revert
+      revertCommit: async (commitHash, noCommit) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.revert({
+            repoPath: currentRepoPath,
+            commitHash,
+            noCommit,
+          });
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadCommitHistory();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to revert commit',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      revertAbort: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.revertAbort(currentRepoPath);
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to abort revert',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      // Cherry-pick
+      cherryPick: async (commitHash, noCommit) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.cherryPick({
+            repoPath: currentRepoPath,
+            commitHash,
+            noCommit,
+          });
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadCommitHistory();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to cherry-pick commit',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      cherryPickAbort: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.cherryPickAbort(currentRepoPath);
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to abort cherry-pick',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      // Branch rename
+      renameBranch: async (oldName, newName, force) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.renameBranch(currentRepoPath, oldName, newName, force);
+          if (result.success) {
+            await get().loadBranches();
+            await get().loadRepoStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to rename branch',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      // Show commit detail
+      showCommit: async (commitHash, maxLines) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return null;
+
+        try {
+          const result = await gitService.showCommit(currentRepoPath, commitHash, maxLines);
+          if (result.success && result.data) {
+            return result.data;
+          }
+          return null;
+        } catch (error) {
+          console.error('Failed to show commit:', error);
+          return null;
+        }
+      },
+
+      // Merge abort
+      mergeAbort: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.mergeAbort(currentRepoPath);
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to abort merge',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
       // Project Git configuration
       getProjectConfig: (projectId) => {
         const { projectConfigs } = get();
@@ -1114,5 +1519,7 @@ export const selectCurrentRepo = (state: GitState & GitActions) => state.current
 export const selectBranches = (state: GitState & GitActions) => state.branches;
 export const selectCommits = (state: GitState & GitActions) => state.commits;
 export const selectFileStatus = (state: GitState & GitActions) => state.fileStatus;
+export const selectRemotes = (state: GitState & GitActions) => state.remotes;
+export const selectTags = (state: GitState & GitActions) => state.tags;
 export const selectOperationStatus = (state: GitState & GitActions) => state.operationStatus;
 export const selectLastError = (state: GitState & GitActions) => state.lastError;

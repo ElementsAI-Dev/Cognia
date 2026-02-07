@@ -4,8 +4,10 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createEncryptedStorage } from '@/lib/storage/encrypted-zustand-storage';
 import { nanoid } from 'nanoid';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { clearMathCache, getMathCacheStats } from '@/lib/latex/cache';
 import {
   isStrongholdAvailable,
   secureStoreProviderApiKey,
@@ -93,6 +95,10 @@ import type {
   CustomSuggestion,
   QuickAccessLink,
   WelcomeSectionVisibility,
+  TimeBasedGreeting,
+  WelcomeIconConfig,
+  WelcomeGradientConfig,
+  WelcomeLayoutStyle,
 } from '@/types/settings/welcome';
 import { DEFAULT_WELCOME_SETTINGS } from '@/types/settings/welcome';
 import type { ChatMode } from '@/types/core';
@@ -693,6 +699,8 @@ interface SettingsState {
   setMathDisplayAlignment: (align: 'center' | 'left') => void;
   mathShowCopyButton: boolean;
   setMathShowCopyButton: (show: boolean) => void;
+  clearMathRenderCache: () => void;
+  getMathRenderCacheStats: () => { size: number; maxSize: number; hitRate: number; hits: number; misses: number };
   enableMermaidDiagrams: boolean;
   setEnableMermaidDiagrams: (enable: boolean) => void;
   mermaidTheme: 'default' | 'dark' | 'forest' | 'neutral';
@@ -904,6 +912,14 @@ interface SettingsState {
   setWelcomeUseCustomQuickAccess: (use: boolean) => void;
   setWelcomeDefaultMode: (mode: ChatMode) => void;
   setWelcomeMaxSuggestions: (max: number) => void;
+  setWelcomeUserName: (name: string) => void;
+  setWelcomeTimeBasedGreeting: (settings: Partial<TimeBasedGreeting>) => void;
+  setWelcomeTimeBasedGreetingEnabled: (enabled: boolean) => void;
+  setWelcomeLayoutStyle: (style: WelcomeLayoutStyle) => void;
+  setWelcomeIconConfig: (config: Partial<WelcomeIconConfig>) => void;
+  setWelcomeGradientConfig: (config: Partial<WelcomeGradientConfig>) => void;
+  setWelcomeSimplifiedSuggestions: (mode: ChatMode, suggestions: string[]) => void;
+  setWelcomeUseCustomSimplifiedSuggestions: (use: boolean) => void;
   resetWelcomeSettings: () => void;
 
   // Simplified Mode settings
@@ -1223,6 +1239,12 @@ const initialState = {
 
   // Simplified Mode settings
   simplifiedModeSettings: { ...DEFAULT_SIMPLIFIED_MODE_SETTINGS },
+
+  // Agent Optimization settings
+  agentOptimizationSettings: { ...DEFAULT_AGENT_OPTIMIZATION_SETTINGS },
+
+  // Agent Trace settings
+  agentTraceSettings: { ...DEFAULT_AGENT_TRACE_SETTINGS },
 
   // Onboarding
   hasCompletedOnboarding: false,
@@ -1825,6 +1847,12 @@ export const useSettingsStore = create<SettingsState>()(
       setMathFontScale: (mathFontScale) => set({ mathFontScale }),
       setMathDisplayAlignment: (mathDisplayAlignment) => set({ mathDisplayAlignment }),
       setMathShowCopyButton: (mathShowCopyButton) => set({ mathShowCopyButton }),
+      clearMathRenderCache: () => {
+        clearMathCache();
+      },
+      getMathRenderCacheStats: () => {
+        return getMathCacheStats();
+      },
       setEnableMermaidDiagrams: (enableMermaidDiagrams) => set({ enableMermaidDiagrams }),
       setMermaidTheme: (mermaidTheme) => set({ mermaidTheme }),
       setEnableVegaLiteCharts: (enableVegaLiteCharts) => set({ enableVegaLiteCharts }),
@@ -2611,6 +2639,56 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           welcomeSettings: { ...state.welcomeSettings, maxSuggestionsPerMode },
         })),
+      setWelcomeUserName: (userName) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, userName },
+        })),
+      setWelcomeTimeBasedGreeting: (settings) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            timeBasedGreeting: { ...state.welcomeSettings.timeBasedGreeting, ...settings },
+          },
+        })),
+      setWelcomeTimeBasedGreetingEnabled: (enabled) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            timeBasedGreeting: { ...state.welcomeSettings.timeBasedGreeting, enabled },
+          },
+        })),
+      setWelcomeLayoutStyle: (layoutStyle) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, layoutStyle },
+        })),
+      setWelcomeIconConfig: (config) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            iconConfig: { ...state.welcomeSettings.iconConfig, ...config },
+          },
+        })),
+      setWelcomeGradientConfig: (config) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            gradientConfig: { ...state.welcomeSettings.gradientConfig, ...config },
+          },
+        })),
+      setWelcomeSimplifiedSuggestions: (mode, suggestions) =>
+        set((state) => ({
+          welcomeSettings: {
+            ...state.welcomeSettings,
+            simplifiedSuggestions: {
+              ...state.welcomeSettings.simplifiedSuggestions,
+              [mode]: suggestions,
+            },
+          },
+        })),
+      setWelcomeUseCustomSimplifiedSuggestions: (useCustomSimplifiedSuggestions) =>
+        set((state) => ({
+          welcomeSettings: { ...state.welcomeSettings, useCustomSimplifiedSuggestions },
+        })),
       resetWelcomeSettings: () => set({ welcomeSettings: { ...DEFAULT_WELCOME_SETTINGS } }),
 
       // Simplified Mode actions
@@ -2724,7 +2802,72 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'cognia-settings',
-      storage: createJSONStorage(() => localStorage),
+      version: 1,
+      storage: createJSONStorage(() => createEncryptedStorage({
+        sensitiveFields: [
+          'providerSettings.*.apiKey',
+          'providerSettings.*.apiKeys',
+          'customProviders.*.apiKey',
+          'searchProviders.*.apiKey',
+          'tavilyApiKey',
+        ],
+      })),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Baseline migration - ensure all new fields have defaults
+          // This handles users upgrading from unversioned stores
+          if (!state.agentTraceSettings) {
+            state.agentTraceSettings = initialState.agentTraceSettings;
+          }
+          if (!state.agentOptimizationSettings) {
+            state.agentOptimizationSettings = initialState.agentOptimizationSettings;
+          }
+          if (!state.welcomeSettings) {
+            state.welcomeSettings = initialState.welcomeSettings;
+          }
+          if (!state.simplifiedModeSettings) {
+            state.simplifiedModeSettings = initialState.simplifiedModeSettings;
+          }
+          if (!state.featureRoutingSettings) {
+            state.featureRoutingSettings = initialState.featureRoutingSettings;
+          }
+          if (!state.safetyModeSettings) {
+            state.safetyModeSettings = initialState.safetyModeSettings;
+          }
+          if (!state.tokenizerSettings) {
+            state.tokenizerSettings = initialState.tokenizerSettings;
+          }
+          if (!state.chatHistoryContextSettings) {
+            state.chatHistoryContextSettings = initialState.chatHistoryContextSettings;
+          }
+          if (!state.loadBalancerSettings) {
+            state.loadBalancerSettings = initialState.loadBalancerSettings;
+          }
+          if (!state.autoRouterSettings) {
+            state.autoRouterSettings = initialState.autoRouterSettings;
+          }
+          if (!state.compressionSettings) {
+            state.compressionSettings = initialState.compressionSettings;
+          }
+          if (!state.speechSettings) {
+            state.speechSettings = initialState.speechSettings;
+          }
+          if (!state.observabilitySettings) {
+            state.observabilitySettings = initialState.observabilitySettings;
+          }
+          if (!state.backgroundSettings) {
+            state.backgroundSettings = initialState.backgroundSettings;
+          }
+          if (!state.uiCustomization) {
+            state.uiCustomization = initialState.uiCustomization;
+          }
+          if (!state.themeSchedule) {
+            state.themeSchedule = initialState.themeSchedule;
+          }
+        }
+        return state as SettingsState;
+      },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<SettingsState> | undefined;
 
@@ -2868,6 +3011,8 @@ export const useSettingsStore = create<SettingsState>()(
           observabilitySettings: state.observabilitySettings,
           // Welcome Settings
           welcomeSettings: state.welcomeSettings,
+          // Simplified Mode settings
+          simplifiedModeSettings: state.simplifiedModeSettings,
           // Onboarding
           hasCompletedOnboarding: state.hasCompletedOnboarding,
           // Agent Optimization settings (Claude Best Practices)

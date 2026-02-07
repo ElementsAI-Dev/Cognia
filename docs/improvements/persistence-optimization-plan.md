@@ -31,14 +31,14 @@ Cognia 目前已具备完善的本地持久化基础设施，包括 localStorage
 | 项目导入导出 | ✅ 完善 | `lib/project/import-export.ts` | ZIP 打包 |
 | 批量导出 | ✅ 完善 | `lib/export/batch-export.ts` | 多格式支持 |
 | 插件备份 | ✅ 完善 | `lib/plugin/backup.ts` | Tauri 集成 |
-| Store 版本迁移 | ⚠️ 部分 | 各 stores | 大部分 store 缺少 migrate 函数 |
-| IndexedDB 备份/恢复 | ⚠️ 部分 | `lib/storage/indexeddb-utils.ts` | 仅有导出，缺少完整恢复 |
-| 持久化存储请求 | ⚠️ 部分 | `lib/storage/indexeddb-utils.ts` | 有 API 但未集成到 UI |
-| 数据完整性校验 | ❌ 缺失 | - | 无 checksum/validation |
-| 加密存储 | ❌ 缺失 | - | 敏感数据未加密 |
+| Store 版本迁移 | ✅ 完善 | 各 stores | 12 个关键 store 已添加 version + migrate |
+| IndexedDB 备份/恢复 | ✅ 完善 | `lib/storage/indexeddb-utils.ts` | exportAllData + importAllData 覆盖全部 11 张表 |
+| 持久化存储请求 | ✅ 完善 | `app/providers.tsx` | StoragePersistenceInitializer 在启动时自动请求 |
+| 数据完整性校验 | ✅ 完善 | `lib/storage/data-import.ts` | generateChecksum + verifyChecksum 已实现 |
+| 加密存储 | ✅ 完善 | `lib/storage/storage-encryption.ts`, `lib/sync/credential-storage.ts` | Desktop: Stronghold AES 加密; Browser: Web Crypto API (AES-GCM) + 设备指纹派生密钥 |
 | 云同步准备 | ❌ 缺失 | - | 无同步基础设施 |
 | 跨设备同步 | ❌ 缺失 | - | 需后端支持 |
-| 完整数据恢复 | ❌ 缺失 | - | 导入功能不完整 |
+| 完整数据恢复 | ✅ 完善 | `lib/storage/data-import.ts` | importFullBackup 支持全部 12 张 IndexedDB 表 |
 
 ---
 

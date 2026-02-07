@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileText, RefreshCw, Trash2, Download, Power, RotateCcw } from 'lucide-react';
+import { FileText, RefreshCw, Trash2, Download, Power, RotateCcw, Clock } from 'lucide-react';
 
 import { type DBAgentTrace } from '@/lib/db';
 import { Button } from '@/components/ui/button';
@@ -43,10 +43,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useAgentTrace } from '@/hooks/agent-trace/use-agent-trace';
+import { useAgentTraceAnalytics } from '@/hooks/agent-trace/use-agent-trace-analytics';
 import { useSettingsStore } from '@/stores';
 import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-repository';
+import { AgentTraceTimeline } from './agent-trace-timeline';
+import { AgentTraceStatsOverview, AgentTraceSessionSummary } from './agent-trace-stats';
 import type { AgentTraceEventType } from '@/types/agent-trace';
 
 type DisplayTrace = {
@@ -97,6 +101,8 @@ export function AgentTraceSettings() {
   const [selected, setSelected] = useState<DisplayTrace | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
+  const [selectedSessionForSummary, setSelectedSessionForSummary] = useState('');
 
   // Settings
   const agentTraceSettings = useSettingsStore((state) => state.agentTraceSettings);
@@ -119,6 +125,31 @@ export function AgentTraceSettings() {
     eventType: eventType === 'all' ? undefined : eventType,
     limit: 200,
   });
+
+  // Analytics
+  const {
+    stats,
+    sessionSummary,
+    loadSessionSummary,
+    refresh: refreshAnalytics,
+  } = useAgentTraceAnalytics({
+    sessionId: selectedSessionForSummary || undefined,
+    autoLoad: true,
+  });
+
+  // Unique session IDs from current traces for the session summary selector
+  const uniqueSessionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of rows ?? []) {
+      if (row.sessionId) ids.add(row.sessionId);
+    }
+    return Array.from(ids);
+  }, [rows]);
+
+  const handleRefreshAll = useCallback(() => {
+    refresh();
+    void refreshAnalytics();
+  }, [refresh, refreshAnalytics]);
 
   // Delete single trace
   const handleDeleteTrace = useCallback(async (id: string) => {
@@ -212,7 +243,7 @@ export function AgentTraceSettings() {
             <Button
               variant="outline"
               size="sm"
-              onClick={refresh}
+              onClick={handleRefreshAll}
             >
               <RefreshCw className="h-4 w-4" />
               {t('refresh')}
@@ -443,6 +474,42 @@ export function AgentTraceSettings() {
         </div>
       </SettingsCard>
 
+      {/* Stats Overview */}
+      <AgentTraceStatsOverview stats={stats} />
+
+      {/* Session Summary */}
+      {uniqueSessionIds.length > 0 && (
+        <SettingsCard title={t('sessionSummary.title')} description={t('sessionSummary.description')}>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedSessionForSummary || '__none__'}
+                onValueChange={(value) => {
+                  const sid = value === '__none__' ? '' : value;
+                  setSelectedSessionForSummary(sid);
+                  if (sid) void loadSessionSummary(sid);
+                }}
+              >
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue placeholder={t('sessionSummary.selectSession')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('sessionSummary.selectSession')}</SelectItem>
+                  {uniqueSessionIds.map((sid) => (
+                    <SelectItem key={sid} value={sid}>
+                      {sid.length > 20 ? `${sid.slice(0, 20)}...` : sid}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {sessionSummary && (
+              <AgentTraceSessionSummary summary={sessionSummary} />
+            )}
+          </div>
+        </SettingsCard>
+      )}
+
       {traces.length === 0 ? (
         <SettingsEmptyState
           title={t('emptyTitle')}
@@ -450,66 +517,86 @@ export function AgentTraceSettings() {
         />
       ) : (
         <SettingsCard title={t('listTitle')} description={t('listDescription')}>
-          <ScrollArea className="h-[420px] pr-2">
-            <div className="space-y-2">
-              {traces.map((trace) => (
-                <div
-                  key={trace.id}
-                  role="button"
-                  tabIndex={0}
-                  className={cn(
-                    'w-full text-left rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors',
-                    selected?.id === trace.id && 'ring-1 ring-primary'
-                  )}
-                  onClick={() => setSelected(trace)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelected(trace);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="font-medium text-sm truncate">{trace.id}</div>
-                        {trace.vcs && (
-                          <Badge variant="outline" className="text-[10px]">
-                            {trace.vcs}
-                          </Badge>
-                        )}
-                        {trace.sessionId && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {trace.sessionId}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {trace.timestamp.toLocaleString()}
-                      </div>
-                      <div className="text-xs mt-1 text-muted-foreground break-all">
-                        {(trace.files[0] ?? '').slice(0, 200)}
-                        {trace.files.length > 1 ? ` (+${trace.files.length - 1})` : ''}
-                      </div>
-                    </div>
-                    <div className="shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCopied(false);
+          {/* View mode tabs */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'timeline')}>
+            <TabsList className="mb-3">
+              <TabsTrigger value="list" className="gap-1.5">
+                <FileText className="h-3.5 w-3.5" />
+                {t('viewModes.list')}
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                {t('viewModes.timeline')}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="list">
+              <ScrollArea className="h-[420px] pr-2">
+                <div className="space-y-2">
+                  {traces.map((trace) => (
+                    <div
+                      key={trace.id}
+                      role="button"
+                      tabIndex={0}
+                      className={cn(
+                        'w-full text-left rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors',
+                        selected?.id === trace.id && 'ring-1 ring-primary'
+                      )}
+                      onClick={() => setSelected(trace)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
                           setSelected(trace);
-                        }}
-                      >
-                        {t('view')}
-                      </Button>
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="font-medium text-sm truncate">{trace.id}</div>
+                            {trace.vcs && (
+                              <Badge variant="outline" className="text-[10px]">
+                                {trace.vcs}
+                              </Badge>
+                            )}
+                            {trace.sessionId && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {trace.sessionId}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {trace.timestamp.toLocaleString()}
+                          </div>
+                          <div className="text-xs mt-1 text-muted-foreground break-all">
+                            {(trace.files[0] ?? '').slice(0, 200)}
+                            {trace.files.length > 1 ? ` (+${trace.files.length - 1})` : ''}
+                          </div>
+                        </div>
+                        <div className="shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCopied(false);
+                              setSelected(trace);
+                            }}
+                          >
+                            {t('view')}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="timeline">
+              <AgentTraceTimeline traces={rows ?? []} />
+            </TabsContent>
+          </Tabs>
         </SettingsCard>
       )}
 

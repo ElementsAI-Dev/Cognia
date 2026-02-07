@@ -9,7 +9,7 @@ import { useMarketplace } from './use-marketplace';
 const STABLE_PLUGINS_STORE = { plugins: {} };
 const mockSearchPlugins = jest.fn();
 
-jest.mock('@/lib/plugin/marketplace', () => ({
+jest.mock('@/lib/plugin/package/marketplace', () => ({
   PluginMarketplace: jest.fn().mockImplementation(() => ({
     searchPlugins: mockSearchPlugins,
   })),

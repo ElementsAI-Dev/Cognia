@@ -10,6 +10,7 @@ import {
   Sparkles,
   Variable,
 } from 'lucide-react';
+import { generateText } from 'ai';
 import { Loader } from '@/components/ai-elements/loader';
 import {
   Dialog,
@@ -25,13 +26,22 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
-import { cn as _cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { MarketplacePrompt } from '@/types/content/prompt-marketplace';
+import type { ProviderName } from '@/types/provider';
 import { useSettingsStore } from '@/stores/settings';
-import { toast } from 'sonner';
+import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
+import { toast } from '@/components/ui/sonner';
 
 interface PromptPreviewDialogProps {
   prompt: MarketplacePrompt | null;
@@ -97,31 +107,28 @@ export function PromptPreviewDialog({
     setTestResult('');
     
     try {
-      // Use the AI completion API
-      const response = await fetch('/api/ai/completion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: 'user',
-              content: generatedPrompt,
-            },
-          ],
-          provider: defaultProvider || 'openai',
-          model: defaultModel || 'gpt-4o-mini',
-          maxTokens: 1000,
-        }),
-      });
+      const provider = defaultProvider || 'openai';
+      const apiKey = providerSettings[provider]?.apiKey || '';
+      const baseURL = providerSettings[provider]?.baseURL;
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
+      if (!apiKey && provider !== 'ollama') {
+        throw new Error(`No API key configured for ${provider}`);
       }
 
-      const data = await response.json();
-      setTestResult(data.content || data.text || 'No response received');
+      const model = getProxyProviderModel(
+        provider as ProviderName,
+        defaultModel,
+        apiKey,
+        baseURL
+      );
+
+      const result = await generateText({
+        model,
+        messages: [{ role: 'user', content: generatedPrompt }],
+        maxOutputTokens: 1000,
+      });
+
+      setTestResult(result.text || 'No response received');
     } catch (error) {
       console.error('AI test failed:', error);
       toast.error(t('testing') + ' failed');
@@ -129,7 +136,7 @@ export function PromptPreviewDialog({
     } finally {
       setIsTesting(false);
     }
-  }, [generatedPrompt, defaultProvider, defaultModel, t]);
+  }, [generatedPrompt, defaultProvider, defaultModel, providerSettings, t]);
 
   const handleSendToChat = useCallback(() => {
     if (onSendToChat) {
@@ -205,7 +212,42 @@ export function PromptPreviewDialog({
                           {variable.description}
                         </p>
                       )}
-                      {variable.type === 'multiline' ? (
+                      {variable.type === 'select' && variable.options ? (
+                        <Select
+                          value={variableValues[variable.name] || variable.defaultValue || ''}
+                          onValueChange={(value) => handleVariableChange(variable.name, value)}
+                        >
+                          <SelectTrigger id={variable.name}>
+                            <SelectValue placeholder={`Select ${variable.name}...`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {variable.options.map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : variable.type === 'boolean' ? (
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant={variableValues[variable.name] === 'true' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleVariableChange(variable.name, 'true')}
+                            className={cn('flex-1', variableValues[variable.name] === 'true' && 'shadow-sm')}
+                          >
+                            True
+                          </Button>
+                          <Button
+                            variant={variableValues[variable.name] === 'false' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleVariableChange(variable.name, 'false')}
+                            className={cn('flex-1', variableValues[variable.name] === 'false' && 'shadow-sm')}
+                          >
+                            False
+                          </Button>
+                        </div>
+                      ) : variable.type === 'multiline' ? (
                         <Textarea
                           id={variable.name}
                           placeholder={variable.defaultValue || `Enter ${variable.name}...`}

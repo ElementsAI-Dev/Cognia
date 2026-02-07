@@ -179,7 +179,35 @@ export interface CompletionStats {
   avg_latency_ms: number;
   /** Cache hit rate (0.0 - 1.0) */
   cache_hit_rate: number;
+  /** Quality feedback statistics */
+  feedback_stats: FeedbackStats;
 }
+
+/** Feedback statistics for completion quality tracking */
+export interface FeedbackStats {
+  /** Positive feedback count (thumbs up, full accept) */
+  positive_count: number;
+  /** Negative feedback count (thumbs down, immediate dismiss) */
+  negative_count: number;
+  /** Partial accept count (user edited the suggestion) */
+  partial_accept_count: number;
+  /** Average acceptance ratio (accepted chars / suggested chars) */
+  avg_acceptance_ratio: number;
+  /** Average time to accept (ms) */
+  avg_time_to_accept_ms: number;
+  /** Average time to dismiss (ms) */
+  avg_time_to_dismiss_ms: number;
+}
+
+/** Quality feedback type for a completion */
+export type CompletionFeedback =
+  | { type: 'FullAccept'; suggestion_id: string; time_to_accept_ms: number }
+  | { type: 'PartialAccept'; suggestion_id: string; original_length: number; accepted_length: number }
+  | { type: 'QuickDismiss'; suggestion_id: string; time_to_dismiss_ms: number }
+  | { type: 'ExplicitRating'; suggestion_id: string; rating: FeedbackRating };
+
+/** Explicit feedback rating */
+export type FeedbackRating = 'Positive' | 'Negative' | 'Irrelevant';
 
 /** Default configuration values */
 export const DEFAULT_COMPLETION_CONFIG: CompletionConfig = {

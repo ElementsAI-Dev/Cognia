@@ -6,6 +6,7 @@ import type { ArenaBattle, ArenaContestant } from '@/types/arena';
 
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en-US',
 }));
 
 let mockBattles: ArenaBattle[] = [];

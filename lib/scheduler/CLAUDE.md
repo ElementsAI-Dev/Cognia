@@ -11,8 +11,11 @@ lib/scheduler/
 ├── task-scheduler.ts     # Core scheduler service
 ├── scheduler-db.ts       # Dexie persistence layer
 ├── notification-integration.ts  # Notification dispatch
+├── event-integration.ts  # Event-triggered task execution
+├── script-executor.ts    # Script execution via sandbox
 └── executors/
-    └── index.ts          # Built-in task executors
+    ├── index.ts          # Built-in task executors
+    └── plugin-executor.ts # Plugin task handler registry
 ```
 
 ## Core Components
@@ -46,6 +49,18 @@ lib/scheduler/
 - `sync` - Triggers data synchronization
 - `backup` - Performs backup operations
 - `custom` - User-defined task handlers
+- `plugin` - Plugin-registered task handlers
+- `script` - Script execution via sandbox service
+
+### Event Integration (`event-integration.ts`)
+- Emits scheduler events on task completion/failure
+- Supports event-triggered task chaining
+- Events: session:*, sync:*, backup:*, workflow:*, agent:*, custom
+
+### Script Executor (`script-executor.ts`)
+- Executes scripts via Tauri sandbox with resource limits
+- Validates scripts for dangerous patterns
+- Provides language templates and supported languages list
 
 ## Usage
 

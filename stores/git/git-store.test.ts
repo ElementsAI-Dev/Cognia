@@ -135,6 +135,89 @@ jest.mock('@/lib/native/git', () => ({
     fetch: jest.fn().mockResolvedValue({ success: true }),
     discardChanges: jest.fn().mockResolvedValue({ success: true }),
     autoCommit: jest.fn().mockResolvedValue({ success: true }),
+    getRemotes: jest.fn().mockResolvedValue({
+      success: true,
+      data: [
+        { name: 'origin', url: 'https://github.com/test/repo.git', type: 'fetch' },
+        { name: 'origin', url: 'https://github.com/test/repo.git', type: 'push' },
+      ],
+    }),
+    addRemote: jest.fn().mockResolvedValue({ success: true }),
+    removeRemote: jest.fn().mockResolvedValue({ success: true }),
+    getTagList: jest.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          name: 'v1.0.0',
+          commitHash: 'abc1234',
+          shortHash: 'abc1234',
+          message: 'Release 1.0.0',
+          tagger: 'Test User',
+          date: new Date().toISOString(),
+          isAnnotated: true,
+        },
+      ],
+    }),
+    createTag: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        name: 'v2.0.0',
+        commitHash: 'def5678',
+        shortHash: 'def5678',
+        message: 'Release 2.0.0',
+        isAnnotated: true,
+      },
+    }),
+    deleteTag: jest.fn().mockResolvedValue({ success: true }),
+    pushTag: jest.fn().mockResolvedValue({ success: true }),
+    revert: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        hash: 'rev123',
+        shortHash: 'rev123',
+        author: 'Test User',
+        authorEmail: 'test@example.com',
+        date: new Date().toISOString(),
+        message: 'Revert "Test commit"',
+      },
+    }),
+    revertAbort: jest.fn().mockResolvedValue({ success: true }),
+    cherryPick: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        hash: 'cp123',
+        shortHash: 'cp123',
+        author: 'Test User',
+        authorEmail: 'test@example.com',
+        date: new Date().toISOString(),
+        message: 'Cherry-picked commit',
+      },
+    }),
+    cherryPickAbort: jest.fn().mockResolvedValue({ success: true }),
+    renameBranch: jest.fn().mockResolvedValue({ success: true }),
+    showCommit: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        commit: {
+          hash: 'abc123full',
+          shortHash: 'abc123',
+          author: 'Test User',
+          authorEmail: 'test@example.com',
+          date: new Date().toISOString(),
+          message: 'Test commit',
+        },
+        fileChanges: [
+          { path: 'test.txt', additions: 5, deletions: 2 },
+        ],
+        diffContent: '@@ -1,3 +1,6 @@\n line1\n+new line',
+        parents: ['parent123'],
+        totalAdditions: 5,
+        totalDeletions: 2,
+      },
+    }),
+    mergeAbort: jest.fn().mockResolvedValue({ success: true }),
+    stash: jest.fn().mockResolvedValue({ success: true }),
+    getStashList: jest.fn().mockResolvedValue({ success: true, data: [] }),
     getDiffBetween: jest.fn().mockResolvedValue({
       success: true,
       data: [
@@ -403,6 +486,285 @@ describe('useGitStore', () => {
 
       expect(result.current.currentRepoInfo).toBeDefined();
       expect(result.current.branches).toBeDefined();
+    });
+
+    it('should populate remotes from full status', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadFullStatus();
+      });
+
+      expect(result.current.remotes).toEqual([]);
+    });
+  });
+
+  describe('initial state for new fields', () => {
+    it('should have empty remotes and tags initially', () => {
+      const { result } = renderHook(() => useGitStore());
+      expect(result.current.remotes).toEqual([]);
+      expect(result.current.tags).toEqual([]);
+    });
+  });
+
+  describe('remote management', () => {
+    it('should load remotes', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadRemotes();
+      });
+
+      expect(result.current.remotes.length).toBeGreaterThan(0);
+      expect(result.current.remotes[0].name).toBe('origin');
+    });
+
+    it('should add a remote', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.addRemote('upstream', 'https://github.com/upstream/repo.git');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should remove a remote', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.removeRemote('upstream');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.addRemote('upstream', 'https://example.com');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('tag operations', () => {
+    it('should load tags', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadTags();
+      });
+
+      expect(result.current.tags.length).toBeGreaterThan(0);
+      expect(result.current.tags[0].name).toBe('v1.0.0');
+      expect(result.current.tags[0].isAnnotated).toBe(true);
+    });
+
+    it('should create a tag', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.createTag('v2.0.0', { message: 'Release 2.0.0' });
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should delete a tag', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.deleteTag('v1.0.0');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should push a tag', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.pushTag('v1.0.0');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.createTag('v3.0.0');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('revert operations', () => {
+    it('should revert a commit', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.revertCommit('abc123');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should abort a revert', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.revertAbort();
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.revertCommit('abc123');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('cherry-pick operations', () => {
+    it('should cherry-pick a commit', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.cherryPick('abc123');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should abort a cherry-pick', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.cherryPickAbort();
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.cherryPick('abc123');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('branch rename', () => {
+    it('should rename a branch', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.renameBranch('old-branch', 'new-branch');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.renameBranch('old', 'new');
+      expect(success).toBe(false);
+    });
+  });
+
+  describe('show commit', () => {
+    it('should show commit details', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      let detail: Awaited<ReturnType<typeof result.current.showCommit>>;
+      await act(async () => {
+        detail = await result.current.showCommit('abc123');
+      });
+
+      expect(detail!).toBeDefined();
+      expect(detail!.commit.hash).toBe('abc123full');
+      expect(detail!.totalAdditions).toBe(5);
+      expect(detail!.totalDeletions).toBe(2);
+      expect(detail!.fileChanges).toHaveLength(1);
+      expect(detail!.parents).toContain('parent123');
+    });
+
+    it('should return null when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const detail = await result.current.showCommit('abc123');
+      expect(detail).toBeNull();
+    });
+  });
+
+  describe('merge abort', () => {
+    it('should abort a merge', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.mergeAbort();
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const success = await result.current.mergeAbort();
+      expect(success).toBe(false);
     });
   });
 });

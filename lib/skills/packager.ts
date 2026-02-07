@@ -8,7 +8,7 @@ import type {
   Skill,
   SkillPackage,
 } from '@/types/system/skill';
-import { parseSkillMd, validateSkill } from './parser';
+import { parseSkillMd, validateSkill, inferCategoryFromContent, extractTagsFromContent } from './parser';
 
 /**
  * Current package format version
@@ -133,6 +133,10 @@ export function importSkillFromMarkdown(content: string): {
     };
   }
 
+  // Auto-detect category and tags from content
+  const detectedCategory = inferCategoryFromContent(parseResult.metadata, parseResult.content);
+  const detectedTags = extractTagsFromContent(parseResult.content);
+
   return {
     success: true,
     skill: {
@@ -142,8 +146,8 @@ export function importSkillFromMarkdown(content: string): {
       resources: [],
       status: 'enabled',
       source: 'imported',
-      category: 'custom',
-      tags: [],
+      category: detectedCategory,
+      tags: detectedTags,
     },
   };
 }

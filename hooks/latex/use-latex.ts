@@ -40,6 +40,12 @@ import {
   expandEquation,
   simplifyEquation,
 } from '@/lib/latex/equation-reasoner';
+import {
+  renderMathBatch,
+  preloadMathCache,
+  clearMathCache,
+  getMathCacheStats,
+} from '@/lib/latex/cache';
 import type {
   LaTeXTemplate,
   LaTeXTemplateCategory,
@@ -270,6 +276,12 @@ export function useLatex(options: UseLatexOptions = {}): UseLatexReturn {
     verifyEquation,
     expandEquation,
     simplifyEquation,
+
+    // Cache management
+    renderMathBatch,
+    preloadMathCache,
+    clearMathCache,
+    getMathCacheStats,
   };
 }
 

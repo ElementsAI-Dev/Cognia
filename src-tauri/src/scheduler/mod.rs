@@ -93,6 +93,11 @@ impl SchedulerState {
         self.scheduler.is_elevated()
     }
 
+    /// Check if a task requires admin privileges (delegates to platform scheduler)
+    pub fn requires_admin(&self, task: &SystemTask) -> bool {
+        self.scheduler.requires_admin(task)
+    }
+
     /// Create a task with confirmation flow
     pub async fn create_task_with_confirmation(
         &self,
@@ -163,7 +168,6 @@ impl SchedulerState {
     }
 
     /// Confirm a pending task creation
-    #[allow(dead_code)]
     pub async fn confirm_task(&self, task_id: &str) -> Result<Option<SystemTask>> {
         let confirmation = {
             let mut pending = self.pending_confirmations.write().await;

@@ -5,7 +5,7 @@
  * Includes greeting customization, section visibility, custom suggestions, and quick access links
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles,
@@ -22,6 +22,12 @@ import {
   GripVertical,
   ChevronDown,
   ChevronUp,
+  User,
+  Clock,
+  Layout,
+  Smile,
+  Palette,
+  Zap,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -37,12 +43,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/stores';
 import type { ChatMode } from '@/types/core';
 import type {
   CustomSuggestion,
   SuggestionIconType,
   WelcomeSectionVisibility,
+  WelcomeLayoutStyle,
 } from '@/types/settings/welcome';
 import { DEFAULT_QUICK_ACCESS_LINKS } from '@/types/settings/welcome';
 import { cn } from '@/lib/utils';
@@ -220,6 +228,9 @@ export function WelcomeSettings() {
   const [selectedMode, setSelectedMode] = useState<ChatMode>('chat');
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [quickAccessOpen, setQuickAccessOpen] = useState(false);
+  const [personalizationOpen, setPersonalizationOpen] = useState(false);
+  const [simplifiedSuggestionsOpen, setSimplifiedSuggestionsOpen] = useState(false);
+  const [selectedSimplifiedMode, setSelectedSimplifiedMode] = useState<ChatMode>('chat');
 
   // Store selectors
   const welcomeSettings = useSettingsStore((state) => state.welcomeSettings);
@@ -254,7 +265,39 @@ export function WelcomeSettings() {
   );
   const setWelcomeDefaultMode = useSettingsStore((state) => state.setWelcomeDefaultMode);
   const setWelcomeMaxSuggestions = useSettingsStore((state) => state.setWelcomeMaxSuggestions);
+  const setWelcomeUserName = useSettingsStore((state) => state.setWelcomeUserName);
+  const setWelcomeTimeBasedGreeting = useSettingsStore((state) => state.setWelcomeTimeBasedGreeting);
+  const setWelcomeTimeBasedGreetingEnabled = useSettingsStore(
+    (state) => state.setWelcomeTimeBasedGreetingEnabled
+  );
+  const setWelcomeLayoutStyle = useSettingsStore((state) => state.setWelcomeLayoutStyle);
+  const setWelcomeIconConfig = useSettingsStore((state) => state.setWelcomeIconConfig);
+  const setWelcomeGradientConfig = useSettingsStore((state) => state.setWelcomeGradientConfig);
+  const setWelcomeSimplifiedSuggestions = useSettingsStore(
+    (state) => state.setWelcomeSimplifiedSuggestions
+  );
+  const setWelcomeUseCustomSimplifiedSuggestions = useSettingsStore(
+    (state) => state.setWelcomeUseCustomSimplifiedSuggestions
+  );
   const resetWelcomeSettings = useSettingsStore((state) => state.resetWelcomeSettings);
+
+  // Get simplified suggestions text for current mode (joined by newlines for textarea)
+  const simplifiedSuggestionsText = useMemo(
+    () => (welcomeSettings.simplifiedSuggestions[selectedSimplifiedMode] || []).join('\n'),
+    [welcomeSettings.simplifiedSuggestions, selectedSimplifiedMode]
+  );
+
+  const handleSimplifiedSuggestionsChange = useCallback(
+    (text: string) => {
+      const suggestions = text
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 4);
+      setWelcomeSimplifiedSuggestions(selectedSimplifiedMode, suggestions);
+    },
+    [selectedSimplifiedMode, setWelcomeSimplifiedSuggestions]
+  );
 
   // Get current mode's suggestions
   const currentModeSuggestions = useMemo(
@@ -494,6 +537,289 @@ export function WelcomeSettings() {
                 <Plus className="h-4 w-4 mr-2" />
                 {t('addSuggestion')}
               </Button>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Personalization - User Name, Time-Based Greeting, Icon, Gradient, Layout */}
+      <Collapsible open={personalizationOpen} onOpenChange={setPersonalizationOpen}>
+        <Card>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  <CardTitle>{t('userName')}</CardTitle>
+                </div>
+                {personalizationOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+            </CollapsibleTrigger>
+            <CardDescription>{t('userNameHint')}</CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
+              {/* User Name */}
+              <div className="space-y-2">
+                <Label>{t('userName')}</Label>
+                <Input
+                  value={welcomeSettings.userName}
+                  onChange={(e) => setWelcomeUserName(e.target.value)}
+                  placeholder={t('userNamePlaceholder')}
+                />
+              </div>
+
+              <Separator />
+
+              {/* Time-Based Greeting */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-base font-medium">{t('timeBasedGreeting')}</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('timeBasedGreetingDescription')}</p>
+                <div className="flex items-center justify-between">
+                  <Label>{t('enableTimeBasedGreeting')}</Label>
+                  <Switch
+                    checked={welcomeSettings.timeBasedGreeting.enabled}
+                    onCheckedChange={setWelcomeTimeBasedGreetingEnabled}
+                  />
+                </div>
+                {welcomeSettings.timeBasedGreeting.enabled && (
+                  <div className="space-y-3 pl-2 border-l-2 border-muted">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">{t('morningGreeting')}</Label>
+                      <Input
+                        value={welcomeSettings.timeBasedGreeting.morning}
+                        onChange={(e) =>
+                          setWelcomeTimeBasedGreeting({ morning: e.target.value })
+                        }
+                        placeholder={t('morningGreetingPlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">{t('afternoonGreeting')}</Label>
+                      <Input
+                        value={welcomeSettings.timeBasedGreeting.afternoon}
+                        onChange={(e) =>
+                          setWelcomeTimeBasedGreeting({ afternoon: e.target.value })
+                        }
+                        placeholder={t('afternoonGreetingPlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">{t('eveningGreeting')}</Label>
+                      <Input
+                        value={welcomeSettings.timeBasedGreeting.evening}
+                        onChange={(e) =>
+                          setWelcomeTimeBasedGreeting({ evening: e.target.value })
+                        }
+                        placeholder={t('eveningGreetingPlaceholder')}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">{t('nightGreeting')}</Label>
+                      <Input
+                        value={welcomeSettings.timeBasedGreeting.night}
+                        onChange={(e) =>
+                          setWelcomeTimeBasedGreeting({ night: e.target.value })
+                        }
+                        placeholder={t('nightGreetingPlaceholder')}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('timeGreetingHint')}</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Icon Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Smile className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-base font-medium">{t('iconConfig')}</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('iconConfigDescription')}</p>
+                <Select
+                  value={welcomeSettings.iconConfig.type}
+                  onValueChange={(value) =>
+                    setWelcomeIconConfig({ type: value as 'default' | 'emoji' | 'avatar' | 'text' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t('iconTypeDefault')}</SelectItem>
+                    <SelectItem value="emoji">{t('iconTypeEmoji')}</SelectItem>
+                    <SelectItem value="avatar">{t('iconTypeAvatar')}</SelectItem>
+                    <SelectItem value="text">{t('iconTypeText')}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {welcomeSettings.iconConfig.type === 'emoji' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">{t('iconEmoji')}</Label>
+                    <Input
+                      value={welcomeSettings.iconConfig.emoji}
+                      onChange={(e) => setWelcomeIconConfig({ emoji: e.target.value })}
+                      placeholder={t('iconEmojiPlaceholder')}
+                      className="w-20 text-center text-2xl"
+                    />
+                  </div>
+                )}
+                {welcomeSettings.iconConfig.type === 'avatar' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">{t('iconAvatarUrl')}</Label>
+                    <Input
+                      value={welcomeSettings.iconConfig.avatarUrl}
+                      onChange={(e) => setWelcomeIconConfig({ avatarUrl: e.target.value })}
+                      placeholder={t('iconAvatarUrlPlaceholder')}
+                    />
+                  </div>
+                )}
+                {welcomeSettings.iconConfig.type === 'text' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">{t('iconText')}</Label>
+                    <Input
+                      value={welcomeSettings.iconConfig.text}
+                      onChange={(e) => setWelcomeIconConfig({ text: e.target.value })}
+                      placeholder={t('iconTextPlaceholder')}
+                      className="w-20 text-center"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Gradient Configuration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-base font-medium">{t('gradientConfig')}</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('gradientConfigDescription')}</p>
+                <div className="flex items-center justify-between">
+                  <Label>{t('enableCustomGradient')}</Label>
+                  <Switch
+                    checked={welcomeSettings.gradientConfig.enabled}
+                    onCheckedChange={(checked) =>
+                      setWelcomeGradientConfig({ enabled: checked })
+                    }
+                  />
+                </div>
+                {welcomeSettings.gradientConfig.enabled && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">{t('customGradient')}</Label>
+                    <Input
+                      value={welcomeSettings.gradientConfig.customGradient}
+                      onChange={(e) =>
+                        setWelcomeGradientConfig({ customGradient: e.target.value })
+                      }
+                      placeholder={t('customGradientPlaceholder')}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('customGradientHint')}</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Layout Style */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Layout className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-base font-medium">{t('layoutStyle')}</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('layoutStyleDescription')}</p>
+                <Select
+                  value={welcomeSettings.layoutStyle}
+                  onValueChange={(value) => setWelcomeLayoutStyle(value as WelcomeLayoutStyle)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t('layoutDefault')}</SelectItem>
+                    <SelectItem value="centered">{t('layoutCentered')}</SelectItem>
+                    <SelectItem value="minimal">{t('layoutMinimal')}</SelectItem>
+                    <SelectItem value="hero">{t('layoutHero')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Simplified Mode Suggestions */}
+      <Collapsible open={simplifiedSuggestionsOpen} onOpenChange={setSimplifiedSuggestionsOpen}>
+        <Card>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  <CardTitle>{t('simplifiedSuggestions')}</CardTitle>
+                </div>
+                {simplifiedSuggestionsOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+            </CollapsibleTrigger>
+            <CardDescription>{t('simplifiedSuggestionsDescription')}</CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              {/* Enable Custom Simplified Suggestions */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('enableCustomSimplifiedSuggestions')}</Label>
+                </div>
+                <Switch
+                  checked={welcomeSettings.useCustomSimplifiedSuggestions}
+                  onCheckedChange={setWelcomeUseCustomSimplifiedSuggestions}
+                />
+              </div>
+
+              {welcomeSettings.useCustomSimplifiedSuggestions && (
+                <>
+                  {/* Mode Selector */}
+                  <div className="space-y-2">
+                    <Label>{t('selectMode')}</Label>
+                    <div className="flex gap-2">
+                      {MODE_OPTIONS.map((mode) => (
+                        <Button
+                          key={mode.value}
+                          variant={selectedSimplifiedMode === mode.value ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedSimplifiedMode(mode.value)}
+                        >
+                          {mode.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Suggestions Textarea */}
+                  <div className="space-y-2">
+                    <Textarea
+                      value={simplifiedSuggestionsText}
+                      onChange={(e) => handleSimplifiedSuggestionsChange(e.target.value)}
+                      placeholder={t('simplifiedSuggestionsPlaceholder')}
+                      rows={4}
+                    />
+                    <p className="text-xs text-muted-foreground">{t('simplifiedSuggestionsHint')}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Card>

@@ -226,6 +226,35 @@ export const LANGUAGE_INFO: Record<string, { name: string; icon: string; color: 
   zig: { name: 'Zig', icon: '⚡', color: '#f7a41d' },
 };
 
+/** Language code templates for the sandbox editor */
+export const LANGUAGE_TEMPLATES: Record<string, string> = {
+  python: '# Python code\nprint("Hello, World!")',
+  javascript: '// JavaScript code\nconsole.log("Hello, World!");',
+  typescript: '// TypeScript code\nconsole.log("Hello, World!");',
+  go: '// Go code\npackage main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}',
+  rust: '// Rust code\nfn main() {\n    println!("Hello, World!");\n}',
+  java: '// Java code\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
+  c: '// C code\n#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
+  cpp: '// C++ code\n#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
+  ruby: '# Ruby code\nputs "Hello, World!"',
+  php: '<?php\n// PHP code\necho "Hello, World!\\n";',
+  bash: '#!/bin/bash\n# Bash script\necho "Hello, World!"',
+  powershell: '# PowerShell script\nWrite-Host "Hello, World!"',
+  r: '# R code\ncat("Hello, World!\\n")',
+  julia: '# Julia code\nprintln("Hello, World!")',
+  lua: '-- Lua code\nprint("Hello, World!")',
+  perl: '#!/usr/bin/perl\n# Perl code\nprint "Hello, World!\\n";',
+  swift: '// Swift code\nprint("Hello, World!")',
+  kotlin: '// Kotlin code\nfun main() {\n    println("Hello, World!")\n}',
+  scala: '// Scala code\nobject Main extends App {\n    println("Hello, World!")\n}',
+  haskell: '-- Haskell code\nmain :: IO ()\nmain = putStrLn "Hello, World!"',
+  elixir: '# Elixir code\nIO.puts("Hello, World!")',
+  clojure: ';; Clojure code\n(println "Hello, World!")',
+  fsharp: '// F# code\nprintfn "Hello, World!"',
+  csharp: '// C# code\nusing System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("Hello, World!");\n    }\n}',
+  zig: '// Zig code\nconst std = @import("std");\n\npub fn main() void {\n    std.debug.print("Hello, World!\\n", .{});\n}',
+};
+
 /** Get language info by ID */
 export function getLanguageInfo(langId: string): {
   name: string;

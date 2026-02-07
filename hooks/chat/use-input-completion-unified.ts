@@ -9,6 +9,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useMention } from '@/hooks/ui/use-mention';
 import { isTauri } from '@/lib/utils';
 import * as nativeCompletion from '@/lib/native/input-completion';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
 import type {
   CompletionProviderType,
   CompletionProviderConfig,
@@ -21,14 +22,6 @@ import type {
 import type { MentionItem } from '@/types/mcp';
 import { searchCommands } from '@/lib/chat/slash-command-registry';
 import { searchEmojis } from '@/lib/chat/emoji-data';
-
-/** Default provider configurations */
-const DEFAULT_PROVIDERS: CompletionProviderConfig[] = [
-  { type: 'mention', trigger: 'symbol', triggerChar: '@', priority: 100, enabled: true },
-  { type: 'slash', trigger: 'symbol', triggerChar: '/', priority: 90, enabled: true },
-  { type: 'emoji', trigger: 'symbol', triggerChar: ':', priority: 80, enabled: true },
-  { type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true, debounceMs: 400, minContextLength: 5 },
-];
 
 /** Initial completion state */
 const INITIAL_STATE: UnifiedCompletionState = {
@@ -106,14 +99,40 @@ export function useInputCompletionUnified(
   options: UseInputCompletionUnifiedOptions = {}
 ): UseInputCompletionUnifiedReturn {
   const {
-    providers = DEFAULT_PROVIDERS,
+    providers: providersOverride,
     onSelect,
     onStateChange,
     onMentionsChange,
-    maxSuggestions = 10,
-    enableAiCompletion = true,
+    maxSuggestions: maxSuggestionsOverride,
+    enableAiCompletion: enableAiOverride,
     onAiCompletionAccept,
   } = options;
+
+  // Bridge with persistent completion settings store
+  const settingsStore = useCompletionSettingsStore();
+
+  // Derive providers from persistent store, allowing option overrides
+  const providers = useMemo(() => {
+    if (providersOverride) return providersOverride;
+    return [
+      { type: 'mention' as const, trigger: 'symbol' as const, triggerChar: '@', priority: 100, enabled: settingsStore.mentionEnabled },
+      { type: 'slash' as const, trigger: 'symbol' as const, triggerChar: settingsStore.slashTriggerChar || '/', priority: 90, enabled: settingsStore.slashCommandsEnabled },
+      { type: 'emoji' as const, trigger: 'symbol' as const, triggerChar: settingsStore.emojiTriggerChar || ':', priority: 80, enabled: settingsStore.emojiEnabled },
+      { type: 'ai-text' as const, trigger: 'contextual' as const, priority: 50, enabled: settingsStore.aiCompletionEnabled, debounceMs: settingsStore.aiCompletionDebounce, minContextLength: 5 },
+    ] satisfies CompletionProviderConfig[];
+  }, [
+    providersOverride,
+    settingsStore.mentionEnabled,
+    settingsStore.slashCommandsEnabled,
+    settingsStore.emojiEnabled,
+    settingsStore.aiCompletionEnabled,
+    settingsStore.aiCompletionDebounce,
+    settingsStore.slashTriggerChar,
+    settingsStore.emojiTriggerChar,
+  ]);
+
+  const maxSuggestions = maxSuggestionsOverride ?? settingsStore.maxSuggestions ?? 10;
+  const enableAiCompletion = enableAiOverride ?? settingsStore.aiCompletionEnabled ?? true;
 
   // Check if running in Tauri environment
   const isDesktop = useMemo(() => isTauri(), []);

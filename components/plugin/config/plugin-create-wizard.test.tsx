@@ -182,7 +182,7 @@ jest.mock('@/components/ui/radio-group', () => ({
   ),
 }));
 
-jest.mock('@/lib/plugin/templates', () => ({
+jest.mock('@/lib/plugin/utils/templates', () => ({
   PLUGIN_TEMPLATES: [
     {
       id: 'basic',

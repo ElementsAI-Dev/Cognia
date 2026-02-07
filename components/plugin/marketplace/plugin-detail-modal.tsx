@@ -4,14 +4,13 @@
  * Plugin Detail Modal - Full plugin details with screenshots, reviews, changelog
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Star,
   Download,
   Tag,
   CheckCircle,
-  ExternalLink,
   Heart,
   MessageSquare,
   Loader2,
@@ -19,6 +18,8 @@ import {
   Globe,
   FileText,
   AlertTriangle,
+  ThumbsUp,
+  Send,
 } from 'lucide-react';
 import {
   Dialog,
@@ -39,8 +40,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { MarketplacePlugin } from './plugin-marketplace';
+import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
+import type { MarketplacePlugin, PluginReview, ChangelogEntry, InstallProgressInfo } from './components/marketplace-types';
+import { MOCK_REVIEWS, MOCK_CHANGELOG } from './components/marketplace-constants';
 
 // =============================================================================
 // Types
@@ -51,94 +55,20 @@ interface PluginDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onInstall?: (pluginId: string) => Promise<void>;
+  installProgress?: InstallProgressInfo;
   variant?: 'dialog' | 'sheet';
 }
-
-interface Review {
-  id: string;
-  author: string;
-  avatar?: string;
-  rating: number;
-  date: string;
-  content: string;
-  helpful: number;
-}
-
-interface ChangelogEntry {
-  version: string;
-  date: string;
-  changes: string[];
-  breaking?: boolean;
-}
-
-// =============================================================================
-// Mock Data
-// =============================================================================
-
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: '1',
-    author: 'John Developer',
-    rating: 5,
-    date: '2024-01-18',
-    content: 'Excellent plugin! Really improved my workflow. The AI features are incredibly accurate and helpful.',
-    helpful: 24,
-  },
-  {
-    id: '2',
-    author: 'Sarah Designer',
-    rating: 4,
-    date: '2024-01-15',
-    content: 'Great functionality, but could use some UI improvements. Overall very useful for daily tasks.',
-    helpful: 12,
-  },
-  {
-    id: '3',
-    author: 'Mike Engineer',
-    rating: 5,
-    date: '2024-01-10',
-    content: 'This is exactly what I needed. Integration was seamless and it just works. Highly recommended!',
-    helpful: 18,
-  },
-];
-
-const MOCK_CHANGELOG: ChangelogEntry[] = [
-  {
-    version: '2.1.0',
-    date: '2024-01-15',
-    changes: [
-      'Added new AI-powered suggestions',
-      'Improved performance by 40%',
-      'Fixed bug with large files',
-      'Updated UI components',
-    ],
-  },
-  {
-    version: '2.0.0',
-    date: '2024-01-01',
-    changes: [
-      'Complete redesign of the interface',
-      'New configuration system',
-      'Breaking: Changed API endpoints',
-    ],
-    breaking: true,
-  },
-  {
-    version: '1.5.2',
-    date: '2023-12-15',
-    changes: [
-      'Fixed memory leak issue',
-      'Added support for dark mode',
-      'Minor bug fixes',
-    ],
-  },
-];
 
 // =============================================================================
 // Sub Components
 // =============================================================================
 
-function RatingStars({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'md' }) {
+function RatingStars({ rating, size = 'md', interactive, onRate }: {
+  rating: number;
+  size?: 'sm' | 'md';
+  interactive?: boolean;
+  onRate?: (rating: number) => void;
+}) {
   const sizeClass = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
   return (
     <div className="flex items-center gap-0.5">
@@ -149,22 +79,23 @@ function RatingStars({ rating, size = 'md' }: { rating: number; size?: 'sm' | 'm
             sizeClass,
             star <= rating
               ? 'fill-yellow-400 text-yellow-400'
-              : 'text-muted-foreground/30'
+              : 'text-muted-foreground/30',
+            interactive && 'cursor-pointer hover:text-yellow-400 hover:fill-yellow-400 transition-colors'
           )}
+          onClick={interactive ? () => onRate?.(star) : undefined}
         />
       ))}
     </div>
   );
 }
 
-function RatingBreakdown({ rating, reviewCount }: { rating: number; reviewCount: number }) {
-  const breakdown = [
-    { stars: 5, percentage: 70 },
-    { stars: 4, percentage: 20 },
-    { stars: 3, percentage: 7 },
-    { stars: 2, percentage: 2 },
-    { stars: 1, percentage: 1 },
-  ];
+function RatingBreakdown({ rating, reviewCount, breakdown }: {
+  rating: number;
+  reviewCount: number;
+  breakdown?: Record<number, number>;
+}) {
+  const defaultBreakdown = breakdown || { 5: 70, 4: 20, 3: 7, 2: 2, 1: 1 };
+  const total = Object.values(defaultBreakdown).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-3">
@@ -177,21 +108,27 @@ function RatingBreakdown({ rating, reviewCount }: { rating: number; reviewCount:
           </div>
         </div>
         <div className="flex-1 space-y-1">
-          {breakdown.map(({ stars, percentage }) => (
-            <div key={stars} className="flex items-center gap-2 text-xs">
-              <span className="w-3">{stars}</span>
-              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <Progress value={percentage} className="h-1.5 flex-1" />
-              <span className="w-8 text-muted-foreground">{percentage}%</span>
-            </div>
-          ))}
+          {[5, 4, 3, 2, 1].map((stars) => {
+            const pct = total > 0 ? Math.round(((defaultBreakdown[stars] || 0) / total) * 100) : 0;
+            return (
+              <div key={stars} className="flex items-center gap-2 text-xs">
+                <span className="w-3">{stars}</span>
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <Progress value={pct} className="h-1.5 flex-1" />
+                <span className="w-8 text-muted-foreground">{pct}%</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({ review }: { review: PluginReview }) {
+  const [helpfulCount, setHelpfulCount] = useState(review.helpful);
+  const [hasVoted, setHasVoted] = useState(false);
+
   return (
     <div className="p-4 rounded-lg border bg-card">
       <div className="flex items-start justify-between gap-3">
@@ -211,10 +148,69 @@ function ReviewCard({ review }: { review: Review }) {
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{review.content}</p>
       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <Button variant="ghost" size="sm" className="h-6 text-xs">
-          Helpful ({review.helpful})
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn('h-6 text-xs gap-1', hasVoted && 'text-primary')}
+          onClick={() => {
+            if (!hasVoted) {
+              setHelpfulCount((c) => c + 1);
+              setHasVoted(true);
+            }
+          }}
+          disabled={hasVoted}
+        >
+          <ThumbsUp className="h-3 w-3" />
+          Helpful ({helpfulCount})
         </Button>
       </div>
+    </div>
+  );
+}
+
+function ReviewForm({ onSubmit }: { onSubmit: (rating: number, content: string) => void }) {
+  const t = useTranslations('pluginDetail');
+  const [rating, setRating] = useState(0);
+  const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = () => {
+    if (rating === 0 || !content.trim()) return;
+    setIsSubmitting(true);
+    try {
+      onSubmit(rating, content);
+      setRating(0);
+      setContent('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+      <h4 className="text-sm font-medium">{t('reviews.writeReview')}</h4>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t('reviews.yourRating')}:</span>
+        <RatingStars rating={rating} size="md" interactive onRate={setRating} />
+      </div>
+      <Textarea
+        placeholder={t('reviews.reviewPlaceholder')}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="min-h-[80px] text-sm"
+      />
+      <Button
+        size="sm"
+        onClick={handleSubmit}
+        disabled={isSubmitting || rating === 0 || !content.trim()}
+      >
+        {isSubmitting ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Send className="h-4 w-4 mr-2" />
+        )}
+        {t('reviews.submitReview')}
+      </Button>
     </div>
   );
 }
@@ -239,11 +235,35 @@ function ChangelogCard({ entry }: { entry: ChangelogEntry }) {
       <ul className="space-y-1">
         {entry.changes.map((change, idx) => (
           <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-            <span className="text-primary">•</span>
+            <span className="text-primary mt-0.5">•</span>
             <span>{change}</span>
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function InstallProgressBar({ progress }: { progress: InstallProgressInfo }) {
+  const stageColors: Record<string, string> = {
+    downloading: 'text-blue-500',
+    extracting: 'text-amber-500',
+    installing: 'text-purple-500',
+    configuring: 'text-cyan-500',
+    complete: 'text-green-500',
+    error: 'text-destructive',
+  };
+
+  return (
+    <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
+      <div className="flex items-center justify-between text-sm">
+        <span className={cn('font-medium capitalize', stageColors[progress.stage] || '')}>
+          {progress.stage}
+        </span>
+        <span className="text-muted-foreground">{progress.progress}%</span>
+      </div>
+      <Progress value={progress.progress} className="h-2" />
+      <p className="text-xs text-muted-foreground">{progress.message}</p>
     </div>
   );
 }
@@ -257,14 +277,23 @@ export function PluginDetailModal({
   open,
   onOpenChange,
   onInstall,
+  installProgress,
   variant = 'sheet',
 }: PluginDetailModalProps) {
   const t = useTranslations('pluginDetail');
+  const { toggleFavorite, isFavorite, submitReview, getUserReview, addRecentlyViewed } = usePluginMarketplaceStore();
   const [isInstalling, setIsInstalling] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
-  const handleInstall = async () => {
+  const handleOpen = useCallback((isOpen: boolean) => {
+    if (isOpen && plugin) {
+      addRecentlyViewed(plugin.id);
+    }
+    onOpenChange(isOpen);
+  }, [plugin, addRecentlyViewed, onOpenChange]);
+
+  const handleInstall = useCallback(async () => {
     if (onInstall && plugin) {
       setIsInstalling(true);
       try {
@@ -273,9 +302,30 @@ export function PluginDetailModal({
         setIsInstalling(false);
       }
     }
-  };
+  }, [onInstall, plugin]);
+
+  const handleReviewSubmit = useCallback((rating: number, content: string) => {
+    if (plugin) {
+      submitReview(plugin.id, rating, content);
+      setShowReviewForm(false);
+    }
+  }, [plugin, submitReview]);
+
+  const openUrl = useCallback((url?: string) => {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
 
   if (!plugin) return null;
+
+  // Use plugin data or fall back to shared mock data
+  const reviews = plugin.reviews || MOCK_REVIEWS || [];
+  const changelog = plugin.changelog || MOCK_CHANGELOG || [];
+  const userReview = getUserReview(plugin.id);
+  const pluginIsFavorite = isFavorite(plugin.id);
+  const isCurrentlyInstalling = isInstalling || (installProgress != null && !['idle', 'complete', 'error'].includes(installProgress.stage));
+  const hasLinks = plugin.repository || plugin.homepage || plugin.documentation;
 
   const content = (
     <div className="flex flex-col h-full">
@@ -293,7 +343,16 @@ export function PluginDetailModal({
               )}
             </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-              <span>{plugin.author.name}</span>
+              {plugin.author.url ? (
+                <button
+                  className="hover:text-primary hover:underline transition-colors"
+                  onClick={() => openUrl(plugin.author.url)}
+                >
+                  {plugin.author.name}
+                </button>
+              ) : (
+                <span>{plugin.author.name}</span>
+              )}
               {plugin.author.verified && (
                 <Badge variant="secondary" className="text-[10px]">Verified</Badge>
               )}
@@ -306,38 +365,47 @@ export function PluginDetailModal({
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Download className="h-4 w-4" />
-                <span>{(plugin.downloadCount / 1000).toFixed(0)}k</span>
+                <span>{plugin.downloadCount >= 1000 ? `${(plugin.downloadCount / 1000).toFixed(0)}k` : plugin.downloadCount}</span>
               </div>
             </div>
           </div>
         </div>
         
+        {/* Install Progress */}
+        {installProgress && installProgress.stage !== 'idle' && (
+          <div className="mt-4">
+            <InstallProgressBar progress={installProgress} />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-2 mt-4">
           <Button
             className="flex-1 sm:flex-none"
             onClick={handleInstall}
-            disabled={isInstalling || plugin.installed}
+            disabled={!!isCurrentlyInstalling || plugin.installed}
           >
-            {isInstalling ? (
+            {isCurrentlyInstalling ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : plugin.installed ? (
               <CheckCircle className="h-4 w-4 mr-2" />
             ) : (
               <Download className="h-4 w-4 mr-2" />
             )}
-            {isInstalling ? t('installing') : plugin.installed ? t('installed') : t('install')}
+            {isCurrentlyInstalling ? t('installing') : plugin.installed ? t('installed') : t('install')}
           </Button>
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={() => toggleFavorite(plugin.id)}
           >
-            <Heart className={cn('h-4 w-4', isFavorite && 'fill-red-500 text-red-500')} />
+            <Heart className={cn('h-4 w-4', pluginIsFavorite && 'fill-red-500 text-red-500')} />
           </Button>
-          <Button variant="outline" size="icon">
-            <ExternalLink className="h-4 w-4" />
-          </Button>
+          {plugin.homepage && (
+            <Button variant="outline" size="icon" onClick={() => openUrl(plugin.homepage)}>
+              <Globe className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -410,30 +478,41 @@ export function PluginDetailModal({
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground">{t('overview.license')}</div>
-                <div className="text-sm">MIT</div>
+                <div className="text-sm">{plugin.license || 'MIT'}</div>
               </div>
             </div>
-
-            <Separator />
 
             {/* Links */}
-            <div>
-              <h3 className="font-semibold mb-3">{t('overview.links')}</h3>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm">
-                  <Github className="h-4 w-4 mr-2" />
-                  GitHub
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Globe className="h-4 w-4 mr-2" />
-                  Website
-                </Button>
-                <Button variant="outline" size="sm">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Documentation
-                </Button>
-              </div>
-            </div>
+            {hasLinks && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-3">{t('overview.links')}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {plugin.repository && (
+                      <Button variant="outline" size="sm" onClick={() => openUrl(plugin.repository)}>
+                        <Github className="h-4 w-4 mr-2" />
+                        GitHub
+                      </Button>
+                    )}
+                    {plugin.homepage && (
+                      <Button variant="outline" size="sm" onClick={() => openUrl(plugin.homepage)}>
+                        <Globe className="h-4 w-4 mr-2" />
+                        Website
+                      </Button>
+                    )}
+                    {plugin.documentation && (
+                      <Button variant="outline" size="sm" onClick={() => openUrl(plugin.documentation)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Documentation
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <Separator />
 
             {/* Requirements */}
             <div>
@@ -441,7 +520,7 @@ export function PluginDetailModal({
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  Cognia v1.0.0 or higher
+                  Cognia {plugin.minAppVersion || 'v1.0.0'} or higher
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
@@ -453,20 +532,44 @@ export function PluginDetailModal({
 
           {/* Reviews Tab */}
           <TabsContent value="reviews" className="m-0 p-4 sm:p-6 space-y-6">
-            <RatingBreakdown rating={plugin.rating} reviewCount={plugin.reviewCount} />
+            <RatingBreakdown
+              rating={plugin.rating}
+              reviewCount={plugin.reviewCount}
+              breakdown={plugin.ratingBreakdown}
+            />
             
             <Separator />
 
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">{t('reviews.title')}</h3>
-              <Button variant="outline" size="sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                {t('reviews.writeReview')}
-              </Button>
+              {!showReviewForm && !userReview && (
+                <Button variant="outline" size="sm" onClick={() => setShowReviewForm(true)}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {t('reviews.writeReview')}
+                </Button>
+              )}
             </div>
 
+            {/* User's existing review */}
+            {userReview && (
+              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="text-xs font-medium text-primary mb-1">{t('reviews.yourReview')}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <RatingStars rating={userReview.rating} size="sm" />
+                  <span className="text-xs text-muted-foreground">{userReview.date}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{userReview.content}</p>
+              </div>
+            )}
+
+            {/* Review form */}
+            {showReviewForm && !userReview && (
+              <ReviewForm onSubmit={handleReviewSubmit} />
+            )}
+
+            {/* Reviews list */}
             <div className="space-y-3">
-              {MOCK_REVIEWS.map((review) => (
+              {reviews.map((review) => (
                 <ReviewCard key={review.id} review={review} />
               ))}
             </div>
@@ -476,7 +579,7 @@ export function PluginDetailModal({
           <TabsContent value="changelog" className="m-0 p-4 sm:p-6 space-y-4">
             <h3 className="font-semibold">{t('changelog.title')}</h3>
             <div className="space-y-3">
-              {MOCK_CHANGELOG.map((entry) => (
+              {changelog.map((entry) => (
                 <ChangelogCard key={entry.version} entry={entry} />
               ))}
             </div>
@@ -488,7 +591,7 @@ export function PluginDetailModal({
 
   if (variant === 'dialog') {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="sr-only">
             <DialogTitle>{plugin.name}</DialogTitle>
@@ -500,7 +603,7 @@ export function PluginDetailModal({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpen}>
       <SheetContent side="right" className="w-full sm:max-w-lg p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>{plugin.name}</SheetTitle>

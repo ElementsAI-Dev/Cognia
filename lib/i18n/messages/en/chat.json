@@ -104,10 +104,14 @@
     "setGoal": "Set Goal",
     "goalSet": "Goal set successfully",
     "goalUpdated": "Goal updated",
-    "goalCompleted": "Goal completed! 🎉",
+    "goalCompleted": "Goal completed! ",
     "goalPaused": "Goal paused",
     "goalResumed": "Goal resumed",
-    "goalCleared": "Goal cleared"
+    "goalCleared": "Goal cleared",
+    "saveAsPreset": "Save as Preset",
+    "savedAsPreset": "Session saved as preset",
+    "savedFromSession": "Saved from current session",
+    "newPreset": "New Preset"
   },
   "chatInput": {
     "dropFilesHere": "Drop files here",

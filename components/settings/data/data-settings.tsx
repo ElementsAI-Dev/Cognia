@@ -46,7 +46,7 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { useSessionStore, useArtifactStore } from '@/stores';
+import { useSessionStore, useArtifactStore, useBackupStore } from '@/stores';
 import { db } from '@/lib/db';
 import { downloadExport, parseImportFile, importFullBackup } from '@/lib/storage';
 import { BatchExportDialog } from '@/components/export';
@@ -72,6 +72,12 @@ export function DataSettings() {
 
   const sessions = useSessionStore((state) => state.sessions);
   const clearAllSessions = useSessionStore((state) => state.clearAllSessions);
+
+  // Backup reminder
+  const markBackupComplete = useBackupStore((state) => state.markBackupComplete);
+  const dismissReminder = useBackupStore((state) => state.dismissReminder);
+  const shouldShowReminder = useBackupStore((state) => state.shouldShowReminder);
+  const daysSinceLastBackup = useBackupStore((state) => state.daysSinceLastBackup);
 
   // Storage management hooks
   const {
@@ -124,6 +130,7 @@ export function DataSettings() {
         includeIndexedDB: true,
         includeChecksum: true,
       });
+      markBackupComplete();
       toast.success(t('exportSuccess') || 'Export successful!');
     } catch (error) {
       console.error('Export failed:', error);
@@ -190,8 +197,13 @@ export function DataSettings() {
         db.documents.clear(),
         db.projects.clear(),
         db.workflows.clear(),
+        db.workflowExecutions.clear(),
         db.summaries.clear(),
         db.knowledgeFiles.clear(),
+        db.agentTraces.clear(),
+        db.assets.clear(),
+        db.folders.clear(),
+        db.mcpServers.clear(),
       ]);
 
       // Clear all cognia-* localStorage keys
@@ -212,6 +224,30 @@ export function DataSettings() {
 
   return (
     <div className="space-y-4">
+      {/* Backup reminder banner */}
+      {shouldShowReminder() && (
+        <Alert variant="default" className="border-amber-500/50 bg-amber-500/5">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-sm font-medium">
+            {t('backupReminder') || 'Backup Reminder'}
+          </AlertTitle>
+          <AlertDescription className="text-xs">
+            {daysSinceLastBackup() !== null
+              ? (t('backupReminderDays', { days: daysSinceLastBackup() ?? 0 }) || `It's been ${daysSinceLastBackup()} days since your last backup. Export your data to keep it safe.`)
+              : (t('backupReminderNever') || 'You haven\'t backed up your data yet. Export your data to keep it safe.')}
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isExporting}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {t('backupNow') || 'Backup Now'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismissReminder}>
+                {t('dismissReminder') || 'Dismiss'}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Storage Info and Export/Import side by side on larger screens */}
       <div className="grid gap-3 sm:grid-cols-2">
         {/* Storage Info */}

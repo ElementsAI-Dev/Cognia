@@ -57,6 +57,11 @@ export const KATEX_MACROS: Record<string, string> = {
 };
 
 /**
+ * Error color for invalid LaTeX expressions
+ */
+export const KATEX_ERROR_COLOR = '#cc0000';
+
+/**
  * Base KaTeX options shared across all rendering contexts
  */
 export const KATEX_BASE_OPTIONS: Partial<KatexOptions> = {
@@ -65,6 +70,7 @@ export const KATEX_BASE_OPTIONS: Partial<KatexOptions> = {
   trust: true,
   output: 'htmlAndMathml',
   macros: KATEX_MACROS,
+  errorColor: KATEX_ERROR_COLOR,
 };
 
 /**
@@ -120,11 +126,6 @@ export const REHYPE_KATEX_OPTIONS: KatexOptions = {
  * KaTeX CDN version used for standalone HTML exports
  */
 export const KATEX_CDN_VERSION = '0.16.28';
-
-/**
- * Error color for invalid LaTeX expressions
- */
-export const KATEX_ERROR_COLOR = '#cc0000';
 
 /**
  * Maximum cache size for formula rendering cache

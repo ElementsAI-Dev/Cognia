@@ -649,7 +649,27 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
     }),
     {
       name: 'cognia-prompt-templates',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure newer fields exist
+          if (!state.feedback || typeof state.feedback !== 'object') {
+            state.feedback = {};
+          }
+          if (!Array.isArray(state.abTests)) {
+            state.abTests = [];
+          }
+          if (!Array.isArray(state.optimizationHistory)) {
+            state.optimizationHistory = [];
+          }
+          if (!Array.isArray(state.categories)) {
+            state.categories = [];
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         templates: state.templates.map((tpl) => ({
           ...tpl,
@@ -660,10 +680,30 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         categories: state.categories,
         selectedTemplateId: state.selectedTemplateId,
         isInitialized: state.isInitialized,
+        feedback: state.feedback,
+        abTests: state.abTests,
+        optimizationHistory: state.optimizationHistory,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.templates) {
           state.templates = state.templates.map(hydrateTemplate);
+        }
+        // Rehydrate date fields in feedback
+        if (state?.feedback) {
+          for (const key of Object.keys(state.feedback)) {
+            state.feedback[key] = state.feedback[key].map((fb) => ({
+              ...fb,
+              createdAt: new Date(fb.createdAt),
+            }));
+          }
+        }
+        // Rehydrate date fields in abTests
+        if (state?.abTests) {
+          for (const key of Object.keys(state.abTests)) {
+            const test = state.abTests[key];
+            test.startedAt = new Date(test.startedAt);
+            if (test.completedAt) test.completedAt = new Date(test.completedAt);
+          }
         }
       },
     }

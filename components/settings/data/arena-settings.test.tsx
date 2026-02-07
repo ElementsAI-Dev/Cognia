@@ -119,6 +119,29 @@ jest.mock('@/hooks/arena', () => ({
   }),
 }));
 
+// Mock sonner
+jest.mock('sonner', () => ({
+  toast: Object.assign(jest.fn(), {
+    success: jest.fn(),
+    error: jest.fn(),
+    warning: jest.fn(),
+    info: jest.fn(),
+  }),
+}));
+
+// Mock rlhf-export
+jest.mock('@/lib/ai/arena/rlhf-export', () => ({
+  exportBattles: jest.fn(() => '[]'),
+  getExportStats: jest.fn(() => ({
+    totalBattles: 0,
+    validPairs: 0,
+    byCategory: {},
+    avgPromptLength: 0,
+    avgResponseLength: 0,
+  })),
+  downloadExport: jest.fn(),
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => {
@@ -166,6 +189,21 @@ jest.mock('next-intl', () => ({
         clearAllData: 'Clear All Data',
         clearAllTitle: 'Clear All Arena Data?',
         clearAllDescription: 'This will delete all battle history, preferences, and ratings.',
+        rlhfExport: 'RLHF Data Export',
+        rlhfExportButton: 'Export',
+        rlhfTotalBattles: 'Total Battles',
+        rlhfValidPairs: 'Valid Pairs',
+        rlhfAvgPromptLen: 'Avg Prompt Length',
+        rlhfAvgResponseLen: 'Avg Response Length',
+        rlhfByCategory: 'By Category',
+        rlhfNoValidPairs: 'No valid pairs',
+        importFailed: 'Import Failed',
+        importInvalidFormat: 'Invalid format',
+        importInvalidPreferences: 'Invalid preferences',
+        importInvalidRatings: 'Invalid ratings',
+        importParseError: 'Parse error',
+        importSuccess: 'Import Successful',
+        importSuccessDescription: 'Imported preferences',
       },
       arena: {
         description: 'Compare AI models head-to-head',
@@ -471,6 +509,8 @@ jest.mock('lucide-react', () => ({
   Settings2: () => <span data-testid="icon-settings" />,
   ChevronDown: () => <span data-testid="icon-chevron-down" />,
   ChevronUp: () => <span data-testid="icon-chevron-up" />,
+  FileJson: () => <span data-testid="icon-file-json" />,
+  AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
 }));
 
 // Mock cn utility
@@ -519,7 +559,7 @@ describe('ArenaSettings', () => {
     it('renders statistics section', () => {
       render(<ArenaSettings />);
       expect(screen.getByText('Statistics')).toBeInTheDocument();
-      expect(screen.getByText('Total Battles')).toBeInTheDocument();
+      expect(screen.getAllByText('Total Battles').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Completed')).toBeInTheDocument();
       expect(screen.getByText('Ties')).toBeInTheDocument();
     });

@@ -416,6 +416,16 @@ pub async fn selection_get_history_stats(
     Ok(manager.history.get_stats())
 }
 
+/// Search selection history by time range
+#[tauri::command]
+pub async fn selection_search_history_by_time(
+    manager: State<'_, SelectionManager>,
+    start: i64,
+    end: i64,
+) -> Result<Vec<SelectionHistoryEntry>, String> {
+    Ok(manager.history.search_by_time(start, end))
+}
+
 /// Clear selection history
 #[tauri::command]
 pub async fn selection_clear_history(manager: State<'_, SelectionManager>) -> Result<(), String> {

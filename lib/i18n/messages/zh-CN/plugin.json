@@ -22,11 +22,15 @@
     "tabs": {
       "myPlugins": "我的插件",
       "installed": "已安装",
-      "marketplace": "插件商店",
+      "marketplace": "市场",
       "analytics": "分析",
       "develop": "开发",
       "health": "健康",
       "settings": "设置"
+    },
+    "marketplace": {
+      "installSuccess": "插件安装成功",
+      "installFailed": "插件安装失败"
     },
     "stats": {
       "installed": "已安装",
@@ -294,10 +298,15 @@
     },
     "reviews": {
       "title": "用户评价",
-      "writeReview": "撰写评价"
+      "writeReview": "撰写评价",
+      "yourRating": "您的评分",
+      "reviewPlaceholder": "分享您使用该插件的体验...",
+      "submitReview": "提交评价",
+      "yourReview": "您的评价"
     },
     "changelog": {
-      "title": "版本历史"
+      "title": "版本历史",
+      "breaking": "不兼容"
     }
   },
   "pluginDevTools": {

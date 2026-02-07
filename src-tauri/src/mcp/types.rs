@@ -737,6 +737,17 @@ impl Default for ReconnectConfig {
     }
 }
 
+/// A root directory that the client exposes to the server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Root {
+    /// URI of the root (e.g. file:///path/to/dir)
+    pub uri: String,
+    /// Human-readable name for the root
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
 /// Server health status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

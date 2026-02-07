@@ -28,7 +28,7 @@ export {
   type AgentTraceSettings,
 } from './settings-store';
 
-export { usePresetStore, selectPresets, selectSelectedPresetId } from './preset-store';
+export { usePresetStore, selectPresets, selectSelectedPresetId, type CreateFromSessionInput } from './preset-store';
 
 export {
   useCustomThemeStore,

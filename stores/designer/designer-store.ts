@@ -29,6 +29,22 @@ export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   historyPanelSize: 20,
 };
 
+// Console log entry from preview iframe
+export interface PreviewConsoleEntry {
+  id: string;
+  level: 'log' | 'warn' | 'error' | 'info';
+  message: string;
+  timestamp: number;
+  count: number;
+}
+
+// Custom viewport dimensions
+export interface CustomViewportDimensions {
+  width: number;
+  height: number;
+  label?: string;
+}
+
 interface DesignerState {
   // Mode
   mode: DesignerMode;
@@ -43,6 +59,7 @@ interface DesignerState {
 
   // Viewport
   viewport: ViewportSize;
+  customViewport: CustomViewportDimensions | null;
   zoom: number;
 
   // Code sync
@@ -62,6 +79,7 @@ interface DesignerState {
   showStylePanel: boolean;
   showHistoryPanel: boolean;
   showAIPanel: boolean;
+  showConsole: boolean;
   activeStyleCategory: string;
   
   // Style panel expanded categories (persisted)
@@ -73,6 +91,12 @@ interface DesignerState {
   // Mobile layout mode
   isMobileLayout: boolean;
   mobileActiveTab: 'preview' | 'code' | 'elements' | 'styles';
+
+  // Preview console logs
+  consoleLogs: PreviewConsoleEntry[];
+
+  // Preview runtime errors
+  previewErrors: string[];
 }
 
 interface DesignerActions {
@@ -98,6 +122,7 @@ interface DesignerActions {
 
   // Viewport
   setViewport: (viewport: ViewportSize) => void;
+  setCustomViewport: (dimensions: CustomViewportDimensions | null) => void;
   setZoom: (zoom: number) => void;
 
   // Code
@@ -119,6 +144,7 @@ interface DesignerActions {
   toggleStylePanel: () => void;
   toggleHistoryPanel: () => void;
   toggleAIPanel: () => void;
+  toggleConsole: () => void;
   setActiveStyleCategory: (category: string) => void;
   
   // Style panel expanded categories
@@ -133,6 +159,14 @@ interface DesignerActions {
   setMobileLayout: (isMobile: boolean) => void;
   setMobileActiveTab: (tab: 'preview' | 'code' | 'elements' | 'styles') => void;
 
+  // Console
+  addConsoleLog: (entry: Omit<PreviewConsoleEntry, 'id' | 'count'>) => void;
+  clearConsoleLogs: () => void;
+
+  // Preview errors
+  addPreviewError: (error: string) => void;
+  clearPreviewErrors: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -144,6 +178,7 @@ const initialState: DesignerState = {
   elementTree: null,
   elementMap: {},
   viewport: 'desktop',
+  customViewport: null,
   zoom: 100,
   code: '',
   isDirty: false,
@@ -155,11 +190,14 @@ const initialState: DesignerState = {
   showStylePanel: true,
   showHistoryPanel: false,
   showAIPanel: false,
+  showConsole: false,
   activeStyleCategory: 'layout',
   expandedStyleCategories: ['layout'],
   panelLayout: DEFAULT_PANEL_LAYOUT,
   isMobileLayout: false,
   mobileActiveTab: 'preview',
+  consoleLogs: [],
+  previewErrors: [],
 };
 
 let parseRequestId = 0;
@@ -481,7 +519,8 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
   },
 
   // Viewport
-  setViewport: (viewport) => set({ viewport }),
+  setViewport: (viewport) => set({ viewport, customViewport: null }),
+  setCustomViewport: (dimensions) => set({ customViewport: dimensions }),
   setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(200, zoom)) }),
 
   // Code
@@ -574,6 +613,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
   toggleStylePanel: () => set((state) => ({ showStylePanel: !state.showStylePanel })),
   toggleHistoryPanel: () => set((state) => ({ showHistoryPanel: !state.showHistoryPanel })),
   toggleAIPanel: () => set((state) => ({ showAIPanel: !state.showAIPanel })),
+  toggleConsole: () => set((state) => ({ showConsole: !state.showConsole })),
   setActiveStyleCategory: (category) => set({ activeStyleCategory: category }),
   
   // Style panel expanded categories
@@ -596,6 +636,35 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
   setMobileLayout: (isMobile) => set({ isMobileLayout: isMobile }),
   setMobileActiveTab: (tab) => set({ mobileActiveTab: tab }),
 
+  // Console
+  addConsoleLog: (entry) =>
+    set((state) => {
+      const existing = state.consoleLogs.find(
+        (log) => log.message === entry.message && log.level === entry.level
+      );
+      if (existing) {
+        return {
+          consoleLogs: state.consoleLogs.map((log) =>
+            log.id === existing.id ? { ...log, count: log.count + 1, timestamp: entry.timestamp } : log
+          ),
+        };
+      }
+      const newLogs = [
+        ...state.consoleLogs,
+        { ...entry, id: nanoid(), count: 1 },
+      ];
+      // Keep max 200 entries
+      return { consoleLogs: newLogs.slice(-200) };
+    }),
+  clearConsoleLogs: () => set({ consoleLogs: [] }),
+
+  // Preview errors
+  addPreviewError: (error) =>
+    set((state) => ({
+      previewErrors: [...state.previewErrors.slice(-49), error],
+    })),
+  clearPreviewErrors: () => set({ previewErrors: [] }),
+
   // Reset
   reset: () => set(initialState),
     }),
@@ -610,6 +679,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
         showStylePanel: state.showStylePanel,
         showHistoryPanel: state.showHistoryPanel,
         showAIPanel: state.showAIPanel,
+        showConsole: state.showConsole,
         activeStyleCategory: state.activeStyleCategory,
         expandedStyleCategories: state.expandedStyleCategories,
         panelLayout: state.panelLayout,

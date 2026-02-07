@@ -6,9 +6,17 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
+import * as screenshotApi from '@/lib/native/screenshot';
+import type {
+  ScreenshotResult as NativeScreenshotResult,
+  ScreenshotHistoryEntry as NativeHistoryEntry,
+  MonitorInfo as NativeMonitorInfo,
+  SnapConfig as NativeSnapConfig,
+  WindowInfo as NativeWindowInfo,
+  WinOcrResult as NativeWinOcrResult,
+} from '@/lib/native/screenshot';
 
 const log = loggers.store;
 
@@ -82,6 +90,8 @@ interface ScreenshotState {
   monitors: MonitorInfo[];
   selectedMonitor: number | null;
   ocrAvailable: boolean;
+  ocrLanguages: string[];
+  currentOcrLanguage: string;
 
   // Loading states
   isLoading: boolean;
@@ -117,10 +127,26 @@ interface ScreenshotActions {
 
   // OCR
   extractText: (imageBase64: string) => Promise<string>;
+  extractTextWindows: (imageBase64: string) => Promise<NativeWinOcrResult | null>;
+  extractTextWithLanguage: (imageBase64: string, language?: string) => Promise<NativeWinOcrResult | null>;
+  getOcrLanguages: () => Promise<string[]>;
+  setOcrLanguage: (language: string) => Promise<void>;
 
   // Configuration
   updateConfig: (config: Partial<ScreenshotConfig>) => Promise<void>;
   resetConfig: () => void;
+
+  // Snap
+  getSnapConfig: () => Promise<NativeSnapConfig | null>;
+  setSnapConfig: (config: NativeSnapConfig) => Promise<void>;
+
+  // Window detection
+  getWindows: () => Promise<NativeWindowInfo[]>;
+  getWindowsWithThumbnails: (thumbnailSize?: number) => Promise<NativeWindowInfo[]>;
+
+  // File operations
+  saveToFile: (imageBase64: string, path: string) => Promise<string>;
+  openScreenshotFolder: (filePath: string) => Promise<void>;
 
   // System
   refreshMonitors: () => Promise<void>;
@@ -153,6 +179,8 @@ const initialState: ScreenshotState = {
   monitors: [],
   selectedMonitor: null,
   ocrAvailable: false,
+  ocrLanguages: [],
+  currentOcrLanguage: 'eng',
   isLoading: false,
   isInitialized: false,
   error: null,
@@ -160,20 +188,7 @@ const initialState: ScreenshotState = {
 
 // ============== Helper Functions ==============
 
-function transformHistoryEntry(entry: {
-  id: string;
-  timestamp: number;
-  thumbnail_base64?: string;
-  file_path?: string;
-  width: number;
-  height: number;
-  mode: string;
-  window_title?: string;
-  ocr_text?: string;
-  label?: string;
-  tags: string[];
-  is_pinned: boolean;
-}): ScreenshotHistoryEntry {
+function transformHistoryEntry(entry: NativeHistoryEntry): ScreenshotHistoryEntry {
   return {
     id: entry.id,
     timestamp: entry.timestamp,
@@ -190,16 +205,7 @@ function transformHistoryEntry(entry: {
   };
 }
 
-function transformMonitorInfo(monitor: {
-  index: number;
-  name: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  is_primary: boolean;
-  scale_factor: number;
-}): MonitorInfo {
+function transformMonitorInfo(monitor: NativeMonitorInfo): MonitorInfo {
   return {
     index: monitor.index,
     name: monitor.name,
@@ -212,17 +218,7 @@ function transformMonitorInfo(monitor: {
   };
 }
 
-function transformScreenshotResult(result: {
-  image_base64: string;
-  metadata: {
-    width: number;
-    height: number;
-    mode: string;
-    timestamp: number;
-    window_title?: string;
-    monitor_index?: number;
-  };
-}): ScreenshotResult {
+function transformScreenshotResult(result: NativeScreenshotResult): ScreenshotResult {
   return {
     imageBase64: result.image_base64,
     metadata: {
@@ -252,19 +248,8 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         set({ isLoading: true, error: null });
         try {
           const [monitors, ocrAvailable] = await Promise.all([
-            invoke<
-              Array<{
-                index: number;
-                name: string;
-                x: number;
-                y: number;
-                width: number;
-                height: number;
-                is_primary: boolean;
-                scale_factor: number;
-              }>
-            >('screenshot_get_monitors'),
-            invoke<boolean>('screenshot_ocr_is_available').catch(() => false),
+            screenshotApi.getMonitors(),
+            screenshotApi.isOcrAvailable().catch(() => false),
           ]);
 
           const transformedMonitors = monitors.map(transformMonitorInfo);
@@ -294,17 +279,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         set({ isCapturing: true, error: null });
         try {
-          const result = await invoke<{
-            image_base64: string;
-            metadata: {
-              width: number;
-              height: number;
-              mode: string;
-              timestamp: number;
-              window_title?: string;
-              monitor_index?: number;
-            };
-          }>('screenshot_capture_fullscreen_with_history', { monitorIndex });
+          const result = await screenshotApi.captureFullscreenWithHistory(monitorIndex);
 
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
@@ -327,17 +302,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         set({ isCapturing: true, error: null });
         try {
-          const result = await invoke<{
-            image_base64: string;
-            metadata: {
-              width: number;
-              height: number;
-              mode: string;
-              timestamp: number;
-              window_title?: string;
-              monitor_index?: number;
-            };
-          }>('screenshot_capture_window_with_history');
+          const result = await screenshotApi.captureWindowWithHistory();
 
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
@@ -359,17 +324,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         set({ isCapturing: true, error: null });
         try {
-          const result = await invoke<{
-            image_base64: string;
-            metadata: {
-              width: number;
-              height: number;
-              mode: string;
-              timestamp: number;
-              window_title?: string;
-              monitor_index?: number;
-            };
-          }>('screenshot_capture_region_with_history', { x, y, width, height });
+          const result = await screenshotApi.captureRegionWithHistory(x, y, width, height);
 
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
@@ -391,17 +346,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         set({ isCapturing: true, error: null });
         try {
-          const result = await invoke<{
-            image_base64: string;
-            metadata: {
-              width: number;
-              height: number;
-              mode: string;
-              timestamp: number;
-              window_title?: string;
-              monitor_index?: number;
-            };
-          }>('screenshot_capture_window_by_hwnd_with_history', { hwnd });
+          const result = await screenshotApi.captureWindowByHwndWithHistory(hwnd);
 
           const transformed = transformScreenshotResult(result);
           set({ lastScreenshot: transformed, isCapturing: false });
@@ -422,22 +367,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          const history = await invoke<
-            Array<{
-              id: string;
-              timestamp: number;
-              thumbnail_base64?: string;
-              file_path?: string;
-              width: number;
-              height: number;
-              mode: string;
-              window_title?: string;
-              ocr_text?: string;
-              label?: string;
-              tags: string[];
-              is_pinned: boolean;
-            }>
-          >('screenshot_get_history', { count });
+          const history = await screenshotApi.getHistory(count);
 
           const transformedHistory = history.map(transformHistoryEntry);
           const pinnedCount = transformedHistory.filter((e) => e.isPinned).length;
@@ -452,22 +382,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return [];
 
         try {
-          const results = await invoke<
-            Array<{
-              id: string;
-              timestamp: number;
-              thumbnail_base64?: string;
-              file_path?: string;
-              width: number;
-              height: number;
-              mode: string;
-              window_title?: string;
-              ocr_text?: string;
-              label?: string;
-              tags: string[];
-              is_pinned: boolean;
-            }>
-          >('screenshot_search_history', { query });
+          const results = await screenshotApi.searchHistory(query);
 
           return results.map(transformHistoryEntry);
         } catch (error) {
@@ -480,7 +395,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_pin', { id });
+          await screenshotApi.pinScreenshot(id);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to pin' });
@@ -491,7 +406,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_unpin', { id });
+          await screenshotApi.unpinScreenshot(id);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to unpin' });
@@ -502,7 +417,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_delete', { id });
+          await screenshotApi.deleteScreenshot(id);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to delete' });
@@ -513,7 +428,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_clear_history');
+          await screenshotApi.clearHistory();
           set({ history: [], pinnedCount: 0 });
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to clear history' });
@@ -524,7 +439,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_add_tag', { id, tag });
+          await screenshotApi.addTag(id, tag);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to add tag' });
@@ -535,7 +450,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_remove_tag', { id, tag });
+          await screenshotApi.removeTag(id, tag);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to remove tag' });
@@ -546,7 +461,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          await invoke('screenshot_set_label', { id, label });
+          await screenshotApi.setLabel(id, label);
           await get().refreshHistory();
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to set label' });
@@ -557,7 +472,7 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return '';
 
         try {
-          return await invoke<string>('screenshot_ocr', { imageBase64 });
+          return await screenshotApi.extractText(imageBase64);
         } catch (error) {
           log.error('OCR failed', error as Error);
           return '';
@@ -570,16 +485,17 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         if (isTauri()) {
           try {
-            await invoke('screenshot_update_config', {
-              config: {
-                format: newConfig.format,
-                quality: newConfig.quality,
-                include_cursor: newConfig.includeCursor,
-                copy_to_clipboard: newConfig.copyToClipboard,
-                show_notification: newConfig.showNotification,
-                auto_save: newConfig.autoSave,
-                save_directory: newConfig.saveDirectory,
-              },
+            await screenshotApi.updateConfig({
+              format: newConfig.format,
+              quality: newConfig.quality,
+              include_cursor: newConfig.includeCursor,
+              copy_to_clipboard: newConfig.copyToClipboard,
+              show_notification: newConfig.showNotification,
+              auto_save: newConfig.autoSave,
+              save_directory: newConfig.saveDirectory,
+              delay_ms: 0,
+              ocr_language: 'eng',
+              filename_template: 'screenshot_{timestamp}',
             });
           } catch (error) {
             log.error('Failed to update config', error as Error);
@@ -595,22 +511,113 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         if (!isTauri()) return;
 
         try {
-          const monitors = await invoke<
-            Array<{
-              index: number;
-              name: string;
-              x: number;
-              y: number;
-              width: number;
-              height: number;
-              is_primary: boolean;
-              scale_factor: number;
-            }>
-          >('screenshot_get_monitors');
+          const monitors = await screenshotApi.getMonitors();
 
           set({ monitors: monitors.map(transformMonitorInfo) });
         } catch (error) {
           log.error('Failed to refresh monitors', error as Error);
+        }
+      },
+
+      extractTextWindows: async (imageBase64) => {
+        if (!isTauri()) return null;
+        try {
+          return await screenshotApi.extractTextWindows(imageBase64);
+        } catch (error) {
+          log.error('Windows OCR failed', error as Error);
+          return null;
+        }
+      },
+
+      extractTextWithLanguage: async (imageBase64, language) => {
+        if (!isTauri()) return null;
+        try {
+          return await screenshotApi.extractTextWithLanguage(imageBase64, language);
+        } catch (error) {
+          log.error('OCR with language failed', error as Error);
+          return null;
+        }
+      },
+
+      getOcrLanguages: async () => {
+        if (!isTauri()) return [];
+        try {
+          const languages = await screenshotApi.getOcrLanguages();
+          set({ ocrLanguages: languages });
+          return languages;
+        } catch (error) {
+          log.error('Failed to get OCR languages', error as Error);
+          return [];
+        }
+      },
+
+      setOcrLanguage: async (language) => {
+        if (!isTauri()) return;
+        try {
+          await screenshotApi.setOcrLanguage(language);
+          set({ currentOcrLanguage: language });
+        } catch (error) {
+          log.error('Failed to set OCR language', error as Error);
+        }
+      },
+
+      getSnapConfig: async () => {
+        if (!isTauri()) return null;
+        try {
+          return await screenshotApi.getSnapConfig();
+        } catch (error) {
+          log.error('Failed to get snap config', error as Error);
+          return null;
+        }
+      },
+
+      setSnapConfig: async (config) => {
+        if (!isTauri()) return;
+        try {
+          await screenshotApi.setSnapConfig(config);
+        } catch (error) {
+          log.error('Failed to set snap config', error as Error);
+        }
+      },
+
+      getWindows: async () => {
+        if (!isTauri()) return [];
+        try {
+          return await screenshotApi.getWindows();
+        } catch (error) {
+          log.error('Failed to get windows', error as Error);
+          return [];
+        }
+      },
+
+      getWindowsWithThumbnails: async (thumbnailSize) => {
+        if (!isTauri()) return [];
+        try {
+          return await screenshotApi.getWindowsWithThumbnails(thumbnailSize);
+        } catch (error) {
+          log.error('Failed to get windows with thumbnails', error as Error);
+          return [];
+        }
+      },
+
+      saveToFile: async (imageBase64, path) => {
+        if (!isTauri()) return '';
+        try {
+          return await screenshotApi.saveToFile(imageBase64, path);
+        } catch (error) {
+          log.error('Failed to save screenshot', error as Error);
+          return '';
+        }
+      },
+
+      openScreenshotFolder: async (filePath) => {
+        if (!isTauri()) return;
+        try {
+          const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+          await revealItemInDir(filePath);
+        } catch (error) {
+          log.error('Failed to open folder', error as Error);
+          set({ error: error instanceof Error ? error.message : 'Failed to open folder' });
         }
       },
 

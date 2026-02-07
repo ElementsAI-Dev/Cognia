@@ -67,6 +67,8 @@ jest.mock('@/stores', () => ({
       setVegaLiteTheme: jest.fn(),
       codeWordWrap: false,
       setCodeWordWrap: jest.fn(),
+      clearMathRenderCache: jest.fn(),
+      getMathRenderCacheStats: jest.fn(() => ({ size: 0, maxSize: 500, hitRate: 0, hits: 0, misses: 0 })),
     };
     return selector(state);
   },
@@ -79,6 +81,19 @@ jest.mock('@/components/ui/card', () => ({
   CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+}));
+
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick, ...props }: { children: React.ReactNode; onClick?: () => void; [key: string]: unknown }) => (
+    <button onClick={onClick} data-testid="button" {...props}>{children}</button>
+  ),
+}));
+
+jest.mock('sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 jest.mock('@/components/ui/label', () => ({
@@ -164,13 +179,13 @@ describe('ResponseSettings', () => {
 
   it('displays LaTeX switch', () => {
     render(<ResponseSettings />);
-    // Component uses hardcoded label
-    expect(screen.getByText('LaTeX')).toBeInTheDocument();
+    // Component uses t('enableLaTeX') which returns the key in mock
+    expect(screen.getByText('enableLaTeX')).toBeInTheDocument();
   });
 
   it('displays Mermaid switch', () => {
     render(<ResponseSettings />);
-    expect(screen.getByText('Mermaid')).toBeInTheDocument();
+    expect(screen.getByText('enableMermaid')).toBeInTheDocument();
   });
 
   it('displays Compact switch', () => {

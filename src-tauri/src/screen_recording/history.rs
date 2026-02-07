@@ -1,10 +1,11 @@
 //! Recording history management
 
 use super::RecordingMetadata;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::path::PathBuf;
 
 const MAX_HISTORY_SIZE: usize = 100;
 
@@ -42,16 +43,74 @@ impl RecordingHistoryEntry {
     }
 }
 
-/// Recording history storage
+/// Recording history storage with optional disk persistence
 pub struct RecordingHistory {
     entries: RwLock<VecDeque<RecordingHistoryEntry>>,
+    persist_path: Option<PathBuf>,
 }
 
 impl RecordingHistory {
     pub fn new() -> Self {
-        debug!("[RecordingHistory] Creating new RecordingHistory instance");
+        debug!("[RecordingHistory] Creating new RecordingHistory instance (in-memory)");
         Self {
             entries: RwLock::new(VecDeque::new()),
+            persist_path: None,
+        }
+    }
+
+    /// Create a new RecordingHistory with disk persistence
+    pub fn new_persistent(data_dir: &std::path::Path) -> Self {
+        let persist_path = data_dir.join("recording_history.json");
+        info!("[RecordingHistory] Creating persistent history at: {:?}", persist_path);
+
+        let entries = if persist_path.exists() {
+            match std::fs::read_to_string(&persist_path) {
+                Ok(data) => match serde_json::from_str::<Vec<RecordingHistoryEntry>>(&data) {
+                    Ok(loaded) => {
+                        info!("[RecordingHistory] Loaded {} entries from disk", loaded.len());
+                        VecDeque::from(loaded)
+                    }
+                    Err(e) => {
+                        error!("[RecordingHistory] Failed to parse history file: {}", e);
+                        VecDeque::new()
+                    }
+                },
+                Err(e) => {
+                    error!("[RecordingHistory] Failed to read history file: {}", e);
+                    VecDeque::new()
+                }
+            }
+        } else {
+            debug!("[RecordingHistory] No existing history file found");
+            VecDeque::new()
+        };
+
+        Self {
+            entries: RwLock::new(entries),
+            persist_path: Some(persist_path),
+        }
+    }
+
+    /// Save history to disk if persistence is enabled
+    fn save_to_disk(&self) {
+        if let Some(ref path) = self.persist_path {
+            let entries = self.entries.read();
+            let data: Vec<&RecordingHistoryEntry> = entries.iter().collect();
+            match serde_json::to_string_pretty(&data) {
+                Ok(json) => {
+                    if let Some(parent) = path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    if let Err(e) = std::fs::write(path, json) {
+                        error!("[RecordingHistory] Failed to save history to disk: {}", e);
+                    } else {
+                        debug!("[RecordingHistory] Saved {} entries to disk", entries.len());
+                    }
+                }
+                Err(e) => {
+                    error!("[RecordingHistory] Failed to serialize history: {}", e);
+                }
+            }
         }
     }
 
@@ -92,6 +151,8 @@ impl RecordingHistory {
             "[RecordingHistory] History now contains {} entries",
             entries.len()
         );
+        drop(entries);
+        self.save_to_disk();
     }
 
     /// Get recent entries
@@ -134,6 +195,8 @@ impl RecordingHistory {
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
             entry.is_pinned = true;
             info!("[RecordingHistory] Pinned entry: id={}", id);
+            drop(entries);
+            self.save_to_disk();
             true
         } else {
             warn!("[RecordingHistory] Cannot pin - entry not found: id={}", id);
@@ -147,6 +210,8 @@ impl RecordingHistory {
         if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
             entry.is_pinned = false;
             info!("[RecordingHistory] Unpinned entry: id={}", id);
+            drop(entries);
+            self.save_to_disk();
             true
         } else {
             warn!(
@@ -188,6 +253,8 @@ impl RecordingHistory {
                 debug!("[RecordingHistory] Entry has no file path associated");
             }
             info!("[RecordingHistory] Entry deleted successfully: id={}", id);
+            drop(entries);
+            self.save_to_disk();
         } else {
             warn!("[RecordingHistory] Entry not found for deletion: id={}", id);
         }
@@ -231,6 +298,8 @@ impl RecordingHistory {
 
         info!("[RecordingHistory] Clear completed: removed {} entries, deleted {} files, {} deletion failures, {} pinned entries retained",
             initial_count - entries.len(), deleted_files, failed_deletions, entries.len());
+        drop(entries);
+        self.save_to_disk();
     }
 
     /// Search entries by tag
@@ -263,6 +332,8 @@ impl RecordingHistory {
             if !entry.tags.contains(&tag) {
                 entry.tags.push(tag.clone());
                 info!("[RecordingHistory] Tag '{}' added to entry: id={}", tag, id);
+                drop(entries);
+                self.save_to_disk();
             } else {
                 debug!(
                     "[RecordingHistory] Tag '{}' already exists on entry: id={}",
@@ -294,6 +365,8 @@ impl RecordingHistory {
                     "[RecordingHistory] Tag '{}' removed from entry: id={}",
                     tag, id
                 );
+                drop(entries);
+                self.save_to_disk();
             } else {
                 debug!(
                     "[RecordingHistory] Tag '{}' not found on entry: id={}",

@@ -81,6 +81,7 @@ import { useWorkflowStore, usePPTEditorStore } from '@/stores';
 import type { PPTPresentation } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { executePPTExport } from '@/lib/ai/tools/ppt-tool';
+import { downloadPPTX } from '@/lib/export/document/pptx-export';
 
 type SortOption = 'newest' | 'oldest' | 'name' | 'slides';
 
@@ -246,9 +247,23 @@ function PPTPageContent() {
     
     setIsExporting(true);
     try {
+      // For PPTX format, use real pptxgenjs to generate native .pptx file
+      if (format === 'pptx') {
+        const pptxResult = await downloadPPTX(targetPresentation, {
+          includeNotes: true,
+          includeSlideNumbers: true,
+          author: targetPresentation.author || 'Cognia',
+          quality: 'high',
+        });
+        if (!pptxResult.success) {
+          console.error('PPTX export failed:', pptxResult.error);
+        }
+        return;
+      }
+
       const result = executePPTExport({
         presentation: targetPresentation,
-        format: format as 'marp' | 'html' | 'reveal' | 'pdf' | 'pptx',
+        format: format as 'marp' | 'html' | 'reveal' | 'pdf',
         includeNotes: true,
         includeAnimations: false,
         quality: 'high',
@@ -261,8 +276,8 @@ function PPTPageContent() {
       
       const { content, filename } = result.data as { content: string; filename: string };
       
-      // For PDF and PPTX, open in new window
-      if (format === 'pdf' || format === 'pptx') {
+      // For PDF, open print-ready HTML in new window
+      if (format === 'pdf') {
         const blob = new Blob([content], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
@@ -503,14 +518,20 @@ function PPTPageContent() {
                                 {t('export') || 'Export'}
                               </DropdownMenuTrigger>
                               <DropdownMenuContent side="right">
-                                <DropdownMenuItem onClick={() => handleExport('marp', pres)}>
-                                  📝 Marp
+                                <DropdownMenuItem onClick={() => handleExport('pptx', pres)}>
+                                  � PowerPoint (.pptx)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('pdf', pres)}>
+                                  📄 PDF
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleExport('html', pres)}>
                                   🌐 HTML
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExport('pdf', pres)}>
-                                  📄 PDF
+                                <DropdownMenuItem onClick={() => handleExport('reveal', pres)}>
+                                  🎭 Reveal.js
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExport('marp', pres)}>
+                                  � Marp
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

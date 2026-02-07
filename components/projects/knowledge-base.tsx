@@ -62,7 +62,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useProjectStore } from '@/stores';
+import { useProjectStore, useDocumentStore } from '@/stores';
 import type { KnowledgeFile } from '@/types';
 import { cn } from '@/lib/utils';
 import { processDocumentAsync, detectDocumentType } from '@/lib/document';
@@ -155,6 +155,8 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   const project = useProjectStore((state) => state.getProject(projectId));
   const addKnowledgeFile = useProjectStore((state) => state.addKnowledgeFile);
   const removeKnowledgeFile = useProjectStore((state) => state.removeKnowledgeFile);
+  const addToDocumentStore = useDocumentStore((state) => state.addDocument);
+  const deleteFromDocumentStore = useDocumentStore((state) => state.deleteDocument);
 
   // Open file content with default application (creates temp file)
   const handleOpenFile = useCallback(async (file: KnowledgeFile) => {
@@ -187,14 +189,24 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
               buffer
             );
             
+            const fileContent = processed.embeddableContent || processed.content;
             addKnowledgeFile(projectId, {
               name: file.name,
               type: detectFileType(file.name),
-              content: processed.embeddableContent || processed.content,
-              size: processed.embeddableContent?.length || processed.content.length,
+              content: fileContent,
+              size: fileContent.length,
               mimeType: file.type,
               originalSize: file.size,
               pageCount: typeof processed.metadata.pageCount === 'number' ? processed.metadata.pageCount : undefined,
+            });
+
+            // Track in document store for indexing/search
+            addToDocumentStore({
+              filename: file.name,
+              type: processed.type,
+              content: fileContent,
+              metadata: processed.metadata,
+              projectId,
             });
           } else {
             // Process text files
@@ -212,6 +224,15 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
               size: content.length,
               mimeType: file.type,
             });
+
+            // Track in document store for indexing/search
+            addToDocumentStore({
+              filename: file.name,
+              type: processed.type,
+              content: processed.embeddableContent || content,
+              metadata: processed.metadata,
+              projectId,
+            });
           }
         } catch (fileError) {
           console.error(`Error processing file ${file.name}:`, fileError);
@@ -225,7 +246,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
         fileInputRef.current.value = '';
       }
     }
-  }, [projectId, addKnowledgeFile]);
+  }, [projectId, addKnowledgeFile, addToDocumentStore]);
 
   if (!project) return null;
 
@@ -254,14 +275,41 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
 
   const handleDelete = () => {
     if (deleteFileId) {
+      // Find the file to get its name for document store cleanup
+      const file = project?.knowledgeBase.find((f) => f.id === deleteFileId);
       removeKnowledgeFile(projectId, deleteFileId);
+      // Also clean up from document store by searching for matching filename
+      if (file) {
+        const docStoreDocuments = useDocumentStore.getState().filterDocuments({
+          projectId,
+          searchQuery: file.name,
+        });
+        for (const doc of docStoreDocuments) {
+          if (doc.filename === file.name) {
+            deleteFromDocumentStore(doc.id);
+          }
+        }
+      }
       setDeleteFileId(null);
     }
   };
 
   const handleBatchDelete = () => {
+    const filesToDelete = project?.knowledgeBase.filter((f) => selectedFiles.has(f.id)) || [];
     for (const fileId of selectedFiles) {
       removeKnowledgeFile(projectId, fileId);
+    }
+    // Also clean up from document store
+    for (const file of filesToDelete) {
+      const docStoreDocuments = useDocumentStore.getState().filterDocuments({
+        projectId,
+        searchQuery: file.name,
+      });
+      for (const doc of docStoreDocuments) {
+        if (doc.filename === file.name) {
+          deleteFromDocumentStore(doc.id);
+        }
+      }
     }
     setSelectedFiles(new Set());
     setShowBatchDeleteDialog(false);

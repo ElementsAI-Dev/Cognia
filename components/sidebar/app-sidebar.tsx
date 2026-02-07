@@ -38,6 +38,9 @@ import {
   FolderOpen,
   FileCode,
   Calendar,
+  Archive,
+  GraduationCap,
+  BookOpen,
 } from 'lucide-react';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
@@ -86,6 +89,7 @@ import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
 import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
 import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
+import { SidebarAgentTeams } from './widgets/sidebar-agent-teams';
 import { SidebarQuickActions } from './widgets/sidebar-quick-actions';
 import { SidebarRecentFiles } from './widgets/sidebar-recent-files';
 import { SidebarWorkflows } from './widgets/sidebar-workflows';
@@ -126,6 +130,9 @@ export function AppSidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Archive filter state
+  const [showArchived, setShowArchived] = useState(false);
 
   // Project filter state
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
@@ -187,6 +194,13 @@ export function AppSidebar() {
   const sortedSessions = useMemo(() => {
     let filtered = [...sessions];
 
+    // Filter archived sessions unless explicitly showing them
+    if (!showArchived) {
+      filtered = filtered.filter((s) => !s.isArchived);
+    } else {
+      filtered = filtered.filter((s) => s.isArchived);
+    }
+
     // Filter by project if a project filter is set
     if (filterProjectId) {
       filtered = filtered.filter((s) => s.projectId === filterProjectId);
@@ -202,7 +216,7 @@ export function AppSidebar() {
       if (!a.pinned && b.pinned) return 1;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
-  }, [sessions, filterProjectId, searchQuery]);
+  }, [sessions, filterProjectId, searchQuery, showArchived]);
 
   // Search function
   const handleSearch = useCallback(
@@ -454,6 +468,21 @@ export function AppSidebar() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className={cn(
+                    'h-6 w-6 text-muted-foreground hover:text-primary',
+                    showArchived && 'text-primary bg-sidebar-accent'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowArchived(!showArchived);
+                  }}
+                  title={showArchived ? (t('showActive') || 'Show Active') : (t('showArchived') || 'Show Archived')}
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-primary"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -672,6 +701,11 @@ export function AppSidebar() {
           <SidebarBackgroundTasks collapsed={isCollapsed} />
         </div>
 
+        {/* Agent Teams Widget */}
+        <div className={isCollapsed ? 'px-1 pb-1' : 'px-2 pb-2'}>
+          <SidebarAgentTeams collapsed={isCollapsed} />
+        </div>
+
         {/* Quick Actions Widget */}
         {!isCollapsed && (
           <div className="px-2 pb-2">
@@ -805,6 +839,20 @@ export function AppSidebar() {
                   </div>
                 </Link>
               </div>
+              <div className="flex gap-2">
+                <Link href="/speedpass" className="flex-1">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
+                    <GraduationCap className="h-4 w-4 text-indigo-500" />
+                    <span>{t('speedPass') || 'SpeedPass'}</span>
+                  </div>
+                </Link>
+                <Link href="/academic" className="flex-1">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
+                    <BookOpen className="h-4 w-4 text-emerald-500" />
+                    <span>{t('academic') || 'Academic'}</span>
+                  </div>
+                </Link>
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -874,6 +922,22 @@ export function AppSidebar() {
                   <Link href="/scheduler">
                     <Calendar className="h-4 w-4 text-rose-500" />
                     <span>Scheduler</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('speedPass') || 'SpeedPass'}>
+                  <Link href="/speedpass">
+                    <GraduationCap className="h-4 w-4 text-indigo-500" />
+                    <span>SpeedPass</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip={t('academic') || 'Academic'}>
+                  <Link href="/academic">
+                    <BookOpen className="h-4 w-4 text-emerald-500" />
+                    <span>Academic</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

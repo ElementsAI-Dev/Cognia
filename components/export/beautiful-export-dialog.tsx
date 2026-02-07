@@ -55,6 +55,8 @@ import { useCustomThemeStore } from '@/stores/settings';
 import { CustomThemeEditor } from './custom-theme-editor';
 import { SocialShareDialog } from './social-share-dialog';
 import { ImageExportDialog } from './image-export-dialog';
+import { PageLayoutDialog, type PageLayoutSettings } from '@/components/document/page-layout-dialog';
+import { MARGIN_PRESETS } from '@/types/document/document-formatting';
 
 type ExportFormat =
   | 'beautiful-html'
@@ -83,7 +85,17 @@ interface ExportOptions {
   includeTableOfContents: boolean;
   syntaxHighlighting: boolean;
   compactMode: boolean;
+  pageLayout: PageLayoutSettings;
 }
+
+const DEFAULT_PAGE_LAYOUT: PageLayoutSettings = {
+  pageSize: 'a4',
+  orientation: 'portrait',
+  margins: MARGIN_PRESETS.normal,
+  headerEnabled: false,
+  footerEnabled: true,
+  showPageNumbers: true,
+};
 
 const DEFAULT_OPTIONS: ExportOptions = {
   theme: 'system',
@@ -96,6 +108,7 @@ const DEFAULT_OPTIONS: ExportOptions = {
   includeTableOfContents: true,
   syntaxHighlighting: true,
   compactMode: false,
+  pageLayout: DEFAULT_PAGE_LAYOUT,
 };
 
 const SYNTAX_THEMES = getAvailableSyntaxThemes();
@@ -321,6 +334,9 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                   showPageNumbers: true,
                 }
               : undefined,
+            pageSize: options.pageLayout.pageSize,
+            orientation: options.pageLayout.orientation,
+            margins: options.pageLayout.margins,
           });
           if (result.success && result.blob && result.filename) {
             downloadWordDocument(result.blob, result.filename);
@@ -703,6 +719,26 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                                 checked={options.showToolCalls}
                                 onCheckedChange={(checked) =>
                                   setOptions((prev) => ({ ...prev, showToolCalls: checked }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          {/* Page Layout */}
+                          <div className="pt-2 border-t">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label className="text-sm">
+                                  {t('pageLayout')}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('pageLayoutDesc')}
+                                </p>
+                              </div>
+                              <PageLayoutDialog
+                                settings={options.pageLayout}
+                                onSettingsChange={(pageLayout) =>
+                                  setOptions((prev) => ({ ...prev, pageLayout }))
                                 }
                               />
                             </div>

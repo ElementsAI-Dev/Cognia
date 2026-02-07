@@ -35,7 +35,7 @@ const mockProfiler = {
   clearEntries: jest.fn(),
 };
 
-jest.mock('@/lib/plugin/profiler', () => ({
+jest.mock('@/lib/plugin/devtools/profiler', () => ({
   getPluginProfiler: () => mockProfiler,
 }));
 

@@ -90,7 +90,7 @@ export interface SelfOptimizationResult {
   error?: string;
 }
 
-const ANALYSIS_SYSTEM_PROMPT = `You are an expert prompt engineer. Analyze the given prompt and provide detailed feedback on how to improve it.
+export const ANALYSIS_SYSTEM_PROMPT = `You are an expert prompt engineer. Analyze the given prompt and provide detailed feedback on how to improve it.
 
 Consider these aspects:
 1. **Clarity**: Is the intent clear? Are instructions unambiguous?
@@ -124,7 +124,7 @@ Provide your analysis as a JSON object with the following structure:
   }
 }`;
 
-const OPTIMIZATION_SYSTEM_PROMPT = `You are an expert prompt engineer. Optimize the given prompt based on the provided feedback and suggestions.
+export const OPTIMIZATION_SYSTEM_PROMPT = `You are an expert prompt engineer. Optimize the given prompt based on the provided feedback and suggestions.
 
 Goals:
 1. Improve clarity and reduce ambiguity
@@ -884,52 +884,64 @@ Output ONLY the modified prompt without any explanation.`,
 }
 
 /**
- * Suggest improvements based on best practices
+ * Check if content contains any of the given patterns (case-insensitive for latin, exact for CJK)
+ */
+function containsAny(content: string, patterns: string[]): boolean {
+  const lower = content.toLowerCase();
+  return patterns.some((p) => lower.includes(p.toLowerCase()) || content.includes(p));
+}
+
+/**
+ * Suggest improvements based on best practices (supports English and Chinese)
  */
 export function suggestBestPractices(content: string): OptimizationSuggestion[] {
   const suggestions: OptimizationSuggestion[] = [];
-  
-  // Check for role definition
-  if (!content.toLowerCase().includes('you are') && !content.toLowerCase().includes('as a')) {
+
+  // Check for role definition (EN + ZH)
+  const rolePatterns = ['you are', 'as a', 'act as', 'your role', '你是', '作为', '扮演', '你的角色'];
+  if (!containsAny(content, rolePatterns)) {
     suggestions.push({
       id: nanoid(),
       type: 'context',
       priority: 'high',
-      description: 'Add a clear role definition (e.g., "You are an expert...")',
+      description: 'Add a clear role definition (e.g., "You are an expert..." / "你是一个专家...")',
       confidence: 0.9,
       impact: 'major',
       category: 'best-practice',
     });
   }
-  
-  // Check for output format specification
-  if (!content.toLowerCase().includes('format') && !content.toLowerCase().includes('output')) {
+
+  // Check for output format specification (EN + ZH)
+  const formatPatterns = ['format', 'output', 'respond with', 'return as', 'JSON', 'markdown', '格式', '输出', '返回', '以JSON', '以Markdown'];
+  if (!containsAny(content, formatPatterns)) {
     suggestions.push({
       id: nanoid(),
       type: 'formatting',
       priority: 'medium',
-      description: 'Specify the expected output format',
+      description: 'Specify the expected output format (JSON, Markdown, numbered list, etc.)',
       confidence: 0.8,
       impact: 'minor',
       category: 'best-practice',
     });
   }
-  
-  // Check for examples
-  if (!content.toLowerCase().includes('example') && !content.toLowerCase().includes('for instance')) {
+
+  // Check for examples (EN + ZH)
+  const examplePatterns = ['example', 'for instance', 'such as', 'e.g.', 'like this', '例如', '示例', '举例', '比如', '参考'];
+  if (!containsAny(content, examplePatterns)) {
     suggestions.push({
       id: nanoid(),
       type: 'examples',
       priority: 'medium',
-      description: 'Consider adding examples to clarify expectations',
+      description: 'Consider adding examples to clarify expectations (few-shot prompting)',
       confidence: 0.7,
       impact: 'minor',
       category: 'best-practice',
     });
   }
-  
-  // Check for constraints
-  if (!content.toLowerCase().includes('do not') && !content.toLowerCase().includes("don't") && !content.toLowerCase().includes('avoid')) {
+
+  // Check for constraints (EN + ZH)
+  const constraintPatterns = ['do not', "don't", 'avoid', 'never', 'must not', 'important:', '不要', '避免', '禁止', '切勿', '注意'];
+  if (!containsAny(content, constraintPatterns)) {
     suggestions.push({
       id: nanoid(),
       type: 'constraints',
@@ -940,7 +952,35 @@ export function suggestBestPractices(content: string): OptimizationSuggestion[] 
       category: 'best-practice',
     });
   }
-  
+
+  // Check for step-by-step / chain-of-thought instructions (EN + ZH)
+  const cotPatterns = ['step by step', 'step-by-step', 'first,', 'then,', 'finally,', 'think through', '1.', '一步', '逐步', '首先', '然后', '最后', '分步'];
+  if (content.length > 200 && !containsAny(content, cotPatterns)) {
+    suggestions.push({
+      id: nanoid(),
+      type: 'structure',
+      priority: 'medium',
+      description: 'For complex tasks, consider adding step-by-step instructions or chain-of-thought guidance',
+      confidence: 0.7,
+      impact: 'minor',
+      category: 'best-practice',
+    });
+  }
+
+  // Check for delimiter usage in longer prompts
+  const delimiterPatterns = ['###', '---', '```', '<', '"""', '==='];
+  if (content.length > 300 && !delimiterPatterns.some((d) => content.includes(d))) {
+    suggestions.push({
+      id: nanoid(),
+      type: 'structure',
+      priority: 'low',
+      description: 'Use delimiters (###, ---, XML tags) to separate sections in longer prompts',
+      confidence: 0.65,
+      impact: 'minor',
+      category: 'best-practice',
+    });
+  }
+
   // Check prompt length
   if (content.length < 100) {
     suggestions.push({
@@ -953,7 +993,7 @@ export function suggestBestPractices(content: string): OptimizationSuggestion[] 
       category: 'best-practice',
     });
   }
-  
+
   // Check for variable placeholders without descriptions
   const variableMatches = content.match(/\{\{([^}]+)\}\}/g);
   if (variableMatches && variableMatches.length > 0) {
@@ -967,42 +1007,71 @@ export function suggestBestPractices(content: string): OptimizationSuggestion[] 
       category: 'best-practice',
     });
   }
-  
+
+  // Check for context/background provision (EN + ZH)
+  const contextPatterns = ['context:', 'background:', 'given that', 'based on', '背景', '上下文', '基于', '根据'];
+  if (content.length > 150 && !containsAny(content, contextPatterns)) {
+    suggestions.push({
+      id: nanoid(),
+      type: 'context',
+      priority: 'low',
+      description: 'Consider providing background context to help the AI understand the task better',
+      confidence: 0.6,
+      impact: 'minor',
+      category: 'best-practice',
+    });
+  }
+
   return suggestions;
 }
 
 /**
- * Quick analysis without AI (rule-based)
+ * Quick analysis without AI (rule-based, supports English and Chinese)
  */
 export function quickAnalyze(content: string): SelfOptimizationResult['analysis'] {
   let clarity = 50;
   let specificity = 50;
   let structureQuality = 50;
-  
-  // Clarity checks
-  if (content.includes('clearly') || content.includes('specifically')) clarity += 10;
+
+  // Clarity checks (EN + ZH)
+  if (containsAny(content, ['clearly', 'specifically', 'precisely', '明确', '具体', '清楚'])) clarity += 10;
   if (content.length > 200) clarity += 10;
-  if (content.split('.').length > 3) clarity += 5;
-  
-  // Specificity checks
-  if (content.includes('example')) specificity += 15;
+  // Sentence count: split on period/question/exclamation marks (EN + ZH)
+  const sentenceCount = content.split(/[.!?。！？]+/).filter((s) => s.trim().length > 0).length;
+  if (sentenceCount > 3) clarity += 5;
+  if (containsAny(content, ['important:', 'note:', 'warning:', '重要', '注意', '警告'])) clarity += 5;
+
+  // Specificity checks (EN + ZH)
+  if (containsAny(content, ['example', 'for instance', 'e.g.', '例如', '示例', '举例', '比如'])) specificity += 15;
   if (content.match(/\d+/)) specificity += 5;
-  if (content.includes('format')) specificity += 10;
-  if (content.includes('step')) specificity += 10;
-  
-  // Structure checks
+  if (containsAny(content, ['format', 'output', 'JSON', 'markdown', '格式', '输出'])) specificity += 10;
+  if (containsAny(content, ['step', '步骤', '逐步', '分步'])) specificity += 10;
+  if (containsAny(content, ['constraint', 'requirement', 'must', '约束', '要求', '必须'])) specificity += 5;
+
+  // Structure checks (EN + ZH)
   if (content.includes('\n\n')) structureQuality += 10;
   if (content.match(/^#+\s/m)) structureQuality += 15;
-  if (content.includes('1.') || content.includes('- ')) structureQuality += 10;
-  if (content.toLowerCase().includes('you are')) structureQuality += 10;
-  
-  // Cap scores at 100
-  clarity = Math.min(100, clarity);
-  specificity = Math.min(100, specificity);
-  structureQuality = Math.min(100, structureQuality);
-  
+  if (content.includes('1.') || content.includes('- ') || content.includes('• ')) structureQuality += 10;
+  if (containsAny(content, ['you are', 'as a', 'act as', '你是', '作为', '扮演'])) structureQuality += 10;
+  // Delimiter usage
+  if (['###', '---', '```', '===', '"""'].some((d) => content.includes(d))) structureQuality += 5;
+  // XML-style tags
+  if (content.match(/<[a-zA-Z_]+>/)) structureQuality += 5;
+
+  // Penalize very short prompts
+  if (content.length < 50) {
+    clarity -= 15;
+    specificity -= 15;
+    structureQuality -= 10;
+  }
+
+  // Cap scores at 0-100
+  clarity = Math.max(0, Math.min(100, clarity));
+  specificity = Math.max(0, Math.min(100, specificity));
+  structureQuality = Math.max(0, Math.min(100, structureQuality));
+
   const overallScore = Math.round((clarity + specificity + structureQuality) / 3);
-  
+
   return {
     clarity,
     specificity,

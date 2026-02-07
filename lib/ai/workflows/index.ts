@@ -26,3 +26,11 @@ export {
   registerPPTWorkflow,
   PPT_WORKFLOW_TEMPLATES,
 } from './ppt-workflow';
+
+export {
+  PPTWorkflowExecutor,
+  generatePresentation,
+  generatePresentationFromMaterials,
+  type PPTExecutorConfig,
+  type ExecutorState,
+} from './ppt-executor';

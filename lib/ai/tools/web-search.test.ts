@@ -1,5 +1,12 @@
 /**
  * Tests for Web Search Tool
+ *
+ * Tests cover:
+ * - executeWebSearch with API key and provider settings
+ * - smartSearchExecute: direct execution → API route fallback
+ * - SearchCache integration (cache hit/miss)
+ * - Error handling paths
+ * - executeWebSearchWithApiKey backward compatibility
  */
 
 import {
@@ -12,9 +19,46 @@ import {
   type WebSearchConfig,
 } from './web-search';
 
-// Store original fetch and create mock
+// Mock the search-service module (used by executeSearchDirect)
+const mockSearch = jest.fn();
+const mockSearchWithProvider = jest.fn();
+jest.mock('@/lib/search/search-service', () => ({
+  search: (...args: unknown[]) => mockSearch(...args),
+  searchWithProvider: (...args: unknown[]) => mockSearchWithProvider(...args),
+}));
+
+// Mock the search-cache module
+const mockCacheGet = jest.fn();
+const mockCacheSet = jest.fn();
+jest.mock('@/lib/search/search-cache', () => ({
+  getSearchCache: () => ({
+    get: mockCacheGet,
+    set: mockCacheSet,
+  }),
+}));
+
+// Store original fetch and create mock for callSearchApi fallback
 let originalFetch: typeof global.fetch;
 const mockFetch = jest.fn();
+
+// Helper: create a standard SearchResponse
+function makeSearchResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    provider: 'tavily',
+    query: 'test query',
+    answer: 'This is the answer',
+    results: [
+      {
+        title: 'Result 1',
+        url: 'https://example.com/1',
+        content: 'Content 1',
+        score: 0.9,
+      },
+    ],
+    responseTime: 500,
+    ...overrides,
+  };
+}
 
 describe('executeWebSearch', () => {
   beforeAll(() => {
@@ -29,26 +73,15 @@ describe('executeWebSearch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockReset();
+    mockSearch.mockReset();
+    mockSearchWithProvider.mockReset();
+    mockCacheGet.mockReturnValue(null); // default: cache miss
+    mockCacheSet.mockReturnValue(undefined);
   });
 
-  it('searches with API key', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'tavily',
-        query: 'test query',
-        answer: 'This is the answer',
-        results: [
-          {
-            title: 'Result 1',
-            url: 'https://example.com/1',
-            content: 'Content 1',
-            score: 0.9,
-          },
-        ],
-        responseTime: 500,
-      }),
-    });
+  it('searches with API key via direct execution', async () => {
+    const searchResponse = makeSearchResponse();
+    mockSearchWithProvider.mockResolvedValue(searchResponse);
 
     const input: WebSearchToolInput = {
       query: 'test query',
@@ -69,25 +102,17 @@ describe('executeWebSearch', () => {
     expect(result.answer).toBe('This is the answer');
     expect(result.results).toHaveLength(1);
     expect(result.responseTime).toBe(500);
+    expect(mockSearchWithProvider).toHaveBeenCalledWith(
+      'tavily',
+      'test query',
+      'test-api-key',
+      expect.objectContaining({ maxResults: 5, searchDepth: 'basic' })
+    );
   });
 
-  it('searches with provider settings', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'perplexity',
-        query: 'test query',
-        results: [
-          {
-            title: 'Result',
-            url: 'https://example.com',
-            content: 'Content',
-            score: 0.8,
-          },
-        ],
-        responseTime: 600,
-      }),
-    });
+  it('searches with provider settings via direct execution', async () => {
+    const searchResponse = makeSearchResponse({ provider: 'perplexity' });
+    mockSearch.mockResolvedValue(searchResponse);
 
     const input: WebSearchToolInput = {
       query: 'test query',
@@ -105,19 +130,17 @@ describe('executeWebSearch', () => {
     const result = await executeWebSearch(input, config);
 
     expect(result.success).toBe(true);
-    expect(mockFetch).toHaveBeenCalled();
+    expect(mockSearch).toHaveBeenCalledWith(
+      'test query',
+      expect.objectContaining({
+        providerSettings: config.providerSettings,
+        fallbackEnabled: true,
+      })
+    );
   });
 
-  it('uses specified provider', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'exa',
-        query: 'test',
-        results: [],
-        responseTime: 100,
-      }),
-    });
+  it('uses specified provider from input', async () => {
+    mockSearchWithProvider.mockResolvedValue(makeSearchResponse({ provider: 'exa' }));
 
     const input: WebSearchToolInput = {
       query: 'test',
@@ -126,26 +149,19 @@ describe('executeWebSearch', () => {
       searchDepth: 'basic',
     };
 
-    const config: WebSearchConfig = {
-      apiKey: 'test-key',
-    };
+    const config: WebSearchConfig = { apiKey: 'test-key' };
 
     const result = await executeWebSearch(input, config);
 
     expect(result.success).toBe(true);
     expect(result.provider).toBe('exa');
+    expect(mockSearchWithProvider).toHaveBeenCalledWith(
+      'exa', 'test', 'test-key', expect.any(Object)
+    );
   });
 
-  it('uses default provider when not specified', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'tavily',
-        query: 'test',
-        results: [],
-        responseTime: 100,
-      }),
-    });
+  it('defaults to tavily when no provider specified', async () => {
+    mockSearchWithProvider.mockResolvedValue(makeSearchResponse());
 
     const input: WebSearchToolInput = {
       query: 'test',
@@ -153,36 +169,14 @@ describe('executeWebSearch', () => {
       searchDepth: 'basic',
     };
 
-    const config: WebSearchConfig = {
-      apiKey: 'test-key',
-    };
+    const config: WebSearchConfig = { apiKey: 'test-key' };
 
     const result = await executeWebSearch(input, config);
 
     expect(result.success).toBe(true);
-    expect(result.provider).toBe('tavily');
-  });
-
-  it('handles search errors', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: 'API error' }),
-    });
-
-    const input: WebSearchToolInput = {
-      query: 'test',
-      maxResults: 5,
-      searchDepth: 'basic',
-    };
-
-    const config: WebSearchConfig = {
-      apiKey: 'test-key',
-    };
-
-    const result = await executeWebSearch(input, config);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('API error');
+    expect(mockSearchWithProvider).toHaveBeenCalledWith(
+      'tavily', 'test', 'test-key', expect.any(Object)
+    );
   });
 
   it('returns error when no config provided', async () => {
@@ -200,12 +194,58 @@ describe('executeWebSearch', () => {
     expect(result.error).toBe('No API key or provider settings provided');
   });
 
-  it('includes publishedDate in results', async () => {
+  it('handles direct search errors with API route fallback', async () => {
+    // Direct execution fails
+    mockSearchWithProvider.mockRejectedValue(new Error('Direct search failed'));
+
+    // API route fallback also fails
+    mockFetch.mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({ error: 'API error' }),
+    });
+
+    const input: WebSearchToolInput = {
+      query: 'test',
+      maxResults: 5,
+      searchDepth: 'basic',
+    };
+
+    const config: WebSearchConfig = { apiKey: 'test-key' };
+
+    const result = await executeWebSearch(input, config);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Direct search failed');
+  });
+
+  it('falls back to API route when direct execution fails', async () => {
+    // Direct execution fails
+    mockSearchWithProvider.mockRejectedValue(new Error('Module not found'));
+
+    // API route succeeds
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        provider: 'tavily',
-        query: 'test',
+      json: () => Promise.resolve(makeSearchResponse({ provider: 'tavily' })),
+    });
+
+    const input: WebSearchToolInput = {
+      query: 'fallback test',
+      maxResults: 5,
+      searchDepth: 'basic',
+    };
+
+    const config: WebSearchConfig = { apiKey: 'test-key' };
+
+    const result = await executeWebSearch(input, config);
+
+    expect(result.success).toBe(true);
+    expect(result.provider).toBe('tavily');
+    expect(mockFetch).toHaveBeenCalledWith('/api/search', expect.any(Object));
+  });
+
+  it('includes publishedDate in results', async () => {
+    mockSearchWithProvider.mockResolvedValue(
+      makeSearchResponse({
         results: [
           {
             title: 'Article',
@@ -215,9 +255,8 @@ describe('executeWebSearch', () => {
             publishedDate: '2024-01-15',
           },
         ],
-        responseTime: 100,
-      }),
-    });
+      })
+    );
 
     const input: WebSearchToolInput = {
       query: 'test',
@@ -228,6 +267,45 @@ describe('executeWebSearch', () => {
     const result = await executeWebSearch(input, { apiKey: 'key' });
 
     expect(result.results?.[0].publishedDate).toBe('2024-01-15');
+  });
+
+  it('returns cached result on cache hit', async () => {
+    const cachedResponse = makeSearchResponse({ responseTime: 0 });
+    mockCacheGet.mockReturnValue(cachedResponse);
+
+    const input: WebSearchToolInput = {
+      query: 'cached query',
+      maxResults: 5,
+      searchDepth: 'basic',
+    };
+
+    const result = await executeWebSearch(input, { apiKey: 'key' });
+
+    expect(result.success).toBe(true);
+    expect(result.query).toBe('test query');
+    // Direct search should NOT be called because cache returned a result
+    expect(mockSearchWithProvider).not.toHaveBeenCalled();
+    expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it('stores result in cache after successful search', async () => {
+    mockCacheGet.mockReturnValue(null); // cache miss
+    mockSearchWithProvider.mockResolvedValue(makeSearchResponse());
+
+    const input: WebSearchToolInput = {
+      query: 'new query',
+      maxResults: 5,
+      searchDepth: 'basic',
+    };
+
+    await executeWebSearch(input, { apiKey: 'key' });
+
+    expect(mockCacheSet).toHaveBeenCalledWith(
+      'new query',
+      expect.objectContaining({ provider: 'tavily' }),
+      'tavily',
+      expect.any(Object)
+    );
   });
 });
 
@@ -243,19 +321,12 @@ describe('executeWebSearchWithApiKey', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch.mockReset();
+    mockSearchWithProvider.mockReset();
+    mockCacheGet.mockReturnValue(null);
   });
 
   it('searches with API key directly', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'tavily',
-        query: 'test query',
-        results: [],
-        responseTime: 100,
-      }),
-    });
+    mockSearchWithProvider.mockResolvedValue(makeSearchResponse());
 
     const input: WebSearchToolInput = {
       query: 'test query',
@@ -266,19 +337,13 @@ describe('executeWebSearchWithApiKey', () => {
     const result = await executeWebSearchWithApiKey(input, 'my-api-key');
 
     expect(result.success).toBe(true);
-    expect(mockFetch).toHaveBeenCalled();
+    expect(mockSearchWithProvider).toHaveBeenCalled();
   });
 
   it('uses provider from input', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        provider: 'perplexity',
-        query: 'test',
-        results: [],
-        responseTime: 100,
-      }),
-    });
+    mockSearchWithProvider.mockResolvedValue(
+      makeSearchResponse({ provider: 'perplexity' })
+    );
 
     const input: WebSearchToolInput = {
       query: 'test',

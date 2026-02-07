@@ -3,6 +3,17 @@
 /**
  * DesignerPreview - Interactive preview with element selection
  * Similar to V0's visual editing mode
+ *
+ * Features:
+ * - Live preview with srcdoc for fast hot reload
+ * - Console log/warn/error/info capture from iframe
+ * - Runtime error capture and display
+ * - Scroll position preservation across updates
+ * - Element selection and hover with bidirectional sync
+ * - Drag-and-drop component insertion
+ * - Custom viewport dimensions support
+ * - Preview toolbar with refresh, screenshot, new tab, fullscreen
+ * - Collapsible console panel
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
@@ -14,6 +25,8 @@ import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import { getInsertionPoint, findElementByPattern } from '@/lib/designer/elements';
 import type { ViewportSize } from '@/types/designer';
+import { PreviewToolbar } from './preview-toolbar';
+import { PreviewConsole } from './preview-console';
 
 interface DesignerPreviewProps {
   className?: string;
@@ -21,7 +34,7 @@ interface DesignerPreviewProps {
   onElementHover?: (elementId: string | null) => void;
 }
 
-// Wrap code for preview in iframe
+// Wrap code for preview in iframe with console capture and error handling
 function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
   const tailwindCDN = 'https://cdn.tailwindcss.com';
   
@@ -61,10 +74,89 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
               DEFAULT: 'hsl(var(--card))',
               foreground: 'hsl(var(--card-foreground))',
             },
-          }
+            destructive: {
+              DEFAULT: 'hsl(var(--destructive))',
+              foreground: 'hsl(var(--destructive-foreground))',
+            },
+            ring: 'hsl(var(--ring))',
+          },
+          borderRadius: {
+            lg: 'var(--radius)',
+            md: 'calc(var(--radius) - 2px)',
+            sm: 'calc(var(--radius) - 4px)',
+          },
         }
       }
     }
+  </script>
+  <script>
+    // Console capture - intercept all console methods and forward to parent
+    (function() {
+      var origConsole = {
+        log: console.log.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        info: console.info.bind(console),
+      };
+      function serialize(args) {
+        return Array.from(args).map(function(arg) {
+          if (arg === null) return 'null';
+          if (arg === undefined) return 'undefined';
+          if (typeof arg === 'object') {
+            try { return JSON.stringify(arg, null, 2); }
+            catch(e) { return String(arg); }
+          }
+          return String(arg);
+        }).join(' ');
+      }
+      ['log', 'warn', 'error', 'info'].forEach(function(level) {
+        console[level] = function() {
+          origConsole[level].apply(console, arguments);
+          try {
+            window.parent.postMessage({
+              type: 'preview-console',
+              level: level,
+              message: serialize(arguments),
+              timestamp: Date.now(),
+            }, '*');
+          } catch(e) {}
+        };
+      });
+      // Capture uncaught errors
+      window.onerror = function(message, source, lineno, colno, error) {
+        var msg = message + (source ? ' at ' + source : '') + (lineno ? ':' + lineno : '');
+        window.parent.postMessage({
+          type: 'preview-error',
+          message: msg,
+          stack: error ? error.stack : '',
+        }, '*');
+        window.parent.postMessage({
+          type: 'preview-console',
+          level: 'error',
+          message: '[Runtime Error] ' + msg,
+          timestamp: Date.now(),
+        }, '*');
+      };
+      // Capture unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(event) {
+        var msg = 'Unhandled Promise Rejection: ' + (event.reason ? (event.reason.message || String(event.reason)) : 'unknown');
+        window.parent.postMessage({
+          type: 'preview-error',
+          message: msg,
+          stack: event.reason && event.reason.stack ? event.reason.stack : '',
+        }, '*');
+        window.parent.postMessage({
+          type: 'preview-console',
+          level: 'error',
+          message: msg,
+          timestamp: Date.now(),
+        }, '*');
+      });
+      // Notify parent that preview is ready
+      window.addEventListener('DOMContentLoaded', function() {
+        window.parent.postMessage({ type: 'preview-ready' }, '*');
+      });
+    })();
   </script>
   <style>
     :root {
@@ -81,6 +173,10 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
       --accent: 210 40% 96.1%;
       --accent-foreground: 222.2 47.4% 11.2%;
       --border: 214.3 31.8% 91.4%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 210 40% 98%;
+      --ring: 222.2 84% 4.9%;
+      --radius: 0.5rem;
     }
     .dark {
       --background: 222.2 84% 4.9%;
@@ -96,8 +192,13 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
       --accent: 217.2 32.6% 17.5%;
       --accent-foreground: 210 40% 98%;
       --border: 217.2 32.6% 17.5%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+      --ring: 212.7 26.8% 83.9%;
     }
+    * { box-sizing: border-box; }
     body {
+      margin: 0;
       background-color: hsl(var(--background));
       color: hsl(var(--foreground));
       font-family: system-ui, -apple-system, sans-serif;
@@ -115,6 +216,21 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
     [data-element-id].highlighted {
       outline: 2px dashed hsl(var(--primary) / 0.7);
       background-color: hsl(var(--primary) / 0.05);
+    }
+    /* Spacing measurement overlay */
+    [data-element-id].selected::before {
+      content: attr(data-element-id);
+      position: absolute;
+      top: -18px;
+      left: 0;
+      font-size: 10px;
+      padding: 1px 4px;
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border-radius: 2px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10000;
     }
     /* Drag-drop states */
     body.drag-active {
@@ -152,29 +268,55 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
         e.stopPropagation();
         document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
         element.classList.add('selected');
+        const rect = element.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(element);
         window.parent.postMessage({
           type: 'element-select',
           elementId: element.getAttribute('data-element-id'),
           tagName: element.tagName.toLowerCase(),
           className: element.className.replace('selected', '').trim(),
-          rect: element.getBoundingClientRect(),
+          rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+          computedStyles: {
+            padding: computedStyle.padding,
+            margin: computedStyle.margin,
+            display: computedStyle.display,
+            position: computedStyle.position,
+          },
         }, '*');
       }
     });
 
-    // Handle hover
+    // Handle hover with spacing measurement
+    let lastHoveredId = null;
     document.addEventListener('mouseover', (e) => {
       const element = e.target.closest('[data-element-id]');
       if (element) {
-        window.parent.postMessage({
-          type: 'element-hover',
-          elementId: element.getAttribute('data-element-id'),
-          rect: element.getBoundingClientRect(),
-        }, '*');
+        const elId = element.getAttribute('data-element-id');
+        if (elId !== lastHoveredId) {
+          lastHoveredId = elId;
+          const rect = element.getBoundingClientRect();
+          const computedStyle = window.getComputedStyle(element);
+          window.parent.postMessage({
+            type: 'element-hover',
+            elementId: elId,
+            rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+            spacing: {
+              paddingTop: computedStyle.paddingTop,
+              paddingRight: computedStyle.paddingRight,
+              paddingBottom: computedStyle.paddingBottom,
+              paddingLeft: computedStyle.paddingLeft,
+              marginTop: computedStyle.marginTop,
+              marginRight: computedStyle.marginRight,
+              marginBottom: computedStyle.marginBottom,
+              marginLeft: computedStyle.marginLeft,
+            },
+          }, '*');
+        }
       }
     });
 
     document.addEventListener('mouseout', (e) => {
+      lastHoveredId = null;
       window.parent.postMessage({ type: 'element-hover', elementId: null }, '*');
     });
 
@@ -210,6 +352,14 @@ function wrapCodeForPreview(code: string, isDarkMode: boolean): string {
             position: position || 'inside',
           }, '*');
         }
+      } else if (e.data.type === 'get-scroll-position') {
+        window.parent.postMessage({
+          type: 'scroll-position',
+          scrollX: window.scrollX,
+          scrollY: window.scrollY,
+        }, '*');
+      } else if (e.data.type === 'restore-scroll-position') {
+        window.scrollTo(e.data.scrollX || 0, e.data.scrollY || 0);
       }
     });
 
@@ -291,12 +441,15 @@ export function DesignerPreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scrollPositionRef = useRef<{ scrollX: number; scrollY: number }>({ scrollX: 0, scrollY: 0 });
+  const isFirstLoadRef = useRef(true);
 
   const storeCode = useDesignerStore((state) => state.code);
   // Use deferred value to reduce preview refresh frequency during rapid typing
   const code = useDeferredValue(storeCode);
   const mode = useDesignerStore((state) => state.mode);
   const viewport = useDesignerStore((state) => state.viewport);
+  const customViewport = useDesignerStore((state) => state.customViewport);
   const zoom = useDesignerStore((state) => state.zoom);
   const selectElement = useDesignerStore((state) => state.selectElement);
   const hoverElement = useDesignerStore((state) => state.hoverElement);
@@ -304,6 +457,9 @@ export function DesignerPreview({
   const hoveredElementId = useDesignerStore((state) => state.hoveredElementId);
   const parseCodeToElements = useDesignerStore((state) => state.parseCodeToElements);
   const setCode = useDesignerStore((state) => state.setCode);
+  const addConsoleLog = useDesignerStore((state) => state.addConsoleLog);
+  const addPreviewError = useDesignerStore((state) => state.addPreviewError);
+  const clearPreviewErrors = useDesignerStore((state) => state.clearPreviewErrors);
 
   const isDarkMode = useSettingsStore((state) => state.theme === 'dark');
 
@@ -325,8 +481,17 @@ export function DesignerPreview({
     }, '*');
   }, [hoveredElementId]);
 
-  // Calculate viewport dimensions
+  // Calculate viewport dimensions (supports custom viewport)
   const viewportStyle = useMemo(() => {
+    if (customViewport) {
+      return {
+        width: `${customViewport.width}px`,
+        height: `${customViewport.height}px`,
+        transform: `scale(${zoom / 100})`,
+        transformOrigin: 'top center' as const,
+      };
+    }
+
     const presets: Record<ViewportSize, { width: number; height: number | 'auto' }> = {
       mobile: { width: 375, height: 667 },
       tablet: { width: 768, height: 1024 },
@@ -341,7 +506,7 @@ export function DesignerPreview({
         width: '100%',
         height: '100%',
         transform: `scale(${zoom / 100})`,
-        transformOrigin: 'top left',
+        transformOrigin: 'top left' as const,
       };
     }
 
@@ -349,140 +514,176 @@ export function DesignerPreview({
       width: `${preset.width}px`,
       height: preset.height === 'auto' ? '100%' : `${preset.height}px`,
       transform: `scale(${zoom / 100})`,
-      transformOrigin: 'top center',
+      transformOrigin: 'top center' as const,
     };
-  }, [viewport, zoom]);
+  }, [viewport, customViewport, zoom]);
 
-  // Handle messages from iframe
+  // Handle messages from iframe (console, errors, element events, scroll)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const data = event.data;
+      if (!data || typeof data.type !== 'string') return;
       
-      if (data.type === 'element-select') {
-        selectElement(data.elementId);
-        onElementSelect?.(data.elementId);
-      } else if (data.type === 'element-hover') {
-        hoverElement(data.elementId);
-        onElementHover?.(data.elementId);
-      } else if (data.type === 'component-dropped') {
-        // Handle component drop - insert code into the design using element-locator
-        const { code: droppedCode, targetElementId } = data;
-        if (droppedCode) {
-          // Use element-locator for accurate code insertion
-          const insertCodeAtPosition = async () => {
-            try {
-              const insertPoint = await getInsertionPoint(code, targetElementId, 'inside');
-              
-              let nextCode = code;
-              if (insertPoint && insertPoint.offset !== undefined) {
-                // Insert at calculated position with proper indentation
-                const before = code.slice(0, insertPoint.offset);
-                const after = code.slice(insertPoint.offset);
-                const indentedCode = droppedCode
-                  .split('\n')
-                  .map((line: string, i: number) => (i === 0 ? line : insertPoint.indentation + line))
-                  .join('\n');
-                nextCode = before + '\n' + insertPoint.indentation + indentedCode + '\n' + after;
-                setCode(nextCode, true);
-              } else {
-                // Fallback: use pattern matching to find insertion point
-                if (targetElementId) {
-                  const match = findElementByPattern(code, targetElementId);
-                  if (match) {
-                    // Find the closing > of the opening tag
-                    const tagEnd = code.indexOf('>', match.startIndex);
-                    if (tagEnd !== -1) {
-                      nextCode = code.slice(0, tagEnd + 1) + '\n  ' + droppedCode + code.slice(tagEnd + 1);
+      switch (data.type) {
+        case 'element-select':
+          selectElement(data.elementId);
+          onElementSelect?.(data.elementId);
+          break;
+
+        case 'element-hover':
+          hoverElement(data.elementId);
+          onElementHover?.(data.elementId);
+          break;
+
+        case 'preview-console':
+          addConsoleLog({
+            level: data.level,
+            message: data.message,
+            timestamp: data.timestamp,
+          });
+          break;
+
+        case 'preview-error':
+          addPreviewError(data.message);
+          break;
+
+        case 'preview-ready':
+          setIsLoading(false);
+          setError(null);
+          // Restore scroll position after content loads
+          if (!isFirstLoadRef.current && scrollPositionRef.current) {
+            setTimeout(() => {
+              iframeRef.current?.contentWindow?.postMessage({
+                type: 'restore-scroll-position',
+                ...scrollPositionRef.current,
+              }, '*');
+            }, 50);
+          }
+          isFirstLoadRef.current = false;
+          break;
+
+        case 'scroll-position':
+          scrollPositionRef.current = { scrollX: data.scrollX, scrollY: data.scrollY };
+          break;
+
+        case 'component-dropped': {
+          const { code: droppedCode, targetElementId } = data;
+          if (droppedCode) {
+            const insertCodeAtPosition = async () => {
+              try {
+                const insertPoint = await getInsertionPoint(code, targetElementId, 'inside');
+                
+                let nextCode = code;
+                if (insertPoint && insertPoint.offset !== undefined) {
+                  const before = code.slice(0, insertPoint.offset);
+                  const after = code.slice(insertPoint.offset);
+                  const indentedCode = droppedCode
+                    .split('\n')
+                    .map((line: string, i: number) => (i === 0 ? line : insertPoint.indentation + line))
+                    .join('\n');
+                  nextCode = before + '\n' + insertPoint.indentation + indentedCode + '\n' + after;
+                  setCode(nextCode, true);
+                } else {
+                  if (targetElementId) {
+                    const match = findElementByPattern(code, targetElementId);
+                    if (match) {
+                      const tagEnd = code.indexOf('>', match.startIndex);
+                      if (tagEnd !== -1) {
+                        nextCode = code.slice(0, tagEnd + 1) + '\n  ' + droppedCode + code.slice(tagEnd + 1);
+                        setCode(nextCode, true);
+                      }
+                    }
+                  } else {
+                    const insertIdx = code.lastIndexOf('</');
+                    if (insertIdx !== -1) {
+                      nextCode = code.slice(0, insertIdx) + '\n' + droppedCode + '\n' + code.slice(insertIdx);
                       setCode(nextCode, true);
                     }
                   }
-                } else {
-                  // Append to root
-                  const insertIdx = code.lastIndexOf('</');
-                  if (insertIdx !== -1) {
-                    nextCode = code.slice(0, insertIdx) + '\n' + droppedCode + '\n' + code.slice(insertIdx);
-                    setCode(nextCode, true);
-                  }
                 }
+                void parseCodeToElements(nextCode);
+              } catch (err) {
+                console.error('Failed to insert code:', err);
               }
-              void parseCodeToElements(nextCode);
-            } catch (err) {
-              console.error('Failed to insert code:', err);
-            }
-          };
-          insertCodeAtPosition();
+            };
+            insertCodeAtPosition();
+          }
+          break;
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [selectElement, hoverElement, onElementSelect, onElementHover, code, setCode, parseCodeToElements]);
+  }, [selectElement, hoverElement, onElementSelect, onElementHover, code, setCode, parseCodeToElements, addConsoleLog, addPreviewError]);
 
-  // Update iframe content when code changes
+  // Save scroll position before updating content
+  const saveScrollPosition = useCallback(() => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: 'get-scroll-position' }, '*');
+    }
+  }, []);
+
+  // Update iframe content when code changes using srcdoc for better performance
   useEffect(() => {
     if (!iframeRef.current) return;
 
-    const iframe = iframeRef.current;
-    let url: string | null = null;
-    let isMounted = true;
-
-    const handleError = (message: string) => {
-      if (isMounted) {
-        setError(message);
-        setIsLoading(false);
-      }
-    };
+    // Save scroll position before update
+    saveScrollPosition();
+    clearPreviewErrors();
 
     try {
       const wrappedCode = wrapCodeForPreview(code, isDarkMode);
-      const blob = new Blob([wrappedCode], { type: 'text/html' });
-      url = URL.createObjectURL(blob);
-      
-      iframe.onload = () => {
-        if (isMounted) setIsLoading(false);
-        if (url) URL.revokeObjectURL(url);
-      };
-
-      iframe.onerror = () => {
-        handleError('Failed to load preview');
-        if (url) URL.revokeObjectURL(url);
-      };
-
-      iframe.src = url;
+      setIsLoading(true);
+      setError(null);
+      // Use srcdoc for faster updates without blob URL management
+      iframeRef.current.srcdoc = wrappedCode;
     } catch (err) {
-      // Defer error handling to next tick to avoid synchronous setState
       setTimeout(() => {
-        handleError(err instanceof Error ? err.message : 'Preview error');
+        setError(err instanceof Error ? err.message : 'Preview error');
+        setIsLoading(false);
       }, 0);
     }
+  }, [code, isDarkMode, saveScrollPosition, clearPreviewErrors]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [code, isDarkMode]);
-
-  // Refresh preview
+  // Refresh preview (full reload)
   const handleRefresh = useCallback(() => {
     if (iframeRef.current) {
+      isFirstLoadRef.current = true;
+      scrollPositionRef.current = { scrollX: 0, scrollY: 0 };
       setIsLoading(true);
+      setError(null);
       const wrappedCode = wrapCodeForPreview(code, isDarkMode);
-      const blob = new Blob([wrappedCode], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      iframeRef.current.src = url;
+      iframeRef.current.srcdoc = wrappedCode;
     }
+  }, [code, isDarkMode]);
+
+  // Open preview in new tab
+  const handleOpenNewTab = useCallback(() => {
+    const wrappedCode = wrapCodeForPreview(code, isDarkMode);
+    const blob = new Blob([wrappedCode], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }, [code, isDarkMode]);
 
   return (
     <div className={cn('relative flex flex-col h-full min-h-0 bg-muted/30', className)}>
+      {/* Preview toolbar */}
+      <PreviewToolbar
+        onRefresh={handleRefresh}
+        onOpenNewTab={handleOpenNewTab}
+        iframeRef={iframeRef}
+      />
+
       {/* Preview container */}
       <div className="flex-1 min-h-0 overflow-auto flex items-start justify-center p-4">
         <div
           className={cn(
             'relative bg-background border rounded-lg shadow-sm overflow-hidden transition-all',
-            viewport === 'full' ? 'w-full h-full' : 'flex-shrink-0'
+            viewport === 'full' && !customViewport ? 'w-full h-full' : 'flex-shrink-0'
           )}
-          style={viewport !== 'full' ? viewportStyle : undefined}
+          style={viewport !== 'full' || customViewport ? viewportStyle : undefined}
         >
           {/* Loading overlay */}
           {isLoading && (
@@ -518,15 +719,13 @@ export function DesignerPreview({
               mode === 'preview' && 'pointer-events-auto'
             )}
             sandbox="allow-scripts allow-same-origin"
-            style={viewport === 'full' ? viewportStyle : { width: '100%', height: '100%' }}
+            style={viewport === 'full' && !customViewport ? viewportStyle : { width: '100%', height: '100%' }}
           />
         </div>
       </div>
 
-      {/* Viewport indicator */}
-      <div className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-        {viewport} • {zoom}%
-      </div>
+      {/* Console panel */}
+      <PreviewConsole />
     </div>
   );
 }

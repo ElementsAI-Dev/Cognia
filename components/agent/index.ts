@@ -30,10 +30,12 @@ export { A2UITemplatePreview } from './a2ui-template-preview';
 
 // Agent team components
 export { AgentTeamPanel, type AgentTeamPanelProps } from './agent-team-panel';
+export { AgentTeamPanelSheet } from './agent-team-panel-sheet';
 export { AgentTeamTemplateSelector, type AgentTeamTemplateSelectorProps } from './agent-team-template-selector';
 export { AgentTeamCreateDialog, type AgentTeamCreateDialogProps } from './agent-team-create-dialog';
 export { AgentTeamTeammateEditor, type AgentTeamTeammateEditorProps } from './agent-team-teammate-editor';
 export { AgentTeamIndicator, type AgentTeamIndicatorProps } from './agent-team-indicator';
+export { AgentTeamResultCard, type AgentTeamResultCardProps } from './agent-team-result-card';
 
 // External agent components
 export { ExternalAgentSelector } from './external-agent-selector';

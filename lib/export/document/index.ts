@@ -8,3 +8,4 @@ export * from './beautiful-pdf';
 export * from './excel-export';
 export * from './pptx-export';
 export * from './google-sheets-export';
+export * from './spreadsheet-sanitize';

@@ -18,6 +18,25 @@ jest.mock('@/lib/plugin/security/permission-requests', () => ({
 
 jest.mock('@/lib/plugin/security/permission-guard', () => ({
   getPermissionGuard: jest.fn(),
+  PERMISSION_DESCRIPTIONS: {
+    'filesystem:read': 'Read files from the file system',
+    'filesystem:write': 'Write files to the file system',
+    'network:fetch': 'Make HTTP/HTTPS requests',
+    'network:websocket': 'Establish WebSocket connections',
+    'clipboard:read': 'Read from the clipboard',
+    'clipboard:write': 'Write to the clipboard',
+    'notification': 'Show system notifications',
+    'shell:execute': 'Execute shell commands',
+    'process:spawn': 'Spawn child processes',
+    'database:read': 'Read from the database',
+    'database:write': 'Write to the database',
+    'settings:read': 'Read application settings',
+    'settings:write': 'Modify application settings',
+    'session:read': 'Read chat sessions',
+    'session:write': 'Modify chat sessions',
+    'agent:control': 'Control agent execution',
+    'python:execute': 'Execute Python code',
+  },
 }));
 
 jest.mock('next-intl', () => ({

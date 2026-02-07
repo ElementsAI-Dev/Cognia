@@ -33,6 +33,8 @@ import {
   WrapText,
   Map,
   Hash,
+  ChevronRight,
+  ListTree,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -61,17 +63,24 @@ import {
   useCanvasDocuments,
   useCanvasSuggestions,
   useChunkLoader,
+  useCanvasMonacoSetup,
 } from '@/hooks/canvas';
 import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
-import { isLargeDocument } from '@/lib/canvas/utils';
+import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
+import { isLargeDocument, getMonacoLanguage, calculateDocumentStats } from '@/lib/canvas/utils';
+import { symbolParser } from '@/lib/canvas/symbols/symbol-parser';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { createEditorOptions } from '@/lib/monaco';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
+import { DocumentFormatToolbar, type FormatAction } from '@/components/document/document-format-toolbar';
 import {
   executeCanvasAction,
+  executeCanvasActionStreaming,
   applyCanvasActionResult,
+  generateDiffPreview,
   type CanvasActionType,
+  type DiffLine,
 } from '@/lib/ai/generation/canvas-actions';
 import type { ProviderName } from '@/lib/ai/core/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -192,6 +201,14 @@ function CanvasPanelContent() {
   const [copied, setCopied] = useState(false);
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
 
+  // Streaming AI action state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+
+  // Diff preview state
+  const [diffPreview, setDiffPreview] = useState<DiffLine[] | null>(null);
+  const [pendingContent, setPendingContent] = useState<string | null>(null);
+
   // Code execution hook
   const {
     isExecuting: isCodeExecuting,
@@ -219,6 +236,26 @@ function CanvasPanelContent() {
     generateSuggestions,
   } = useCanvasSuggestions();
 
+  // Canvas Monaco setup - integrates snippets, symbols, themes, plugins
+  const {
+    symbols: documentSymbols,
+    breadcrumb: symbolBreadcrumb,
+    currentSymbol: _currentSymbol,
+    availableThemes,
+    activeThemeId: canvasThemeId,
+    setActiveTheme: setCanvasTheme,
+    handleEditorMount: onCanvasEditorMount,
+    handleEditorWillUnmount: _onCanvasEditorUnmount,
+    goToSymbol,
+  } = useCanvasMonacoSetup({
+    documentId: activeCanvasId,
+    language: activeDocument?.language || 'plaintext',
+    content: localContent,
+  });
+
+  // Show/hide symbol outline
+  const [showSymbolOutline, setShowSymbolOutline] = useState(false);
+
   // Large file optimization
   const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
   const { isLargeDocument: isLargeDoc, state: chunkState } = useChunkLoader(activeCanvasId);
@@ -241,12 +278,9 @@ function CanvasPanelContent() {
     };
   }, [activeCanvasId, activeDocument, isLargeFile, addChunkedDocument, removeChunkedDocument]);
 
-  // Editor settings state
-  const [editorSettings, setEditorSettings] = useState({
-    wordWrap: false,
-    minimap: true,
-    lineNumbers: true,
-  });
+  // Editor settings from persistent store
+  const editorSettings = useCanvasSettingsStore((s) => s.settings.editor);
+  const updateEditorSettings = useCanvasSettingsStore((s) => s.updateEditorSettings);
 
   // Check if current document can be opened in Designer
   const canOpenInDesigner =
@@ -254,13 +288,7 @@ function CanvasPanelContent() {
     ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
 
   // Calculate document statistics
-  const documentStats = useMemo(() => {
-    if (!localContent) return { lines: 0, words: 0, chars: 0 };
-    const lines = localContent.split('\n').length;
-    const words = localContent.trim() ? localContent.trim().split(/\s+/).length : 0;
-    const chars = localContent.length;
-    return { lines, words, chars };
-  }, [localContent]);
+  const documentStats = useMemo(() => calculateDocumentStats(localContent), [localContent]);
 
   // Handle Designer code changes
   const handleDesignerCodeChange = useCallback(
@@ -499,58 +527,86 @@ function CanvasPanelContent() {
         return;
       }
 
-      try {
-        const result = await executeCanvasAction(
-          action.type as CanvasActionType,
-          localContent,
-          {
-            provider,
-            model,
-            apiKey: settings?.apiKey || '',
-            baseURL: settings?.baseURL,
-          },
-          {
-            language: activeDocument.language,
-            selection: selection || undefined,
-            targetLanguage: translateTargetLang,
-          }
-        );
+      const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
+      const isContentAction = contentActions.includes(action.type);
+      const actionConfig = {
+        provider,
+        model,
+        apiKey: settings?.apiKey || '',
+        baseURL: settings?.baseURL,
+      };
+      const actionOptions = {
+        language: activeDocument.language,
+        selection: selection || undefined,
+        targetLanguage: translateTargetLang,
+      };
 
-        if (result.success && result.result) {
-          // For content-modifying actions, apply the result
-          const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
-          if (contentActions.includes(action.type)) {
-            const newContent = applyCanvasActionResult(
-              localContent,
-              result.result,
-              selection || undefined
-            );
-            setLocalContent(newContent);
-            if (activeCanvasId) {
-              updateCanvasDocument(activeCanvasId, { content: newContent });
-              setHasUnsavedChanges(true);
-            }
-          } else if (action.type === 'review') {
-            // For review action, also generate inline suggestions
-            generateSuggestions(
-              {
-                content: localContent,
-                language: activeDocument.language,
-                selection: selection || undefined,
+      try {
+        if (isContentAction) {
+          // Use streaming for content-modifying actions
+          setIsStreaming(true);
+          setStreamingContent('');
+
+          await executeCanvasActionStreaming(
+            action.type as CanvasActionType,
+            localContent,
+            actionConfig,
+            {
+              onToken: (token) => {
+                setStreamingContent((prev) => prev + token);
               },
-              { focusArea: 'all' }
-            );
-            // Still show the review result
-            setActionResult(result.result);
-          } else {
-            // For explain actions, show the result
-            setActionResult(result.result);
+              onComplete: (fullText) => {
+                setIsStreaming(false);
+                // Generate diff preview
+                const newContent = applyCanvasActionResult(
+                  localContent,
+                  fullText,
+                  selection || undefined
+                );
+                const diff = generateDiffPreview(localContent, newContent);
+                setDiffPreview(diff);
+                setPendingContent(newContent);
+                setStreamingContent('');
+              },
+              onError: (error) => {
+                setIsStreaming(false);
+                setStreamingContent('');
+                setActionError(error);
+              },
+            },
+            actionOptions
+          );
+        } else {
+          // Use non-streaming for review/explain/run actions
+          const result = await executeCanvasAction(
+            action.type as CanvasActionType,
+            localContent,
+            actionConfig,
+            actionOptions
+          );
+
+          if (result.success && result.result) {
+            if (action.type === 'review') {
+              generateSuggestions(
+                {
+                  content: localContent,
+                  language: activeDocument.language,
+                  selection: selection || undefined,
+                },
+                { focusArea: 'all' }
+              );
+              setActionResult(result.result);
+            } else {
+              setActionResult(result.result);
+            }
+          } else if (!result.success) {
+            setActionError(result.error || 'Action failed');
           }
-        } else if (!result.success) {
-          setActionError(result.error || 'Action failed');
         }
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'An error occurred');
+        setIsStreaming(false);
+        setStreamingContent('');
       } finally {
         setIsProcessing(false);
       }
@@ -562,11 +618,28 @@ function CanvasPanelContent() {
       providerSettings,
       localContent,
       selection,
-      activeCanvasId,
-      updateCanvasDocument,
       generateSuggestions,
     ]
   );
+
+  // Accept pending diff changes
+  const acceptDiffChanges = useCallback(() => {
+    if (pendingContent !== null) {
+      setLocalContent(pendingContent);
+      if (activeCanvasId) {
+        updateCanvasDocument(activeCanvasId, { content: pendingContent });
+        setHasUnsavedChanges(true);
+      }
+      setDiffPreview(null);
+      setPendingContent(null);
+    }
+  }, [pendingContent, activeCanvasId, updateCanvasDocument]);
+
+  // Reject pending diff changes
+  const rejectDiffChanges = useCallback(() => {
+    setDiffPreview(null);
+    setPendingContent(null);
+  }, []);
 
   // Listen for canvas-action custom events
   useEffect(() => {
@@ -597,24 +670,7 @@ function CanvasPanelContent() {
 
   const getLanguage = () => {
     if (!activeDocument) return 'plaintext';
-
-    const languageMap: Record<string, string> = {
-      javascript: 'javascript',
-      typescript: 'typescript',
-      python: 'python',
-      html: 'html',
-      css: 'css',
-      json: 'json',
-      markdown: 'markdown',
-      jsx: 'javascript',
-      tsx: 'typescript',
-      sql: 'sql',
-      bash: 'shell',
-      yaml: 'yaml',
-      xml: 'xml',
-    };
-
-    return languageMap[activeDocument.language] || 'plaintext';
+    return getMonacoLanguage(activeDocument.language);
   };
 
   return (
@@ -827,6 +883,54 @@ function CanvasPanelContent() {
               </TooltipProvider>
             </div>
 
+            {/* Document Format Toolbar - shown for non-code documents */}
+            {activeDocument && activeDocument.type !== 'code' && (
+              <DocumentFormatToolbar
+                onFormatAction={(action: FormatAction) => {
+                  // Insert markdown formatting at cursor position via editor content manipulation
+                  const formatMap: Record<string, { prefix: string; suffix: string }> = {
+                    bold: { prefix: '**', suffix: '**' },
+                    italic: { prefix: '_', suffix: '_' },
+                    underline: { prefix: '<u>', suffix: '</u>' },
+                    strikethrough: { prefix: '~~', suffix: '~~' },
+                    codeBlock: { prefix: '```\n', suffix: '\n```' },
+                    quote: { prefix: '> ', suffix: '' },
+                    heading1: { prefix: '# ', suffix: '' },
+                    heading2: { prefix: '## ', suffix: '' },
+                    heading3: { prefix: '### ', suffix: '' },
+                    bulletList: { prefix: '- ', suffix: '' },
+                    numberedList: { prefix: '1. ', suffix: '' },
+                    link: { prefix: '[', suffix: '](url)' },
+                    horizontalRule: { prefix: '\n---\n', suffix: '' },
+                  };
+
+                  const format = formatMap[action];
+                  if (format && selection) {
+                    const newContent = localContent.replace(
+                      selection,
+                      `${format.prefix}${selection}${format.suffix}`
+                    );
+                    setLocalContent(newContent);
+                    if (activeCanvasId) {
+                      updateCanvasDocument(activeCanvasId, { content: newContent });
+                    }
+                    setHasUnsavedChanges(true);
+                  } else if (format && !selection) {
+                    // Insert at end if no selection
+                    const newContent = localContent + `\n${format.prefix}${format.suffix}`;
+                    setLocalContent(newContent);
+                    if (activeCanvasId) {
+                      updateCanvasDocument(activeCanvasId, { content: newContent });
+                    }
+                    setHasUnsavedChanges(true);
+                  }
+                }}
+                disabled={isProcessing}
+                compact
+                className="border-b"
+              />
+            )}
+
             {/* Quick actions for selected text */}
             {selection && selection.length > 0 && !isProcessing && (
               <div className="flex items-center gap-1 px-4 py-1.5 bg-primary/5 border-b">
@@ -878,8 +982,104 @@ function CanvasPanelContent() {
               </Alert>
             )}
 
-            {/* Editor */}
-            <div className="flex-1 overflow-hidden">
+            {/* Streaming indicator */}
+            {isStreaming && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-primary">{t('streaming')}</span>
+                {streamingContent && (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {streamingContent.length} chars
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Diff preview panel */}
+            {diffPreview && diffPreview.length > 0 && (
+              <div className="border-b max-h-48 overflow-auto bg-muted/10">
+                <div className="flex items-center justify-between px-4 py-1.5 bg-muted/30 border-b">
+                  <span className="text-xs font-medium">{t('diffPreview')}</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-green-600 hover:text-green-700"
+                      onClick={acceptDiffChanges}
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      {t('acceptChanges')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-red-600 hover:text-red-700"
+                      onClick={rejectDiffChanges}
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      {t('rejectChanges')}
+                    </Button>
+                  </div>
+                </div>
+                <pre className="text-xs font-mono px-4 py-2">
+                  {diffPreview.map((line, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'px-2 py-0.5',
+                        line.type === 'added' && 'bg-green-500/10 text-green-700 dark:text-green-400',
+                        line.type === 'removed' && 'bg-red-500/10 text-red-700 dark:text-red-400 line-through',
+                        line.type === 'unchanged' && 'text-muted-foreground'
+                      )}
+                    >
+                      <span className="select-none mr-2 opacity-50">
+                        {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
+                      </span>
+                      {line.content}
+                    </div>
+                  ))}
+                </pre>
+              </div>
+            )}
+
+            {/* Symbol breadcrumb */}
+            {symbolBreadcrumb.length > 0 && (
+              <div className="flex items-center gap-1 px-4 py-1 bg-muted/30 border-b text-xs text-muted-foreground overflow-x-auto">
+                {symbolBreadcrumb.map((name, i) => (
+                  <span key={`${name}-${i}`} className="flex items-center gap-1 shrink-0">
+                    {i > 0 && <ChevronRight className="h-3 w-3" />}
+                    <span className="text-foreground/70">{name}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Editor + Symbol Outline */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* Symbol Outline Sidebar */}
+              {showSymbolOutline && documentSymbols.length > 0 && (
+                <div className="w-48 border-r overflow-auto bg-muted/20">
+                  <div className="p-2 text-xs font-medium text-muted-foreground flex items-center gap-1 border-b">
+                    <ListTree className="h-3.5 w-3.5" />
+                    {t('symbolOutline')}
+                  </div>
+                  <div className="p-1">
+                    {documentSymbols.map((sym) => (
+                      <button
+                        key={`${sym.name}-${sym.range.startLine}`}
+                        className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted/50 truncate flex items-center gap-1"
+                        onClick={() => goToSymbol(sym)}
+                      >
+                        <span className="shrink-0">{symbolParser.getSymbolIcon(sym.kind)}</span>
+                        <span className="truncate">{sym.name}</span>
+                        <span className="text-muted-foreground ml-auto shrink-0">:{sym.range.startLine}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-hidden">
               <MonacoEditor
                 height="100%"
                 language={getLanguage()}
@@ -887,15 +1087,29 @@ function CanvasPanelContent() {
                 value={localContent}
                 onChange={handleEditorChange}
                 options={createEditorOptions('code', {
+                  fontSize: editorSettings.fontSize,
+                  fontFamily: editorSettings.fontFamily,
+                  lineHeight: editorSettings.lineHeight,
+                  tabSize: editorSettings.tabSize,
+                  insertSpaces: editorSettings.insertSpaces,
                   minimap: { enabled: editorSettings.minimap, scale: 1 },
-                  lineNumbers: editorSettings.lineNumbers ? 'on' : 'off',
+                  lineNumbers: editorSettings.lineNumbers,
                   wordWrap: editorSettings.wordWrap ? 'on' : 'off',
+                  renderWhitespace: editorSettings.renderWhitespace,
+                  scrollBeyondLastLine: editorSettings.scrollBeyondLastLine,
+                  cursorBlinking: editorSettings.cursorBlinking,
+                  cursorStyle: editorSettings.cursorStyle,
+                  smoothScrolling: editorSettings.smoothScrolling,
+                  mouseWheelZoom: editorSettings.mouseWheelZoom,
                   stickyScroll: { enabled: true, maxLineCount: 5 },
-                  bracketPairColorization: { enabled: true },
-                  guides: { indentation: true, bracketPairs: true },
+                  bracketPairColorization: { enabled: editorSettings.bracketPairColorization },
+                  guides: editorSettings.guides,
                   inlineSuggest: { enabled: true },
                 })}
-                onMount={(editor) => {
+                onMount={(editor, monaco) => {
+                  // Initialize canvas infrastructure (snippets, symbols, themes, plugins)
+                  onCanvasEditorMount(editor, monaco);
+
                   // Track selection changes
                   editor.onDidChangeCursorSelection((e) => {
                     const model = editor.getModel();
@@ -906,6 +1120,7 @@ function CanvasPanelContent() {
                   });
                 }}
               />
+            </div>
             </div>
 
             {/* Code Execution Panel */}
@@ -942,13 +1157,58 @@ function CanvasPanelContent() {
                 )}
               </div>
               <div className="flex items-center gap-1">
+                {/* Symbol outline toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      size="sm"
+                      pressed={showSymbolOutline}
+                      onPressedChange={setShowSymbolOutline}
+                      aria-label={t('symbolOutline')}
+                      className="h-6 w-6 p-0"
+                    >
+                      <ListTree className="h-3.5 w-3.5" />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('symbolOutline')}</TooltipContent>
+                </Tooltip>
+
+                {/* Theme picker */}
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                          <Palette className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editorTheme')}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    {availableThemes.map((editorTheme) => (
+                      <DropdownMenuItem
+                        key={editorTheme.id}
+                        onClick={() => setCanvasTheme(editorTheme.id)}
+                        className={cn(canvasThemeId === editorTheme.id && 'bg-accent')}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full mr-2 border"
+                          style={{ backgroundColor: editorTheme.colors?.background || '#1e1e1e' }}
+                        />
+                        {editorTheme.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Toggle
                       size="sm"
                       pressed={editorSettings.wordWrap}
                       onPressedChange={(pressed) =>
-                        setEditorSettings((s) => ({ ...s, wordWrap: pressed }))
+                        updateEditorSettings({ wordWrap: pressed })
                       }
                       aria-label={t('wordWrap')}
                       className="h-6 w-6 p-0"
@@ -964,7 +1224,7 @@ function CanvasPanelContent() {
                       size="sm"
                       pressed={editorSettings.minimap}
                       onPressedChange={(pressed) =>
-                        setEditorSettings((s) => ({ ...s, minimap: pressed }))
+                        updateEditorSettings({ minimap: pressed })
                       }
                       aria-label={t('minimap')}
                       className="h-6 w-6 p-0"
@@ -978,9 +1238,9 @@ function CanvasPanelContent() {
                   <TooltipTrigger asChild>
                     <Toggle
                       size="sm"
-                      pressed={editorSettings.lineNumbers}
+                      pressed={editorSettings.lineNumbers === 'on'}
                       onPressedChange={(pressed) =>
-                        setEditorSettings((s) => ({ ...s, lineNumbers: pressed }))
+                        updateEditorSettings({ lineNumbers: pressed ? 'on' : 'off' })
                       }
                       aria-label={t('lineNumbers')}
                       className="h-6 w-6 p-0"

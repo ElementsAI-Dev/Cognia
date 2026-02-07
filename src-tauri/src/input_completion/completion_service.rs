@@ -3,7 +3,10 @@
 //! Handles requesting completions from various AI providers.
 
 use super::config::{CompletionModelConfig, CompletionProvider};
-use super::types::{CompletionContext, CompletionResult, CompletionSuggestion, CompletionType};
+use super::types::{
+    CompletionContext, CompletionFeedback, CompletionResult, CompletionSuggestion, CompletionType,
+    FeedbackStats,
+};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,6 +34,13 @@ struct ServiceStats {
     failed_completions: u64,
     cache_hits: u64,
     total_latency_ms: u64,
+    accepted_suggestions: u64,
+    dismissed_suggestions: u64,
+    feedback: FeedbackStats,
+    total_accept_time_ms: u64,
+    total_dismiss_time_ms: u64,
+    accept_time_count: u64,
+    dismiss_time_count: u64,
 }
 
 /// Cache entry for completions with LFU tracking
@@ -40,7 +50,6 @@ struct CacheEntry {
     /// Access count for LFU eviction
     access_count: u32,
     /// Original text prefix for prefix matching
-    #[allow(dead_code)]
     text_prefix: String,
 }
 
@@ -685,8 +694,9 @@ impl CompletionService {
     }
 
     /// Get cached result using prefix matching (for incremental completions)
-    #[allow(dead_code)]
-    fn get_cached_by_prefix(&self, text: &str) -> Option<CompletionResult> {
+    /// When the user types additional characters that match a cached suggestion,
+    /// returns the remaining portion of the suggestion without an API call.
+    pub fn get_cached_by_prefix(&self, text: &str) -> Option<CompletionResult> {
         let mut cache = self.cache.write();
         
         // Find entries where text starts with the cached prefix
@@ -755,6 +765,65 @@ impl CompletionService {
         self.cache.write().clear();
     }
 
+    /// Process completion feedback for quality tracking
+    pub fn submit_feedback(&self, feedback: CompletionFeedback) {
+        let mut stats = self.stats.write();
+        match &feedback {
+            CompletionFeedback::FullAccept { time_to_accept_ms, .. } => {
+                stats.accepted_suggestions += 1;
+                stats.feedback.positive_count += 1;
+                stats.total_accept_time_ms += time_to_accept_ms;
+                stats.accept_time_count += 1;
+                stats.feedback.avg_time_to_accept_ms = if stats.accept_time_count > 0 {
+                    stats.total_accept_time_ms as f64 / stats.accept_time_count as f64
+                } else {
+                    0.0
+                };
+                stats.feedback.avg_acceptance_ratio = if stats.accepted_suggestions + stats.dismissed_suggestions > 0 {
+                    stats.accepted_suggestions as f64 / (stats.accepted_suggestions + stats.dismissed_suggestions) as f64
+                } else {
+                    0.0
+                };
+            }
+            CompletionFeedback::PartialAccept { original_length, accepted_length, .. } => {
+                stats.accepted_suggestions += 1;
+                stats.feedback.partial_accept_count += 1;
+                if *original_length > 0 {
+                    let ratio = *accepted_length as f64 / *original_length as f64;
+                    // Running average of acceptance ratio
+                    let total_accepts = stats.feedback.positive_count + stats.feedback.partial_accept_count;
+                    if total_accepts > 0 {
+                        stats.feedback.avg_acceptance_ratio =
+                            (stats.feedback.avg_acceptance_ratio * (total_accepts - 1) as f64 + ratio) / total_accepts as f64;
+                    }
+                }
+            }
+            CompletionFeedback::QuickDismiss { time_to_dismiss_ms, .. } => {
+                stats.dismissed_suggestions += 1;
+                stats.feedback.negative_count += 1;
+                stats.total_dismiss_time_ms += time_to_dismiss_ms;
+                stats.dismiss_time_count += 1;
+                stats.feedback.avg_time_to_dismiss_ms = if stats.dismiss_time_count > 0 {
+                    stats.total_dismiss_time_ms as f64 / stats.dismiss_time_count as f64
+                } else {
+                    0.0
+                };
+            }
+            CompletionFeedback::ExplicitRating { rating, .. } => {
+                match rating {
+                    super::types::FeedbackRating::Positive => {
+                        stats.feedback.positive_count += 1;
+                    }
+                    super::types::FeedbackRating::Negative | super::types::FeedbackRating::Irrelevant => {
+                        stats.feedback.negative_count += 1;
+                    }
+                }
+            }
+        }
+        log::debug!("Feedback processed: positive={}, negative={}, partial={}", 
+            stats.feedback.positive_count, stats.feedback.negative_count, stats.feedback.partial_accept_count);
+    }
+
     /// Get statistics
     pub fn get_stats(&self) -> super::types::CompletionStats {
         let stats = self.stats.read();
@@ -773,11 +842,11 @@ impl CompletionService {
             total_requests: stats.total_requests,
             successful_completions: stats.successful_completions,
             failed_completions: stats.failed_completions,
-            accepted_suggestions: 0, // Tracked at manager level
-            dismissed_suggestions: 0, // Tracked at manager level
+            accepted_suggestions: stats.accepted_suggestions,
+            dismissed_suggestions: stats.dismissed_suggestions,
             avg_latency_ms: avg_latency,
             cache_hit_rate,
-            feedback_stats: super::types::FeedbackStats::default(),
+            feedback_stats: stats.feedback.clone(),
         }
     }
 

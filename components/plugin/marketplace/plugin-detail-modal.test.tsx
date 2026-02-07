@@ -6,6 +6,16 @@ import { NextIntlClientProvider } from 'next-intl';
 import { PluginDetailModal } from './plugin-detail-modal';
 import type { MarketplacePlugin } from './plugin-marketplace';
 
+jest.mock('@/stores/plugin/plugin-marketplace-store', () => ({
+  usePluginMarketplaceStore: () => ({
+    toggleFavorite: jest.fn(),
+    isFavorite: jest.fn().mockReturnValue(false),
+    submitReview: jest.fn(),
+    getUserReview: jest.fn().mockReturnValue(undefined),
+    addRecentlyViewed: jest.fn(),
+  }),
+}));
+
 const messages = {
   pluginDetail: {
     install: 'Install',
@@ -30,9 +40,14 @@ const messages = {
     reviews: {
       title: 'Reviews',
       writeReview: 'Write Review',
+      yourRating: 'Your Rating',
+      reviewPlaceholder: 'Share your experience...',
+      submitReview: 'Submit Review',
+      yourReview: 'Your Review',
     },
     changelog: {
       title: 'Changelog',
+      breaking: 'Breaking',
     },
   },
 };

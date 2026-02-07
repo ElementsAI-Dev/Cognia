@@ -35,7 +35,16 @@ export {
   registerBuiltinExecutors,
   registerCustomTaskHandler,
   unregisterCustomTaskHandler,
+  executeScriptTask,
 } from './executors';
+
+// Script Executor
+export {
+  executeScript,
+  validateScript,
+  getScriptTemplate,
+  getSupportedLanguages,
+} from './script-executor';
 
 // Event Integration
 export {

@@ -346,6 +346,54 @@ describe('prompt-self-optimizer', () => {
       expect(variableSuggestion).toBeDefined();
       expect(variableSuggestion?.description).toContain('3 variable');
     });
+
+    it('should recognize Chinese role definitions', () => {
+      const content = '你是一个专业的数据分析师。请分析以下数据并给出建议。';
+      const suggestions = suggestBestPractices(content);
+
+      const roleSuggestion = suggestions.find(s =>
+        s.type === 'context' && s.description.includes('role definition')
+      );
+      expect(roleSuggestion).toBeUndefined();
+    });
+
+    it('should suggest step-by-step for long prompts without CoT', () => {
+      const content = 'You are an expert analyst. ' + 'Analyze the following data thoroughly and provide insights based on the patterns you find. Consider multiple perspectives and evaluate the implications of each finding. '.repeat(2);
+      const suggestions = suggestBestPractices(content);
+
+      const cotSuggestion = suggestions.find(s =>
+        s.type === 'structure' && s.description.includes('step-by-step')
+      );
+      expect(cotSuggestion).toBeDefined();
+    });
+
+    it('should not suggest step-by-step when already present', () => {
+      const content = 'You are an expert. ' + 'Please analyze step by step the following data. Consider each aspect carefully before moving to the next. '.repeat(2);
+      const suggestions = suggestBestPractices(content);
+
+      const cotSuggestion = suggestions.find(s =>
+        s.type === 'structure' && s.description.includes('step-by-step')
+      );
+      expect(cotSuggestion).toBeUndefined();
+    });
+
+    it('should suggest delimiters for long prompts without them', () => {
+      const content = 'You are an expert. ' + 'Please analyze the data and provide detailed output with formatting. '.repeat(5);
+      const suggestions = suggestBestPractices(content);
+
+      const delimiterSuggestion = suggestions.find(s =>
+        s.type === 'structure' && s.description.includes('delimiter')
+      );
+      expect(delimiterSuggestion).toBeDefined();
+    });
+
+    it('should recognize Chinese constraints', () => {
+      const content = '你是一个专家。请分析数据，不要包含个人观点，避免使用专业术语。输出格式为JSON。';
+      const suggestions = suggestBestPractices(content);
+
+      const constraintSuggestion = suggestions.find(s => s.type === 'constraints');
+      expect(constraintSuggestion).toBeUndefined();
+    });
   });
   
   describe('quickAnalyze', () => {
@@ -403,6 +451,47 @@ Format: structured output`;
       expect(analysis.specificity).toBeLessThanOrEqual(100);
       expect(analysis.structureQuality).toBeLessThanOrEqual(100);
       expect(analysis.overallScore).toBeLessThanOrEqual(100);
+    });
+
+    it('should score Chinese prompts with role definitions', () => {
+      const content = '你是一个专业的数据分析师。请分析以下数据并给出建议。';
+      const analysis = quickAnalyze(content);
+
+      // Should detect Chinese role definition and give structure points
+      expect(analysis.structureQuality).toBeGreaterThanOrEqual(50);
+    });
+
+    it('should recognize Chinese keywords for specificity', () => {
+      const content = '你是一个专家。请逐步分析数据，输出格式为JSON。示例：{"name": "test"}';
+      const analysis = quickAnalyze(content);
+
+      // Should detect 逐步 (step), 输出 (output), 示例 (example)
+      expect(analysis.specificity).toBeGreaterThan(50);
+    });
+
+    it('should penalize very short prompts', () => {
+      const shortContent = 'hi';
+      const analysis = quickAnalyze(shortContent);
+
+      expect(analysis.clarity).toBeLessThan(50);
+      expect(analysis.specificity).toBeLessThan(50);
+    });
+
+    it('should give bonus for delimiter usage', () => {
+      const withDelimiters = `You are an expert.
+      
+### Instructions
+Follow these steps.
+
+---
+Output your answer.`;
+      
+      const withoutDelimiters = 'You are an expert. Follow these steps. Output your answer.';
+      
+      const withAnalysis = quickAnalyze(withDelimiters);
+      const withoutAnalysis = quickAnalyze(withoutDelimiters);
+      
+      expect(withAnalysis.structureQuality).toBeGreaterThan(withoutAnalysis.structureQuality);
     });
   });
   

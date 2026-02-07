@@ -10,3 +10,6 @@ export type { ExecutionHistoryProps } from './execution-history';
 
 export { SnippetManager } from './snippet-manager';
 export type { SnippetManagerProps } from './snippet-manager';
+
+export { SandboxStatistics } from './sandbox-statistics';
+export type { SandboxStatisticsProps } from './sandbox-statistics';

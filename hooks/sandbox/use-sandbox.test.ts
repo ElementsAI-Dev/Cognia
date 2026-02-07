@@ -11,6 +11,8 @@ jest.mock('@/lib/native/sandbox', () => ({
     getStatus: jest.fn(),
     getLanguages: jest.fn(),
     getRuntimes: jest.fn(),
+    getAllLanguages: jest.fn().mockResolvedValue([]),
+    getAvailableLanguages: jest.fn().mockResolvedValue([]),
     execute: jest.fn(),
     quickExecute: jest.fn(),
     executeWithStdin: jest.fn(),
@@ -19,6 +21,11 @@ jest.mock('@/lib/native/sandbox', () => ({
     toggleLanguage: jest.fn(),
     prepareLanguage: jest.fn(),
   },
+}));
+
+// Mock context sync (best-effort, should not affect sandbox behavior)
+jest.mock('@/lib/context', () => ({
+  syncSandboxExecution: jest.fn(() => Promise.resolve()),
 }));
 
 import { useSandbox, useQuickCodeExecution } from './use-sandbox';

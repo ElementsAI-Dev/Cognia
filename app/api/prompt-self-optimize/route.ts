@@ -1,6 +1,8 @@
 /**
  * API Route: Prompt Self-Optimization
  * Server-side prompt analysis and optimization with AI
+ *
+ * NOTE: Uses shared prompts from prompt-self-optimizer library to avoid duplication.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,52 +16,10 @@ import {
   circuitBreakerRegistry,
   isProviderAvailable,
 } from '@/lib/ai/infrastructure';
-
-const ANALYSIS_SYSTEM_PROMPT = `You are an expert prompt engineer. Analyze the given prompt and provide detailed feedback on how to improve it.
-
-Consider these aspects:
-1. **Clarity**: Is the intent clear? Are instructions unambiguous?
-2. **Specificity**: Are requirements specific enough? Are edge cases handled?
-3. **Structure**: Is the prompt well-organized? Does it follow best practices?
-4. **Context**: Does it provide sufficient context for the AI?
-5. **Variables**: Are placeholders well-defined and documented?
-
-Provide your analysis as a JSON object with the following structure:
-{
-  "scores": {
-    "clarity": <0-100>,
-    "specificity": <0-100>,
-    "structureQuality": <0-100>,
-    "overallScore": <0-100>
-  },
-  "suggestions": [
-    {
-      "type": "<structure|clarity|specificity|context|formatting|variables|examples|constraints>",
-      "priority": "<high|medium|low>",
-      "description": "<detailed description of the improvement>",
-      "originalText": "<optional: specific text to improve>",
-      "suggestedText": "<optional: improved version>",
-      "confidence": <0-1>
-    }
-  ],
-  "abTestRecommendation": {
-    "shouldTest": <true|false>,
-    "hypothesis": "<what improvement we're testing>",
-    "variantContent": "<optional: alternative prompt version to test>"
-  }
-}`;
-
-const OPTIMIZATION_SYSTEM_PROMPT = `You are an expert prompt engineer. Optimize the given prompt based on the provided feedback and suggestions.
-
-Goals:
-1. Improve clarity and reduce ambiguity
-2. Add appropriate structure (sections, bullet points)
-3. Include clear examples where helpful
-4. Handle edge cases
-5. Maintain the original intent
-6. Preserve all variable placeholders ({{variable_name}})
-
-Output ONLY the optimized prompt without any explanation.`;
+import {
+  ANALYSIS_SYSTEM_PROMPT,
+  OPTIMIZATION_SYSTEM_PROMPT,
+} from '@/lib/ai/prompts/prompt-self-optimizer';
 
 interface AnalyzeRequest {
   content: string;

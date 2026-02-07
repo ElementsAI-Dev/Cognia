@@ -1,9 +1,12 @@
 /**
- * Credential Storage - Secure storage for sync credentials using Tauri Stronghold
+ * Credential Storage - Secure storage for sync credentials
+ * Desktop: Uses Tauri Stronghold encrypted vault
+ * Browser: Uses Web Crypto API (AES-GCM) with device-derived keys
  */
 
 import { isTauri } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
+import { encryptValue, decryptValue, isEncrypted } from '@/lib/storage/storage-encryption';
 
 const log = loggers.auth;
 
@@ -19,9 +22,9 @@ const GOOGLE_TOKEN_EXPIRY_KEY = 'sync:google:token_expiry';
  */
 export async function storeWebDAVPassword(password: string): Promise<boolean> {
   if (!isTauri()) {
-    // Fallback to localStorage (not recommended for production)
     try {
-      localStorage.setItem(WEBDAV_PASSWORD_KEY, btoa(password));
+      const encrypted = await encryptValue(password);
+      localStorage.setItem(WEBDAV_PASSWORD_KEY, encrypted);
       return true;
     } catch {
       return false;
@@ -37,9 +40,9 @@ export async function storeWebDAVPassword(password: string): Promise<boolean> {
     return true;
   } catch (error) {
     log.error('Failed to store WebDAV password', error as Error);
-    // Fallback to localStorage
     try {
-      localStorage.setItem(WEBDAV_PASSWORD_KEY, btoa(password));
+      const encrypted = await encryptValue(password);
+      localStorage.setItem(WEBDAV_PASSWORD_KEY, encrypted);
       return true;
     } catch {
       return false;
@@ -54,7 +57,14 @@ export async function getWebDAVPassword(): Promise<string | null> {
   if (!isTauri()) {
     try {
       const stored = localStorage.getItem(WEBDAV_PASSWORD_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      // Handle both encrypted and legacy base64 values
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      // Legacy base64 fallback
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -68,10 +78,14 @@ export async function getWebDAVPassword(): Promise<string | null> {
     return password;
   } catch (error) {
     log.error('Failed to get WebDAV password', error as Error);
-    // Fallback to localStorage
     try {
       const stored = localStorage.getItem(WEBDAV_PASSWORD_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -111,7 +125,8 @@ export async function removeWebDAVPassword(): Promise<boolean> {
 export async function storeGitHubToken(token: string): Promise<boolean> {
   if (!isTauri()) {
     try {
-      localStorage.setItem(GITHUB_TOKEN_KEY, btoa(token));
+      const encrypted = await encryptValue(token);
+      localStorage.setItem(GITHUB_TOKEN_KEY, encrypted);
       return true;
     } catch {
       return false;
@@ -128,7 +143,8 @@ export async function storeGitHubToken(token: string): Promise<boolean> {
   } catch (error) {
     log.error('Failed to store GitHub token', error as Error);
     try {
-      localStorage.setItem(GITHUB_TOKEN_KEY, btoa(token));
+      const encrypted = await encryptValue(token);
+      localStorage.setItem(GITHUB_TOKEN_KEY, encrypted);
       return true;
     } catch {
       return false;
@@ -143,7 +159,12 @@ export async function getGitHubToken(): Promise<string | null> {
   if (!isTauri()) {
     try {
       const stored = localStorage.getItem(GITHUB_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -159,7 +180,12 @@ export async function getGitHubToken(): Promise<string | null> {
     log.error('Failed to get GitHub token', error as Error);
     try {
       const stored = localStorage.getItem(GITHUB_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -226,8 +252,8 @@ export async function storeGoogleTokens(
 ): Promise<boolean> {
   if (!isTauri()) {
     try {
-      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
-      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, btoa(refreshToken));
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, await encryptValue(accessToken));
+      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, await encryptValue(refreshToken));
       localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
       return true;
     } catch {
@@ -253,8 +279,8 @@ export async function storeGoogleTokens(
   } catch (error) {
     log.error('Failed to store Google tokens', error as Error);
     try {
-      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
-      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, btoa(refreshToken));
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, await encryptValue(accessToken));
+      localStorage.setItem(GOOGLE_REFRESH_TOKEN_KEY, await encryptValue(refreshToken));
       localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
       return true;
     } catch {
@@ -272,7 +298,7 @@ export async function updateGoogleAccessToken(
 ): Promise<boolean> {
   if (!isTauri()) {
     try {
-      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, await encryptValue(accessToken));
       localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
       return true;
     } catch {
@@ -294,7 +320,7 @@ export async function updateGoogleAccessToken(
   } catch (error) {
     log.error('Failed to update Google access token', error as Error);
     try {
-      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, btoa(accessToken));
+      localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, await encryptValue(accessToken));
       localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, String(expiresAt));
       return true;
     } catch {
@@ -310,7 +336,12 @@ export async function getGoogleAccessToken(): Promise<string | null> {
   if (!isTauri()) {
     try {
       const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -326,7 +357,12 @@ export async function getGoogleAccessToken(): Promise<string | null> {
     log.error('Failed to get Google access token', error as Error);
     try {
       const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -340,7 +376,12 @@ export async function getGoogleRefreshToken(): Promise<string | null> {
   if (!isTauri()) {
     try {
       const stored = localStorage.getItem(GOOGLE_REFRESH_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }
@@ -356,7 +397,12 @@ export async function getGoogleRefreshToken(): Promise<string | null> {
     log.error('Failed to get Google refresh token', error as Error);
     try {
       const stored = localStorage.getItem(GOOGLE_REFRESH_TOKEN_KEY);
-      return stored ? atob(stored) : null;
+      if (!stored) return null;
+      if (isEncrypted(stored)) {
+        const decrypted = await decryptValue(stored);
+        return decrypted || null;
+      }
+      try { return atob(stored); } catch { return stored; }
     } catch {
       return null;
     }

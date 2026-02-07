@@ -50,6 +50,9 @@ const VALID_CAPABILITIES: PluginCapability[] = [
   'providers',
   'exporters',
   'importers',
+  'a2ui',
+  'python',
+  'scheduler',
 ];
 
 const VALID_PERMISSIONS: PluginPermission[] = [
@@ -195,8 +198,8 @@ export function validatePluginManifest(manifest: unknown): ValidationResult {
       if (!tool.description || typeof tool.description !== 'string') {
         errors.push(`Tool at index ${i} missing "description" field`);
       }
-      if (!tool.parametersSchema || typeof tool.parametersSchema !== 'object') {
-        errors.push(`Tool at index ${i} missing "parametersSchema" field`);
+      if (tool.parametersSchema !== undefined && typeof tool.parametersSchema !== 'object') {
+        errors.push(`Tool at index ${i} has invalid "parametersSchema" field (must be an object)`);
       }
     }
   }

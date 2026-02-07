@@ -90,6 +90,8 @@ import {
   BarChart3,
   Pencil,
   Timer,
+  ListOrdered,
+  Table2,
 } from 'lucide-react';
 
 interface PromptOptimizerDialogProps {
@@ -140,6 +142,18 @@ const STYLE_OPTIONS: {
     labelKey: 'technical',
     descriptionKey: 'technicalDesc',
     icon: <Code className="h-4 w-4" />,
+  },
+  {
+    value: 'step-by-step',
+    labelKey: 'stepByStep',
+    descriptionKey: 'stepByStepDesc',
+    icon: <ListOrdered className="h-4 w-4" />,
+  },
+  {
+    value: 'structured',
+    labelKey: 'structured',
+    descriptionKey: 'structuredDesc',
+    icon: <Table2 className="h-4 w-4" />,
   },
   {
     value: 'custom',

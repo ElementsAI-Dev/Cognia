@@ -20,6 +20,11 @@ import {
   storeCustomProviderApiKey,
   getCustomProviderApiKey,
   migrateApiKeyToStronghold,
+  storeSyncCredential,
+  getSyncCredential,
+  removeSyncCredential,
+  storeSyncCredentials,
+  removeSyncCredentials,
 } from './stronghold';
 import { isTauri } from './utils';
 import { loggers } from '@/lib/logger';
@@ -307,4 +312,89 @@ export async function getApiKeyWithFallback(
   
   // Fall back to plain text key
   return plainTextKey;
+}
+
+// ============================================================================
+// Sync Credential Operations with Fallback
+// ============================================================================
+
+/**
+ * Store a sync provider credential securely
+ */
+export async function secureStoreSyncCredential(
+  provider: string,
+  credentialKey: string,
+  value: string
+): Promise<boolean> {
+  if (!isStrongholdAvailable()) {
+    return false;
+  }
+  return storeSyncCredential(provider, credentialKey, value);
+}
+
+/**
+ * Get a sync provider credential from secure storage
+ */
+export async function secureGetSyncCredential(
+  provider: string,
+  credentialKey: string
+): Promise<string | null> {
+  if (!isStrongholdAvailable()) {
+    return null;
+  }
+  return getSyncCredential(provider, credentialKey);
+}
+
+/**
+ * Remove a sync provider credential from secure storage
+ */
+export async function secureRemoveSyncCredential(
+  provider: string,
+  credentialKey: string
+): Promise<boolean> {
+  if (!isStrongholdAvailable()) {
+    return false;
+  }
+  return removeSyncCredential(provider, credentialKey);
+}
+
+/**
+ * Store all credentials for a sync provider securely
+ */
+export async function secureStoreSyncCredentials(
+  provider: string,
+  credentials: Record<string, string>
+): Promise<boolean> {
+  if (!isStrongholdAvailable()) {
+    return false;
+  }
+  return storeSyncCredentials(provider, credentials);
+}
+
+/**
+ * Remove all credentials for a sync provider
+ */
+export async function secureRemoveSyncCredentials(
+  provider: string,
+  credentialKeys: string[]
+): Promise<boolean> {
+  if (!isStrongholdAvailable()) {
+    return false;
+  }
+  return removeSyncCredentials(provider, credentialKeys);
+}
+
+/**
+ * Get sync credential with fallback to plain text
+ */
+export async function getSyncCredentialWithFallback(
+  provider: string,
+  credentialKey: string,
+  plainTextValue: string | undefined
+): Promise<string | undefined> {
+  const secureValue = await secureGetSyncCredential(provider, credentialKey);
+  if (secureValue) {
+    return secureValue;
+  }
+  return plainTextValue;
 }

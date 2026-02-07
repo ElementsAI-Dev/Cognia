@@ -2,8 +2,6 @@
 //!
 //! Monitors mouse events to detect when the user finishes selecting text.
 
-#![allow(dead_code)]
-
 use parking_lot::RwLock;
 use rdev::{Event, EventType};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,7 +23,9 @@ pub enum MouseEvent {
     DragEnd {
         x: f64,
         y: f64,
+        #[allow(dead_code)]
         start_x: f64,
+        #[allow(dead_code)]
         start_y: f64,
     },
 }
@@ -229,6 +229,7 @@ impl MouseHook {
     }
 
     /// Reset the hook state without stopping
+    #[allow(dead_code)]
     pub fn reset(&self) {
         log::debug!("[MouseHook] Resetting state");
         *self.click_count.write() = 0;
@@ -245,6 +246,7 @@ impl MouseHook {
     }
 
     /// Check if the hook is running
+    #[allow(dead_code)]
     pub fn is_running(&self) -> bool {
         self.is_running.load(Ordering::SeqCst)
     }

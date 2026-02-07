@@ -7,6 +7,14 @@
     "projectsDesc": "管理知识和上下文",
     "tryPrompts": "尝试这些提示开始使用",
     "tryIt": "试试看",
+    "currentModel": "当前 AI 模型",
+    "fullMode": "完整模式",
+    "switchToFullInterface": "切换到完整界面",
+    "typeMessage": "输入消息或按",
+    "toSend": "发送",
+    "zenMode": "禅模式",
+    "focusedMode": "专注模式",
+    "pressForFullInterface": "按 Ctrl+Shift+S 切换完整界面",
     "modes": {
       "chat": {
         "title": "聊天模式",

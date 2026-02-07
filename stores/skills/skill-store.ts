@@ -137,6 +137,16 @@ export const useSkillStore = create<SkillState>()(
         const id = nanoid();
         const name = toHyphenCase(input.name);
 
+        // Duplicate detection: check if skill with same name exists
+        const existingSkills = Object.values(get().skills);
+        const duplicate = existingSkills.find(
+          (s) => s.metadata.name === name
+        );
+        if (duplicate) {
+          set({ error: `Skill "${name}" already exists (id: ${duplicate.id})` });
+          return duplicate;
+        }
+
         const metadata: SkillMetadata = {
           name,
           description: input.description,
@@ -587,6 +597,37 @@ export const useSkillStore = create<SkillState>()(
       // Import/Export
       importSkill: (skillData) => {
         const now = new Date();
+
+        // Duplicate detection: check if skill with same name exists
+        const existingSkills = Object.values(get().skills);
+        const duplicate = existingSkills.find(
+          (s) => s.metadata.name === skillData.metadata.name
+        );
+
+        if (duplicate) {
+          // Update existing skill instead of creating duplicate
+          const updatedSkill: Skill = {
+            ...duplicate,
+            ...skillData,
+            id: duplicate.id,
+            createdAt: duplicate.createdAt,
+            updatedAt: now,
+            source: duplicate.source,
+          };
+
+          const errors = get().validateSkill(updatedSkill);
+          if (errors.some((e) => e.severity === 'error')) {
+            updatedSkill.status = 'error';
+            updatedSkill.validationErrors = errors;
+          }
+
+          set((state) => ({
+            skills: { ...state.skills, [duplicate.id]: updatedSkill },
+          }));
+
+          return updatedSkill;
+        }
+
         const id = nanoid();
 
         const skill: Skill = {
@@ -627,9 +668,20 @@ export const useSkillStore = create<SkillState>()(
         const newSkills: Record<string, Skill> = { ...state.skills };
         const now = new Date();
 
+        // Build a set of existing skill names for duplicate detection
+        const existingNames = new Set(
+          Object.values(newSkills).map((s) => s.metadata.name)
+        );
+
         for (const input of skills) {
-          const id = nanoid();
           const name = toHyphenCase(input.name);
+
+          // Skip if a skill with this name already exists
+          if (existingNames.has(name)) {
+            continue;
+          }
+
+          const id = nanoid();
           const metadata: SkillMetadata = {
             name,
             description: input.description,
@@ -657,6 +709,7 @@ export const useSkillStore = create<SkillState>()(
           };
 
           newSkills[id] = skill;
+          existingNames.add(name);
         }
 
         set({ skills: newSkills });
@@ -698,7 +751,21 @@ export const useSkillStore = create<SkillState>()(
     }),
     {
       name: 'cognia-skills-storage',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure usageStats field exists
+          if (!state.usageStats || typeof state.usageStats !== 'object') {
+            state.usageStats = {};
+          }
+          if (!state.skills || typeof state.skills !== 'object') {
+            state.skills = {};
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         skills: state.skills,
         usageStats: state.usageStats,

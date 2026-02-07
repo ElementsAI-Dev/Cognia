@@ -612,7 +612,7 @@ describe('useTemplateMarketStore', () => {
       expect(exported).toBeNull();
     });
 
-    it('should return null for unsupported YAML format', () => {
+    it('should export template in YAML format', () => {
       const { result } = renderHook(() => useTemplateMarketStore());
       const template = createMockTemplate({ id: 'yaml-test' });
 
@@ -621,7 +621,10 @@ describe('useTemplateMarketStore', () => {
       });
 
       const exported = result.current.exportTemplate('yaml-test', 'yaml');
-      expect(exported).toBeNull();
+      expect(exported).not.toBeNull();
+      expect(typeof exported).toBe('string');
+      expect(exported).toContain('name: Test Template');
+      expect(exported).toContain('yaml-test');
     });
 
     it('should import a valid JSON template', () => {
@@ -882,6 +885,109 @@ describe('useTemplateMarketStore', () => {
       const filtered = result.current.getFilteredTemplates();
       expect(filtered).toHaveLength(1);
       expect(filtered[0].id).toBe('t1');
+    });
+  });
+
+  describe('Publish/Share', () => {
+    it('should publish a template by changing source to community', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+      const template = createMockTemplate({ id: 'pub-1', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } });
+
+      act(() => {
+        result.current.addTemplate(template);
+      });
+
+      let success = false;
+      act(() => {
+        success = result.current.publishTemplate('pub-1');
+      });
+
+      expect(success).toBe(true);
+      const updated = result.current.getTemplate('pub-1');
+      expect(updated?.metadata.source).toBe('community');
+    });
+
+    it('should unpublish a template by changing source back to user', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+      const template = createMockTemplate({ id: 'unpub-1', metadata: { source: 'community', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } });
+
+      act(() => {
+        result.current.addTemplate(template);
+      });
+
+      let success = false;
+      act(() => {
+        success = result.current.unpublishTemplate('unpub-1');
+      });
+
+      expect(success).toBe(true);
+      const updated = result.current.getTemplate('unpub-1');
+      expect(updated?.metadata.source).toBe('user');
+    });
+
+    it('should return false when publishing non-existent template', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      let success = true;
+      act(() => {
+        success = result.current.publishTemplate('non-existent');
+      });
+
+      expect(success).toBe(false);
+    });
+
+    it('should get published templates', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      act(() => {
+        result.current.addTemplate(createMockTemplate({ id: 'comm-1', metadata: { source: 'community', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } }));
+        result.current.addTemplate(createMockTemplate({ id: 'user-1', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } }));
+      });
+
+      const published = result.current.getPublishedTemplates();
+      expect(published).toHaveLength(1);
+      expect(published[0].id).toBe('comm-1');
+    });
+
+    it('should get featured templates sorted by rating', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      act(() => {
+        result.current.addTemplate(createMockTemplate({ id: 'feat-1', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 4.5, ratingCount: 10, isOfficial: true } }));
+        result.current.addTemplate(createMockTemplate({ id: 'feat-2', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 2.0, ratingCount: 5, isOfficial: false } }));
+        result.current.addTemplate(createMockTemplate({ id: 'feat-3', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 0, rating: 4.2, ratingCount: 8, isOfficial: false } }));
+      });
+
+      const featured = result.current.getFeaturedTemplates(10);
+      expect(featured).toHaveLength(2); // Only feat-1 (official) and feat-3 (rating >= 4.0)
+      expect(featured[0].id).toBe('feat-1');
+      expect(featured[1].id).toBe('feat-3');
+    });
+
+    it('should get popular templates sorted by usage', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      act(() => {
+        result.current.addTemplate(createMockTemplate({ id: 'pop-1', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 100, rating: 0, ratingCount: 0, isOfficial: false } }));
+        result.current.addTemplate(createMockTemplate({ id: 'pop-2', metadata: { source: 'user', createdAt: new Date(), updatedAt: new Date(), usageCount: 50, rating: 0, ratingCount: 0, isOfficial: false } }));
+      });
+
+      const popular = result.current.getPopularTemplates(10);
+      expect(popular[0].id).toBe('pop-1');
+      expect(popular[1].id).toBe('pop-2');
+    });
+
+    it('should get recent templates sorted by creation date', () => {
+      const { result } = renderHook(() => useTemplateMarketStore());
+
+      act(() => {
+        result.current.addTemplate(createMockTemplate({ id: 'rec-1', metadata: { source: 'user', createdAt: new Date('2024-01-01'), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } }));
+        result.current.addTemplate(createMockTemplate({ id: 'rec-2', metadata: { source: 'user', createdAt: new Date('2024-06-01'), updatedAt: new Date(), usageCount: 0, rating: 0, ratingCount: 0, isOfficial: false } }));
+      });
+
+      const recent = result.current.getRecentTemplates(10);
+      expect(recent[0].id).toBe('rec-2'); // Newer first
+      expect(recent[1].id).toBe('rec-1');
     });
   });
 

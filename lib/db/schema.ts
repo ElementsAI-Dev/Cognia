@@ -36,6 +36,15 @@ export interface DBMessage {
   sources?: string; // JSON serialized Source[]
   error?: string;
   createdAt: Date;
+  // Edit history support
+  isEdited?: boolean;
+  editHistory?: string; // JSON serialized MessageEdit[]
+  originalContent?: string;
+  // Bookmark support
+  isBookmarked?: boolean;
+  bookmarkedAt?: Date;
+  // Reaction support
+  reaction?: string; // 'like' | 'dislike'
 }
 
 export interface DBDocument {

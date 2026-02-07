@@ -66,6 +66,54 @@ export interface CustomActionConfig {
   customShortcut?: string;
 }
 
+// User-defined custom action with custom prompt
+export interface CustomUserAction {
+  id: string;
+  name: string;
+  description?: string;
+  prompt: string;
+  icon?: string;
+  category: ActionCategory;
+  shortcut?: string;
+  color?: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+  usageCount: number;
+}
+
+// Selection toolbar prompt template for reusable AI operations
+export interface SelectionTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  prompt: string;
+  category: string;
+  icon?: string;
+  isFavorite: boolean;
+  usageCount: number;
+  isBuiltIn: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Search engine option
+export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'baidu' | 'perplexity';
+
+export interface SearchEngineConfig {
+  engine: SearchEngine;
+  label: string;
+  urlTemplate: string;
+}
+
+export const SEARCH_ENGINES: SearchEngineConfig[] = [
+  { engine: 'google', label: 'Google', urlTemplate: 'https://www.google.com/search?q={{query}}' },
+  { engine: 'bing', label: 'Bing', urlTemplate: 'https://www.bing.com/search?q={{query}}' },
+  { engine: 'duckduckgo', label: 'DuckDuckGo', urlTemplate: 'https://duckduckgo.com/?q={{query}}' },
+  { engine: 'baidu', label: 'Baidu', urlTemplate: 'https://www.baidu.com/s?wd={{query}}' },
+  { engine: 'perplexity', label: 'Perplexity', urlTemplate: 'https://www.perplexity.ai/search?q={{query}}' },
+];
+
 // Preset for saving toolbar configurations
 export interface ToolbarPreset {
   id: string;
@@ -144,12 +192,21 @@ export interface SelectionConfig {
   autoHideDelay: number;
   pinnedActions: SelectionAction[];
   customShortcuts: Record<SelectionAction, string>;
-  // New fields for enhanced toolbar
+  // Enhanced toolbar fields
   toolbarMode: ToolbarMode;
   quickActions: SelectionAction[];
   actionGroups: ActionGroupConfig[];
   activePreset: string | null;
   presets: ToolbarPreset[];
+  // Custom user actions and templates
+  customUserActions: CustomUserAction[];
+  templates: SelectionTemplate[];
+  // Usage tracking for intelligent sorting
+  actionUsageCounts: Record<string, number>;
+  // Search engine preference
+  searchEngine: SearchEngine;
+  // Replace-in-place support
+  enableReplaceInPlace: boolean;
 }
 
 // Default action groups configuration
@@ -201,12 +258,21 @@ export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
     shorten: '',
     'knowledge-map': 'K',
   },
-  // New fields for enhanced toolbar
+  // Enhanced toolbar fields
   toolbarMode: 'full',
   quickActions: DEFAULT_QUICK_ACTIONS,
   actionGroups: DEFAULT_ACTION_GROUPS,
   activePreset: null,
   presets: [],
+  // Custom user actions and templates
+  customUserActions: [],
+  templates: [],
+  // Usage tracking
+  actionUsageCounts: {},
+  // Search engine
+  searchEngine: 'google',
+  // Replace-in-place
+  enableReplaceInPlace: false,
 };
 
 export interface ToolbarTheme {

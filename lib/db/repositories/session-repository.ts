@@ -189,7 +189,7 @@ export const sessionRepository = {
   },
 
   /**
-   * Import sessions from backup
+   * Import sessions from backup (legacy - no validation)
    */
   async importAll(data: { sessions: Session[]; messages: unknown[] }): Promise<void> {
     await withRetry(async () => {
@@ -202,6 +202,103 @@ export const sessionRepository = {
         await db.messages.bulkAdd(data.messages as never[]);
       }
     }, 'sessionRepository.importAll');
+  },
+
+  /**
+   * Import sessions with validation, conflict handling, and progress reporting
+   */
+  async importWithValidation(
+    data: { sessions: Session[]; messages: unknown[] },
+    options: {
+      conflictStrategy: 'skip' | 'replace' | 'rename';
+      validateData?: boolean;
+      onProgress?: (progress: { current: number; total: number; phase: string }) => void;
+    }
+  ): Promise<{
+    imported: number;
+    skipped: number;
+    replaced: number;
+    errors: Array<{ index: number; id?: string; error: string }>;
+  }> {
+    const result = { imported: 0, skipped: 0, replaced: 0, errors: [] as Array<{ index: number; id?: string; error: string }> };
+    const total = data.sessions.length + (Array.isArray(data.messages) ? data.messages.length : 0);
+    let current = 0;
+
+    // Phase 1: Validate and import sessions
+    for (let i = 0; i < data.sessions.length; i++) {
+      const session = data.sessions[i];
+      current++;
+      options.onProgress?.({ current, total, phase: 'sessions' });
+
+      // Validate session data
+      if (options.validateData !== false) {
+        if (!session.id || typeof session.id !== 'string') {
+          result.errors.push({ index: i, error: 'Missing or invalid session ID' });
+          continue;
+        }
+        if (!session.title || typeof session.title !== 'string') {
+          result.errors.push({ index: i, id: session.id, error: 'Missing or invalid title' });
+          continue;
+        }
+      }
+
+      try {
+        const existing = await db.sessions.get(session.id);
+
+        if (existing) {
+          switch (options.conflictStrategy) {
+            case 'skip':
+              result.skipped++;
+              continue;
+            case 'replace':
+              await db.sessions.put(toDBSession(session));
+              result.replaced++;
+              continue;
+            case 'rename': {
+              const renamedSession = {
+                ...session,
+                id: nanoid(),
+                title: `${session.title} (imported)`,
+              };
+              await db.sessions.add(toDBSession(renamedSession));
+              result.imported++;
+              continue;
+            }
+          }
+        }
+
+        await db.sessions.add(toDBSession(session));
+        result.imported++;
+      } catch (error) {
+        result.errors.push({
+          index: i,
+          id: session.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Phase 2: Import messages
+    if (data.messages && Array.isArray(data.messages)) {
+      const batchSize = 100;
+      for (let i = 0; i < data.messages.length; i += batchSize) {
+        const batch = data.messages.slice(i, i + batchSize);
+        current += batch.length;
+        options.onProgress?.({ current, total, phase: 'messages' });
+
+        try {
+          await db.messages.bulkPut(batch as never[]);
+        } catch (error) {
+          result.errors.push({
+            index: i,
+            error: `Message batch ${i}-${i + batch.length}: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      }
+    }
+
+    options.onProgress?.({ current: total, total, phase: 'complete' });
+    return result;
   },
 };
 

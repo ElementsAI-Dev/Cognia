@@ -13,13 +13,17 @@ import {
 // Mock db
 jest.mock('@/lib/db', () => ({
   db: {
-    sessions: { toArray: jest.fn().mockResolvedValue([]) },
+    sessions: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     messages: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     documents: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     projects: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-    workflows: { toArray: jest.fn().mockResolvedValue([]) },
-    summaries: { toArray: jest.fn().mockResolvedValue([]) },
-    knowledgeFiles: { toArray: jest.fn().mockResolvedValue([]) },
+    workflows: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    workflowExecutions: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    summaries: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    knowledgeFiles: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    agentTraces: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    folders: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    mcpServers: { toArray: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
   },
 }));
 

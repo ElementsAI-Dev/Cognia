@@ -1,10 +1,15 @@
 /**
  * Web Search Tool - Multi-provider web search for AI agents
- * Uses API routes to avoid importing server-only modules in client components
+ * Supports both API route and direct client-side search execution
  */
 
 import { z } from 'zod';
-import type { SearchProviderType, SearchProviderSettings } from '@/types/search';
+import type {
+  SearchProviderType,
+  SearchProviderSettings,
+  SearchResponse,
+  SearchOptions,
+} from '@/types/search';
 
 interface SearchApiResponse {
   provider: SearchProviderType;
@@ -22,7 +27,84 @@ interface SearchApiResponse {
 }
 
 /**
- * Call search API route (to avoid importing server-only modules)
+ * Execute search directly using provider modules (client-side compatible)
+ * This bypasses the /api/search route for static export compatibility
+ * Includes LRU cache integration to avoid duplicate queries
+ */
+async function executeSearchDirect(
+  query: string,
+  options: {
+    provider?: SearchProviderType;
+    apiKey?: string;
+    providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
+    maxResults?: number;
+    searchDepth?: string;
+    includeAnswer?: boolean;
+  }
+): Promise<SearchApiResponse> {
+  const { search, searchWithProvider } = await import('@/lib/search/search-service');
+  const { getSearchCache } = await import('@/lib/search/search-cache');
+
+  const searchOptions: SearchOptions = {
+    maxResults: options.maxResults,
+    searchDepth: (options.searchDepth as SearchOptions['searchDepth']) || 'basic',
+    includeAnswer: options.includeAnswer,
+  };
+
+  // Check cache first
+  const cache = getSearchCache();
+  const cached = cache.get(query, options.provider, searchOptions);
+  if (cached) {
+    return {
+      provider: cached.provider,
+      query: cached.query,
+      answer: cached.answer,
+      results: cached.results.map((r) => ({
+        title: r.title,
+        url: r.url,
+        content: r.content,
+        score: r.score,
+        publishedDate: r.publishedDate,
+      })),
+      responseTime: cached.responseTime,
+    };
+  }
+
+  let result: SearchResponse;
+
+  if (options.provider && options.apiKey) {
+    result = await searchWithProvider(options.provider, query, options.apiKey, searchOptions);
+  } else if (options.providerSettings) {
+    result = await search(query, {
+      ...searchOptions,
+      provider: options.provider,
+      providerSettings: options.providerSettings,
+      fallbackEnabled: true,
+    });
+  } else {
+    throw new Error('Either apiKey with provider, or providerSettings is required');
+  }
+
+  // Store in cache
+  cache.set(query, result, options.provider, searchOptions);
+
+  return {
+    provider: result.provider,
+    query: result.query,
+    answer: result.answer,
+    results: result.results.map((r) => ({
+      title: r.title,
+      url: r.url,
+      content: r.content,
+      score: r.score,
+      publishedDate: r.publishedDate,
+    })),
+    responseTime: result.responseTime,
+  };
+}
+
+/**
+ * Call search API route (fallback for server-side rendering)
  */
 async function callSearchApi(
   query: string,
@@ -57,6 +139,34 @@ async function callSearchApi(
   }
 
   return response.json();
+}
+
+/**
+ * Smart search executor: tries direct execution first, falls back to API route
+ */
+async function smartSearchExecute(
+  query: string,
+  options: {
+    provider?: SearchProviderType;
+    apiKey?: string;
+    providerSettings?: Record<SearchProviderType, SearchProviderSettings>;
+    maxResults?: number;
+    searchDepth?: string;
+    includeAnswer?: boolean;
+  }
+): Promise<SearchApiResponse> {
+  // Try direct execution first (works in static export / Tauri)
+  try {
+    return await executeSearchDirect(query, options);
+  } catch (directError) {
+    // Fall back to API route (works in dev server)
+    try {
+      return await callSearchApi(query, options);
+    } catch {
+      // If both fail, throw the direct error as it's more informative
+      throw directError;
+    }
+  }
 }
 
 export const webSearchInputSchema = z.object({
@@ -118,7 +228,7 @@ export async function executeWebSearch(
       throw new Error('No API key or provider settings provided');
     }
 
-    const response = await callSearchApi(input.query, {
+    const response = await smartSearchExecute(input.query, {
       provider: targetProvider,
       apiKey,
       providerSettings,

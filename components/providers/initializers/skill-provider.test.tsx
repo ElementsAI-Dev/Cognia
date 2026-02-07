@@ -110,9 +110,13 @@ describe('SkillProvider', () => {
       expect(mockGetAllBuiltinSkills).not.toHaveBeenCalled();
     });
 
-    it('does not reload skills when skills already exist', async () => {
+    it('does not reload skills when all built-in skills already exist', async () => {
+      // Mock existing skills that match the built-in skill names (hyphen-cased)
       (useSkillStore.getState as jest.Mock).mockReturnValue({
-        skills: { skill1: { id: 'skill1' } },
+        skills: {
+          skill1: { id: 'skill1', source: 'builtin', metadata: { name: 'skill-1' } },
+          skill2: { id: 'skill2', source: 'builtin', metadata: { name: 'skill-2' } },
+        },
         importBuiltinSkills: mockImportBuiltinSkills,
         createSkill: mockCreateSkill,
         reset: mockReset,
@@ -129,6 +133,33 @@ describe('SkillProvider', () => {
       });
 
       expect(mockImportBuiltinSkills).not.toHaveBeenCalled();
+    });
+
+    it('re-imports missing built-in skills when some are missing', async () => {
+      // Only one built-in skill exists, the other is missing
+      (useSkillStore.getState as jest.Mock).mockReturnValue({
+        skills: {
+          skill1: { id: 'skill1', source: 'builtin', metadata: { name: 'skill-1' } },
+          custom1: { id: 'custom1', source: 'custom', metadata: { name: 'my-custom' } },
+        },
+        importBuiltinSkills: mockImportBuiltinSkills,
+        createSkill: mockCreateSkill,
+        reset: mockReset,
+      });
+
+      render(
+        <SkillProvider>
+          <div>Test</div>
+        </SkillProvider>
+      );
+
+      await waitFor(() => {
+        // Should re-import only the missing built-in skill (Skill 2)
+        expect(mockImportBuiltinSkills).toHaveBeenCalledTimes(1);
+        const importedSkills = mockImportBuiltinSkills.mock.calls[0][0];
+        expect(importedSkills).toHaveLength(1);
+        expect(importedSkills[0].name).toBe('Skill 2');
+      });
     });
   });
 

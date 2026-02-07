@@ -666,3 +666,55 @@ export interface GitReflogEntry {
   action: string;
   date: string;
 }
+
+// ==================== Tag Types ====================
+
+/** Git tag info */
+export interface GitTagInfo {
+  name: string;
+  commitHash: string;
+  shortHash: string;
+  message?: string;
+  tagger?: string;
+  date?: string;
+  isAnnotated: boolean;
+}
+
+/** Options for creating a tag */
+export interface GitTagCreateOptions {
+  repoPath: string;
+  name: string;
+  message?: string;
+  target?: string;
+  force?: boolean;
+}
+
+// ==================== Revert Types ====================
+
+/** Options for reverting a commit */
+export interface GitRevertOptions {
+  repoPath: string;
+  commitHash: string;
+  noCommit?: boolean;
+}
+
+// ==================== Cherry-pick Types ====================
+
+/** Options for cherry-picking a commit */
+export interface GitCherryPickOptions {
+  repoPath: string;
+  commitHash: string;
+  noCommit?: boolean;
+}
+
+// ==================== Commit Detail Types ====================
+
+/** Full commit detail with diff content */
+export interface GitCommitDetail {
+  commit: GitCommitInfo;
+  fileChanges: GitDiffInfo[];
+  diffContent?: string;
+  parents: string[];
+  totalAdditions: number;
+  totalDeletions: number;
+}

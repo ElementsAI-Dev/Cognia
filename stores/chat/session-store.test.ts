@@ -465,6 +465,246 @@ describe('useSessionStore', () => {
     });
   });
 
+  describe('tag management', () => {
+    it('should add a tag to a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().addTag(session!.id, 'important');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toEqual(['important']);
+    });
+
+    it('should normalize tags to lowercase', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().addTag(session!.id, '  Important  ');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toEqual(['important']);
+    });
+
+    it('should not add duplicate tags', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().addTag(session!.id, 'work');
+        useSessionStore.getState().addTag(session!.id, 'work');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toEqual(['work']);
+    });
+
+    it('should not add empty tags', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().addTag(session!.id, '   ');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toBeUndefined();
+    });
+
+    it('should remove a tag from a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().addTag(session!.id, 'work');
+        useSessionStore.getState().addTag(session!.id, 'personal');
+      });
+
+      act(() => {
+        useSessionStore.getState().removeTag(session!.id, 'work');
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toEqual(['personal']);
+    });
+
+    it('should set all tags at once', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().addTag(session!.id, 'old');
+      });
+
+      act(() => {
+        useSessionStore.getState().setTags(session!.id, ['New', 'Tags']);
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.tags).toEqual(['new', 'tags']);
+    });
+
+    it('should get sessions by tag', () => {
+      act(() => {
+        const s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        const s2 = useSessionStore.getState().createSession({ title: 'S2' });
+        useSessionStore.getState().createSession({ title: 'S3' });
+        useSessionStore.getState().addTag(s1.id, 'work');
+        useSessionStore.getState().addTag(s2.id, 'work');
+      });
+
+      const workSessions = useSessionStore.getState().getSessionsByTag('work');
+      expect(workSessions).toHaveLength(2);
+    });
+
+    it('should get all unique tags', () => {
+      act(() => {
+        const s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        const s2 = useSessionStore.getState().createSession({ title: 'S2' });
+        useSessionStore.getState().addTag(s1.id, 'work');
+        useSessionStore.getState().addTag(s1.id, 'coding');
+        useSessionStore.getState().addTag(s2.id, 'work');
+        useSessionStore.getState().addTag(s2.id, 'personal');
+      });
+
+      const allTags = useSessionStore.getState().getAllTags();
+      expect(allTags).toEqual(['coding', 'personal', 'work']);
+    });
+  });
+
+  describe('archive management', () => {
+    it('should archive a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().archiveSession(session!.id);
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.isArchived).toBe(true);
+      expect(updated?.archivedAt).toBeInstanceOf(Date);
+    });
+
+    it('should switch active session when archiving the active one', () => {
+      let session1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let session2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session1 = useSessionStore.getState().createSession({ title: 'First' });
+        session2 = useSessionStore.getState().createSession({ title: 'Second' });
+        useSessionStore.getState().setActiveSession(session2!.id);
+      });
+
+      act(() => {
+        useSessionStore.getState().archiveSession(session2!.id);
+      });
+
+      expect(useSessionStore.getState().activeSessionId).toBe(session1!.id);
+    });
+
+    it('should unarchive a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+        useSessionStore.getState().archiveSession(session!.id);
+      });
+
+      act(() => {
+        useSessionStore.getState().unarchiveSession(session!.id);
+      });
+
+      const updated = useSessionStore.getState().getSession(session!.id);
+      expect(updated?.isArchived).toBe(false);
+      expect(updated?.archivedAt).toBeUndefined();
+    });
+
+    it('should get archived sessions', () => {
+      act(() => {
+        const s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        useSessionStore.getState().createSession({ title: 'S2' });
+        useSessionStore.getState().archiveSession(s1.id);
+      });
+
+      const archived = useSessionStore.getState().getArchivedSessions();
+      expect(archived).toHaveLength(1);
+      expect(archived[0].title).toBe('S1');
+    });
+
+    it('should get active (non-archived) sessions', () => {
+      act(() => {
+        const s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        useSessionStore.getState().createSession({ title: 'S2' });
+        useSessionStore.getState().archiveSession(s1.id);
+      });
+
+      const active = useSessionStore.getState().getActiveSessions();
+      expect(active).toHaveLength(1);
+      expect(active[0].title).toBe('S2');
+    });
+  });
+
+  describe('bulk archive and tag operations', () => {
+    it('should bulk archive sessions', () => {
+      let s1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let s2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        s2 = useSessionStore.getState().createSession({ title: 'S2' });
+        useSessionStore.getState().createSession({ title: 'S3' });
+      });
+
+      act(() => {
+        useSessionStore.getState().bulkArchiveSessions([s1!.id, s2!.id]);
+      });
+
+      const archived = useSessionStore.getState().getArchivedSessions();
+      const active = useSessionStore.getState().getActiveSessions();
+      expect(archived).toHaveLength(2);
+      expect(active).toHaveLength(1);
+    });
+
+    it('should bulk tag sessions', () => {
+      let s1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let s2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        s2 = useSessionStore.getState().createSession({ title: 'S2' });
+      });
+
+      act(() => {
+        useSessionStore.getState().bulkTagSessions([s1!.id, s2!.id], 'project-x');
+      });
+
+      expect(useSessionStore.getState().getSession(s1!.id)?.tags).toEqual(['project-x']);
+      expect(useSessionStore.getState().getSession(s2!.id)?.tags).toEqual(['project-x']);
+    });
+
+    it('should not add empty tag via bulk tag', () => {
+      let s1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        s1 = useSessionStore.getState().createSession({ title: 'S1' });
+      });
+
+      act(() => {
+        useSessionStore.getState().bulkTagSessions([s1!.id], '   ');
+      });
+
+      expect(useSessionStore.getState().getSession(s1!.id)?.tags).toBeUndefined();
+    });
+  });
+
   describe('input draft management', () => {
     it('should set and get input draft for a session', () => {
       let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;

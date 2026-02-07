@@ -41,6 +41,13 @@ import {
   deleteRecording,
   clearRecordingHistory,
   getDefaultRecordingConfig,
+  pinRecording,
+  unpinRecording,
+  getRecordingById,
+  searchRecordingsByTag,
+  addRecordingTag,
+  removeRecordingTag,
+  getRecordingStats,
   getStorageStats,
   getStorageConfig,
   updateStorageConfig,
@@ -48,6 +55,7 @@ import {
   getStorageUsagePercent,
   cleanupStorage,
 } from '@/lib/native/screen-recording';
+import type { RecordingStats } from '@/lib/native/screen-recording';
 import {
   showRecordingToolbar,
   hideRecordingToolbar,
@@ -93,6 +101,7 @@ interface ScreenRecordingState {
 
   // Event listener cleanup functions
   _eventListeners: UnlistenFn[];
+  _durationTimer: ReturnType<typeof setInterval> | null;
 }
 
 interface ScreenRecordingActions {
@@ -134,6 +143,14 @@ interface ScreenRecordingActions {
   refreshHistory: () => Promise<void>;
   deleteFromHistory: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
+  pinRecording: (id: string) => Promise<boolean>;
+  unpinRecording: (id: string) => Promise<boolean>;
+  getRecordingById: (id: string) => Promise<RecordingHistoryEntry | null>;
+  searchByTag: (tag: string) => Promise<RecordingHistoryEntry[]>;
+  addTag: (id: string, tag: string) => Promise<boolean>;
+  removeTag: (id: string, tag: string) => Promise<boolean>;
+  getStats: () => Promise<RecordingStats | null>;
+  openRecordingFolder: (filePath: string) => Promise<void>;
 
   // Storage
   refreshStorageStats: () => Promise<void>;
@@ -172,6 +189,7 @@ const initialState: ScreenRecordingState = {
   isInitialized: false,
   error: null,
   _eventListeners: [],
+  _durationTimer: null,
 };
 
 export const useScreenRecordingStore = create<ScreenRecordingStore>()(
@@ -239,10 +257,13 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
       },
 
       cleanup: () => {
+        // Cleanup duration timer
+        const timer = get()._durationTimer;
+        if (timer) clearInterval(timer);
         // Cleanup all event listeners
         const listeners = get()._eventListeners;
         listeners.forEach((unlisten) => unlisten());
-        set({ _eventListeners: [] });
+        set({ _eventListeners: [], _durationTimer: null });
       },
 
       setupEventListeners: async () => {
@@ -251,17 +272,48 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         const listeners: UnlistenFn[] = [];
 
         try {
+          // Duration polling helpers
+          const startDurationTimer = () => {
+            const existing = get()._durationTimer;
+            if (existing) clearInterval(existing);
+            const timer = setInterval(async () => {
+              try {
+                const dur = await getRecordingDuration();
+                set({ duration: dur });
+              } catch {
+                // Ignore polling errors
+              }
+            }, 1000);
+            set({ _durationTimer: timer });
+          };
+
+          const stopDurationTimer = () => {
+            const timer = get()._durationTimer;
+            if (timer) {
+              clearInterval(timer);
+              set({ _durationTimer: null });
+            }
+          };
+
           // Listen for recording status changes
           const unlistenStatus = await listen<{
             status: RecordingStatus;
             recording_id: string | null;
             duration_ms: number;
           }>('recording-status-changed', (event) => {
+            const newStatus = event.payload.status;
             set({
-              status: event.payload.status,
+              status: newStatus,
               recordingId: event.payload.recording_id,
               duration: event.payload.duration_ms,
             });
+            // Start/stop duration polling based on status
+            if (newStatus === 'Recording') {
+              startDurationTimer();
+            } else if (newStatus === 'Idle') {
+              stopDurationTimer();
+            }
+            // Keep timer running during Paused - paused time is tracked server-side
           });
           listeners.push(unlistenStatus);
 
@@ -532,6 +584,92 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           set({ history: [] });
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to clear history' });
+        }
+      },
+
+      pinRecording: async (id) => {
+        if (!isTauri()) return false;
+        try {
+          const result = await pinRecording(id);
+          if (result) await get().refreshHistory();
+          return result;
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to pin recording' });
+          return false;
+        }
+      },
+
+      unpinRecording: async (id) => {
+        if (!isTauri()) return false;
+        try {
+          const result = await unpinRecording(id);
+          if (result) await get().refreshHistory();
+          return result;
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to unpin recording' });
+          return false;
+        }
+      },
+
+      getRecordingById: async (id) => {
+        if (!isTauri()) return null;
+        try {
+          return await getRecordingById(id);
+        } catch {
+          return null;
+        }
+      },
+
+      searchByTag: async (tag) => {
+        if (!isTauri()) return [];
+        try {
+          return await searchRecordingsByTag(tag);
+        } catch {
+          return [];
+        }
+      },
+
+      addTag: async (id, tag) => {
+        if (!isTauri()) return false;
+        try {
+          const result = await addRecordingTag(id, tag);
+          if (result) await get().refreshHistory();
+          return result;
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to add tag' });
+          return false;
+        }
+      },
+
+      removeTag: async (id, tag) => {
+        if (!isTauri()) return false;
+        try {
+          const result = await removeRecordingTag(id, tag);
+          if (result) await get().refreshHistory();
+          return result;
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to remove tag' });
+          return false;
+        }
+      },
+
+      getStats: async () => {
+        if (!isTauri()) return null;
+        try {
+          return await getRecordingStats();
+        } catch {
+          return null;
+        }
+      },
+
+      openRecordingFolder: async (filePath) => {
+        if (!isTauri()) return;
+        try {
+          const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+          await revealItemInDir(filePath);
+        } catch (error) {
+          log.error('Failed to open folder', error as Error);
+          set({ error: error instanceof Error ? error.message : 'Failed to open folder' });
         }
       },
 

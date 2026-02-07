@@ -10,7 +10,7 @@
  * - Contextual retrieval
  */
 
-import { useCallback, useState, useRef, useMemo } from 'react';
+import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import { useVectorStore, useSettingsStore } from '@/stores';
 import {
   RAGPipeline,
@@ -24,6 +24,12 @@ import {
   chunkDocumentRecursive,
   type ChunkingResult,
 } from '@/lib/ai/embedding/chunking';
+import {
+  RAGCollectionManager,
+  getGlobalCollectionManager,
+  type CollectionInfo,
+} from '@/lib/ai/rag/collection-manager';
+import { useRAGProgress, type RAGProgress, type RAGOperationStats } from './use-rag-progress';
 
 export interface UseRAGPipelineOptions {
   collectionName?: string;
@@ -60,6 +66,11 @@ export interface UseRAGPipelineReturn {
   lastContext: RAGPipelineContext | null;
   isInitialized: boolean;
 
+  // Progress tracking
+  progress: RAGProgress;
+  progressStats: RAGOperationStats;
+  isProgressActive: boolean;
+
   // Indexing
   indexDocument: (
     content: string,
@@ -82,9 +93,14 @@ export interface UseRAGPipelineReturn {
   // Retrieval
   retrieve: (query: string) => Promise<RAGPipelineContext>;
 
-  // Collection management
+  // Collection management (persistent)
   clearCollection: () => void;
   getCollectionStats: () => { documentCount: number; exists: boolean };
+  listCollections: () => Promise<CollectionInfo[]>;
+  deleteCollection: (name: string) => Promise<void>;
+
+  // Feedback for adaptive reranking
+  recordFeedback: (query: string, resultId: string, relevance: number, action?: 'click' | 'use' | 'dismiss' | 'explicit') => void;
 
   // Chunking utilities
   chunkText: (text: string) => ChunkingResult;
@@ -118,8 +134,31 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   const [lastContext, setLastContext] = useState<RAGPipelineContext | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Progress tracking
+  const ragProgress = useRAGProgress();
+
   const vectorSettings = useVectorStore((state) => state.settings);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+
+  // Collection manager reference for persistent collection management
+  const collectionManagerRef = useRef<RAGCollectionManager | null>(null);
+
+  // Initialize collection manager on mount
+  useEffect(() => {
+    let mounted = true;
+    const initCollectionManager = async () => {
+      try {
+        const manager = await getGlobalCollectionManager();
+        if (mounted) {
+          collectionManagerRef.current = manager;
+        }
+      } catch {
+        // Collection manager init failed silently - non-critical for basic functionality
+      }
+    };
+    initCollectionManager();
+    return () => { mounted = false; };
+  }, []);
 
   // Get API key
   const getApiKey = useCallback((): string => {
@@ -176,6 +215,14 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
         chunkSize: vectorSettings.chunkSize,
         chunkOverlap: vectorSettings.chunkOverlap,
       },
+      adaptiveReranking: {
+        enabled: vectorSettings.enableReranking,
+        feedbackWeight: 0.3,
+      },
+      citations: {
+        enabled: vectorSettings.enableCitations,
+        style: vectorSettings.citationStyle,
+      },
     }),
     [
       vectorSettings,
@@ -222,15 +269,22 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
 
       try {
         const pipeline = getPipeline();
+        ragProgress.start(1, `Indexing document: ${opts.documentId}`);
+
+        const progressCallback = ragProgress.createProgressCallback();
         const result = await pipeline.indexDocument(content, {
           collectionName,
           documentId: opts.documentId,
           documentTitle: opts.documentTitle,
           metadata: opts.metadata,
           useContextualRetrieval: enableContextualRetrieval,
+          onProgress: progressCallback,
         });
 
-        if (!result.success) {
+        if (result.success) {
+          ragProgress.complete({ totalChunks: result.chunksCreated, successCount: 1 });
+        } else {
+          ragProgress.error(new Error(result.error || 'Indexing failed'));
           setError(result.error || 'Indexing failed');
         }
 
@@ -242,6 +296,7 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Indexing failed';
+        ragProgress.error(err instanceof Error ? err : new Error(message));
         setError(message);
         return {
           documentId: opts.documentId,
@@ -253,7 +308,7 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
         setIsLoading(false);
       }
     },
-    [collectionName, enableContextualRetrieval, getPipeline]
+    [collectionName, enableContextualRetrieval, getPipeline, ragProgress]
   );
 
   // Index multiple documents
@@ -343,6 +398,10 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
   const clearCollection = useCallback(() => {
     const pipeline = getPipeline();
     pipeline.clearCollection(collectionName);
+    // Also clear in persistent storage
+    if (collectionManagerRef.current) {
+      collectionManagerRef.current.deleteCollection(collectionName).catch(() => {});
+    }
   }, [collectionName, getPipeline]);
 
   // Get collection stats
@@ -350,6 +409,32 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
     const pipeline = getPipeline();
     return pipeline.getCollectionStats(collectionName);
   }, [collectionName, getPipeline]);
+
+  // List all collections (from persistent storage)
+  const listCollections = useCallback(async (): Promise<CollectionInfo[]> => {
+    if (collectionManagerRef.current) {
+      return collectionManagerRef.current.listCollections();
+    }
+    return [];
+  }, []);
+
+  // Delete a collection (from persistent storage)
+  const deleteCollection = useCallback(async (name: string): Promise<void> => {
+    const pipeline = getPipeline();
+    pipeline.clearCollection(name);
+    if (collectionManagerRef.current) {
+      await collectionManagerRef.current.deleteCollection(name);
+    }
+  }, [getPipeline]);
+
+  // Record feedback for adaptive reranking
+  const recordFeedback = useCallback(
+    (query: string, resultId: string, relevance: number, action: 'click' | 'use' | 'dismiss' | 'explicit' = 'explicit') => {
+      const pipeline = getPipeline();
+      pipeline.recordFeedback(query, resultId, relevance, action);
+    },
+    [getPipeline]
+  );
 
   // Chunking utilities
   const chunkText = useCallback(
@@ -439,11 +524,17 @@ export function useRAGPipeline(options: UseRAGPipelineOptions = {}): UseRAGPipel
     error,
     lastContext,
     isInitialized,
+    progress: ragProgress.progress,
+    progressStats: ragProgress.stats,
+    isProgressActive: ragProgress.isActive,
     indexDocument,
     indexDocuments,
     retrieve,
     clearCollection,
     getCollectionStats,
+    listCollections,
+    deleteCollection,
+    recordFeedback,
     chunkText,
     chunkTextSmart,
     chunkTextRecursive,

@@ -12,6 +12,13 @@ import type {
   ConditionalNodeData,
   StartNodeData,
   EndNodeData,
+  CodeNodeData,
+  TransformNodeData,
+  LoopNodeData,
+  WebhookNodeData,
+  DelayNodeData,
+  MergeNodeData,
+  SubworkflowNodeData,
 } from '@/types/workflow/workflow-editor';
 import type {
   WorkflowDefinition,
@@ -461,6 +468,88 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
         inputs: step.inputs,
         outputs: step.outputs,
       } as WorkflowNodeData;
+      break;
+
+    case 'code':
+      data = {
+        ...baseData,
+        nodeType: 'code',
+        code: (step as unknown as { code?: string }).code || '',
+        language: (step as unknown as { language?: string }).language || 'javascript',
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as CodeNodeData;
+      break;
+
+    case 'transform':
+      data = {
+        ...baseData,
+        nodeType: 'transform',
+        transformType: (step as unknown as { transformType?: string }).transformType || 'custom',
+        expression: (step as unknown as { expression?: string }).expression || '',
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as TransformNodeData;
+      break;
+
+    case 'loop':
+      data = {
+        ...baseData,
+        nodeType: 'loop',
+        loopType: (step as unknown as { loopType?: string }).loopType || 'forEach',
+        iteratorVariable: (step as unknown as { iteratorVariable?: string }).iteratorVariable || 'item',
+        collection: (step as unknown as { collection?: string }).collection,
+        maxIterations: (step as unknown as { maxIterations?: number }).maxIterations || 100,
+        condition: (step as unknown as { condition?: string }).condition,
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as LoopNodeData;
+      break;
+
+    case 'webhook':
+      data = {
+        ...baseData,
+        nodeType: 'webhook',
+        webhookUrl: (step as unknown as { webhookUrl?: string }).webhookUrl || '',
+        method: (step as unknown as { method?: string }).method || 'POST',
+        headers: (step as unknown as { headers?: Record<string, string> }).headers || {},
+        body: (step as unknown as { body?: string }).body,
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as WebhookNodeData;
+      break;
+
+    case 'delay':
+      data = {
+        ...baseData,
+        nodeType: 'delay',
+        delayType: (step as unknown as { delayType?: string }).delayType || 'fixed',
+        delayMs: (step as unknown as { delayMs?: number }).delayMs || 1000,
+        untilTime: (step as unknown as { untilTime?: string }).untilTime,
+        cronExpression: (step as unknown as { cronExpression?: string }).cronExpression,
+      } as DelayNodeData;
+      break;
+
+    case 'merge':
+      data = {
+        ...baseData,
+        nodeType: 'merge',
+        mergeStrategy: (step as unknown as { mergeStrategy?: string }).mergeStrategy || 'merge',
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as MergeNodeData;
+      break;
+
+    case 'subworkflow':
+      data = {
+        ...baseData,
+        nodeType: 'subworkflow',
+        workflowId: (step as unknown as { workflowId?: string }).workflowId || '',
+        inputMapping: (step as unknown as { inputMapping?: Record<string, string> }).inputMapping || {},
+        outputMapping: (step as unknown as { outputMapping?: Record<string, string> }).outputMapping || {},
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as SubworkflowNodeData;
       break;
 
     default:

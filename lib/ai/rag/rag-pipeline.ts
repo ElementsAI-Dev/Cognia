@@ -14,7 +14,7 @@ import type { DocumentChunk, ChunkingOptions } from '../embedding/chunking';
 import { chunkDocument } from '../embedding/chunking';
 import { chunkDocumentAsync } from '../embedding/chunking';
 import type { EmbeddingModelConfig } from '@/lib/vector/embedding';
-import { generateEmbedding, generateEmbeddings } from '@/lib/vector/embedding';
+import { generateEmbedding } from '@/lib/vector/embedding';
 import { cosineSimilarity } from '@/lib/ai/embedding/embedding';
 import {
   generateSparseEmbedding,
@@ -63,6 +63,14 @@ import {
   AdaptiveReranker,
   createAdaptiveReranker,
 } from './adaptive-reranker';
+import {
+  batchGenerateEmbeddings,
+} from './embedding-batcher';
+import {
+  formatCitations,
+  type CitationStyle,
+  type FormattedCitation,
+} from './citation-formatter';
 
 export interface RAGPipelineConfig {
   // Embedding configuration
@@ -131,6 +139,12 @@ export interface RAGPipelineConfig {
     enabled?: boolean;
     feedbackWeight?: number;
   };
+
+  // Citation formatting
+  citations?: {
+    enabled?: boolean;
+    style?: CitationStyle;
+  };
 }
 
 export interface RAGPipelineContext {
@@ -139,6 +153,7 @@ export interface RAGPipelineContext {
   expandedQuery?: ExpandedQuery;
   formattedContext: string;
   totalTokensEstimate: number;
+  citations?: FormattedCitation;
   searchMetadata: {
     hybridSearchUsed: boolean;
     queryExpansionUsed: boolean;
@@ -233,6 +248,10 @@ export class RAGPipeline {
         enabled: config.adaptiveReranking?.enabled ?? false,
         feedbackWeight: config.adaptiveReranking?.feedbackWeight ?? 0.3,
       },
+      citations: {
+        enabled: config.citations?.enabled ?? false,
+        style: config.citations?.style ?? 'simple',
+      },
     };
 
     // Initialize hybrid search engine
@@ -320,17 +339,22 @@ export class RAGPipeline {
         processedChunks = chunkResult.chunks;
       }
 
-      // Generate embeddings
+      // Generate embeddings using batch optimizer for better performance
       onProgress?.({ stage: 'embedding', current: 0, total: processedChunks.length });
 
       const textsToEmbed = processedChunks.map(chunk => 
         'contextualContent' in chunk ? (chunk as ContextualChunk).contextualContent : chunk.content
       );
 
-      const embeddingResult = await generateEmbeddings(
+      const embeddingResult = await batchGenerateEmbeddings(
         textsToEmbed,
         this.config.embeddingConfig,
-        this.config.embeddingApiKey
+        this.config.embeddingApiKey,
+        {
+          batchSize: 50,
+          maxParallelBatches: 3,
+          onProgress: (p) => onProgress?.({ stage: 'embedding', current: p.current, total: p.total }),
+        }
       );
 
       onProgress?.({ stage: 'embedding', current: processedChunks.length, total: processedChunks.length });
@@ -515,12 +539,22 @@ export class RAGPipeline {
       
       const totalTokensEstimate = Math.ceil(formattedContext.length / 4);
 
+      // Generate citations if enabled
+      let citations: FormattedCitation | undefined;
+      if (this.config.citations.enabled && topResults.length > 0) {
+        citations = formatCitations(topResults, {
+          style: this.config.citations.style,
+          includeRelevanceScore: true,
+        });
+      }
+
       const result: RAGPipelineContext = {
         documents: topResults,
         query,
         expandedQuery,
         formattedContext,
         totalTokensEstimate,
+        citations,
         searchMetadata,
       };
 

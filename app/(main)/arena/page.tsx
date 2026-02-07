@@ -5,7 +5,7 @@
  * Features leaderboard, heatmap, history, and quick battle
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Scale, Trophy, Grid3X3, History, Zap, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,7 @@ import {
   ArenaQuickBattle,
 } from '@/components/arena';
 import { useArenaStore } from '@/stores/arena';
+import { useArena } from '@/hooks/arena';
 import Link from 'next/link';
 
 export default function ArenaPage() {
@@ -33,9 +34,20 @@ export default function ArenaPage() {
 
   const battles = useArenaStore((state) => state.battles);
   const activeBattleId = useArenaStore((state) => state.activeBattleId);
+  const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
+  const { continueTurn, canContinue } = useArena();
 
   const completedBattles = battles.filter((b) => b.winnerId || b.isTie);
   const totalBattles = battles.length;
+
+  const currentBattleId = selectedBattleId || activeBattleId;
+
+  const handleCloseBattle = useCallback(() => {
+    setSelectedBattleId(null);
+    if (activeBattleId) {
+      setActiveBattle(null);
+    }
+  }, [activeBattleId, setActiveBattle]);
 
   return (
     <div className="flex flex-col h-full">
@@ -130,24 +142,24 @@ export default function ArenaPage() {
       <ArenaDialog
         open={showArenaDialog}
         onOpenChange={setShowArenaDialog}
+        initialPrompt={quickPrompt}
         onBattleComplete={() => {
-          // Optionally switch to history tab after battle
+          setQuickPrompt('');
         }}
       />
 
       {/* Battle View */}
-      {(selectedBattleId || activeBattleId) && (
+      {currentBattleId && (
         <ArenaBattleView
-          battleId={selectedBattleId || activeBattleId!}
-          open={!!(selectedBattleId || activeBattleId)}
+          battleId={currentBattleId}
+          open={!!currentBattleId}
           onOpenChange={(open) => {
             if (!open) {
-              setSelectedBattleId(null);
-              if (activeBattleId) {
-                useArenaStore.getState().setActiveBattle(null);
-              }
+              handleCloseBattle();
             }
           }}
+          onContinueTurn={continueTurn}
+          canContinue={currentBattleId ? canContinue(currentBattleId) : false}
         />
       )}
     </div>

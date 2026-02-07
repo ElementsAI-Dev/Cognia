@@ -13,6 +13,10 @@ import {
   processToolOutput,
   createContextTools,
   getContextToolsPrompt,
+  listTerminalSessions,
+  generateTerminalStaticPrompt,
+  getSkillRefs,
+  generateSkillsStaticPrompt,
 } from '@/lib/context';
 import type { ToolOutputRef } from '@/types/system/context';
 
@@ -131,13 +135,46 @@ export async function executeContextAwareAgent(
     enhancedTools = { ...enhancedTools, ...contextTools };
   }
   
-  // Enhance system prompt with context tools documentation
+  // Enhance system prompt with context tools documentation and available resources
   let enhancedSystemPrompt = systemPrompt;
   if (injectContextTools) {
-    const contextPrompt = getContextToolsPrompt();
-    enhancedSystemPrompt = systemPrompt
-      ? `${systemPrompt}\n\n${contextPrompt}`
-      : contextPrompt;
+    const promptParts: string[] = [];
+    if (systemPrompt) promptParts.push(systemPrompt);
+
+    // Add context tools documentation
+    promptParts.push(getContextToolsPrompt());
+
+    // Add terminal sessions awareness (best-effort, non-blocking)
+    try {
+      const sessions = await listTerminalSessions();
+      if (sessions.length > 0) {
+        const terminalPrompt = generateTerminalStaticPrompt(
+          sessions.map((s) => ({
+            id: s.sessionId,
+            name: s.sessionId,
+            shellType: 'unknown',
+            startedAt: s.createdAt,
+            isActive: true,
+          }))
+        );
+        if (terminalPrompt) promptParts.push(terminalPrompt);
+      }
+    } catch {
+      // Terminal sessions unavailable — skip silently
+    }
+
+    // Add synced skills awareness (best-effort, non-blocking)
+    try {
+      const skillRefs = await getSkillRefs();
+      if (skillRefs.length > 0) {
+        const skillsPrompt = generateSkillsStaticPrompt(skillRefs);
+        if (skillsPrompt) promptParts.push(skillsPrompt);
+      }
+    } catch {
+      // Skills context unavailable — skip silently
+    }
+
+    enhancedSystemPrompt = promptParts.join('\n\n');
   }
   
   // Execute with enhanced config

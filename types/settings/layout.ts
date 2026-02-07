@@ -34,6 +34,7 @@ export type SettingsSection =
   | 'external-agents'
   | 'agent-teams'
   | 'logs'
-  | 'logging-config';
+  | 'logging-config'
+  | 'input-completion';
 
 export type SettingsGroup = 'ai' | 'interface' | 'data' | 'system';

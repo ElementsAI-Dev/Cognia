@@ -227,3 +227,93 @@ describe('classifyTask', () => {
     });
   });
 });
+
+describe('applySkillCategoryHints', () => {
+  // Import after classifyTask to ensure module is loaded
+  let applySkillCategoryHints: typeof import('./auto-router').applySkillCategoryHints;
+
+  beforeAll(async () => {
+    const mod = await import('./auto-router');
+    applySkillCategoryHints = mod.applySkillCategoryHints;
+  });
+
+  const baseClassification = {
+    complexity: 'simple' as const,
+    category: 'general' as const,
+    requiresReasoning: false,
+    requiresTools: false,
+    requiresVision: false,
+    requiresCreativity: false,
+    requiresCoding: false,
+    requiresLongContext: false,
+    estimatedInputTokens: 10,
+    estimatedOutputTokens: 20,
+    confidence: 0.8,
+  };
+
+  it('sets requiresCoding and category for development skills', () => {
+    const result = applySkillCategoryHints(baseClassification, ['development']);
+    expect(result.requiresCoding).toBe(true);
+    expect(result.category).toBe('coding');
+  });
+
+  it('sets requiresReasoning and category for data-analysis skills', () => {
+    const result = applySkillCategoryHints(baseClassification, ['data-analysis']);
+    expect(result.requiresReasoning).toBe(true);
+    expect(result.category).toBe('analysis');
+  });
+
+  it('sets requiresCreativity and category for creative-design skills', () => {
+    const result = applySkillCategoryHints(baseClassification, ['creative-design']);
+    expect(result.requiresCreativity).toBe(true);
+    expect(result.category).toBe('creative');
+  });
+
+  it('upgrades complexity for enterprise skills when simple', () => {
+    const result = applySkillCategoryHints(baseClassification, ['enterprise']);
+    expect(result.complexity).toBe('moderate');
+  });
+
+  it('upgrades complexity for productivity skills when simple', () => {
+    const result = applySkillCategoryHints(baseClassification, ['productivity']);
+    expect(result.complexity).toBe('moderate');
+  });
+
+  it('does not downgrade complexity for enterprise skills when already complex', () => {
+    const complexBase = { ...baseClassification, complexity: 'complex' as const };
+    const result = applySkillCategoryHints(complexBase, ['enterprise']);
+    expect(result.complexity).toBe('complex');
+  });
+
+  it('sets requiresReasoning for meta skills', () => {
+    const result = applySkillCategoryHints(baseClassification, ['meta']);
+    expect(result.requiresReasoning).toBe(true);
+  });
+
+  it('handles multiple skill categories', () => {
+    const result = applySkillCategoryHints(baseClassification, ['development', 'data-analysis']);
+    expect(result.requiresCoding).toBe(true);
+    expect(result.requiresReasoning).toBe(true);
+    // First matching category wins
+    expect(result.category).toBe('coding');
+  });
+
+  it('preserves unmodified fields', () => {
+    const result = applySkillCategoryHints(baseClassification, ['development']);
+    expect(result.requiresVision).toBe(false);
+    expect(result.requiresTools).toBe(false);
+    expect(result.estimatedInputTokens).toBe(10);
+    expect(result.confidence).toBe(0.8);
+  });
+
+  it('handles empty skill categories array', () => {
+    const result = applySkillCategoryHints(baseClassification, []);
+    expect(result).toEqual(baseClassification);
+  });
+
+  it('handles unknown skill categories gracefully', () => {
+    const result = applySkillCategoryHints(baseClassification, ['unknown-category']);
+    expect(result.complexity).toBe('simple');
+    expect(result.category).toBe('general');
+  });
+});

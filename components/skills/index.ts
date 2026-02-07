@@ -20,3 +20,4 @@ export { SkillSecurityScanner } from './skill-security-scanner';
 export { SkillMarketplace } from './skill-marketplace';
 export { SkillMarketplaceCard } from './skill-marketplace-card';
 export { SkillMarketplaceDetail } from './skill-marketplace-detail';
+export { SkillGeneratorPanel } from './skill-generator';

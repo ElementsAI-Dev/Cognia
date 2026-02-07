@@ -13,7 +13,7 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(),
 }));
 
-jest.mock('./marketplace', () => ({
+jest.mock('../package/marketplace', () => ({
   getPluginMarketplace: () => ({
     getPlugin: jest.fn().mockResolvedValue({
       id: 'plugin-a',

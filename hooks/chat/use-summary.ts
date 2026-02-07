@@ -43,6 +43,7 @@ import { generateAgentDiagram } from '@/lib/export/diagram/agent-diagram';
 import { downloadFile, generateFilename } from '@/lib/export';
 import type { ProviderName } from '@/lib/ai/core/client';
 import { useSummaryStore } from '@/stores/chat';
+import { createSummaryWithHistoryRef } from '@/lib/context';
 
 export interface UseSummaryOptions {
   /** Use AI for summarization */
@@ -467,6 +468,18 @@ export function useSummary(hookOptions: UseSummaryOptions = {}): UseSummaryRetur
             style: mergedOptions.style,
             usedAI: true,
           });
+
+          // Also persist full history to context files for agent recovery
+          createSummaryWithHistoryRef({
+            sessionId,
+            messages: messages.map((m) => ({
+              role: m.role as 'user' | 'assistant' | 'system',
+              content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+              timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
+            })),
+            summaryText: result.summary,
+            messageRange: { startIndex: 0, endIndex: messages.length - 1 },
+          }).catch(() => { /* best-effort context file persistence */ });
         }
 
         return result;

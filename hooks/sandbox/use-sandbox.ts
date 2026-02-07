@@ -12,6 +12,7 @@ import type {
   SandboxStatus,
 } from '@/types/system/sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
+import { syncSandboxExecution } from '@/lib/context';
 
 interface UseSandboxState {
   isAvailable: boolean;
@@ -108,7 +109,17 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
-      return sandboxService.execute(request);
+      const result = await sandboxService.execute(request);
+      // Sync execution output to context files for agent discovery
+      syncSandboxExecution(
+        result.id,
+        request.code,
+        result.stdout || '',
+        result.stderr || '',
+        result.exit_code ?? (result.status === 'completed' ? 0 : 1),
+        result.execution_time_ms ?? 0
+      ).catch(() => { /* best-effort sync */ });
+      return result;
     },
     [state.isAvailable]
   );
@@ -118,7 +129,17 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
-      return sandboxService.quickExecute(language, code);
+      const result = await sandboxService.quickExecute(language, code);
+      // Sync execution output to context files for agent discovery
+      syncSandboxExecution(
+        result.id,
+        code,
+        result.stdout || '',
+        result.stderr || '',
+        result.exit_code ?? (result.status === 'completed' ? 0 : 1),
+        result.execution_time_ms ?? 0
+      ).catch(() => { /* best-effort sync */ });
+      return result;
     },
     [state.isAvailable]
   );

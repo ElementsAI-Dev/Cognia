@@ -20,10 +20,10 @@ import { memo, useMemo, isValidElement, Children } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { REHYPE_KATEX_OPTIONS } from '@/lib/latex/config';
+import { MathBlock } from '../renderers/math-block';
+import { MathInline } from '../renderers/math-inline';
 import { cn } from '@/lib/utils';
 import { MermaidBlock } from '../renderers/mermaid-block';
 import { VegaLiteBlock } from '../renderers/vegalite-block';
@@ -149,6 +149,9 @@ interface MarkdownRendererProps {
   enableAudioEmbed?: boolean;
   enableTaskLists?: boolean;
   showLineNumbers?: boolean;
+  mathFontScale?: number;
+  mathDisplayAlignment?: 'center' | 'left';
+  mathShowCopyButton?: boolean;
 }
 
 export const MarkdownRenderer = memo(function MarkdownRenderer({
@@ -165,6 +168,9 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   enableAudioEmbed = true,
   enableTaskLists: _enableTaskLists = true,
   showLineNumbers = true,
+  mathFontScale = 1,
+  mathDisplayAlignment = 'center',
+  mathShowCopyButton = true,
 }: MarkdownRendererProps) {
   const remarkPlugins = useMemo(() => {
     const plugins: Parameters<typeof ReactMarkdown>[0]['remarkPlugins'] = [remarkGfm];
@@ -178,15 +184,14 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     const plugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [
       rehypeRaw,
     ];
-    // IMPORTANT: rehypeKatex must run BEFORE rehypeSanitize
-    // Otherwise, KaTeX-generated HTML elements will be stripped
-    if (enableMath) {
-      plugins.push([rehypeKatex, REHYPE_KATEX_OPTIONS]);
-    }
-    // Sanitize HTML last to prevent XSS while preserving KaTeX output
+    // Math is handled via custom React components (MathBlock/MathInline) in the
+    // components map below, so rehype-katex is NOT needed. This gives us rich
+    // interactive features: copy, export, fullscreen, error boundaries.
+    // remark-math creates code elements with language-math class, which are
+    // caught by the code component handler.
     plugins.push([rehypeSanitize, sanitizeSchema]);
     return plugins;
-  }, [enableMath]);
+  }, []);
 
   // Preprocess content to handle different LaTeX delimiter formats
   const processedContent = useMemo(() => {
@@ -207,6 +212,28 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
             const language = match ? match[1] : undefined;
             const codeContent = String(children).replace(/\n$/, '');
             const isInline = !match && !codeContent.includes('\n');
+
+            // Math rendering via remark-math: display math and inline math
+            // remark-math creates code elements with className 'language-math'
+            if (enableMath && language === 'math') {
+              const isDisplayMath = codeClassName?.includes('math-display');
+              if (isDisplayMath) {
+                return (
+                  <MathBlock
+                    content={codeContent}
+                    scale={mathFontScale}
+                    alignment={mathDisplayAlignment}
+                  />
+                );
+              }
+              return (
+                <MathInline
+                  content={codeContent}
+                  scale={mathFontScale}
+                  showCopyOnHover={mathShowCopyButton}
+                />
+              );
+            }
 
             if (isInline) {
               return (

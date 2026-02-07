@@ -561,6 +561,8 @@ export const useArenaStore = create<ArenaState>()(
         get().recordVoteAttempt();
         const qualityIndicators = buildQualityIndicators(battle, settings);
 
+        const category = battle.taskClassification?.category;
+
         set((state) => ({
           battles: state.battles.map((b) =>
             b.id === battleId
@@ -575,7 +577,32 @@ export const useArenaStore = create<ArenaState>()(
           ),
         }));
 
-        // Update battle counts for all contestants (no rating change for both bad)
+        // Record as tie preferences for each pair (both bad = both lose = tie variant)
+        const newPreferences: ArenaPreference[] = [];
+        for (let i = 0; i < battle.contestants.length; i++) {
+          for (let j = i + 1; j < battle.contestants.length; j++) {
+            const a = battle.contestants[i];
+            const b = battle.contestants[j];
+            newPreferences.push({
+              id: nanoid(),
+              battleId,
+              winner: getModelId(a.provider, a.model),
+              loser: getModelId(b.provider, b.model),
+              isTie: true,
+              taskCategory: category,
+              reason: 'both-bad' as ArenaWinReason,
+              timestamp: new Date(),
+            });
+          }
+        }
+
+        if (newPreferences.length > 0) {
+          set((state) => ({
+            preferences: [...newPreferences, ...state.preferences],
+          }));
+        }
+
+        // Update tie counts for all contestants
         for (const contestant of battle.contestants) {
           const modelId = getModelId(contestant.provider, contestant.model);
 
@@ -594,7 +621,7 @@ export const useArenaStore = create<ArenaState>()(
                     totalBattles: 1,
                     wins: 0,
                     losses: 0,
-                    ties: 0,
+                    ties: 1,
                     updatedAt: new Date(),
                   },
                 ],
@@ -607,6 +634,7 @@ export const useArenaStore = create<ArenaState>()(
                   ? {
                       ...r,
                       totalBattles: r.totalBattles + 1,
+                      ties: r.ties + 1,
                       updatedAt: new Date(),
                     }
                   : r

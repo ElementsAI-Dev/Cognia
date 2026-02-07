@@ -3,11 +3,12 @@
 /**
  * Image Studio Page - Dedicated image generation and editing interface
  * Features:
- * - Text to image generation (DALL-E 3, DALL-E 2)
+ * - Text to image generation (DALL-E 3, DALL-E 2, GPT Image 1)
  * - Image editing/inpainting
  * - Image variations
  * - Gallery with history
- * - Advanced settings
+ * - Advanced settings & histogram
+ * - Batch processing
  * - Download and export
  */
 
@@ -102,26 +103,19 @@ import { cn } from '@/lib/utils';
 import { useSettingsStore, useImageStudioStore } from '@/stores';
 import type { StudioImage as _StudioImage, EditOperation as _EditOperation } from '@/stores/media/image-studio-store';
 import {
-  MaskCanvas,
-  ImageCropper,
-  ImageAdjustmentsPanel,
-  ImageUpscaler,
-  BackgroundRemover,
   BatchExportDialog,
   HistoryPanel,
-  FiltersGallery,
-  TextOverlay,
-  DrawingTools,
   ImageComparison,
   LayersPanel,
+  ImageEditorPanel,
+  ImagePreview,
 } from '@/components/image-studio';
 import type { HistoryOperationType, Layer, LayerType } from '@/components/image-studio';
-import { useImageEditorShortcuts } from '@/hooks/image-studio';
+import { useImageEditorShortcuts, useAdvancedImageEditor, useBatchProcessor } from '@/hooks/image-studio';
+import { useImageGeneration } from '@/hooks/media';
+import type { EditorMode } from '@/types/media/image-studio';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import {
-  generateImage,
-  editImage,
-  createImageVariation,
   downloadImageAsBlob,
   saveImageToFile,
   estimateImageCost,
@@ -130,6 +124,7 @@ import {
   type ImageStyle,
   type GeneratedImage,
 } from '@/lib/ai';
+import { useBatchEditStore } from '@/stores/media';
 
 // Prompt templates for quick start - organized by category
 const PROMPT_TEMPLATES = [
@@ -340,7 +335,7 @@ export default function ImageStudioPage() {
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
 
   // Settings
-  const [model, setModel] = useState<'dall-e-3' | 'dall-e-2'>('dall-e-3');
+  const [model, setModel] = useState<'dall-e-3' | 'dall-e-2' | 'gpt-image-1'>('dall-e-3');
   const [size, setSize] = useState<ImageSize>('1024x1024');
   const [quality, setQuality] = useState<ImageQuality>('standard');
   const [style, setStyle] = useState<ImageStyle>('vivid');
@@ -359,7 +354,70 @@ export default function ImageStudioPage() {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const openaiApiKey = providerSettings.openai?.apiKey;
 
-  // Generate images
+  // Integrate useImageGeneration hook for generation/edit/variations
+  const imageGen = useImageGeneration({
+    defaultSize: size,
+    defaultQuality: quality,
+    defaultStyle: style,
+  });
+
+  // Advanced image editor for histogram support
+  const advancedEditor = useAdvancedImageEditor({
+    useWorker: true,
+    useWebGL: true,
+  });
+
+  // Batch processor for multi-image operations
+  const batchProcessor = useBatchProcessor({
+    onJobComplete: (jobId) => {
+      console.log(`Batch job ${jobId} completed`);
+    },
+    onImageComplete: (_jobId, _imageId, outputPath) => {
+      addImage({
+        url: outputPath,
+        prompt: 'Batch processed',
+        model,
+        size,
+        quality,
+        style,
+      });
+    },
+    onImageError: (_jobId, imageId, error) => {
+      console.error(`Batch image ${imageId} failed:`, error);
+    },
+  });
+
+  // Batch edit store for presets and job management
+  const { presets: batchPresets, createPreset: _createBatchPreset } = useBatchEditStore();
+
+  // Histogram data from advanced editor
+  const [histogramData, setHistogramData] = useState<{
+    red: number[];
+    green: number[];
+    blue: number[];
+    luminance: number[];
+  } | null>(null);
+
+  // Load histogram when selected image changes and histogram is visible
+  useEffect(() => {
+    if (!showHistogram || !selectedImage?.url) {
+      setHistogramData(null);
+      return;
+    }
+    const loadHistogram = async () => {
+      try {
+        await advancedEditor.loadImage(selectedImage.url!);
+        const data = await advancedEditor.getHistogram();
+        setHistogramData(data);
+      } catch {
+        setHistogramData(null);
+      }
+    };
+    loadHistogram();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistogram, selectedImage?.url]);
+
+  // Generate images using useImageGeneration hook
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) return;
     
@@ -372,19 +430,20 @@ export default function ImageStudioPage() {
     setError(null);
 
     try {
-      const result = await generateImage(openaiApiKey, {
-        prompt: prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : ''),
-        model,
-        size,
-        quality,
-        style,
-        n: model === 'dall-e-3' ? 1 : numberOfImages,
-      });
+      const n = model === 'dall-e-3' ? 1 : numberOfImages;
+      const result = await imageGen.generate(
+        prompt.trim() + (negativePrompt ? ` Avoid: ${negativePrompt}` : ''),
+        { model, size, quality, style, n }
+      );
+
+      if (!result || result.length === 0) {
+        setError(imageGen.error || 'Failed to generate image');
+        return;
+      }
 
       // Add images to store
       const newImageIds: string[] = [];
-      for (let i = 0; i < result.images.length; i++) {
-        const img = result.images[i];
+      for (const img of result) {
         const id = addImage({
           url: img.url,
           base64: img.base64,
@@ -413,9 +472,9 @@ export default function ImageStudioPage() {
       setIsGenerating(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompt, negativePrompt, model, size, quality, style, numberOfImages, openaiApiKey, t]);
+  }, [prompt, negativePrompt, model, size, quality, style, numberOfImages, openaiApiKey, t, imageGen]);
 
-  // Edit image (inpainting)
+  // Edit image (inpainting) using useImageGeneration hook
   const handleEditImage = useCallback(async () => {
     if (!editImageFile || !prompt.trim()) return;
     
@@ -428,18 +487,21 @@ export default function ImageStudioPage() {
     setError(null);
 
     try {
-      const result = await editImage(openaiApiKey, {
-        image: editImageFile,
-        prompt: prompt.trim(),
-        mask: maskFile || undefined,
-        size: size as '256x256' | '512x512' | '1024x1024',
-        n: numberOfImages,
-      });
+      const result = await imageGen.edit(
+        editImageFile,
+        prompt.trim(),
+        maskFile || undefined,
+        { size: size as '256x256' | '512x512' | '1024x1024', n: numberOfImages }
+      );
+
+      if (!result || result.length === 0) {
+        setError(imageGen.error || 'Failed to edit image');
+        return;
+      }
 
       // Add edited images to store
       const newImageIds: string[] = [];
-      for (let i = 0; i < result.images.length; i++) {
-        const img = result.images[i];
+      for (const img of result) {
         const id = addImage({
           url: img.url,
           base64: img.base64,
@@ -467,9 +529,9 @@ export default function ImageStudioPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage]);
+  }, [editImageFile, maskFile, prompt, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage, imageGen]);
 
-  // Create variations
+  // Create variations using useImageGeneration hook
   const handleCreateVariations = useCallback(async () => {
     if (!variationImage) return;
     
@@ -482,16 +544,19 @@ export default function ImageStudioPage() {
     setError(null);
 
     try {
-      const result = await createImageVariation(openaiApiKey, {
-        image: variationImage,
-        size: size as '256x256' | '512x512' | '1024x1024',
-        n: numberOfImages,
-      });
+      const result = await imageGen.createVariations(
+        variationImage,
+        { size: size as '256x256' | '512x512' | '1024x1024', n: numberOfImages }
+      );
+
+      if (!result || result.length === 0) {
+        setError(imageGen.error || 'Failed to create variations');
+        return;
+      }
 
       // Add variation images to store
       const newImageIds: string[] = [];
-      for (let i = 0; i < result.images.length; i++) {
-        const img = result.images[i];
+      for (const img of result) {
         const id = addImage({
           url: img.url,
           base64: img.base64,
@@ -519,7 +584,7 @@ export default function ImageStudioPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage]);
+  }, [variationImage, size, numberOfImages, openaiApiKey, t, quality, style, addImage, addToHistory, selectImage, imageGen]);
 
   // Download image
   const handleDownload = useCallback(async (image: GeneratedImageWithMeta) => {
@@ -642,7 +707,12 @@ export default function ImageStudioPage() {
   }, []);
 
   // Calculate estimated cost
-  const estimatedCost = estimateImageCost(model, size, quality, model === 'dall-e-3' ? 1 : numberOfImages);
+  const estimatedCost = estimateImageCost(
+    model,
+    size,
+    quality,
+    model === 'dall-e-3' ? 1 : numberOfImages
+  );
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -1030,6 +1100,7 @@ export default function ImageStudioPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="gpt-image-1">GPT Image 1 (Latest)</SelectItem>
                           <SelectItem value="dall-e-3">DALL-E 3 (Best Quality)</SelectItem>
                           <SelectItem value="dall-e-2">DALL-E 2 (Faster, Multiple)</SelectItem>
                         </SelectContent>
@@ -1057,8 +1128,8 @@ export default function ImageStudioPage() {
                       </Select>
                     </div>
 
-                    {/* Quality (DALL-E 3 only) */}
-                    {model === 'dall-e-3' && (
+                    {/* Quality (DALL-E 3 and GPT Image 1) */}
+                    {(model === 'dall-e-3' || model === 'gpt-image-1') && (
                       <div className="space-y-2">
                         <Label className="text-xs">Quality</Label>
                         <Select value={quality} onValueChange={(v) => setQuality(v as ImageQuality)}>
@@ -1066,8 +1137,18 @@ export default function ImageStudioPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="hd">HD (More Detail)</SelectItem>
+                            {model === 'dall-e-3' ? (
+                              <>
+                                <SelectItem value="standard">Standard</SelectItem>
+                                <SelectItem value="hd">HD (More Detail)</SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="low">Low (Fastest)</SelectItem>
+                                <SelectItem value="medium">Medium (Balanced)</SelectItem>
+                                <SelectItem value="high">High (Best Detail)</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1089,8 +1170,8 @@ export default function ImageStudioPage() {
                       </div>
                     )}
 
-                    {/* Number of images (DALL-E 2 only) */}
-                    {model === 'dall-e-2' && (
+                    {/* Number of images (DALL-E 2 and GPT Image 1) */}
+                    {model !== 'dall-e-3' && (
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <Label className="text-xs">Number of Images</Label>
@@ -1100,7 +1181,7 @@ export default function ImageStudioPage() {
                           value={[numberOfImages]}
                           onValueChange={([v]) => setNumberOfImages(v)}
                           min={1}
-                          max={4}
+                          max={model === 'gpt-image-1' ? 4 : 10}
                           step={1}
                         />
                       </div>
@@ -1501,8 +1582,8 @@ export default function ImageStudioPage() {
                   />
                 )}
 
-                {/* Histogram Toggle */}
-                <div className="pt-2">
+                {/* Histogram Toggle & Display */}
+                <div className="pt-2 space-y-2">
                   <Button
                     variant={showHistogram ? 'secondary' : 'outline'}
                     size="sm"
@@ -1512,7 +1593,90 @@ export default function ImageStudioPage() {
                     <BarChart3 className="h-4 w-4 mr-2" />
                     {showHistogram ? 'Hide Histogram' : 'Show Histogram'}
                   </Button>
+                  {showHistogram && histogramData && (
+                    <div className="bg-black/80 rounded-lg p-2">
+                      <svg viewBox="0 0 256 100" className="w-full h-20" preserveAspectRatio="none">
+                        {/* Luminance */}
+                        <polyline
+                          points={histogramData.luminance.map((v, i) => `${i},${100 - (v / Math.max(...histogramData.luminance)) * 100}`).join(' ')}
+                          fill="none"
+                          stroke="white"
+                          strokeWidth="0.5"
+                          opacity="0.6"
+                        />
+                        {/* Red */}
+                        <polyline
+                          points={histogramData.red.map((v, i) => `${i},${100 - (v / Math.max(...histogramData.red)) * 100}`).join(' ')}
+                          fill="none"
+                          stroke="#ef4444"
+                          strokeWidth="0.5"
+                          opacity="0.5"
+                        />
+                        {/* Green */}
+                        <polyline
+                          points={histogramData.green.map((v, i) => `${i},${100 - (v / Math.max(...histogramData.green)) * 100}`).join(' ')}
+                          fill="none"
+                          stroke="#22c55e"
+                          strokeWidth="0.5"
+                          opacity="0.5"
+                        />
+                        {/* Blue */}
+                        <polyline
+                          points={histogramData.blue.map((v, i) => `${i},${100 - (v / Math.max(...histogramData.blue)) * 100}`).join(' ')}
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="0.5"
+                          opacity="0.5"
+                        />
+                      </svg>
+                      <div className="flex justify-between text-[10px] text-white/50 mt-1">
+                        <span>Shadows</span>
+                        <span>Midtones</span>
+                        <span>Highlights</span>
+                      </div>
+                    </div>
+                  )}
+                  {showHistogram && !histogramData && advancedEditor.state.isLoading && (
+                    <div className="flex items-center justify-center h-20 bg-muted rounded-lg">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  )}
                 </div>
+
+                {/* Batch Processing Status */}
+                {batchProcessor.isProcessing && (
+                  <div className="pt-2 border-t space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">Batch Processing</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {batchProcessor.processedCount} / {batchProcessor.processedCount + batchProcessor.errorCount}
+                      </Badge>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5">
+                      <div
+                        className="bg-primary rounded-full h-1.5 transition-all"
+                        style={{ width: `${batchProcessor.progress}%` }}
+                      />
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-6 text-[10px] flex-1" onClick={batchProcessor.pauseJob}>
+                        Pause
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-6 text-[10px] flex-1" onClick={batchProcessor.cancelJob}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Batch Presets Info */}
+                {batchPresets.length > 0 && !batchProcessor.isProcessing && (
+                  <div className="pt-2 border-t">
+                    <p className="text-[10px] text-muted-foreground">
+                      {batchPresets.length} batch preset(s) available
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -1557,310 +1721,185 @@ export default function ImageStudioPage() {
         </div>
       </div>
 
-      {/* Preview Dialog */}
+      {/* Preview Dialog - Enhanced with ImagePreview when comparison data available */}
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="sr-only">Image Preview</DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Image Preview</DialogTitle>
           </DialogHeader>
-          {previewImage?.url && (
-            <div className="flex items-center justify-center">
+          {previewImage?.url && advancedEditor.state.imageData ? (
+            <div className="h-[85vh] p-4">
+              <ImagePreview
+                originalImage={advancedEditor.state.originalImageData}
+                editedImage={advancedEditor.state.imageData}
+                zoom={previewZoom}
+                panX={previewPan.x}
+                panY={previewPan.y}
+                showHistogram={showHistogram}
+                histogram={histogramData}
+                onZoomChange={setPreviewZoom}
+                onPanChange={(x, y) => setPreviewPan({ x, y })}
+                className="h-full"
+              />
+            </div>
+          ) : previewImage?.url ? (
+            <div className="flex items-center justify-center p-4 max-h-[85vh]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewImage.url}
                 alt={previewImage.prompt}
-                className="max-w-full max-h-[80vh] object-contain"
+                className="max-w-full max-h-[80vh] object-contain rounded-lg"
               />
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 
-      {/* Advanced Editing Dialog */}
-      <Dialog open={!!editingImage && !!editMode} onOpenChange={() => { setEditingImage(null); setEditMode(null); }}>
+      {/* Advanced Editing Dialog - Uses unified ImageEditorPanel */}
+      <Dialog open={!!editingImage && !!editMode} onOpenChange={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
-          <DialogHeader className="p-4 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              {editMode === 'mask' && <><Brush className="h-5 w-5" /> Draw Mask for Inpainting</>}
-              {editMode === 'crop' && <><Crop className="h-5 w-5" /> Crop & Transform</>}
-              {editMode === 'adjust' && <><SlidersHorizontal className="h-5 w-5" /> Adjust Image</>}
-              {editMode === 'upscale' && <><ZoomIn className="h-5 w-5" /> Upscale Image</>}
-              {editMode === 'remove-bg' && <><Eraser className="h-5 w-5" /> Remove Background</>}
-              {editMode === 'filter' && <><Palette className="h-5 w-5" /> Apply Filter</>}
-              {editMode === 'text' && <><Type className="h-5 w-5" /> Add Text & Watermark</>}
-              {editMode === 'draw' && <><Pencil className="h-5 w-5" /> Draw & Annotate</>}
-              {editMode === 'compare' && <><Split className="h-5 w-5" /> Compare Images</>}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
-            {editingImage?.url && editMode === 'mask' && (
-              <MaskCanvas
-                imageUrl={editingImage.url}
-                onMaskChange={(base64) => setMaskDataUrl(base64)}
-                className="w-full"
-              />
-            )}
-            {editingImage?.url && editMode === 'crop' && (
-              <ImageCropper
-                imageUrl={editingImage.url}
-                onApply={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'crop',
-                    imageId: newImageId,
-                    description: 'Cropped image',
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'adjust' && (
-              <ImageAdjustmentsPanel
-                imageUrl={editingImage.url}
-                onApply={(dataUrl) => {
-                  const newImageId = addImage({
-                    url: dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'adjust',
-                    imageId: newImageId,
-                    description: 'Adjusted image',
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'upscale' && (
-              <ImageUpscaler
-                imageUrl={editingImage.url}
-                onUpscale={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'upscale',
-                    imageId: newImageId,
-                    description: 'Upscaled image',
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'remove-bg' && (
-              <BackgroundRemover
-                imageUrl={editingImage.url}
-                onRemove={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'remove-bg',
-                    imageId: newImageId,
-                    description: 'Removed background',
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'filter' && (
-              <FiltersGallery
-                imageUrl={editingImage.url}
-                onApply={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'filter',
-                    imageId: newImageId,
-                    description: `Applied ${result.filter.name} filter`,
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'text' && (
-              <TextOverlay
-                imageUrl={editingImage.url}
-                onApply={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'text',
-                    imageId: newImageId,
-                    description: 'Added text overlay',
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'draw' && (
-              <DrawingTools
-                imageUrl={editingImage.url}
-                onApply={(result) => {
-                  const newImageId = addImage({
-                    url: result.dataUrl,
-                    prompt: editingImage.prompt,
-                    model: editingImage.model,
-                    size: editingImage.settings.size,
-                    quality: editingImage.settings.quality,
-                    style: editingImage.settings.style,
-                    parentId: editingImage.id,
-                  });
-                  selectImage(newImageId);
-                  setEditingImage(null);
-                  setEditMode(null);
-                  addToHistory({
-                    type: 'draw',
-                    imageId: newImageId,
-                    description: `Added ${result.shapes.length} annotation(s)`,
-                  });
-                }}
-                onCancel={() => { setEditingImage(null); setEditMode(null); }}
-              />
-            )}
-            {editingImage?.url && editMode === 'compare' && compareBeforeImage && (
-              <div className="flex flex-col gap-4">
-                <ImageComparison
-                  beforeImage={compareBeforeImage}
-                  afterImage={editingImage.url}
-                  beforeLabel="Before"
-                  afterLabel="After"
-                  initialMode="slider-h"
-                />
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setCompareBeforeImage(null); }}>
-                    Close
-                  </Button>
-                </div>
+          {editMode === 'compare' ? (
+            <>
+              <DialogHeader className="p-4 border-b">
+                <DialogTitle className="flex items-center gap-2">
+                  <Split className="h-5 w-5" /> Compare Images
+                </DialogTitle>
+              </DialogHeader>
+              <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
+                {editingImage?.url && compareBeforeImage && (
+                  <div className="flex flex-col gap-4">
+                    <ImageComparison
+                      beforeImage={compareBeforeImage}
+                      afterImage={editingImage.url}
+                      beforeLabel="Before"
+                      afterLabel="After"
+                      initialMode="slider-h"
+                    />
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setCompareBeforeImage(null); }}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          {/* Mask mode has special Apply button for inpainting */}
-          {editMode === 'mask' && maskDataUrl && (
-            <div className="p-4 border-t flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Mask ready. Use this mask to regenerate the marked areas.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}>
-                  Cancel
-                </Button>
-                <Button onClick={async () => {
-                  if (!editingImage?.url || !maskDataUrl || !openaiApiKey) return;
-                  setEditingImage(null);
-                  setEditMode(null);
-                  setIsGenerating(true);
-                  try {
-                    const imgResponse = await proxyFetch(editingImage.url);
-                    const imgBlob = await imgResponse.blob();
-                    const imgFile = new File([imgBlob], 'image.png', { type: 'image/png' });
-                    
-                    const maskBlob = await (await fetch(maskDataUrl)).blob();
-                    const maskFileData = new File([maskBlob], 'mask.png', { type: 'image/png' });
-                    
-                    const result = await editImage(openaiApiKey, {
-                      image: imgFile,
-                      mask: maskFileData,
-                      prompt: prompt || 'Continue the image naturally',
-                      size: '1024x1024',
+            </>
+          ) : editingImage?.url ? (
+            <>
+              <DialogHeader className="sr-only">
+                <DialogTitle>Image Editor</DialogTitle>
+              </DialogHeader>
+              <div className="h-[85vh]">
+                <ImageEditorPanel
+                  imageUrl={editingImage.url}
+                  initialMode={editMode === 'filter' ? 'filters' : (editMode as EditorMode) || 'crop'}
+                  onSave={(result) => {
+                    if (!editingImage) return;
+                    // For mask mode, just save the mask data URL for inpainting
+                    if (result.mode === 'mask') {
+                      setMaskDataUrl(result.dataUrl);
+                      return;
+                    }
+                    // For all other modes, create new image in gallery
+                    const newImageId = addImage({
+                      url: result.dataUrl,
+                      prompt: editingImage.prompt,
+                      model: editingImage.model,
+                      size: editingImage.settings.size,
+                      quality: editingImage.settings.quality,
+                      style: editingImage.settings.style,
+                      parentId: editingImage.id,
                     });
-                    
-                    // Add inpainted images to store
-                    const newImageIds: string[] = [];
-                    for (let i = 0; i < result.images.length; i++) {
-                      const img = result.images[i];
-                      const id = addImage({
-                        url: img.url,
-                        base64: img.base64,
-                        revisedPrompt: img.revisedPrompt,
-                        prompt: prompt || 'Inpainted',
-                        model: 'dall-e-2',
-                        size: '1024x1024' as ImageSize,
-                        quality,
-                        style,
-                        parentId: editingImage.id,
-                      });
-                      newImageIds.push(id);
-                    }
-                    
-                    if (newImageIds.length > 0) {
-                      selectImage(newImageIds[0]);
-                      addToHistory({
-                        type: 'mask',
-                        imageId: newImageIds[0],
-                        description: 'Inpainted image',
-                      });
-                    }
-                    setMaskDataUrl(null);
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Inpainting failed');
-                  } finally {
-                    setIsGenerating(false);
-                  }
-                }}>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Apply Inpainting
-                </Button>
+                    selectImage(newImageId);
+                    setEditingImage(null);
+                    setEditMode(null);
+                    addToHistory({
+                      type: result.mode as _EditOperation['type'],
+                      imageId: newImageId,
+                      description: `Applied ${result.mode} edit`,
+                    });
+                  }}
+                  onCancel={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}
+                  className="h-full"
+                />
               </div>
-            </div>
-          )}
+              {/* Mask mode has special Apply button for inpainting */}
+              {maskDataUrl && (
+                <div className="p-4 border-t flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Mask ready. Use this mask to regenerate the marked areas.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setEditingImage(null); setEditMode(null); setMaskDataUrl(null); }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={async () => {
+                      if (!editingImage?.url || !maskDataUrl || !openaiApiKey) return;
+                      const currentEditingImage = editingImage;
+                      setEditingImage(null);
+                      setEditMode(null);
+                      setIsGenerating(true);
+                      try {
+                        const imgResponse = await proxyFetch(currentEditingImage.url!);
+                        const imgBlob = await imgResponse.blob();
+                        const imgFile = new File([imgBlob], 'image.png', { type: 'image/png' });
+                        
+                        const maskBlob = await (await fetch(maskDataUrl)).blob();
+                        const maskFileData = new File([maskBlob], 'mask.png', { type: 'image/png' });
+                        
+                        // Use imageGen hook for inpainting instead of direct API call
+                        const result = await imageGen.edit(
+                          imgFile,
+                          prompt || 'Continue the image naturally',
+                          maskFileData,
+                          { size: '1024x1024' }
+                        );
+                        
+                        if (!result || result.length === 0) {
+                          setError(imageGen.error || 'Inpainting failed');
+                          return;
+                        }
+                        
+                        // Add inpainted images to store
+                        const newImageIds: string[] = [];
+                        for (const img of result) {
+                          const id = addImage({
+                            url: img.url,
+                            base64: img.base64,
+                            revisedPrompt: img.revisedPrompt,
+                            prompt: prompt || 'Inpainted',
+                            model: 'dall-e-2',
+                            size: '1024x1024' as ImageSize,
+                            quality,
+                            style,
+                            parentId: currentEditingImage.id,
+                          });
+                          newImageIds.push(id);
+                        }
+                        
+                        if (newImageIds.length > 0) {
+                          selectImage(newImageIds[0]);
+                          addToHistory({
+                            type: 'mask',
+                            imageId: newImageIds[0],
+                            description: 'Inpainted image',
+                          });
+                        }
+                        setMaskDataUrl(null);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Inpainting failed');
+                      } finally {
+                        setIsGenerating(false);
+                      }
+                    }}>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Apply Inpainting
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
 

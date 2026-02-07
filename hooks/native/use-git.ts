@@ -15,6 +15,9 @@ import type {
   GitCommitInfo,
   GitBranchInfo,
   GitFileStatus,
+  GitRemoteInfo,
+  GitTagInfo,
+  GitCommitDetail,
   GitOperationProgress,
   GitOperationStatus,
   ProjectGitConfig,
@@ -44,6 +47,8 @@ export interface UseGitReturn {
   commits: GitCommitInfo[];
   fileStatus: GitFileStatus[];
   stashList: { index: number; message: string; branch?: string; date?: string }[];
+  remotes: GitRemoteInfo[];
+  tags: GitTagInfo[];
 
   // Operation state
   operationStatus: GitOperationStatus;
@@ -104,6 +109,34 @@ export interface UseGitReturn {
   stashDrop: (index?: number) => Promise<boolean>;
   stashClear: () => Promise<boolean>;
 
+  // Remote management
+  loadRemotes: () => Promise<void>;
+  addRemote: (name: string, url: string) => Promise<boolean>;
+  removeRemote: (name: string) => Promise<boolean>;
+
+  // Tag actions
+  loadTags: () => Promise<void>;
+  createTag: (name: string, options?: { message?: string; target?: string; force?: boolean }) => Promise<boolean>;
+  deleteTag: (name: string) => Promise<boolean>;
+  pushTag: (name: string, remote?: string) => Promise<boolean>;
+
+  // Revert actions
+  revertCommit: (commitHash: string, noCommit?: boolean) => Promise<boolean>;
+  revertAbort: () => Promise<boolean>;
+
+  // Cherry-pick actions
+  cherryPick: (commitHash: string, noCommit?: boolean) => Promise<boolean>;
+  cherryPickAbort: () => Promise<boolean>;
+
+  // Branch rename
+  renameBranch: (oldName: string, newName: string, force?: boolean) => Promise<boolean>;
+
+  // Commit detail
+  showCommit: (commitHash: string, maxLines?: number) => Promise<GitCommitDetail | null>;
+
+  // Merge abort
+  mergeAbort: () => Promise<boolean>;
+
   // Project Git
   enableGitForProject: (repoPath: string) => Promise<boolean>;
   disableGitForProject: () => void;
@@ -130,6 +163,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     commits,
     fileStatus,
     stashList,
+    remotes,
+    tags,
     operationStatus,
     lastError,
   } = useGitStore(
@@ -143,6 +178,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       commits: state.commits,
       fileStatus: state.fileStatus,
       stashList: state.stashList,
+      remotes: state.remotes,
+      tags: state.tags,
       operationStatus: state.operationStatus,
       lastError: state.lastError,
     }))
@@ -184,6 +221,20 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     enableGitForProject: enableGitForProjectAction,
     disableGitForProject: disableGitForProjectAction,
     clearError,
+    loadRemotes: loadRemotesAction,
+    addRemote: addRemoteAction,
+    removeRemote: removeRemoteAction,
+    loadTags: loadTagsAction,
+    createTag: createTagAction,
+    deleteTag: deleteTagAction,
+    pushTag: pushTagAction,
+    revertCommit: revertCommitAction,
+    revertAbort: revertAbortAction,
+    cherryPick: cherryPickAction,
+    cherryPickAbort: cherryPickAbortAction,
+    renameBranch: renameBranchAction,
+    showCommit: showCommitAction,
+    mergeAbort: mergeAbortAction,
   } = useGitStore(
     useShallow((state) => ({
       checkGitInstalled: state.checkGitInstalled,
@@ -220,6 +271,20 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       enableGitForProject: state.enableGitForProject,
       disableGitForProject: state.disableGitForProject,
       clearError: state.clearError,
+      loadRemotes: state.loadRemotes,
+      addRemote: state.addRemote,
+      removeRemote: state.removeRemote,
+      loadTags: state.loadTags,
+      createTag: state.createTag,
+      deleteTag: state.deleteTag,
+      pushTag: state.pushTag,
+      revertCommit: state.revertCommit,
+      revertAbort: state.revertAbort,
+      cherryPick: state.cherryPick,
+      cherryPickAbort: state.cherryPickAbort,
+      renameBranch: state.renameBranch,
+      showCommit: state.showCommit,
+      mergeAbort: state.mergeAbort,
     }))
   );
 
@@ -248,6 +313,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
       loadCommitHistory();
       loadFileStatus();
       loadStashList();
+      loadRemotesAction();
+      loadTagsAction();
     }
   }, [
     autoLoadStatus,
@@ -256,6 +323,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     loadCommitHistory,
     loadFileStatus,
     loadStashList,
+    loadRemotesAction,
+    loadTagsAction,
   ]);
 
   // Refresh all status
@@ -265,7 +334,9 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     await loadCommitHistory();
     await loadFileStatus();
     await loadStashList();
-  }, [loadRepoStatus, loadBranches, loadCommitHistory, loadFileStatus, loadStashList]);
+    await loadRemotesAction();
+    await loadTagsAction();
+  }, [loadRepoStatus, loadBranches, loadCommitHistory, loadFileStatus, loadStashList, loadRemotesAction, loadTagsAction]);
 
   // Install Git
   const installGit = useCallback(async () => {
@@ -448,6 +519,96 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     return stashClearAction();
   }, [stashClearAction]);
 
+  // Remote management
+  const loadRemotes = useCallback(async () => {
+    return loadRemotesAction();
+  }, [loadRemotesAction]);
+
+  const addRemote = useCallback(
+    async (name: string, url: string) => {
+      return addRemoteAction(name, url);
+    },
+    [addRemoteAction]
+  );
+
+  const removeRemote = useCallback(
+    async (name: string) => {
+      return removeRemoteAction(name);
+    },
+    [removeRemoteAction]
+  );
+
+  // Tag actions
+  const loadTags = useCallback(async () => {
+    return loadTagsAction();
+  }, [loadTagsAction]);
+
+  const createTag = useCallback(
+    async (name: string, options?: { message?: string; target?: string; force?: boolean }) => {
+      return createTagAction(name, options);
+    },
+    [createTagAction]
+  );
+
+  const deleteTag = useCallback(
+    async (name: string) => {
+      return deleteTagAction(name);
+    },
+    [deleteTagAction]
+  );
+
+  const pushTag = useCallback(
+    async (name: string, remote?: string) => {
+      return pushTagAction(name, remote);
+    },
+    [pushTagAction]
+  );
+
+  // Revert actions
+  const revertCommit = useCallback(
+    async (commitHash: string, noCommit?: boolean) => {
+      return revertCommitAction(commitHash, noCommit);
+    },
+    [revertCommitAction]
+  );
+
+  const revertAbort = useCallback(async () => {
+    return revertAbortAction();
+  }, [revertAbortAction]);
+
+  // Cherry-pick actions
+  const cherryPick = useCallback(
+    async (commitHash: string, noCommit?: boolean) => {
+      return cherryPickAction(commitHash, noCommit);
+    },
+    [cherryPickAction]
+  );
+
+  const cherryPickAbort = useCallback(async () => {
+    return cherryPickAbortAction();
+  }, [cherryPickAbortAction]);
+
+  // Branch rename
+  const renameBranch = useCallback(
+    async (oldName: string, newName: string, force?: boolean) => {
+      return renameBranchAction(oldName, newName, force);
+    },
+    [renameBranchAction]
+  );
+
+  // Show commit detail
+  const showCommit = useCallback(
+    async (commitHash: string, maxLines?: number) => {
+      return showCommitAction(commitHash, maxLines);
+    },
+    [showCommitAction]
+  );
+
+  // Merge abort
+  const mergeAbort = useCallback(async () => {
+    return mergeAbortAction();
+  }, [mergeAbortAction]);
+
   // Enable Git for project
   const enableGitForProject = useCallback(
     async (gitRepoPath: string) => {
@@ -489,6 +650,8 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     commits,
     fileStatus,
     stashList,
+    remotes,
+    tags,
 
     // Operation state
     operationStatus,
@@ -541,6 +704,34 @@ export function useGit(options: UseGitOptions = {}): UseGitReturn {
     stashApply,
     stashDrop,
     stashClear,
+
+    // Remote management
+    loadRemotes,
+    addRemote,
+    removeRemote,
+
+    // Tag actions
+    loadTags,
+    createTag,
+    deleteTag,
+    pushTag,
+
+    // Revert actions
+    revertCommit,
+    revertAbort,
+
+    // Cherry-pick actions
+    cherryPick,
+    cherryPickAbort,
+
+    // Branch rename
+    renameBranch,
+
+    // Commit detail
+    showCommit,
+
+    // Merge abort
+    mergeAbort,
 
     // Project Git
     enableGitForProject,

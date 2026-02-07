@@ -41,6 +41,38 @@ pub struct ResourcesUnsubscribeParams {
     pub uri: String,
 }
 
+/// Request params for resources/templates/list
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResourcesTemplatesListParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+}
+
+/// A resource template with a URI template
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceTemplate {
+    /// URI template (RFC 6570)
+    pub uri_template: String,
+    /// Human-readable name
+    pub name: String,
+    /// Description of the resource template
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// MIME type of resources produced
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}
+
+/// Response for resources/templates/list
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourcesTemplatesListResponse {
+    pub resource_templates: Vec<ResourceTemplate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+}
+
 /// Resource updated notification params
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUpdatedParams {

@@ -8,7 +8,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import { SidebarContainer } from '@/components/sidebar';
 import { ArtifactPanel } from '@/components/artifacts';
 import { CanvasPanel } from '@/components/canvas';
-import { BackgroundAgentPanel } from '@/components/agent';
+import { BackgroundAgentPanel, AgentTeamPanelSheet } from '@/components/agent';
 
 export default function ChatLayout({
   children,
@@ -21,6 +21,7 @@ export default function ChatLayout({
       <ArtifactPanel />
       <CanvasPanel />
       <BackgroundAgentPanel />
+      <AgentTeamPanelSheet />
     </AppShell>
   );
 }

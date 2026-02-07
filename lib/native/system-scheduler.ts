@@ -176,6 +176,17 @@ export async function runSystemTaskNow(taskId: SystemTaskId): Promise<TaskRunRes
 }
 
 /**
+ * Confirm a pending task operation
+ */
+export async function confirmSystemTask(taskId: SystemTaskId): Promise<SystemTask | null> {
+  if (!isTauri()) {
+    return null;
+  }
+
+  return invoke<SystemTask | null>('scheduler_confirm_task', { taskId });
+}
+
+/**
  * Cancel a pending confirmation
  */
 export async function cancelTaskConfirmation(taskId: SystemTaskId): Promise<boolean> {

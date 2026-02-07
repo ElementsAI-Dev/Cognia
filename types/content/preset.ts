@@ -5,6 +5,27 @@
 import type { ChatMode } from '../core/session';
 import type { ProviderName } from '../provider/provider';
 
+export type PresetCategory =
+  | 'general'
+  | 'coding'
+  | 'writing'
+  | 'research'
+  | 'education'
+  | 'business'
+  | 'creative'
+  | 'productivity';
+
+export const PRESET_CATEGORIES: PresetCategory[] = [
+  'general',
+  'coding',
+  'writing',
+  'research',
+  'education',
+  'business',
+  'creative',
+  'productivity',
+];
+
 export interface BuiltinPrompt {
   id: string;
   name: string;
@@ -34,6 +55,9 @@ export interface Preset {
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
 
+  // Organization
+  category?: PresetCategory;
+
   // Metadata
   isDefault?: boolean;
   isBuiltin?: boolean;
@@ -60,6 +84,7 @@ export interface CreatePresetInput {
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
   isDefault?: boolean;
+  category?: PresetCategory;
 }
 
 export interface UpdatePresetInput {
@@ -77,6 +102,7 @@ export interface UpdatePresetInput {
   webSearchEnabled?: boolean;
   thinkingEnabled?: boolean;
   isDefault?: boolean;
+  category?: PresetCategory;
 }
 
 // Preset colors for UI
@@ -133,6 +159,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     systemPrompt: 'You are a helpful, harmless, and honest assistant.',
     temperature: 0.7,
     isDefault: true,
+    isBuiltin: true,
+    category: 'general',
   },
   {
     name: 'Creative Writer',
@@ -145,6 +173,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     systemPrompt:
       'You are a creative writing assistant. Help the user craft compelling stories, poems, and creative content. Be imaginative, use vivid language, and help develop interesting characters and plots.',
     temperature: 0.9,
+    isBuiltin: true,
+    category: 'creative',
   },
   {
     name: 'Code Expert',
@@ -157,6 +187,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     systemPrompt:
       'You are an expert programmer. Help the user write clean, efficient, and well-documented code. Explain your reasoning and suggest best practices. When providing code, include comments and handle edge cases.',
     temperature: 0.3,
+    isBuiltin: true,
+    category: 'coding',
   },
   {
     name: 'Deep Thinker',
@@ -170,6 +202,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
       'You are an expert at complex reasoning and analysis. Break down problems systematically, consider multiple perspectives, and provide well-reasoned conclusions.',
     temperature: 0.5,
     thinkingEnabled: true,
+    isBuiltin: true,
+    category: 'general',
   },
   {
     name: 'Quick Helper',
@@ -180,6 +214,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     model: 'gpt-4o-mini',
     mode: 'chat',
     temperature: 0.5,
+    isBuiltin: true,
+    category: 'productivity',
   },
   {
     name: 'Researcher',
@@ -193,6 +229,8 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
       'You are a research assistant. Help the user find accurate information, cite sources when possible, and provide comprehensive analysis of topics.',
     temperature: 0.4,
     webSearchEnabled: true,
+    isBuiltin: true,
+    category: 'research',
   },
   {
     name: 'Learning Tutor',
@@ -205,5 +243,77 @@ export const DEFAULT_PRESETS: Omit<Preset, 'id' | 'createdAt' | 'updatedAt' | 'u
     systemPrompt:
       'You are an expert tutor. Help the user learn new concepts by breaking them down into understandable pieces, asking clarifying questions, providing examples, and testing understanding with practice problems.',
     temperature: 0.6,
+    isBuiltin: true,
+    category: 'education',
+  },
+  {
+    name: 'Translator',
+    description: 'Multilingual translation expert',
+    icon: '🌟',
+    color: '#06b6d4',
+    provider: 'auto',
+    model: 'gpt-4o',
+    mode: 'chat',
+    systemPrompt:
+      'You are a professional translator. Translate text between languages accurately, preserving tone, nuance, and cultural context. When the source language is ambiguous, ask for clarification. Provide alternative translations for idiomatic expressions. Always maintain the original formatting.',
+    temperature: 0.3,
+    isBuiltin: true,
+    category: 'productivity',
+  },
+  {
+    name: 'Data Analyst',
+    description: 'Data analysis and visualization expert',
+    icon: '📊',
+    color: '#3b82f6',
+    provider: 'auto',
+    model: 'gpt-4o',
+    mode: 'chat',
+    systemPrompt:
+      'You are a data analysis expert. Help the user analyze data, identify patterns and trends, create visualizations, and derive actionable insights. Use statistical methods when appropriate. Present findings clearly with charts descriptions and summary tables.',
+    temperature: 0.3,
+    isBuiltin: true,
+    category: 'business',
+  },
+  {
+    name: 'Summarizer',
+    description: 'Condense long content into key points',
+    icon: '📝',
+    color: '#f43f5e',
+    provider: 'auto',
+    model: 'gpt-4o-mini',
+    mode: 'chat',
+    systemPrompt:
+      'You are a summarization expert. Condense long texts, articles, and documents into clear, structured summaries. Identify key points, main arguments, and important details. Use bullet points for clarity. Adapt summary length to the content: brief for short texts, detailed for complex ones.',
+    temperature: 0.3,
+    isBuiltin: true,
+    category: 'productivity',
+  },
+  {
+    name: 'Business Strategist',
+    description: 'Business planning and strategy advisor',
+    icon: '🎯',
+    color: '#f97316',
+    provider: 'auto',
+    model: 'gpt-4o',
+    mode: 'chat',
+    systemPrompt:
+      'You are a senior business strategy consultant. Help with business planning, market analysis, competitive strategy, and decision-making. Use frameworks like SWOT, Porter\'s Five Forces, and Blue Ocean Strategy when appropriate. Provide data-driven recommendations and consider both short-term and long-term implications.',
+    temperature: 0.5,
+    isBuiltin: true,
+    category: 'business',
+  },
+  {
+    name: 'Writing Coach',
+    description: 'Improve writing quality and style',
+    icon: '🔥',
+    color: '#ec4899',
+    provider: 'auto',
+    model: 'gpt-4o',
+    mode: 'chat',
+    systemPrompt:
+      'You are a professional writing coach. Review and improve the user\'s writing for clarity, grammar, style, and impact. Explain your suggested changes so the user can learn. Adapt your feedback to the writing type (academic, business, creative, etc.). Preserve the author\'s voice while enhancing readability.',
+    temperature: 0.5,
+    isBuiltin: true,
+    category: 'writing',
   },
 ];

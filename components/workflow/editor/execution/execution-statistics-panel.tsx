@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/sheet';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import {
+  formatExecutionDuration,
+  formatExecutionStatus,
+  getStatusColor,
+} from '@/lib/workflow-editor';
+import {
   BarChart3,
   CheckCircle,
   XCircle,
@@ -43,13 +48,7 @@ export function ExecutionStatisticsPanel() {
     return getWorkflowStatistics();
   }, [getWorkflowStatistics]);
 
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms.toFixed(0)}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-    const minutes = Math.floor(ms / 60000);
-    const seconds = ((ms % 60000) / 1000).toFixed(0);
-    return `${minutes}m ${seconds}s`;
-  };
+  const formatDuration = formatExecutionDuration;
 
   const formatDate = (date: Date | undefined) => {
     if (!date) return t('never');
@@ -183,35 +182,44 @@ export function ExecutionStatisticsPanel() {
               </div>
               <ScrollArea className="h-[200px]">
                 <div className="space-y-2 pr-4">
-                  {statistics.executionHistory.slice(0, 10).map((record) => (
-                    <div
-                      key={record.id}
-                      className="flex items-center gap-3 p-2 rounded-md border text-sm"
-                    >
-                      {record.status === 'completed' ? (
-                        <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                      ) : record.status === 'failed' ? (
-                        <XCircle className="h-4 w-4 text-red-500 shrink-0" />
-                      ) : (
-                        <Clock className="h-4 w-4 text-gray-400 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(record.startedAt)}
-                          </span>
-                          <span className="text-xs font-mono">
-                            {formatDuration(record.duration)}
-                          </span>
-                        </div>
-                        {record.errorMessage && (
-                          <div className="text-xs text-red-500 truncate mt-0.5">
-                            {record.errorMessage}
-                          </div>
+                  {statistics.executionHistory.slice(0, 10).map((record) => {
+                    const statusLabel = formatExecutionStatus(record.status as 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled');
+                    const statusColor = getStatusColor(record.status as 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled');
+                    return (
+                      <div
+                        key={record.id}
+                        className="flex items-center gap-3 p-2 rounded-md border text-sm"
+                      >
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: statusColor }}
+                          title={statusLabel}
+                        />
+                        {record.status === 'completed' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                        ) : record.status === 'failed' ? (
+                          <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-gray-400 shrink-0" />
                         )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(record.startedAt)}
+                            </span>
+                            <span className="text-xs font-mono">
+                              {formatDuration(record.duration)}
+                            </span>
+                          </div>
+                          {record.errorMessage && (
+                            <div className="text-xs text-red-500 truncate mt-0.5">
+                              {record.errorMessage}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>

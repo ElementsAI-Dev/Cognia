@@ -3,7 +3,20 @@
  * Comprehensive data import with validation and merge strategies
  */
 
-import { db, type DBSession, type DBMessage, type DBDocument, type DBProject } from '@/lib/db';
+import {
+  db,
+  type DBSession,
+  type DBMessage,
+  type DBDocument,
+  type DBProject,
+  type DBWorkflow,
+  type DBWorkflowExecution,
+  type DBSummary,
+  type DBKnowledgeFile,
+  type DBAgentTrace,
+  type DBFolder,
+  type DBMCPServer,
+} from '@/lib/db';
 import type { Session, Artifact } from '@/types';
 
 /**
@@ -22,6 +35,13 @@ export interface ExportData {
     messages?: DBMessage[];
     documents?: DBDocument[];
     projects?: DBProject[];
+    workflows?: DBWorkflow[];
+    workflowExecutions?: DBWorkflowExecution[];
+    summaries?: DBSummary[];
+    knowledgeFiles?: DBKnowledgeFile[];
+    agentTraces?: DBAgentTrace[];
+    folders?: DBFolder[];
+    mcpServers?: DBMCPServer[];
   };
 }
 
@@ -229,6 +249,11 @@ export async function importFullBackup(
       result.imported.documents = idbResult.documents;
       result.imported.projects = idbResult.projects;
       result.errors.push(...idbResult.errors);
+      if (idbResult.workflows > 0) result.warnings.push(`Imported ${idbResult.workflows} workflows`);
+      if (idbResult.summaries > 0) result.warnings.push(`Imported ${idbResult.summaries} summaries`);
+      if (idbResult.knowledgeFiles > 0) result.warnings.push(`Imported ${idbResult.knowledgeFiles} knowledge files`);
+      if (idbResult.agentTraces > 0) result.warnings.push(`Imported ${idbResult.agentTraces} agent traces`);
+      if (idbResult.folders > 0) result.warnings.push(`Imported ${idbResult.folders} folders`);
     }
 
     result.success = result.errors.length === 0;
@@ -390,97 +415,147 @@ async function importArtifacts(
 /**
  * Import IndexedDB data
  */
+interface IndexedDBImportResult {
+  messages: number;
+  documents: number;
+  projects: number;
+  workflows: number;
+  workflowExecutions: number;
+  summaries: number;
+  knowledgeFiles: number;
+  agentTraces: number;
+  folders: number;
+  mcpServers: number;
+  errors: ImportError[];
+}
+
+/**
+ * Generic bulk import helper for a single IndexedDB table
+ */
+async function importTable<T extends { id: string }>(
+  items: T[] | undefined,
+  table: { put: (item: T) => Promise<string> },
+  tableName: string,
+  options: ImportOptions
+): Promise<{ imported: number; errors: ImportError[] }> {
+  const errors: ImportError[] = [];
+  let imported = 0;
+
+  if (!items || items.length === 0) return { imported, errors };
+
+  for (const item of items) {
+    try {
+      const newItem = options.generateNewIds
+        ? { ...item, id: crypto.randomUUID() }
+        : item;
+      await table.put(newItem);
+      imported++;
+    } catch (error) {
+      errors.push({
+        category: `indexedDB.${tableName}`,
+        id: item.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { imported, errors };
+}
+
 async function importIndexedDB(
   data: NonNullable<ExportData['indexedDB']>,
   options: ImportOptions
-): Promise<{ messages: number; documents: number; projects: number; errors: ImportError[] }> {
+): Promise<IndexedDBImportResult> {
   const errors: ImportError[] = [];
-  let messages = 0;
-  let documents = 0;
-  let projects = 0;
+  const counts: Omit<IndexedDBImportResult, 'errors'> = {
+    messages: 0,
+    documents: 0,
+    projects: 0,
+    workflows: 0,
+    workflowExecutions: 0,
+    summaries: 0,
+    knowledgeFiles: 0,
+    agentTraces: 0,
+    folders: 0,
+    mcpServers: 0,
+  };
 
   try {
     // Clear existing data if replace strategy
     if (options.mergeStrategy === 'replace') {
-      await db.messages.clear();
-      await db.documents.clear();
-      await db.projects.clear();
+      await Promise.all([
+        db.sessions.clear(),
+        db.messages.clear(),
+        db.documents.clear(),
+        db.projects.clear(),
+        db.workflows.clear(),
+        db.workflowExecutions.clear(),
+        db.summaries.clear(),
+        db.knowledgeFiles.clear(),
+        db.agentTraces.clear(),
+        db.folders.clear(),
+        db.mcpServers.clear(),
+      ]);
     }
 
-    // Import sessions
-    if (data.sessions && data.sessions.length > 0) {
-      for (const session of data.sessions) {
-        try {
-          const newSession = options.generateNewIds
-            ? { ...session, id: crypto.randomUUID() }
-            : session;
-          await db.sessions.put(newSession);
-        } catch (error) {
-          errors.push({
-            category: 'indexedDB.sessions',
-            id: session.id,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
+    // Import sessions first (other tables may reference them)
+    const sessionResult = await importTable(
+      data.sessions,
+      db.sessions,
+      'sessions',
+      options
+    );
+    errors.push(...sessionResult.errors);
 
     // Import messages
-    if (data.messages && data.messages.length > 0) {
-      for (const message of data.messages) {
-        try {
-          const newMessage = options.generateNewIds
-            ? { ...message, id: crypto.randomUUID() }
-            : message;
-          await db.messages.put(newMessage);
-          messages++;
-        } catch (error) {
-          errors.push({
-            category: 'indexedDB.messages',
-            id: message.id,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
+    const msgResult = await importTable(data.messages, db.messages, 'messages', options);
+    counts.messages = msgResult.imported;
+    errors.push(...msgResult.errors);
 
     // Import documents
-    if (data.documents && data.documents.length > 0) {
-      for (const doc of data.documents) {
-        try {
-          const newDoc = options.generateNewIds
-            ? { ...doc, id: crypto.randomUUID() }
-            : doc;
-          await db.documents.put(newDoc);
-          documents++;
-        } catch (error) {
-          errors.push({
-            category: 'indexedDB.documents',
-            id: doc.id,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
+    const docResult = await importTable(data.documents, db.documents, 'documents', options);
+    counts.documents = docResult.imported;
+    errors.push(...docResult.errors);
 
     // Import projects
-    if (data.projects && data.projects.length > 0) {
-      for (const project of data.projects) {
-        try {
-          const newProject = options.generateNewIds
-            ? { ...project, id: crypto.randomUUID() }
-            : project;
-          await db.projects.put(newProject);
-          projects++;
-        } catch (error) {
-          errors.push({
-            category: 'indexedDB.projects',
-            id: project.id,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
+    const projResult = await importTable(data.projects, db.projects, 'projects', options);
+    counts.projects = projResult.imported;
+    errors.push(...projResult.errors);
+
+    // Import workflows
+    const wfResult = await importTable(data.workflows, db.workflows, 'workflows', options);
+    counts.workflows = wfResult.imported;
+    errors.push(...wfResult.errors);
+
+    // Import workflow executions
+    const wfeResult = await importTable(data.workflowExecutions, db.workflowExecutions, 'workflowExecutions', options);
+    counts.workflowExecutions = wfeResult.imported;
+    errors.push(...wfeResult.errors);
+
+    // Import summaries
+    const sumResult = await importTable(data.summaries, db.summaries, 'summaries', options);
+    counts.summaries = sumResult.imported;
+    errors.push(...sumResult.errors);
+
+    // Import knowledge files
+    const kfResult = await importTable(data.knowledgeFiles, db.knowledgeFiles, 'knowledgeFiles', options);
+    counts.knowledgeFiles = kfResult.imported;
+    errors.push(...kfResult.errors);
+
+    // Import agent traces
+    const atResult = await importTable(data.agentTraces, db.agentTraces, 'agentTraces', options);
+    counts.agentTraces = atResult.imported;
+    errors.push(...atResult.errors);
+
+    // Import folders
+    const folderResult = await importTable(data.folders, db.folders, 'folders', options);
+    counts.folders = folderResult.imported;
+    errors.push(...folderResult.errors);
+
+    // Import MCP servers
+    const mcpResult = await importTable(data.mcpServers, db.mcpServers, 'mcpServers', options);
+    counts.mcpServers = mcpResult.imported;
+    errors.push(...mcpResult.errors);
   } catch (error) {
     errors.push({
       category: 'indexedDB',
@@ -488,7 +563,7 @@ async function importIndexedDB(
     });
   }
 
-  return { messages, documents, projects, errors };
+  return { ...counts, errors };
 }
 
 /**

@@ -5,9 +5,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   CompletionConfig,
+  CompletionFeedback,
   CompletionResult,
   CompletionStatus,
   CompletionSuggestion,
+  CompletionStats,
   ImeState,
 } from '@/types/input-completion';
 
@@ -91,7 +93,7 @@ export async function isInputCompletionRunning(): Promise<boolean> {
 /**
  * Get completion statistics
  */
-export async function getCompletionStats(): Promise<import('@/types/input-completion').CompletionStats> {
+export async function getCompletionStats(): Promise<CompletionStats> {
   return invoke('input_completion_get_stats');
 }
 
@@ -114,4 +116,11 @@ export async function clearCompletionCache(): Promise<void> {
  */
 export async function testProviderConnection(): Promise<CompletionResult> {
   return invoke('input_completion_test_connection');
+}
+
+/**
+ * Submit quality feedback for a completion suggestion
+ */
+export async function submitCompletionFeedback(feedback: CompletionFeedback): Promise<void> {
+  return invoke('input_completion_submit_feedback', { feedback });
 }

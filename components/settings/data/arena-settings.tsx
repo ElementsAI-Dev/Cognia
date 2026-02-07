@@ -14,6 +14,8 @@ import {
   Settings2,
   ChevronDown,
   ChevronUp,
+  FileJson,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -54,23 +56,32 @@ import {
 import { cn } from '@/lib/utils';
 import { useArenaStore } from '@/stores/arena';
 import { exportPreferences, importPreferences } from '@/lib/ai/generation/preference-learner';
+import {
+  exportBattles,
+  getExportStats,
+  downloadExport,
+  type ExportFormat,
+} from '@/lib/ai/arena/rlhf-export';
 import { useLeaderboardSyncSettings } from '@/hooks/arena';
+import { toast } from 'sonner';
+import type { ArenaPreference, ArenaModelRating } from '@/types/arena';
 
 export function ArenaSettings() {
   const t = useTranslations('arena.settings');
   const tArena = useTranslations('arena');
   const tCommon = useTranslations('common');
-
   // Collapsible state
   const [showAntiGaming, setShowAntiGaming] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLeaderboardSync, setShowLeaderboardSync] = useState(false);
+  const [showRlhfExport, setShowRlhfExport] = useState(false);
+  const [rlhfFormat, setRlhfFormat] = useState<ExportFormat>('rlhf');
 
   // Arena store
   const settings = useArenaStore((state) => state.settings);
   const updateSettings = useArenaStore((state) => state.updateSettings);
   const resetSettings = useArenaStore((state) => state.resetSettings);
-  const _battles = useArenaStore((state) => state.battles);
+  const battles = useArenaStore((state) => state.battles);
   const modelRatings = useArenaStore((state) => state.modelRatings);
   const clearBattleHistory = useArenaStore((state) => state.clearBattleHistory);
   const resetModelRatings = useArenaStore((state) => state.resetModelRatings);
@@ -98,7 +109,7 @@ export function ArenaSettings() {
     URL.revokeObjectURL(url);
   };
 
-  // Import preferences from JSON file
+  // Import preferences from JSON file with validation
   const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -110,14 +121,67 @@ export function ArenaSettings() {
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        if (data.preferences) {
-          importPreferences(data);
+
+        // Validate structure
+        if (!data.preferences || !Array.isArray(data.preferences)) {
+          toast.error(t('importFailed'), {
+            description: t('importInvalidFormat'),
+          });
+          return;
         }
+
+        // Validate each preference has required fields
+        const isValid = data.preferences.every(
+          (p: Partial<ArenaPreference>) =>
+            p.id && p.battleId && p.winner && p.loser && p.timestamp
+        );
+
+        if (!isValid) {
+          toast.error(t('importFailed'), {
+            description: t('importInvalidPreferences'),
+          });
+          return;
+        }
+
+        // Optional: validate modelRatings if present
+        if (data.modelRatings && Array.isArray(data.modelRatings)) {
+          const ratingsValid = data.modelRatings.every(
+            (r: Partial<ArenaModelRating>) =>
+              r.modelId && r.provider && r.model && typeof r.rating === 'number'
+          );
+          if (!ratingsValid) {
+            toast.error(t('importFailed'), {
+              description: t('importInvalidRatings'),
+            });
+            return;
+          }
+        }
+
+        importPreferences(data);
+        toast.success(t('importSuccess'), {
+          description: t('importSuccessDescription', { count: data.preferences.length }),
+        });
       } catch (err) {
         console.error('Failed to import preferences:', err);
+        toast.error(t('importFailed'), {
+          description: t('importParseError'),
+        });
       }
     };
     input.click();
+  };
+
+  // RLHF export
+  const rlhfStats = getExportStats(battles);
+
+  const handleRlhfExport = () => {
+    const data = exportBattles(battles, {
+      format: rlhfFormat,
+      includeMetadata: true,
+      includeTies: false,
+    });
+    const filename = `arena-rlhf-${rlhfFormat}-${new Date().toISOString().split('T')[0]}`;
+    downloadExport(data, filename, rlhfFormat);
   };
 
   // Clear all arena data
@@ -672,6 +736,91 @@ export function ArenaSettings() {
           description={t('noBattlesDescription')}
         />
       )}
+
+      {/* RLHF Export */}
+      <Collapsible open={showRlhfExport} onOpenChange={setShowRlhfExport}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between p-4 h-auto">
+            <div className="flex items-center gap-2">
+              <FileJson className="h-5 w-5" />
+              <span className="font-semibold">{t('rlhfExport')}</span>
+            </div>
+            {showRlhfExport ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 p-4">
+            {/* Export Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="text-xl font-bold">{rlhfStats.totalBattles}</div>
+                <div className="text-xs text-muted-foreground">{t('rlhfTotalBattles')}</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="text-xl font-bold">{rlhfStats.validPairs}</div>
+                <div className="text-xs text-muted-foreground">{t('rlhfValidPairs')}</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="text-xl font-bold">{Math.round(rlhfStats.avgPromptLength)}</div>
+                <div className="text-xs text-muted-foreground">{t('rlhfAvgPromptLen')}</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-card">
+                <div className="text-xl font-bold">{Math.round(rlhfStats.avgResponseLength)}</div>
+                <div className="text-xs text-muted-foreground">{t('rlhfAvgResponseLen')}</div>
+              </div>
+            </div>
+
+            {/* Category Distribution */}
+            {Object.keys(rlhfStats.byCategory).length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">{t('rlhfByCategory')}</div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(rlhfStats.byCategory).map(([cat, count]) => (
+                    <Badge key={cat} variant="outline" className="text-xs">
+                      {cat}: {count}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {rlhfStats.validPairs === 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {t('rlhfNoValidPairs')}
+              </div>
+            )}
+
+            {/* Format Selection + Export */}
+            <div className="flex items-center gap-3">
+              <Select value={rlhfFormat} onValueChange={(v) => setRlhfFormat(v as ExportFormat)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rlhf">RLHF JSON</SelectItem>
+                  <SelectItem value="dpo">DPO</SelectItem>
+                  <SelectItem value="hh-rlhf">HH-RLHF</SelectItem>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="jsonl">JSONL</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleRlhfExport}
+                disabled={rlhfStats.validPairs === 0}
+                size="sm"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {t('rlhfExportButton')}
+              </Button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 pt-4 border-t">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSandbox, useCodeExecution } from '@/hooks/sandbox';
+import { useSandbox, useCodeExecution, useSnippets, useSessions } from '@/hooks/sandbox';
+import { useSandboxStore } from '@/stores/sandbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,12 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/layout/empty-state';
 import { ExecutionHistory } from '@/components/sandbox/execution-history';
 import { SnippetManager } from '@/components/sandbox/snippet-manager';
+import { SandboxStatistics } from '@/components/sandbox/sandbox-statistics';
 import {
   Play,
   Square,
@@ -44,9 +54,14 @@ import {
   Trash2,
   Save,
   FileInput,
+  BarChart3,
+  Layers,
+  Plus,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { LANGUAGE_INFO, LANGUAGE_TEMPLATES } from '@/types/system/sandbox';
 import type {
   CompilerSettings,
   CppStandard,
@@ -72,8 +87,41 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
 
   const { result, executing, error: execError, execute, reset } = useCodeExecution();
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('python');
-  const [code, setCode] = useState<string>('');
+  // Connect to Zustand store for persistent code/language state
+  const storeLanguage = useSandboxStore((s) => s.selectedLanguage);
+  const storeCode = useSandboxStore((s) => s.editorCode);
+  const setStoreLanguage = useSandboxStore((s) => s.setSelectedLanguage);
+  const setStoreCode = useSandboxStore((s) => s.setEditorCode);
+
+  const [selectedLanguage, setSelectedLanguageLocal] = useState<string>(storeLanguage || 'python');
+  const [code, setCodeLocal] = useState<string>(storeCode || '');
+
+  // Sync local state to store (debounced)
+  const setSelectedLanguage = useCallback((lang: string) => {
+    setSelectedLanguageLocal(lang);
+    setStoreLanguage(lang);
+  }, [setStoreLanguage]);
+
+  const setCode = useCallback((newCode: string) => {
+    setCodeLocal(newCode);
+    // Debounced store update handled by the persistence effect below
+  }, []);
+
+  // Snippet management hooks
+  const { snippets, createSnippet } = useSnippets();
+  const {
+    sessions,
+    currentSessionId,
+    startSession,
+    endSession,
+  } = useSessions();
+  const [saveSnippetOpen, setSaveSnippetOpen] = useState(false);
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [newSessionName, setNewSessionName] = useState('');
+  const [snippetTitle, setSnippetTitle] = useState('');
+  const [snippetDescription, setSnippetDescription] = useState('');
+  const [snippetTags, setSnippetTags] = useState('');
+  const [snippetCategory, setSnippetCategory] = useState('');
   const [stdin, setStdin] = useState<string>('');
   const [args, setArgs] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('editor');
@@ -91,28 +139,14 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
     pythonOptimize: false,
   });
 
-  // Code persistence - load saved code on mount
-  const hasLoadedSavedCode = useRef(false);
-  useEffect(() => {
-    if (!hasLoadedSavedCode.current) {
-      hasLoadedSavedCode.current = true;
-      const savedCode = localStorage.getItem(`sandbox_code_${selectedLanguage}`);
-      if (savedCode) {
-        // Use a microtask to avoid setState during render
-        queueMicrotask(() => setCode(savedCode));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount, selectedLanguage is read but we only want initial load
-
-  // Code persistence - save code when it changes (debounced)
+  // Sync code to store (debounced)
   useEffect(() => {
     if (!code.trim()) return;
     const timer = setTimeout(() => {
-      localStorage.setItem(`sandbox_code_${selectedLanguage}`, code);
-    }, 1000);
+      setStoreCode(code);
+    }, 500);
     return () => clearTimeout(timer);
-  }, [code, selectedLanguage]);
+  }, [code, setStoreCode]);
 
   // Check if current language is a compiled language
   const isCompiledLanguage = useMemo(() => {
@@ -203,44 +237,14 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
     setSelectedLanguage(lang);
     reset();
 
-    const templates: Record<string, string> = {
-      python: '# Python code\nprint("Hello, World!")',
-      javascript: '// JavaScript code\nconsole.log("Hello, World!");',
-      typescript: '// TypeScript code\nconsole.log("Hello, World!");',
-      rust: '// Rust code\nfn main() {\n    println!("Hello, World!");\n}',
-      go: '// Go code\npackage main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}',
-      java: '// Java code\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
-      cpp: '// C++ code\n#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
-      c: '// C code\n#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
-    };
-
-    if (!code.trim() && templates[lang]) {
-      setCode(templates[lang]);
+    if (!code.trim() && LANGUAGE_TEMPLATES[lang]) {
+      setCode(LANGUAGE_TEMPLATES[lang]);
     }
   };
 
   const getLanguageDisplayName = (lang: string): string => {
-    const names: Record<string, string> = {
-      python: 'Python',
-      javascript: 'JavaScript',
-      typescript: 'TypeScript',
-      rust: 'Rust',
-      go: 'Go',
-      java: 'Java',
-      cpp: 'C++',
-      c: 'C',
-      ruby: 'Ruby',
-      php: 'PHP',
-      swift: 'Swift',
-      kotlin: 'Kotlin',
-      scala: 'Scala',
-      haskell: 'Haskell',
-      lua: 'Lua',
-      perl: 'Perl',
-      r: 'R',
-      julia: 'Julia',
-    };
-    return names[lang] || lang.charAt(0).toUpperCase() + lang.slice(1);
+    const info = LANGUAGE_INFO[lang];
+    return info ? info.name : lang.charAt(0).toUpperCase() + lang.slice(1);
   };
 
   // Callback when user selects execution from history
@@ -248,20 +252,63 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
     setCode(selectedCode);
     setSelectedLanguage(language);
     setActiveTab('editor');
-  }, []);
+  }, [setCode, setSelectedLanguage]);
 
   // Callback when user selects a snippet
   const handleSelectSnippet = useCallback((snippetCode: string, language: string) => {
     setCode(snippetCode);
     setSelectedLanguage(language);
     setActiveTab('editor');
-  }, []);
+  }, [setCode, setSelectedLanguage]);
+
+  // Session management handlers
+  const handleStartSession = useCallback(async () => {
+    if (!newSessionName.trim()) return;
+    await startSession(newSessionName.trim());
+    setNewSessionName('');
+    setSessionDialogOpen(false);
+  }, [newSessionName, startSession]);
+
+  const handleEndSession = useCallback(async () => {
+    await endSession();
+  }, [endSession]);
 
   // Callback when user wants to execute a snippet directly
-  const handleExecuteSnippet = useCallback(async (_snippetId: string) => {
-    // For now, just switch to the editor tab - in future could auto-execute
-    setActiveTab('editor');
-  }, []);
+  const handleExecuteSnippet = useCallback(async (snippetId: string) => {
+    const snippet = snippets.find((s) => s.id === snippetId);
+    if (snippet) {
+      setCode(snippet.code);
+      setSelectedLanguage(snippet.language);
+      setActiveTab('editor');
+      // Auto-execute after a short delay to allow state to settle
+      setTimeout(async () => {
+        await execute({
+          language: snippet.language,
+          code: snippet.code,
+        });
+      }, 100);
+    }
+  }, [snippets, setCode, setSelectedLanguage, execute]);
+
+  // Save current code as a snippet
+  const handleSaveAsSnippet = useCallback(async () => {
+    if (!snippetTitle.trim() || !code.trim()) return;
+    const tags = snippetTags.split(',').map((t) => t.trim()).filter(Boolean);
+    await createSnippet({
+      title: snippetTitle,
+      description: snippetDescription || undefined,
+      language: selectedLanguage,
+      code,
+      tags,
+      category: snippetCategory || undefined,
+      is_template: false,
+    });
+    setSaveSnippetOpen(false);
+    setSnippetTitle('');
+    setSnippetDescription('');
+    setSnippetTags('');
+    setSnippetCategory('');
+  }, [snippetTitle, snippetDescription, snippetTags, snippetCategory, code, selectedLanguage, createSnippet]);
 
   if (!isAvailable && !statusLoading) {
     return (
@@ -296,6 +343,63 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
           <span className="font-medium">{t('title')}</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Session indicator */}
+          {currentSessionId ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="text-xs cursor-pointer gap-1"
+                  onClick={handleEndSession}
+                >
+                  <Layers className="h-3 w-3" />
+                  {sessions.find((s) => s.id === currentSessionId)?.name || 'Session'}
+                  <X className="h-3 w-3 ml-0.5 hover:text-destructive" />
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>End session</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setSessionDialogOpen(true)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Session
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Start a new session to group executions</TooltipContent>
+              </Tooltip>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Start Session</DialogTitle>
+                  <DialogDescription>
+                    Group your code executions into a named session.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="session-name">Session Name</Label>
+                  <Input
+                    id="session-name"
+                    value={newSessionName}
+                    onChange={(e) => setNewSessionName(e.target.value)}
+                    placeholder="e.g. Algorithm Practice"
+                    onKeyDown={(e) => e.key === 'Enter' && handleStartSession()}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setSessionDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleStartSession} disabled={!newSessionName.trim()}>Start</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {runtimes.length > 0 && (
             <Badge variant="secondary" className="text-xs">
               {runtimes[0]}
@@ -320,7 +424,7 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-2 sm:px-3 pt-2 shrink-0">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="editor" className="flex items-center gap-1.5">
               <Code className="h-4 w-4" />
               <span className="hidden sm:inline">Editor</span>
@@ -332,6 +436,10 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
             <TabsTrigger value="snippets" className="flex items-center gap-1.5">
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Snippets</span>
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-1.5">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Stats</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -632,9 +740,8 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => {
-                              // TODO: Open save as snippet dialog
-                            }}
+                            onClick={() => setSaveSnippetOpen(true)}
+                            disabled={!code.trim()}
                           >
                             <Save className="h-3.5 w-3.5" />
                           </Button>
@@ -841,7 +948,68 @@ export function SandboxPanel({ className, onExecutionComplete }: SandboxPanelPro
             onExecuteSnippet={handleExecuteSnippet}
           />
         </TabsContent>
+
+        {/* Statistics Tab */}
+        <TabsContent value="stats" className="flex-1 min-h-0 m-0 p-2 sm:p-3">
+          <SandboxStatistics className="h-full" />
+        </TabsContent>
       </Tabs>
+
+      {/* Save as Snippet Dialog */}
+      <Dialog open={saveSnippetOpen} onOpenChange={setSaveSnippetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('saveAsSnippet')}</DialogTitle>
+            <DialogDescription>
+              {getLanguageDisplayName(selectedLanguage)} · {code.split('\n').length} lines
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="snippet-title">Title</Label>
+              <Input
+                id="snippet-title"
+                value={snippetTitle}
+                onChange={(e) => setSnippetTitle(e.target.value)}
+                placeholder="Enter snippet title..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="snippet-desc">Description</Label>
+              <Input
+                id="snippet-desc"
+                value={snippetDescription}
+                onChange={(e) => setSnippetDescription(e.target.value)}
+                placeholder="Optional description..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="snippet-category">Category</Label>
+                <Input
+                  id="snippet-category"
+                  value={snippetCategory}
+                  onChange={(e) => setSnippetCategory(e.target.value)}
+                  placeholder="e.g. algorithms"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="snippet-tags">Tags</Label>
+                <Input
+                  id="snippet-tags"
+                  value={snippetTags}
+                  onChange={(e) => setSnippetTags(e.target.value)}
+                  placeholder="tag1, tag2"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveSnippetOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveAsSnippet} disabled={!snippetTitle.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {statusError && (
         <div className="p-2 border-t text-xs text-destructive text-center shrink-0">

@@ -85,6 +85,19 @@ jest.mock('@/lib/vector/embedding', () => ({
   generateEmbeddings: jest.fn(async (texts, _config, _apiKey) => ({
     embeddings: texts.map(() => [0.1, 0.2, 0.3, 0.4, 0.5]),
   })),
+  getEmbeddingApiKey: jest.fn((_provider: string, providerSettings: Record<string, { apiKey?: string }>) => {
+    return providerSettings?.openai?.apiKey || '';
+  }),
+}));
+
+// Mock logger
+jest.mock('../core/logger', () => ({
+  createPluginSystemLogger: jest.fn(() => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  })),
 }));
 
 jest.mock('nanoid', () => ({

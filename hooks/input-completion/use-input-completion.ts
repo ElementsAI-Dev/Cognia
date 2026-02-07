@@ -2,11 +2,16 @@
  * React hook for input completion
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { useInputCompletionStore } from '@/stores/input-completion';
 import * as api from '@/lib/native/input-completion';
-import type { CompletionConfig, CompletionResult, CompletionSuggestion } from '@/types/input-completion';
+import type {
+  CompletionConfig,
+  CompletionResult,
+  CompletionSuggestion,
+  InputCompletionEvent,
+} from '@/types/input-completion';
 
 export interface UseInputCompletionOptions {
   /** Auto-start on mount */
@@ -44,6 +49,7 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
   } = useInputCompletionStore();
 
   const [initialized, setInitialized] = useState(false);
+  const suggestionTimestampRef = useRef<number>(0);
 
   // Start the completion system
   const start = useCallback(async () => {
@@ -76,15 +82,26 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
     }
   }, [setIsLoading, setIsRunning, setCurrentSuggestion, setError]);
 
-  // Accept the current suggestion
+  // Accept the current suggestion with automatic feedback
   const accept = useCallback(async () => {
     try {
       const suggestion = await api.acceptSuggestion();
       if (suggestion) {
         incrementAccepted();
         onAccept?.(suggestion);
+
+        // Auto-submit FullAccept feedback with timing
+        const timeToAccept = suggestionTimestampRef.current > 0
+          ? Date.now() - suggestionTimestampRef.current
+          : 0;
+        api.submitCompletionFeedback({
+          type: 'FullAccept',
+          suggestion_id: suggestion.id,
+          time_to_accept_ms: timeToAccept,
+        }).catch(() => { /* feedback is best-effort */ });
       }
       setCurrentSuggestion(null);
+      suggestionTimestampRef.current = 0;
       return suggestion;
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
@@ -93,18 +110,43 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
     }
   }, [setCurrentSuggestion, setError, incrementAccepted, onAccept]);
 
-  // Dismiss the current suggestion
+  // Dismiss the current suggestion with automatic feedback
   const dismiss = useCallback(async () => {
     try {
+      // Auto-submit QuickDismiss feedback with timing
+      const timeToDismiss = suggestionTimestampRef.current > 0
+        ? Date.now() - suggestionTimestampRef.current
+        : 0;
+      const currentSugg = currentSuggestion;
+      
       await api.dismissSuggestion();
       incrementDismissed();
       setCurrentSuggestion(null);
       onDismiss?.();
+
+      if (currentSugg) {
+        api.submitCompletionFeedback({
+          type: 'QuickDismiss',
+          suggestion_id: currentSugg.id,
+          time_to_dismiss_ms: timeToDismiss,
+        }).catch(() => { /* feedback is best-effort */ });
+      }
+      suggestionTimestampRef.current = 0;
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : String(e);
       setError(errorMsg);
     }
-  }, [setCurrentSuggestion, setError, incrementDismissed, onDismiss]);
+  }, [currentSuggestion, setCurrentSuggestion, setError, incrementDismissed, onDismiss]);
+
+  // Submit explicit quality feedback for a suggestion
+  const submitFeedback = useCallback(async (feedback: import('@/types/input-completion').CompletionFeedback) => {
+    try {
+      await api.submitCompletionFeedback(feedback);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      setError(errorMsg);
+    }
+  }, [setError]);
 
   // Manually trigger completion
   const trigger = useCallback(
@@ -234,43 +276,67 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
     }
   }, [initialized, autoStart, config?.enabled, isRunning, start]);
 
-  // Listen for events from backend
+  // Listen for structured events from Rust backend
+  // Rust emits all events to "input-completion://event" with InputCompletionEvent payload
   useEffect(() => {
-    const unlistenPromises: Promise<UnlistenFn>[] = [];
+    const unlistenPromise = listen<InputCompletionEvent>('input-completion://event', (event) => {
+      const payload = event.payload;
 
-    unlistenPromises.push(
-      listen<CompletionSuggestion>('input-completion-suggestion', (event) => {
-        setCurrentSuggestion(event.payload);
-        onSuggestion?.(event.payload);
-      })
-    );
+      switch (payload.type) {
+        case 'Suggestion':
+          suggestionTimestampRef.current = Date.now();
+          setCurrentSuggestion(payload.data);
+          incrementRequests();
+          onSuggestion?.(payload.data);
+          break;
 
-    unlistenPromises.push(
-      listen<CompletionSuggestion>('input-completion-accept', (event) => {
-        incrementAccepted();
-        onAccept?.(event.payload);
-        setCurrentSuggestion(null);
-      })
-    );
+        case 'Accept':
+          incrementAccepted();
+          onAccept?.(payload.data);
+          setCurrentSuggestion(null);
+          break;
 
-    unlistenPromises.push(
-      listen('input-completion-dismiss', () => {
-        incrementDismissed();
-        onDismiss?.();
-        setCurrentSuggestion(null);
-      })
-    );
+        case 'Dismiss':
+          incrementDismissed();
+          onDismiss?.();
+          setCurrentSuggestion(null);
+          break;
+
+        case 'ImeStateChanged':
+          setImeState(payload.data);
+          break;
+
+        case 'Error':
+          setError(payload.data);
+          onError?.(payload.data);
+          break;
+
+        case 'Started':
+          setIsRunning(true);
+          break;
+
+        case 'Stopped':
+          setIsRunning(false);
+          setCurrentSuggestion(null);
+          break;
+      }
+    });
 
     return () => {
-      unlistenPromises.forEach((p) => p.then((unlisten) => unlisten()));
+      unlistenPromise.then((unlisten) => unlisten());
     };
   }, [
     setCurrentSuggestion,
+    setImeState,
+    setIsRunning,
+    setError,
     incrementAccepted,
     incrementDismissed,
+    incrementRequests,
     onSuggestion,
     onAccept,
     onDismiss,
+    onError,
   ]);
 
   return {
@@ -297,5 +363,6 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
     resetStats,
     clearCache,
     testConnection,
+    submitFeedback,
   };
 }

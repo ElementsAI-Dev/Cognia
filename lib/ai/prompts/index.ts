@@ -33,3 +33,18 @@ export * from './prompt-optimizer';
 
 // Prompt self-optimizer (analysis, A/B testing, feedback)
 export * from './prompt-self-optimizer';
+
+// MCP prompt optimizer (ace-tool integration)
+export {
+  findAceToolServer,
+  hasEnhancePromptTool,
+  isAceToolReady,
+  optimizePromptViaMcp,
+  loadMcpPrivacyConsent,
+  saveMcpPrivacyConsent,
+  saveToOptimizationHistory,
+  loadOptimizationHistory,
+  clearOptimizationHistory,
+  buildConversationHistory,
+  getPromptStats,
+} from './mcp-prompt-optimizer';

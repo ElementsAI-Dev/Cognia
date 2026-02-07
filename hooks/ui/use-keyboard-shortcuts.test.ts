@@ -12,9 +12,25 @@ jest.mock('next/navigation', () => ({
   })),
 }));
 
+const mockDeleteSession = jest.fn();
+const mockTogglePinSession = jest.fn();
+const mockArchiveSession = jest.fn();
+const mockSetActiveSession = jest.fn();
+
 jest.mock('@/stores', () => ({
   useSessionStore: jest.fn((selector) => {
-    const state = { createSession: jest.fn() };
+    const state = {
+      createSession: jest.fn(),
+      sessions: [
+        { id: 'session-1', title: 'S1', isArchived: false },
+        { id: 'session-2', title: 'S2', isArchived: false },
+      ],
+      activeSessionId: 'session-1',
+      setActiveSession: mockSetActiveSession,
+      deleteSession: mockDeleteSession,
+      togglePinSession: mockTogglePinSession,
+      archiveSession: mockArchiveSession,
+    };
     return selector(state);
   }),
   useUIStore: jest.fn((selector) => {
@@ -250,6 +266,90 @@ describe('useKeyboardShortcuts', () => {
       });
 
       expect(event.preventDefault).toHaveBeenCalled();
+    });
+  });
+
+  describe('chat management shortcuts', () => {
+    it('should call onDeleteSession for Ctrl+W', () => {
+      const onDeleteSession = jest.fn();
+      renderHook(() => useKeyboardShortcuts({ onDeleteSession }));
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('w', { ctrlKey: true }));
+      });
+
+      expect(onDeleteSession).toHaveBeenCalled();
+    });
+
+    it('should call deleteSession with activeSessionId when no onDeleteSession provided', () => {
+      renderHook(() => useKeyboardShortcuts());
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('w', { ctrlKey: true }));
+      });
+
+      expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should call onArchiveSession for Ctrl+Shift+A', () => {
+      const onArchiveSession = jest.fn();
+      renderHook(() => useKeyboardShortcuts({ onArchiveSession }));
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('A', { ctrlKey: true, shiftKey: true }));
+      });
+
+      expect(onArchiveSession).toHaveBeenCalled();
+    });
+
+    it('should call archiveSession with activeSessionId when no onArchiveSession provided', () => {
+      renderHook(() => useKeyboardShortcuts());
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('A', { ctrlKey: true, shiftKey: true }));
+      });
+
+      expect(mockArchiveSession).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should call togglePinSession for Ctrl+Shift+I', () => {
+      renderHook(() => useKeyboardShortcuts());
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('I', { ctrlKey: true, shiftKey: true }));
+      });
+
+      expect(mockTogglePinSession).toHaveBeenCalledWith('session-1');
+    });
+
+    it('should call onExportSession for Ctrl+Shift+E', () => {
+      const onExportSession = jest.fn();
+      renderHook(() => useKeyboardShortcuts({ onExportSession }));
+
+      act(() => {
+        keydownHandler?.(createKeyboardEvent('E', { ctrlKey: true, shiftKey: true }));
+      });
+
+      expect(onExportSession).toHaveBeenCalled();
+    });
+
+    it('should include new shortcuts in the shortcuts list', () => {
+      const { result } = renderHook(() => useKeyboardShortcuts());
+
+      const shortcuts = result.current.shortcuts;
+      const closeShortcut = shortcuts.find((s) => s.key === 'w' && s.ctrl);
+      const archiveShortcut = shortcuts.find((s) => s.key === 'A' && s.ctrl && s.shift);
+      const pinShortcut = shortcuts.find((s) => s.key === 'I' && s.ctrl && s.shift);
+      const exportShortcut = shortcuts.find((s) => s.key === 'E' && s.ctrl && s.shift);
+      const prevShortcut = shortcuts.find((s) => s.key === 'ArrowUp' && s.alt);
+      const nextShortcut = shortcuts.find((s) => s.key === 'ArrowDown' && s.alt);
+
+      expect(closeShortcut?.description).toBe('Close/delete current session');
+      expect(archiveShortcut?.description).toBe('Archive current session');
+      expect(pinShortcut?.description).toBe('Pin/unpin current session');
+      expect(exportShortcut?.description).toBe('Export current session');
+      expect(prevShortcut?.description).toBe('Previous session');
+      expect(nextShortcut?.description).toBe('Next session');
     });
   });
 

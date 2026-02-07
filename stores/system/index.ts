@@ -97,6 +97,8 @@ export {
   type VirtualEnvActions,
 } from './virtual-env-store';
 
+export { useBackupStore } from './backup-store';
+
 export {
   useTrayStore,
   selectTrayConfig,

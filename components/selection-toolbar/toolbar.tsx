@@ -140,9 +140,13 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
     state,
     config,
     executeAction,
+    executeCustomAction,
+    executeTemplate,
     copyResult,
     clearResult,
     hideToolbar,
+    replaceSelectedText,
+    getSearchUrl,
   } = useSelectionToolbar();
 
   const t = useTranslations('selectionToolbar');
@@ -312,7 +316,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
       }
 
       if (action === "search") {
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(textToProcess)}`;
+        const searchUrl = getSearchUrl(textToProcess);
         window.open(searchUrl, "_blank");
         hideToolbar();
         return;
@@ -320,7 +324,7 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
 
       await executeAction(action);
     },
-    [state.selectedText, executeAction, hideToolbar, isMultiSelectMode, selections.length, getCombinedText, references]
+    [state.selectedText, executeAction, hideToolbar, isMultiSelectMode, selections.length, getCombinedText, references, getSearchUrl]
   );
 
   // Handle click outside - use Tauri window blur event for standalone window
@@ -1188,6 +1192,37 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
                     })}
                   </div>
                 )}
+
+                {/* Custom User Actions */}
+                {config.customUserActions?.filter((a) => a.enabled).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/6">
+                    <div className="text-xs font-medium px-2 mb-1 text-purple-400">
+                      {t("customActions") ?? "Custom Actions"}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      {config.customUserActions
+                        .filter((a) => a.enabled)
+                        .map((customAction) => (
+                          <Button
+                            key={customAction.id}
+                            variant="ghost"
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              executeCustomAction(customAction);
+                            }}
+                            disabled={state.isLoading}
+                            className="h-auto flex flex-col items-center gap-1.5 p-2.5 text-white/70 hover:text-white hover:bg-white/10"
+                          >
+                            <Sparkles className="w-5 h-5 text-purple-400" />
+                            <span className="text-[11px] font-medium">{customAction.name}</span>
+                            {customAction.shortcut && (
+                              <Kbd className="text-[9px] text-white/40 bg-transparent border-none">{customAction.shortcut}</Kbd>
+                            )}
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </div>
@@ -1222,6 +1257,8 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           isPaused={isTTSPaused}
           onPauseSpeak={pauseTTS}
           onResumeSpeak={resumeTTS}
+          // Replace-in-place
+          onReplace={config.enableReplaceInPlace ? replaceSelectedText : undefined}
           // Follow-up actions
           onFollowUpAction={(action) => {
             // Map follow-up actions to toolbar actions
@@ -1284,14 +1321,9 @@ export function SelectionToolbar({ standaloneMode = false }: SelectionToolbarPro
           isOpen={showTemplatesPanel}
           onClose={() => setShowTemplatesPanel(false)}
           selectedText={state.selectedText}
-          onApplyTemplate={(template, text) => {
-            // Apply template and execute
-            const prompt = template.prompt.replace("{{text}}", text);
-            if (isTauri()) {
-              import("@tauri-apps/api/event").then(({ emit }) => {
-                emit("selection-custom-prompt", { prompt, text });
-              });
-            }
+          onApplyTemplate={(template) => {
+            executeTemplate(template);
+            setShowTemplatesPanel(false);
           }}
         />
 

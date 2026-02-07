@@ -39,6 +39,7 @@ import { SessionGroup, useSessionGroups } from './sessions/session-group';
 import { SidebarQuickActions } from './widgets/sidebar-quick-actions';
 import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
 import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
+import { SidebarAgentTeams } from './widgets/sidebar-agent-teams';
 import { SidebarWorkflows } from './widgets/sidebar-workflows';
 import type { Session } from '@/types';
 
@@ -183,6 +184,7 @@ export function SidebarContainer({ collapsed = false }: SidebarContainerProps) {
             <SidebarQuickActions collapsed={collapsed} />
             <SidebarUsageStats collapsed={collapsed} />
             <SidebarBackgroundTasks collapsed={collapsed} />
+            <SidebarAgentTeams collapsed={collapsed} />
             <SidebarWorkflows collapsed={collapsed} />
           </div>
         )}

@@ -71,7 +71,20 @@
     "generate": "生成",
     "emptyState": "暂无演示文稿",
     "emptyStateDesc": "创建您的第一个AI演示文稿，开始使用吧。",
-    "createNew": "创建新演示文稿"
+    "createNew": "创建新演示文稿",
+    "export": "导出",
+    "duplicate": "复制",
+    "delete": "删除",
+    "exportPptx": "PowerPoint (.pptx)",
+    "exportPdf": "PDF",
+    "exportHtml": "HTML",
+    "exportReveal": "Reveal.js",
+    "exportMarp": "Marp",
+    "materialGeneration": "从素材生成",
+    "materialGenerationDesc": "上传文档或粘贴内容以生成演示文稿",
+    "processingMaterials": "正在处理素材...",
+    "exportSuccess": "导出成功",
+    "exportFailed": "导出失败"
   },
   "pptEditor": {
     "noPresentation": "未加载演示文稿",

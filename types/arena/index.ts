@@ -37,6 +37,7 @@ export type ArenaWinReason =
   | 'completeness' // More comprehensive
   | 'creativity'   // More creative/innovative
   | 'conciseness'  // More concise
+  | 'both-bad'     // Both responses were bad
   | 'other';       // Other reason
 
 /**
@@ -195,6 +196,8 @@ export interface ArenaPreference {
   taskCategory?: TaskCategory;
   /** Reason for preference */
   reason?: ArenaWinReason;
+  /** Whether this was a tie/draw */
+  isTie?: boolean;
   /** Timestamp */
   timestamp: Date;
 }

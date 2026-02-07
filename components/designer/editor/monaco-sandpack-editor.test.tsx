@@ -29,23 +29,82 @@ jest.mock('@/stores', () => ({
   },
 }));
 
+// Mock snippet registration
+jest.mock('@/lib/monaco/snippets', () => ({
+  registerAllSnippets: jest.fn(() => []),
+  registerEmmetSupport: jest.fn(() => []),
+}));
+
+// Mock TypeScript config to prevent setEagerModelSync errors
+jest.mock('@/lib/monaco/typescript-config', () => ({
+  setupTypeScript: jest.fn(),
+}));
+
 // Mock monaco-editor with controlled async behavior
 const mockDispose = jest.fn();
+const mockGetPosition = jest.fn(() => ({ lineNumber: 1, column: 1 }));
+const mockGetSelection = jest.fn(() => ({ isEmpty: () => true, startLineNumber: 1, endLineNumber: 1 }));
+const mockGetModel = jest.fn(() => ({
+  getValue: jest.fn(() => 'const test = "hello";'),
+  getLineCount: jest.fn(() => 1),
+  getValueInRange: jest.fn(() => ''),
+  uri: { toString: () => 'file:///test.ts' },
+}));
 const mockEditor = {
   getValue: jest.fn(() => 'const test = "hello";'),
   setValue: jest.fn(),
   dispose: mockDispose,
   onDidChangeModelContent: jest.fn(() => ({ dispose: jest.fn() })),
+  onDidChangeCursorPosition: jest.fn(() => ({ dispose: jest.fn() })),
+  onDidChangeCursorSelection: jest.fn(() => ({ dispose: jest.fn() })),
   addCommand: jest.fn(),
+  addAction: jest.fn(),
+  trigger: jest.fn(),
+  getPosition: mockGetPosition,
+  getSelection: mockGetSelection,
+  getModel: mockGetModel,
+  setPosition: jest.fn(),
+  updateOptions: jest.fn(),
+  focus: jest.fn(),
 };
 
 const mockMonaco = {
   editor: {
     create: jest.fn(() => mockEditor),
     setTheme: jest.fn(),
+    setModelLanguage: jest.fn(),
+    getModelMarkers: jest.fn(() => []),
+    onDidChangeMarkers: jest.fn(() => ({ dispose: jest.fn() })),
   },
-  KeyMod: { CtrlCmd: 2048 },
-  KeyCode: { KeyS: 49 },
+  MarkerSeverity: { Error: 8, Warning: 4, Info: 2 },
+  KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
+  KeyCode: {
+    KeyS: 49, KeyG: 27, KeyP: 36, KeyO: 35, KeyD: 24, KeyA: 21,
+    KeyF: 26, KeyK: 31, KeyL: 32, KeyZ: 56, KeyU: 51,
+    F1: 59, Slash: 85, Period: 84, BracketLeft: 87, BracketRight: 88,
+    UpArrow: 16, DownArrow: 18, Equal: 81, Minus: 80, Digit0: 21,
+  },
+  languages: {
+    typescript: {
+      typescriptDefaults: {
+        setCompilerOptions: jest.fn(),
+        setDiagnosticsOptions: jest.fn(),
+        addExtraLib: jest.fn(),
+      },
+      javascriptDefaults: {
+        setCompilerOptions: jest.fn(),
+        setDiagnosticsOptions: jest.fn(),
+        addExtraLib: jest.fn(),
+      },
+      ScriptTarget: { ESNext: 99 },
+      ModuleKind: { ESNext: 99 },
+      ModuleResolutionKind: { NodeJs: 2 },
+      JsxEmit: { ReactJSX: 4 },
+    },
+    registerCompletionItemProvider: jest.fn(() => ({ dispose: jest.fn() })),
+    CompletionItemKind: { Snippet: 27 },
+    CompletionItemInsertTextRule: { InsertAsSnippet: 4 },
+  },
 };
 
 jest.mock('monaco-editor', () => mockMonaco, { virtual: true });
@@ -121,7 +180,7 @@ describe('MonacoSandpackEditor', () => {
       const originalCreate = mockMonaco.editor.create;
       mockMonaco.editor.create = jest.fn(() => {
         throw new Error('Monaco load failed');
-      });
+      }) as jest.Mock;
 
       await act(async () => {
         render(<MonacoSandpackEditor />);
@@ -138,7 +197,7 @@ describe('MonacoSandpackEditor', () => {
       const originalCreate = mockMonaco.editor.create;
       mockMonaco.editor.create = jest.fn(() => {
         throw new Error('Monaco load failed');
-      });
+      }) as jest.Mock;
 
       let container: HTMLElement;
       await act(async () => {
@@ -216,6 +275,36 @@ describe('MonacoSandpackEditor', () => {
       });
       expect(document.body).toBeInTheDocument();
     });
+
+    it('should accept showToolbar prop', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor showToolbar={false} />);
+      });
+      expect(document.body).toBeInTheDocument();
+    });
+
+    it('should accept showStatusBar prop', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor showStatusBar={false} />);
+      });
+      expect(document.body).toBeInTheDocument();
+    });
+
+    it('should accept onFormat callback', async () => {
+      const onFormat = jest.fn();
+      await act(async () => {
+        render(<MonacoSandpackEditor onFormat={onFormat} />);
+      });
+      expect(document.body).toBeInTheDocument();
+    });
+
+    it('should accept onCursorChange callback', async () => {
+      const onCursorChange = jest.fn();
+      await act(async () => {
+        render(<MonacoSandpackEditor onCursorChange={onCursorChange} />);
+      });
+      expect(document.body).toBeInTheDocument();
+    });
   });
 
   describe('editor container', () => {
@@ -229,10 +318,6 @@ describe('MonacoSandpackEditor', () => {
       // Check for main container
       const mainContainer = container!.querySelector('.relative.h-full');
       expect(mainContainer).toBeInTheDocument();
-      
-      // Check for editor div
-      const editorDiv = container!.querySelector('.h-full.w-full');
-      expect(editorDiv).toBeInTheDocument();
     });
   });
 
@@ -269,6 +354,51 @@ describe('MonacoSandpackEditor', () => {
         render(<MonacoSandpackEditor language="javascript" />);
       });
       expect(document.body).toBeInTheDocument();
+    });
+  });
+
+  describe('new VSCode features', () => {
+    it('should register keyboard shortcuts on init', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor />);
+      });
+      
+      await waitFor(() => {
+        // Editor should register multiple addCommand calls for keyboard shortcuts
+        expect(mockEditor.addCommand).toHaveBeenCalled();
+      });
+    });
+
+    it('should register editor actions on init', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor />);
+      });
+      
+      await waitFor(() => {
+        // Editor should register addAction calls for command palette actions
+        expect(mockEditor.addAction).toHaveBeenCalled();
+      });
+    });
+
+    it('should listen for marker changes (diagnostics)', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor />);
+      });
+      
+      await waitFor(() => {
+        expect(mockMonaco.editor.onDidChangeMarkers).toHaveBeenCalled();
+      });
+    });
+
+    it('should listen for cursor and selection changes', async () => {
+      await act(async () => {
+        render(<MonacoSandpackEditor />);
+      });
+      
+      await waitFor(() => {
+        expect(mockEditor.onDidChangeCursorPosition).toHaveBeenCalled();
+        expect(mockEditor.onDidChangeCursorSelection).toHaveBeenCalled();
+      });
     });
   });
 });

@@ -61,6 +61,46 @@ function applyAgentModeHints(
 }
 
 /**
+ * Apply skill category hints to task classification
+ * Adjusts classification based on the categories of active skills
+ */
+function applySkillCategoryHints(
+  classification: TaskClassification,
+  skillCategories: string[]
+): TaskClassification {
+  const updates: Partial<TaskClassification> = {};
+
+  for (const category of skillCategories) {
+    switch (category) {
+      case 'development':
+        updates.requiresCoding = true;
+        if (!updates.category) updates.category = 'coding';
+        break;
+      case 'data-analysis':
+        updates.requiresReasoning = true;
+        if (!updates.category) updates.category = 'analysis';
+        break;
+      case 'creative-design':
+        updates.requiresCreativity = true;
+        if (!updates.category) updates.category = 'creative';
+        break;
+      case 'enterprise':
+      case 'productivity':
+        // These are general-purpose; only upgrade complexity if simple
+        if (classification.complexity === 'simple') {
+          updates.complexity = 'moderate' as TaskComplexity;
+        }
+        break;
+      case 'meta':
+        updates.requiresReasoning = true;
+        break;
+    }
+  }
+
+  return { ...classification, ...updates };
+}
+
+/**
  * Check if a model supports vision based on provider config
  */
 function supportsVision(provider: ProviderName, model: string): boolean {
@@ -724,9 +764,14 @@ export function useAutoRouter() {
   );
 
   const selectModel = useCallback(
-    (input: string, options?: { preferredProvider?: ProviderName }): ModelSelection => {
+    (input: string, options?: { preferredProvider?: ProviderName; activeSkillCategories?: string[]; activeSkillCount?: number }): ModelSelection => {
       const startTime = Date.now();
-      const classification = classifyTask(input);
+      let classification = classifyTask(input);
+
+      // Apply skill-aware routing hints
+      if (options?.activeSkillCategories && options.activeSkillCategories.length > 0) {
+        classification = applySkillCategoryHints(classification, options.activeSkillCategories);
+      }
 
       // Determine initial tier based on classification
       let tier: ModelTier = 'balanced';
@@ -734,6 +779,11 @@ export function useAutoRouter() {
         tier = 'fast';
       } else if (classification.complexity === 'complex' || classification.requiresReasoning) {
         tier = 'powerful';
+      }
+
+      // Skills generally benefit from more capable models
+      if (options?.activeSkillCount && options.activeSkillCount >= 2 && tier === 'fast') {
+        tier = 'balanced';
       }
 
       // Get available models for the tier
@@ -902,6 +952,16 @@ export function useAutoRouter() {
         if (options.context.hasImages) {
           classification = { ...classification, requiresVision: true };
         }
+        // Skill-aware routing: adjust classification based on active skill categories
+        if (options.context.activeSkillCategories && options.context.activeSkillCategories.length > 0) {
+          classification = applySkillCategoryHints(classification, options.context.activeSkillCategories);
+          // Skills generally benefit from more capable models
+          if (options.context.activeSkillCount && options.context.activeSkillCount >= 2) {
+            if (recommendedTier === 'fast') {
+              recommendedTier = 'balanced';
+            }
+          }
+        }
         // User tier preference
         if (options.context.userPreferredTier) {
           recommendedTier = options.context.userPreferredTier;
@@ -1024,7 +1084,7 @@ export function useAutoRouter() {
   };
 }
 
-export { classifyTask, classifyTaskRuleBased };
+export { classifyTask, classifyTaskRuleBased, applySkillCategoryHints };
 
 /**
  * Get recommended model for a specific use case

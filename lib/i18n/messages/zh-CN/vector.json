@@ -175,6 +175,31 @@
     "chunking": {
       "title": "分块设置"
     },
+    "ragChat": {
+      "title": "聊天中的 RAG",
+      "enable": "在聊天中启用 RAG",
+      "enableDesc": "自动从知识库检索相关上下文并注入聊天系统提示中。",
+      "topK": "Top K 结果数",
+      "threshold": "相似度阈值",
+      "maxContext": "最大上下文长度（字符）"
+    },
+    "advancedRag": {
+      "title": "高级检索",
+      "hybridSearch": "混合搜索",
+      "hybridSearchDesc": "结合向量相似度与 BM25 关键词搜索以提高召回率。",
+      "vectorWeight": "向量权重",
+      "keywordWeight": "关键词权重",
+      "reranking": "结果重排序",
+      "rerankingDesc": "使用启发式或自适应评分对检索结果按相关性重新排序。",
+      "queryExpansion": "查询扩展",
+      "queryExpansionDesc": "生成查询变体以扩大召回范围（需要 LLM）。"
+    },
+    "citations": {
+      "title": "引用",
+      "enable": "启用引用",
+      "enableDesc": "在响应中为 RAG 结果添加来源引用格式。",
+      "style": "引用样式"
+    },
     "addDocument": {
       "title": "添加文档",
       "description": "上传文件到集合：{collection}",

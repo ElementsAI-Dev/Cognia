@@ -81,7 +81,10 @@
     "searchIcons": "搜索图标...",
     "noIconsFound": "未找到图标",
     "uploadImage": "上传图片",
-    "latex": "LaTeX"
+    "latex": "LaTeX",
+    "scheduler": "日程",
+    "speedPass": "速过学习",
+    "academic": "学术研究"
   },
   "mobileNav": {
     "home": "首页",

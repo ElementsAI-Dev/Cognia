@@ -18,7 +18,7 @@ import { globalToolCache, type ToolCacheConfig } from '../tools/tool-cache';
 import { globalMetricsCollector } from './performance-metrics';
 import { globalMemoryManager, type MemoryEntry } from './memory-manager';
 import { getPluginLifecycleHooks, getPluginEventHooks } from '@/lib/plugin';
-import { recordAgentTraceFromToolCall, recordAgentTraceEvent, safeJsonStringify } from '@/lib/agent-trace';
+import { recordAgentTraceFromToolCall, recordAgentTraceEvent, safeJsonStringify, isTracedTool } from '@/lib/agent-trace';
 import { useSettingsStore } from '@/stores';
 import {
   type StopCondition as FunctionalStopCondition,
@@ -750,6 +750,8 @@ export async function executeAgent(
 
     if (!effectiveEnableAgentTrace || !sessionId) return;
     if (recordedTraceToolCalls.has(toolCall.id)) return;
+    // Early guard: skip tools that are not in the traced tools list
+    if (!isTracedTool(toolCall.name)) return;
     recordedTraceToolCalls.add(toolCall.id);
 
     // Calculate latency if timestamps are available

@@ -15,35 +15,44 @@ const mockPauseExecution = jest.fn();
 const mockResumeExecution = jest.fn();
 const mockCancelExecution = jest.fn();
 const mockClearExecutionState = jest.fn();
+const mockStartExecution = jest.fn();
 
 // Mock workflow editor store
+const mockStoreState = {
+  currentWorkflow: {
+    id: 'workflow-1',
+    name: 'Test Workflow',
+    nodes: [
+      { id: 'node-1', type: 'ai', data: { label: 'AI Node' } },
+      { id: 'node-2', type: 'tool', data: { label: 'Tool Node' } },
+    ],
+  },
+  executionState: {
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    nodeStates: {
+      'node-1': { status: 'completed', duration: 1500 },
+      'node-2': { status: 'running' },
+    },
+    logs: [
+      { level: 'info', message: 'Starting execution', timestamp: new Date() },
+      { level: 'debug', message: 'Debug message', timestamp: new Date() },
+    ],
+  },
+  pauseExecution: mockPauseExecution,
+  resumeExecution: mockResumeExecution,
+  cancelExecution: mockCancelExecution,
+  clearExecutionState: mockClearExecutionState,
+  startExecution: mockStartExecution,
+};
+
 jest.mock('@/stores/workflow', () => ({
-  useWorkflowEditorStore: () => ({
-    currentWorkflow: {
-      id: 'workflow-1',
-      name: 'Test Workflow',
-      nodes: [
-        { id: 'node-1', type: 'ai', data: { label: 'AI Node' } },
-        { id: 'node-2', type: 'tool', data: { label: 'Tool Node' } },
-      ],
-    },
-    executionState: {
-      status: 'running',
-      startedAt: new Date().toISOString(),
-      nodeStates: {
-        'node-1': { status: 'completed', duration: 1500 },
-        'node-2': { status: 'running' },
-      },
-      logs: [
-        { level: 'info', message: 'Starting execution', timestamp: new Date() },
-        { level: 'debug', message: 'Debug message', timestamp: new Date() },
-      ],
-    },
-    pauseExecution: mockPauseExecution,
-    resumeExecution: mockResumeExecution,
-    cancelExecution: mockCancelExecution,
-    clearExecutionState: mockClearExecutionState,
-  }),
+  useWorkflowEditorStore: (selector?: (state: Record<string, unknown>) => unknown) => {
+    if (typeof selector === 'function') {
+      return selector(mockStoreState as unknown as Record<string, unknown>);
+    }
+    return mockStoreState;
+  },
 }));
 
 // Mock UI components
@@ -89,6 +98,8 @@ jest.mock('lucide-react', () => ({
   AlertCircle: () => <span data-testid="alert-icon">Alert</span>,
   ChevronRight: () => <span>ChevronRight</span>,
   Terminal: () => <span data-testid="terminal-icon">Terminal</span>,
+  RotateCcw: () => <span data-testid="rotate-ccw-icon">RotateCcw</span>,
+  Filter: () => <span data-testid="filter-icon">Filter</span>,
 }));
 
 describe('ExecutionPanel', () => {
@@ -175,7 +186,7 @@ describe('ExecutionPanel', () => {
   it('displays completed node duration', () => {
     render(<ExecutionPanel />);
     // Should show duration for completed nodes
-    expect(screen.getByText('1.50s')).toBeInTheDocument();
+    expect(screen.getByText('1s')).toBeInTheDocument();
   });
 
   it('displays node count progress', () => {

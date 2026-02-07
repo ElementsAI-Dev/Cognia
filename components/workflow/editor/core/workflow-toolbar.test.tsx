@@ -124,6 +124,22 @@ jest.mock('../debug/debug-toolbar', () => ({
   DebugToolbar: () => <div data-testid="debug-toolbar" />,
 }));
 
+jest.mock('../execution/workflow-execution-history-panel', () => ({
+  WorkflowExecutionHistoryPanel: () => <div data-testid="workflow-execution-history-panel" />,
+}));
+
+jest.mock('../panels/workflow-trigger-panel', () => ({
+  WorkflowTriggerPanel: () => <div data-testid="workflow-trigger-panel" />,
+}));
+
+jest.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet">{children}</div>,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-content">{children}</div>,
+  SheetHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-header">{children}</div>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <h2 data-testid="sheet-title">{children}</h2>,
+  SheetTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="sheet-trigger">{children}</div>,
+}));
+
 jest.mock('../search/node-search-panel', () => ({
   NodeSearchPanel: () => <div data-testid="node-search-panel" />,
 }));
@@ -156,6 +172,7 @@ jest.mock('lucide-react', () => ({
   PanelLeft: () => <span>PanelLeft</span>,
   PanelRight: () => <span>PanelRight</span>,
   Map: () => <span>Map</span>,
+  Zap: () => <span data-testid="zap-icon">Zap</span>,
 }));
 
 describe('WorkflowToolbar', () => {

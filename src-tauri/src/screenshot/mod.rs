@@ -3,9 +3,6 @@
 //! Provides screenshot capture functionality including fullscreen,
 //! window, and region capture modes.
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
 //! - Window capture
 //! - Region selection capture
 //! - OCR text extraction
@@ -23,9 +20,11 @@ mod window_manager;
 mod windows_ocr;
 
 pub use annotator::{Annotation, ScreenshotAnnotator};
+#[allow(unused_imports)]
 pub use capture::{CaptureMode, ScreenshotCapture, ScreenshotResult};
 pub use ocr::OcrEngine;
 pub use ocr_manager::OcrManager;
+#[allow(unused_imports)]
 pub use ocr_provider::{
     OcrBounds as UnifiedOcrBounds, OcrError, OcrOptions, OcrProvider, OcrProviderConfig,
     OcrProviderInfo, OcrProviderType, OcrRegion, OcrResult as UnifiedOcrResult,
@@ -37,9 +36,11 @@ pub use providers::{
 pub use region_selector::RegionSelector;
 pub use region_selector::SelectionState;
 pub use screenshot_history::{ScreenshotHistory, ScreenshotHistoryEntry};
+#[allow(unused_imports)]
 pub use window_manager::{
     ElementInfo, SelectionSnapResult, SnapConfig, SnapGuide, SnapResult, WindowInfo, WindowManager,
 };
+#[allow(unused_imports)]
 pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
 use serde::{Deserialize, Serialize};

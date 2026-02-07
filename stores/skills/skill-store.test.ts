@@ -9,15 +9,18 @@ jest.unmock('@/stores/skills/skill-store');
 import { act, renderHook } from '@testing-library/react';
 import { useSkillStore } from './skill-store';
 
-// Mock nanoid
+// Mock nanoid with incrementing IDs
+let nanoidCounter = 0;
 jest.mock('nanoid', () => ({
-  nanoid: jest.fn(() => 'test-skill-id'),
+  nanoid: jest.fn(() => `test-skill-id-${nanoidCounter++}`),
 }));
 
 describe('useSkillStore', () => {
   beforeEach(() => {
     // Clear mocks before each test
     jest.clearAllMocks();
+    // Reset nanoid counter so IDs are predictable per test
+    nanoidCounter = 0;
     // Reset store state
     const { result } = renderHook(() => useSkillStore());
     act(() => {
@@ -40,8 +43,8 @@ describe('useSkillStore', () => {
       });
 
       expect(skill).toBeDefined();
-      expect((skill as unknown as { id: string }).id).toBe('test-skill-id');
-      expect(result.current.skills['test-skill-id']).toBeDefined();
+      expect((skill as unknown as { id: string }).id).toBe('test-skill-id-0');
+      expect(result.current.skills['test-skill-id-0']).toBeDefined();
     });
 
     it('should convert name to hyphen-case', () => {
@@ -93,12 +96,12 @@ describe('useSkillStore', () => {
       });
 
       act(() => {
-        result.current.updateSkill('test-skill-id', {
+        result.current.updateSkill('test-skill-id-0', {
           content: 'Updated content',
         });
       });
 
-      expect(result.current.skills['test-skill-id'].content).toBe('Updated content');
+      expect(result.current.skills['test-skill-id-0'].content).toBe('Updated content');
     });
 
     it('should update skill metadata', () => {
@@ -113,12 +116,12 @@ describe('useSkillStore', () => {
       });
 
       act(() => {
-        result.current.updateSkill('test-skill-id', {
+        result.current.updateSkill('test-skill-id-0', {
           metadata: { name: 'test', description: 'Updated description' },
         });
       });
 
-      expect(result.current.skills['test-skill-id'].metadata.description).toBe(
+      expect(result.current.skills['test-skill-id-0'].metadata.description).toBe(
         'Updated description'
       );
     });
@@ -134,18 +137,18 @@ describe('useSkillStore', () => {
         });
       });
 
-      const originalUpdatedAt = result.current.skills['test-skill-id'].updatedAt;
+      const originalUpdatedAt = result.current.skills['test-skill-id-0'].updatedAt;
 
       // Wait a bit to ensure different timestamp
       jest.advanceTimersByTime(100);
 
       act(() => {
-        result.current.updateSkill('test-skill-id', {
+        result.current.updateSkill('test-skill-id-0', {
           content: 'New content',
         });
       });
 
-      expect(result.current.skills['test-skill-id'].updatedAt.getTime()).toBeGreaterThanOrEqual(
+      expect(result.current.skills['test-skill-id-0'].updatedAt.getTime()).toBeGreaterThanOrEqual(
         originalUpdatedAt.getTime()
       );
     });
@@ -163,13 +166,13 @@ describe('useSkillStore', () => {
         });
       });
 
-      expect(result.current.skills['test-skill-id']).toBeDefined();
+      expect(result.current.skills['test-skill-id-0']).toBeDefined();
 
       act(() => {
-        result.current.deleteSkill('test-skill-id');
+        result.current.deleteSkill('test-skill-id-0');
       });
 
-      expect(result.current.skills['test-skill-id']).toBeUndefined();
+      expect(result.current.skills['test-skill-id-0']).toBeUndefined();
     });
 
     it('should remove from activeSkillIds when deleted', () => {
@@ -181,16 +184,16 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).toContain('test-skill-id');
+      expect(result.current.activeSkillIds).toContain('test-skill-id-0');
 
       act(() => {
-        result.current.deleteSkill('test-skill-id');
+        result.current.deleteSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).not.toContain('test-skill-id');
+      expect(result.current.activeSkillIds).not.toContain('test-skill-id-0');
     });
   });
 
@@ -206,7 +209,7 @@ describe('useSkillStore', () => {
         });
       });
 
-      const skill = result.current.getSkill('test-skill-id');
+      const skill = result.current.getSkill('test-skill-id-0');
       expect(skill).toBeDefined();
       expect(skill?.metadata.name).toBe('test');
     });
@@ -247,16 +250,16 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.disableSkill('test-skill-id');
+        result.current.disableSkill('test-skill-id-0');
       });
 
-      expect(result.current.skills['test-skill-id'].status).toBe('disabled');
+      expect(result.current.skills['test-skill-id-0'].status).toBe('disabled');
 
       act(() => {
-        result.current.enableSkill('test-skill-id');
+        result.current.enableSkill('test-skill-id-0');
       });
 
-      expect(result.current.skills['test-skill-id'].status).toBe('enabled');
+      expect(result.current.skills['test-skill-id-0'].status).toBe('enabled');
     });
 
     it('should disable a skill and deactivate it', () => {
@@ -268,17 +271,17 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).toContain('test-skill-id');
+      expect(result.current.activeSkillIds).toContain('test-skill-id-0');
 
       act(() => {
-        result.current.disableSkill('test-skill-id');
+        result.current.disableSkill('test-skill-id-0');
       });
 
-      expect(result.current.skills['test-skill-id'].status).toBe('disabled');
-      expect(result.current.activeSkillIds).not.toContain('test-skill-id');
+      expect(result.current.skills['test-skill-id-0'].status).toBe('disabled');
+      expect(result.current.activeSkillIds).not.toContain('test-skill-id-0');
     });
   });
 
@@ -295,10 +298,10 @@ describe('useSkillStore', () => {
       });
 
       act(() => {
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).toContain('test-skill-id');
+      expect(result.current.activeSkillIds).toContain('test-skill-id-0');
     });
 
     it('should not activate a disabled skill', () => {
@@ -310,14 +313,14 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.disableSkill('test-skill-id');
+        result.current.disableSkill('test-skill-id-0');
       });
 
       act(() => {
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).not.toContain('test-skill-id');
+      expect(result.current.activeSkillIds).not.toContain('test-skill-id-0');
     });
 
     it('should deactivate a skill', () => {
@@ -329,16 +332,16 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).toContain('test-skill-id');
+      expect(result.current.activeSkillIds).toContain('test-skill-id-0');
 
       act(() => {
-        result.current.deactivateSkill('test-skill-id');
+        result.current.deactivateSkill('test-skill-id-0');
       });
 
-      expect(result.current.activeSkillIds).not.toContain('test-skill-id');
+      expect(result.current.activeSkillIds).not.toContain('test-skill-id-0');
     });
   });
 
@@ -352,12 +355,12 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
       const activeSkills = result.current.getActiveSkills();
       expect(activeSkills.length).toBe(1);
-      expect(activeSkills[0].id).toBe('test-skill-id');
+      expect(activeSkills[0].id).toBe('test-skill-id-0');
     });
   });
 
@@ -371,7 +374,7 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
       });
 
       expect(result.current.activeSkillIds.length).toBe(1);
@@ -415,10 +418,10 @@ describe('useSkillStore', () => {
       });
 
       act(() => {
-        result.current.recordSkillUsage('test-skill-id', true, 500);
+        result.current.recordSkillUsage('test-skill-id-0', true, 500);
       });
 
-      const stats = result.current.getSkillUsageStats('test-skill-id');
+      const stats = result.current.getSkillUsageStats('test-skill-id-0');
       expect(stats).toBeDefined();
       expect(stats?.totalExecutions).toBe(1);
       expect(stats?.successfulExecutions).toBe(1);
@@ -436,10 +439,10 @@ describe('useSkillStore', () => {
       });
 
       act(() => {
-        result.current.recordSkillUsage('test-skill-id', false, 100);
+        result.current.recordSkillUsage('test-skill-id-0', false, 100);
       });
 
-      const stats = result.current.getSkillUsageStats('test-skill-id');
+      const stats = result.current.getSkillUsageStats('test-skill-id-0');
       // Failed execution means totalExecutions - successfulExecutions
       expect(stats?.totalExecutions).toBe(1);
       expect(stats?.successfulExecutions).toBe(0);
@@ -482,6 +485,99 @@ describe('useSkillStore', () => {
     });
   });
 
+  describe('duplicate detection', () => {
+    it('should not create duplicate skill with same name', () => {
+      const { result } = renderHook(() => useSkillStore());
+
+      let firstSkill: unknown;
+      act(() => {
+        firstSkill = result.current.createSkill({
+          name: 'Unique Skill',
+          description: 'First one',
+          content: 'Content 1',
+        });
+      });
+
+      expect(firstSkill).toBeDefined();
+      expect(Object.keys(result.current.skills).length).toBe(1);
+
+      let secondSkill: unknown;
+      act(() => {
+        secondSkill = result.current.createSkill({
+          name: 'Unique Skill',
+          description: 'Duplicate',
+          content: 'Content 2',
+        });
+      });
+
+      // Should return the existing skill, not create a new one
+      expect(secondSkill).toBe(firstSkill);
+      expect(Object.keys(result.current.skills).length).toBe(1);
+      expect(result.current.error).toContain('already exists');
+    });
+
+    it('should update existing skill on import with same name', () => {
+      const { result } = renderHook(() => useSkillStore());
+
+      act(() => {
+        result.current.createSkill({
+          name: 'Import Target',
+          description: 'Original',
+          content: 'Original content',
+        });
+      });
+
+      expect(Object.keys(result.current.skills).length).toBe(1);
+      const originalId = Object.keys(result.current.skills)[0];
+
+      act(() => {
+        result.current.importSkill({
+          metadata: { name: 'import-target', description: 'Updated desc' },
+          content: 'Updated content',
+          rawContent: '---\nname: import-target\n---\nUpdated content',
+          resources: [],
+          status: 'enabled',
+          source: 'imported',
+          category: 'custom',
+          tags: [],
+        });
+      });
+
+      // Should still have only 1 skill, with updated content
+      expect(Object.keys(result.current.skills).length).toBe(1);
+      const skill = result.current.skills[originalId];
+      expect(skill).toBeDefined();
+      expect(skill.content).toBe('Updated content');
+      expect(skill.metadata.description).toBe('Updated desc');
+    });
+
+    it('should skip duplicate built-in skills during bulk import', () => {
+      const { result } = renderHook(() => useSkillStore());
+
+      // First create a skill
+      act(() => {
+        result.current.createSkill({
+          name: 'Existing Skill',
+          description: 'Already here',
+          content: 'Content',
+        });
+      });
+
+      expect(Object.keys(result.current.skills).length).toBe(1);
+
+      // Import built-in skills including one with the same name
+      act(() => {
+        result.current.importBuiltinSkills([
+          { name: 'Existing Skill', description: 'Dup', content: 'Dup content' },
+          { name: 'New Builtin', description: 'New', content: 'New content' },
+        ]);
+      });
+
+      // Should have 2 skills, not 3 (the duplicate was skipped)
+      expect(Object.keys(result.current.skills).length).toBe(2);
+    });
+  });
+
   describe('reset', () => {
     it('should reset store to initial state', () => {
       const { result } = renderHook(() => useSkillStore());
@@ -492,7 +588,7 @@ describe('useSkillStore', () => {
           description: 'Desc',
           content: 'Content',
         });
-        result.current.activateSkill('test-skill-id');
+        result.current.activateSkill('test-skill-id-0');
         result.current.setError('Error');
       });
 

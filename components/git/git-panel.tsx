@@ -89,6 +89,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     stashClear,
     mergeBranch,
     getDiffBetween,
+    revertCommit,
     clearError,
   } = useGit({
     repoPath,
@@ -214,12 +215,9 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
 
   const handleRevertCommit = useCallback(
     async (commitHash: string) => {
-      // Revert is essentially creating a new commit that undoes the changes
-      // For now, we checkout the parent commit's state for that file
-      // A proper revert would need backend support
-      return checkout(commitHash);
+      return revertCommit(commitHash);
     },
-    [checkout]
+    [revertCommit]
   );
 
   const loadBranches = useCallback(async () => {

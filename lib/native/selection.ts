@@ -443,3 +443,409 @@ export interface Selection {
 export async function getLastSelection(): Promise<Selection | null> {
   return invoke("selection_get_last_selection");
 }
+
+// ============== Missing API Bindings ==============
+
+/**
+ * Save selection configuration to file
+ */
+export async function saveConfig(): Promise<void> {
+  return invoke("selection_save_config");
+}
+
+/**
+ * Get current selection status (comprehensive state query)
+ */
+export async function getSelectionStatus(): Promise<SelectionStatus> {
+  return invoke("selection_get_status");
+}
+
+export interface SelectionStatus {
+  is_running: boolean;
+  toolbar_visible: boolean;
+  toolbar_position: [number, number] | null;
+  selected_text: string | null;
+  last_selection_timestamp: number | null;
+  config: SelectionConfig;
+}
+
+/**
+ * Set selection toolbar enabled state
+ */
+export async function setSelectionEnabled(enabled: boolean): Promise<void> {
+  return invoke("selection_set_enabled", { enabled });
+}
+
+/**
+ * Check if selection toolbar is enabled
+ */
+export async function isSelectionEnabled(): Promise<boolean> {
+  return invoke("selection_is_enabled");
+}
+
+/**
+ * Restart the selection detection service
+ */
+export async function restartSelectionService(): Promise<void> {
+  return invoke("selection_restart");
+}
+
+/**
+ * Set toolbar hover state (called from frontend when mouse enters/leaves toolbar)
+ */
+export async function setToolbarHovered(hovered: boolean): Promise<void> {
+  return invoke("selection_set_toolbar_hovered", { hovered });
+}
+
+/**
+ * Get current toolbar state (selection text and position if visible)
+ */
+export async function getToolbarState(): Promise<{
+  text: string;
+  x: number;
+  y: number;
+  textLength: number;
+} | null> {
+  return invoke("selection_get_toolbar_state");
+}
+
+/**
+ * Set auto-hide timeout for toolbar (0 to disable)
+ */
+export async function setAutoHideTimeout(timeoutMs: number): Promise<void> {
+  return invoke("selection_set_auto_hide_timeout", { timeoutMs });
+}
+
+/**
+ * Get detection statistics
+ */
+export async function getDetectionStats(): Promise<{
+  attempts: number;
+  successes: number;
+  successRate: number;
+}> {
+  return invoke("selection_get_detection_stats");
+}
+
+/**
+ * Get enhanced selection analysis
+ */
+export async function getEnhancedSelection(
+  text: string,
+  appName?: string,
+  processName?: string,
+  windowTitle?: string
+): Promise<Selection> {
+  return invoke("selection_get_enhanced", {
+    text,
+    appName,
+    processName,
+    windowTitle,
+  });
+}
+
+/**
+ * Analyze current selection with enhanced detection
+ */
+export async function analyzeCurrentSelection(): Promise<Selection | null> {
+  return invoke("selection_analyze_current");
+}
+
+/**
+ * Expand selection to word at cursor position
+ */
+export async function expandToWord(
+  text: string,
+  cursorPos: number
+): Promise<[number, number, string]> {
+  return invoke("selection_expand_to_word", { text, cursorPos });
+}
+
+/**
+ * Expand selection to sentence
+ */
+export async function expandToSentence(
+  text: string,
+  cursorPos: number
+): Promise<[number, number, string]> {
+  return invoke("selection_expand_to_sentence", { text, cursorPos });
+}
+
+/**
+ * Expand selection to line
+ */
+export async function expandToLine(
+  text: string,
+  cursorPos: number
+): Promise<[number, number, string]> {
+  return invoke("selection_expand_to_line", { text, cursorPos });
+}
+
+/**
+ * Expand selection to paragraph
+ */
+export async function expandToParagraph(
+  text: string,
+  cursorPos: number
+): Promise<[number, number, string]> {
+  return invoke("selection_expand_to_paragraph", { text, cursorPos });
+}
+
+/**
+ * Search selection history by time range
+ */
+export async function searchHistoryByTime(
+  start: number,
+  end: number
+): Promise<SelectionHistoryEntry[]> {
+  return invoke("selection_search_history_by_time", { start, end });
+}
+
+/**
+ * Release all stuck modifier keys (Ctrl, Alt, Shift, Win)
+ */
+export async function releaseStuckKeys(): Promise<void> {
+  return invoke("selection_release_stuck_keys");
+}
+
+/**
+ * Detect text type (code, url, email, etc.)
+ */
+export async function detectTextType(text: string): Promise<string> {
+  return invoke("selection_detect_text_type", { text });
+}
+
+/**
+ * Get toolbar configuration as JSON
+ */
+export async function getToolbarConfig(): Promise<Record<string, unknown>> {
+  return invoke("selection_get_toolbar_config");
+}
+
+/**
+ * Update toolbar theme
+ */
+export async function setToolbarTheme(
+  theme: "auto" | "light" | "dark" | "glass"
+): Promise<void> {
+  return invoke("selection_set_theme", { theme });
+}
+
+/**
+ * Get selection statistics summary
+ */
+export async function getStatsSummary(): Promise<{
+  detection: {
+    attempts: number;
+    successes: number;
+    successRate: number;
+  };
+  history: {
+    totalSelections: number;
+    byApp: Record<string, number>;
+    byType: Record<string, number>;
+    averageLength: number;
+  };
+}> {
+  return invoke("selection_get_stats_summary");
+}
+
+// ============== Clipboard Context Analysis Functions ==============
+
+export interface ClipboardAnalysis {
+  category: string;
+  secondary_categories: string[];
+  language: string | null;
+  confidence: number;
+  entities: ExtractedEntity[];
+  suggested_actions: SuggestedAction[];
+  stats: ContentStats;
+  is_sensitive: boolean;
+  formatting: FormattingHints;
+}
+
+export interface ExtractedEntity {
+  entity_type: string;
+  value: string;
+  start: number;
+  end: number;
+}
+
+export interface SuggestedAction {
+  action_id: string;
+  label: string;
+  description: string;
+  icon: string;
+  priority: number;
+}
+
+export interface ContentStats {
+  char_count: number;
+  word_count: number;
+  line_count: number;
+  has_unicode: boolean;
+  has_emoji: boolean;
+  has_whitespace_only_lines: boolean;
+}
+
+export interface FormattingHints {
+  syntax_highlight: boolean;
+  language_hint: string | null;
+  preserve_whitespace: boolean;
+  is_multiline: boolean;
+  max_preview_lines: number;
+}
+
+/**
+ * Analyze clipboard content and return detailed analysis
+ */
+export async function analyzeClipboardContent(
+  content: string
+): Promise<ClipboardAnalysis> {
+  return invoke("clipboard_analyze_content", { content });
+}
+
+/**
+ * Get current clipboard content with analysis
+ */
+export async function getCurrentClipboardWithAnalysis(): Promise<
+  [string, ClipboardAnalysis] | null
+> {
+  return invoke("clipboard_get_current_with_analysis");
+}
+
+/**
+ * Transform clipboard content based on action
+ */
+export async function transformClipboardContent(
+  content: string,
+  action: string
+): Promise<string> {
+  return invoke("clipboard_transform_content", { content, action });
+}
+
+/**
+ * Write text to clipboard
+ */
+export async function writeClipboardText(text: string): Promise<void> {
+  return invoke("clipboard_write_text", { text });
+}
+
+/**
+ * Read text from clipboard
+ */
+export async function readClipboardText(): Promise<string> {
+  return invoke("clipboard_read_text");
+}
+
+/**
+ * Write HTML to clipboard
+ */
+export async function writeClipboardHtml(
+  html: string,
+  altText?: string
+): Promise<void> {
+  return invoke("clipboard_write_html", { html, altText });
+}
+
+/**
+ * Clear clipboard
+ */
+export async function clearClipboard(): Promise<void> {
+  return invoke("clipboard_clear");
+}
+
+/**
+ * Get suggested actions for clipboard content
+ */
+export async function getClipboardSuggestedActions(
+  content: string
+): Promise<SuggestedAction[]> {
+  return invoke("clipboard_get_suggested_actions", { content });
+}
+
+/**
+ * Extract entities from clipboard content
+ */
+export async function extractClipboardEntities(
+  content: string
+): Promise<ExtractedEntity[]> {
+  return invoke("clipboard_extract_entities", { content });
+}
+
+/**
+ * Check if clipboard content is sensitive
+ */
+export async function checkClipboardSensitive(
+  content: string
+): Promise<boolean> {
+  return invoke("clipboard_check_sensitive", { content });
+}
+
+/**
+ * Get clipboard content statistics
+ */
+export async function getClipboardContentStats(
+  content: string
+): Promise<ContentStats> {
+  return invoke("clipboard_get_stats", { content });
+}
+
+/**
+ * Detect content category
+ */
+export async function detectClipboardCategory(
+  content: string
+): Promise<[string, string[], number]> {
+  return invoke("clipboard_detect_category", { content });
+}
+
+/**
+ * Detect programming language in code content
+ */
+export async function detectClipboardLanguage(
+  content: string
+): Promise<string | null> {
+  return invoke("clipboard_detect_language", { content });
+}
+
+// ============== Selection Event Listeners ==============
+
+/**
+ * Listen for AI chunk events during streaming
+ */
+export async function onSelectionAIChunk(
+  callback: (payload: { chunk: string }) => void
+): Promise<UnlistenFn> {
+  return listen<{ chunk: string }>("selection-ai-chunk", (event) => {
+    callback(event.payload);
+  });
+}
+
+/**
+ * Listen for quick action events (explain, etc.)
+ */
+export async function onQuickAction(
+  callback: (payload: { text: string; action: string }) => void
+): Promise<UnlistenFn> {
+  return listen<{ text: string; action: string }>(
+    "selection-quick-action",
+    (event) => {
+      callback(event.payload);
+    }
+  );
+}
+
+/**
+ * Listen for quick translate events
+ */
+export async function onQuickTranslate(
+  callback: (payload: { text: string; action: string }) => void
+): Promise<UnlistenFn> {
+  return listen<{ text: string; action: string }>(
+    "selection-quick-translate",
+    (event) => {
+      callback(event.payload);
+    }
+  );
+}

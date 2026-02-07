@@ -104,6 +104,10 @@ jest.mock('./prompt-import-export', () => ({
   PromptImportExport: () => <div data-testid="import-export">Import Export</div>,
 }));
 
+jest.mock('./prompt-publish-dialog', () => ({
+  PromptPublishDialog: () => <div data-testid="publish-dialog">Publish</div>,
+}));
+
 describe('PromptMarketplaceBrowser', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -566,6 +566,101 @@ describe('messageRepository', () => {
     });
   });
 
+  describe('edit history persistence', () => {
+    it('should persist isEdited and originalContent', async () => {
+      const created = await messageRepository.create(testSessionId, {
+        role: 'user' as const,
+        content: 'Original content',
+      });
+
+      await messageRepository.update(created.id, {
+        content: 'Edited content',
+        isEdited: true,
+        originalContent: 'Original content',
+      });
+
+      const updated = await messageRepository.getById(created.id);
+      expect(updated?.content).toBe('Edited content');
+      expect(updated?.isEdited).toBe(true);
+      expect(updated?.originalContent).toBe('Original content');
+    });
+
+    it('should persist editHistory array', async () => {
+      const created = await messageRepository.create(testSessionId, {
+        role: 'user' as const,
+        content: 'First version',
+      });
+
+      const editHistory = [
+        { content: 'First version', editedAt: new Date().toISOString() },
+        { content: 'Second version', editedAt: new Date().toISOString() },
+      ];
+
+      await messageRepository.update(created.id, {
+        content: 'Third version',
+        isEdited: true,
+        editHistory: editHistory as never,
+      });
+
+      const updated = await messageRepository.getById(created.id);
+      expect(updated?.editHistory).toHaveLength(2);
+      expect(updated?.editHistory?.[0].content).toBe('First version');
+      expect(updated?.editHistory?.[1].content).toBe('Second version');
+    });
+
+    it('should persist bookmark status', async () => {
+      const created = await messageRepository.create(testSessionId, {
+        role: 'assistant' as const,
+        content: 'Important response',
+      });
+
+      const bookmarkedAt = new Date();
+      await messageRepository.update(created.id, {
+        isBookmarked: true,
+        bookmarkedAt,
+      });
+
+      const updated = await messageRepository.getById(created.id);
+      expect(updated?.isBookmarked).toBe(true);
+      // bookmarkedAt may be stored as string in IndexedDB
+      expect(new Date(updated?.bookmarkedAt as Date | string).toISOString()).toBe(bookmarkedAt.toISOString());
+    });
+
+    it('should persist reaction', async () => {
+      const created = await messageRepository.create(testSessionId, {
+        role: 'assistant' as const,
+        content: 'Good response',
+      });
+
+      await messageRepository.update(created.id, {
+        reaction: 'like',
+      });
+
+      const updated = await messageRepository.getById(created.id);
+      expect(updated?.reaction).toBe('like');
+    });
+
+    it('should clear bookmark status', async () => {
+      const created = await messageRepository.create(testSessionId, {
+        role: 'assistant' as const,
+        content: 'Response',
+      });
+
+      await messageRepository.update(created.id, {
+        isBookmarked: true,
+        bookmarkedAt: new Date(),
+      });
+
+      await messageRepository.update(created.id, {
+        isBookmarked: false,
+        bookmarkedAt: undefined,
+      });
+
+      const updated = await messageRepository.getById(created.id);
+      expect(updated?.isBookmarked).toBe(false);
+    });
+  });
+
   describe('getPageBySessionIdAndBranch', () => {
     it('returns paginated messages with limit', async () => {
       // Create multiple messages in a branch

@@ -17,6 +17,7 @@ import {
 import { getNextCronTime } from './cron-parser';
 import { schedulerDb } from './scheduler-db';
 import { notifyTaskEvent } from './notification-integration';
+import { emitSchedulerEvent } from './event-integration';
 import { loggers } from '@/lib/logger';
 
 // Logger
@@ -478,6 +479,21 @@ class TaskSchedulerImpl {
         await notifyTaskEvent(task, execution, 'complete');
       } else if (!result.success && task.notification.onError) {
         await notifyTaskEvent(task, execution, 'error');
+      }
+
+      // Emit scheduler events for event-triggered task chaining
+      const eventType = result.success
+        ? (`${task.type}:completed` as const)
+        : undefined;
+      if (eventType) {
+        emitSchedulerEvent(
+          eventType === 'workflow:completed' || eventType === 'agent:completed'
+            || eventType === 'backup:completed' || eventType === 'sync:completed'
+            ? eventType
+            : 'custom',
+          { taskId: task.id, taskName: task.name, executionId: execution.id, output: result.output },
+          task.type
+        ).catch((err) => log.error('Failed to emit post-execution event:', err));
       }
 
       log.info(`Task ${task.name} ${result.success ? 'completed' : 'failed'} in ${execution.duration}ms`);

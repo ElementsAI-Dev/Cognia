@@ -9,7 +9,6 @@ jest.mock('react-markdown', () => ({
 // Mock remark/rehype plugins
 jest.mock('remark-gfm', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('remark-math', () => ({ __esModule: true, default: jest.fn() }));
-jest.mock('rehype-katex', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('rehype-raw', () => ({ __esModule: true, default: jest.fn() }));
 
 // Mock the renderers
@@ -28,6 +27,18 @@ jest.mock('@/components/chat/renderers/vegalite-block', () => ({
 jest.mock('@/components/chat/renderers/code-block', () => ({
   CodeBlock: ({ code, language }: { code: string; language?: string }) => (
     <div data-testid="code-block" data-language={language}>{code}</div>
+  ),
+}));
+
+jest.mock('@/components/chat/renderers/math-block', () => ({
+  MathBlock: ({ content }: { content: string }) => (
+    <div data-testid="math-block">{content}</div>
+  ),
+}));
+
+jest.mock('@/components/chat/renderers/math-inline', () => ({
+  MathInline: ({ content }: { content: string }) => (
+    <span data-testid="math-inline">{content}</span>
   ),
 }));
 

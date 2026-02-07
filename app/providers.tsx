@@ -50,6 +50,7 @@ import {
   NativeProvider,
   StoreInitializer,
   SkillSyncInitializer,
+  ContextSyncInitializer,
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer, AgentTraceInitializer } from '@/components/providers/initializers';
@@ -794,6 +795,64 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * SecureStorageInitializer - Detects and initializes secure storage capabilities
+ * In Tauri: Checks Stronghold availability for API key encryption
+ * In Browser: No-op (Web Crypto fallback is handled at module level)
+ */
+function SecureStorageInitializer() {
+  useEffect(() => {
+    if (!detectTauri()) return;
+
+    (async () => {
+      try {
+        const { isStrongholdReady } = await import('@/lib/native/stronghold');
+        if (isStrongholdReady()) {
+          // Stronghold already initialized (e.g., from previous session)
+          // Trigger hydration of API keys from secure storage
+          const { migrateApiKeysToStronghold } = await import(
+            '@/lib/native/stronghold-integration'
+          );
+          const settings = useSettingsStore.getState();
+          await migrateApiKeysToStronghold({
+            providerSettings: settings.providerSettings,
+            customProviders: settings.customProviders,
+            searchProviders: settings.searchProviders,
+            tavilyApiKey: settings.tavilyApiKey,
+          });
+        }
+      } catch {
+        // Stronghold not initialized yet — user needs to unlock from Settings
+      }
+    })();
+  }, []);
+
+  return null;
+}
+
+/**
+ * StoragePersistenceInitializer - Requests persistent storage from the browser
+ * Prevents data eviction under storage pressure
+ */
+function StoragePersistenceInitializer() {
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+
+    (async () => {
+      try {
+        const isPersisted = await navigator.storage.persisted();
+        if (!isPersisted) {
+          await navigator.storage.persist();
+        }
+      } catch {
+        // Best-effort; ignore failures silently
+      }
+    })();
+  }, []);
+
+  return null;
+}
+
 function SelectionNativeSync() {
   const selectionConfig = useSelectionStore((s) => s.config);
   const selectionEnabled = useSelectionStore((s) => s.isEnabled);
@@ -890,8 +949,11 @@ export function Providers({ children }: ProvidersProps) {
                   <TooltipProvider delayDuration={0}>
                     <SkillProvider loadBuiltinSkills={true}>
                       <NativeProvider checkUpdatesOnMount={true}>
+                        <StoragePersistenceInitializer />
+                        <SecureStorageInitializer />
                         <StoreInitializer />
                         <SkillSyncInitializer />
+                        <ContextSyncInitializer />
                         <ObservabilityInitializer />
                         <SchedulerInitializer />
                         <AgentTraceInitializer />

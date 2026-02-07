@@ -2,8 +2,6 @@
 //!
 //! Tracks selection history across applications for easy recall and analysis.
 
-#![allow(dead_code)]
-
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -59,6 +57,7 @@ impl SelectionHistoryEntry {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_app_info(
         mut self,
         app_name: Option<String>,
@@ -71,6 +70,7 @@ impl SelectionHistoryEntry {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_context(mut self, before: Option<String>, after: Option<String>) -> Self {
         self.context_before = before;
         self.context_after = after;
@@ -83,6 +83,7 @@ impl SelectionHistoryEntry {
         self
     }
 
+    #[allow(dead_code)]
     pub fn add_tag(&mut self, tag: String) {
         if !self.tags.contains(&tag) {
             self.tags.push(tag);
@@ -126,6 +127,7 @@ impl SelectionHistory {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_max_size(max_size: usize) -> Self {
         log::debug!(
             "[SelectionHistory] Creating new instance with custom max_size={}",
@@ -275,11 +277,13 @@ impl SelectionHistory {
     }
 
     /// Get entry by index
+    #[allow(dead_code)]
     pub fn get(&self, index: usize) -> Option<SelectionHistoryEntry> {
         self.entries.read().get(index).cloned()
     }
 
     /// Get the most recent entry
+    #[allow(dead_code)]
     pub fn get_latest(&self) -> Option<SelectionHistoryEntry> {
         self.entries.read().front().cloned()
     }
@@ -292,11 +296,13 @@ impl SelectionHistory {
     }
 
     /// Get history size
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.entries.read().len()
     }
 
     /// Check if history is empty
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.entries.read().is_empty()
     }

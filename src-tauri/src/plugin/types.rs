@@ -46,6 +46,10 @@ pub enum PluginCapability {
     Providers,
     Exporters,
     Importers,
+    #[serde(rename = "a2ui")]
+    A2ui,
+    Python,
+    Scheduler,
 }
 
 /// Plugin permission
@@ -127,8 +131,8 @@ pub struct A2UIComponentDef {
 pub struct PluginToolDef {
     pub name: String,
     pub description: String,
-    #[serde(rename = "parametersSchema")]
-    pub parameters_schema: serde_json::Value,
+    #[serde(rename = "parametersSchema", default, skip_serializing_if = "Option::is_none")]
+    pub parameters_schema: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(rename = "requiresApproval", skip_serializing_if = "Option::is_none")]
@@ -152,6 +156,31 @@ pub struct PluginModeDef {
     pub preview_enabled: Option<bool>,
 }
 
+/// Flexible author field - can be a string or an object
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PluginAuthorField {
+    Simple(String),
+    Detailed(PluginAuthor),
+}
+
+impl PluginAuthorField {
+    pub fn name(&self) -> &str {
+        match self {
+            PluginAuthorField::Simple(s) => s,
+            PluginAuthorField::Detailed(a) => &a.name,
+        }
+    }
+}
+
+/// Flexible permission field - can be typed or freeform string
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum PluginPermissionField {
+    Typed(PluginPermission),
+    Freeform(String),
+}
+
 /// Plugin manifest
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginManifest {
@@ -161,7 +190,7 @@ pub struct PluginManifest {
     pub description: String,
     
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<PluginAuthor>,
+    pub author: Option<PluginAuthorField>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
@@ -202,10 +231,10 @@ pub struct PluginManifest {
     pub python_dependencies: Option<Vec<String>>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub permissions: Option<Vec<PluginPermission>>,
+    pub permissions: Option<Vec<PluginPermissionField>>,
     
     #[serde(rename = "optionalPermissions", skip_serializing_if = "Option::is_none")]
-    pub optional_permissions: Option<Vec<PluginPermission>>,
+    pub optional_permissions: Option<Vec<PluginPermissionField>>,
     
     #[serde(rename = "configSchema", skip_serializing_if = "Option::is_none")]
     pub config_schema: Option<serde_json::Value>,
@@ -224,6 +253,35 @@ pub struct PluginManifest {
     
     #[serde(rename = "activateOnStartup", skip_serializing_if = "Option::is_none")]
     pub activate_on_startup: Option<bool>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screenshots: Option<Vec<String>>,
+    
+    #[serde(rename = "activationEvents", skip_serializing_if = "Option::is_none")]
+    pub activation_events: Option<Vec<String>>,
+    
+    #[serde(rename = "scheduledTasks", skip_serializing_if = "Option::is_none")]
+    pub scheduled_tasks: Option<Vec<serde_json::Value>>,
+    
+    #[serde(rename = "a2uiTemplates", skip_serializing_if = "Option::is_none")]
+    pub a2ui_templates: Option<Vec<serde_json::Value>>,
+    
+    #[serde(rename = "minAppVersion", skip_serializing_if = "Option::is_none")]
+    pub min_app_version: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commands: Option<Vec<PluginCommandDef>>,
+}
+
+/// Command definition in plugin manifest
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginCommandDef {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 /// Plugin instance state

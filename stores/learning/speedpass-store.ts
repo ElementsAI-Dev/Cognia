@@ -1117,7 +1117,24 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           const record = state.wrongQuestions[recordId];
           if (!record) return state;
 
-          const newStatus = isCorrect && record.reviewCount >= 2 ? 'mastered' : 'reviewing';
+          const newReviewCount = record.reviewCount + 1;
+
+          // SM-2 inspired spaced repetition intervals (in days)
+          // Correct: intervals grow exponentially: 1, 3, 7, 14, 30, 60
+          // Incorrect: reset to 1 day but keep review count for mastery tracking
+          const sm2Intervals = [1, 3, 7, 14, 30, 60];
+          let intervalDays: number;
+
+          if (isCorrect) {
+            const intervalIndex = Math.min(newReviewCount - 1, sm2Intervals.length - 1);
+            intervalDays = sm2Intervals[intervalIndex];
+          } else {
+            // Reset interval on incorrect, but don't reset review count
+            intervalDays = 1;
+          }
+
+          // Mastery requires 3+ correct reviews with the last being correct
+          const newStatus = isCorrect && newReviewCount >= 3 ? 'mastered' : 'reviewing';
 
           return {
             wrongQuestions: {
@@ -1125,9 +1142,9 @@ export const useSpeedPassStore = create<SpeedPassState>()(
               [recordId]: {
                 ...record,
                 status: newStatus,
-                reviewCount: record.reviewCount + 1,
+                reviewCount: newReviewCount,
                 lastReviewedAt: new Date(),
-                nextReviewAt: new Date(Date.now() + (isCorrect ? 3 : 1) * 24 * 60 * 60 * 1000), // 3 or 1 days
+                nextReviewAt: new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000),
                 updatedAt: new Date(),
               },
             },

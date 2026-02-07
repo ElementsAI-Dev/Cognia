@@ -24,6 +24,12 @@ function toUIMessage(dbMessage: DBMessage): UIMessage {
     sources: dbMessage.sources ? JSON.parse(dbMessage.sources) : undefined,
     error: dbMessage.error,
     createdAt: dbMessage.createdAt,
+    isEdited: dbMessage.isEdited,
+    editHistory: dbMessage.editHistory ? JSON.parse(dbMessage.editHistory) : undefined,
+    originalContent: dbMessage.originalContent,
+    isBookmarked: dbMessage.isBookmarked,
+    bookmarkedAt: dbMessage.bookmarkedAt,
+    reaction: dbMessage.reaction as UIMessage['reaction'],
   } as UIMessage;
 }
 
@@ -43,6 +49,12 @@ function toDBMessage(message: UIMessage, sessionId: string, branchId?: string): 
     sources: message.sources ? JSON.stringify(message.sources) : undefined,
     error: message.error,
     createdAt: message.createdAt,
+    isEdited: message.isEdited,
+    editHistory: message.editHistory ? JSON.stringify(message.editHistory) : undefined,
+    originalContent: message.originalContent,
+    isBookmarked: message.isBookmarked,
+    bookmarkedAt: message.bookmarkedAt,
+    reaction: message.reaction,
   };
 }
 
@@ -111,6 +123,12 @@ export const messageRepository = {
     if (updates.parts !== undefined) updateData.parts = JSON.stringify(updates.parts);
     if (updates.tokens !== undefined) updateData.tokens = JSON.stringify(updates.tokens);
     if (updates.error !== undefined) updateData.error = updates.error;
+    if (updates.isEdited !== undefined) updateData.isEdited = updates.isEdited;
+    if (updates.editHistory !== undefined) updateData.editHistory = JSON.stringify(updates.editHistory);
+    if (updates.originalContent !== undefined) updateData.originalContent = updates.originalContent;
+    if (updates.isBookmarked !== undefined) updateData.isBookmarked = updates.isBookmarked;
+    if (updates.bookmarkedAt !== undefined) updateData.bookmarkedAt = updates.bookmarkedAt;
+    if (updates.reaction !== undefined) updateData.reaction = updates.reaction;
 
     await withRetry(async () => {
       await db.messages.update(id, updateData);

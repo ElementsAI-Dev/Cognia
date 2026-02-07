@@ -70,28 +70,28 @@ export default function SpeedPassPage() {
       });
       
       toast.success(
-        mode === 'extreme' ? '极速复习已开始' :
-        mode === 'speed' ? '速成复习已开始' : '全面复习已开始',
-        { description: `预计学习时间: ${tutorial.totalEstimatedMinutes} 分钟` }
+        mode === 'extreme' ? t('modes.rapid.title') :
+        mode === 'speed' ? t('modes.intensive.title') : t('modes.comprehensive.title'),
+        { description: `${tutorial.totalEstimatedMinutes} ${t('minutes')}` }
       );
       
       setActiveTab('tutorials');
     } catch (error) {
-      toast.error('创建教程失败', {
-        description: error instanceof Error ? error.message : '请重试',
+      toast.error(t('error') || 'Failed', {
+        description: error instanceof Error ? error.message : '',
       });
     }
-  }, [store]);
+  }, [store, t]);
 
   // Handle mode selection from QuickActionCard
   const handleModeSelect = useCallback((_mode: SpeedLearningMode) => {
     const textbookCount = Object.keys(store.textbooks).length;
     
     if (textbookCount === 0) {
-      toast.info('请先添加教材', {
-        description: '需要先上传或选择一本教材才能开始学习',
+      toast.info(t('noTextbooks'), {
+        description: t('uploadPdfOrAdd'),
         action: {
-          label: '添加教材',
+          label: t('addTextbook'),
           onClick: () => setActiveTab('textbooks'),
         },
       });
@@ -108,7 +108,7 @@ export default function SpeedPassPage() {
     // Multiple textbooks: show mode selector with first textbook
     setSelectedTextbookForMode(Object.values(store.textbooks)[0]?.id || null);
     setShowModeDialog(true);
-  }, [store.textbooks]);
+  }, [store.textbooks, t]);
 
   // Handle mode selection from ModeSelectorDialog
   const handleModeDialogSelect = useCallback((mode: SpeedLearningMode) => {
@@ -326,7 +326,7 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
               <div>
                 <p className="font-medium">{profile.displayName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {isDailyGoalMet ? '✅ 今日目标已完成' : `今日学习 ${todayProgress.studyMinutes}/${todayProgress.targetMinutes} 分钟`}
+                  {isDailyGoalMet ? '✅ ' + t('stats.daysStreak') : `${todayProgress.studyMinutes}/${todayProgress.targetMinutes} ${t('minutes')}`}
                 </p>
               </div>
             </div>
@@ -346,27 +346,27 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard
           icon={Clock}
-          label="累计学习时间"
+          label={t('stats.totalStudyTime')}
           value={formatStudyTime(globalStats.totalStudyTimeMs)}
-          trend={`${globalStats.currentStreak} 天连续`}
+          trend={`${globalStats.currentStreak} ${t('stats.daysStreak')}`}
         />
         <StatCard
           icon={BookOpen}
-          label="教材数量"
+          label={t('stats.textbookCount')}
           value={textbookCount.toString()}
-          trend={`${tutorialCount} 个教程`}
+          trend={`${tutorialCount} ${t('stats.tutorials')}`}
         />
         <StatCard
           icon={Target}
-          label="答题正确率"
+          label={t('stats.accuracy')}
           value={`${globalStats.averageAccuracy}%`}
-          trend={`${globalStats.totalQuestionsAttempted} 题`}
+          trend={`${globalStats.totalQuestionsAttempted} ${t('stats.questions')}`}
         />
         <StatCard
           icon={TrendingUp}
-          label="完成测验"
+          label={t('stats.quizzesCompleted')}
           value={globalStats.quizzesCompleted.toString()}
-          trend={`${globalStats.sessionsCompleted} 次学习`}
+          trend={`${globalStats.sessionsCompleted} ${t('stats.sessions')}`}
         />
       </div>
 
@@ -376,7 +376,7 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Play className="h-5 w-5 text-green-500" />
-              正在进行的学习
+              {t('activeSession')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -386,10 +386,10 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
                   {store.tutorials[activeSession.tutorialId]?.title || '学习中'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  已完成 {activeSession.sectionsCompleted.length} 个知识点
+                  {t('completedSections', { count: activeSession.sectionsCompleted.length })}
                 </p>
               </div>
-              <Button onClick={() => router.push(`/speedpass/tutorial/${activeSession.tutorialId}`)}>继续学习</Button>
+              <Button onClick={() => router.push(`/speedpass/tutorial/${activeSession.tutorialId}`)}>{t('continueLearning')}</Button>
             </div>
             <Progress value={activeSession.sectionsCompleted.length > 0 ? Math.min(activeSession.sectionsCompleted.length * 10, 100) : 0} className="mt-4" />
           </CardContent>
@@ -400,9 +400,9 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
       <div className="grid gap-4 md:grid-cols-3">
         <QuickActionCard
           icon={GraduationCap}
-          title="极速模式"
-          description="1-2小时快速掌握核心考点"
-          duration="1-2h"
+          title={t('modes.rapid.title')}
+          description={t('modes.rapid.description')}
+          duration={t('modes.rapid.duration')}
           color="text-red-500"
           bgColor="bg-red-500/10"
           mode="extreme"
@@ -410,9 +410,9 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
         />
         <QuickActionCard
           icon={BookOpen}
-          title="速成模式"
-          description="2-4小时系统学习重点内容"
-          duration="2-4h"
+          title={t('modes.intensive.title')}
+          description={t('modes.intensive.description')}
+          duration={t('modes.intensive.duration')}
           color="text-orange-500"
           bgColor="bg-orange-500/10"
           mode="speed"
@@ -420,9 +420,9 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
         />
         <QuickActionCard
           icon={Brain}
-          title="全面模式"
-          description="6-12小时深入学习全部内容"
-          duration="6-12h"
+          title={t('modes.comprehensive.title')}
+          description={t('modes.comprehensive.description')}
+          duration={t('modes.comprehensive.duration')}
           color="text-blue-500"
           bgColor="bg-blue-500/10"
           mode="comprehensive"
@@ -433,16 +433,16 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
       {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle>最近学习</CardTitle>
-          <CardDescription>继续上次的学习进度</CardDescription>
+          <CardTitle>{t('recentActivity')}</CardTitle>
+          <CardDescription>{t('recentActivityDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {Object.keys(store.tutorials).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">还没有学习记录</p>
+              <p className="mt-4 text-muted-foreground">{t('noLearningRecords')}</p>
               <Button className="mt-4" variant="outline" onClick={onAddTextbook}>
-                添加教材开始学习
+                {t('addTextbookToStart')}
               </Button>
             </div>
           ) : (
@@ -461,12 +461,12 @@ function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTab
                       <div>
                         <p className="font-medium">{tutorial.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          进度: {tutorial.progress}%
+                          {t('progress')}: {tutorial.progress}%
                         </p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => router.push(`/speedpass/tutorial/${tutorial.id}`)}>
-                      继续
+                      {t('continue')}
                     </Button>
                   </div>
                 ))}
@@ -563,6 +563,7 @@ interface TutorialsTabProps {
 }
 
 function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
+  const t = useTranslations('learningMode.speedpass.page');
   const tutorials = useMemo(() => Object.values(store.tutorials) as SpeedLearningTutorial[], [store.tutorials]);
   const activeTutorials = useMemo(() => tutorials.filter((t) => !t.completedAt), [tutorials]);
   const completedTutorials = useMemo(() => tutorials.filter((t) => t.completedAt), [tutorials]);
@@ -574,11 +575,11 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
 
   const handleDeleteTutorial = useCallback((tutorialId: string) => {
     store.deleteTutorial(tutorialId);
-    toast.success('教程已删除');
-  }, [store]);
+    toast.success(t('tutorialsTitle'));
+  }, [store, t]);
 
   const getModeLabel = (mode: SpeedLearningMode) => {
-    return mode === 'extreme' ? '极速' : mode === 'speed' ? '速成' : '全面';
+    return mode === 'extreme' ? t('modes.rapid.title') : mode === 'speed' ? t('modes.intensive.title') : t('modes.comprehensive.title');
   };
 
   const getModeColor = (mode: SpeedLearningMode) => {
@@ -591,19 +592,19 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>学习教程</CardTitle>
-          <CardDescription>基于教材生成的速学教程</CardDescription>
+          <CardTitle>{t('tutorialsTitle')}</CardTitle>
+          <CardDescription>{t('tutorialsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12">
             <FileText className="h-16 w-16 text-muted-foreground/50" />
-            <p className="mt-4 text-lg text-muted-foreground">暂无教程</p>
+            <p className="mt-4 text-lg text-muted-foreground">{t('noTutorials')}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              先添加教材，然后在概览页选择学习模式生成速学教程
+              {t('addTextbookFirst')}
             </p>
             <Button className="mt-6" variant="outline" onClick={onAddTextbook}>
               <Plus className="mr-2 h-4 w-4" />
-              添加教材
+              {t('addTextbook')}
             </Button>
           </div>
         </CardContent>
@@ -616,7 +617,7 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
       {/* Active Tutorials */}
       {activeTutorials.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">进行中的教程</h3>
+          <h3 className="text-lg font-semibold">{t('tutorialsTitle')}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {activeTutorials.map((tutorial) => (
               <Card key={tutorial.id} className="overflow-hidden">
@@ -633,16 +634,16 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
                       <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          预计 {tutorial.totalEstimatedMinutes} 分钟
+                          {tutorial.totalEstimatedMinutes} {t('minutes')}
                         </span>
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          {tutorial.sections?.length || 0} 个知识点
+                          {tutorial.sections?.length || 0}
                         </span>
                       </div>
                       <div className="mt-3">
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span>进度</span>
+                          <span>{t('progress')}</span>
                           <span>{tutorial.progress || 0}%</span>
                         </div>
                         <Progress value={tutorial.progress || 0} className="h-2" />
@@ -652,7 +653,7 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
                   <div className="mt-4 flex items-center gap-2">
                     <Button size="sm" onClick={() => handleContinueTutorial(tutorial.id)}>
                       <Play className="mr-2 h-3 w-3" />
-                      继续学习
+                      {t('continueLearning')}
                     </Button>
                     <Button
                       size="sm"
@@ -673,7 +674,7 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
       {/* Completed Tutorials */}
       {completedTutorials.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">已完成的教程</h3>
+          <h3 className="text-lg font-semibold">{t('tabs.tutorials')}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {completedTutorials.map((tutorial) => (
               <Card key={tutorial.id} className="opacity-75">
@@ -688,7 +689,7 @@ function TutorialsTab({ store, router, onAddTextbook }: TutorialsTabProps) {
                         </Badge>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {tutorial.sections?.length || 0} 个知识点 · 已完成
+                        {tutorial.sections?.length || 0} · ✅
                       </p>
                     </div>
                     <Button
@@ -722,6 +723,7 @@ interface QuizTabProps {
 }
 
 function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: QuizTabProps) {
+  const t = useTranslations('learningMode.speedpass.page');
   const textbooks = useMemo(() => Object.values(store.textbooks), [store.textbooks]);
 
   // If a quiz is active, show the QuizInterface
@@ -734,7 +736,7 @@ function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: 
         questionCount={10}
         onComplete={() => {
           setQuizTextbookId(null);
-          toast.success('测验完成！');
+          toast.success(t('quizComplete'));
         }}
         onCancel={() => setQuizTextbookId(null)}
       />
@@ -746,19 +748,19 @@ function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>练习测验</CardTitle>
-          <CardDescription>智能题库，精准练习</CardDescription>
+          <CardTitle>{t('tabs.quiz')}</CardTitle>
+          <CardDescription>{t('quizDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12">
             <Brain className="h-16 w-16 text-muted-foreground/50" />
-            <p className="mt-4 text-lg text-muted-foreground">请先添加教材</p>
+            <p className="mt-4 text-lg text-muted-foreground">{t('noTextbooks')}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              添加教材后，系统将从中提取题目供你练习
+              {t('uploadPdfOrAdd')}
             </p>
             <Button className="mt-6" variant="outline" onClick={onGoToTextbooks}>
               <Plus className="mr-2 h-4 w-4" />
-              添加教材
+              {t('addTextbook')}
             </Button>
           </div>
         </CardContent>
@@ -771,8 +773,8 @@ function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: 
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>练习测验</CardTitle>
-          <CardDescription>选择一本教材开始练习</CardDescription>
+          <CardTitle>{t('tabs.quiz')}</CardTitle>
+          <CardDescription>{t('selectTextbookForQuiz')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -785,8 +787,8 @@ function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: 
                   className="cursor-pointer transition-shadow hover:shadow-md"
                   onClick={() => {
                     if (questions.length === 0) {
-                      toast.info('该教材暂无题目', {
-                        description: '请先完成教材解析以提取题目',
+                      toast.info(t('noQuestions'), {
+                        description: t('parseTextbookFirst'),
                       });
                       return;
                     }
@@ -801,12 +803,12 @@ function QuizTab({ store, quizTextbookId, setQuizTextbookId, onGoToTextbooks }: 
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{textbook.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {kps.length} 个知识点 · {questions.length} 道题目
+                          {kps.length} · {questions.length}
                         </p>
                       </div>
                     </div>
                     <Button className="mt-4 w-full" size="sm" disabled={questions.length === 0}>
-                      {questions.length > 0 ? '开始测验' : '暂无题目'}
+                      {questions.length > 0 ? t('startQuiz') : t('noQuestions')}
                     </Button>
                   </CardContent>
                 </Card>
@@ -828,6 +830,7 @@ interface WrongBookTabProps {
 }
 
 function WrongBookTab({ store }: WrongBookTabProps) {
+  const t = useTranslations('learningMode.speedpass.page');
   const wrongQuestions = useMemo(
     () => Object.values(store.wrongQuestions) as WrongQuestionRecord[],
     [store.wrongQuestions]
@@ -845,15 +848,15 @@ function WrongBookTab({ store }: WrongBookTabProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>错题本</CardTitle>
-          <CardDescription>记录并复习做错的题目</CardDescription>
+          <CardTitle>{t('tabs.wrongBook')}</CardTitle>
+          <CardDescription>{t('wrongBookDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-16 w-16 text-muted-foreground/50" />
-            <p className="mt-4 text-lg text-muted-foreground">没有错题</p>
+            <p className="mt-4 text-lg text-muted-foreground">{t('noWrongQuestions')}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              做练习时答错的题目会自动记录在这里
+              {t('wrongQuestionsAutoRecord')}
             </p>
           </div>
         </CardContent>
@@ -868,19 +871,19 @@ function WrongBookTab({ store }: WrongBookTabProps) {
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-3xl font-bold text-destructive">{activeWrongQuestions.length}</p>
-            <p className="text-sm text-muted-foreground">待复习</p>
+            <p className="text-sm text-muted-foreground">{t('pendingReview')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-3xl font-bold text-green-500">{masteredQuestions.length}</p>
-            <p className="text-sm text-muted-foreground">已掌握</p>
+            <p className="text-sm text-muted-foreground">{t('mastered')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-3xl font-bold">{wrongQuestions.length}</p>
-            <p className="text-sm text-muted-foreground">总错题数</p>
+            <p className="text-sm text-muted-foreground">{t('totalWrongQuestions')}</p>
           </CardContent>
         </Card>
       </div>
@@ -889,8 +892,8 @@ function WrongBookTab({ store }: WrongBookTabProps) {
       {activeWrongQuestions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>待复习错题</CardTitle>
-            <CardDescription>共 {activeWrongQuestions.length} 道错题需要复习</CardDescription>
+            <CardTitle>{t('pendingReview')}</CardTitle>
+            <CardDescription>{activeWrongQuestions.length}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -915,9 +918,9 @@ function WrongBookTab({ store }: WrongBookTabProps) {
                       </p>
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                         {textbook && <span>{textbook.name}</span>}
-                        <span>错误 {record.attempts.filter((a) => !a.isCorrect).length} 次</span>
+                        <span>{record.attempts.filter((a) => !a.isCorrect).length}x</span>
                         {lastAttempt && (
-                          <span>上次答案: {lastAttempt.userAnswer?.slice(0, 30) || '未作答'}</span>
+                          <span>{lastAttempt.userAnswer?.slice(0, 30) || '-'}</span>
                         )}
                       </div>
                     </div>
@@ -926,11 +929,11 @@ function WrongBookTab({ store }: WrongBookTabProps) {
                       variant="outline"
                       onClick={() => {
                         store.markWrongQuestionReviewed(record.id, true);
-                        toast.success('已标记为已复习');
+                        toast.success(t('markedReviewed'));
                       }}
                     >
                       <RotateCcw className="mr-1 h-3 w-3" />
-                      标记已复习
+                      {t('markReviewed')}
                     </Button>
                   </div>
                 );
@@ -946,12 +949,12 @@ function WrongBookTab({ store }: WrongBookTabProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
-              已掌握
+              {t('mastered')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              共 {masteredQuestions.length} 道题目已掌握（连续答对3次）
+              {masteredQuestions.length}
             </p>
           </CardContent>
         </Card>

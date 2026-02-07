@@ -33,6 +33,7 @@ interface TemplatePreviewProps {
   onUse?: (template: WorkflowTemplate) => void;
   onClone?: (template: WorkflowTemplate) => void;
   onExport?: (template: WorkflowTemplate) => void;
+  onRate?: (template: WorkflowTemplate) => void;
 }
 
 export function TemplatePreview({
@@ -40,6 +41,7 @@ export function TemplatePreview({
   onUse,
   onClone,
   onExport,
+  onRate,
 }: TemplatePreviewProps) {
   const t = useTranslations('marketplace.previewPanel');
   const tMarketplace = useTranslations('marketplace');
@@ -308,6 +310,20 @@ export function TemplatePreview({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('export')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="lg"
+                variant="ghost"
+                onClick={() => onRate?.(template)}
+                disabled={!onRate}
+              >
+                <Star className="h-4 w-4 mr-2" />
+                {tMarketplace('rateTemplate')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{tMarketplace('rateTemplate')}</TooltipContent>
           </Tooltip>
         </div>
       </div>

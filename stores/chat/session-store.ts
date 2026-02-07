@@ -125,6 +125,19 @@ interface SessionState {
   toggleStepComplete: (sessionId: string, stepId: string) => void;
   reorderSteps: (sessionId: string, stepIds: string[]) => void;
 
+  // Tag management
+  addTag: (sessionId: string, tag: string) => void;
+  removeTag: (sessionId: string, tag: string) => void;
+  setTags: (sessionId: string, tags: string[]) => void;
+  getSessionsByTag: (tag: string) => Session[];
+  getAllTags: () => string[];
+
+  // Archive management
+  archiveSession: (id: string) => void;
+  unarchiveSession: (id: string) => void;
+  getArchivedSessions: () => Session[];
+  getActiveSessions: () => Session[];
+
   // Bulk operations
   selectedSessionIds: string[];
   selectSession: (id: string) => void;
@@ -134,6 +147,8 @@ interface SessionState {
   bulkDeleteSessions: (ids: string[]) => void;
   bulkMoveSessions: (ids: string[], folderId: string | null) => void;
   bulkPinSessions: (ids: string[], pinned: boolean) => void;
+  bulkArchiveSessions: (ids: string[]) => void;
+  bulkTagSessions: (ids: string[], tag: string) => void;
 
   // Input draft management
   setInputDraft: (sessionId: string, draft: string) => void;
@@ -976,6 +991,115 @@ export const useSessionStore = create<SessionState>()(
           };
         }),
 
+      bulkArchiveSessions: (ids) =>
+        set((state) => {
+          const idsToArchive = new Set(ids);
+          const now = new Date();
+          return {
+            sessions: state.sessions.map((s) =>
+              idsToArchive.has(s.id)
+                ? { ...s, isArchived: true, archivedAt: now, updatedAt: now }
+                : s
+            ),
+            selectedSessionIds: state.selectedSessionIds.filter((id) => !idsToArchive.has(id)),
+          };
+        }),
+
+      bulkTagSessions: (ids, tag) =>
+        set((state) => {
+          const idsToTag = new Set(ids);
+          const now = new Date();
+          const normalizedTag = tag.trim().toLowerCase();
+          if (!normalizedTag) return state;
+          return {
+            sessions: state.sessions.map((s) => {
+              if (!idsToTag.has(s.id)) return s;
+              const currentTags = s.tags || [];
+              if (currentTags.includes(normalizedTag)) return s;
+              return { ...s, tags: [...currentTags, normalizedTag], updatedAt: now };
+            }),
+          };
+        }),
+
+      // Tag management
+      addTag: (sessionId, tag) =>
+        set((state) => {
+          const normalizedTag = tag.trim().toLowerCase();
+          if (!normalizedTag) return state;
+          return {
+            sessions: state.sessions.map((s) => {
+              if (s.id !== sessionId) return s;
+              const currentTags = s.tags || [];
+              if (currentTags.includes(normalizedTag)) return s;
+              return { ...s, tags: [...currentTags, normalizedTag], updatedAt: new Date() };
+            }),
+          };
+        }),
+
+      removeTag: (sessionId, tag) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, tags: (s.tags || []).filter((t) => t !== tag), updatedAt: new Date() }
+              : s
+          ),
+        })),
+
+      setTags: (sessionId, tags) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
+              ? { ...s, tags: tags.map((t) => t.trim().toLowerCase()).filter(Boolean), updatedAt: new Date() }
+              : s
+          ),
+        })),
+
+      getSessionsByTag: (tag) => {
+        const { sessions } = get();
+        return sessions.filter((s) => s.tags?.includes(tag));
+      },
+
+      getAllTags: () => {
+        const { sessions } = get();
+        const tagSet = new Set<string>();
+        for (const session of sessions) {
+          if (session.tags) {
+            for (const tag of session.tags) {
+              tagSet.add(tag);
+            }
+          }
+        }
+        return Array.from(tagSet).sort();
+      },
+
+      // Archive management
+      archiveSession: (id) =>
+        set((state) => {
+          const now = new Date();
+          return {
+            sessions: state.sessions.map((s) =>
+              s.id === id ? { ...s, isArchived: true, archivedAt: now, updatedAt: now } : s
+            ),
+            activeSessionId:
+              state.activeSessionId === id
+                ? state.sessions.find((s) => s.id !== id && !s.isArchived)?.id ?? null
+                : state.activeSessionId,
+          };
+        }),
+
+      unarchiveSession: (id) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id
+              ? { ...s, isArchived: false, archivedAt: undefined, updatedAt: new Date() }
+              : s
+          ),
+        })),
+
+      getArchivedSessions: () => get().sessions.filter((s) => s.isArchived),
+
+      getActiveSessions: () => get().sessions.filter((s) => !s.isArchived),
+
       // Input draft management
       setInputDraft: (sessionId, draft) =>
         set((state) => ({
@@ -995,12 +1119,39 @@ export const useSessionStore = create<SessionState>()(
     }),
     {
       name: 'cognia-sessions',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure folders, inputDrafts, and modeHistory exist
+          if (!Array.isArray(state.folders)) {
+            state.folders = [];
+          }
+          if (!state.inputDrafts || typeof state.inputDrafts !== 'object') {
+            state.inputDrafts = {};
+          }
+          if (!Array.isArray(state.modeHistory)) {
+            state.modeHistory = [];
+          }
+          // Ensure each session has goal and branches fields
+          if (Array.isArray(state.sessions)) {
+            state.sessions = (state.sessions as Record<string, unknown>[]).map((s) => ({
+              ...s,
+              branches: s.branches || [],
+              goal: s.goal || undefined,
+              folderId: s.folderId || undefined,
+            }));
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         sessions: state.sessions.map((s) => ({
           ...s,
           createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
           updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
+          archivedAt: s.archivedAt instanceof Date ? s.archivedAt.toISOString() : s.archivedAt,
           branches: s.branches?.map((b) => ({
             ...b,
             createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
@@ -1051,6 +1202,7 @@ export const useSessionStore = create<SessionState>()(
             ...s,
             createdAt: new Date(s.createdAt),
             updatedAt: new Date(s.updatedAt),
+            archivedAt: s.archivedAt ? new Date(s.archivedAt as unknown as string) : undefined,
             branches: s.branches?.map((b) => ({
               ...b,
               createdAt: new Date(b.createdAt),

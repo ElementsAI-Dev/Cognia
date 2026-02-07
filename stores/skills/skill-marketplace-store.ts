@@ -21,6 +21,7 @@ import {
   getUniqueSkillTags,
   getUniqueSkillCategories,
 } from '@/lib/skills/marketplace';
+import { parseSkillMd, inferCategoryFromContent, extractTagsFromContent } from '@/lib/skills/parser';
 import { useSkillStore } from './skill-store';
 
 interface SkillMarketplaceState {
@@ -220,48 +221,56 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
         });
 
         try {
-          // Download skill content
-          const content = await downloadSkillContent(item.id);
+          // Download skill content with API key for resource fetching
+          const apiKey = get().apiKey || undefined;
+          const content = await downloadSkillContent(item.id, apiKey);
           if (!content) {
             throw new Error('Failed to download skill content');
           }
 
-          // Parse SKILL.md and create skill
-          const skillStore = useSkillStore.getState();
+          // Use the parser for robust SKILL.md parsing
+          const parseResult = parseSkillMd(content.skillmd);
+          const name = parseResult.metadata?.name || item.name;
+          const description = parseResult.metadata?.description || item.description;
+          const contentBody = parseResult.content || content.skillmd.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '');
 
-          // Extract name and description from SKILL.md frontmatter
-          const frontmatterMatch = content.skillmd.match(/^---\s*\n([\s\S]*?)\n---/);
-          let name = item.name;
-          let description = item.description;
+          // Auto-detect category from content
+          const detectedCategory = parseResult.metadata
+            ? inferCategoryFromContent(parseResult.metadata, contentBody)
+            : 'custom';
 
-          if (frontmatterMatch) {
-            const frontmatter = frontmatterMatch[1];
-            const nameMatch = frontmatter.match(/name:\s*(.+)/);
-            const descMatch = frontmatter.match(/description:\s*(.+)/);
-            if (nameMatch) name = nameMatch[1].trim();
-            if (descMatch) description = descMatch[1].trim();
-          }
+          // Auto-detect tags from content, merge with marketplace tags
+          const detectedTags = extractTagsFromContent(contentBody);
+          const mergedTags = [...new Set([...(item.tags || []), ...detectedTags])];
 
-          // Get content body (after frontmatter)
-          const contentBody = content.skillmd.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '');
-
-          // Create skill in local store
-          const skill = skillStore.createSkill({
-            name,
-            description,
-            content: contentBody,
-            category: 'custom',
-            tags: item.tags || [],
-            author: item.author,
-            version: item.version,
+          // Convert downloaded resources to skill resources
+          const resources = content.resources.map((r) => {
+            const isScript = r.path.startsWith('scripts/') || r.name.endsWith('.py') || r.name.endsWith('.sh') || r.name.endsWith('.js');
+            const isReference = r.path.startsWith('references/') || r.name.endsWith('.md') || r.name.endsWith('.txt');
+            return {
+              name: r.name,
+              path: r.path,
+              type: (isScript ? 'script' : isReference ? 'reference' : 'asset') as 'script' | 'reference' | 'asset',
+              content: r.content,
+              size: r.content.length,
+              mimeType: 'text/plain',
+            };
           });
 
-          // Update skill source to marketplace
-          skillStore.updateSkill(skill.id, {
-            // @ts-expect-error - Adding marketplace-specific fields
+          // Create skill in local store
+          const skillStore = useSkillStore.getState();
+          const skill = skillStore.importSkill({
+            metadata: { name, description },
+            content: contentBody,
+            rawContent: content.skillmd,
+            resources,
+            status: 'enabled',
             source: 'marketplace',
-            marketplaceId: item.id,
-            marketplaceUrl: `https://github.com/${item.repository}`,
+            category: detectedCategory,
+            tags: mergedTags,
+            version: item.version,
+            author: item.author,
+            license: item.license,
           });
 
           // Update status to installed
@@ -271,7 +280,7 @@ export const useSkillMarketplaceStore = create<SkillMarketplaceState>()(
             return { installingItems: newInstalling };
           });
 
-          return true;
+          return !!skill;
         } catch (error) {
           // Update status to error
           set((s) => {

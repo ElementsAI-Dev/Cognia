@@ -4,9 +4,9 @@
  * PresetsManager - full page/dialog for managing all presets
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles, Search, Layers } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Download, Upload, Sparkles, Search, Layers, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   InputGroup,
@@ -38,11 +38,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { PresetCard } from './preset-card';
 import { CreatePresetDialog } from './create-preset-dialog';
 import { usePresetStore, useSettingsStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import type { Preset, CreatePresetInput } from '@/types/content/preset';
+import type { Preset, CreatePresetInput, PresetCategory } from '@/types/content/preset';
+import { PRESET_CATEGORIES } from '@/types/content/preset';
+import { generatePresetFromDescription } from '@/lib/ai/presets';
 import { nanoid } from 'nanoid';
 
 interface PresetsManagerProps {
@@ -60,6 +63,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [aiDescription, setAiDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<PresetCategory | 'all'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const presets = usePresetStore((state) => state.presets);
@@ -74,7 +78,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const createPreset = usePresetStore((state) => state.createPreset);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
 
-  const filteredPresets = search ? searchPresets(search) : presets;
+  const categoryFilteredPresets = useMemo(() => {
+    const base = search ? searchPresets(search) : presets;
+    if (categoryFilter === 'all') return base;
+    return base.filter((p) => p.category === categoryFilter);
+  }, [search, searchPresets, presets, categoryFilter]);
+  const filteredPresets = categoryFilteredPresets;
 
   const handleSelect = (preset: Preset) => {
     selectPreset(preset.id);
@@ -199,29 +208,26 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const handleAIGenerate = async () => {
     if (!aiDescription.trim()) return;
     
-    const settings = providerSettings['openai'] || Object.values(providerSettings).find(s => s?.apiKey);
-    if (!settings?.apiKey) {
+    const openaiSettings = providerSettings['openai'];
+    const anySettings = Object.entries(providerSettings).find(([, s]) => s?.apiKey);
+    const providerName = openaiSettings?.apiKey ? 'openai' : anySettings?.[0];
+    const settings = openaiSettings?.apiKey ? openaiSettings : anySettings?.[1];
+
+    if (!settings?.apiKey || !providerName) {
       toast.warning(t('errors.noApiKey'));
       return;
     }
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/generate-preset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: aiDescription,
-          provider: 'openai',
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        }),
+      const result = await generatePresetFromDescription(aiDescription, {
+        provider: providerName as import('@/lib/ai/core/client').ProviderName,
+        apiKey: settings.apiKey,
+        baseURL: settings.baseURL,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const preset = data.preset;
-        
+      if (result.success && result.preset) {
+        const preset = result.preset;
         createPreset({
           name: preset.name || 'AI Generated Preset',
           description: preset.description,
@@ -231,7 +237,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
           model: 'gpt-4o',
           mode: preset.mode || 'chat',
           systemPrompt: preset.systemPrompt,
-          builtinPrompts: preset.builtinPrompts?.map((p: { name: string; content: string; description?: string }) => ({
+          builtinPrompts: preset.builtinPrompts?.map((p) => ({
             id: nanoid(),
             name: p.name,
             content: p.content,
@@ -240,12 +246,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
           temperature: preset.temperature ?? 0.7,
           webSearchEnabled: preset.webSearchEnabled,
           thinkingEnabled: preset.thinkingEnabled,
+          category: preset.category as PresetCategory | undefined,
         });
         setAiDescription('');
         toast.success(t('aiGenerateSuccess'));
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || t('errors.generateFailed'));
+        toast.error(result.error || t('errors.generateFailed'));
       }
     } catch (error) {
       console.error('Failed to generate preset:', error);
@@ -287,8 +293,8 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <InputGroup>
+        <div className="flex-1 flex items-center gap-2">
+          <InputGroup className="flex-1">
             <InputGroupAddon align="inline-start">
               <Search className="h-4 w-4" />
             </InputGroupAddon>
@@ -298,6 +304,28 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </InputGroup>
+          {/* Category filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0">
+                <Filter className="h-4 w-4 mr-1" />
+                {categoryFilter === 'all' ? t('allCategories') : t(`categories.${categoryFilter}`)}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setCategoryFilter('all')}>
+                {t('allCategories')}
+                {categoryFilter === 'all' && <Badge variant="secondary" className="ml-auto text-xs">✓</Badge>}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {PRESET_CATEGORIES.map((cat) => (
+                <DropdownMenuItem key={cat} onClick={() => setCategoryFilter(cat)}>
+                  {t(`categories.${cat}`)}
+                  {categoryFilter === cat && <Badge variant="secondary" className="ml-auto text-xs">✓</Badge>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex gap-2">
           {/* Import/Export dropdown */}

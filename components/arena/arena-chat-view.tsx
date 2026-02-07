@@ -21,6 +21,7 @@ import {
   ArenaBattleView,
 } from '@/components/arena';
 import { useArenaStore } from '@/stores/arena';
+import { useArena } from '@/hooks/arena';
 import { cn } from '@/lib/utils';
 
 interface ArenaChatViewProps {
@@ -46,6 +47,8 @@ export function ArenaChatView({
   const activeBattleId = useArenaStore((state) => state.activeBattleId);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
 
+  const { continueTurn, canContinue: checkCanContinue } = useArena();
+
   const activeBattles = battles.filter(
     (b) =>
       !b.winnerId &&
@@ -69,6 +72,8 @@ export function ArenaChatView({
       setActiveBattle(null);
     }
   }, [activeBattleId, setActiveBattle]);
+
+  const currentBattleId = selectedBattleId || activeBattleId;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -250,15 +255,17 @@ export function ArenaChatView({
       />
 
       {/* Battle View */}
-      {(selectedBattleId || activeBattleId) && (
+      {currentBattleId && (
         <ArenaBattleView
-          battleId={selectedBattleId || activeBattleId!}
-          open={!!(selectedBattleId || activeBattleId)}
+          battleId={currentBattleId}
+          open={!!currentBattleId}
           onOpenChange={(open) => {
             if (!open) {
               handleCloseBattle();
             }
           }}
+          onContinueTurn={continueTurn}
+          canContinue={currentBattleId ? checkCanContinue(currentBattleId) : false}
         />
       )}
     </div>

@@ -83,7 +83,8 @@
     "sync": "数据同步",
     "backup": "备份",
     "custom": "自定义",
-    "plugin": "插件"
+    "plugin": "插件",
+    "script": "脚本"
   },
   "triggerTypes": {
     "cron": "定时任务（Cron）",
@@ -166,6 +167,9 @@
   "systemSchedulerUnavailable": "当前环境不可用系统调度器",
   "requestElevation": "请求提权",
   "requestElevationDescription": "该任务需要管理员权限",
+  "quickActions": "快捷操作",
+  "scheduleBackup": "安排备份",
+  "scheduleWorkflowAction": "安排工作流",
   "backup": {
     "schedule": "安排备份",
     "scheduleTitle": "设置自动备份",

@@ -203,6 +203,10 @@ export interface RoutingContext {
   // Performance hints
   preferFastResponse?: boolean;
   preferHighQuality?: boolean;
+
+  // Skill context for skill-aware routing
+  activeSkillCategories?: string[];
+  activeSkillCount?: number;
 }
 
 // Routing event for analytics

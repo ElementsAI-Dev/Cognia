@@ -126,18 +126,46 @@ export function PromptImportExport({ trigger }: PromptImportExportProps) {
 
       for (const prompt of data.prompts) {
         try {
-          const existingPrompt = getPromptById(prompt.id);
-          if (existingPrompt) {
-            const isInstalled = installedPrompts.some(
-              (i) => i.marketplaceId === prompt.id
-            );
-            if (isInstalled) {
-              result.skipped++;
-              continue;
-            }
+          // Check if already installed
+          const isInstalled = installedPrompts.some(
+            (i) => i.marketplaceId === prompt.id
+          );
+          if (isInstalled) {
+            result.skipped++;
+            continue;
           }
 
-          await installPrompt(prompt.id);
+          // Try to get existing prompt from store cache
+          const existingPrompt = getPromptById(prompt.id);
+          if (existingPrompt) {
+            await installPrompt(existingPrompt);
+          } else {
+            // Construct a full MarketplacePrompt from imported data
+            const now = new Date();
+            const fullPrompt: MarketplacePrompt = {
+              id: prompt.id,
+              name: prompt.name || 'Imported Prompt',
+              description: prompt.description || '',
+              content: prompt.content || '',
+              category: prompt.category || 'chat',
+              tags: prompt.tags || [],
+              variables: prompt.variables || [],
+              targets: prompt.targets || ['chat'],
+              author: prompt.author || { id: 'imported', name: 'Imported' },
+              source: 'marketplace',
+              qualityTier: prompt.qualityTier || 'community',
+              version: prompt.version || '1.0.0',
+              versions: [],
+              stats: prompt.stats || { downloads: 0, weeklyDownloads: 0, favorites: 0, shares: 0, views: 0 },
+              rating: prompt.rating || { average: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+              reviewCount: 0,
+              icon: prompt.icon,
+              color: prompt.color,
+              createdAt: now,
+              updatedAt: now,
+            };
+            await installPrompt(fullPrompt);
+          }
           result.imported++;
         } catch {
           result.errors.push(`${t('failedToImport')}: ${prompt.name || prompt.id}`);

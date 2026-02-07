@@ -85,11 +85,17 @@ export function useSelectionReceiver(
         onTranslateRequest?.(event.payload.text);
       });
 
-      // Listen for quick explain events
-      unlistenExplain = await listen<{ text: string }>('selection-quick-explain', (event) => {
-        handleTextReceived(event.payload.text, 'explain');
-        onExplainRequest?.(event.payload.text);
-      });
+      // Listen for quick explain/action events (Rust emits "selection-quick-action")
+      unlistenExplain = await listen<{ text: string; action?: string }>(
+        'selection-quick-action',
+        (event) => {
+          const action = event.payload.action || 'explain';
+          handleTextReceived(event.payload.text, action);
+          if (action === 'explain') {
+            onExplainRequest?.(event.payload.text);
+          }
+        }
+      );
     };
 
     setupListeners();

@@ -595,4 +595,234 @@ describe('useMcpStore', () => {
       expect(result).toBe(42);
     });
   });
+
+  // =========================================================================
+  // Scheme 1: subscribeResource / unsubscribeResource
+  // =========================================================================
+
+  describe('subscribeResource', () => {
+    it('calls mcp_subscribe_resource command', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await useMcpStore.getState().subscribeResource('server-1', 'file://test.txt');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_subscribe_resource', {
+        serverId: 'server-1',
+        uri: 'file://test.txt',
+      });
+    });
+  });
+
+  describe('unsubscribeResource', () => {
+    it('calls mcp_unsubscribe_resource command', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await useMcpStore.getState().unsubscribeResource('server-1', 'file://test.txt');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_unsubscribe_resource', {
+        serverId: 'server-1',
+        uri: 'file://test.txt',
+      });
+    });
+  });
+
+  // =========================================================================
+  // Scheme 2: Server health tracking
+  // =========================================================================
+
+  describe('server health tracking', () => {
+    it('has empty serverHealthMap initially', () => {
+      const state = useMcpStore.getState();
+      expect(state.serverHealthMap.size).toBe(0);
+    });
+
+    it('getServerHealth returns undefined for unknown server', () => {
+      const health = useMcpStore.getState().getServerHealth('unknown');
+      expect(health).toBeUndefined();
+    });
+
+    it('getAllServerHealth returns empty array initially', () => {
+      const healths = useMcpStore.getState().getAllServerHealth();
+      expect(healths).toEqual([]);
+    });
+
+    it('getServerHealth returns health after state update', () => {
+      const mockHealth = {
+        serverId: 'server-1',
+        isHealthy: true,
+        lastPingAt: Date.now(),
+        pingLatencyMs: 15,
+        failedPings: 0,
+      };
+
+      useMcpStore.setState({
+        serverHealthMap: new Map([['server-1', mockHealth]]),
+      });
+
+      const health = useMcpStore.getState().getServerHealth('server-1');
+      expect(health).toEqual(mockHealth);
+      expect(health?.isHealthy).toBe(true);
+    });
+
+    it('getAllServerHealth returns all health entries', () => {
+      const health1 = {
+        serverId: 'server-1',
+        isHealthy: true,
+        failedPings: 0,
+      };
+      const health2 = {
+        serverId: 'server-2',
+        isHealthy: false,
+        failedPings: 3,
+      };
+
+      useMcpStore.setState({
+        serverHealthMap: new Map([
+          ['server-1', health1 as never],
+          ['server-2', health2 as never],
+        ]),
+      });
+
+      const healths = useMcpStore.getState().getAllServerHealth();
+      expect(healths).toHaveLength(2);
+    });
+  });
+
+  // =========================================================================
+  // Scheme 5: cancelRequest
+  // =========================================================================
+
+  describe('cancelRequest', () => {
+    it('calls mcp_cancel_request command', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await useMcpStore.getState().cancelRequest('server-1', 'req-123', 'user cancelled');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_cancel_request', {
+        serverId: 'server-1',
+        requestId: 'req-123',
+        reason: 'user cancelled',
+      });
+    });
+
+    it('calls mcp_cancel_request without reason', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await useMcpStore.getState().cancelRequest('server-1', 'req-456');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_cancel_request', {
+        serverId: 'server-1',
+        requestId: 'req-456',
+        reason: undefined,
+      });
+    });
+  });
+
+  // =========================================================================
+  // Scheme 6: listResourceTemplates
+  // =========================================================================
+
+  describe('listResourceTemplates', () => {
+    it('calls mcp_list_resource_templates and returns templates', async () => {
+      const mockTemplates = [
+        { uriTemplate: 'file:///{path}', name: 'File', description: 'A file' },
+        { uriTemplate: 'db://{table}/{id}', name: 'DB Record' },
+      ];
+      mockInvoke.mockResolvedValueOnce(mockTemplates);
+
+      const result = await useMcpStore.getState().listResourceTemplates('server-1');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_list_resource_templates', {
+        serverId: 'server-1',
+      });
+      expect(result).toEqual(mockTemplates);
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  // =========================================================================
+  // Scheme 7: complete
+  // =========================================================================
+
+  describe('complete', () => {
+    it('calls mcp_complete with correct parameters', async () => {
+      const mockResult = {
+        completion: { values: ['option1', 'option2'], hasMore: false, total: 2 },
+      };
+      mockInvoke.mockResolvedValueOnce(mockResult);
+
+      const result = await useMcpStore
+        .getState()
+        .complete('server-1', 'ref/prompt', 'my-prompt', 'arg1', 'val');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_complete', {
+        serverId: 'server-1',
+        refType: 'ref/prompt',
+        refName: 'my-prompt',
+        argumentName: 'arg1',
+        argumentValue: 'val',
+      });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  // =========================================================================
+  // Scheme 8: setRoots / getRoots
+  // =========================================================================
+
+  describe('setRoots', () => {
+    it('calls mcp_set_roots command', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      const roots = [
+        { uri: 'file:///project', name: 'Project' },
+        { uri: 'file:///docs' },
+      ];
+
+      await useMcpStore.getState().setRoots('server-1', roots);
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_set_roots', {
+        serverId: 'server-1',
+        roots,
+      });
+    });
+  });
+
+  describe('getRoots', () => {
+    it('calls mcp_get_roots and returns roots', async () => {
+      const mockRoots = [
+        { uri: 'file:///project', name: 'Project' },
+      ];
+      mockInvoke.mockResolvedValueOnce(mockRoots);
+
+      const result = await useMcpStore.getState().getRoots('server-1');
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_get_roots', { serverId: 'server-1' });
+      expect(result).toEqual(mockRoots);
+    });
+  });
+
+  // =========================================================================
+  // Scheme 9: respondToSampling
+  // =========================================================================
+
+  describe('respondToSampling', () => {
+    it('calls mcp_respond_sampling command', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      const result = {
+        role: 'assistant',
+        content: { type: 'text', text: 'Hello!' },
+        model: 'gpt-4',
+      };
+
+      await useMcpStore.getState().respondToSampling('server-1', 'req-789', result);
+
+      expect(mockInvoke).toHaveBeenCalledWith('mcp_respond_sampling', {
+        serverId: 'server-1',
+        requestId: 'req-789',
+        result,
+      });
+    });
+  });
 });

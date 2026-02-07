@@ -820,6 +820,37 @@ impl McpManager {
         Ok(latency)
     }
 
+    /// Cancel an in-progress request on a connected server
+    pub async fn cancel_request(
+        &self,
+        server_id: &str,
+        request_id: &str,
+        reason: Option<&str>,
+    ) -> McpResult<()> {
+        log::info!(
+            "Cancelling request '{}' on server '{}', reason: {:?}",
+            request_id,
+            server_id,
+            reason
+        );
+
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            log::error!("Cancel request failed: server '{}' not found", server_id);
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| {
+            log::error!(
+                "Cancel request failed: server '{}' not connected",
+                server_id
+            );
+            McpError::NotConnected
+        })?;
+
+        client.cancel_request(request_id, reason).await
+    }
+
     /// Set log level for a connected server
     pub async fn set_log_level(&self, server_id: &str, level: LogLevel) -> McpResult<()> {
         log::info!(
@@ -844,6 +875,110 @@ impl McpManager {
             log::debug!("Log level set successfully for server '{}'", server_id);
         }
         result
+    }
+
+    /// Respond to a pending sampling/createMessage request from a server
+    pub async fn respond_to_sampling(
+        &self,
+        server_id: &str,
+        request_id: &str,
+        result: serde_json::Value,
+    ) -> McpResult<()> {
+        log::info!(
+            "Responding to sampling request '{}' on server '{}'",
+            request_id,
+            server_id
+        );
+
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        client.respond_to_sampling(request_id, result).await
+    }
+
+    /// Set roots for a connected server and notify it
+    pub async fn set_roots(
+        &self,
+        server_id: &str,
+        roots: Vec<crate::mcp::types::Root>,
+    ) -> McpResult<()> {
+        log::info!(
+            "Setting {} roots for server '{}'",
+            roots.len(),
+            server_id
+        );
+
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        client.set_roots(roots).await;
+        client.notify_roots_changed().await?;
+        log::debug!("Roots set and notification sent for server '{}'", server_id);
+        Ok(())
+    }
+
+    /// Get the current roots for a connected server
+    pub async fn get_roots(
+        &self,
+        server_id: &str,
+    ) -> McpResult<Vec<crate::mcp::types::Root>> {
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        Ok(client.get_roots().await)
+    }
+
+    /// List resource templates from a connected server
+    pub async fn list_resource_templates(
+        &self,
+        server_id: &str,
+    ) -> McpResult<Vec<crate::mcp::protocol::resources::ResourceTemplate>> {
+        log::debug!("Listing resource templates for server '{}'", server_id);
+
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        client.list_resource_templates().await
+    }
+
+    /// Request argument auto-completion from a connected server
+    pub async fn complete(
+        &self,
+        server_id: &str,
+        ref_type: &str,
+        ref_name: &str,
+        argument_name: &str,
+        argument_value: &str,
+    ) -> McpResult<serde_json::Value> {
+        log::debug!(
+            "Requesting completion from server '{}': ref={}:{}, arg={}",
+            server_id,
+            ref_type,
+            ref_name,
+            argument_name
+        );
+
+        let servers = self.servers.read().await;
+        let instance = servers.get(server_id).ok_or_else(|| {
+            McpError::ServerNotFound(server_id.to_string())
+        })?;
+
+        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        client
+            .complete(ref_type, ref_name, argument_name, argument_value)
+            .await
     }
 
     /// Get all server states

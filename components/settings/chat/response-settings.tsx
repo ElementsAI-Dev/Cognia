@@ -6,7 +6,8 @@
  */
 
 import { useTranslations } from 'next-intl';
-import { Type, Code, Palette, Eye, Calculator } from 'lucide-react';
+import { Type, Code, Palette, Eye, Calculator, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -14,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -61,6 +63,7 @@ export function ResponseSettings() {
   const setMathDisplayAlignment = useSettingsStore((state) => state.setMathDisplayAlignment);
   const mathShowCopyButton = useSettingsStore((state) => state.mathShowCopyButton);
   const setMathShowCopyButton = useSettingsStore((state) => state.setMathShowCopyButton);
+  const clearMathRenderCache = useSettingsStore((state) => state.clearMathRenderCache);
   const enableMermaidDiagrams = useSettingsStore((state) => state.enableMermaidDiagrams);
   const setEnableMermaidDiagrams = useSettingsStore((state) => state.setEnableMermaidDiagrams);
   const mermaidTheme = useSettingsStore((state) => state.mermaidTheme);
@@ -293,6 +296,21 @@ export function ResponseSettings() {
               disabled={!enableMathRendering}
             />
           </div>
+
+          {/* Clear Math Cache */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => {
+              clearMathRenderCache();
+              toast.success(t('mathCacheCleared', { defaultValue: 'Math render cache cleared' }));
+            }}
+            disabled={!enableMathRendering}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            {t('clearMathCache', { defaultValue: 'Clear Math Render Cache' })}
+          </Button>
 
           {/* Math Preview */}
           {enableMathRendering && (

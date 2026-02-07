@@ -1,7 +1,7 @@
 //! Tauri commands for input completion
 
 use crate::input_completion::{
-    CompletionConfig, CompletionResult, CompletionStatus,
+    CompletionConfig, CompletionFeedback, CompletionResult, CompletionStatus,
     CompletionSuggestion, ImeState, InputCompletionManager,
 };
 use crate::input_completion::types::CompletionStats;
@@ -131,6 +131,16 @@ pub async fn input_completion_test_connection(
 ) -> Result<CompletionResult, String> {
     // Test with a simple prompt
     manager.trigger_completion("Hello").await
+}
+
+/// Submit quality feedback for a completion suggestion
+#[tauri::command]
+pub fn input_completion_submit_feedback(
+    manager: State<'_, InputCompletionManager>,
+    feedback: CompletionFeedback,
+) -> Result<(), String> {
+    manager.submit_feedback(feedback);
+    Ok(())
 }
 
 #[cfg(test)]

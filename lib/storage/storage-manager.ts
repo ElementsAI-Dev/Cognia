@@ -570,12 +570,23 @@ class StorageManagerImpl {
     const cogniaKeys = this.getCogniaKeys();
     const localStorageDeleted = this.deleteKeys(cogniaKeys.map((k) => k.key));
 
-    // Clear IndexedDB tables
+    // Clear all IndexedDB tables
     let indexedDBCleared = false;
     try {
-      await db.sessions.clear();
-      await db.messages.clear();
-      await db.documents.clear();
+      await Promise.all([
+        db.sessions.clear(),
+        db.messages.clear(),
+        db.documents.clear(),
+        db.projects.clear(),
+        db.workflows.clear(),
+        db.workflowExecutions.clear(),
+        db.summaries.clear(),
+        db.knowledgeFiles.clear(),
+        db.agentTraces.clear(),
+        db.assets.clear(),
+        db.folders.clear(),
+        db.mcpServers.clear(),
+      ]);
       indexedDBCleared = true;
     } catch (error) {
       log.error('Failed to clear IndexedDB', error as Error);

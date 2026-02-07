@@ -194,6 +194,77 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
+// Mock Tabs
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="tabs" className={className}>{children}</div>
+  ),
+  TabsContent: ({ children, value, className }: { children?: React.ReactNode; value: string; className?: string }) => (
+    <div data-testid={`tabs-content-${value}`} className={className}>{children}</div>
+  ),
+  TabsList: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="tabs-list">{children}</div>
+  ),
+  TabsTrigger: ({ children, value }: { children?: React.ReactNode; value: string }) => (
+    <button data-testid={`tabs-trigger-${value}`}>{children}</button>
+  ),
+}));
+
+// Mock isTauri
+jest.mock('@/lib/utils', () => ({
+  isTauri: () => false,
+  cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
+}));
+
+// Mock GitIntegrationPanel
+jest.mock('./git-integration-panel', () => ({
+  GitIntegrationPanel: () => <div data-testid="git-integration-panel" />,
+}));
+
+// Mock sonner
+jest.mock('sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+// Mock workflow editor store
+jest.mock('@/stores/workflow', () => ({
+  useWorkflowEditorStore: () => ({
+    loadFromTemplate: jest.fn(),
+  }),
+}));
+
+// Mock loading states
+jest.mock('@/components/ui/loading-states', () => ({
+  PageLoading: ({ title }: { title?: string }) => (
+    <div data-testid="page-loading">{title}</div>
+  ),
+}));
+
+// Mock empty state
+jest.mock('@/components/ui/empty', () => ({
+  Empty: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="empty" className={className}>{children}</div>
+  ),
+  EmptyMedia: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="empty-media">{children}</div>
+  ),
+  EmptyHeader: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="empty-header">{children}</div>
+  ),
+  EmptyTitle: ({ children }: { children?: React.ReactNode }) => (
+    <h3 data-testid="empty-title">{children}</h3>
+  ),
+  EmptyDescription: ({ children }: { children?: React.ReactNode }) => (
+    <p data-testid="empty-description">{children}</p>
+  ),
+  EmptyContent: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="empty-content">{children}</div>
+  ),
+}));
+
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
   Search: () => <svg data-testid="search-icon" />,
@@ -204,6 +275,9 @@ jest.mock('lucide-react', () => ({
   Loader2: () => <svg data-testid="loader-icon" />,
   AlertCircle: () => <svg data-testid="alert-circle-icon" />,
   Upload: () => <svg data-testid="upload-icon" />,
+  Globe: () => <svg data-testid="globe-icon" />,
+  Eye: () => <svg data-testid="eye-icon" />,
+  EyeOff: () => <svg data-testid="eye-off-icon" />,
 }));
 
 // Mock store state - can be modified by tests
@@ -221,6 +295,9 @@ const mockSetSelectedTemplate = jest.fn();
 const mockInitialize = jest.fn();
 const mockImportTemplate = jest.fn();
 const mockExportTemplate = jest.fn();
+const mockRateTemplate = jest.fn();
+const mockPublishTemplate = jest.fn();
+const mockUnpublishTemplate = jest.fn();
 
 // Mock template market store
 jest.mock('@/stores/workflow/template-market-store', () => ({
@@ -240,6 +317,14 @@ jest.mock('@/stores/workflow/template-market-store', () => ({
       isInitialized: mockStoreState.isInitialized,
       isLoading: mockStoreState.isLoading,
       error: mockStoreState.error,
+      exportTemplate: mockExportTemplate,
+      importTemplate: mockImportTemplate,
+      rateTemplate: mockRateTemplate,
+      publishTemplate: mockPublishTemplate,
+      unpublishTemplate: mockUnpublishTemplate,
+      getFeaturedTemplates: () => [],
+      getPopularTemplates: () => [],
+      getRecentTemplates: () => [],
     }),
     {
       getState: () => ({
@@ -345,12 +430,12 @@ describe('TemplateBrowser', () => {
 
   it('renders without crashing', () => {
     render(<TemplateBrowser />);
-    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getAllByText('title').length).toBeGreaterThan(0);
   });
 
   it('renders header with title', () => {
     render(<TemplateBrowser />);
-    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getAllByText('title').length).toBeGreaterThan(0);
   });
 
   it('renders search input', () => {
@@ -360,7 +445,7 @@ describe('TemplateBrowser', () => {
 
   it('renders search icon', () => {
     render(<TemplateBrowser />);
-    expect(screen.getByTestId('search-icon')).toBeInTheDocument();
+    expect(screen.getAllByTestId('search-icon').length).toBeGreaterThan(0);
   });
 
   it('renders category filter select', () => {
@@ -377,7 +462,7 @@ describe('TemplateBrowser', () => {
 
   it('renders sort order toggle button', () => {
     render(<TemplateBrowser />);
-    expect(screen.getByTestId('filter-icon')).toBeInTheDocument();
+    expect(screen.getAllByTestId('filter-icon').length).toBeGreaterThan(0);
   });
 
   it('renders template cards', () => {
@@ -577,14 +662,16 @@ describe('TemplateBrowser filtering and sorting', () => {
 
   it('has sort order toggle button', () => {
     render(<TemplateBrowser />);
-    const filterButton = screen.getByTestId('filter-icon').closest('button');
+    const filterIcons = screen.getAllByTestId('filter-icon');
+    const filterButton = filterIcons[0].closest('button');
     expect(filterButton).toBeInTheDocument();
   });
 
   it('toggles sort order when filter button is clicked', () => {
     render(<TemplateBrowser />);
 
-    const filterButton = screen.getByTestId('filter-icon').closest('button');
+    const filterIcons = screen.getAllByTestId('filter-icon');
+    const filterButton = filterIcons[0].closest('button');
     if (filterButton) {
       fireEvent.click(filterButton);
       // Should toggle sort order between asc/desc

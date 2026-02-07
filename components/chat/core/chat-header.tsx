@@ -32,6 +32,7 @@ import {
   GitBranch,
   Target,
   Scale,
+  Bookmark,
 } from 'lucide-react';
 import { ConversationSearch, SessionStats } from '../utils';
 import { useMessages } from '@/hooks';
@@ -83,7 +84,8 @@ import {
 import { BranchSelector, SessionEnvSelector, ProjectSelector } from '../selectors';
 import { PresetSelector, CreatePresetDialog, PresetsManager } from '@/components/presets';
 import { ActiveSkillsIndicator } from '@/components/skills';
-import { BackgroundAgentIndicator, AgentModeSelector, ExternalAgentSelector } from '@/components/agent';
+import { BackgroundAgentIndicator, AgentModeSelector, ExternalAgentSelector, AgentTeamIndicator } from '@/components/agent';
+import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { ChatMode, Preset, ChatViewMode, CreateGoalInput } from '@/types';
@@ -143,6 +145,7 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
   const setGoal = useSessionStore((state) => state.setGoal);
   const updateGoal = useSessionStore((state) => state.updateGoal);
   const selectPreset = usePresetStore((state) => state.selectPreset);
+  const createFromSession = usePresetStore((state) => state.createFromSession);
 
   // Project context - ProjectSelector component handles the display now
   const _getProject = useProjectStore((state) => state.getProject);
@@ -287,6 +290,27 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
       } as Parameters<typeof updateSession>[1]);
     }
   };
+
+  const handleSaveAsPreset = useCallback(() => {
+    if (!session) return;
+    const newPreset = createFromSession({
+      name: session.title || t('newPreset'),
+      description: `${t('savedFromSession')}`,
+      provider: session.provider || 'auto',
+      model: session.model || 'gpt-4o',
+      mode: session.mode || 'chat',
+      systemPrompt: session.systemPrompt,
+      builtinPrompts: session.builtinPrompts,
+      temperature: session.temperature,
+      maxTokens: session.maxTokens,
+      webSearchEnabled: session.webSearchEnabled,
+      thinkingEnabled: session.thinkingEnabled,
+    });
+    if (newPreset) {
+      updateSession(session.id, { presetId: newPreset.id });
+      toast.success(t('savedAsPreset'));
+    }
+  }, [session, createFromSession, updateSession, t]);
 
   const handlePresetSelect = (preset: Preset) => {
     if (session) {
@@ -460,6 +484,11 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               <AgentModeSelector
                 selectedModeId={agentModeId}
                 onModeChange={handleAgentModeChange}
+                onCreateTeam={() => useAgentTeamStore.getState().setIsPanelOpen(true)}
+                onSelectTeam={(teamId) => {
+                  useAgentTeamStore.getState().setActiveTeam(teamId);
+                  useAgentTeamStore.getState().setIsPanelOpen(true);
+                }}
                 className="h-8"
               />
               {/* External agent selector */}
@@ -618,6 +647,14 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
 
           {/* Background Agent Indicator - hidden in focused/zen modes */}
           {!isFocusedOrZen && <BackgroundAgentIndicator />}
+
+          {/* Agent Team Indicator - hidden in focused/zen modes */}
+          {!isFocusedOrZen && (
+            <AgentTeamIndicator
+              compact
+              onClick={() => useAgentTeamStore.getState().setIsPanelOpen(true)}
+            />
+          )}
 
           {/* Designer button - hidden on small screens and in simplified mode */}
           {!isSimplifiedMode && (
@@ -804,6 +841,10 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                 >
                   <FileText className="mr-2 h-4 w-4" />
                   {t('summarize')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSaveAsPreset}>
+                  <Bookmark className="mr-2 h-4 w-4" />
+                  {t('saveAsPreset')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <BeautifulExportDialog

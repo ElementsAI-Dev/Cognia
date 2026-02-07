@@ -11,6 +11,18 @@ import {
 import * as screenRecordingModule from '@/lib/native/screen-recording';
 import * as utilsModule from '@/lib/native/utils';
 
+// Mock Tauri event listener
+jest.mock('@tauri-apps/api/event', () => ({
+  listen: jest.fn().mockResolvedValue(jest.fn()),
+}));
+
+// Mock recording toolbar
+jest.mock('@/lib/native/recording-toolbar', () => ({
+  showRecordingToolbar: jest.fn().mockResolvedValue(undefined),
+  updateRecordingToolbarState: jest.fn().mockResolvedValue(undefined),
+  hideRecordingToolbar: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock the native module
 jest.mock('@/lib/native/screen-recording', () => ({
   getRecordingStatus: jest.fn().mockResolvedValue('Idle'),
@@ -69,6 +81,18 @@ jest.mock('@/lib/native/screen-recording', () => ({
   getRecordingHistory: jest.fn().mockResolvedValue([]),
   deleteRecording: jest.fn().mockResolvedValue(undefined),
   clearRecordingHistory: jest.fn().mockResolvedValue(undefined),
+  getStorageStats: jest.fn().mockResolvedValue({ total_size: 0, file_count: 0 }),
+  getStorageConfig: jest.fn().mockResolvedValue({ max_storage_gb: 10, auto_cleanup_days: 30 }),
+  getStorageUsagePercent: jest.fn().mockResolvedValue(0),
+  isStorageExceeded: jest.fn().mockResolvedValue(false),
+  pinRecording: jest.fn().mockResolvedValue(true),
+  unpinRecording: jest.fn().mockResolvedValue(true),
+  addRecordingTag: jest.fn().mockResolvedValue(true),
+  removeRecordingTag: jest.fn().mockResolvedValue(true),
+  getRecordingStats: jest.fn().mockResolvedValue({ total_count: 0, total_size: 0, total_duration: 0 }),
+  getRecordingById: jest.fn().mockResolvedValue(null),
+  searchRecordingsByTag: jest.fn().mockResolvedValue([]),
+  updateRecordingToolbarState: jest.fn().mockResolvedValue(undefined),
   getDefaultRecordingConfig: jest.fn().mockReturnValue({
     format: 'mp4',
     codec: 'h264',

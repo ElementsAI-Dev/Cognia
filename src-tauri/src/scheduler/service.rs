@@ -41,7 +41,6 @@ pub trait SystemScheduler: Send + Sync {
     async fn run_task_now(&self, id: &str) -> Result<TaskRunResult>;
 
     /// Check if admin elevation is required for an operation
-    #[allow(dead_code)]
     fn requires_admin(&self, task: &SystemTask) -> bool;
 
     /// Request admin elevation (platform-specific)
@@ -69,7 +68,6 @@ pub fn is_cognia_task(name: &str) -> bool {
 }
 
 /// Parse ISO 8601 datetime string
-#[allow(dead_code)]
 pub fn parse_datetime(s: &str) -> Option<chrono::DateTime<chrono::Utc>> {
     chrono::DateTime::parse_from_rfc3339(s)
         .ok()

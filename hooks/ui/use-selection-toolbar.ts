@@ -9,7 +9,9 @@ import {
   TextType,
   getLanguageName,
   SelectionConfig as ToolbarConfig,
+  SEARCH_ENGINES,
 } from '@/types';
+import type { CustomUserAction, SelectionTemplate } from '@/types';
 import { useSelectionStore } from '@/stores/context';
 import { useSettingsStore } from '@/stores/settings';
 import { useAIChat } from '@/lib/ai/generation/use-ai-chat';
@@ -337,6 +339,154 @@ export function useSelectionToolbar() {
     ]
   );
 
+  // Execute a custom user-defined action
+  const executeCustomAction = useCallback(
+    async (customAction: CustomUserAction) => {
+      if (!state.selectedText) return;
+
+      stop();
+
+      const prompt = customAction.prompt.replace(/\{\{text\}\}/g, state.selectedText);
+
+      store.incrementCustomActionUsage(customAction.id);
+      store.trackActionUsage(`custom:${customAction.id}`);
+
+      setState((prev) => ({
+        ...prev,
+        isLoading: true,
+        isStreaming: config.enableStreaming,
+        activeAction: null,
+        result: null,
+        streamingResult: config.enableStreaming ? '' : null,
+        error: null,
+      }));
+
+      try {
+        const result = await sendMessage(
+          {
+            messages: [{ role: 'user', content: prompt }],
+            systemPrompt: SELECTION_SYSTEM_PROMPT,
+            temperature: 0.7,
+            maxTokens: 2000,
+          },
+          config.enableStreaming
+            ? (chunk) => {
+                setState((prev) => ({
+                  ...prev,
+                  streamingResult: (prev.streamingResult || '') + chunk,
+                }));
+              }
+            : undefined
+        );
+
+        if (result) {
+          store.addToHistory({
+            text: state.selectedText,
+            action: 'explain' as SelectionAction,
+            result,
+            sourceApp: store.sourceApp || undefined,
+            textType: state.textType || undefined,
+          });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isStreaming: false,
+          error: error instanceof Error ? error.message : 'An error occurred',
+        }));
+      }
+    },
+    [state.selectedText, state.textType, config.enableStreaming, store, sendMessage, stop]
+  );
+
+  // Execute a template on the selected text
+  const executeTemplate = useCallback(
+    async (template: SelectionTemplate) => {
+      if (!state.selectedText) return;
+
+      stop();
+
+      const prompt = template.prompt.replace(/\{\{text\}\}/g, state.selectedText);
+
+      store.incrementTemplateUsage(template.id);
+      store.trackActionUsage(`template:${template.id}`);
+
+      setState((prev) => ({
+        ...prev,
+        isLoading: true,
+        isStreaming: config.enableStreaming,
+        activeAction: null,
+        result: null,
+        streamingResult: config.enableStreaming ? '' : null,
+        error: null,
+      }));
+
+      try {
+        const result = await sendMessage(
+          {
+            messages: [{ role: 'user', content: prompt }],
+            systemPrompt: SELECTION_SYSTEM_PROMPT,
+            temperature: 0.7,
+            maxTokens: 2000,
+          },
+          config.enableStreaming
+            ? (chunk) => {
+                setState((prev) => ({
+                  ...prev,
+                  streamingResult: (prev.streamingResult || '') + chunk,
+                }));
+              }
+            : undefined
+        );
+
+        if (result) {
+          store.addToHistory({
+            text: state.selectedText,
+            action: 'explain' as SelectionAction,
+            result,
+            sourceApp: store.sourceApp || undefined,
+            textType: state.textType || undefined,
+          });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isStreaming: false,
+          error: error instanceof Error ? error.message : 'An error occurred',
+        }));
+      }
+    },
+    [state.selectedText, state.textType, config.enableStreaming, store, sendMessage, stop]
+  );
+
+  // Replace selected text in source application (desktop only)
+  const replaceSelectedText = useCallback(
+    async (replacementText: string) => {
+      if (!isTauri()) return;
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('selection_replace_text', { text: replacementText });
+      } catch (e) {
+        log.error('Failed to replace selected text', e as Error);
+      }
+    },
+    []
+  );
+
+  // Get search URL using configured search engine
+  const getSearchUrl = useCallback(
+    (query: string) => {
+      const engineConfig = SEARCH_ENGINES.find((e) => e.engine === config.searchEngine);
+      const urlTemplate = engineConfig?.urlTemplate || 'https://www.google.com/search?q={{query}}';
+      return urlTemplate.replace('{{query}}', encodeURIComponent(query));
+    },
+    [config.searchEngine]
+  );
+
   // Retry the last action
   const retryAction = useCallback(() => {
     if (state.activeAction) {
@@ -491,6 +641,8 @@ export function useSelectionToolbar() {
     state,
     config,
     executeAction,
+    executeCustomAction,
+    executeTemplate,
     retryAction,
     copyResult,
     clearResult,
@@ -499,6 +651,8 @@ export function useSelectionToolbar() {
     setSelectionMode,
     provideFeedback,
     sendResultToChat,
+    replaceSelectedText,
+    getSearchUrl,
     stop, // Expose stop for external cancellation
     // Translation-specific
     detectSourceLanguage,

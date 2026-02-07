@@ -81,12 +81,71 @@ export const MARKETPLACE_STATS = {
   weeklyNewPlugins: 28,
 };
 
+export const MOCK_REVIEWS: MarketplacePlugin['reviews'] = [
+  {
+    id: '1',
+    author: 'John Developer',
+    rating: 5,
+    date: '2024-01-18',
+    content: 'Excellent plugin! Really improved my workflow. The AI features are incredibly accurate and helpful.',
+    helpful: 24,
+  },
+  {
+    id: '2',
+    author: 'Sarah Designer',
+    rating: 4,
+    date: '2024-01-15',
+    content: 'Great functionality, but could use some UI improvements. Overall very useful for daily tasks.',
+    helpful: 12,
+  },
+  {
+    id: '3',
+    author: 'Mike Engineer',
+    rating: 5,
+    date: '2024-01-10',
+    content: 'This is exactly what I needed. Integration was seamless and it just works. Highly recommended!',
+    helpful: 18,
+  },
+];
+
+export const MOCK_CHANGELOG: MarketplacePlugin['changelog'] = [
+  {
+    version: '2.1.0',
+    date: '2024-01-15',
+    changes: [
+      'Added new AI-powered suggestions',
+      'Improved performance by 40%',
+      'Fixed bug with large files',
+      'Updated UI components',
+    ],
+  },
+  {
+    version: '2.0.0',
+    date: '2024-01-01',
+    changes: [
+      'Complete redesign of the interface',
+      'New configuration system',
+      'Breaking: Changed API endpoints',
+    ],
+    breaking: true,
+  },
+  {
+    version: '1.5.2',
+    date: '2023-12-15',
+    changes: [
+      'Fixed memory leak issue',
+      'Added support for dark mode',
+      'Minor bug fixes',
+    ],
+  },
+];
+
 export const MOCK_PLUGINS: MarketplacePlugin[] = [
   {
     id: 'cognia-web-search',
     name: 'Web Search Plugin',
     description: 'Enhanced web search capabilities with multiple providers and result caching.',
-    author: { name: 'Cognia Team', verified: true },
+    author: { name: 'Cognia Team', verified: true, url: 'https://cognia.app' },
     version: '1.0.0',
     type: 'frontend',
     capabilities: ['tools', 'commands'],
@@ -97,6 +156,13 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     tags: ['search', 'web', 'ai', 'productivity'],
     featured: true,
     verified: true,
+    repository: 'https://github.com/cognia-app/web-search-plugin',
+    homepage: 'https://cognia.app/plugins/web-search',
+    documentation: 'https://docs.cognia.app/plugins/web-search',
+    license: 'MIT',
+    ratingBreakdown: { 5: 72, 4: 18, 3: 6, 2: 3, 1: 1 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'code-analyzer',
@@ -113,6 +179,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     tags: ['code', 'analysis', 'security', 'developer'],
     trending: true,
     verified: true,
+    repository: 'https://github.com/devtools-inc/code-analyzer',
+    license: 'Apache-2.0',
+    ratingBreakdown: { 5: 55, 4: 28, 3: 10, 2: 5, 1: 2 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'theme-studio',
@@ -129,6 +200,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     tags: ['themes', 'ui', 'design', 'customization'],
     featured: true,
     verified: true,
+    homepage: 'https://uimasters.dev/theme-studio',
+    license: 'MIT',
+    ratingBreakdown: { 5: 80, 4: 12, 3: 5, 2: 2, 1: 1 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'data-visualizer',
@@ -144,6 +220,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     lastUpdated: '2024-01-12',
     tags: ['data', 'visualization', 'charts', 'dashboard'],
     trending: true,
+    repository: 'https://github.com/dataviz-labs/data-visualizer',
+    license: 'MIT',
+    ratingBreakdown: { 5: 65, 4: 22, 3: 8, 2: 3, 1: 2 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'git-assistant',
@@ -158,6 +239,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     downloadCount: 15000,
     lastUpdated: '2024-01-08',
     tags: ['git', 'version-control', 'ai', 'developer'],
+    repository: 'https://github.com/gitflow-team/git-assistant',
+    license: 'MIT',
+    ratingBreakdown: { 5: 50, 4: 30, 3: 12, 2: 5, 1: 3 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'markdown-plus',
@@ -172,6 +258,10 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     downloadCount: 22000,
     lastUpdated: '2024-01-05',
     tags: ['markdown', 'editor', 'documentation'],
+    license: 'MIT',
+    ratingBreakdown: { 5: 45, 4: 32, 3: 15, 2: 5, 1: 3 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'api-tester',
@@ -186,6 +276,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     downloadCount: 19000,
     lastUpdated: '2024-01-14',
     tags: ['api', 'testing', 'developer', 'automation'],
+    repository: 'https://github.com/api-tools-co/api-tester',
+    license: 'Apache-2.0',
+    ratingBreakdown: { 5: 58, 4: 25, 3: 10, 2: 4, 1: 3 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
   {
     id: 'ai-image-gen',
@@ -203,5 +298,11 @@ export const MOCK_PLUGINS: MarketplacePlugin[] = [
     featured: true,
     trending: true,
     verified: true,
+    homepage: 'https://aiarts.dev',
+    documentation: 'https://docs.aiarts.dev',
+    license: 'MIT',
+    ratingBreakdown: { 5: 78, 4: 14, 3: 5, 2: 2, 1: 1 },
+    reviews: MOCK_REVIEWS,
+    changelog: MOCK_CHANGELOG,
   },
 ];

@@ -51,6 +51,41 @@ function findAttributionForLine(
   return null;
 }
 
+export interface SessionTraceSummary {
+  sessionId: string;
+  traceCount: number;
+  firstTimestamp: string;
+  lastTimestamp: string;
+  durationMs: number;
+  totalSteps: number;
+  eventTypeCounts: Record<string, number>;
+  toolCallCount: number;
+  toolSuccessCount: number;
+  toolFailureCount: number;
+  toolSuccessRate: number;
+  uniqueToolNames: string[];
+  uniqueFilePaths: string[];
+  tokenUsage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  totalLatencyMs: number;
+  avgLatencyMs: number;
+  models: string[];
+  contributors: string[];
+}
+
+export interface TraceStats {
+  totalTraces: number;
+  eventTypeCounts: Record<string, number>;
+  sessionCount: number;
+  oldestTimestamp: string | null;
+  newestTimestamp: string | null;
+  totalTokens: number;
+  storageEstimateBytes: number;
+}
+
 export const agentTraceRepository = {
   async create(input: {
     record: AgentTraceRecord;
@@ -350,5 +385,177 @@ export const agentTraceRepository = {
     const traceAttribution = await this.findByLineNumber(filePath, lineNumber, vcsRevision);
 
     return { blameInfo, traceAttribution };
+  },
+
+  /**
+   * Aggregate analytics for a specific session.
+   * Computes token usage, latency, tool success rate, and timeline data.
+   * Inspired by LangFuse/LangSmith session-level analytics.
+   */
+  async getSessionSummary(sessionId: string): Promise<SessionTraceSummary | null> {
+    const rows = await db.agentTraces
+      .where('[sessionId+timestamp]')
+      .between([sessionId, Dexie.minKey], [sessionId, Dexie.maxKey])
+      .toArray();
+
+    if (rows.length === 0) return null;
+
+    const eventTypeCounts: Record<string, number> = {};
+    const toolNames = new Set<string>();
+    const filePaths = new Set<string>();
+    const models = new Set<string>();
+    const contributors = new Set<string>();
+    let totalSteps = 0;
+    let toolCallCount = 0;
+    let toolSuccessCount = 0;
+    let toolFailureCount = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let totalTokens = 0;
+    let totalLatencyMs = 0;
+    let latencyCount = 0;
+
+    const timestamps: number[] = [];
+
+    for (const row of rows) {
+      try {
+        const record = parseTraceRecord(row.record);
+        const ts = new Date(record.timestamp).getTime();
+        if (!isNaN(ts)) timestamps.push(ts);
+
+        // Event type counts
+        const eventType = record.eventType || 'unknown';
+        eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
+
+        // Step counting
+        if (eventType === 'step_start') totalSteps++;
+
+        // File paths
+        for (const file of record.files) {
+          if (file.path) filePaths.add(file.path);
+        }
+
+        // Extract metadata analytics
+        const meta = record.metadata as Record<string, unknown> | undefined;
+        if (meta) {
+          // Tool info
+          if (typeof meta.toolName === 'string') {
+            toolNames.add(meta.toolName);
+            if (eventType === 'tool_call_result') {
+              toolCallCount++;
+              if (meta.success === true) toolSuccessCount++;
+              else if (meta.success === false) toolFailureCount++;
+            }
+          }
+
+          // Token usage
+          const tu = meta.tokenUsage as { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined;
+          if (tu) {
+            promptTokens += tu.promptTokens || 0;
+            completionTokens += tu.completionTokens || 0;
+            totalTokens += tu.totalTokens || 0;
+          }
+
+          // Latency
+          if (typeof meta.latencyMs === 'number') {
+            totalLatencyMs += meta.latencyMs;
+            latencyCount++;
+          }
+        }
+
+        // Contributor/model info
+        for (const file of record.files) {
+          for (const conv of file.conversations) {
+            if (conv.contributor?.type) contributors.add(conv.contributor.type);
+            if (conv.contributor?.model_id) models.add(conv.contributor.model_id);
+          }
+        }
+
+        // Also check tool info for model
+        if (record.metadata) {
+          const m = record.metadata as Record<string, unknown>;
+          if (typeof m.modelId === 'string') models.add(m.modelId);
+        }
+      } catch {
+        log.error('Failed to parse trace record for session summary');
+      }
+    }
+
+    timestamps.sort((a, b) => a - b);
+    const firstTs = timestamps[0] || Date.now();
+    const lastTs = timestamps[timestamps.length - 1] || Date.now();
+
+    return {
+      sessionId,
+      traceCount: rows.length,
+      firstTimestamp: new Date(firstTs).toISOString(),
+      lastTimestamp: new Date(lastTs).toISOString(),
+      durationMs: lastTs - firstTs,
+      totalSteps,
+      eventTypeCounts,
+      toolCallCount,
+      toolSuccessCount,
+      toolFailureCount,
+      toolSuccessRate: toolCallCount > 0 ? toolSuccessCount / toolCallCount : 0,
+      uniqueToolNames: Array.from(toolNames),
+      uniqueFilePaths: Array.from(filePaths),
+      tokenUsage: { promptTokens, completionTokens, totalTokens },
+      totalLatencyMs,
+      avgLatencyMs: latencyCount > 0 ? totalLatencyMs / latencyCount : 0,
+      models: Array.from(models),
+      contributors: Array.from(contributors),
+    };
+  },
+
+  /**
+   * Get global trace statistics for the overview display.
+   */
+  async getStats(): Promise<TraceStats> {
+    const allRows = await db.agentTraces.toArray();
+    const totalTraces = allRows.length;
+
+    const eventTypeCounts: Record<string, number> = {};
+    const sessionIds = new Set<string>();
+    let oldestTs: number | null = null;
+    let newestTs: number | null = null;
+    let totalTokens = 0;
+    let storageEstimateBytes = 0;
+
+    for (const row of allRows) {
+      if (row.sessionId) sessionIds.add(row.sessionId);
+
+      const ts = row.timestamp instanceof Date ? row.timestamp.getTime() : new Date(row.timestamp).getTime();
+      if (!isNaN(ts)) {
+        if (oldestTs === null || ts < oldestTs) oldestTs = ts;
+        if (newestTs === null || ts > newestTs) newestTs = ts;
+      }
+
+      // Estimate storage
+      storageEstimateBytes += (row.record?.length || 0) * 2; // UTF-16
+
+      try {
+        const record = parseTraceRecord(row.record);
+        const eventType = record.eventType || 'unknown';
+        eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
+
+        const meta = record.metadata as Record<string, unknown> | undefined;
+        if (meta) {
+          const tu = meta.tokenUsage as { totalTokens?: number } | undefined;
+          if (tu?.totalTokens) totalTokens += tu.totalTokens;
+        }
+      } catch {
+        eventTypeCounts['parse_error'] = (eventTypeCounts['parse_error'] || 0) + 1;
+      }
+    }
+
+    return {
+      totalTraces,
+      eventTypeCounts,
+      sessionCount: sessionIds.size,
+      oldestTimestamp: oldestTs ? new Date(oldestTs).toISOString() : null,
+      newestTimestamp: newestTs ? new Date(newestTs).toISOString() : null,
+      totalTokens,
+      storageEstimateBytes,
+    };
   },
 };

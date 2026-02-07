@@ -3,7 +3,20 @@
  */
 
 export { db, default } from './schema';
-export type { DBSession, DBMessage, DBDocument, DBMCPServer, DBProject, DBKnowledgeFile, DBAgentTrace } from './schema';
+export type {
+  DBSession,
+  DBMessage,
+  DBDocument,
+  DBMCPServer,
+  DBProject,
+  DBKnowledgeFile,
+  DBWorkflow,
+  DBWorkflowExecution,
+  DBSummary,
+  DBAgentTrace,
+  DBAsset,
+  DBFolder,
+} from './schema';
 
 export {
   messageRepository,

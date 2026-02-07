@@ -795,6 +795,23 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
     }),
     {
       name: 'cognia-artifacts',
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0) {
+          // v0 -> v1: Ensure newer fields exist
+          if (!state.canvasDocuments || typeof state.canvasDocuments !== 'object') {
+            state.canvasDocuments = {};
+          }
+          if (!state.artifactVersions || typeof state.artifactVersions !== 'object') {
+            state.artifactVersions = {};
+          }
+          if (!state.analysisResults || typeof state.analysisResults !== 'object') {
+            state.analysisResults = {};
+          }
+        }
+        return state;
+      },
       partialize: (state) => ({
         artifacts: state.artifacts,
         artifactVersions: state.artifactVersions,

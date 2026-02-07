@@ -91,6 +91,8 @@
     "exportedAs": "已成功导出为 {format}",
     "exportFormat": "导出 {ext}",
     "wordOptions": "Word 文档选项",
+    "pageLayout": "页面布局",
+    "pageLayoutDesc": "配置页面大小、边距和方向",
     "markdownExported": "Markdown 已导出",
     "exportFailed": "导出失败，请重试",
     "agentWorkflowDemo": "Agent 工作流演示",

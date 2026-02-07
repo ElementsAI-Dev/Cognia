@@ -137,6 +137,8 @@ export { StoreInitializer } from './initializers';
 
 export { SkillSyncInitializer } from './initializers';
 
+export { ContextSyncInitializer } from './initializers';
+
 export {
   SkillProvider,
   useInitializeSkills,

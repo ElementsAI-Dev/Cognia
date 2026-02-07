@@ -3,7 +3,10 @@
   "name": "AI Tools",
   "version": "1.0.0",
   "description": "AI model pricing scraper, provider status monitoring, and rankings tools",
-  "author": "Cognia Team",
+  "author": {
+    "name": "Cognia Team",
+    "email": "team@cognia.dev"
+  },
   "license": "MIT",
   "type": "frontend",
   "main": "dist/index.js",
@@ -24,9 +27,9 @@
     "commands"
   ],
   "permissions": [
-    "network",
-    "filesystem",
-    "browser"
+    "network:fetch",
+    "filesystem:read",
+    "filesystem:write"
   ],
   "activationEvents": [
     "onCommand:ai-tools.*",

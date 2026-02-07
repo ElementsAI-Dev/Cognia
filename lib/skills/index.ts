@@ -51,7 +51,31 @@ export {
   findMatchingSkills,
   estimateSkillTokens,
   checkSkillTokenBudget,
+  // Progressive Disclosure
+  buildSkillSummary,
+  buildSkillPartial,
+  buildProgressiveSkillsPrompt,
+  loadSkillContent,
+  selectSkillsForContext,
+  // MCP Tool Association
+  findSkillsForMcpServer,
+  findSkillsForMcpTool,
+  matchSkillsToMcpTool,
+  getAutoLoadSkillsForTools,
+  buildSkillMcpPrompt,
+  // Version Check
+  compareVersions,
+  checkSkillVersions,
+  getSkillsWithUpdates,
+  // Conflict Detection
+  detectSkillConflicts,
+  wouldCauseConflicts,
   type SkillExecutorConfig,
+  type DisclosureLevel,
+  type McpToolInfo,
+  type SkillMcpMatchResult,
+  type SkillVersionCheckResult,
+  type SkillConflict,
 } from './executor';
 
 export {

@@ -14,6 +14,25 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+// Mock storage-encryption (passthrough in test env)
+jest.mock('@/lib/storage/storage-encryption', () => ({
+  encryptValue: jest.fn(async (v: string) => `enc:mock.${Buffer.from(v).toString('base64')}`),
+  decryptValue: jest.fn(async (v: string) => {
+    if (v.startsWith('enc:mock.')) {
+      return Buffer.from(v.slice('enc:mock.'.length), 'base64').toString();
+    }
+    return v;
+  }),
+  isEncrypted: jest.fn((v: string) => v.startsWith('enc:')),
+}));
+
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    auth: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+  },
+}));
+
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -35,7 +54,7 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
 });
 
-// Mock btoa/atob
+// Mock btoa/atob for legacy fallback paths
 global.btoa = jest.fn((str: string) => Buffer.from(str).toString('base64'));
 global.atob = jest.fn((str: string) => Buffer.from(str, 'base64').toString());
 
@@ -69,10 +88,11 @@ describe('Credential Storage', () => {
         );
       });
 
-      it('should encode password with btoa', async () => {
+      it('should encrypt password before storing', async () => {
+        const { encryptValue } = jest.requireMock('@/lib/storage/storage-encryption');
         await storeWebDAVPassword('my-secret');
 
-        expect(global.btoa).toHaveBeenCalledWith('my-secret');
+        expect(encryptValue).toHaveBeenCalledWith('my-secret');
       });
     });
 
@@ -116,10 +136,11 @@ describe('Credential Storage', () => {
         );
       });
 
-      it('should encode token with btoa', async () => {
+      it('should encrypt token before storing', async () => {
+        const { encryptValue } = jest.requireMock('@/lib/storage/storage-encryption');
         await storeGitHubToken('ghp_secret');
 
-        expect(global.btoa).toHaveBeenCalledWith('ghp_secret');
+        expect(encryptValue).toHaveBeenCalledWith('ghp_secret');
       });
     });
 

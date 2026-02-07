@@ -175,6 +175,31 @@
     "chunking": {
       "title": "Chunking Settings"
     },
+    "ragChat": {
+      "title": "RAG in Chat",
+      "enable": "Enable RAG in Chat",
+      "enableDesc": "Automatically retrieve knowledge base context and inject it into chat system prompts.",
+      "topK": "Top K Results",
+      "threshold": "Similarity Threshold",
+      "maxContext": "Max Context (chars)"
+    },
+    "advancedRag": {
+      "title": "Advanced Retrieval",
+      "hybridSearch": "Hybrid Search",
+      "hybridSearchDesc": "Combine vector similarity with BM25 keyword search for better recall.",
+      "vectorWeight": "Vector Weight",
+      "keywordWeight": "Keyword Weight",
+      "reranking": "Result Reranking",
+      "rerankingDesc": "Reorder retrieved results by relevance using heuristic or adaptive scoring.",
+      "queryExpansion": "Query Expansion",
+      "queryExpansionDesc": "Generate query variants for broader recall (requires LLM)."
+    },
+    "citations": {
+      "title": "Citations",
+      "enable": "Enable Citations",
+      "enableDesc": "Format RAG results with source citations in responses.",
+      "style": "Citation Style"
+    },
     "addDocument": {
       "title": "Add Documents",
       "description": "Upload files to collection: {collection}",

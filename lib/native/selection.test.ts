@@ -41,6 +41,43 @@ import {
   getLastText,
   clearLastText,
   getLastSelection,
+  saveConfig,
+  getSelectionStatus,
+  setSelectionEnabled,
+  isSelectionEnabled,
+  restartSelectionService,
+  setToolbarHovered,
+  getToolbarState,
+  setAutoHideTimeout,
+  getDetectionStats,
+  getEnhancedSelection,
+  analyzeCurrentSelection,
+  expandToWord,
+  expandToSentence,
+  expandToLine,
+  expandToParagraph,
+  searchHistoryByTime,
+  releaseStuckKeys,
+  detectTextType,
+  getToolbarConfig,
+  setToolbarTheme,
+  getStatsSummary,
+  analyzeClipboardContent,
+  getCurrentClipboardWithAnalysis,
+  transformClipboardContent,
+  writeClipboardText,
+  readClipboardText,
+  writeClipboardHtml,
+  clearClipboard,
+  getClipboardSuggestedActions,
+  extractClipboardEntities,
+  checkClipboardSensitive,
+  getClipboardContentStats,
+  detectClipboardCategory,
+  detectClipboardLanguage,
+  onSelectionAIChunk,
+  onQuickAction,
+  onQuickTranslate,
   type SelectionPayload,
   type SelectionConfig,
   type SelectionHistoryEntry,
@@ -462,6 +499,401 @@ describe('Selection - Detection State', () => {
       mockInvoke.mockResolvedValue(null);
       const result = await getLastSelection();
       expect(result).toBeNull();
+    });
+  });
+});
+
+describe('Selection - Service Management (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('saveConfig', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await saveConfig();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_save_config');
+    });
+  });
+
+  describe('getSelectionStatus', () => {
+    it('should return comprehensive status', async () => {
+      const mockStatus = {
+        is_running: true,
+        toolbar_visible: false,
+        toolbar_position: null,
+        selected_text: null,
+        last_selection_timestamp: null,
+        config: { enabled: true, trigger_mode: 'auto', min_text_length: 1, max_text_length: 5000, delay_ms: 200, target_language: 'zh-CN', excluded_apps: [] },
+      };
+      mockInvoke.mockResolvedValue(mockStatus);
+      const result = await getSelectionStatus();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_status');
+      expect(result.is_running).toBe(true);
+    });
+  });
+
+  describe('setSelectionEnabled', () => {
+    it('should call invoke with enabled flag', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await setSelectionEnabled(true);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_set_enabled', { enabled: true });
+    });
+  });
+
+  describe('isSelectionEnabled', () => {
+    it('should return enabled state', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await isSelectionEnabled();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_is_enabled');
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('restartSelectionService', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await restartSelectionService();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_restart');
+    });
+  });
+
+  describe('setToolbarHovered', () => {
+    it('should call invoke with hovered state', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await setToolbarHovered(true);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_set_toolbar_hovered', { hovered: true });
+    });
+  });
+
+  describe('getToolbarState', () => {
+    it('should return toolbar state when visible', async () => {
+      mockInvoke.mockResolvedValue({ text: 'hello', x: 100, y: 200, textLength: 5 });
+      const result = await getToolbarState();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_toolbar_state');
+      expect(result?.text).toBe('hello');
+    });
+
+    it('should return null when toolbar is hidden', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getToolbarState();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('setAutoHideTimeout', () => {
+    it('should call invoke with timeout', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await setAutoHideTimeout(5000);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_set_auto_hide_timeout', { timeoutMs: 5000 });
+    });
+  });
+
+  describe('releaseStuckKeys', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await releaseStuckKeys();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_release_stuck_keys');
+    });
+  });
+});
+
+describe('Selection - Detection & Analysis (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getDetectionStats', () => {
+    it('should return detection statistics', async () => {
+      mockInvoke.mockResolvedValue({ attempts: 100, successes: 85, successRate: 0.85 });
+      const result = await getDetectionStats();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_detection_stats');
+      expect(result.successRate).toBe(0.85);
+    });
+  });
+
+  describe('getEnhancedSelection', () => {
+    it('should call invoke with text and app info', async () => {
+      const mockSelection: Selection = {
+        text: 'test', text_before: null, text_after: null, is_code: false,
+        language: null, is_url: false, is_email: false, has_numbers: false,
+        word_count: 1, char_count: 4, line_count: 1, text_type: 'text', source_app: null,
+      };
+      mockInvoke.mockResolvedValue(mockSelection);
+      await getEnhancedSelection('test', 'Chrome', 'chrome.exe', 'Google');
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_enhanced', {
+        text: 'test', appName: 'Chrome', processName: 'chrome.exe', windowTitle: 'Google',
+      });
+    });
+  });
+
+  describe('analyzeCurrentSelection', () => {
+    it('should return null when nothing selected', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await analyzeCurrentSelection();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_analyze_current');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('detectTextType', () => {
+    it('should return text type string', async () => {
+      mockInvoke.mockResolvedValue('code');
+      const result = await detectTextType('function foo() {}');
+      expect(mockInvoke).toHaveBeenCalledWith('selection_detect_text_type', { text: 'function foo() {}' });
+      expect(result).toBe('code');
+    });
+  });
+
+  describe('getStatsSummary', () => {
+    it('should return combined stats', async () => {
+      mockInvoke.mockResolvedValue({
+        detection: { attempts: 50, successes: 40, successRate: 0.8 },
+        history: { totalSelections: 30, byApp: {}, byType: {}, averageLength: 45 },
+      });
+      const result = await getStatsSummary();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_stats_summary');
+      expect(result.detection.attempts).toBe(50);
+      expect(result.history.totalSelections).toBe(30);
+    });
+  });
+});
+
+describe('Selection - Expansion (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('expandToWord', () => {
+    it('should call invoke and return expansion result', async () => {
+      mockInvoke.mockResolvedValue([0, 5, 'hello']);
+      const result = await expandToWord('hello world', 3);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_expand_to_word', { text: 'hello world', cursorPos: 3 });
+      expect(result).toEqual([0, 5, 'hello']);
+    });
+  });
+
+  describe('expandToSentence', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue([0, 12, 'Hello world.']);
+      const result = await expandToSentence('Hello world. Goodbye.', 5);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_expand_to_sentence', { text: 'Hello world. Goodbye.', cursorPos: 5 });
+      expect(result[2]).toBe('Hello world.');
+    });
+  });
+
+  describe('expandToLine', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue([0, 5, 'line1']);
+      await expandToLine('line1\nline2', 3);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_expand_to_line', { text: 'line1\nline2', cursorPos: 3 });
+    });
+  });
+
+  describe('expandToParagraph', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue([0, 10, 'paragraph1']);
+      await expandToParagraph('paragraph1\n\nparagraph2', 5);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_expand_to_paragraph', { text: 'paragraph1\n\nparagraph2', cursorPos: 5 });
+    });
+  });
+});
+
+describe('Selection - History Time Search (New API)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('searchHistoryByTime', () => {
+    it('should call invoke with time range', async () => {
+      mockInvoke.mockResolvedValue([]);
+      await searchHistoryByTime(1000, 2000);
+      expect(mockInvoke).toHaveBeenCalledWith('selection_search_history_by_time', { start: 1000, end: 2000 });
+    });
+  });
+});
+
+describe('Selection - Toolbar Config (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getToolbarConfig', () => {
+    it('should return config object', async () => {
+      mockInvoke.mockResolvedValue({ theme: 'dark', autoHide: true });
+      const result = await getToolbarConfig();
+      expect(mockInvoke).toHaveBeenCalledWith('selection_get_toolbar_config');
+      expect(result).toHaveProperty('theme');
+    });
+  });
+
+  describe('setToolbarTheme', () => {
+    it('should call invoke with theme', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await setToolbarTheme('glass');
+      expect(mockInvoke).toHaveBeenCalledWith('selection_set_theme', { theme: 'glass' });
+    });
+  });
+});
+
+describe('Selection - Clipboard Context Analysis (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('analyzeClipboardContent', () => {
+    it('should return analysis result', async () => {
+      mockInvoke.mockResolvedValue({
+        category: 'code', secondary_categories: [], language: 'javascript',
+        confidence: 0.9, entities: [], suggested_actions: [],
+        stats: { char_count: 20, word_count: 5, line_count: 1, has_unicode: false, has_emoji: false, has_whitespace_only_lines: false },
+        is_sensitive: false, formatting: { syntax_highlight: true, language_hint: 'javascript', preserve_whitespace: true, is_multiline: false, max_preview_lines: 1 },
+      });
+      const result = await analyzeClipboardContent('const x = 5;');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_analyze_content', { content: 'const x = 5;' });
+      expect(result.category).toBe('code');
+    });
+  });
+
+  describe('getCurrentClipboardWithAnalysis', () => {
+    it('should return null when clipboard is empty', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await getCurrentClipboardWithAnalysis();
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_get_current_with_analysis');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('transformClipboardContent', () => {
+    it('should call invoke with content and action', async () => {
+      mockInvoke.mockResolvedValue('HELLO WORLD');
+      const result = await transformClipboardContent('hello world', 'to_uppercase');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_transform_content', { content: 'hello world', action: 'to_uppercase' });
+      expect(result).toBe('HELLO WORLD');
+    });
+  });
+
+  describe('writeClipboardText', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await writeClipboardText('test text');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_write_text', { text: 'test text' });
+    });
+  });
+
+  describe('readClipboardText', () => {
+    it('should return clipboard text', async () => {
+      mockInvoke.mockResolvedValue('clipboard content');
+      const result = await readClipboardText();
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_read_text');
+      expect(result).toBe('clipboard content');
+    });
+  });
+
+  describe('writeClipboardHtml', () => {
+    it('should call invoke with html and alt text', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await writeClipboardHtml('<b>bold</b>', 'bold');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_write_html', { html: '<b>bold</b>', altText: 'bold' });
+    });
+  });
+
+  describe('clearClipboard', () => {
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await clearClipboard();
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_clear');
+    });
+  });
+
+  describe('getClipboardSuggestedActions', () => {
+    it('should return actions', async () => {
+      mockInvoke.mockResolvedValue([{ action_id: 'open_url', label: 'Open', description: 'Open URL', icon: 'globe', priority: 1 }]);
+      const result = await getClipboardSuggestedActions('https://example.com');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_get_suggested_actions', { content: 'https://example.com' });
+      expect(result).toHaveLength(1);
+      expect(result[0].action_id).toBe('open_url');
+    });
+  });
+
+  describe('extractClipboardEntities', () => {
+    it('should return entities', async () => {
+      mockInvoke.mockResolvedValue([{ entity_type: 'email', value: 'test@example.com', start: 0, end: 16 }]);
+      const result = await extractClipboardEntities('test@example.com');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_extract_entities', { content: 'test@example.com' });
+      expect(result[0].entity_type).toBe('email');
+    });
+  });
+
+  describe('checkClipboardSensitive', () => {
+    it('should return sensitivity status', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await checkClipboardSensitive('password=secret123');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_check_sensitive', { content: 'password=secret123' });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('getClipboardContentStats', () => {
+    it('should return stats', async () => {
+      mockInvoke.mockResolvedValue({ char_count: 11, word_count: 2, line_count: 1, has_unicode: false, has_emoji: false, has_whitespace_only_lines: false });
+      const result = await getClipboardContentStats('hello world');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_get_stats', { content: 'hello world' });
+      expect(result.word_count).toBe(2);
+    });
+  });
+
+  describe('detectClipboardCategory', () => {
+    it('should return category info', async () => {
+      mockInvoke.mockResolvedValue(['Url', [], 0.95]);
+      const result = await detectClipboardCategory('https://example.com');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_detect_category', { content: 'https://example.com' });
+      expect(result[0]).toBe('Url');
+    });
+  });
+
+  describe('detectClipboardLanguage', () => {
+    it('should return language', async () => {
+      mockInvoke.mockResolvedValue('javascript');
+      const result = await detectClipboardLanguage('const x = 5;');
+      expect(mockInvoke).toHaveBeenCalledWith('clipboard_detect_language', { content: 'const x = 5;' });
+      expect(result).toBe('javascript');
+    });
+
+    it('should return null for non-code', async () => {
+      mockInvoke.mockResolvedValue(null);
+      const result = await detectClipboardLanguage('hello world');
+      expect(result).toBeNull();
+    });
+  });
+});
+
+describe('Selection - Event Listeners (New APIs)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('onSelectionAIChunk', () => {
+    it('should set up listener', async () => {
+      mockListen.mockResolvedValue(jest.fn());
+      await onSelectionAIChunk(jest.fn());
+      expect(mockListen).toHaveBeenCalledWith('selection-ai-chunk', expect.any(Function));
+    });
+  });
+
+  describe('onQuickAction', () => {
+    it('should set up listener', async () => {
+      mockListen.mockResolvedValue(jest.fn());
+      await onQuickAction(jest.fn());
+      expect(mockListen).toHaveBeenCalledWith('selection-quick-action', expect.any(Function));
+    });
+  });
+
+  describe('onQuickTranslate', () => {
+    it('should set up listener', async () => {
+      mockListen.mockResolvedValue(jest.fn());
+      await onQuickTranslate(jest.fn());
+      expect(mockListen).toHaveBeenCalledWith('selection-quick-translate', expect.any(Function));
     });
   });
 });

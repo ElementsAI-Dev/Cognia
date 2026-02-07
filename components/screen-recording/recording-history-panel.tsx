@@ -48,6 +48,7 @@ import {
   Video,
   Search,
   Pin,
+  PinOff,
   Trash2,
   Play,
   X,
@@ -55,6 +56,8 @@ import {
   Folder,
   Clock,
   HardDrive,
+  Tag,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
@@ -129,9 +132,16 @@ export function RecordingHistoryPanel({
     deleteFromHistory,
     clearHistory,
     runStorageCleanup,
+    pinRecording,
+    unpinRecording,
+    addTag,
+    removeTag,
+    openRecordingFolder,
   } = useScreenRecordingStore();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [tagInputId, setTagInputId] = useState<string | null>(null);
+  const [tagInputValue, setTagInputValue] = useState('');
 
   // Filter history based on search using useMemo
   const filteredHistory = useMemo(() => {
@@ -185,6 +195,33 @@ export function RecordingHistoryPanel({
 
   const handleDelete = async (id: string) => {
     await deleteFromHistory(id);
+  };
+
+  const handleTogglePin = async (id: string, isPinned: boolean) => {
+    if (isPinned) {
+      await unpinRecording(id);
+    } else {
+      await pinRecording(id);
+    }
+  };
+
+  const handleOpenFolder = async (filePath?: string) => {
+    if (filePath) {
+      await openRecordingFolder(filePath);
+    }
+  };
+
+  const handleAddTag = async (id: string) => {
+    const tag = tagInputValue.trim();
+    if (tag) {
+      await addTag(id, tag);
+      setTagInputValue('');
+      setTagInputId(null);
+    }
+  };
+
+  const handleRemoveTag = async (id: string, tag: string) => {
+    await removeTag(id, tag);
   };
 
   const handleClearAll = async () => {
@@ -343,15 +380,35 @@ export function RecordingHistoryPanel({
                                 className="h-7 w-7"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (recording.file_path) {
-                                    // TODO: Open folder containing file
-                                  }
+                                  handleOpenFolder(recording.file_path);
                                 }}
                               >
                                 <Folder className="h-3.5 w-3.5" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>{t('openFolder')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn('h-7 w-7', recording.is_pinned && 'text-primary')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTogglePin(recording.id, recording.is_pinned);
+                                }}
+                              >
+                                {recording.is_pinned ? (
+                                  <PinOff className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Pin className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {recording.is_pinned ? t('unpin') : t('pin')}
+                            </TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -373,6 +430,54 @@ export function RecordingHistoryPanel({
                       </div>
                     </div>
                   </div>
+                  {/* Tags */}
+                  {(recording.tags.length > 0 || tagInputId === recording.id) && (
+                    <div className="flex flex-wrap items-center gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+                      {recording.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="text-xs h-5 gap-1 cursor-default"
+                        >
+                          <Tag className="h-2.5 w-2.5" />
+                          {tag}
+                          <button
+                            className="ml-0.5 hover:text-destructive"
+                            onClick={() => handleRemoveTag(recording.id, tag)}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </Badge>
+                      ))}
+                      {tagInputId === recording.id && (
+                        <input
+                          autoFocus
+                          className="h-5 w-20 text-xs bg-transparent border border-input rounded px-1 outline-none focus:ring-1 focus:ring-ring"
+                          value={tagInputValue}
+                          onChange={(e) => setTagInputValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleAddTag(recording.id);
+                            if (e.key === 'Escape') { setTagInputId(null); setTagInputValue(''); }
+                          }}
+                          onBlur={() => { setTagInputId(null); setTagInputValue(''); }}
+                          placeholder="tag..."
+                        />
+                      )}
+                    </div>
+                  )}
+                  {/* Add tag button (shown on hover) */}
+                  {tagInputId !== recording.id && (
+                    <button
+                      className="mt-1 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTagInputId(recording.id);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                      {t('addTag')}
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             ))}

@@ -74,6 +74,39 @@ jest.mock('@/hooks/sandbox', () => ({
     execute: mockExecute,
     reset: mockReset,
   }),
+  useSnippets: () => ({
+    snippets: [],
+    loading: false,
+    refresh: jest.fn(),
+    createSnippet: jest.fn(),
+    updateSnippet: jest.fn(),
+    deleteSnippet: jest.fn(),
+    executeSnippet: jest.fn(),
+    createFromExecution: jest.fn(),
+  }),
+  useSessions: () => ({
+    sessions: [],
+    currentSessionId: null,
+    loading: false,
+    error: null,
+    refresh: jest.fn(),
+    startSession: jest.fn(),
+    endSession: jest.fn(),
+    setCurrentSession: jest.fn(),
+    deleteSession: jest.fn(),
+    updateSession: jest.fn(),
+    getSessionExecutions: jest.fn(),
+  }),
+}));
+
+jest.mock('@/stores/sandbox', () => ({
+  useSandboxStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      selectedLanguage: 'python',
+      editorCode: '',
+      setSelectedLanguage: jest.fn(),
+      setEditorCode: jest.fn(),
+    }),
 }));
 
 // Mock sub-components that are used in tabs
@@ -89,6 +122,14 @@ jest.mock('@/components/sandbox/snippet-manager', () => ({
   SnippetManager: ({ className }: { className?: string }) => (
     <div data-testid="snippet-manager" className={className}>
       Snippet Manager Mock
+    </div>
+  ),
+}));
+
+jest.mock('@/components/sandbox/sandbox-statistics', () => ({
+  SandboxStatistics: ({ className }: { className?: string }) => (
+    <div data-testid="sandbox-statistics" className={className}>
+      Sandbox Statistics Mock
     </div>
   ),
 }));
@@ -144,12 +185,13 @@ describe('SandboxPanel', () => {
     expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
-  it('renders tab triggers for Editor, History, and Snippets', () => {
+  it('renders tab triggers for Editor, History, Snippets, and Stats', () => {
     render(<SandboxPanel />);
     // Tab triggers should be visible
     expect(screen.getByRole('tab', { name: /editor/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /snippets/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /stats/i })).toBeInTheDocument();
   });
 
   it('allows typing code in textarea', () => {
@@ -179,11 +221,17 @@ describe('SandboxPanel', () => {
     expect(runButton).toBeInTheDocument();
   });
 
-  it('renders all three tab triggers', () => {
+  it('renders all four tab triggers', () => {
     render(<SandboxPanel />);
     expect(screen.getByRole('tab', { name: /editor/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /history/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /snippets/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /stats/i })).toBeInTheDocument();
+  });
+
+  it('shows session start button when no active session', () => {
+    render(<SandboxPanel />);
+    expect(screen.getByText('Session')).toBeInTheDocument();
   });
 
   it('accepts onExecutionComplete callback prop', () => {
@@ -247,6 +295,14 @@ describe('SandboxPanel - Tabs Navigation', () => {
     const snippetsTab = screen.getByRole('tab', { name: /snippets/i });
     expect(snippetsTab).toBeInTheDocument();
     fireEvent.click(snippetsTab);
+    // Tab click should not throw
+  });
+
+  it('has clickable stats tab', () => {
+    render(<SandboxPanel />);
+    const statsTab = screen.getByRole('tab', { name: /stats/i });
+    expect(statsTab).toBeInTheDocument();
+    fireEvent.click(statsTab);
     // Tab click should not throw
   });
 });

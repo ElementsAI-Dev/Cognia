@@ -9,6 +9,8 @@ use super::{
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
 use std::process::{Child, Command, Stdio};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -233,18 +235,29 @@ impl ScreenRecorder {
             recording_id, output_path
         );
 
-        // Get window dimensions (simplified - use primary monitor for now)
-        let monitors = self.get_monitors();
-        let monitor = monitors
-            .iter()
-            .find(|m| m.is_primary)
-            .ok_or_else(|| {
-                let err = RecordingError::monitor_not_found(0, monitors.len());
-                String::from(err)
-            })?;
+        // Get actual window dimensions if window title is specified
+        let (rec_width, rec_height) = if let Some(ref title) = window_title {
+            Self::get_window_dimensions_by_title(title).unwrap_or_else(|| {
+                debug!("[ScreenRecorder] Could not get window dimensions for '{}', falling back to primary monitor", title);
+                let monitors = self.get_monitors();
+                monitors
+                    .iter()
+                    .find(|m| m.is_primary)
+                    .map(|m| (m.width, m.height))
+                    .unwrap_or((1920, 1080))
+            })
+        } else {
+            // No specific window - use primary monitor (captures desktop)
+            let monitors = self.get_monitors();
+            monitors
+                .iter()
+                .find(|m| m.is_primary)
+                .map(|m| (m.width, m.height))
+                .unwrap_or((1920, 1080))
+        };
         debug!(
-            "[ScreenRecorder] Using primary monitor: {}x{}",
-            monitor.width, monitor.height
+            "[ScreenRecorder] Recording dimensions: {}x{}",
+            rec_width, rec_height
         );
 
         {
@@ -254,8 +267,8 @@ impl ScreenRecorder {
             state.output_path = Some(output_path.clone());
             state.mode = Some("window".to_string());
             state.window_title = window_title.clone();
-            state.width = monitor.width;
-            state.height = monitor.height;
+            state.width = rec_width;
+            state.height = rec_height;
             debug!("[ScreenRecorder] State updated to Countdown for window recording");
         }
 
@@ -279,8 +292,8 @@ impl ScreenRecorder {
         self.start_ffmpeg_recording(
             &config,
             &output_path,
-            monitor.width,
-            monitor.height,
+            rec_width,
+            rec_height,
             window_title.as_deref(),
         )?;
 
@@ -362,7 +375,7 @@ impl ScreenRecorder {
         Ok(recording_id)
     }
 
-    /// Pause recording
+    /// Pause recording - suspends the FFmpeg process on Windows
     pub fn pause(&self) -> Result<(), String> {
         info!("[ScreenRecorder] pause called");
         let mut state = self.state.write();
@@ -372,6 +385,19 @@ impl ScreenRecorder {
                 state.status
             );
             return Err("Not recording".to_string());
+        }
+
+        // Suspend the FFmpeg process to actually pause recording
+        #[cfg(target_os = "windows")]
+        {
+            let process = self.ffmpeg_process.read();
+            if let Some(ref child) = *process {
+                let pid = child.id();
+                if let Err(e) = suspend_process_windows(pid) {
+                    warn!("[ScreenRecorder] Failed to suspend FFmpeg process: {}", e);
+                    // Continue anyway - state tracking still works for duration calculation
+                }
+            }
         }
 
         state.status = RecordingStatus::Paused;
@@ -386,7 +412,7 @@ impl ScreenRecorder {
         Ok(())
     }
 
-    /// Resume recording
+    /// Resume recording - resumes the FFmpeg process on Windows
     pub fn resume(&self) -> Result<(), String> {
         info!("[ScreenRecorder] resume called");
         let mut state = self.state.write();
@@ -396,6 +422,18 @@ impl ScreenRecorder {
                 state.status
             );
             return Err("Not paused".to_string());
+        }
+
+        // Resume the FFmpeg process
+        #[cfg(target_os = "windows")]
+        {
+            let process = self.ffmpeg_process.read();
+            if let Some(ref child) = *process {
+                let pid = child.id();
+                if let Err(e) = resume_process_windows(pid) {
+                    warn!("[ScreenRecorder] Failed to resume FFmpeg process: {}", e);
+                }
+            }
         }
 
         if let Some(pause_time) = state.pause_time {
@@ -646,17 +684,87 @@ impl ScreenRecorder {
         monitors
     }
 
-    /// Get available audio devices
+    /// Get available audio devices by querying FFmpeg
     pub fn get_audio_devices(&self) -> AudioDevices {
         debug!("[ScreenRecorder] Getting audio devices");
-        // Simplified - actual implementation would query system audio devices
-        let devices = AudioDevices {
-            system_audio_available: cfg!(target_os = "windows"),
-            microphones: vec![AudioDevice {
+
+        let mut microphones = Vec::new();
+        let system_audio_available;
+
+        #[cfg(target_os = "windows")]
+        {
+            system_audio_available = true;
+            // Use FFmpeg to enumerate DirectShow audio devices
+            let ffmpeg = "ffmpeg".to_string();
+            match Command::new(&ffmpeg)
+                .args(["-list_devices", "true", "-f", "dshow", "-i", "dummy"])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .output()
+            {
+                Ok(output) => {
+                    // FFmpeg outputs device list to stderr
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let mut in_audio_section = false;
+                    let mut device_index = 0u32;
+
+                    for line in stderr.lines() {
+                        if line.contains("DirectShow audio devices") {
+                            in_audio_section = true;
+                            continue;
+                        }
+                        if in_audio_section && line.contains("DirectShow video devices") {
+                            break;
+                        }
+                        if in_audio_section {
+                            // Lines like: [dshow @ ...] "Device Name" (audio)
+                            if let Some(start) = line.find('"') {
+                                if let Some(end) = line[start + 1..].find('"') {
+                                    let name = line[start + 1..start + 1 + end].to_string();
+                                    // Skip alternative name lines
+                                    if !line.contains("Alternative name") {
+                                        microphones.push(AudioDevice {
+                                            id: format!("dshow_{}", device_index),
+                                            name,
+                                            is_default: device_index == 0,
+                                        });
+                                        device_index += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    debug!("[ScreenRecorder] FFmpeg enumerated {} audio devices", microphones.len());
+                }
+                Err(e) => {
+                    warn!("[ScreenRecorder] Failed to enumerate audio devices via FFmpeg: {}", e);
+                }
+            }
+
+            // Fallback: if FFmpeg enumeration returned nothing, add a default device
+            if microphones.is_empty() {
+                microphones.push(AudioDevice {
+                    id: "default".to_string(),
+                    name: "Default Microphone".to_string(),
+                    is_default: true,
+                });
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            system_audio_available = false;
+            microphones.push(AudioDevice {
                 id: "default".to_string(),
                 name: "Default Microphone".to_string(),
                 is_default: true,
-            }],
+            });
+        }
+
+        let devices = AudioDevices {
+            system_audio_available,
+            microphones,
         };
         debug!(
             "[ScreenRecorder] Audio devices: system_audio={}, microphones={}",
@@ -667,6 +775,46 @@ impl ScreenRecorder {
     }
 
     // Private helper methods
+
+    /// Get window dimensions by title on Windows
+    #[cfg(target_os = "windows")]
+    fn get_window_dimensions_by_title(title: &str) -> Option<(u32, u32)> {
+        use std::ffi::CString;
+
+        extern "system" {
+            fn FindWindowA(class: *const u8, title: *const u8) -> isize;
+            fn GetClientRect(hwnd: isize, rect: *mut [i32; 4]) -> i32;
+        }
+
+        unsafe {
+            let c_title = CString::new(title).ok()?;
+            let hwnd = FindWindowA(std::ptr::null(), c_title.as_ptr() as *const u8);
+            if hwnd == 0 {
+                debug!("[ScreenRecorder] Window '{}' not found via FindWindowA", title);
+                return None;
+            }
+
+            let mut rect = [0i32; 4]; // left, top, right, bottom
+            if GetClientRect(hwnd, &mut rect) != 0 {
+                let width = (rect[2] - rect[0]) as u32;
+                let height = (rect[3] - rect[1]) as u32;
+                if width > 0 && height > 0 {
+                    debug!(
+                        "[ScreenRecorder] Window '{}' dimensions: {}x{}",
+                        title, width, height
+                    );
+                    return Some((width, height));
+                }
+            }
+            debug!("[ScreenRecorder] GetClientRect failed for window '{}'", title);
+            None
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn get_window_dimensions_by_title(_title: &str) -> Option<(u32, u32)> {
+        None
+    }
 
     fn check_not_recording(&self) -> Result<(), String> {
         let state = self.state.read();
@@ -1113,6 +1261,94 @@ impl Drop for ScreenRecorder {
         
         info!("[ScreenRecorder] ScreenRecorder dropped successfully");
     }
+}
+
+// ============== Windows Process Suspend/Resume ==============
+
+#[cfg(target_os = "windows")]
+fn suspend_process_windows(pid: u32) -> Result<(), String> {
+    use std::ffi::CString;
+    
+    type FarProc = unsafe extern "system" fn() -> isize;
+    type NtSuspendProcessFn = unsafe extern "system" fn(isize) -> i32;
+    
+    extern "system" {
+        fn LoadLibraryA(name: *const u8) -> isize;
+        fn GetProcAddress(module: isize, name: *const u8) -> Option<FarProc>;
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> isize;
+        fn CloseHandle(handle: isize) -> i32;
+    }
+    
+    unsafe {
+        let lib_name = CString::new("ntdll.dll").unwrap();
+        let module = LoadLibraryA(lib_name.as_ptr() as *const u8);
+        if module == 0 {
+            return Err("Failed to load ntdll.dll".to_string());
+        }
+        
+        let func_name = CString::new("NtSuspendProcess").unwrap();
+        let func = GetProcAddress(module, func_name.as_ptr() as *const u8);
+        let func = func.ok_or("Failed to get NtSuspendProcess")?;
+        
+        let handle = OpenProcess(0x0800, 0, pid); // PROCESS_SUSPEND_RESUME
+        if handle == 0 {
+            return Err(format!("Failed to open process {}", pid));
+        }
+        
+        let nt_suspend: NtSuspendProcessFn = std::mem::transmute(func);
+        let status = nt_suspend(handle);
+        CloseHandle(handle);
+        
+        if status != 0 {
+            return Err(format!("NtSuspendProcess failed with status {}", status));
+        }
+    }
+    
+    debug!("[ScreenRecorder] Process {} suspended", pid);
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn resume_process_windows(pid: u32) -> Result<(), String> {
+    use std::ffi::CString;
+    
+    type FarProc = unsafe extern "system" fn() -> isize;
+    type NtResumeProcessFn = unsafe extern "system" fn(isize) -> i32;
+    
+    extern "system" {
+        fn LoadLibraryA(name: *const u8) -> isize;
+        fn GetProcAddress(module: isize, name: *const u8) -> Option<FarProc>;
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> isize;
+        fn CloseHandle(handle: isize) -> i32;
+    }
+    
+    unsafe {
+        let lib_name = CString::new("ntdll.dll").unwrap();
+        let module = LoadLibraryA(lib_name.as_ptr() as *const u8);
+        if module == 0 {
+            return Err("Failed to load ntdll.dll".to_string());
+        }
+        
+        let func_name = CString::new("NtResumeProcess").unwrap();
+        let func = GetProcAddress(module, func_name.as_ptr() as *const u8);
+        let func = func.ok_or("Failed to get NtResumeProcess")?;
+        
+        let handle = OpenProcess(0x0800, 0, pid); // PROCESS_SUSPEND_RESUME
+        if handle == 0 {
+            return Err(format!("Failed to open process {}", pid));
+        }
+        
+        let nt_resume: NtResumeProcessFn = std::mem::transmute(func);
+        let status = nt_resume(handle);
+        CloseHandle(handle);
+        
+        if status != 0 {
+            return Err(format!("NtResumeProcess failed with status {}", status));
+        }
+    }
+    
+    debug!("[ScreenRecorder] Process {} resumed", pid);
+    Ok(())
 }
 
 #[cfg(test)]

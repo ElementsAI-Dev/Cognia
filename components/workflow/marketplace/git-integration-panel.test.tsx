@@ -155,6 +155,30 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
+jest.mock('@/components/ui/empty', () => ({
+  Empty: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="empty" className={className}>{children}</div>
+  ),
+  EmptyMedia: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="empty-media">{children}</div>
+  ),
+  EmptyHeader: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="empty-header">{children}</div>
+  ),
+  EmptyTitle: ({ children }: { children?: React.ReactNode }) => (
+    <h3 data-testid="empty-title">{children}</h3>
+  ),
+  EmptyDescription: ({ children }: { children?: React.ReactNode }) => (
+    <p data-testid="empty-description">{children}</p>
+  ),
+}));
+
+// Mock isTauri to enable Git operations in tests
+jest.mock('@/lib/utils', () => ({
+  isTauri: () => true,
+  cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
+}));
+
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
   GitBranch: () => <svg data-testid="git-branch-icon" />,
@@ -168,21 +192,31 @@ jest.mock('lucide-react', () => ({
   Info: () => <svg data-testid="info-icon" />,
 }));
 
+// Module-level mock functions for per-test control
+const mockCloneRepository = jest.fn().mockResolvedValue(undefined);
+const mockGetRepository = jest.fn().mockReturnValue({
+  url: 'https://github.com/test/repo.git',
+  localPath: '/tmp/workflows/repo',
+  branch: 'main',
+  commit: 'abc123def456',
+  hasUpdates: false,
+  conflictCount: 0,
+  lastSyncAt: new Date(),
+});
+const mockPullChanges = jest.fn().mockResolvedValue(undefined);
+const mockPushChanges = jest.fn().mockResolvedValue(undefined);
+const mockCheckForUpdates = jest.fn().mockResolvedValue(false);
+const mockSyncAllRepositories = jest.fn().mockResolvedValue(undefined);
+
 // Mock git integration service
 jest.mock('@/lib/workflow/git-integration-service', () => ({
   getGitIntegrationService: () => ({
-    cloneRepository: jest.fn().mockResolvedValue(undefined),
-    getRepository: jest.fn().mockReturnValue({
-      url: 'https://github.com/test/repo.git',
-      branch: 'main',
-      commit: 'abc123def456',
-      hasUpdates: false,
-      conflictCount: 0,
-    }),
-    pullChanges: jest.fn().mockResolvedValue(undefined),
-    pushChanges: jest.fn().mockResolvedValue(undefined),
-    checkForUpdates: jest.fn().mockResolvedValue(false),
-    syncAllRepositories: jest.fn().mockResolvedValue(undefined),
+    cloneRepository: mockCloneRepository,
+    getRepository: mockGetRepository,
+    pullChanges: mockPullChanges,
+    pushChanges: mockPushChanges,
+    checkForUpdates: mockCheckForUpdates,
+    syncAllRepositories: mockSyncAllRepositories,
   }),
 }));
 
@@ -310,6 +344,9 @@ describe('GitIntegrationPanel', () => {
   });
 
   it('shows info status during cloning', async () => {
+    // Use a never-resolving promise so React renders the intermediate loading state
+    mockCloneRepository.mockImplementationOnce(() => new Promise(() => {}));
+
     render(<GitIntegrationPanel />);
     const cloneButton = screen.getAllByText('cloneRepo')[0];
     fireEvent.click(cloneButton);
@@ -326,6 +363,8 @@ describe('GitIntegrationPanel', () => {
   });
 
   it('disables clone button while cloning', async () => {
+    mockCloneRepository.mockImplementationOnce(() => new Promise(() => {}));
+
     render(<GitIntegrationPanel />);
     const cloneButton = screen.getAllByText('cloneRepo')[0];
     fireEvent.click(cloneButton);
@@ -342,6 +381,8 @@ describe('GitIntegrationPanel', () => {
   });
 
   it('shows loading spinner while cloning', async () => {
+    mockCloneRepository.mockImplementationOnce(() => new Promise(() => {}));
+
     render(<GitIntegrationPanel />);
     const cloneButton = screen.getAllByText('cloneRepo')[0];
     fireEvent.click(cloneButton);
@@ -479,19 +520,8 @@ describe('GitIntegrationPanel integration tests', () => {
   });
 
   it('displays error message on sync failure', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const gitServiceModule = require('@/lib/workflow/git-integration-service');
-    const originalGetService = gitServiceModule.getGitIntegrationService;
-    
-    // Mock to return a service that rejects
-    gitServiceModule.getGitIntegrationService = jest.fn().mockReturnValue({
-      cloneRepository: jest.fn().mockResolvedValue(undefined),
-      getRepository: jest.fn().mockReturnValue(null),
-      pullChanges: jest.fn().mockResolvedValue(undefined),
-      pushChanges: jest.fn().mockResolvedValue(undefined),
-      checkForUpdates: jest.fn().mockResolvedValue(false),
-      syncAllRepositories: jest.fn().mockRejectedValue(new Error('Sync failed')),
-    });
+    // Override syncAllRepositories to reject
+    mockSyncAllRepositories.mockRejectedValueOnce(new Error('Sync failed'));
 
     render(<GitIntegrationPanel />);
 
@@ -501,25 +531,11 @@ describe('GitIntegrationPanel integration tests', () => {
     await waitFor(() => {
       expect(screen.getByText(/syncError/)).toBeInTheDocument();
     });
-    
-    // Restore original
-    gitServiceModule.getGitIntegrationService = originalGetService;
   });
 
   it('shows info icon during sync', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const gitServiceModule = require('@/lib/workflow/git-integration-service');
-    const originalGetService = gitServiceModule.getGitIntegrationService;
-    
-    // Mock to return a service that delays to allow checking info state
-    gitServiceModule.getGitIntegrationService = jest.fn().mockReturnValue({
-      cloneRepository: jest.fn().mockResolvedValue(undefined),
-      getRepository: jest.fn().mockReturnValue(null),
-      pullChanges: jest.fn().mockResolvedValue(undefined),
-      pushChanges: jest.fn().mockResolvedValue(undefined),
-      checkForUpdates: jest.fn().mockResolvedValue(false),
-      syncAllRepositories: jest.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100))),
-    });
+    // Use a never-resolving promise so React renders the intermediate state
+    mockSyncAllRepositories.mockImplementationOnce(() => new Promise(() => {}));
 
     render(<GitIntegrationPanel />);
 
@@ -527,13 +543,11 @@ describe('GitIntegrationPanel integration tests', () => {
     fireEvent.click(syncAllButton);
 
     // Check for info icon immediately after click (sync is pending)
-    // 'syncingAll' appears both in tooltip and alert, use getAllByText
-    expect(screen.getAllByText('syncingAll').length).toBeGreaterThan(0);
-    const infoIcon = screen.queryByTestId('info-icon');
-    expect(infoIcon).toBeInTheDocument();
-    
-    // Restore original
-    gitServiceModule.getGitIntegrationService = originalGetService;
+    await waitFor(() => {
+      expect(screen.getAllByText('syncingAll').length).toBeGreaterThan(0);
+      const infoIcon = screen.queryByTestId('info-icon');
+      expect(infoIcon).toBeInTheDocument();
+    });
   });
 
   it('handles branch name change in clone dialog', () => {

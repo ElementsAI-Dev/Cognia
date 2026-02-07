@@ -145,6 +145,29 @@ export interface ResourceContentItem {
   blob?: string;
 }
 
+/** A root directory exposed to the server */
+export interface Root {
+  uri: string;
+  name?: string;
+}
+
+/** Resource template with URI template (RFC 6570) */
+export interface ResourceTemplate {
+  uriTemplate: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+}
+
+/** Completion result from completion/complete */
+export interface CompletionResult {
+  completion: {
+    values: string[];
+    hasMore?: boolean;
+    total?: number;
+  };
+}
+
 /** Prompt content from get_prompt */
 export interface PromptContent {
   description?: string;

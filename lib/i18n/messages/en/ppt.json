@@ -71,7 +71,20 @@
     "generate": "Generate",
     "emptyState": "No presentations yet",
     "emptyStateDesc": "Create your first AI-powered presentation to get started.",
-    "createNew": "Create New Presentation"
+    "createNew": "Create New Presentation",
+    "export": "Export",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "exportPptx": "PowerPoint (.pptx)",
+    "exportPdf": "PDF",
+    "exportHtml": "HTML",
+    "exportReveal": "Reveal.js",
+    "exportMarp": "Marp",
+    "materialGeneration": "Generate from Materials",
+    "materialGenerationDesc": "Upload documents or paste content to generate a presentation",
+    "processingMaterials": "Processing materials...",
+    "exportSuccess": "Export completed successfully",
+    "exportFailed": "Export failed"
   },
   "pptEditor": {
     "noPresentation": "No presentation loaded",
