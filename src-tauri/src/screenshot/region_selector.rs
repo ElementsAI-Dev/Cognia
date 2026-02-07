@@ -31,7 +31,7 @@ impl RegionSelector {
         let (screen_x, screen_y, screen_width, screen_height) = get_virtual_screen_bounds();
 
         // Create fullscreen transparent overlay window
-        let window = WebviewWindowBuilder::new(
+        let _window = WebviewWindowBuilder::new(
             app_handle,
             REGION_SELECTOR_LABEL,
             WebviewUrl::App("region-selector".into()),
@@ -150,10 +150,12 @@ impl SelectionState {
         }
     }
 
-    /// Check if the selection is valid (has non-zero area)
+    /// Check if the selection is valid (is active and has non-zero area)
     pub fn is_valid(&self) -> bool {
-        let region = self.get_region();
-        region.width > 10 && region.height > 10
+        self.is_selecting && {
+            let region = self.get_region();
+            region.width > 10 && region.height > 10
+        }
     }
 }
 
@@ -385,6 +387,20 @@ mod tests {
     }
 
     #[test]
+    fn test_selection_state_is_valid_false_not_selecting() {
+        // Valid dimensions but is_selecting is false — should be invalid
+        let state = SelectionState {
+            is_selecting: false,
+            start_x: 0,
+            start_y: 0,
+            current_x: 100,
+            current_y: 100,
+        };
+
+        assert!(!state.is_valid());
+    }
+
+    #[test]
     fn test_selection_state_clone() {
         let state = SelectionState {
             is_selecting: true,
@@ -434,7 +450,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn test_get_virtual_screen_bounds_windows() {
-        let (x, y, width, height) = get_virtual_screen_bounds();
+        let (_x, _y, width, height) = get_virtual_screen_bounds();
 
         // On Windows, should return actual screen dimensions
         // Width and height should be positive

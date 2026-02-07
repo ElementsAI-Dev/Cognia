@@ -602,6 +602,110 @@ pub async fn screenshot_get_history_stats(
     Ok(manager.get_history_stats())
 }
 
+// ============== Annotator Management Commands ==============
+
+/// Initialize annotator for a specific image size
+#[tauri::command]
+pub async fn screenshot_annotator_init(
+    manager: State<'_, ScreenshotManager>,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    manager.init_annotator(width, height);
+    Ok(())
+}
+
+/// Add annotation to current annotator session
+#[tauri::command]
+pub async fn screenshot_annotator_add(
+    manager: State<'_, ScreenshotManager>,
+    annotation: Annotation,
+) -> Result<(), String> {
+    manager.add_annotation(annotation);
+    Ok(())
+}
+
+/// Undo last annotation
+#[tauri::command]
+pub async fn screenshot_annotator_undo(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Option<Annotation>, String> {
+    Ok(manager.annotator_undo())
+}
+
+/// Clear all annotations
+#[tauri::command]
+pub async fn screenshot_annotator_clear(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<(), String> {
+    manager.annotator_clear();
+    Ok(())
+}
+
+/// Get all current annotations
+#[tauri::command]
+pub async fn screenshot_annotator_get_all(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Vec<Annotation>, String> {
+    Ok(manager.get_annotations())
+}
+
+/// Export annotations as JSON
+#[tauri::command]
+pub async fn screenshot_annotator_export(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<String, String> {
+    Ok(manager.export_annotations())
+}
+
+/// Import annotations from JSON
+#[tauri::command]
+pub async fn screenshot_annotator_import(
+    manager: State<'_, ScreenshotManager>,
+    json: String,
+) -> Result<(), String> {
+    manager.import_annotations(&json)
+}
+
+// ============== Detailed OCR Commands ==============
+
+/// Extract text with detailed results (lines, bounds, confidence)
+#[tauri::command]
+pub async fn screenshot_ocr_extract_detailed(
+    manager: State<'_, ScreenshotManager>,
+    image_base64: String,
+) -> Result<crate::screenshot::LegacyOcrResult, String> {
+    let image_data = base64::engine::general_purpose::STANDARD
+        .decode(&image_base64)
+        .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+    manager.extract_text_detailed(&image_data).await
+}
+
+/// Get current OCR language setting
+#[tauri::command]
+pub async fn screenshot_get_current_ocr_language(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<String, String> {
+    Ok(manager.get_current_ocr_language())
+}
+
+/// Check if OCR engine is available on this system
+#[tauri::command]
+pub async fn screenshot_is_ocr_available(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<bool, String> {
+    Ok(manager.is_ocr_available())
+}
+
+/// Get available OCR engine languages
+#[tauri::command]
+pub async fn screenshot_get_ocr_engine_languages(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<Vec<String>, String> {
+    Ok(manager.get_ocr_engine_languages())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

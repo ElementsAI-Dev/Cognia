@@ -4,8 +4,8 @@
 //! Requires tesseract binary to be installed on the system.
 
 use crate::screenshot::ocr_provider::{
-    OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion,
-    OcrRegionType, OcrResult,
+    DocumentHint, OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType,
+    OcrRegion, OcrRegionType, OcrResult,
 };
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -27,11 +27,13 @@ impl TesseractProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_tessdata_path(mut self, path: PathBuf) -> Self {
         self.tessdata_path = Some(path);
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_language(mut self, language: &str) -> Self {
         self.default_language = language.to_string();
         self
@@ -79,7 +81,38 @@ impl TesseractProvider {
             "pt" | "pt-BR" | "pt-PT" => "por".to_string(),
             "ru" | "ru-RU" => "rus".to_string(),
             "ar" | "ar-SA" => "ara".to_string(),
+            "hi" | "hi-IN" => "hin".to_string(),
+            "th" | "th-TH" => "tha".to_string(),
+            "vi" | "vi-VN" => "vie".to_string(),
+            "nl" | "nl-NL" => "nld".to_string(),
+            "pl" | "pl-PL" => "pol".to_string(),
+            "tr" | "tr-TR" => "tur".to_string(),
+            "uk" | "uk-UA" => "ukr".to_string(),
+            "cs" | "cs-CZ" => "ces".to_string(),
+            "sv" | "sv-SE" => "swe".to_string(),
+            "da" | "da-DK" => "dan".to_string(),
+            "fi" | "fi-FI" => "fin".to_string(),
+            "nb" | "no" | "nb-NO" => "nor".to_string(),
+            "el" | "el-GR" => "ell".to_string(),
+            "he" | "he-IL" => "heb".to_string(),
+            "hu" | "hu-HU" => "hun".to_string(),
+            "ro" | "ro-RO" => "ron".to_string(),
+            "bg" | "bg-BG" => "bul".to_string(),
+            "id" | "id-ID" => "ind".to_string(),
+            "ms" | "ms-MY" => "msa".to_string(),
             _ => lang.to_string(),
+        }
+    }
+
+    /// Get Tesseract PSM (Page Segmentation Mode) based on document hint
+    fn get_psm(hint: &Option<DocumentHint>) -> Option<&'static str> {
+        match hint {
+            Some(DocumentHint::DenseText) | Some(DocumentHint::Document) => Some("6"),  // Uniform block of text
+            Some(DocumentHint::SparseText) => Some("11"), // Sparse text, no particular order
+            Some(DocumentHint::Screenshot) => Some("3"),  // Fully automatic (default)
+            Some(DocumentHint::Receipt) => Some("4"),     // Single column of variable sizes
+            Some(DocumentHint::Handwriting) => Some("6"), // Uniform block
+            _ => None,
         }
     }
 }
@@ -148,6 +181,11 @@ impl OcrProvider for TesseractProvider {
         // Add tessdata path if specified
         if let Some(ref tessdata) = self.tessdata_path {
             cmd.arg("--tessdata-dir").arg(tessdata);
+        }
+
+        // Set Page Segmentation Mode based on document hint
+        if let Some(psm) = Self::get_psm(&options.document_hint) {
+            cmd.arg("--psm").arg(psm);
         }
 
         // Request TSV output for bounding boxes if word-level requested
@@ -286,7 +324,18 @@ mod tests {
         assert_eq!(TesseractProvider::to_tesseract_lang("en"), "eng");
         assert_eq!(TesseractProvider::to_tesseract_lang("zh-Hans"), "chi_sim");
         assert_eq!(TesseractProvider::to_tesseract_lang("ja"), "jpn");
+        assert_eq!(TesseractProvider::to_tesseract_lang("hi"), "hin");
+        assert_eq!(TesseractProvider::to_tesseract_lang("th"), "tha");
+        assert_eq!(TesseractProvider::to_tesseract_lang("vi"), "vie");
         assert_eq!(TesseractProvider::to_tesseract_lang("unknown"), "unknown");
+    }
+
+    #[test]
+    fn test_psm_modes() {
+        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::DenseText)), Some("6"));
+        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::SparseText)), Some("11"));
+        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::Receipt)), Some("4"));
+        assert_eq!(TesseractProvider::get_psm(&None), None);
     }
 
     #[test]

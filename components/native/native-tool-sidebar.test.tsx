@@ -16,6 +16,7 @@ jest.mock('next-intl', () => ({
       'tabs.focus': 'Focus',
       'tabs.context': 'Context',
       'tabs.system': 'System',
+      'tabs.processes': 'Processes',
       'tabs.sandbox': 'Sandbox',
     };
     return translations[key] || key;
@@ -77,7 +78,7 @@ describe('NativeToolSidebar', () => {
   });
 
   it('exports NATIVE_TOOLS constant with correct structure', () => {
-    expect(NATIVE_TOOLS).toHaveLength(8);
+    expect(NATIVE_TOOLS).toHaveLength(10);
     NATIVE_TOOLS.forEach((tool) => {
       expect(tool).toHaveProperty('id');
       expect(tool).toHaveProperty('icon');

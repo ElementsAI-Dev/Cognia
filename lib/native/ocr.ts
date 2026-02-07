@@ -3,10 +3,12 @@
  *
  * Supports multiple OCR providers including:
  * - Windows OCR (built-in, Windows 10+)
- * - OpenAI Vision (GPT-4V)
- * - Ollama Vision (LLaVA, etc.)
+ * - OpenAI Vision (GPT-4o)
+ * - Anthropic Claude Vision (Claude Sonnet 4.5)
+ * - Ollama Vision (llama3.2-vision, etc.)
  * - Google Cloud Vision
- * - Azure Computer Vision
+ * - Azure Computer Vision (v4.0 + v3.2)
+ * - Tesseract OCR (local binary)
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -19,6 +21,7 @@ export type OcrProviderType =
   | "google_vision"
   | "azure_vision"
   | "openai_vision"
+  | "anthropic_vision"
   | "ollama_vision"
   | "tesseract";
 
@@ -200,6 +203,7 @@ export function getProviderDisplayName(provider: OcrProviderType): string {
     google_vision: "Google Cloud Vision",
     azure_vision: "Azure Computer Vision",
     openai_vision: "OpenAI Vision",
+    anthropic_vision: "Anthropic Claude Vision",
     ollama_vision: "Ollama Vision",
     tesseract: "Tesseract OCR",
   };
@@ -210,7 +214,7 @@ export function getProviderDisplayName(provider: OcrProviderType): string {
  * Check if a provider requires an API key
  */
 export function providerRequiresApiKey(provider: OcrProviderType): boolean {
-  return ["google_vision", "azure_vision", "openai_vision"].includes(provider);
+  return ["google_vision", "azure_vision", "openai_vision", "anthropic_vision"].includes(provider);
 }
 
 /**

@@ -105,6 +105,7 @@ impl OcrManager {
     }
 
     /// Get all configurations
+    #[allow(dead_code)]
     pub fn get_all_configs(&self) -> Vec<OcrProviderConfig> {
         self.configs.read().values().cloned().collect()
     }

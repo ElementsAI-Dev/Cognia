@@ -1,6 +1,9 @@
 //! Azure Computer Vision OCR Provider
 //!
-//! Uses Azure Cognitive Services Computer Vision API for text extraction.
+//! Uses Azure Image Analysis 4.0 API for synchronous OCR text extraction.
+//! Also supports the legacy Read API v3.2 for document-heavy OCR.
+//!
+//! Ref: https://learn.microsoft.com/en-us/azure/ai-services/computer-vision/concept-ocr
 
 use crate::screenshot::ocr_provider::{
     OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion,
@@ -31,13 +34,61 @@ impl AzureVisionProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
         self.timeout_secs = timeout_secs;
         self
     }
 }
 
-// Azure Read API response structures
+// ============== Image Analysis 4.0 Response Types ==============
+
+#[derive(Deserialize)]
+struct ImageAnalysisResponse {
+    #[serde(rename = "readResult")]
+    read_result: ReadResult4,
+}
+
+#[derive(Deserialize)]
+struct ReadResult4 {
+    #[serde(default)]
+    blocks: Vec<ReadBlock>,
+}
+
+#[derive(Deserialize)]
+struct ReadBlock {
+    #[serde(default)]
+    lines: Vec<ReadLine4>,
+}
+
+#[derive(Deserialize)]
+struct ReadLine4 {
+    text: String,
+    #[serde(rename = "boundingPolygon", default)]
+    bounding_polygon: Vec<PointF>,
+    #[serde(default)]
+    words: Vec<ReadWord4>,
+}
+
+#[derive(Deserialize)]
+struct ReadWord4 {
+    text: String,
+    #[serde(rename = "boundingPolygon", default)]
+    bounding_polygon: Vec<PointF>,
+    #[serde(default)]
+    confidence: f64,
+}
+
+#[derive(Deserialize, Clone)]
+struct PointF {
+    #[serde(default)]
+    x: f64,
+    #[serde(default)]
+    y: f64,
+}
+
+// ============== Legacy Read API v3.2 Response Types ==============
+
 #[derive(Deserialize)]
 struct ReadOperationResult {
     status: String,
@@ -48,13 +99,14 @@ struct ReadOperationResult {
 #[derive(Deserialize)]
 struct AnalyzeResult {
     #[serde(rename = "readResults")]
-    read_results: Vec<ReadResult>,
+    read_results: Vec<LegacyReadResult>,
 }
 
 #[derive(Deserialize)]
-struct ReadResult {
+#[allow(dead_code)]
+struct LegacyReadResult {
     #[serde(default)]
-    lines: Vec<TextLine>,
+    lines: Vec<LegacyTextLine>,
     #[serde(default)]
     angle: f64,
     #[serde(default)]
@@ -64,16 +116,16 @@ struct ReadResult {
 }
 
 #[derive(Deserialize)]
-struct TextLine {
+struct LegacyTextLine {
     text: String,
     #[serde(rename = "boundingBox")]
     bounding_box: Vec<f64>,
     #[serde(default)]
-    words: Vec<TextWord>,
+    words: Vec<LegacyTextWord>,
 }
 
 #[derive(Deserialize)]
-struct TextWord {
+struct LegacyTextWord {
     text: String,
     #[serde(rename = "boundingBox")]
     bounding_box: Vec<f64>,
@@ -92,6 +144,31 @@ struct AzureErrorDetail {
     message: String,
 }
 
+/// Convert polygon points to bounding box (Image Analysis 4.0 format)
+fn polygon_to_bounds(points: &[PointF]) -> OcrBounds {
+    if points.is_empty() {
+        return OcrBounds {
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+        };
+    }
+
+    let min_x = points.iter().map(|p| p.x).fold(f64::MAX, f64::min);
+    let min_y = points.iter().map(|p| p.y).fold(f64::MAX, f64::min);
+    let max_x = points.iter().map(|p| p.x).fold(f64::MIN, f64::max);
+    let max_y = points.iter().map(|p| p.y).fold(f64::MIN, f64::max);
+
+    OcrBounds {
+        x: min_x,
+        y: min_y,
+        width: max_x - min_x,
+        height: max_y - min_y,
+    }
+}
+
+/// Convert legacy bounding box array to bounds (Read API v3.2 format)
 fn bounding_box_to_bounds(bbox: &[f64]) -> OcrBounds {
     if bbox.len() < 8 {
         return OcrBounds {
@@ -178,12 +255,95 @@ impl OcrProvider for AzureVisionProvider {
             return Err(OcrError::authentication_error("Endpoint URL is required"));
         }
 
+        // Try Image Analysis 4.0 synchronous API first, fall back to legacy Read v3.2
+        match self.extract_text_v4(image_data, options).await {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                log::warn!("Azure Image Analysis 4.0 failed, falling back to legacy Read v3.2: {}", e);
+                self.extract_text_legacy(image_data, options).await
+            }
+        }
+    }
+}
+
+impl AzureVisionProvider {
+    /// Image Analysis 4.0 synchronous OCR — fast, no polling
+    async fn extract_text_v4(
+        &self,
+        image_data: &[u8],
+        options: &OcrOptions,
+    ) -> Result<OcrResult, OcrError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout_secs))
             .build()
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
-        // Build URL with optional language parameter
+        // Image Analysis 4.0 endpoint
+        let mut url = format!(
+            "{}/computervision/imageanalysis:analyze?features=read&api-version=2024-02-01",
+            self.endpoint
+        );
+
+        if let Some(ref lang) = options.language {
+            if lang != "auto" {
+                url = format!("{}&language={}", url, lang);
+            }
+        }
+
+        let response = client
+            .post(&url)
+            .header("Ocp-Apim-Subscription-Key", &self.subscription_key)
+            .header("Content-Type", "application/octet-stream")
+            .body(image_data.to_vec())
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_timeout() {
+                    OcrError::network_error("Request timed out")
+                } else if e.is_connect() {
+                    OcrError::network_error("Cannot connect to Azure API")
+                } else {
+                    OcrError::network_error(format!("Request failed: {}", e))
+                }
+            })?;
+
+        let status = response.status();
+
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            if let Ok(error) = serde_json::from_str::<AzureError>(&body) {
+                return Err(OcrError::new(
+                    OcrErrorCode::ProviderError,
+                    format!("{}: {}", error.error.code, error.error.message),
+                ));
+            }
+            return Err(OcrError::new(
+                OcrErrorCode::ProviderError,
+                format!("Azure API error ({}): {}", status, body),
+            ));
+        }
+
+        let result: ImageAnalysisResponse = response.json().await.map_err(|e| {
+            OcrError::new(
+                OcrErrorCode::ProviderError,
+                format!("Failed to parse v4.0 response: {}", e),
+            )
+        })?;
+
+        self.process_v4_result(result, options)
+    }
+
+    /// Legacy Read API v3.2 — async polling, better for documents
+    async fn extract_text_legacy(
+        &self,
+        image_data: &[u8],
+        options: &OcrOptions,
+    ) -> Result<OcrResult, OcrError> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(self.timeout_secs))
+            .build()
+            .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
+
         let mut url = format!("{}/vision/v3.2/read/analyze", self.endpoint);
 
         if let Some(ref lang) = options.language {
@@ -192,7 +352,6 @@ impl OcrProvider for AzureVisionProvider {
             }
         }
 
-        // Submit image for analysis
         let submit_response = client
             .post(&url)
             .header("Ocp-Apim-Subscription-Key", &self.subscription_key)
@@ -214,21 +373,18 @@ impl OcrProvider for AzureVisionProvider {
 
         if !status.is_success() {
             let body = submit_response.text().await.unwrap_or_default();
-
             if let Ok(error) = serde_json::from_str::<AzureError>(&body) {
                 return Err(OcrError::new(
                     OcrErrorCode::ProviderError,
                     format!("{}: {}", error.error.code, error.error.message),
                 ));
             }
-
             return Err(OcrError::new(
                 OcrErrorCode::ProviderError,
                 format!("Azure API error ({}): {}", status, body),
             ));
         }
 
-        // Get the Operation-Location header for polling
         let operation_location = submit_response
             .headers()
             .get("Operation-Location")
@@ -243,7 +399,7 @@ impl OcrProvider for AzureVisionProvider {
 
         // Poll for results
         let mut attempts = 0;
-        let max_attempts = 30; // 30 seconds max wait
+        let max_attempts = 30;
 
         loop {
             attempts += 1;
@@ -280,7 +436,7 @@ impl OcrProvider for AzureVisionProvider {
 
             match result.status.as_str() {
                 "succeeded" => {
-                    return self.process_result(result, options);
+                    return self.process_legacy_result(result, options);
                 }
                 "failed" => {
                     return Err(OcrError::new(
@@ -300,10 +456,76 @@ impl OcrProvider for AzureVisionProvider {
             }
         }
     }
-}
 
-impl AzureVisionProvider {
-    fn process_result(
+    /// Process Image Analysis 4.0 synchronous response
+    fn process_v4_result(
+        &self,
+        result: ImageAnalysisResponse,
+        options: &OcrOptions,
+    ) -> Result<OcrResult, OcrError> {
+        let mut full_text = String::new();
+        let mut regions = Vec::new();
+        let mut confidence_sum = 0.0;
+        let mut confidence_count = 0;
+
+        for block in &result.read_result.blocks {
+            for line in &block.lines {
+                if !full_text.is_empty() {
+                    full_text.push('\n');
+                }
+                full_text.push_str(&line.text);
+
+                if options.word_level {
+                    for word in &line.words {
+                        regions.push(OcrRegion {
+                            text: word.text.clone(),
+                            bounds: polygon_to_bounds(&word.bounding_polygon),
+                            confidence: word.confidence,
+                            region_type: OcrRegionType::Word,
+                        });
+                        confidence_sum += word.confidence;
+                        confidence_count += 1;
+                    }
+                } else {
+                    let line_confidence = if line.words.is_empty() {
+                        0.9
+                    } else {
+                        line.words.iter().map(|w| w.confidence).sum::<f64>()
+                            / line.words.len() as f64
+                    };
+
+                    regions.push(OcrRegion {
+                        text: line.text.clone(),
+                        bounds: polygon_to_bounds(&line.bounding_polygon),
+                        confidence: line_confidence,
+                        region_type: OcrRegionType::Line,
+                    });
+                    confidence_sum += line_confidence;
+                    confidence_count += 1;
+                }
+            }
+        }
+
+        let confidence = if confidence_count > 0 {
+            confidence_sum / confidence_count as f64
+        } else if full_text.is_empty() {
+            0.0
+        } else {
+            0.9
+        };
+
+        Ok(OcrResult {
+            text: full_text,
+            regions,
+            confidence,
+            language: options.language.clone(),
+            provider: "Azure Computer Vision (v4.0)".to_string(),
+            processing_time_ms: 0,
+        })
+    }
+
+    /// Process legacy Read API v3.2 response
+    fn process_legacy_result(
         &self,
         result: ReadOperationResult,
         options: &OcrOptions,
@@ -336,7 +558,6 @@ impl AzureVisionProvider {
                         confidence_count += 1;
                     }
                 } else {
-                    // Calculate line confidence from word confidences
                     let line_confidence = if line.words.is_empty() {
                         0.9
                     } else {
@@ -369,7 +590,7 @@ impl AzureVisionProvider {
             regions,
             confidence,
             language: options.language.clone(),
-            provider: "Azure Computer Vision".to_string(),
+            provider: "Azure Computer Vision (v3.2)".to_string(),
             processing_time_ms: 0,
         })
     }
@@ -435,5 +656,27 @@ mod tests {
         let provider =
             AzureVisionProvider::new("key".to_string(), "https://test.azure.com/".to_string());
         assert_eq!(provider.endpoint, "https://test.azure.com");
+    }
+
+    #[test]
+    fn test_polygon_to_bounds() {
+        let points = vec![
+            PointF { x: 10.0, y: 20.0 },
+            PointF { x: 110.0, y: 20.0 },
+            PointF { x: 110.0, y: 70.0 },
+            PointF { x: 10.0, y: 70.0 },
+        ];
+        let bounds = polygon_to_bounds(&points);
+        assert_eq!(bounds.x, 10.0);
+        assert_eq!(bounds.y, 20.0);
+        assert_eq!(bounds.width, 100.0);
+        assert_eq!(bounds.height, 50.0);
+    }
+
+    #[test]
+    fn test_polygon_to_bounds_empty() {
+        let bounds = polygon_to_bounds(&[]);
+        assert_eq!(bounds.x, 0.0);
+        assert_eq!(bounds.width, 0.0);
     }
 }

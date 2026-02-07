@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::ime_state::ImeState;
 
 /// Context for requesting a completion
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompletionContext {
     /// The text before the cursor
     pub text: String,
@@ -32,7 +32,7 @@ pub struct CursorPosition {
 }
 
 /// Result of a completion request
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompletionResult {
     /// List of completion suggestions
     pub suggestions: Vec<CompletionSuggestion>,
@@ -196,28 +196,6 @@ pub enum FeedbackRating {
     Irrelevant,
 }
 
-impl Default for CompletionContext {
-    fn default() -> Self {
-        Self {
-            text: String::new(),
-            cursor_position: None,
-            file_path: None,
-            language: None,
-            ime_state: None,
-        }
-    }
-}
-
-impl Default for CompletionResult {
-    fn default() -> Self {
-        Self {
-            suggestions: Vec::new(),
-            latency_ms: 0,
-            model: String::new(),
-            cached: false,
-        }
-    }
-}
 
 impl CompletionSuggestion {
     /// Create a new suggestion

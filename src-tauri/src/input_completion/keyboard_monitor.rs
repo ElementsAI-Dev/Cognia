@@ -202,11 +202,13 @@ impl KeyboardMonitor {
     }
 
     /// Check if stop was requested (for use in callbacks)
+    #[allow(dead_code)]
     pub fn is_stop_requested(&self) -> bool {
         self.stop_requested.load(Ordering::SeqCst)
     }
 
     /// Reset the monitor state for restart
+    #[allow(dead_code)]
     pub fn reset(&self) {
         self.stop_requested.store(false, Ordering::SeqCst);
         self.is_running.store(false, Ordering::SeqCst);

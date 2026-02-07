@@ -236,14 +236,14 @@ impl PluginManager {
             return false;
         }
 
-        let (operator, version_str) = if required.starts_with(">=") {
-            (">=", &required[2..])
-        } else if required.starts_with('^') {
-            ("^", &required[1..])
-        } else if required.starts_with('~') {
-            ("~", &required[1..])
-        } else if required.starts_with('>') {
-            (">", &required[1..])
+        let (operator, version_str) = if let Some(stripped) = required.strip_prefix(">=") {
+            (">=", stripped)
+        } else if let Some(stripped) = required.strip_prefix('^') {
+            ("^", stripped)
+        } else if let Some(stripped) = required.strip_prefix('~') {
+            ("~", stripped)
+        } else if let Some(stripped) = required.strip_prefix('>') {
+            (">", stripped)
         } else {
             ("=", required)
         };

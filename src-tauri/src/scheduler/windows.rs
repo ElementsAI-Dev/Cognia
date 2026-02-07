@@ -3,7 +3,7 @@
 //! Uses schtasks.exe command-line tool for compatibility.
 //! For production, consider using Windows COM API via windows-rs crate.
 
-#![cfg(target_os = "windows")]
+// cfg(target_os = "windows") is already applied at module level in mod.rs
 
 use async_trait::async_trait;
 use std::process::Command;
@@ -119,7 +119,7 @@ impl WindowsScheduler {
 
     /// Convert simplified cron expression to schtasks format
     fn cron_to_schtasks(expression: &str) -> Result<Vec<String>> {
-        let parts: Vec<&str> = expression.trim().split_whitespace().collect();
+        let parts: Vec<&str> = expression.split_whitespace().collect();
         if parts.len() != 5 {
             return Err(SchedulerError::InvalidCron(format!(
                 "Expected 5 parts, got {}",
@@ -214,7 +214,7 @@ impl WindowsScheduler {
                 SchedulerError::InvalidCron("Invalid day number".to_string())
             })?;
             return Ok((start..=end)
-                .map(|d| Self::num_to_day(d))
+                .map(Self::num_to_day)
                 .collect::<Vec<_>>()
                 .join(","));
         } else {

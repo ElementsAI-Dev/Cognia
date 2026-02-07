@@ -25,6 +25,7 @@ pub struct WindowSnap;
 impl WindowSnap {
     /// Detect if a window position is close enough to an edge to snap
     /// Returns the edge to snap to, or None if not close enough
+    #[allow(clippy::too_many_arguments)]
     pub fn detect_snap_edge(
         window_x: i32,
         window_y: i32,
@@ -78,6 +79,7 @@ impl WindowSnap {
     }
 
     /// Calculate the snapped position for a given edge
+    #[allow(clippy::too_many_arguments)]
     pub fn calculate_snapped_position(
         edge: SnapEdge,
         window_width: i32,
@@ -132,6 +134,7 @@ impl WindowSnap {
 
     /// Apply magnetic snap effect - if within threshold, return snapped position
     /// Otherwise return the original position
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_magnetic_snap(
         window_x: i32,
         window_y: i32,
@@ -172,6 +175,7 @@ impl WindowSnap {
     }
 
     /// Clamp a position to stay within the work area
+    #[allow(clippy::too_many_arguments)]
     pub fn clamp_to_work_area(
         window_x: i32,
         window_y: i32,

@@ -640,6 +640,90 @@ export async function calculateSelectionSnap(
   });
 }
 
+// ============== Annotator Management Functions ==============
+
+/**
+ * Initialize the server-side annotator for a specific image size
+ */
+export async function annotatorInit(width: number, height: number): Promise<void> {
+  return invoke("screenshot_annotator_init", { width, height });
+}
+
+/**
+ * Add an annotation to the current annotator session
+ */
+export async function annotatorAdd(annotation: Annotation): Promise<void> {
+  return invoke("screenshot_annotator_add", { annotation });
+}
+
+/**
+ * Undo the last annotation
+ */
+export async function annotatorUndo(): Promise<Annotation | null> {
+  return invoke("screenshot_annotator_undo");
+}
+
+/**
+ * Clear all annotations from the current session
+ */
+export async function annotatorClear(): Promise<void> {
+  return invoke("screenshot_annotator_clear");
+}
+
+/**
+ * Get all current annotations
+ */
+export async function annotatorGetAll(): Promise<Annotation[]> {
+  return invoke("screenshot_annotator_get_all");
+}
+
+/**
+ * Export annotations as JSON string
+ */
+export async function annotatorExport(): Promise<string> {
+  return invoke("screenshot_annotator_export");
+}
+
+/**
+ * Import annotations from JSON string
+ */
+export async function annotatorImport(json: string): Promise<void> {
+  return invoke("screenshot_annotator_import", { json });
+}
+
+// ============== Detailed OCR Functions ==============
+
+export interface DetailedOcrResult {
+  text: string;
+  lines: Array<{
+    text: string;
+    bounds: OcrBounds;
+    words: Array<{
+      text: string;
+      bounds: OcrBounds;
+      confidence: number;
+    }>;
+  }>;
+  language?: string;
+  confidence: number;
+}
+
+/**
+ * Extract text with detailed results including line bounds and word confidence
+ */
+export async function extractTextDetailed(
+  imageBase64: string
+): Promise<DetailedOcrResult> {
+  return invoke("screenshot_ocr_extract_detailed", { imageBase64 });
+}
+
+/**
+ * Get the current OCR language setting
+ */
+export async function getCurrentOcrLanguage(): Promise<string> {
+  return invoke("screenshot_get_current_ocr_language");
+}
+
 // ============== Color Picker Functions ==============
 
 /**

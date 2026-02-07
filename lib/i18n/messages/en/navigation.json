@@ -84,7 +84,8 @@
     "observability": "Observability",
     "scheduler": "Scheduler",
     "speedPass": "SpeedPass",
-    "academic": "Academic"
+    "academic": "Academic",
+    "sandbox": "Sandbox"
   },
   "mobileNav": {
     "home": "Home",

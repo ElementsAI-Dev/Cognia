@@ -50,7 +50,7 @@ impl SkillSeekersService {
 
         // Ensure directories exist
         fs::create_dir_all(&output_dir)?;
-        fs::create_dir_all(&venv_path.parent().unwrap_or(&app_data_dir))?;
+        fs::create_dir_all(venv_path.parent().unwrap_or(&app_data_dir))?;
 
         // Load or create store
         let store = if store_path.exists() {
@@ -366,7 +366,7 @@ impl SkillSeekersService {
 
         let job_id = Uuid::new_v4().to_string();
         let skill_name = input.config.name.clone().unwrap_or_else(|| {
-            input.config.repo.split('/').last().unwrap_or("repo").to_string()
+            input.config.repo.split('/').next_back().unwrap_or("repo").to_string()
         });
 
         // Create job

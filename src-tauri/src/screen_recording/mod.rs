@@ -18,7 +18,6 @@ mod video_processor;
 pub mod window_snap;
 
 pub use error::RecordingError;
-pub use error::RecordingErrorCode;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
 pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
 pub use history::{RecordingHistory, RecordingHistoryEntry};

@@ -74,6 +74,7 @@ interface OCRPanelProps {
 const PROVIDER_ICONS: Record<string, React.ReactNode> = {
   windows_ocr: <Monitor className="w-4 h-4" />,
   openai_vision: <Zap className="w-4 h-4" />,
+  anthropic_vision: <Sparkles className="w-4 h-4 text-orange-400" />,
   ollama_vision: <Sparkles className="w-4 h-4" />,
   google_vision: <Cloud className="w-4 h-4" />,
   azure_vision: <Cloud className="w-4 h-4" />,

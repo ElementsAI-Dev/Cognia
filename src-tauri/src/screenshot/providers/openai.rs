@@ -3,8 +3,8 @@
 //! Uses OpenAI's GPT-4 Vision or compatible APIs for OCR.
 
 use crate::screenshot::ocr_provider::{
-    OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion,
-    OcrRegionType, OcrResult,
+    DocumentHint, OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType,
+    OcrRegion, OcrRegionType, OcrResult,
 };
 use async_trait::async_trait;
 use base64::Engine;
@@ -27,12 +27,55 @@ impl OpenAiVisionProvider {
         Self {
             api_key,
             endpoint: endpoint.unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
-            model: model.unwrap_or_else(|| "gpt-4o".to_string()),
+            model: model.unwrap_or_else(|| "gpt-4o-mini".to_string()),
             timeout_secs: 60,
         }
     }
 
+    /// Build OCR prompt based on options and document hint
+    fn build_prompt(options: &OcrOptions) -> String {
+        let base_instruction = match options.document_hint {
+            Some(DocumentHint::Handwriting) => {
+                "Extract all handwritten text from this image. Pay careful attention to \
+                 handwriting variations and character shapes."
+            }
+            Some(DocumentHint::Receipt) => {
+                "Extract all text from this receipt/invoice image. Preserve the tabular \
+                 layout including item names, quantities, prices, and totals."
+            }
+            Some(DocumentHint::Screenshot) => {
+                "Extract all visible text from this screenshot. Preserve the UI layout, \
+                 including menus, buttons, labels, and content areas."
+            }
+            Some(DocumentHint::DenseText) => {
+                "Extract all text from this document image. Preserve paragraph structure, \
+                 headings, and text formatting hierarchy."
+            }
+            Some(DocumentHint::SparseText) => {
+                "Extract all visible text from this image, including labels, signs, \
+                 captions, and any other sparse text elements."
+            }
+            _ => {
+                "Extract all visible text from this image."
+            }
+        };
+
+        let language_hint = options
+            .language
+            .as_ref()
+            .map(|l| format!(" The text is primarily in {}.", l))
+            .unwrap_or_default();
+
+        format!(
+            "{} Return ONLY the extracted text, preserving the original layout and line breaks. \
+             Do not add any explanations, descriptions, or formatting markers - just the raw text \
+             as it appears in the image.{}",
+            base_instruction, language_hint
+        )
+    }
+
     /// Create provider for Azure OpenAI
+    #[allow(dead_code)]
     pub fn azure(api_key: String, endpoint: String, deployment: String) -> Self {
         Self {
             api_key,
@@ -42,6 +85,7 @@ impl OpenAiVisionProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
         self.timeout_secs = timeout_secs;
         self
@@ -155,19 +199,8 @@ impl OcrProvider for OpenAiVisionProvider {
         let image_base64 = base64::engine::general_purpose::STANDARD.encode(image_data);
         let image_url = format!("data:image/png;base64,{}", image_base64);
 
-        // Build prompt
-        let language_hint = options
-            .language
-            .as_ref()
-            .map(|l| format!(" The text is primarily in {}.", l))
-            .unwrap_or_default();
-
-        let prompt = format!(
-            "Extract all visible text from this image. Return ONLY the extracted text, preserving \
-            the original layout and line breaks. Do not add any explanations, descriptions, or \
-            formatting - just the raw text as it appears in the image.{}",
-            language_hint
-        );
+        // Build prompt based on document hint and language
+        let prompt = Self::build_prompt(options);
 
         let request = ChatCompletionRequest {
             model: self.model.clone(),
@@ -282,7 +315,7 @@ mod tests {
     fn test_openai_provider_new() {
         let provider = OpenAiVisionProvider::new("test_key".to_string(), None, None);
         assert_eq!(provider.endpoint, "https://api.openai.com/v1");
-        assert_eq!(provider.model, "gpt-4o");
+        assert_eq!(provider.model, "gpt-4o-mini");
     }
 
     #[test]

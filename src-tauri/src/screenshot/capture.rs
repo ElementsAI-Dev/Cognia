@@ -62,14 +62,8 @@ impl ScreenshotCapture {
     /// Capture entire screen or specific monitor
     #[cfg(target_os = "windows")]
     pub fn capture_screen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
-        use windows::Win32::Foundation::{HWND, RECT};
-        use windows::Win32::Graphics::Gdi::{
-            BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
-            GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-            DIB_RGB_COLORS, SRCCOPY,
-        };
         use windows::Win32::UI::WindowsAndMessaging::{
-            GetSystemMetrics, SM_CXSCREEN, SM_CXVIRTUALSCREEN, SM_CYSCREEN, SM_CYVIRTUALSCREEN,
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
             SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
         };
 

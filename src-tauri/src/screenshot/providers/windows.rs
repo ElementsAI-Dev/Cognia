@@ -10,6 +10,7 @@ use crate::screenshot::windows_ocr::WindowsOcr;
 use async_trait::async_trait;
 
 /// Windows OCR Provider implementation
+#[allow(dead_code)]
 pub struct WindowsOcrProvider {
     ocr: WindowsOcr,
 }
@@ -21,6 +22,7 @@ impl WindowsOcrProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_language(language: &str) -> Self {
         Self {
             ocr: WindowsOcr::with_language(language),

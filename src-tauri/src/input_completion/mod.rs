@@ -214,6 +214,7 @@ impl InputCompletionManager {
     }
 
     /// Handle a key event
+    #[allow(clippy::too_many_arguments)]
     async fn handle_key_event(
         key_event: &KeyEvent,
         config: &Arc<RwLock<CompletionConfig>>,
@@ -253,14 +254,14 @@ impl InputCompletionManager {
                 }
 
                 // Handle Escape - dismiss suggestion
-                if key_event.key == "Escape" {
-                    if current_suggestion.read().is_some() {
-                        log::debug!("Dismissing completion suggestion");
-                        *current_suggestion.write() = None;
-                        
-                        let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
-                        return;
-                    }
+                if key_event.key == "Escape"
+                    && current_suggestion.read().is_some()
+                {
+                    log::debug!("Dismissing completion suggestion");
+                    *current_suggestion.write() = None;
+                    
+                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
+                    return;
                 }
 
                 // Handle character input

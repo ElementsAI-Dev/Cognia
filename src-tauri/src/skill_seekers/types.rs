@@ -337,7 +337,7 @@ impl Default for EnhanceQuality {
 }
 
 /// Skill enhancement configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EnhanceConfig {
     /// Enhancement mode
     #[serde(default)]
@@ -353,16 +353,6 @@ pub struct EnhanceConfig {
     pub quality: EnhanceQuality,
 }
 
-impl Default for EnhanceConfig {
-    fn default() -> Self {
-        Self {
-            mode: EnhanceMode::default(),
-            provider: EnhanceProvider::default(),
-            api_key: None,
-            quality: EnhanceQuality::default(),
-        }
-    }
-}
 
 // ========== Package Configuration ==========
 
@@ -387,7 +377,7 @@ impl Default for PackageTarget {
 }
 
 /// Skill packaging configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PackageConfig {
     /// Target platform
     #[serde(default)]
@@ -397,14 +387,6 @@ pub struct PackageConfig {
     pub output_filename: Option<String>,
 }
 
-impl Default for PackageConfig {
-    fn default() -> Self {
-        Self {
-            target: PackageTarget::default(),
-            output_filename: None,
-        }
-    }
-}
 
 // ========== Job Management ==========
 
@@ -459,7 +441,7 @@ impl Default for JobPhase {
 }
 
 /// Job progress information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct JobProgress {
     /// Current phase
     pub phase: JobPhase,
@@ -478,18 +460,6 @@ pub struct JobProgress {
     pub current_file: Option<String>,
 }
 
-impl Default for JobProgress {
-    fn default() -> Self {
-        Self {
-            phase: JobPhase::default(),
-            percent: 0,
-            message: String::new(),
-            pages_scraped: 0,
-            pages_total: None,
-            current_file: None,
-        }
-    }
-}
 
 /// Skill generation job
 #[derive(Debug, Clone, Serialize, Deserialize)]

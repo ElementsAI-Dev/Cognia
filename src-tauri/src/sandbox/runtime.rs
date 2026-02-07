@@ -544,7 +544,7 @@ impl SandboxManager {
             timeout: Duration::from_secs(timeout_secs),
             memory_limit_mb: memory_mb,
             cpu_limit_percent: cpu_percent,
-            network_enabled: network_enabled,
+            network_enabled,
             max_output_size: self.config.max_output_size,
         };
 

@@ -551,7 +551,7 @@ impl CompletionService {
         if !structured_context.is_empty() {
             prompt.push_str("Context:\n");
             prompt.push_str(&structured_context);
-            prompt.push_str("\n");
+            prompt.push('\n');
         }
 
         // Add the text to complete with cursor position hint
@@ -559,7 +559,7 @@ impl CompletionService {
         if !detected_lang.is_empty() {
             prompt.push_str(&detected_lang.to_lowercase());
         }
-        prompt.push_str("\n");
+        prompt.push('\n');
         prompt.push_str(&context.text);
         prompt.push_str("\n```\n\nProvide only the completion text, no explanation:");
 

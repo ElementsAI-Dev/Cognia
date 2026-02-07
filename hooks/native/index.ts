@@ -38,3 +38,8 @@ export {
 export { useSelectionSettings, type UseSelectionSettingsReturn } from './use-selection-settings';
 export { useTray, type UseTrayReturn } from './use-tray';
 export { useMediaShortcuts } from './use-media-shortcuts';
+export {
+  useProcessDetail,
+  type UseProcessDetailOptions,
+  type UseProcessDetailReturn,
+} from './use-process-detail';

@@ -141,6 +141,7 @@ impl WindowManager {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_snap_config(snap_config: SnapConfig) -> Self {
         Self { snap_config }
     }
@@ -156,15 +157,13 @@ impl WindowManager {
     /// Get all visible windows
     #[cfg(target_os = "windows")]
     pub fn get_windows(&self) -> Vec<WindowInfo> {
-        use std::ffi::OsString;
-        use std::os::windows::ffi::OsStringExt;
         use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
         use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         use windows::Win32::UI::WindowsAndMessaging::{
-            EnumWindows, GetWindowInfo, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
+            EnumWindows, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
             GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed,
-            GWL_EXSTYLE, GWL_STYLE, WINDOWINFO, WS_EX_TOOLWINDOW, WS_VISIBLE,
+            GWL_EXSTYLE, WS_EX_TOOLWINDOW,
         };
 
         let mut windows: Vec<WindowInfo> = Vec::new();
@@ -783,7 +782,7 @@ impl WindowManager {
     /// Get the window at a specific screen point (for auto-detection during selection)
     #[cfg(target_os = "windows")]
     pub fn get_window_at_point(&self, x: i32, y: i32) -> Option<WindowInfo> {
-        use windows::Win32::Foundation::{HWND, POINT, RECT};
+        use windows::Win32::Foundation::{POINT, RECT};
         use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         use windows::Win32::UI::WindowsAndMessaging::{
@@ -943,9 +942,10 @@ impl WindowManager {
             );
         }
 
-        // Limit results
-        if elements.len() > 100 {
-            elements.truncate(100);
+        // Limit results based on max_depth (higher depth = more elements)
+        let max_elements = (max_depth as usize * 50).clamp(50, 500);
+        if elements.len() > max_elements {
+            elements.truncate(max_elements);
         }
 
         elements

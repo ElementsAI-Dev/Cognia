@@ -2029,7 +2029,7 @@ fn parse_blame_output(output: &str, file_path: &str) -> GitBlameResult {
     let mut line_number: u32 = 0;
 
     for line in output.lines() {
-        if line.starts_with('\t') {
+        if let Some(stripped) = line.strip_prefix('\t') {
             // This is the actual content line
             lines.push(GitBlameLineInfo {
                 line_number,
@@ -2038,7 +2038,7 @@ fn parse_blame_output(output: &str, file_path: &str) -> GitBlameResult {
                 author_email: current_email.clone(),
                 author_date: current_date.clone(),
                 commit_message: current_summary.clone(),
-                content: line[1..].to_string(), // Skip the leading tab
+                content: stripped.to_string(),
             });
         } else if let Some(rest) = line.strip_prefix("author ") {
             current_author = rest.to_string();

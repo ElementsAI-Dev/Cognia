@@ -3,8 +3,8 @@
 //! Commands for multi-provider OCR functionality.
 
 use crate::screenshot::{
-    AzureVisionProvider, GoogleVisionProvider, OcrManager, OcrOptions, OcrProvider,
-    OcrProviderConfig, OcrProviderInfo, OcrProviderType, OllamaVisionProvider,
+    AnthropicVisionProvider, AzureVisionProvider, GoogleVisionProvider, OcrManager, OcrOptions,
+    OcrProvider, OcrProviderConfig, OcrProviderInfo, OcrProviderType, OllamaVisionProvider,
     OpenAiVisionProvider, TesseractProvider, UnifiedOcrResult, WindowsOcrProvider,
 };
 use base64::Engine;
@@ -150,6 +150,12 @@ pub async fn ocr_configure_provider(
                     .or(provider_config.endpoint.clone())
                     .unwrap_or_default();
                 let provider = AzureVisionProvider::new(api_key, endpoint);
+                manager.register_provider(Arc::new(provider));
+            }
+            OcrProviderType::AnthropicVision => {
+                let endpoint = config.endpoint.clone().or(provider_config.endpoint.clone());
+                let model = config.model.clone().or(provider_config.model.clone());
+                let provider = AnthropicVisionProvider::new(api_key, endpoint, model);
                 manager.register_provider(Arc::new(provider));
             }
             _ => {}

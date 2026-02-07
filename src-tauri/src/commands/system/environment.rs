@@ -122,9 +122,7 @@ pub enum EnvironmentTool {
              continue;
          }
          let mut value = v.trim().to_string();
-         if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
-             value = value[1..value.len() - 1].to_string();
-         } else if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
+         if (value.starts_with('"') && value.ends_with('"') || value.starts_with('\'') && value.ends_with('\'')) && value.len() >= 2 {
              value = value[1..value.len() - 1].to_string();
          }
          pairs.push((key, value));

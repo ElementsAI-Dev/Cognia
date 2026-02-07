@@ -15,7 +15,7 @@ use crate::scheduler::{
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TaskOperationResponse {
     /// Operation completed successfully
-    Success { task: SystemTask },
+    Success { task: Box<SystemTask> },
     /// Confirmation required before proceeding
     ConfirmationRequired {
         confirmation: TaskConfirmationRequest,
@@ -60,7 +60,7 @@ pub async fn scheduler_create_task(
     match state.create_task_with_confirmation(input, confirmed).await {
         Ok(Ok(task)) => {
             info!("System task created successfully: {}", task.id);
-            Ok(TaskOperationResponse::Success { task })
+            Ok(TaskOperationResponse::Success { task: Box::new(task) })
         }
         Ok(Err(confirmation)) => {
             debug!("Task creation requires confirmation: {:?}", confirmation);
@@ -91,7 +91,7 @@ pub async fn scheduler_update_task(
     match state.update_task(&task_id, input, confirmed).await {
         Ok(Ok(task)) => {
             info!("System task updated successfully: {}", task.id);
-            Ok(TaskOperationResponse::Success { task })
+            Ok(TaskOperationResponse::Success { task: Box::new(task) })
         }
         Ok(Err(confirmation)) => {
             debug!("Task update requires confirmation: {:?}", confirmation);

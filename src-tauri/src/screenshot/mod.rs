@@ -22,7 +22,7 @@ mod windows_ocr;
 pub use annotator::{Annotation, ScreenshotAnnotator};
 #[allow(unused_imports)]
 pub use capture::{CaptureMode, ScreenshotCapture, ScreenshotResult};
-pub use ocr::OcrEngine;
+pub use ocr::{OcrEngine, OcrResult as LegacyOcrResult};
 pub use ocr_manager::OcrManager;
 #[allow(unused_imports)]
 pub use ocr_provider::{
@@ -30,8 +30,8 @@ pub use ocr_provider::{
     OcrProviderInfo, OcrProviderType, OcrRegion, OcrResult as UnifiedOcrResult,
 };
 pub use providers::{
-    AzureVisionProvider, GoogleVisionProvider, OllamaVisionProvider, OpenAiVisionProvider,
-    TesseractProvider, WindowsOcrProvider,
+    AnthropicVisionProvider, AzureVisionProvider, GoogleVisionProvider, OllamaVisionProvider,
+    OpenAiVisionProvider, TesseractProvider, WindowsOcrProvider,
 };
 pub use region_selector::RegionSelector;
 pub use region_selector::SelectionState;
@@ -43,6 +43,7 @@ pub use window_manager::{
 #[allow(unused_imports)]
 pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 /// Screenshot configuration
@@ -121,6 +122,7 @@ pub struct ScreenshotManager {
     windows_ocr: std::sync::Arc<parking_lot::RwLock<WindowsOcr>>,
     history: ScreenshotHistory,
     window_manager: std::sync::Arc<parking_lot::RwLock<WindowManager>>,
+    annotator: std::sync::Arc<parking_lot::RwLock<ScreenshotAnnotator>>,
     app_handle: tauri::AppHandle,
 }
 
@@ -133,6 +135,7 @@ impl ScreenshotManager {
             windows_ocr: std::sync::Arc::new(parking_lot::RwLock::new(WindowsOcr::new())),
             history: ScreenshotHistory::new(),
             window_manager: std::sync::Arc::new(parking_lot::RwLock::new(WindowManager::new())),
+            annotator: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotAnnotator::new(0, 0))),
             app_handle,
         }
     }
@@ -340,19 +343,31 @@ impl ScreenshotManager {
         self.history.update_label(id, label)
     }
 
-    /// Add screenshot to history
+    /// Add screenshot to history with enriched metadata using builder methods
     fn add_to_history(&self, result: &ScreenshotResult) {
-        let entry = ScreenshotHistoryEntry::new(
+        let mut entry = ScreenshotHistoryEntry::new(
             result.metadata.width,
             result.metadata.height,
             &result.metadata.mode,
         );
 
-        let entry = if let Some(ref title) = result.metadata.window_title {
-            entry.with_window_title(title.clone())
-        } else {
-            entry
-        };
+        if let Some(ref title) = result.metadata.window_title {
+            entry = entry.with_window_title(title.clone());
+        }
+
+        if let Some(ref path) = result.metadata.file_path {
+            entry = entry.with_file_path(path.clone());
+        }
+
+        if let Some(ref ocr_text) = result.metadata.ocr_text {
+            entry = entry.with_ocr_text(ocr_text.clone());
+        }
+
+        // Generate thumbnail from image data
+        if !result.image_data.is_empty() {
+            let thumb = base64::engine::general_purpose::STANDARD.encode(&result.image_data[..result.image_data.len().min(4096)]);
+            entry = entry.with_thumbnail(thumb);
+        }
 
         self.history.add(entry);
     }
@@ -485,6 +500,71 @@ impl ScreenshotManager {
     /// Get pixel color at screen coordinates
     pub fn get_pixel_color(&self, x: i32, y: i32) -> Option<String> {
         self.window_manager.read().get_pixel_color(x, y)
+    }
+
+    // ==================== Annotator Management Methods ====================
+
+    /// Initialize annotator for a specific image size
+    pub fn init_annotator(&self, width: u32, height: u32) {
+        *self.annotator.write() = ScreenshotAnnotator::new(width, height);
+    }
+
+    /// Add annotation to the current annotator
+    pub fn add_annotation(&self, annotation: Annotation) {
+        self.annotator.write().add_annotation(annotation);
+    }
+
+    /// Undo last annotation
+    pub fn annotator_undo(&self) -> Option<Annotation> {
+        self.annotator.write().undo()
+    }
+
+    /// Clear all annotations
+    pub fn annotator_clear(&self) {
+        self.annotator.write().clear();
+    }
+
+    /// Get all current annotations
+    pub fn get_annotations(&self) -> Vec<Annotation> {
+        self.annotator.read().get_annotations().to_vec()
+    }
+
+    /// Export annotations as JSON
+    pub fn export_annotations(&self) -> String {
+        self.annotator.read().export_annotations()
+    }
+
+    /// Import annotations from JSON
+    pub fn import_annotations(&self, json: &str) -> Result<(), String> {
+        self.annotator.write().import_annotations(json)
+    }
+
+    // ==================== OCR Engine Methods ====================
+
+    /// Extract text with detailed results (async, returns full OcrResult)
+    pub async fn extract_text_detailed(&self, image_data: &[u8]) -> Result<ocr::OcrResult, String> {
+        match &self.ocr_engine {
+            Some(engine) => engine.extract_text_async(image_data.to_vec()).await,
+            None => Err("OCR engine not available".to_string()),
+        }
+    }
+
+    /// Check if OCR engine is available
+    pub fn is_ocr_available(&self) -> bool {
+        match &self.ocr_engine {
+            Some(_) => OcrEngine::is_available(),
+            None => false,
+        }
+    }
+
+    /// Get available OCR languages via OcrEngine
+    pub fn get_ocr_engine_languages(&self) -> Vec<String> {
+        OcrEngine::get_available_languages()
+    }
+
+    /// Get current Windows OCR language
+    pub fn get_current_ocr_language(&self) -> String {
+        self.windows_ocr.read().get_language().to_string()
     }
 }
 

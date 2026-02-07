@@ -868,6 +868,19 @@ pub fn run() {
             commands::media::screenshot::screenshot_get_child_elements,
             commands::media::screenshot::screenshot_calculate_selection_snap,
             commands::media::screenshot::screenshot_get_pixel_color,
+            // Screenshot annotator management commands
+            commands::media::screenshot::screenshot_annotator_init,
+            commands::media::screenshot::screenshot_annotator_add,
+            commands::media::screenshot::screenshot_annotator_undo,
+            commands::media::screenshot::screenshot_annotator_clear,
+            commands::media::screenshot::screenshot_annotator_get_all,
+            commands::media::screenshot::screenshot_annotator_export,
+            commands::media::screenshot::screenshot_annotator_import,
+            // Detailed OCR commands
+            commands::media::screenshot::screenshot_ocr_extract_detailed,
+            commands::media::screenshot::screenshot_get_current_ocr_language,
+            commands::media::screenshot::screenshot_is_ocr_available,
+            commands::media::screenshot::screenshot_get_ocr_engine_languages,
             // Context commands
             commands::context::context::context_get_full,
             commands::context::context::context_get_window,

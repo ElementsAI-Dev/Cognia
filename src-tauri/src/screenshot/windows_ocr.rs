@@ -70,6 +70,7 @@ impl WindowsOcr {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_language(language: &str) -> Self {
         Self {
             language: language.to_string(),
@@ -162,6 +163,7 @@ impl WindowsOcr {
     }
 
     /// Extract text from raw RGBA pixels
+    #[allow(dead_code)]
     #[cfg(target_os = "windows")]
     pub fn extract_text_from_pixels(
         &self,

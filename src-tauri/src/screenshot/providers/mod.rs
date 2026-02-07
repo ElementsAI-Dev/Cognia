@@ -2,6 +2,7 @@
 //!
 //! Individual provider implementations for different OCR services.
 
+pub mod anthropic;
 pub mod azure;
 pub mod google;
 pub mod ollama;
@@ -9,6 +10,7 @@ pub mod openai;
 pub mod tesseract;
 pub mod windows;
 
+pub use anthropic::AnthropicVisionProvider;
 pub use azure::AzureVisionProvider;
 pub use google::GoogleVisionProvider;
 pub use ollama::OllamaVisionProvider;

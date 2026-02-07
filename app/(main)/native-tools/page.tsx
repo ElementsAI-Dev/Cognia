@@ -25,6 +25,7 @@ import {
   SystemMonitorPanel,
   SandboxPanel,
   LocationPanel,
+  ProcessPanel,
   NativeToolSidebar,
   NativeToolMobileNav,
   NATIVE_TOOLS,
@@ -146,6 +147,7 @@ export default function NativeToolsPage() {
               {activeTab === 'context' && <ContextPanel className="h-full" />}
               {activeTab === 'location' && <LocationPanel className="h-full" />}
               {activeTab === 'system' && <SystemMonitorPanel className="h-full" />}
+              {activeTab === 'processes' && <ProcessPanel className="h-full" />}
               {activeTab === 'sandbox' && <SandboxPanel className="h-full" />}
             </div>
           </div>

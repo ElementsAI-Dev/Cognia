@@ -11,6 +11,7 @@ import {
   Sparkles,
   FileText,
   MapPin,
+  Cpu,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ export const NATIVE_TOOLS: NativeToolItem[] = [
   { id: 'context', icon: Eye, labelKey: 'context', description: 'Context awareness' },
   { id: 'location', icon: MapPin, labelKey: 'location', description: 'Location & Map' },
   { id: 'system', icon: Activity, labelKey: 'system', description: 'System monitor' },
+  { id: 'processes', icon: Cpu, labelKey: 'processes', description: 'Process manager' },
   { id: 'sandbox', icon: Terminal, labelKey: 'sandbox', description: 'Code sandbox' },
 ];
 

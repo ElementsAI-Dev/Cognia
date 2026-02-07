@@ -202,6 +202,7 @@ describe('OCR - Helper Functions', () => {
       expect(getProviderDisplayName('google_vision')).toBe('Google Cloud Vision');
       expect(getProviderDisplayName('azure_vision')).toBe('Azure Computer Vision');
       expect(getProviderDisplayName('openai_vision')).toBe('OpenAI Vision');
+      expect(getProviderDisplayName('anthropic_vision')).toBe('Anthropic Claude Vision');
       expect(getProviderDisplayName('ollama_vision')).toBe('Ollama Vision');
       expect(getProviderDisplayName('tesseract')).toBe('Tesseract OCR');
     });
@@ -216,6 +217,7 @@ describe('OCR - Helper Functions', () => {
       expect(providerRequiresApiKey('google_vision')).toBe(true);
       expect(providerRequiresApiKey('azure_vision')).toBe(true);
       expect(providerRequiresApiKey('openai_vision')).toBe(true);
+      expect(providerRequiresApiKey('anthropic_vision')).toBe(true);
     });
 
     it('should return false for local providers', () => {
@@ -235,6 +237,7 @@ describe('OCR - Helper Functions', () => {
       expect(isProviderLocal('google_vision')).toBe(false);
       expect(isProviderLocal('azure_vision')).toBe(false);
       expect(isProviderLocal('openai_vision')).toBe(false);
+      expect(isProviderLocal('anthropic_vision')).toBe(false);
       expect(isProviderLocal('ollama_vision')).toBe(false);
     });
   });
@@ -283,6 +286,7 @@ describe('OCR Types', () => {
       'google_vision',
       'azure_vision',
       'openai_vision',
+      'anthropic_vision',
       'ollama_vision',
       'tesseract',
     ];

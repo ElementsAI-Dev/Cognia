@@ -17,6 +17,7 @@ jest.mock('next-intl', () => ({
       'tabs.focus': 'Focus',
       'tabs.context': 'Context',
       'tabs.system': 'System',
+      'tabs.processes': 'Processes',
       'tabs.sandbox': 'Sandbox',
     };
     return translations[key] || key;

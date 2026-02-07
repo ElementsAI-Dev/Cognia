@@ -3,8 +3,8 @@
 //! Uses Google Cloud Vision API for text extraction.
 
 use crate::screenshot::ocr_provider::{
-    OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion,
-    OcrRegionType, OcrResult,
+    DocumentHint, OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType,
+    OcrRegion, OcrRegionType, OcrResult,
 };
 use async_trait::async_trait;
 use base64::Engine;
@@ -29,11 +29,13 @@ impl GoogleVisionProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_endpoint(mut self, endpoint: String) -> Self {
         self.endpoint = endpoint;
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
         self.timeout_secs = timeout_secs;
         self
@@ -103,6 +105,7 @@ struct FullTextAnnotation {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Page {
     #[serde(default)]
     blocks: Vec<Block>,
@@ -111,6 +114,7 @@ struct Page {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Block {
     #[serde(default)]
     paragraphs: Vec<Paragraph>,
@@ -141,6 +145,7 @@ struct Word {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Symbol {
     text: String,
     #[serde(default)]
@@ -256,21 +261,28 @@ impl OcrProvider for GoogleVisionProvider {
             }
         }
 
+        // Choose detection type based on document hint
+        // DOCUMENT_TEXT_DETECTION is better for dense text/documents
+        // TEXT_DETECTION is better for sparse text in photos/screenshots
+        let feature_type = match options.document_hint {
+            Some(DocumentHint::DenseText) | Some(DocumentHint::Document) | Some(DocumentHint::Handwriting) => {
+                "DOCUMENT_TEXT_DETECTION"
+            }
+            Some(DocumentHint::SparseText) | Some(DocumentHint::Screenshot) => {
+                "TEXT_DETECTION"
+            }
+            _ => "DOCUMENT_TEXT_DETECTION", // Default to document detection for best coverage
+        };
+
         let request = VisionRequest {
             requests: vec![AnnotateImageRequest {
                 image: Image {
                     content: image_base64,
                 },
-                features: vec![
-                    Feature {
-                        feature_type: "TEXT_DETECTION".to_string(),
-                        max_results: None,
-                    },
-                    Feature {
-                        feature_type: "DOCUMENT_TEXT_DETECTION".to_string(),
-                        max_results: None,
-                    },
-                ],
+                features: vec![Feature {
+                    feature_type: feature_type.to_string(),
+                    max_results: None,
+                }],
                 image_context,
             }],
         };
@@ -291,6 +303,20 @@ impl OcrProvider for GoogleVisionProvider {
 
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
+
+            // Handle authentication errors specifically
+            if status.as_u16() == 401 || status.as_u16() == 403 {
+                return Err(OcrError::authentication_error(
+                    format!("Google Vision API authentication failed ({}): {}", status, body),
+                ));
+            }
+            if status.as_u16() == 429 {
+                return Err(OcrError::new(
+                    OcrErrorCode::RateLimitExceeded,
+                    format!("Google Vision API rate limit exceeded: {}", body),
+                ));
+            }
+
             return Err(OcrError::new(
                 OcrErrorCode::ProviderError,
                 format!("Google Vision API error ({}): {}", status, body),
@@ -319,7 +345,7 @@ impl OcrProvider for GoogleVisionProvider {
         }
 
         // Extract text and regions
-        let (text, regions, language) = if let Some(full_text) = response.full_text_annotation {
+        let (text, regions, language, confidence) = if let Some(full_text) = response.full_text_annotation {
             let text = full_text.text.clone();
             let mut regions = Vec::new();
             let mut confidence_sum = 0.0;
@@ -378,7 +404,7 @@ impl OcrProvider for GoogleVisionProvider {
                 0.9
             };
 
-            (text, regions, None)
+            (text, regions, None, avg_confidence)
         } else if !response.text_annotations.is_empty() {
             // Use TEXT_DETECTION results
             let first = &response.text_annotations[0];
@@ -400,19 +426,12 @@ impl OcrProvider for GoogleVisionProvider {
                 })
                 .collect();
 
-            (text, regions, language)
+            let conf = if regions.is_empty() { 0.9 } else {
+                regions.iter().map(|r| r.confidence).sum::<f64>() / regions.len() as f64
+            };
+            (text, regions, language, conf)
         } else {
-            (String::new(), vec![], None)
-        };
-
-        let confidence = if regions.is_empty() {
-            if text.is_empty() {
-                0.0
-            } else {
-                0.9
-            }
-        } else {
-            regions.iter().map(|r| r.confidence).sum::<f64>() / regions.len() as f64
+            (String::new(), vec![], None, 0.0)
         };
 
         Ok(OcrResult {

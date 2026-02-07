@@ -165,6 +165,7 @@ pub enum PluginAuthorField {
 }
 
 impl PluginAuthorField {
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         match self {
             PluginAuthorField::Simple(s) => s,

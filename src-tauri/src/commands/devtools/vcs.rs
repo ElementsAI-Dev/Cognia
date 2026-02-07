@@ -370,13 +370,13 @@ fn parse_git_blame_line(output: &str) -> Vec<VcsBlameLineInfo> {
     let mut line_number: u32 = 0;
 
     for line in output.lines() {
-        if line.starts_with('\t') {
+        if let Some(stripped) = line.strip_prefix('\t') {
             lines.push(VcsBlameLineInfo {
                 line_number,
                 revision: current_revision.clone(),
                 author: current_author.clone(),
                 date: current_date.clone(),
-                content: line[1..].to_string(),
+                content: stripped.to_string(),
             });
         } else if let Some(rest) = line.strip_prefix("author ") {
             current_author = rest.to_string();

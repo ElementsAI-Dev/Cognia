@@ -13,6 +13,8 @@ export { ScreenshotPanel } from './screenshot-panel';
 export { SystemMonitorPanel } from './system-monitor-panel';
 export { SandboxPanel } from './sandbox-panel';
 export { ProcessSettingsPanel } from './process-settings-panel';
+export { ProcessPanel } from './process-panel';
+export { ProcessDetailPanel } from './process-detail-panel';
 export { LocationPanel } from './location-panel';
 
 // Layout components

@@ -76,6 +76,8 @@ pub enum OcrProviderType {
     OpenAiVision,
     /// Ollama with vision models (LLaVA, etc.)
     OllamaVision,
+    /// Anthropic Claude Vision (Claude 4 Sonnet, etc.)
+    AnthropicVision,
     /// Tesseract OCR (local binary)
     Tesseract,
 }
@@ -89,6 +91,7 @@ impl OcrProviderType {
             Self::AzureVision => "Azure Computer Vision",
             Self::OpenAiVision => "OpenAI Vision",
             Self::OllamaVision => "Ollama Vision",
+            Self::AnthropicVision => "Anthropic Claude Vision",
             Self::Tesseract => "Tesseract OCR",
         }
     }
@@ -97,7 +100,7 @@ impl OcrProviderType {
     pub fn requires_api_key(&self) -> bool {
         matches!(
             self,
-            Self::GoogleVision | Self::AzureVision | Self::OpenAiVision
+            Self::GoogleVision | Self::AzureVision | Self::OpenAiVision | Self::AnthropicVision
         )
     }
 
@@ -113,6 +116,7 @@ impl OcrProviderType {
             Self::GoogleVision,
             Self::AzureVision,
             Self::OpenAiVision,
+            Self::AnthropicVision,
             Self::OllamaVision,
             Self::Tesseract,
         ]
@@ -212,6 +216,7 @@ pub trait OcrProvider: Send + Sync {
     ) -> Result<OcrResult, OcrError>;
 
     /// Check if a specific language is supported
+    #[allow(dead_code)]
     async fn is_language_supported(&self, language: &str) -> bool {
         self.get_supported_languages()
             .await
@@ -302,6 +307,7 @@ impl OcrError {
         Self::new(OcrErrorCode::ProviderUnavailable, message)
     }
 
+    #[allow(dead_code)]
     pub fn invalid_image(message: impl Into<String>) -> Self {
         Self::new(OcrErrorCode::InvalidImage, message)
     }
@@ -349,7 +355,10 @@ impl OcrProviderInfo {
                 "Azure Computer Vision. Enterprise-grade OCR with handwriting support."
             }
             OcrProviderType::OpenAiVision => {
-                "OpenAI GPT-4 Vision. AI-powered text extraction with context understanding."
+                "OpenAI GPT-4o Vision. AI-powered text extraction with context understanding."
+            }
+            OcrProviderType::AnthropicVision => {
+                "Anthropic Claude Vision. Advanced multimodal AI with superior text extraction."
             }
             OcrProviderType::OllamaVision => {
                 "Ollama with vision models. Local AI OCR using LLaVA or similar models."

@@ -3,7 +3,8 @@
 //! Uses Ollama with vision-capable models (LLaVA, etc.) for OCR.
 
 use crate::screenshot::ocr_provider::{
-    OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion, OcrResult,
+    DocumentHint, OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType,
+    OcrRegion, OcrRegionType, OcrResult,
 };
 use async_trait::async_trait;
 use base64::Engine;
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 pub struct OllamaVisionProvider {
     /// Ollama API endpoint
     endpoint: String,
-    /// Model to use (e.g., "llava", "llava:13b", "bakllava")
+    /// Model to use (e.g., "llama3.2-vision", "qwen2.5vl", "gemma3")
     model: String,
     /// Request timeout in seconds
     timeout_secs: u64,
@@ -23,11 +24,49 @@ impl OllamaVisionProvider {
     pub fn new(endpoint: Option<String>, model: Option<String>) -> Self {
         Self {
             endpoint: endpoint.unwrap_or_else(|| "http://localhost:11434".to_string()),
-            model: model.unwrap_or_else(|| "llava".to_string()),
-            timeout_secs: 60,
+            model: model.unwrap_or_else(|| "llama3.2-vision".to_string()),
+            timeout_secs: 120,
         }
     }
 
+    /// Build OCR prompt based on options and document hint
+    fn build_prompt(options: &OcrOptions) -> String {
+        let base_instruction = match options.document_hint {
+            Some(DocumentHint::Handwriting) => {
+                "Extract all handwritten text from this image. Pay careful attention to \
+                 handwriting variations."
+            }
+            Some(DocumentHint::Receipt) => {
+                "Extract all text from this receipt/invoice. Preserve the tabular layout."
+            }
+            Some(DocumentHint::Screenshot) => {
+                "Extract all visible text from this screenshot. Preserve the UI layout."
+            }
+            Some(DocumentHint::DenseText) => {
+                "Extract all text from this document. Preserve paragraph structure."
+            }
+            Some(DocumentHint::SparseText) => {
+                "Extract all visible text from this image, including labels and signs."
+            }
+            _ => {
+                "Extract all text from this image."
+            }
+        };
+
+        let language_hint = options
+            .language
+            .as_ref()
+            .map(|l| format!(" The text is in {}.", l))
+            .unwrap_or_default();
+
+        format!(
+            "{} Return ONLY the extracted text, nothing else. \
+             Preserve the original layout and line breaks as much as possible.{}",
+            base_instruction, language_hint
+        )
+    }
+
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
         self.timeout_secs = timeout_secs;
         self
@@ -97,12 +136,19 @@ impl Default for OllamaVisionProvider {
 }
 
 #[derive(Serialize)]
-struct OllamaGenerateRequest {
+struct OllamaChatRequest {
     model: String,
-    prompt: String,
-    images: Vec<String>,
+    messages: Vec<OllamaChatMessage>,
     stream: bool,
     options: OllamaOptions,
+}
+
+#[derive(Serialize)]
+struct OllamaChatMessage {
+    role: String,
+    content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    images: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -112,10 +158,13 @@ struct OllamaOptions {
 }
 
 #[derive(Deserialize)]
-struct OllamaGenerateResponse {
-    response: String,
-    #[serde(default)]
-    done: bool,
+struct OllamaChatResponse {
+    message: OllamaResponseMessage,
+}
+
+#[derive(Deserialize)]
+struct OllamaResponseMessage {
+    content: String,
 }
 
 #[async_trait]
@@ -157,32 +206,26 @@ impl OcrProvider for OllamaVisionProvider {
         // Encode image to base64
         let image_base64 = base64::engine::general_purpose::STANDARD.encode(image_data);
 
-        // Build prompt based on options
-        let language_hint = options
-            .language
-            .as_ref()
-            .map(|l| format!(" The text is in {}.", l))
-            .unwrap_or_default();
+        // Build prompt based on document hint and options
+        let prompt = Self::build_prompt(options);
 
-        let prompt = format!(
-            "Extract all text from this image. Return ONLY the extracted text, nothing else. \
-            Preserve the original layout and line breaks as much as possible.{}",
-            language_hint
-        );
-
-        let request = OllamaGenerateRequest {
+        // Use the chat API which is the recommended approach for vision models
+        let request = OllamaChatRequest {
             model: self.model.clone(),
-            prompt,
-            images: vec![image_base64],
+            messages: vec![OllamaChatMessage {
+                role: "user".to_string(),
+                content: prompt,
+                images: Some(vec![image_base64]),
+            }],
             stream: false,
             options: OllamaOptions {
-                temperature: 0.1, // Low temperature for more accurate extraction
+                temperature: 0.0,
                 num_predict: 4096,
             },
         };
 
         let response = client
-            .post(format!("{}/api/generate", self.endpoint))
+            .post(format!("{}/api/chat", self.endpoint))
             .json(&request)
             .send()
             .await
@@ -205,34 +248,33 @@ impl OcrProvider for OllamaVisionProvider {
             ));
         }
 
-        let result: OllamaGenerateResponse = response.json().await.map_err(|e| {
+        let result: OllamaChatResponse = response.json().await.map_err(|e| {
             OcrError::new(
                 OcrErrorCode::ProviderError,
                 format!("Failed to parse response: {}", e),
             )
         })?;
 
-        let text = result.response.trim().to_string();
+        let text = result.message.content.trim().to_string();
 
-        // For vision models, we don't get bounding boxes
-        // Return text as single region
+        // Vision models don't provide bounding boxes; return text as single block
         let regions = if !text.is_empty() {
             vec![OcrRegion {
                 text: text.clone(),
-                bounds: crate::screenshot::ocr_provider::OcrBounds {
+                bounds: OcrBounds {
                     x: 0.0,
                     y: 0.0,
                     width: 0.0,
                     height: 0.0,
                 },
-                confidence: 0.8, // Estimated confidence
-                region_type: crate::screenshot::ocr_provider::OcrRegionType::Block,
+                confidence: 0.85,
+                region_type: OcrRegionType::Block,
             }]
         } else {
             vec![]
         };
 
-        let confidence = if regions.is_empty() { 0.0 } else { 0.8 };
+        let confidence = if regions.is_empty() { 0.0 } else { 0.85 };
 
         Ok(OcrResult {
             text,
@@ -253,7 +295,7 @@ mod tests {
     fn test_ollama_provider_new() {
         let provider = OllamaVisionProvider::new(None, None);
         assert_eq!(provider.endpoint, "http://localhost:11434");
-        assert_eq!(provider.model, "llava");
+        assert_eq!(provider.model, "llama3.2-vision");
     }
 
     #[test]
