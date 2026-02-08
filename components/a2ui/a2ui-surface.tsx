@@ -57,6 +57,7 @@ export function A2UISurface({
 }: A2UISurfaceContainerProps) {
   const surface = useA2UIStore((state) => state.surfaces[surfaceId]);
   const isLoading = useA2UIStore((state) => state.loadingSurfaces.has(surfaceId));
+  const isStreaming = useA2UIStore((state) => state.streamingSurfaces.has(surfaceId));
   const error = useA2UIStore((state) => state.errors[surfaceId]);
 
   // Subscribe to events
@@ -145,6 +146,12 @@ export function A2UISurface({
           renderComponent={renderComponent}
         >
           <A2UIRenderer component={rootComponent} />
+          {isStreaming && (
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Rendering...</span>
+            </div>
+          )}
         </A2UIProvider>
       </div>
     </div>

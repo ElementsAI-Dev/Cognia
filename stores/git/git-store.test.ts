@@ -230,6 +230,62 @@ jest.mock('@/lib/native/git', () => ({
         },
       ],
     }),
+    getLogGraph: jest.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          hash: 'abc123def456',
+          shortHash: 'abc123d',
+          author: 'Test User',
+          authorEmail: 'test@example.com',
+          date: new Date().toISOString(),
+          message: 'Test commit',
+          parents: [],
+          refs: ['HEAD -> main'],
+          lane: 0,
+        },
+      ],
+    }),
+    getRepoStats: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        totalCommits: 100,
+        totalContributors: 3,
+        contributors: [
+          { name: 'Test User', email: 'test@example.com', commits: 50, additions: 1000, deletions: 200, firstCommit: '2024-01-01', lastCommit: '2025-01-01' },
+        ],
+        activity: [{ date: '2025-01-01', commits: 5 }],
+        fileTypeDistribution: { '.ts': 50, '.tsx': 30 },
+      },
+    }),
+    checkpointCreate: jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        id: 'cognia-cp/2025-01-15T10-00-00',
+        hash: 'cp123abc',
+        message: 'Test checkpoint',
+        timestamp: '2025-01-15T10:00:00Z',
+        filesChanged: 5,
+        additions: 30,
+        deletions: 10,
+      },
+    }),
+    checkpointList: jest.fn().mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 'cognia-cp/2025-01-15T10-00-00',
+          hash: 'cp123abc',
+          message: 'Test checkpoint',
+          timestamp: '2025-01-15T10:00:00Z',
+          filesChanged: 5,
+          additions: 30,
+          deletions: 10,
+        },
+      ],
+    }),
+    checkpointRestore: jest.fn().mockResolvedValue({ success: true }),
+    checkpointDelete: jest.fn().mockResolvedValue({ success: true }),
     getFullStatus: jest.fn().mockResolvedValue({
       success: true,
       data: {
@@ -765,6 +821,161 @@ describe('useGitStore', () => {
 
       const success = await result.current.mergeAbort();
       expect(success).toBe(false);
+    });
+  });
+
+  describe('graph commits', () => {
+    it('should have empty graphCommits initially', () => {
+      const { result } = renderHook(() => useGitStore());
+      expect(result.current.graphCommits).toEqual([]);
+    });
+
+    it('should load graph commits', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadGraphCommits();
+      });
+
+      expect(result.current.graphCommits.length).toBeGreaterThan(0);
+      expect(result.current.graphCommits[0].hash).toBe('abc123def456');
+      expect(result.current.graphCommits[0].message).toBe('Test commit');
+    });
+
+    it('should load graph commits with maxCount', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadGraphCommits(50);
+      });
+
+      expect(result.current.graphCommits.length).toBeGreaterThan(0);
+    });
+
+    it('should not load graph commits when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      await act(async () => {
+        await result.current.loadGraphCommits();
+      });
+
+      expect(result.current.graphCommits).toEqual([]);
+    });
+  });
+
+  describe('repo stats', () => {
+    it('should have null repoStats initially', () => {
+      const { result } = renderHook(() => useGitStore());
+      expect(result.current.repoStats).toBeNull();
+    });
+
+    it('should load repo stats', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadRepoStats();
+      });
+
+      expect(result.current.repoStats).toBeDefined();
+      expect(result.current.repoStats!.totalCommits).toBe(100);
+      expect(result.current.repoStats!.totalContributors).toBe(3);
+    });
+
+    it('should not load repo stats when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      await act(async () => {
+        await result.current.loadRepoStats();
+      });
+
+      expect(result.current.repoStats).toBeNull();
+    });
+  });
+
+  describe('checkpoint operations', () => {
+    it('should have empty checkpoints initially', () => {
+      const { result } = renderHook(() => useGitStore());
+      expect(result.current.checkpoints).toEqual([]);
+    });
+
+    it('should create a checkpoint', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.createCheckpoint('Test checkpoint');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should load checkpoints', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await act(async () => {
+        await result.current.loadCheckpoints();
+      });
+
+      expect(result.current.checkpoints.length).toBeGreaterThan(0);
+      expect(result.current.checkpoints[0].id).toBe('cognia-cp/2025-01-15T10-00-00');
+      expect(result.current.checkpoints[0].message).toBe('Test checkpoint');
+    });
+
+    it('should restore a checkpoint', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.restoreCheckpoint('cognia-cp/2025-01-15T10-00-00');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should delete a checkpoint', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      act(() => {
+        result.current.setCurrentRepo('/test/repo');
+      });
+
+      await waitFor(async () => {
+        const success = await result.current.deleteCheckpoint('cognia-cp/2025-01-15T10-00-00');
+        expect(success).toBe(true);
+      });
+    });
+
+    it('should return false for checkpoint operations when no repo is set', async () => {
+      const { result } = renderHook(() => useGitStore());
+
+      const createResult = await result.current.createCheckpoint('Test');
+      expect(createResult).toBe(false);
+
+      const restoreResult = await result.current.restoreCheckpoint('id');
+      expect(restoreResult).toBe(false);
+
+      const deleteResult = await result.current.deleteCheckpoint('id');
+      expect(deleteResult).toBe(false);
     });
   });
 });

@@ -10,6 +10,10 @@ import {
   Brain,
   MessageSquare,
   ChevronRight,
+  Undo2,
+  Save,
+  Coins,
+  Tag,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +26,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { DBAgentTrace } from '@/lib/db';
-import type { AgentTraceRecord, AgentTraceEventType } from '@/types/agent-trace';
+import type { AgentTraceRecord, AgentTraceEventType, TraceCostEstimate, AgentTraceSeverity } from '@/types/agent-trace';
+import { formatCost } from '@/lib/agent-trace/cost-estimator';
 
 interface TimelineEntry {
   id: string;
@@ -34,7 +39,11 @@ interface TimelineEntry {
   toolCallId?: string;
   success?: boolean;
   latencyMs?: number;
+  duration?: number;
   tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  costEstimate?: TraceCostEstimate;
+  severity?: AgentTraceSeverity;
+  tags?: string[];
   files: string[];
   responsePreview?: string;
   error?: string;
@@ -56,7 +65,11 @@ function parseTimelineEntry(row: DBAgentTrace): TimelineEntry | null {
       toolCallId: meta?.toolCallId as string | undefined,
       success: meta?.success as boolean | undefined,
       latencyMs: meta?.latencyMs as number | undefined,
-      tokenUsage: meta?.tokenUsage as TimelineEntry['tokenUsage'],
+      duration: record.duration,
+      tokenUsage: meta?.tokenUsage as TimelineEntry['tokenUsage'] ?? (meta?.usage as TimelineEntry['tokenUsage']),
+      costEstimate: record.costEstimate,
+      severity: record.severity,
+      tags: record.tags,
       files: record.files.map((f) => f.path).filter(Boolean),
       responsePreview: meta?.responsePreview as string | undefined,
       error: meta?.error as string | undefined,
@@ -74,6 +87,9 @@ const EVENT_CONFIG: Record<string, { icon: typeof Play; color: string; label: st
   tool_call_result: { icon: Wrench, color: 'text-purple-500', label: 'Tool Result' },
   planning: { icon: Brain, color: 'text-cyan-500', label: 'Planning' },
   response: { icon: MessageSquare, color: 'text-emerald-500', label: 'Response' },
+  checkpoint_create: { icon: Save, color: 'text-sky-500', label: 'Checkpoint' },
+  checkpoint_restore: { icon: Undo2, color: 'text-amber-500', label: 'Restore' },
+  error: { icon: AlertCircle, color: 'text-red-500', label: 'Error' },
   unknown: { icon: ChevronRight, color: 'text-muted-foreground', label: 'Unknown' },
 };
 
@@ -189,10 +205,10 @@ export function AgentTraceTimeline({ traces, maxEntries = 100 }: AgentTraceTimel
                           </span>
                         )}
 
-                        {/* Latency */}
-                        {entry.latencyMs !== undefined && (
+                        {/* Duration or Latency */}
+                        {(entry.duration ?? entry.latencyMs) !== undefined && (
                           <span className="text-[10px] text-muted-foreground tabular-nums ml-auto shrink-0">
-                            {formatMs(entry.latencyMs)}
+                            {formatMs(entry.duration ?? entry.latencyMs!)}
                           </span>
                         )}
 
@@ -201,6 +217,19 @@ export function AgentTraceTimeline({ traces, maxEntries = 100 }: AgentTraceTimel
                           <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                             {formatTokenCount(entry.tokenUsage.totalTokens)} tok
                           </span>
+                        )}
+
+                        {/* Cost estimate */}
+                        {entry.costEstimate && entry.costEstimate.totalCost > 0 && (
+                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 flex items-center gap-0.5">
+                            <Coins className="h-2.5 w-2.5" />
+                            {formatCost(entry.costEstimate.totalCost)}
+                          </span>
+                        )}
+
+                        {/* Tags */}
+                        {entry.tags && entry.tags.length > 0 && (
+                          <Tag className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
                         )}
 
                         {/* Success/failure indicator */}
@@ -230,9 +259,16 @@ export function AgentTraceTimeline({ traces, maxEntries = 100 }: AgentTraceTimel
                         {entry.files.length > 0 && (
                           <div className="truncate">{t('files')}: {entry.files.join(', ')}</div>
                         )}
+                        {entry.duration !== undefined && <div>Duration: {formatMs(entry.duration)}</div>}
                         {entry.latencyMs !== undefined && <div>{t('latency')}: {formatMs(entry.latencyMs)}</div>}
                         {entry.tokenUsage?.totalTokens && (
                           <div>{t('tokens')}: {entry.tokenUsage.totalTokens.toLocaleString()}</div>
+                        )}
+                        {entry.costEstimate && entry.costEstimate.totalCost > 0 && (
+                          <div>Cost: {formatCost(entry.costEstimate.totalCost)} (in: {formatCost(entry.costEstimate.inputCost)}, out: {formatCost(entry.costEstimate.outputCost)})</div>
+                        )}
+                        {entry.tags && entry.tags.length > 0 && (
+                          <div>Tags: {entry.tags.join(', ')}</div>
                         )}
                         {entry.error && (
                           <div className="text-red-500">{t('error')}: {entry.error}</div>

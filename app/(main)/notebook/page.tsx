@@ -48,10 +48,13 @@ import {
   PanelRight,
   Plus,
   Trash2,
+  FolderOpen,
+  Save,
 } from 'lucide-react';
 import { InteractiveNotebook } from '@/components/jupyter';
 import { useJupyterKernel, useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
+import { kernelService } from '@/lib/jupyter/kernel';
 
 export default function NotebookPage() {
   const t = useTranslations('notebook');
@@ -61,6 +64,9 @@ export default function NotebookPage() {
   const [selectedEnvPath, setSelectedEnvPath] = useState<string | null>(null);
   const [showVariables, setShowVariables] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Jupyter kernel hook
   const {
@@ -173,6 +179,101 @@ export default function NotebookPage() {
     }
   }, [activeSession, deleteSession]);
 
+  // Track content changes for dirty state
+  const handleContentChange = useCallback(
+    (content: string) => {
+      setNotebookContent(content);
+      setIsDirty(true);
+    },
+    []
+  );
+
+  // Open notebook file
+  const handleOpenNotebook = useCallback(async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: t('notebookFilter'),
+            extensions: ['ipynb'],
+          },
+        ],
+      });
+
+      if (selected && typeof selected === 'string') {
+        const content = await kernelService.openNotebook(selected);
+        startTransition(() => {
+          setNotebookContent(content);
+          setFilePath(selected);
+          setIsDirty(false);
+        });
+      }
+    } catch (err) {
+      console.error('Failed to open notebook:', err);
+    }
+  }, [t]);
+
+  // Save notebook file
+  const handleSaveNotebook = useCallback(
+    async (saveAs = false) => {
+      if (!notebookContent) return;
+
+      try {
+        let targetPath = filePath;
+
+        if (!targetPath || saveAs) {
+          const { save } = await import('@tauri-apps/plugin-dialog');
+          const selected = await save({
+            defaultPath: filePath || 'notebook.ipynb',
+            filters: [
+              {
+                name: t('notebookFilter'),
+                extensions: ['ipynb'],
+              },
+            ],
+          });
+
+          if (!selected) return;
+          targetPath = selected;
+        }
+
+        setIsSaving(true);
+        await kernelService.saveNotebook(targetPath, notebookContent);
+        startTransition(() => {
+          setFilePath(targetPath);
+          setIsDirty(false);
+        });
+      } catch (err) {
+        console.error('Failed to save notebook:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [notebookContent, filePath, t]
+  );
+
+  // Keyboard shortcut: Ctrl+S to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveNotebook(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        handleSaveNotebook(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        handleOpenNotebook();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSaveNotebook, handleOpenNotebook]);
+
   // Not available in browser
   if (!isDesktop) {
     return (
@@ -207,7 +308,49 @@ export default function NotebookPage() {
             <div className="h-7 w-7 rounded-md bg-orange-500 flex items-center justify-center">
               <FileCode2 className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-medium text-sm">{t('title')}</span>
+            <span className="font-medium text-sm truncate max-w-[200px]">
+              {filePath
+                ? filePath.split(/[\\/]/).pop() || t('untitled')
+                : t('untitled')}
+            </span>
+            {isDirty && (
+              <Badge variant="outline" className="text-xs">
+                {t('unsavedChanges')}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleOpenNotebook}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('openNotebook')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleSaveNotebook(false)}
+                  disabled={isSaving || !notebookContent}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('saveNotebook')}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -376,7 +519,7 @@ export default function NotebookPage() {
               <div className="p-4">
                 <InteractiveNotebook
                   content={notebookContent}
-                  onContentChange={setNotebookContent}
+                  onContentChange={handleContentChange}
                   autoConnect={false}
                   showVariables={false}
                   className="max-w-4xl mx-auto"

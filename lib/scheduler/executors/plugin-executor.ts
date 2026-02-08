@@ -6,63 +6,15 @@
 
 import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
 import type {
-  PluginTaskHandler,
   PluginTaskContext,
   PluginTaskResult as _PluginTaskResult,
 } from '@/types/plugin/plugin-scheduler';
+import {
+  getPluginTaskHandler,
+} from '@/lib/plugin/scheduler/scheduler-plugin-executor';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('scheduler:plugin-executor');
-
-// =============================================================================
-// Handler Registry
-// =============================================================================
-
-/**
- * Registry of plugin task handlers
- * Key format: `${pluginId}:${handlerName}`
- */
-const pluginTaskHandlers = new Map<string, PluginTaskHandler>();
-
-/**
- * Register a plugin task handler
- */
-export function registerPluginTaskHandler(
-  fullName: string,
-  handler: PluginTaskHandler
-): void {
-  pluginTaskHandlers.set(fullName, handler);
-  log.info(`Registered plugin task handler: ${fullName}`);
-}
-
-/**
- * Unregister a plugin task handler
- */
-export function unregisterPluginTaskHandler(fullName: string): void {
-  pluginTaskHandlers.delete(fullName);
-  log.info(`Unregistered plugin task handler: ${fullName}`);
-}
-
-/**
- * Get a plugin task handler by full name
- */
-export function getPluginTaskHandler(fullName: string): PluginTaskHandler | undefined {
-  return pluginTaskHandlers.get(fullName);
-}
-
-/**
- * Check if a plugin task handler is registered
- */
-export function hasPluginTaskHandler(fullName: string): boolean {
-  return pluginTaskHandlers.has(fullName);
-}
-
-/**
- * Get all registered plugin task handler names
- */
-export function getPluginTaskHandlerNames(): string[] {
-  return Array.from(pluginTaskHandlers.keys());
-}
 
 // =============================================================================
 // Plugin Task Payload
@@ -116,8 +68,8 @@ export async function executePluginTask(
   const { pluginId, handler, args = {} } = payload;
   const fullHandlerName = `${pluginId}:${handler}`;
 
-  // Get the registered handler
-  const taskHandler = pluginTaskHandlers.get(fullHandlerName);
+  // Get the registered handler from the canonical plugin registry
+  const taskHandler = getPluginTaskHandler(fullHandlerName);
   if (!taskHandler) {
     return {
       success: false,

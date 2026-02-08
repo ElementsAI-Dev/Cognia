@@ -57,6 +57,12 @@ import {
   onGitInstallProgress,
   initProjectRepo,
   autoCommit,
+  getLogGraph,
+  getRepoStats,
+  checkpointCreate,
+  checkpointList,
+  checkpointRestore,
+  checkpointDelete,
   gitService,
 } from './git';
 
@@ -643,6 +649,146 @@ describe('Git - High-Level Operations', () => {
   });
 });
 
+describe('Git - Graph API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getLogGraph', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await getLogGraph('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_log_graph with repoPath', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await getLogGraph('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_log_graph', { repoPath: '/repo', maxCount: undefined });
+    });
+
+    it('should pass maxCount parameter', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await getLogGraph('/repo', 50);
+      expect(mockInvoke).toHaveBeenCalledWith('git_log_graph', { repoPath: '/repo', maxCount: 50 });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Graph failed'));
+      const result = await getLogGraph('/repo');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Graph failed');
+    });
+  });
+});
+
+describe('Git - Stats API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getRepoStats', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await getRepoStats('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_repo_stats', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getRepoStats('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_repo_stats', { repoPath: '/repo' });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Stats failed'));
+      const result = await getRepoStats('/repo');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Stats failed');
+    });
+  });
+});
+
+describe('Git - Checkpoint API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('checkpointCreate', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await checkpointCreate('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_checkpoint_create', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await checkpointCreate('/repo', 'Test checkpoint');
+      expect(mockInvoke).toHaveBeenCalledWith('git_checkpoint_create', {
+        repoPath: '/repo',
+        message: 'Test checkpoint',
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Create failed'));
+      const result = await checkpointCreate('/repo');
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('checkpointList', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await checkpointList('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_checkpoint_list', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await checkpointList('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_checkpoint_list', { repoPath: '/repo' });
+    });
+  });
+
+  describe('checkpointRestore', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await checkpointRestore('/repo', 'cp-id');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_checkpoint_restore', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await checkpointRestore('/repo', 'cp-id');
+      expect(mockInvoke).toHaveBeenCalledWith('git_checkpoint_restore', {
+        repoPath: '/repo',
+        checkpointId: 'cp-id',
+      });
+    });
+  });
+
+  describe('checkpointDelete', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await checkpointDelete('/repo', 'cp-id');
+      expect(result.success).toBe(false);
+    });
+
+    it('should invoke git_checkpoint_delete', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await checkpointDelete('/repo', 'cp-id');
+      expect(mockInvoke).toHaveBeenCalledWith('git_checkpoint_delete', {
+        repoPath: '/repo',
+        checkpointId: 'cp-id',
+      });
+    });
+  });
+});
+
 describe('Git - Service Object', () => {
   it('should expose all functions', () => {
     expect(gitService.isAvailable).toBe(isGitAvailable);
@@ -672,5 +818,14 @@ describe('Git - Service Object', () => {
     expect(gitService.stash).toBe(stash);
     expect(gitService.reset).toBe(reset);
     expect(gitService.discardChanges).toBe(discardChanges);
+  });
+
+  it('should expose graph, stats, and checkpoint functions', () => {
+    expect(gitService.getLogGraph).toBe(getLogGraph);
+    expect(gitService.getRepoStats).toBe(getRepoStats);
+    expect(gitService.checkpointCreate).toBe(checkpointCreate);
+    expect(gitService.checkpointList).toBe(checkpointList);
+    expect(gitService.checkpointRestore).toBe(checkpointRestore);
+    expect(gitService.checkpointDelete).toBe(checkpointDelete);
   });
 });

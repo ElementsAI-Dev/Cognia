@@ -46,7 +46,7 @@ jest.mock('./recording-controls', () => ({
 }));
 
 // Mock EmptyState
-jest.mock('@/components/layout/empty-state', () => ({
+jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ title, description }: { title: string; description: string }) => (
     <div data-testid="empty-state">
       <p>{title}</p>

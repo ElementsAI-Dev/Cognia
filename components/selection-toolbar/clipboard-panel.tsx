@@ -40,7 +40,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { EmptyState } from "@/components/layout/empty-state";
+import { EmptyState } from "@/components/layout/feedback/empty-state";
 import {
   useClipboardMonitor,
   ClipboardContent,

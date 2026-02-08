@@ -6,6 +6,7 @@ import { MarketplaceEmptyState } from './marketplace-empty-state';
 
 describe('MarketplaceEmptyState', () => {
   const onClear = jest.fn();
+  const onRefresh = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -47,9 +48,10 @@ describe('MarketplaceEmptyState', () => {
     expect(screen.getByText('Refresh')).toBeInTheDocument();
   });
 
-  it('renders suggest plugin link', () => {
-    render(<MarketplaceEmptyState searchQuery="" onClear={onClear} />);
-    expect(screen.getByText('Suggest a Plugin')).toBeInTheDocument();
+  it('calls onRefresh when refresh button clicked', () => {
+    render(<MarketplaceEmptyState searchQuery="" onClear={onClear} onRefresh={onRefresh} />);
+    fireEvent.click(screen.getByText('Refresh'));
+    expect(onRefresh).toHaveBeenCalled();
   });
 
   it('renders popular search suggestions', () => {

@@ -168,6 +168,9 @@
       "eventTypeStepFinish": "Step finish",
       "eventTypePlanning": "Planning",
       "eventTypeResponse": "Response",
+      "eventTypeCheckpointCreate": "Checkpoint Create",
+      "eventTypeCheckpointRestore": "Checkpoint Restore",
+      "eventTypeError": "Error",
       "clearFilters": "Clear",
       "showingCount": "Showing {count} traces",
       "emptyTitle": "No traces found",
@@ -218,6 +221,7 @@
         "totalTraces": "Total Traces",
         "sessions": "Sessions",
         "totalTokens": "Total Tokens",
+        "totalCost": "Est. Cost",
         "storage": "Storage",
         "steps": "Steps",
         "duration": "Duration",
@@ -244,6 +248,30 @@
       "viewModes": {
         "list": "List",
         "timeline": "Timeline"
+      },
+      "checkpoints": {
+        "title": "Checkpoints",
+        "noSession": "Select a session to view checkpoints",
+        "refresh": "Refresh",
+        "loading": "Loading...",
+        "empty": "No checkpoints yet",
+        "files": "files",
+        "clearConfirmTitle": "Clear all checkpoints?",
+        "clearConfirmDescription": "This will permanently delete all checkpoints for this session. This action cannot be undone.",
+        "cancel": "Cancel",
+        "clearAll": "Clear All"
+      },
+      "replay": {
+        "title": "Session Replay",
+        "empty": "No events to replay"
+      },
+      "blame": {
+        "title": "Code Attribution",
+        "ai": "AI",
+        "human": "Human",
+        "mixed": "Mixed",
+        "unknown": "Unknown",
+        "byModel": "By Model"
       }
     },
     "git": {

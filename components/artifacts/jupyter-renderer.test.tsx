@@ -2,9 +2,18 @@
  * JupyterRenderer Component Tests
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { JupyterRenderer } from './jupyter-renderer';
+
+// Mock modules with ESM imports that Jest can't handle
+jest.mock('react-vega', () => ({
+  VegaEmbed: () => null,
+}));
+
+jest.mock('@/components/chat/renderers/vegalite-block', () => ({
+  VegaLiteBlock: () => null,
+}));
 
 // Mock sandbox hooks to avoid infinite loop issues
 jest.mock('@/hooks/sandbox', () => ({
@@ -340,6 +349,192 @@ describe('JupyterRenderer', () => {
       renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
 
       expect(screen.queryByText('Clear all outputs')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('cell editing UI', () => {
+    it('should show add cell buttons when onNotebookChange is provided', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Add cell buttons (Plus icons) should exist - one between each cell + one at top
+      const buttons = screen.getAllByRole('button');
+      const addButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-plus')
+      );
+      expect(addButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should not show add cell buttons when onNotebookChange is not provided', () => {
+      renderWithIntl(<JupyterRenderer content={sampleNotebook} />);
+
+      const buttons = screen.getAllByRole('button');
+      const addButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-plus')
+      );
+      expect(addButtons.length).toBe(0);
+    });
+
+    it('should show move and edit buttons when onNotebookChange is provided', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Move up/down and pencil (edit) buttons should exist
+      const buttons = screen.getAllByRole('button');
+      const moveUpButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-arrow-up')
+      );
+      const moveDownButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-arrow-down')
+      );
+      const editButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-pencil')
+      );
+      expect(moveUpButtons.length).toBeGreaterThan(0);
+      expect(moveDownButtons.length).toBeGreaterThan(0);
+      expect(editButtons.length).toBeGreaterThan(0);
+    });
+
+    it('should show delete buttons when onNotebookChange is provided and more than 1 cell', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Trash2 delete buttons should exist (3 cells > 1)
+      const buttons = screen.getAllByRole('button');
+      const deleteButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-trash-2')
+      );
+      // One per cell in the cell headers (toolbar also has one for clear outputs)
+      expect(deleteButtons.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('should call onNotebookChange when add code cell button is clicked', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Find an add code cell button (Plus + Code icon pair)
+      const buttons = screen.getAllByRole('button');
+      const addCodeButtons = buttons.filter(
+        (btn) =>
+          btn.querySelector('.lucide-plus') && btn.querySelector('.lucide-code')
+      );
+      expect(addCodeButtons.length).toBeGreaterThan(0);
+
+      fireEvent.click(addCodeButtons[0]);
+      expect(onNotebookChange).toHaveBeenCalled();
+
+      // Verify the new notebook has one more cell
+      const updatedContent = onNotebookChange.mock.calls[0][0];
+      const parsed = JSON.parse(updatedContent);
+      expect(parsed.cells.length).toBe(4); // was 3
+    });
+
+    it('should call onNotebookChange when add markdown cell button is clicked', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Find add markdown buttons (Plus + Type icon pair)
+      const buttons = screen.getAllByRole('button');
+      const addMdButtons = buttons.filter(
+        (btn) =>
+          btn.querySelector('.lucide-plus') && btn.querySelector('.lucide-type')
+      );
+      expect(addMdButtons.length).toBeGreaterThan(0);
+
+      fireEvent.click(addMdButtons[0]);
+      expect(onNotebookChange).toHaveBeenCalled();
+
+      const updatedContent = onNotebookChange.mock.calls[0][0];
+      const parsed = JSON.parse(updatedContent);
+      expect(parsed.cells.length).toBe(4);
+      // The new cell should be markdown type (inserted at index 0)
+      expect(parsed.cells[0].cell_type).toBe('markdown');
+    });
+
+    it('should call onNotebookChange when delete cell button is clicked', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Cell delete buttons have tooltip "Delete cell" (vs toolbar "Clear all outputs")
+      // Find buttons with h-5 w-5 size (cell header buttons) containing trash icon
+      const buttons = screen.getAllByRole('button');
+      const cellDeleteButtons = buttons.filter((btn) => {
+        const hasTrash = btn.querySelector('.lucide-trash-2');
+        // Cell header delete buttons are size h-5 w-5, toolbar clear is h-7 w-7
+        const isSmall = btn.className.includes('h-5');
+        return hasTrash && isSmall;
+      });
+      expect(cellDeleteButtons.length).toBe(3); // one per cell
+
+      fireEvent.click(cellDeleteButtons[0]);
+      expect(onNotebookChange).toHaveBeenCalled();
+
+      const updatedContent = onNotebookChange.mock.calls[0][0];
+      const parsed = JSON.parse(updatedContent);
+      expect(parsed.cells.length).toBe(2); // was 3
+    });
+
+    it('should call onNotebookChange when move cell button is clicked', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Find move-down buttons (enabled ones)
+      const buttons = screen.getAllByRole('button');
+      const moveDownButtons = buttons.filter(
+        (btn) =>
+          btn.querySelector('.lucide-arrow-down') && !btn.hasAttribute('disabled')
+      );
+      expect(moveDownButtons.length).toBeGreaterThan(0);
+
+      fireEvent.click(moveDownButtons[0]);
+      expect(onNotebookChange).toHaveBeenCalled();
+    });
+
+    it('should disable move-up button for first cell', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      // Find all move-up buttons
+      const buttons = screen.getAllByRole('button');
+      const moveUpButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-arrow-up')
+      );
+      expect(moveUpButtons.length).toBeGreaterThan(0);
+
+      // First cell's move-up should be disabled
+      expect(moveUpButtons[0]).toBeDisabled();
+    });
+
+    it('should disable move-down button for last cell', () => {
+      const onNotebookChange = jest.fn();
+      renderWithIntl(
+        <JupyterRenderer content={sampleNotebook} onNotebookChange={onNotebookChange} />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      const moveDownButtons = buttons.filter(
+        (btn) => btn.querySelector('.lucide-arrow-down')
+      );
+      expect(moveDownButtons.length).toBeGreaterThan(0);
+
+      // Last cell's move-down should be disabled
+      expect(moveDownButtons[moveDownButtons.length - 1]).toBeDisabled();
     });
   });
 });

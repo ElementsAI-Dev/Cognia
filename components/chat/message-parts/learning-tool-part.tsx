@@ -22,15 +22,15 @@ import {
   Flashcard,
   FlashcardFromTool,
   FlashcardDeckFromTool,
-} from '@/components/learning/flashcard';
+} from '@/components/learning/content/flashcard';
 import {
   QuizFromTool,
   QuizQuestionFromTool,
-} from '@/components/learning/quiz';
+} from '@/components/learning/content/quiz';
 import {
   ReviewSessionFromTool,
   ProgressSummaryFromTool,
-} from '@/components/learning/review-session';
+} from '@/components/learning/content/review-session';
 import type {
   LearningToolOutput,
   FlashcardToolOutput,

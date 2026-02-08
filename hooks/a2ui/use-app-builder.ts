@@ -964,6 +964,209 @@ export function useA2UIAppBuilder(options: UseA2UIAppBuilderOptions = {}): UseA2
           break;
         }
 
+        // ========== BMI Calculator Actions ==========
+        case 'calculate_bmi': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const height = (currentData.height as number) || 170;
+            const weight = (currentData.weight as number) || 65;
+            const heightM = height / 100;
+            const bmi = weight / (heightM * heightM);
+            const bmiRounded = Math.round(bmi * 10) / 10;
+            let status: string;
+            if (bmi < 18.5) status = '偏瘦';
+            else if (bmi < 24) status = '正常';
+            else if (bmi < 28) status = '偏胖';
+            else status = '肥胖';
+            setAppData(surfaceId, '/bmi', String(bmiRounded));
+            setAppData(surfaceId, '/status', status);
+          }
+          break;
+        }
+
+        // ========== Age Calculator Actions ==========
+        case 'calculate_age': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const birthDate = currentData.birthDate as string;
+            if (birthDate) {
+              const birth = new Date(birthDate);
+              const now = new Date();
+              let age = now.getFullYear() - birth.getFullYear();
+              const monthDiff = now.getMonth() - birth.getMonth();
+              if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+                age--;
+              }
+              const nextBirthday = new Date(now.getFullYear(), birth.getMonth(), birth.getDate());
+              if (nextBirthday < now) {
+                nextBirthday.setFullYear(nextBirthday.getFullYear() + 1);
+              }
+              const daysUntil = Math.ceil((nextBirthday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              setAppData(surfaceId, '/age', `${age} 岁`);
+              setAppData(surfaceId, '/nextBirthday', `距离下次生日还有 ${daysUntil} 天`);
+            }
+          }
+          break;
+        }
+
+        // ========== Loan Calculator Actions ==========
+        case 'calculate_loan': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const principal = parseFloat(currentData.principal as string) || 0;
+            const annualRate = (currentData.rate as number) || 5;
+            const years = (currentData.years as number) || 20;
+            const monthlyRate = annualRate / 100 / 12;
+            const totalMonths = years * 12;
+            if (principal > 0 && monthlyRate > 0) {
+              const monthly = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
+                (Math.pow(1 + monthlyRate, totalMonths) - 1);
+              const total = monthly * totalMonths;
+              const interest = total - principal;
+              setAppData(surfaceId, '/monthly', `¥${monthly.toFixed(2)}`);
+              setAppData(surfaceId, '/total', `¥${total.toFixed(2)}`);
+              setAppData(surfaceId, '/interest', `¥${interest.toFixed(2)}`);
+            }
+          }
+          break;
+        }
+
+        // ========== Form Submit Actions ==========
+        case 'submit': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const formData = currentData.form as Record<string, unknown>;
+            log.debug('A2UI AppBuilder: Form submitted', { surfaceId, formData });
+            setAppData(surfaceId, '/submitted', true);
+            setAppData(surfaceId, '/submittedAt', new Date().toISOString());
+          }
+          // Also pass to external handler for custom processing
+          onAction?.(action);
+          break;
+        }
+
+        case 'execute': {
+          log.debug('A2UI AppBuilder: Execute action', { surfaceId, data });
+          onAction?.(action);
+          break;
+        }
+
+        // ========== Health Tracker Actions ==========
+        case 'add_steps': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const newSteps = parseInt(currentData.newSteps as string) || 0;
+            if (newSteps > 0) {
+              const todayStats = (currentData.todayStats as Record<string, number>) || {};
+              const currentSteps = todayStats.steps || 0;
+              setAppData(surfaceId, '/todayStats/steps', currentSteps + newSteps);
+              setAppData(surfaceId, '/newSteps', '');
+            }
+          }
+          break;
+        }
+
+        case 'add_water_1':
+        case 'add_water_2':
+        case 'add_water_3': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const cups = parseInt(actionType.replace('add_water_', ''));
+            const todayStats = (currentData.todayStats as Record<string, number>) || {};
+            const currentWater = todayStats.water || 0;
+            setAppData(surfaceId, '/todayStats/water', currentWater + cups);
+          }
+          break;
+        }
+
+        // ========== Note Selection Actions ==========
+        case 'select_note': {
+          const currentData = getAppData(surfaceId);
+          if (currentData && data?.index !== undefined) {
+            const notes = (currentData.notes as Array<{ id: number; title: string; content: string }>) || [];
+            const noteIndex = data.index as number;
+            if (notes[noteIndex]) {
+              setAppData(surfaceId, '/selectedNote', notes[noteIndex]);
+              setAppData(surfaceId, '/newNote', {
+                title: notes[noteIndex].title,
+                content: notes[noteIndex].content,
+              });
+            }
+          }
+          break;
+        }
+
+        case 'delete_note': {
+          const currentData = getAppData(surfaceId);
+          if (currentData && data?.index !== undefined) {
+            const notes = [...((currentData.notes as unknown[]) || [])];
+            const noteIndex = data.index as number;
+            if (noteIndex >= 0 && noteIndex < notes.length) {
+              notes.splice(noteIndex, 1);
+              setAppData(surfaceId, '/notes', notes);
+            }
+          }
+          break;
+        }
+
+        // ========== Expense View Actions ==========
+        case 'view_expense': {
+          const currentData = getAppData(surfaceId);
+          if (currentData && data?.index !== undefined) {
+            const expenses = (currentData.expenses as unknown[]) || [];
+            const expenseIndex = data.index as number;
+            if (expenses[expenseIndex]) {
+              setAppData(surfaceId, '/selectedExpense', expenses[expenseIndex]);
+            }
+          }
+          break;
+        }
+
+        case 'delete_expense': {
+          const currentData = getAppData(surfaceId);
+          if (currentData && data?.index !== undefined) {
+            const expenses = [...((currentData.expenses as unknown[]) || [])];
+            const expenseIndex = data.index as number;
+            if (expenseIndex >= 0 && expenseIndex < expenses.length) {
+              expenses.splice(expenseIndex, 1);
+              setAppData(surfaceId, '/expenses', expenses);
+              updateExpenseStats(surfaceId, expenses);
+            }
+          }
+          break;
+        }
+
+        // ========== Delete Task Actions ==========
+        case 'delete_task': {
+          const currentData = getAppData(surfaceId);
+          if (currentData && data?.index !== undefined) {
+            const tasks = [...((currentData.tasks as unknown[]) || [])];
+            const taskIndex = data.index as number;
+            if (taskIndex >= 0 && taskIndex < tasks.length) {
+              tasks.splice(taskIndex, 1);
+              setAppData(surfaceId, '/tasks', tasks);
+              updateTaskStats(surfaceId, tasks);
+            }
+          }
+          break;
+        }
+
+        // ========== Toggle/Negate Actions ==========
+        case 'negate': {
+          const currentData = getAppData(surfaceId);
+          if (currentData) {
+            const display = (currentData.display as string) || '0';
+            if (display !== '0') {
+              setAppData(
+                surfaceId,
+                '/display',
+                display.startsWith('-') ? display.slice(1) : '-' + display
+              );
+            }
+          }
+          break;
+        }
+
         default:
           // Pass to external handler
           onAction?.(action);

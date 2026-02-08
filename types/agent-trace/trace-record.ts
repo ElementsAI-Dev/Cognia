@@ -40,7 +40,19 @@ export type AgentTraceEventType =
   | 'step_start'
   | 'step_finish'
   | 'planning'
-  | 'response';
+  | 'response'
+  | 'checkpoint_create'
+  | 'checkpoint_restore'
+  | 'error';
+
+export type AgentTraceSeverity = 'info' | 'warn' | 'error';
+
+export interface TraceCostEstimate {
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+  currency: string;
+}
 
 export interface AgentTraceRecord {
   version: string;
@@ -58,5 +70,13 @@ export interface AgentTraceRecord {
   /** Logical turn/step identifiers for agent execution */
   turnId?: string;
   stepId?: string;
+  /** Duration of this trace event in milliseconds */
+  duration?: number;
+  /** Estimated cost for this trace event */
+  costEstimate?: TraceCostEstimate;
+  /** Severity level for filtering and display */
+  severity?: AgentTraceSeverity;
+  /** Tags for categorization and filtering */
+  tags?: string[];
   metadata?: Record<string, unknown>;
 }

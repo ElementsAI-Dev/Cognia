@@ -28,6 +28,12 @@ import type {
   CreateTaskInput,
   SendMessageInput,
   TeamDisplayMode,
+  SharedMemoryEntry,
+  SharedMemoryNamespace,
+  ConsensusRequest,
+  ConsensusVote,
+  CreateConsensusInput,
+  CastVoteInput,
 } from '@/types/agent/agent-team';
 import type { AgentTool } from '@/lib/ai/agent';
 import type { ProviderName } from '@/types/provider/provider';
@@ -99,6 +105,20 @@ export interface UseAgentTeamReturn {
   // Template actions
   addTemplate: (template: AgentTeamTemplate) => void;
   deleteTemplate: (templateId: string) => void;
+
+  // Shared memory (blackboard pattern)
+  writeSharedMemory: (teamId: string, key: string, value: unknown, writtenBy: string, options?: { namespace?: SharedMemoryNamespace; writerName?: string; tags?: string[] }) => SharedMemoryEntry | null;
+  readSharedMemory: (teamId: string, key: string, readerId?: string, namespace?: SharedMemoryNamespace) => SharedMemoryEntry | undefined;
+  readAllSharedMemory: (teamId: string, readerId?: string, namespace?: SharedMemoryNamespace) => SharedMemoryEntry[];
+
+  // Consensus / Voting
+  createConsensus: (input: CreateConsensusInput) => ConsensusRequest;
+  castVote: (input: CastVoteInput) => ConsensusVote | null;
+  getConsensus: (consensusId: string) => ConsensusRequest | undefined;
+  getTeamConsensus: (teamId: string) => ConsensusRequest[];
+
+  // Bridge delegation
+  delegateTaskToBackground: (teamId: string, taskId: string, options?: { priority?: number; name?: string }) => Promise<string | null>;
 
   // Manager reference
   manager: AgentTeamManager;
@@ -429,6 +449,65 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
     [manager, storeActions]
   );
 
+  // Shared memory callbacks
+  const writeSharedMemory = useCallback(
+    (teamId: string, key: string, value: unknown, writtenBy: string, options?: { namespace?: SharedMemoryNamespace; writerName?: string; tags?: string[] }) => {
+      return manager.writeSharedMemory(teamId, key, value, writtenBy, options);
+    },
+    [manager]
+  );
+
+  const readSharedMemory = useCallback(
+    (teamId: string, key: string, readerId?: string, namespace?: SharedMemoryNamespace) => {
+      return manager.readSharedMemory(teamId, key, readerId, namespace);
+    },
+    [manager]
+  );
+
+  const readAllSharedMemory = useCallback(
+    (teamId: string, readerId?: string, namespace?: SharedMemoryNamespace) => {
+      return manager.readAllSharedMemory(teamId, readerId, namespace);
+    },
+    [manager]
+  );
+
+  // Consensus callbacks
+  const createConsensus = useCallback(
+    (input: CreateConsensusInput) => {
+      return manager.createConsensus(input);
+    },
+    [manager]
+  );
+
+  const castVote = useCallback(
+    (input: CastVoteInput) => {
+      return manager.castVote(input);
+    },
+    [manager]
+  );
+
+  const getConsensus = useCallback(
+    (consensusId: string) => {
+      return manager.getConsensus(consensusId);
+    },
+    [manager]
+  );
+
+  const getTeamConsensus = useCallback(
+    (teamId: string) => {
+      return manager.getTeamConsensus(teamId);
+    },
+    [manager]
+  );
+
+  // Bridge delegation callback
+  const delegateTaskToBackground = useCallback(
+    async (teamId: string, taskId: string, options?: { priority?: number; name?: string }) => {
+      return manager.delegateTaskToBackground(teamId, taskId, options);
+    },
+    [manager]
+  );
+
   return {
     // State
     teams: store.teams,
@@ -478,6 +557,20 @@ export function useAgentTeam(options: UseAgentTeamOptions = {}): UseAgentTeamRet
     // Template actions
     addTemplate: storeActions.storeAddTemplate,
     deleteTemplate: storeActions.storeDeleteTemplate,
+
+    // Shared memory
+    writeSharedMemory,
+    readSharedMemory,
+    readAllSharedMemory,
+
+    // Consensus
+    createConsensus,
+    castVote,
+    getConsensus,
+    getTeamConsensus,
+
+    // Bridge delegation
+    delegateTaskToBackground,
 
     // Manager reference
     manager,

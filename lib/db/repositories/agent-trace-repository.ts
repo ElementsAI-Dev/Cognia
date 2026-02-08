@@ -72,6 +72,8 @@ export interface SessionTraceSummary {
   };
   totalLatencyMs: number;
   avgLatencyMs: number;
+  /** Estimated total cost in USD */
+  totalCost: number;
   models: string[];
   contributors: string[];
 }
@@ -83,6 +85,8 @@ export interface TraceStats {
   oldestTimestamp: string | null;
   newestTimestamp: string | null;
   totalTokens: number;
+  /** Estimated total cost in USD */
+  totalCost: number;
   storageEstimateBytes: number;
 }
 
@@ -414,12 +418,18 @@ export const agentTraceRepository = {
     let totalTokens = 0;
     let totalLatencyMs = 0;
     let latencyCount = 0;
+    let totalCost = 0;
 
     const timestamps: number[] = [];
 
     for (const row of rows) {
       try {
         const record = parseTraceRecord(row.record);
+
+        // Accumulate cost from record-level costEstimate
+        if (record.costEstimate?.totalCost) {
+          totalCost += record.costEstimate.totalCost;
+        }
         const ts = new Date(record.timestamp).getTime();
         if (!isNaN(ts)) timestamps.push(ts);
 
@@ -502,6 +512,7 @@ export const agentTraceRepository = {
       tokenUsage: { promptTokens, completionTokens, totalTokens },
       totalLatencyMs,
       avgLatencyMs: latencyCount > 0 ? totalLatencyMs / latencyCount : 0,
+      totalCost,
       models: Array.from(models),
       contributors: Array.from(contributors),
     };
@@ -519,6 +530,7 @@ export const agentTraceRepository = {
     let oldestTs: number | null = null;
     let newestTs: number | null = null;
     let totalTokens = 0;
+    let totalCost = 0;
     let storageEstimateBytes = 0;
 
     for (const row of allRows) {
@@ -538,6 +550,11 @@ export const agentTraceRepository = {
         const eventType = record.eventType || 'unknown';
         eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
 
+        // Accumulate cost
+        if (record.costEstimate?.totalCost) {
+          totalCost += record.costEstimate.totalCost;
+        }
+
         const meta = record.metadata as Record<string, unknown> | undefined;
         if (meta) {
           const tu = meta.tokenUsage as { totalTokens?: number } | undefined;
@@ -555,6 +572,7 @@ export const agentTraceRepository = {
       oldestTimestamp: oldestTs ? new Date(oldestTs).toISOString() : null,
       newestTimestamp: newestTs ? new Date(newestTs).toISOString() : null,
       totalTokens,
+      totalCost,
       storageEstimateBytes,
     };
   },

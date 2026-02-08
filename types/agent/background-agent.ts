@@ -110,6 +110,12 @@ export interface BackgroundAgentConfig {
   enableMcpTools?: boolean;
   /** MCP server IDs to use */
   mcpServerIds?: string[];
+  /** Enable team delegation for complex tasks */
+  enableTeamDelegation?: boolean;
+  /** Team template ID to use for delegation */
+  teamTemplateId?: string;
+  /** Team config overrides for delegation */
+  teamConfig?: Record<string, unknown>;
 }
 
 /**

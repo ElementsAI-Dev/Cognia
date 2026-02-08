@@ -19,6 +19,11 @@ import type {
   WebhookNodeData,
   TransformNodeData,
   MergeNodeData,
+  KnowledgeRetrievalNodeData,
+  ParameterExtractorNodeData,
+  VariableAggregatorNodeData,
+  QuestionClassifierNodeData,
+  TemplateTransformNodeData,
   WorkflowNodeType,
 } from '@/types/workflow/workflow-editor';
 
@@ -99,6 +104,21 @@ export function validateNode(nodeType: WorkflowNodeType, data: WorkflowNodeData)
       break;
     case 'merge':
       validateMergeNode(data as MergeNodeData, errors, warnings);
+      break;
+    case 'knowledgeRetrieval':
+      validateKnowledgeRetrievalNode(data as KnowledgeRetrievalNodeData, errors, warnings);
+      break;
+    case 'parameterExtractor':
+      validateParameterExtractorNode(data as ParameterExtractorNodeData, errors, warnings);
+      break;
+    case 'variableAggregator':
+      validateVariableAggregatorNode(data as VariableAggregatorNodeData, errors, warnings);
+      break;
+    case 'questionClassifier':
+      validateQuestionClassifierNode(data as QuestionClassifierNodeData, errors, warnings);
+      break;
+    case 'templateTransform':
+      validateTemplateTransformNode(data as TemplateTransformNodeData, errors, warnings);
       break;
   }
 
@@ -634,6 +654,182 @@ function validateMergeNode(data: MergeNodeData, errors: ValidationError[], _warn
 }
 
 /**
+ * Knowledge Retrieval Node validation
+ */
+function validateKnowledgeRetrievalNode(data: KnowledgeRetrievalNodeData, errors: ValidationError[], warnings: ValidationWarning[]): void {
+  if (data.knowledgeBaseIds.length === 0) {
+    errors.push({
+      field: 'knowledgeBaseIds',
+      message: 'At least one knowledge base must be selected',
+      code: 'REQUIRED_FIELD',
+    });
+  }
+
+  if (!data.queryVariable) {
+    warnings.push({
+      field: 'queryVariable',
+      message: 'No query variable selected — node will need runtime input',
+      code: 'MISSING_VARIABLE_REF',
+    });
+  }
+
+  if (data.topK < 1 || data.topK > 50) {
+    errors.push({
+      field: 'topK',
+      message: 'Top K must be between 1 and 50',
+      code: 'OUT_OF_RANGE',
+    });
+  }
+
+  if (data.scoreThreshold < 0 || data.scoreThreshold > 1) {
+    errors.push({
+      field: 'scoreThreshold',
+      message: 'Score threshold must be between 0 and 1',
+      code: 'OUT_OF_RANGE',
+    });
+  }
+}
+
+/**
+ * Parameter Extractor Node validation
+ */
+function validateParameterExtractorNode(data: ParameterExtractorNodeData, errors: ValidationError[], warnings: ValidationWarning[]): void {
+  if (!data.instruction || data.instruction.trim() === '') {
+    errors.push({
+      field: 'instruction',
+      message: 'Extraction instruction is required',
+      code: 'REQUIRED_FIELD',
+    });
+  }
+
+  if (data.parameters.length === 0) {
+    errors.push({
+      field: 'parameters',
+      message: 'At least one parameter must be defined',
+      code: 'REQUIRED_FIELD',
+    });
+  }
+
+  // Check for duplicate parameter names
+  const names = data.parameters.map(p => p.name);
+  const duplicates = names.filter((name, i) => names.indexOf(name) !== i);
+  if (duplicates.length > 0) {
+    errors.push({
+      field: 'parameters',
+      message: `Duplicate parameter names: ${[...new Set(duplicates)].join(', ')}`,
+      code: 'DUPLICATE_NAME',
+    });
+  }
+
+  if (!data.model) {
+    warnings.push({
+      field: 'model',
+      message: 'No model selected, will use default',
+      code: 'DEFAULT_VALUE',
+    });
+  }
+}
+
+/**
+ * Variable Aggregator Node validation
+ */
+function validateVariableAggregatorNode(data: VariableAggregatorNodeData, errors: ValidationError[], warnings: ValidationWarning[]): void {
+  if (data.variableRefs.length === 0) {
+    warnings.push({
+      field: 'variableRefs',
+      message: 'No variable references selected',
+      code: 'EMPTY_REFS',
+    });
+  }
+
+  if (!data.outputVariableName || data.outputVariableName.trim() === '') {
+    errors.push({
+      field: 'outputVariableName',
+      message: 'Output variable name is required',
+      code: 'REQUIRED_FIELD',
+    });
+  } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(data.outputVariableName)) {
+    errors.push({
+      field: 'outputVariableName',
+      message: 'Output variable name must be a valid identifier',
+      code: 'INVALID_FORMAT',
+    });
+  }
+}
+
+/**
+ * Question Classifier Node validation
+ */
+function validateQuestionClassifierNode(data: QuestionClassifierNodeData, errors: ValidationError[], warnings: ValidationWarning[]): void {
+  if (data.classes.length < 2) {
+    errors.push({
+      field: 'classes',
+      message: 'At least 2 classification classes are required',
+      code: 'MIN_ITEMS',
+    });
+  }
+
+  // Check for empty class names
+  data.classes.forEach((cls, i) => {
+    if (!cls.name || cls.name.trim() === '') {
+      errors.push({
+        field: `classes[${i}].name`,
+        message: `Class ${i + 1} name is required`,
+        code: 'REQUIRED_FIELD',
+      });
+    }
+    if (!cls.description || cls.description.trim() === '') {
+      warnings.push({
+        field: `classes[${i}].description`,
+        message: `Class "${cls.name}" has no description — may reduce classification accuracy`,
+        code: 'MISSING_DESCRIPTION',
+      });
+    }
+  });
+
+  if (!data.model) {
+    warnings.push({
+      field: 'model',
+      message: 'No model selected, will use default',
+      code: 'DEFAULT_VALUE',
+    });
+  }
+}
+
+/**
+ * Template Transform Node validation
+ */
+function validateTemplateTransformNode(data: TemplateTransformNodeData, errors: ValidationError[], warnings: ValidationWarning[]): void {
+  if (!data.template || data.template.trim() === '') {
+    errors.push({
+      field: 'template',
+      message: 'Template is required',
+      code: 'REQUIRED_FIELD',
+    });
+  } else {
+    // Check for unmatched template braces
+    const openBraces = (data.template.match(/\{\{/g) || []).length;
+    const closeBraces = (data.template.match(/\}\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      warnings.push({
+        field: 'template',
+        message: 'Template has unmatched {{ }} braces',
+        code: 'SYNTAX_WARNING',
+      });
+    }
+
+    // Check for referenced variables
+    if (openBraces > 0 && data.variableRefs.length === 0) {
+      warnings.push({
+        field: 'variableRefs',
+        message: 'Template uses {{variable}} syntax but no variable references are selected',
+        code: 'MISSING_VARIABLE_REFS',
+      });
+    }
+  }
+}
+
+/**
  * Get field-specific error message
  */
 export function getFieldError(result: ValidationResult, field: string): string | undefined {
@@ -1055,6 +1251,11 @@ function getNodeOutputs(node: { type: string; data: WorkflowNodeData }): Record<
     case 'loop':
     case 'merge':
     case 'subworkflow':
+    case 'knowledgeRetrieval':
+    case 'parameterExtractor':
+    case 'variableAggregator':
+    case 'questionClassifier':
+    case 'templateTransform':
       return (data as { outputs?: Record<string, { type: string }> }).outputs || { result: { type: 'object' } };
     case 'conditional':
       return {
@@ -1093,6 +1294,11 @@ function getNodeInputs(node: { type: string; data: WorkflowNodeData }): Record<s
     case 'loop':
     case 'merge':
     case 'subworkflow':
+    case 'knowledgeRetrieval':
+    case 'parameterExtractor':
+    case 'variableAggregator':
+    case 'questionClassifier':
+    case 'templateTransform':
       return (data as { inputs?: Record<string, { type: string }> }).inputs || {};
     case 'conditional':
       return (data as ConditionalNodeData).inputs || {};

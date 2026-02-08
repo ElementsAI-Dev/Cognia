@@ -21,6 +21,11 @@ import {
   Check,
   Terminal,
   Braces,
+  Plus,
+  ArrowUp,
+  ArrowDown,
+  Pencil,
+  Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -46,6 +51,12 @@ import {
   notebookToMarkdown,
   clearAllOutputs,
   serializeNotebook,
+  addCell,
+  removeCell,
+  moveCell,
+  updateCell,
+  createCodeCell,
+  createMarkdownCell,
 } from '@/lib/jupyter';
 import type { JupyterCell, JupyterOutput, JupyterNotebook } from '@/types';
 
@@ -68,6 +79,8 @@ export function JupyterRenderer({
   const [collapsedCells, setCollapsedCells] = useState<Set<number>>(new Set());
   const [collapsedOutputs, setCollapsedOutputs] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<number | null>(null);
+  const [editSource, setEditSource] = useState<string>('');
 
   const notebook = useMemo(() => {
     try {
@@ -115,6 +128,66 @@ export function JupyterRenderer({
     },
     [notebook]
   );
+
+  // Cell management handlers
+  const handleAddCell = useCallback(
+    (index: number, type: 'code' | 'markdown') => {
+      if (!notebook || !onNotebookChange) return;
+      const cell = type === 'code' ? createCodeCell('') : createMarkdownCell('');
+      const updated = addCell(notebook, cell, index);
+      onNotebookChange(serializeNotebook(updated));
+      setEditingCell(index);
+      setEditSource('');
+    },
+    [notebook, onNotebookChange]
+  );
+
+  const handleDeleteCell = useCallback(
+    (index: number) => {
+      if (!notebook || !onNotebookChange) return;
+      if (notebook.cells.length <= 1) return;
+      const updated = removeCell(notebook, index);
+      onNotebookChange(serializeNotebook(updated));
+      if (editingCell === index) setEditingCell(null);
+    },
+    [notebook, onNotebookChange, editingCell]
+  );
+
+  const handleMoveCell = useCallback(
+    (fromIndex: number, direction: 'up' | 'down') => {
+      if (!notebook || !onNotebookChange) return;
+      const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+      if (toIndex < 0 || toIndex >= notebook.cells.length) return;
+      const updated = moveCell(notebook, fromIndex, toIndex);
+      onNotebookChange(serializeNotebook(updated));
+      if (editingCell === fromIndex) setEditingCell(toIndex);
+    },
+    [notebook, onNotebookChange, editingCell]
+  );
+
+  const handleStartEdit = useCallback(
+    (index: number) => {
+      if (!notebook) return;
+      setEditingCell(index);
+      setEditSource(getCellSource(notebook.cells[index]));
+    },
+    [notebook]
+  );
+
+  const handleSaveEdit = useCallback(
+    (index: number) => {
+      if (!notebook || !onNotebookChange) return;
+      const updated = updateCell(notebook, index, { source: editSource });
+      onNotebookChange(serializeNotebook(updated));
+      setEditingCell(null);
+    },
+    [notebook, onNotebookChange, editSource]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCell(null);
+    setEditSource('');
+  }, []);
 
   const toggleCellCollapse = (index: number) => {
     setCollapsedCells((prev) => {
@@ -197,24 +270,52 @@ export function JupyterRenderer({
 
       {/* Cells */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
-          {notebook.cells.map((cell, index) => (
-            <NotebookCell
-              key={cell.id || index}
-              cell={cell}
-              index={index}
-              language={language}
-              isCollapsed={collapsedCells.has(index)}
-              isOutputCollapsed={collapsedOutputs.has(index)}
-              onToggleCollapse={() => toggleCellCollapse(index)}
-              onToggleOutputCollapse={() => toggleOutputCollapse(index)}
-              onExecute={
-                onCellExecute ? () => onCellExecute(index, getCellSource(cell)) : undefined
-              }
-              onCopy={() => handleCopyCell(index)}
-              isCopied={copied === `cell-${index}`}
+        <div className="p-4 space-y-1">
+          {/* Add cell button at top */}
+          {onNotebookChange && (
+            <AddCellButton
+              onAddCode={() => handleAddCell(0, 'code')}
+              onAddMarkdown={() => handleAddCell(0, 'markdown')}
               t={t}
             />
+          )}
+          {notebook.cells.map((cell, index) => (
+            <div key={cell.id || index}>
+              <NotebookCell
+                cell={cell}
+                index={index}
+                language={language}
+                isCollapsed={collapsedCells.has(index)}
+                isOutputCollapsed={collapsedOutputs.has(index)}
+                isEditing={editingCell === index}
+                editSource={editingCell === index ? editSource : ''}
+                canEdit={!!onNotebookChange}
+                totalCells={notebook.cells.length}
+                onToggleCollapse={() => toggleCellCollapse(index)}
+                onToggleOutputCollapse={() => toggleOutputCollapse(index)}
+                onExecute={
+                  onCellExecute ? () => onCellExecute(index, getCellSource(cell)) : undefined
+                }
+                onCopy={() => handleCopyCell(index)}
+                onDelete={() => handleDeleteCell(index)}
+                onMoveUp={() => handleMoveCell(index, 'up')}
+                onMoveDown={() => handleMoveCell(index, 'down')}
+                onStartEdit={() => handleStartEdit(index)}
+                onSaveEdit={() => handleSaveEdit(index)}
+                onCancelEdit={handleCancelEdit}
+                onEditSourceChange={setEditSource}
+                isCopied={copied === `cell-${index}`}
+                t={t}
+              />
+              {/* Add cell button between cells */}
+              {onNotebookChange && (
+                <AddCellButton
+                  onAddCode={() => handleAddCell(index + 1, 'code')}
+                  onAddMarkdown={() => handleAddCell(index + 1, 'markdown')}
+                  t={t}
+                />
+              )}
+            </div>
           ))}
         </div>
       </ScrollArea>
@@ -349,16 +450,61 @@ function NotebookToolbar({
   );
 }
 
+// Add cell button between cells
+interface AddCellButtonProps {
+  onAddCode: () => void;
+  onAddMarkdown: () => void;
+  t: ReturnType<typeof useTranslations>;
+}
+
+function AddCellButton({ onAddCode, onAddMarkdown }: AddCellButtonProps) {
+  return (
+    <div className="flex items-center justify-center py-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs text-muted-foreground gap-1"
+          onClick={onAddCode}
+        >
+          <Plus className="h-3 w-3" />
+          <Code className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs text-muted-foreground gap-1"
+          onClick={onAddMarkdown}
+        >
+          <Plus className="h-3 w-3" />
+          <Type className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface NotebookCellProps {
   cell: JupyterCell;
   index: number;
   language: string;
   isCollapsed: boolean;
   isOutputCollapsed: boolean;
+  isEditing: boolean;
+  editSource: string;
+  canEdit: boolean;
+  totalCells: number;
   onToggleCollapse: () => void;
   onToggleOutputCollapse: () => void;
   onExecute?: () => void;
   onCopy: () => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onStartEdit: () => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onEditSourceChange: (source: string) => void;
   isCopied: boolean;
   t: ReturnType<typeof useTranslations>;
 }
@@ -369,10 +515,21 @@ function NotebookCell({
   language,
   isCollapsed,
   isOutputCollapsed,
+  isEditing,
+  editSource,
+  canEdit,
+  totalCells,
   onToggleCollapse,
   onToggleOutputCollapse,
   onExecute,
   onCopy,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onEditSourceChange,
   isCopied,
   t,
 }: NotebookCellProps) {
@@ -421,6 +578,52 @@ function NotebookCell({
         {/* Cell actions */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <TooltipProvider>
+            {canEdit && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={onMoveUp}
+                      disabled={index === 0}
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move up</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={onMoveDown}
+                      disabled={index === totalCells - 1}
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Move down</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={isEditing ? onCancelEdit : onStartEdit}
+                    >
+                      <Pencil className={cn('h-3 w-3', isEditing && 'text-primary')} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{isEditing ? 'Cancel edit' : 'Edit cell'}</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onCopy}>
@@ -444,6 +647,22 @@ function NotebookCell({
                 <TooltipContent>{t('runCell')}</TooltipContent>
               </Tooltip>
             )}
+
+            {canEdit && totalCells > 1 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 text-destructive hover:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete cell</TooltipContent>
+              </Tooltip>
+            )}
           </TooltipProvider>
         </div>
       </div>
@@ -451,15 +670,43 @@ function NotebookCell({
       {/* Cell content */}
       {!isCollapsed && (
         <div className="relative">
-          {isCodeCell ? (
-            <div className="text-sm">
+          {isEditing ? (
+            <div className="flex flex-col">
+              <textarea
+                value={editSource}
+                onChange={(e) => onEditSourceChange(e.target.value)}
+                className="w-full min-h-[120px] p-3 text-sm font-mono bg-background border-none outline-none resize-y focus:ring-1 focus:ring-primary"
+                placeholder={isCodeCell ? '# Enter code...' : 'Enter markdown...'}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') onCancelEdit();
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') onSaveEdit();
+                }}
+                autoFocus
+              />
+              <div className="flex items-center justify-end gap-2 px-3 py-1.5 border-t bg-muted/20">
+                <span className="text-[10px] text-muted-foreground mr-auto">
+                  Ctrl+Enter to save · Esc to cancel
+                </span>
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={onCancelEdit}>
+                  Cancel
+                </Button>
+                <Button size="sm" className="h-6 text-xs" onClick={onSaveEdit}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : isCodeCell ? (
+            <div className="text-sm" onDoubleClick={canEdit ? onStartEdit : undefined}>
               <CodeBlock
                 code={source}
                 language={language as 'python' | 'javascript' | 'typescript'}
               />
             </div>
           ) : isMarkdownCell ? (
-            <div className="p-4 prose prose-sm dark:prose-invert max-w-none">
+            <div
+              className="p-4 prose prose-sm dark:prose-invert max-w-none"
+              onDoubleClick={canEdit ? onStartEdit : undefined}
+            >
               <MarkdownRenderer content={source} />
             </div>
           ) : (

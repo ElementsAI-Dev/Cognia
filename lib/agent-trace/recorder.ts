@@ -3,15 +3,19 @@ import { agentTraceRepository } from '@/lib/db/repositories/agent-trace-reposito
 import type {
   AgentTraceRecord,
   AgentTraceEventType,
+  AgentTraceSeverity,
+  TraceCostEstimate,
   ContributorType,
   TraceFile,
   Contributor,
 } from '@/types/agent-trace';
+import { estimateTraceCost } from './cost-estimator';
 import { useGitStore } from '@/stores/git';
 import { useSettingsStore } from '@/stores';
 import { vcsService, type VcsType } from '@/lib/native/vcs';
 import { getCurrentSpanId, getCurrentTraceId } from '@/lib/ai/observability/tracing';
 import { countLines, fnv1a32 } from './utils';
+import { createCheckpoint } from './checkpoint-manager';
 
 /** Current agent trace format version */
 export const AGENT_TRACE_VERSION = '0.1.0';
@@ -318,12 +322,34 @@ export interface RecordAgentTraceEventInput {
   parentSpanId?: string;
   turnId?: string;
   stepId?: string;
+  /** Duration of this event in milliseconds */
+  duration?: number;
+  /** Pre-computed cost estimate, or auto-computed from modelId + tokenUsage in metadata */
+  costEstimate?: TraceCostEstimate;
+  /** Severity level */
+  severity?: AgentTraceSeverity;
+  /** Tags for categorization */
+  tags?: string[];
 }
 
 export async function recordAgentTraceEvent(input: RecordAgentTraceEventInput): Promise<string> {
   const id = nanoid();
   const vcsInfo = input.vcsContext?.vcs;
   const traceContext = resolveTraceContext(input);
+
+  // Auto-compute cost if not provided but tokenUsage exists in metadata
+  let costEstimate = input.costEstimate;
+  if (!costEstimate && input.modelId && input.metadata) {
+    const tu = input.metadata.tokenUsage as { promptTokens?: number; completionTokens?: number } | undefined;
+    const usage = input.metadata.usage as { promptTokens?: number; completionTokens?: number } | undefined;
+    const tokens = tu || usage;
+    if (tokens && (tokens.promptTokens || tokens.completionTokens)) {
+      costEstimate = estimateTraceCost(input.modelId, {
+        promptTokens: tokens.promptTokens ?? 0,
+        completionTokens: tokens.completionTokens ?? 0,
+      });
+    }
+  }
 
   const record: AgentTraceRecord = {
     version: AGENT_TRACE_VERSION,
@@ -341,6 +367,10 @@ export async function recordAgentTraceEvent(input: RecordAgentTraceEventInput): 
     parentSpanId: traceContext.parentSpanId,
     turnId: input.turnId,
     stepId: input.stepId,
+    duration: input.duration,
+    costEstimate,
+    severity: input.severity,
+    tags: input.tags,
     metadata: {
       sessionId: input.sessionId,
       ...input.metadata,
@@ -392,7 +422,7 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     const vcsContext = await getVcsInfoAsync(path);
 
     const range = extractLineRangeFromArgs(toolArgs);
-    await recordAgentTrace({
+    const traceId = await recordAgentTrace({
       sessionId: input.sessionId,
       conversationUrl: input.sessionId ? `cognia://agent-session/${input.sessionId}` : undefined,
       contributorType: 'ai',
@@ -404,6 +434,18 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       eventType: 'tool_call_result',
       metadata: buildMetadata(),
     });
+
+    // Create checkpoint for rollback support
+    if (input.sessionId && isSuccess) {
+      void createCheckpoint(
+        input.sessionId,
+        traceId,
+        path,
+        '', // Original content not available here; will be populated by file tools
+        content,
+        getModelId(input.provider, input.model)
+      ).catch(() => { /* checkpoint creation is best-effort */ });
+    }
     return;
   }
 
@@ -474,7 +516,7 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
     const vcsContext = await getVcsInfoAsync(path);
 
     const range = extractLineRangeFromArgs(toolArgs);
-    await recordAgentTrace({
+    const traceId = await recordAgentTrace({
       sessionId: input.sessionId,
       conversationUrl: input.sessionId ? `cognia://agent-session/${input.sessionId}` : undefined,
       contributorType: 'ai',
@@ -486,6 +528,19 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
       eventType: 'tool_call_result',
       metadata: buildMetadata(),
     });
+
+    // Create checkpoint for rollback support
+    if (input.sessionId && isSuccess) {
+      const originalContent = asString(toolArgs.originalContent) || '';
+      void createCheckpoint(
+        input.sessionId,
+        traceId,
+        path,
+        originalContent,
+        content,
+        getModelId(input.provider, input.model)
+      ).catch(() => { /* checkpoint creation is best-effort */ });
+    }
     return;
   }
 

@@ -133,9 +133,10 @@ class SyncSchedulerImpl {
    * Emit a scheduler event (non-blocking)
    */
   private emitEvent(eventType: string, data?: Record<string, unknown>): void {
-    import('@/lib/scheduler/event-integration').then(({ emitSchedulerEvent, isValidEventType }) => {
+    import('@/lib/scheduler/event-integration').then(({ emitSchedulerEvent, isValidEventType, createEventData }) => {
       if (isValidEventType(eventType)) {
-        emitSchedulerEvent(eventType, data).catch((err) => {
+        const eventData = createEventData(eventType, data);
+        emitSchedulerEvent(eventType, { ...eventData.data, _timestamp: eventData.timestamp.toISOString() }).catch((err) => {
           log.error(`Failed to emit scheduler event ${eventType}:`, err);
         });
       }

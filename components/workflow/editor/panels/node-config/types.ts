@@ -21,6 +21,11 @@ import type {
   MergeNodeData,
   GroupNodeData,
   AnnotationNodeData,
+  KnowledgeRetrievalNodeData,
+  ParameterExtractorNodeData,
+  VariableAggregatorNodeData,
+  QuestionClassifierNodeData,
+  TemplateTransformNodeData,
 } from '@/types/workflow/workflow-editor';
 
 // Re-export for convenience
@@ -42,6 +47,11 @@ export type {
   MergeNodeData,
   GroupNodeData,
   AnnotationNodeData,
+  KnowledgeRetrievalNodeData,
+  ParameterExtractorNodeData,
+  VariableAggregatorNodeData,
+  QuestionClassifierNodeData,
+  TemplateTransformNodeData,
 };
 
 // Base config props interface

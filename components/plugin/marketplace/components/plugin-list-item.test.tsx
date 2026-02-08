@@ -104,4 +104,38 @@ describe('PluginListItem', () => {
     expect(screen.getByText('tools')).toBeInTheDocument();
     expect(screen.getByText('components')).toBeInTheDocument();
   });
+
+  it('renders unfilled heart when not favorite', () => {
+    const { container } = render(
+      <PluginListItem plugin={mockPlugin} {...mockHandlers} isFavorite={false} />
+    );
+    const heart = container.querySelector('.lucide-heart');
+    expect(heart).toBeInTheDocument();
+    expect(heart).not.toHaveClass('fill-red-500');
+  });
+
+  it('renders filled heart when favorite', () => {
+    const { container } = render(
+      <PluginListItem plugin={mockPlugin} {...mockHandlers} isFavorite={true} />
+    );
+    const heart = container.querySelector('.lucide-heart');
+    expect(heart).toBeInTheDocument();
+    expect(heart).toHaveClass('fill-red-500');
+  });
+
+  it('calls onToggleFavorite when heart clicked', () => {
+    const onToggleFavorite = jest.fn();
+    const { container } = render(
+      <PluginListItem
+        plugin={mockPlugin}
+        {...mockHandlers}
+        isFavorite={false}
+        onToggleFavorite={onToggleFavorite}
+      />
+    );
+    const heartButton = container.querySelector('.lucide-heart')?.closest('button');
+    expect(heartButton).toBeInTheDocument();
+    fireEvent.click(heartButton!);
+    expect(onToggleFavorite).toHaveBeenCalledWith('test-plugin');
+  });
 });

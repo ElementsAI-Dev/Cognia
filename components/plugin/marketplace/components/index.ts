@@ -17,3 +17,6 @@ export { PluginListItem } from './plugin-list-item';
 export { MarketplaceEmptyState } from './marketplace-empty-state';
 export { MarketplaceLoadingSkeleton } from './marketplace-loading-skeleton';
 export { TrendingPluginItem } from './trending-plugin-item';
+export { SearchSuggestions } from './search-suggestions';
+export { RecentlyViewedSection } from './recently-viewed-section';
+export { ScreenshotGallery } from './screenshot-gallery';

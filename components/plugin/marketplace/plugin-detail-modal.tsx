@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
 import type { MarketplacePlugin, PluginReview, ChangelogEntry, InstallProgressInfo } from './components/marketplace-types';
 import { MOCK_REVIEWS, MOCK_CHANGELOG } from './components/marketplace-constants';
+import { ScreenshotGallery } from './components/screenshot-gallery';
 
 // =============================================================================
 // Types
@@ -435,6 +436,14 @@ export function PluginDetailModal({
                 {plugin.description}
               </p>
             </div>
+
+            {/* Screenshots */}
+            {plugin.screenshots && plugin.screenshots.length > 0 && (
+              <>
+                <ScreenshotGallery screenshots={plugin.screenshots} pluginName={plugin.name} />
+                <Separator />
+              </>
+            )}
 
             {/* Capabilities */}
             <div>

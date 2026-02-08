@@ -712,6 +712,111 @@ pub fn jupyter_validate_config(config: KernelConfig) -> Result<KernelConfig, Str
     Ok(config)
 }
 
+/// Open a .ipynb notebook file from disk
+#[tauri::command]
+pub async fn jupyter_open_notebook(path: String) -> Result<String, String> {
+    log::info!("Opening notebook: {}", path);
+    let path_ref = std::path::Path::new(&path);
+
+    if !path_ref.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+
+    if path_ref.extension().and_then(|e| e.to_str()) != Some("ipynb") {
+        return Err("File is not a .ipynb notebook".to_string());
+    }
+
+    let content = std::fs::read_to_string(path_ref)
+        .map_err(|e| format!("Failed to read notebook: {}", e))?;
+
+    // Validate it's valid JSON
+    serde_json::from_str::<serde_json::Value>(&content)
+        .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
+
+    log::info!("Notebook opened successfully: {} ({} bytes)", path, content.len());
+    Ok(content)
+}
+
+/// Save notebook content to a .ipynb file on disk
+#[tauri::command]
+pub async fn jupyter_save_notebook(path: String, content: String) -> Result<(), String> {
+    log::info!("Saving notebook: {}", path);
+
+    // Validate content is valid JSON
+    let parsed: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
+
+    // Pretty-print for readability
+    let formatted = serde_json::to_string_pretty(&parsed)
+        .map_err(|e| format!("Failed to format notebook: {}", e))?;
+
+    // Ensure parent directory exists
+    let path_ref = std::path::Path::new(&path);
+    if let Some(parent) = path_ref.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+
+    std::fs::write(path_ref, &formatted)
+        .map_err(|e| format!("Failed to write notebook: {}", e))?;
+
+    log::info!(
+        "Notebook saved successfully: {} ({} bytes)",
+        path,
+        formatted.len()
+    );
+    Ok(())
+}
+
+/// Get notebook file metadata without reading full content
+#[tauri::command]
+pub async fn jupyter_get_notebook_info(path: String) -> Result<serde_json::Value, String> {
+    let path_ref = std::path::Path::new(&path);
+
+    if !path_ref.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+
+    let metadata = std::fs::metadata(path_ref)
+        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+
+    let content = std::fs::read_to_string(path_ref)
+        .map_err(|e| format!("Failed to read notebook: {}", e))?;
+
+    let notebook: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
+
+    let cell_count = notebook["cells"]
+        .as_array()
+        .map(|c| c.len())
+        .unwrap_or(0);
+
+    let code_cells = notebook["cells"]
+        .as_array()
+        .map(|cells| {
+            cells
+                .iter()
+                .filter(|c| c["cell_type"].as_str() == Some("code"))
+                .count()
+        })
+        .unwrap_or(0);
+
+    let kernel_name = notebook["metadata"]["kernelspec"]["display_name"]
+        .as_str()
+        .unwrap_or("Unknown");
+
+    Ok(serde_json::json!({
+        "path": path,
+        "fileName": path_ref.file_name().and_then(|n| n.to_str()).unwrap_or(""),
+        "sizeBytes": metadata.len(),
+        "cellCount": cell_count,
+        "codeCells": code_cells,
+        "markdownCells": cell_count - code_cells,
+        "kernelName": kernel_name,
+        "nbformat": notebook["nbformat"].as_u64().unwrap_or(4),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

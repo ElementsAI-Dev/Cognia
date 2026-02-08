@@ -105,6 +105,114 @@
       "synthesizing": "正在合成结果...",
       "teamCompleted": "团队完成",
       "completedTasks": "已完成 {completed}/{total} 个任务"
-    }
+    },
+
+    "messages": {
+      "noMessages": "暂无消息",
+      "broadcast": "广播给所有成员",
+      "messageTo": "发消息给",
+      "send": "发送",
+      "selectRecipient": "选择接收者"
+    },
+
+    "taskBoard": {
+      "title": "任务看板",
+      "tasks": "个任务",
+      "addTask": "添加任务",
+      "createTask": "创建任务",
+      "taskTitle": "标题",
+      "taskDescription": "描述",
+      "priority": "优先级",
+      "assignTo": "分配给",
+      "create": "创建",
+      "empty": "暂无任务",
+      "retry": "重试",
+      "cancel": "取消"
+    },
+
+    "analytics": {
+      "title": "分析",
+      "totalTokens": "总 Token 用量",
+      "totalDuration": "总耗时",
+      "successRate": "成功率",
+      "teammates": "团队成员",
+      "tokenBudget": "Token 预算",
+      "tokensByTeammate": "成员 Token 用量",
+      "taskDurations": "任务耗时",
+      "budgetLow": "预算即将耗尽",
+      "budgetExceeded": "预算已超出"
+    },
+
+    "templateManage": {
+      "saveAsTemplate": "保存为模板",
+      "editTemplate": "编辑模板",
+      "importTemplates": "导入模板",
+      "exportTemplates": "导出模板",
+      "templateName": "模板名称",
+      "templateSaved": "模板保存成功",
+      "importSuccess": "已导入 {count} 个模板",
+      "exportSuccess": "模板已导出"
+    },
+
+    "budget": {
+      "label": "Token 预算",
+      "remaining": "剩余 {count}",
+      "exceeded": "预算已超出",
+      "warning": "预算即将耗尽"
+    },
+
+    "error": {
+      "deadlock": "任务依赖中检测到死锁",
+      "deadlockResolved": "死锁已自动解决",
+      "budgetExceeded": "团队 Token 预算已超出",
+      "retryFailed": "任务重试失败",
+      "maxRevisionsReached": "已达到最大修订次数，自动通过"
+    },
+
+    "graph": {
+      "teamView": "团队",
+      "teamViewTooltip": "团队结构与通信",
+      "taskView": "任务",
+      "taskViewTooltip": "任务依赖图 (DAG)",
+      "loadingGraph": "加载图表中..."
+    },
+
+    "timeline": {
+      "title": "执行时间线",
+      "executing": "执行中",
+      "completed": "已完成",
+      "failed": "已失败",
+      "planning": "规划中"
+    },
+
+    "activityFeed": {
+      "title": "活动",
+      "filter": "筛选",
+      "noEvents": "暂无事件"
+    },
+
+    "configEditor": {
+      "title": "团队配置",
+      "readOnly": "执行中不可编辑",
+      "executionMode": "执行模式",
+      "coordinated": "协调模式",
+      "autonomous": "自主模式",
+      "delegate": "委托模式",
+      "coordinatedDesc": "组长将任务分配给指定成员",
+      "autonomousDesc": "成员自行认领可用任务",
+      "delegateDesc": "组长委派任务，从不亲自执行",
+      "maxConcurrent": "最大并发成员数",
+      "tokenBudget": "Token 预算",
+      "tokenBudgetDesc": "0 = 无限制。超出预算时团队将停止。",
+      "planApproval": "需要计划审批",
+      "planApprovalDesc": "组长在执行前审查成员计划",
+      "messaging": "启用消息",
+      "messagingDesc": "成员通过消息共享结果",
+      "taskRetry": "启用任务重试",
+      "taskRetryDesc": "失败的任务将自动重试",
+      "maxRetries": "最大重试次数"
+    },
+
+    "cancel": "取消"
   }
 }

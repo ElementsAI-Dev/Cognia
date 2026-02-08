@@ -36,6 +36,7 @@ import type {
   AcpMcpServerConfig,
   AcpSessionModelState,
   AcpSessionModesState,
+  AcpConfigOption,
 } from '@/types/agent/external-agent';
 
 // ============================================================================
@@ -136,6 +137,8 @@ interface AcpNewSessionResult {
   models?: AcpSessionModelState;
   /** Available modes */
   modes?: AcpSessionModesState;
+  /** Session config options (supersedes modes) */
+  configOptions?: AcpConfigOption[];
 }
 
 /**
@@ -573,15 +576,27 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     // Use correct ACP method name: session/new
     const result = await this.sendRequest<AcpNewSessionResult>('session/new', params as unknown as Record<string, unknown>);
 
-    // Store model and mode info if available
+    // Store model, mode, and config options info if available
     const sessionModels = result.models;
     const sessionModes = result.modes;
+    const sessionConfigOptions = result.configOptions;
+
+    // Derive mode from configOptions (preferred) or modes (legacy)
+    let initialMode: AcpPermissionMode = (options?.permissionMode || 'default') as AcpPermissionMode;
+    if (sessionConfigOptions) {
+      const modeOption = sessionConfigOptions.find((opt) => opt.category === 'mode');
+      if (modeOption) {
+        initialMode = modeOption.currentValue as AcpPermissionMode;
+      }
+    } else if (sessionModes?.currentModeId) {
+      initialMode = sessionModes.currentModeId;
+    }
 
     const session: ExternalAgentSession = {
       id: result.sessionId,
       agentId: this._config!.id,
       status: 'active',
-      permissionMode: sessionModes?.currentModeId || (options?.permissionMode || 'default') as AcpPermissionMode,
+      permissionMode: initialMode,
       capabilities: this._capabilities,
       tools: this._tools,
       messages: [],
@@ -591,6 +606,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         ...options?.metadata,
         models: sessionModels,
         modes: sessionModes,
+        configOptions: sessionConfigOptions,
       },
     };
 
@@ -879,6 +895,59 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   getSessionModels(sessionId: string): AcpSessionModelState | undefined {
     const session = this._sessions.get(sessionId);
     return session?.metadata?.models as AcpSessionModelState | undefined;
+  }
+
+  /**
+   * Get session config options
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  getConfigOptions(sessionId: string): AcpConfigOption[] | undefined {
+    const session = this._sessions.get(sessionId);
+    return session?.metadata?.configOptions as AcpConfigOption[] | undefined;
+  }
+
+  /**
+   * Set a session config option
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  async setConfigOption(sessionId: string, configId: string, value: string): Promise<AcpConfigOption[]> {
+    const session = this._sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const configOptions = session.metadata?.configOptions as AcpConfigOption[] | undefined;
+    if (!configOptions?.length) {
+      throw new Error('Agent does not support config options');
+    }
+
+    const option = configOptions.find((opt) => opt.id === configId);
+    if (!option) {
+      throw new Error(`Unknown config option: ${configId}. Available: ${configOptions.map((o) => o.id).join(', ')}`);
+    }
+
+    const validValue = option.options.find((o) => o.value === value);
+    if (!validValue) {
+      throw new Error(`Invalid value '${value}' for option '${configId}'. Available: ${option.options.map((o) => o.value).join(', ')}`);
+    }
+
+    const result = await this.sendRequest<{ configOptions: AcpConfigOption[] }>(
+      'session/set_config_option',
+      { sessionId, configId, value } as unknown as Record<string, unknown>
+    );
+
+    // Update session metadata with new config state
+    const updatedOptions = result.configOptions;
+    session.metadata = { ...session.metadata, configOptions: updatedOptions };
+
+    // Sync mode from config options if applicable
+    const modeOpt = updatedOptions.find((opt) => opt.category === 'mode');
+    if (modeOpt) {
+      this.updateSession(sessionId, { permissionMode: modeOpt.currentValue as AcpPermissionMode });
+    }
+
+    log.info('Config option changed', { sessionId, configId, value });
+    return updatedOptions;
   }
 
   /**
@@ -1453,25 +1522,53 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           toolName: update.title,
         };
 
-      case 'tool_call_update':
-        if (update.status === 'completed' || update.status === 'error') {
-          const resultContent = update.content?.[0]?.content?.text || '';
+      case 'tool_call_update': {
+        // Extract text content from the union type
+        const extractToolCallText = (): string => {
+          if (!update.content?.length) return '';
+          const first = update.content[0];
+          if (first.type === 'content') return first.content?.text || '';
+          if (first.type === 'diff') return `Diff: ${first.path}`;
+          if (first.type === 'terminal') return `Terminal: ${first.terminalId}`;
+          return '';
+        };
+
+        if (update.status === 'completed' || update.status === 'error' || update.status === 'failed') {
           return {
             type: 'tool_result',
             sessionId,
             timestamp,
             toolUseId: update.toolCallId,
-            result: resultContent,
-            isError: update.status === 'error',
+            result: extractToolCallText(),
+            isError: update.status === 'error' || update.status === 'failed',
           };
         }
+
+        // Emit enhanced tool_call_update event with all fields
+        if (update.content || update.locations) {
+          return {
+            type: 'tool_call_update' as const,
+            sessionId,
+            timestamp,
+            toolCallId: update.toolCallId,
+            status: update.status,
+            title: update.title,
+            kind: update.kind,
+            content: update.content,
+            locations: update.locations,
+            rawInput: update.rawInput,
+            rawOutput: update.rawOutput,
+          };
+        }
+
         return {
           type: 'tool_use_delta',
           sessionId,
           timestamp,
           toolUseId: update.toolCallId,
-          delta: update.status,
+          delta: update.status || 'in_progress',
         };
+      }
 
       case 'plan':
         // Store plan entries in session metadata
@@ -1514,6 +1611,50 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       case 'mode_change':
         this.updateSession(sessionId, { permissionMode: update.modeId });
         return null;
+
+      case 'current_mode_update': {
+        // Agent-initiated mode change
+        const modeSession = this._sessions.get(sessionId);
+        if (modeSession) {
+          this.updateSession(sessionId, { permissionMode: update.modeId as AcpPermissionMode });
+          // Also update configOptions if they exist
+          const configOpts = modeSession.metadata?.configOptions as AcpConfigOption[] | undefined;
+          if (configOpts) {
+            const updatedOpts = configOpts.map((opt) =>
+              opt.category === 'mode' ? { ...opt, currentValue: update.modeId } : opt
+            );
+            modeSession.metadata = { ...modeSession.metadata, configOptions: updatedOpts };
+          }
+        }
+        return {
+          type: 'mode_update' as const,
+          sessionId,
+          timestamp,
+          modeId: update.modeId,
+        };
+      }
+
+      case 'config_options_update': {
+        // Agent-initiated config options change
+        const cfgSession = this._sessions.get(sessionId);
+        if (cfgSession) {
+          cfgSession.metadata = {
+            ...cfgSession.metadata,
+            configOptions: update.configOptions,
+          };
+          // Sync mode from config options
+          const modeOpt = update.configOptions.find((opt) => opt.category === 'mode');
+          if (modeOpt) {
+            this.updateSession(sessionId, { permissionMode: modeOpt.currentValue as AcpPermissionMode });
+          }
+        }
+        return {
+          type: 'config_options_update' as const,
+          sessionId,
+          timestamp,
+          configOptions: update.configOptions,
+        };
+      }
 
       default:
         log.warn('Unknown session update type', { type: (update as AcpSessionUpdate).sessionUpdate });

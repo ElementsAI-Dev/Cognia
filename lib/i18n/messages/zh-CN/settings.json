@@ -166,6 +166,9 @@
       "eventTypeStepFinish": "步骤完成",
       "eventTypePlanning": "规划",
       "eventTypeResponse": "响应",
+      "eventTypeCheckpointCreate": "创建检查点",
+      "eventTypeCheckpointRestore": "恢复检查点",
+      "eventTypeError": "错误",
       "clearFilters": "清除",
       "showingCount": "显示 {count} 条追踪记录",
       "emptyTitle": "暂无追踪记录",
@@ -216,6 +219,7 @@
         "totalTraces": "总追踪数",
         "sessions": "会话数",
         "totalTokens": "总令牌数",
+        "totalCost": "预估费用",
         "storage": "存储空间",
         "steps": "步骤数",
         "duration": "持续时间",
@@ -242,6 +246,30 @@
       "viewModes": {
         "list": "列表",
         "timeline": "时间线"
+      },
+      "checkpoints": {
+        "title": "检查点",
+        "noSession": "选择一个会话以查看检查点",
+        "refresh": "刷新",
+        "loading": "加载中...",
+        "empty": "暂无检查点",
+        "files": "个文件",
+        "clearConfirmTitle": "清空所有检查点？",
+        "clearConfirmDescription": "这将永久删除此会话的所有检查点，此操作无法撤销。",
+        "cancel": "取消",
+        "clearAll": "全部清空"
+      },
+      "replay": {
+        "title": "会话回放",
+        "empty": "暂无可回放的事件"
+      },
+      "blame": {
+        "title": "代码归因",
+        "ai": "AI",
+        "human": "人类",
+        "mixed": "混合",
+        "unknown": "未知",
+        "byModel": "按模型"
       }
     },
     "git": {

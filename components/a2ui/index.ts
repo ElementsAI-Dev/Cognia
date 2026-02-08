@@ -31,6 +31,9 @@ export {
   getRegisteredComponentTypes,
 } from './a2ui-renderer';
 
+// Error Boundary
+export { A2UIErrorBoundary } from './a2ui-error-boundary';
+
 // Layout components
 export {
   A2UIFallback,
@@ -40,6 +43,8 @@ export {
   A2UIDivider,
   A2UISpacer,
   A2UIDialog,
+  A2UITabs,
+  A2UIAccordion,
 } from './layout';
 
 // Display components
@@ -75,6 +80,7 @@ export {
   A2UISwitch,
   type A2UIFormGroupComponent,
   type A2UISwitchComponent,
+  A2UIToggle,
 } from './form';
 
 // Data display components

@@ -20,6 +20,9 @@ import type {
   GitTagInfo,
   GitRemoteInfo,
   GitCommitDetail,
+  GitGraphCommit,
+  GitRepoStats,
+  GitCheckpoint,
 } from '@/types/system/git';
 import { gitService } from '@/lib/native/git';
 
@@ -58,6 +61,15 @@ export interface GitState {
 
   // Tracked repositories
   trackedRepos: string[];
+
+  // Graph
+  graphCommits: GitGraphCommit[];
+
+  // Stats
+  repoStats: GitRepoStats | null;
+
+  // Checkpoints
+  checkpoints: GitCheckpoint[];
 }
 
 export interface GitActions {
@@ -158,6 +170,18 @@ export interface GitActions {
   setAutoCommitConfig: (config: Partial<AutoCommitConfig>) => void;
   triggerAutoCommit: (projectId: string, trigger: string) => Promise<boolean>;
 
+  // Graph
+  loadGraphCommits: (maxCount?: number) => Promise<void>;
+
+  // Stats
+  loadRepoStats: () => Promise<void>;
+
+  // Checkpoints
+  createCheckpoint: (message?: string) => Promise<boolean>;
+  loadCheckpoints: () => Promise<void>;
+  restoreCheckpoint: (id: string) => Promise<boolean>;
+  deleteCheckpoint: (id: string) => Promise<boolean>;
+
   // Repository tracking
   addTrackedRepo: (path: string) => void;
   removeTrackedRepo: (path: string) => void;
@@ -208,6 +232,9 @@ const initialState: GitState = {
   projectConfigs: {},
   autoCommitConfig: initialAutoCommitConfig,
   trackedRepos: [],
+  graphCommits: [],
+  repoStats: null,
+  checkpoints: [],
 };
 
 export const useGitStore = create<GitState & GitActions>()(
@@ -1477,6 +1504,133 @@ export const useGitStore = create<GitState & GitActions>()(
           );
           return result.success;
         } catch {
+          return false;
+        }
+      },
+
+      // Graph
+      loadGraphCommits: async (maxCount) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.getLogGraph(currentRepoPath, maxCount);
+          if (result.success && result.data) {
+            set({ graphCommits: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      // Stats
+      loadRepoStats: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.getRepoStats(currentRepoPath);
+          if (result.success && result.data) {
+            set({ repoStats: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      // Checkpoints
+      createCheckpoint: async (message) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.checkpointCreate(currentRepoPath, message);
+          if (result.success) {
+            await get().loadCheckpoints();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to create checkpoint',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      loadCheckpoints: async () => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return;
+
+        try {
+          const result = await gitService.checkpointList(currentRepoPath);
+          if (result.success && result.data) {
+            set({ checkpoints: result.data });
+          }
+        } catch (error) {
+          set({ lastError: error instanceof Error ? error.message : String(error) });
+        }
+      },
+
+      restoreCheckpoint: async (id) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.checkpointRestore(currentRepoPath, id);
+          if (result.success) {
+            await get().loadRepoStatus();
+            await get().loadFileStatus();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to restore checkpoint',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
+          return false;
+        }
+      },
+
+      deleteCheckpoint: async (id) => {
+        const { currentRepoPath } = get();
+        if (!currentRepoPath) return false;
+
+        set({ operationStatus: 'running' });
+        try {
+          const result = await gitService.checkpointDelete(currentRepoPath, id);
+          if (result.success) {
+            await get().loadCheckpoints();
+            set({ operationStatus: 'success' });
+            return true;
+          } else {
+            set({
+              lastError: result.error || 'Failed to delete checkpoint',
+              operationStatus: 'error',
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            lastError: error instanceof Error ? error.message : String(error),
+            operationStatus: 'error',
+          });
           return false;
         }
       },

@@ -13,6 +13,19 @@ import {
   McpErrorHandler,
 } from './error-handler';
 
+const mockLogError = jest.fn();
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    mcp: {
+      error: (...args: unknown[]) => mockLogError(...args),
+      warn: jest.fn(),
+      info: jest.fn(),
+      debug: jest.fn(),
+      trace: jest.fn(),
+    },
+  },
+}));
+
 describe('MCP Error Handler', () => {
   describe('classifyMcpError', () => {
     it('should classify timeout errors', () => {
@@ -151,17 +164,14 @@ describe('MCP Error Handler', () => {
     });
 
     it('should log errors with context', () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      mockLogError.mockClear();
       const handler = new McpErrorHandler();
 
       handler.handle('Test error', 'TestContext');
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'MCP Error [TestContext]:',
-        'Test error'
+      expect(mockLogError).toHaveBeenCalledWith(
+        'MCP Error [TestContext]: Test error'
       );
-
-      consoleSpy.mockRestore();
     });
 
     it('should wrap async functions with error handling', async () => {

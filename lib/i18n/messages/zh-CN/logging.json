@@ -7,6 +7,7 @@
     
     "panel": {
       "searchPlaceholder": "搜索日志...",
+      "regexPlaceholder": "正则表达式...",
       "noLogs": "暂无日志",
       "loadingLogs": "加载日志中...",
       "errorLoading": "加载日志失败",
@@ -41,7 +42,50 @@
       "scrollToTop": "滚动到顶部",
       "scrollToBottom": "滚动到底部",
       "pauseAutoScroll": "暂停自动滚动",
-      "resumeAutoScroll": "恢复自动滚动"
+      "resumeAutoScroll": "恢复自动滚动",
+      "listView": "列表视图",
+      "dashboardView": "仪表盘视图",
+      "toggleRegex": "切换正则搜索",
+      "viewDetails": "查看详情",
+      "closeDetails": "关闭详情面板",
+      "addBookmark": "收藏此日志",
+      "removeBookmark": "取消收藏",
+      "logsPerMin": "条/分钟"
+    },
+
+    "dashboard": {
+      "noData": "暂无可视化日志数据",
+      "totalLogs": "日志总数",
+      "errorRate": "错误率",
+      "errors": "个错误",
+      "topModule": "最活跃模块",
+      "timeSpan": "时间跨度",
+      "levelDistribution": "级别分布",
+      "logVolume": "日志量趋势",
+      "moduleActivity": "模块活跃度"
+    },
+
+    "timeline": {
+      "title": "时间线",
+      "total": "总计",
+      "errors": "错误",
+      "warnings": "警告"
+    },
+
+    "detail": {
+      "title": "日志详情",
+      "message": "消息",
+      "timestamp": "时间戳",
+      "module": "模块",
+      "sessionId": "会话 ID",
+      "tags": "标签",
+      "relatedLogs": "关联日志",
+      "copyMessage": "复制消息",
+      "copyTraceId": "复制追踪 ID",
+      "copyData": "复制数据",
+      "copyStack": "复制堆栈跟踪",
+      "addBookmark": "收藏",
+      "removeBookmark": "取消收藏"
     },
     
     "settings": {

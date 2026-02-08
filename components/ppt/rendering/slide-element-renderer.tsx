@@ -154,15 +154,57 @@ export function SlideElementRenderer({ element, theme }: SlideElementRendererPro
         </div>
       );
 
-    case 'video':
+    case 'video': {
+      const videoUrl = element.content || '';
+      const youtubeMatch = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
+      const bilibiliMatch = videoUrl.match(/bilibili\.com\/video\/(BV[\w]+)/);
+
+      if (youtubeMatch) {
+        return (
+          <div style={baseStyle} className="rounded overflow-hidden bg-black">
+            <iframe
+              src={`https://www.youtube.com/embed/${youtubeMatch[1]}`}
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="YouTube video"
+            />
+          </div>
+        );
+      }
+
+      if (bilibiliMatch) {
+        return (
+          <div style={baseStyle} className="rounded overflow-hidden bg-black">
+            <iframe
+              src={`https://player.bilibili.com/player.html?bvid=${bilibiliMatch[1]}&autoplay=0`}
+              className="w-full h-full border-0"
+              allowFullScreen
+              title="Bilibili video"
+            />
+          </div>
+        );
+      }
+
+      if (videoUrl && (videoUrl.startsWith('data:') || videoUrl.startsWith('blob:') || videoUrl.match(/\.(mp4|webm|ogg)$/i))) {
+        return (
+          <div style={baseStyle} className="rounded overflow-hidden bg-black">
+            <video src={videoUrl} controls className="w-full h-full object-contain">
+              <track kind="captions" />
+            </video>
+          </div>
+        );
+      }
+
       return (
         <div style={baseStyle} className="flex items-center justify-center bg-black/10 rounded">
           <div className="text-center text-muted-foreground">
             <div className="text-3xl mb-2">🎬</div>
-            <div className="text-sm">Video: {element.content}</div>
+            <div className="text-sm">{videoUrl ? `Video: ${videoUrl}` : 'No video URL'}</div>
           </div>
         </div>
       );
+    }
 
     default:
       return (

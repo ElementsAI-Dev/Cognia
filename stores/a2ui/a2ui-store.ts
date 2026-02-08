@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type {
   A2UISurfaceState,
   A2UISurfaceType,
@@ -38,6 +38,9 @@ interface A2UIState {
   // Loading states
   loadingSurfaces: Set<string>;
 
+  // Streaming state
+  streamingSurfaces: Set<string>;
+
   // Error tracking
   errors: Record<string, string>;
 }
@@ -67,6 +70,8 @@ interface A2UIActions {
   // Message processing
   processMessage: (message: A2UIServerMessage) => void;
   processMessages: (messages: A2UIServerMessage[]) => void;
+  processMessageStream: (messages: A2UIServerMessage[], delayMs?: number) => Promise<void>;
+  setSurfaceStreaming: (surfaceId: string, streaming: boolean) => void;
 
   // Event handling
   emitAction: (
@@ -97,6 +102,7 @@ const initialState: A2UIState = {
   eventHistory: [],
   maxEventHistory: 100,
   loadingSurfaces: new Set(),
+  streamingSurfaces: new Set(),
   errors: {},
 };
 
@@ -104,6 +110,7 @@ const initialState: A2UIState = {
  * A2UI Store
  */
 export const useA2UIStore = create<A2UIState & A2UIActions>()(
+  persist(
   subscribeWithSelector((set, get) => ({
     ...initialState,
 
@@ -273,6 +280,44 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
       }
     },
 
+    processMessageStream: async (messages, delayMs = 50) => {
+      const { processMessage, setSurfaceStreaming } = get();
+      // Extract surface IDs from messages
+      const surfaceIds = new Set<string>();
+      for (const msg of messages) {
+        if ('surfaceId' in msg) {
+          surfaceIds.add((msg as { surfaceId: string }).surfaceId);
+        }
+      }
+      // Mark surfaces as streaming
+      for (const sid of surfaceIds) {
+        setSurfaceStreaming(sid, true);
+      }
+      // Process messages with delay for progressive rendering
+      for (let i = 0; i < messages.length; i++) {
+        processMessage(messages[i]);
+        if (delayMs > 0 && i < messages.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+      }
+      // Clear streaming state
+      for (const sid of surfaceIds) {
+        setSurfaceStreaming(sid, false);
+      }
+    },
+
+    setSurfaceStreaming: (surfaceId, streaming) => {
+      set((state) => {
+        const next = new Set(state.streamingSurfaces);
+        if (streaming) {
+          next.add(surfaceId);
+        } else {
+          next.delete(surfaceId);
+        }
+        return { streamingSurfaces: next };
+      });
+    },
+
     // Event handling
     emitAction: (surfaceId, action, componentId, data) => {
       const actionEvent = createUserAction(surfaceId, action, componentId, data);
@@ -362,7 +407,15 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
     reset: () => {
       set(initialState);
     },
-  }))
+  })),
+  {
+    name: 'cognia-a2ui-surfaces',
+    partialize: (state) => ({
+      surfaces: state.surfaces,
+      activeSurfaceId: state.activeSurfaceId,
+    }),
+  }
+  )
 );
 
 /**
@@ -389,3 +442,6 @@ export const selectEventHistory = (state: A2UIState) => state.eventHistory;
 
 export const selectRecentEvents = (count: number) => (state: A2UIState) =>
   state.eventHistory.slice(0, count);
+
+export const selectIsSurfaceStreaming = (surfaceId: string) => (state: A2UIState) =>
+  state.streamingSurfaces.has(surfaceId);

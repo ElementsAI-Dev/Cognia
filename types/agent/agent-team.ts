@@ -105,6 +105,14 @@ export interface AgentTeamConfig {
   enableMessaging?: boolean;
   /** Enable shared task list */
   enableSharedTaskList?: boolean;
+  /** Maximum retries for failed tasks (0 = no retry) */
+  maxRetries?: number;
+  /** Maximum plan revision rounds before auto-approve (1-5) */
+  maxPlanRevisions?: number;
+  /** Enable automatic task retry on failure */
+  enableTaskRetry?: boolean;
+  /** Enable deadlock recovery (cancel/reorder blocked tasks) */
+  enableDeadlockRecovery?: boolean;
 }
 
 /**
@@ -122,6 +130,10 @@ export const DEFAULT_TEAM_CONFIG: AgentTeamConfig = {
   autoShutdown: true,
   enableMessaging: true,
   enableSharedTaskList: true,
+  maxRetries: 1,
+  maxPlanRevisions: 3,
+  enableTaskRetry: true,
+  enableDeadlockRecovery: true,
 };
 
 // ============================================================================
@@ -261,6 +273,8 @@ export interface AgentTeamTask {
   tokenUsage?: SubAgentTokenUsage;
   /** Order in the task list */
   order: number;
+  /** Number of retry attempts made */
+  retryCount?: number;
   /** Custom metadata */
   metadata?: Record<string, unknown>;
 }
@@ -312,6 +326,178 @@ export interface AgentTeamMessage {
 }
 
 // ============================================================================
+// Shared Memory / Blackboard
+// ============================================================================
+
+/**
+ * Entry in the team's shared memory (blackboard pattern)
+ */
+export interface SharedMemoryEntry {
+  /** Unique key for this entry */
+  key: string;
+  /** The stored value */
+  value: unknown;
+  /** Who wrote this entry */
+  writtenBy: string;
+  /** Writer's name for display */
+  writerName?: string;
+  /** When it was written */
+  writtenAt: Date;
+  /** Optional expiration */
+  expiresAt?: Date;
+  /** Version number (incremented on update) */
+  version: number;
+  /** Tags for filtering */
+  tags?: string[];
+  /** Access control: which teammate IDs can read (empty = all) */
+  readableBy?: string[];
+}
+
+/**
+ * Shared memory namespace for organizing entries
+ */
+export type SharedMemoryNamespace =
+  | 'results'     // Task results shared across teammates
+  | 'context'     // Contextual information (e.g., user preferences)
+  | 'artifacts'   // Generated artifacts (code, documents)
+  | 'decisions'   // Team decisions and consensus results
+  | 'metadata'    // Execution metadata
+  | 'custom';     // User-defined namespace
+
+// ============================================================================
+// Consensus / Voting
+// ============================================================================
+
+/**
+ * Types of consensus decisions
+ */
+export type ConsensusType =
+  | 'majority'        // Simple majority (>50%)
+  | 'supermajority'   // Two-thirds majority (>66%)
+  | 'unanimous'       // All must agree
+  | 'weighted'        // Weighted by teammate expertise/role
+  | 'lead_override';  // Lead can override after vote
+
+/**
+ * Status of a consensus request
+ */
+export type ConsensusStatus = 'open' | 'resolved' | 'timeout' | 'cancelled';
+
+/**
+ * A vote from a teammate
+ */
+export interface ConsensusVote {
+  /** Teammate who voted */
+  voterId: string;
+  /** Voter's name */
+  voterName: string;
+  /** The selected option index */
+  optionIndex: number;
+  /** Optional reasoning */
+  reasoning?: string;
+  /** Weight of this vote (for weighted consensus) */
+  weight?: number;
+  /** When the vote was cast */
+  votedAt: Date;
+}
+
+/**
+ * A consensus request for team-wide decisions
+ */
+export interface ConsensusRequest {
+  /** Unique ID */
+  id: string;
+  /** Team this belongs to */
+  teamId: string;
+  /** Who initiated the vote */
+  initiatorId: string;
+  /** The question or decision to be made */
+  question: string;
+  /** Available options to vote on */
+  options: string[];
+  /** Type of consensus required */
+  type: ConsensusType;
+  /** Current status */
+  status: ConsensusStatus;
+  /** Collected votes */
+  votes: ConsensusVote[];
+  /** The winning option index (set when resolved) */
+  winningOption?: number;
+  /** Summary of the decision */
+  summary?: string;
+  /** Related task ID */
+  taskId?: string;
+  /** Timeout for voting (ms) */
+  timeoutMs?: number;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Resolution timestamp */
+  resolvedAt?: Date;
+}
+
+/**
+ * Input for creating a consensus request
+ */
+export interface CreateConsensusInput {
+  teamId: string;
+  initiatorId: string;
+  question: string;
+  options: string[];
+  type?: ConsensusType;
+  taskId?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * Input for casting a vote
+ */
+export interface CastVoteInput {
+  consensusId: string;
+  voterId: string;
+  optionIndex: number;
+  reasoning?: string;
+}
+
+// ============================================================================
+// Inter-Agent Bridge Types
+// ============================================================================
+
+/**
+ * Source type for cross-system delegation
+ */
+export type AgentSystemType = 'sub_agent' | 'team' | 'background';
+
+/**
+ * A delegation request between agent systems
+ */
+export interface AgentDelegation {
+  /** Unique delegation ID */
+  id: string;
+  /** Which system initiated the delegation */
+  sourceType: AgentSystemType;
+  /** ID of the source agent/team/background-agent */
+  sourceId: string;
+  /** Which system is being delegated to */
+  targetType: AgentSystemType;
+  /** ID of the target (set after creation) */
+  targetId?: string;
+  /** The task being delegated */
+  task: string;
+  /** Configuration overrides for the target */
+  config?: Record<string, unknown>;
+  /** Current status */
+  status: 'pending' | 'active' | 'completed' | 'failed' | 'cancelled';
+  /** Result from the delegate */
+  result?: string;
+  /** Error if failed */
+  error?: string;
+  /** Creation timestamp */
+  createdAt: Date;
+  /** Completion timestamp */
+  completedAt?: Date;
+}
+
+// ============================================================================
 // Team Definition
 // ============================================================================
 
@@ -359,6 +545,14 @@ export interface AgentTeam {
   sessionId?: string;
   /** Custom metadata */
   metadata?: Record<string, unknown>;
+  /** Shared memory entries (blackboard pattern) */
+  sharedMemory?: Record<string, SharedMemoryEntry>;
+  /** Active consensus request IDs */
+  consensusIds?: string[];
+  /** Active delegation IDs (cross-system) */
+  delegationIds?: string[];
+  /** Parent delegation ID if this team was spawned by another agent system */
+  parentDelegationId?: string;
 }
 
 // ============================================================================
@@ -446,7 +640,10 @@ export type TeamEventType =
   | 'plan_submitted'
   | 'plan_approved'
   | 'plan_rejected'
-  | 'progress_update';
+  | 'progress_update'
+  | 'task_retried'
+  | 'deadlock_resolved'
+  | 'budget_exceeded';
 
 /**
  * Team event

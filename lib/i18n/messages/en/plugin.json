@@ -253,14 +253,26 @@
   },
   "pluginMarketplace": {
     "featured": {
-      "title": "Featured Plugins"
+      "title": "Featured Plugins",
+      "count": "featured"
+    },
+    "favorites": {
+      "title": "My Favorites"
     },
     "trending": {
       "title": "Trending",
       "viewAll": "View All"
     },
+    "collections": {
+      "title": "Collections"
+    },
+    "recentlyViewed": {
+      "title": "Recently Viewed"
+    },
     "search": {
-      "placeholder": "Search plugins..."
+      "placeholder": "Search plugins...",
+      "recentSearches": "Recent searches",
+      "clearHistory": "Clear"
     },
     "sort": {
       "popular": "Most Popular",
@@ -268,12 +280,32 @@
       "recent": "Recently Updated",
       "downloads": "Most Downloads"
     },
+    "filters": {
+      "title": "Filters",
+      "category": "Category",
+      "sortBy": "Sort by",
+      "clearAll": "Clear all filters"
+    },
+    "stats": {
+      "plugins": "Plugins",
+      "downloads": "Downloads",
+      "developers": "Developers",
+      "thisWeek": "This Week"
+    },
     "empty": {
       "noResults": "No plugins found",
-      "tryDifferent": "Try a different search or filter"
+      "noMatch": "No plugins match \"{query}\". Try a different search term or adjust your filters.",
+      "noFilters": "No plugins available with the current filters.",
+      "clearSearch": "Clear Search",
+      "refresh": "Refresh",
+      "popularSearches": "Popular searches:"
+    },
+    "error": {
+      "retry": "Retry"
     },
     "results": {
-      "count": "{count} plugins"
+      "count": "{count} plugins",
+      "loadMore": "Load More"
     }
   },
   "pluginDetail": {
@@ -294,7 +326,8 @@
       "lastUpdated": "Last Updated",
       "license": "License",
       "links": "Links",
-      "requirements": "Requirements"
+      "requirements": "Requirements",
+      "screenshots": "Screenshots"
     },
     "reviews": {
       "title": "User Reviews",
@@ -314,6 +347,7 @@
     "selectPlugin": "Select Plugin",
     "selectPlaceholder": "Select a Python plugin...",
     "selectPrompt": "Select a Python plugin to use dev tools",
+    "selectPromptAll": "Select an enabled plugin to inspect and debug",
     "tabs": {
       "eval": "Eval",
       "tools": "Tools",
@@ -334,6 +368,8 @@
     "info": {
       "registeredTools": "Registered Tools",
       "noTools": "No tools registered",
+      "registeredComponents": "Registered Components",
+      "registeredModes": "Registered Modes",
       "pluginState": "Plugin State"
     },
     "output": {
@@ -507,6 +543,67 @@
       "title": "No Disabled Plugins",
       "description": "All your installed plugins are currently enabled.",
       "viewAll": "View All Plugins"
+    }
+  },
+  "pluginInstalledDetail": {
+    "tabs": {
+      "overview": "Overview",
+      "health": "Health",
+      "versions": "Versions"
+    },
+    "actions": {
+      "enable": "Enable",
+      "disable": "Disable",
+      "configure": "Configure",
+      "enabled": "Plugin enabled",
+      "disabled": "Plugin disabled"
+    },
+    "overview": {
+      "capabilities": "Capabilities",
+      "details": "Details",
+      "id": "Plugin ID",
+      "author": "Author",
+      "license": "License",
+      "minVersion": "Min Version",
+      "links": "Links",
+      "homepage": "Homepage",
+      "repository": "Repository",
+      "dependencies": "Dependencies",
+      "permissions": "Permissions"
+    },
+    "health": {
+      "status": "Health Status",
+      "noData": "No health data available",
+      "usage": "Usage Statistics",
+      "totalCalls": "Total Calls",
+      "successRate": "Success Rate",
+      "avgDuration": "Avg Duration",
+      "lastUsed": "Last Used",
+      "noUsage": "No usage data recorded yet"
+    },
+    "versions": {
+      "current": "Current Version",
+      "rollback": "Version Rollback",
+      "rollbackDesc": "Restore a previous version of this plugin",
+      "rollbackBtn": "Rollback",
+      "noRollback": "No previous versions available for rollback",
+      "export": "Export & Backup",
+      "exportDesc": "Create a backup of this plugin for sharing or safekeeping",
+      "createBackup": "Create Backup",
+      "exporting": "Creating backup..."
+    },
+    "rollback": {
+      "confirmTitle": "Rollback Plugin?",
+      "confirmDesc": "This will rollback {name} from v{from} to v{to}. The plugin will be temporarily disabled during the process.",
+      "cancel": "Cancel",
+      "confirm": "Rollback",
+      "rolling": "Rolling back...",
+      "success": "Rolled back to v{version}",
+      "failed": "Rollback failed"
+    },
+    "export": {
+      "success": "Backup created successfully",
+      "failed": "Failed to create backup"
     }
   },
   "pluginPermissionRequest": {

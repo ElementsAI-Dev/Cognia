@@ -42,7 +42,14 @@ import {
   MergeNodeConfig,
   GroupNodeConfig,
   AnnotationNodeConfig,
+  KnowledgeRetrievalNodeConfig,
+  ParameterExtractorNodeConfig,
+  VariableAggregatorNodeConfig,
+  QuestionClassifierNodeConfig,
+  TemplateTransformNodeConfig,
   IOSchemaEditor,
+  NodeErrorConfigPanel,
+  NodeOutputPreview,
   ConfigLoadingFallback,
   type AINodeData,
   type ToolNodeData,
@@ -60,7 +67,13 @@ import {
   type MergeNodeData,
   type GroupNodeData,
   type AnnotationNodeData,
+  type KnowledgeRetrievalNodeData,
+  type ParameterExtractorNodeData,
+  type VariableAggregatorNodeData,
+  type QuestionClassifierNodeData,
+  type TemplateTransformNodeData,
 } from './node-config';
+import type { NodeErrorConfig } from '@/types/workflow/workflow-editor';
 
 interface NodeConfigPanelProps {
   nodeId: string;
@@ -372,6 +385,41 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                   onUpdate={handleUpdateData}
                 />
               )}
+
+              {nodeType === 'knowledgeRetrieval' && (
+                <KnowledgeRetrievalNodeConfig
+                  data={data as KnowledgeRetrievalNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
+
+              {nodeType === 'parameterExtractor' && (
+                <ParameterExtractorNodeConfig
+                  data={data as ParameterExtractorNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
+
+              {nodeType === 'variableAggregator' && (
+                <VariableAggregatorNodeConfig
+                  data={data as VariableAggregatorNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
+
+              {nodeType === 'questionClassifier' && (
+                <QuestionClassifierNodeConfig
+                  data={data as QuestionClassifierNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
+
+              {nodeType === 'templateTransform' && (
+                <TemplateTransformNodeConfig
+                  data={data as TemplateTransformNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
             </Suspense>
           </TabsContent>
 
@@ -391,6 +439,15 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
               onChange={(outputs) => handleUpdateData({ outputs } as Partial<WorkflowNodeData>)}
               type="output"
             />
+
+            {/* Node Output Preview & Pin Data (n8n-inspired) */}
+            <NodeOutputPreview
+              executionOutput={data.executionOutput}
+              pinnedData={data.pinnedData}
+              onPinnedDataChange={(pinnedData) =>
+                handleUpdateData({ pinnedData } as Partial<WorkflowNodeData>)
+              }
+            />
           </TabsContent>
 
           {/* Advanced Tab */}
@@ -405,16 +462,6 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                 <div className="space-y-3 p-3 border rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-xs">Skip on Error</Label>
-                      <p className="text-xs text-muted-foreground">Continue workflow if this node fails</p>
-                    </div>
-                    <Switch
-                      checked={Boolean((data as Record<string, unknown>).skipOnError)}
-                      onCheckedChange={(skipOnError) => handleUpdateData({ skipOnError } as Partial<WorkflowNodeData>)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
                       <Label className="text-xs">Cache Results</Label>
                       <p className="text-xs text-muted-foreground">Reuse output for identical inputs</p>
                     </div>
@@ -426,57 +473,31 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                 </div>
               </div>
 
-              {/* Retry Settings */}
+              {/* Per-Node Error Handling (n8n-inspired) */}
               <div className="space-y-3">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Retry Configuration
+                  Error Handling & Retry
                 </h4>
-                <div className="space-y-3 p-3 border rounded-lg">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Max Retries</Label>
-                    <Input
-                      type="number"
-                      value={(data as Record<string, unknown>).maxRetries as number || 0}
-                      onChange={(e) => handleUpdateData({ maxRetries: parseInt(e.target.value) || 0 } as Partial<WorkflowNodeData>)}
-                      placeholder="0"
-                      className="h-8 text-sm"
-                      min={0}
-                      max={10}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Retry Delay (ms)</Label>
-                    <Input
-                      type="number"
-                      value={(data as Record<string, unknown>).retryDelay as number || 1000}
-                      onChange={(e) => handleUpdateData({ retryDelay: parseInt(e.target.value) || 1000 } as Partial<WorkflowNodeData>)}
-                      placeholder="1000"
-                      className="h-8 text-sm"
-                      min={0}
-                    />
-                  </div>
-                </div>
+                <NodeErrorConfigPanel
+                  config={data.errorConfig as NodeErrorConfig | undefined}
+                  onChange={(errorConfig) =>
+                    handleUpdateData({ errorConfig } as Partial<WorkflowNodeData>)
+                  }
+                />
               </div>
 
-              {/* Timeout Settings */}
+              {/* Node Notes */}
               <div className="space-y-3">
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Timeout
+                  Notes
                 </h4>
-                <div className="space-y-1.5 p-3 border rounded-lg">
-                  <Label className="text-xs">Execution Timeout (ms)</Label>
-                  <Input
-                    type="number"
-                    value={(data as Record<string, unknown>).timeout as number || ''}
-                    onChange={(e) => handleUpdateData({ timeout: parseInt(e.target.value) || undefined } as Partial<WorkflowNodeData>)}
-                    placeholder="No timeout"
-                    className="h-8 text-sm"
-                    min={0}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Maximum time allowed for this node to complete
-                  </p>
-                </div>
+                <Textarea
+                  value={(data as Record<string, unknown>).notes as string || ''}
+                  onChange={(e) => handleUpdateData({ notes: e.target.value } as Partial<WorkflowNodeData>)}
+                  placeholder="Add notes for this node..."
+                  className="text-xs min-h-[60px]"
+                  rows={2}
+                />
               </div>
 
               {/* Node Metadata */}
@@ -498,6 +519,12 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
                       <span className="text-muted-foreground">Status</span>
                       <Badge variant="outline" className="text-xs">{data.executionStatus}</Badge>
                     </div>
+                    {data.executionTime !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Last Duration</span>
+                        <span className="font-mono">{data.executionTime}ms</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@
     
     "panel": {
       "searchPlaceholder": "Search logs...",
+      "regexPlaceholder": "Regex pattern...",
       "noLogs": "No logs yet",
       "loadingLogs": "Loading logs...",
       "errorLoading": "Failed to load logs",
@@ -41,7 +42,50 @@
       "scrollToTop": "Scroll to top",
       "scrollToBottom": "Scroll to bottom",
       "pauseAutoScroll": "Pause auto-scroll",
-      "resumeAutoScroll": "Resume auto-scroll"
+      "resumeAutoScroll": "Resume auto-scroll",
+      "listView": "List View",
+      "dashboardView": "Dashboard View",
+      "toggleRegex": "Toggle Regex Search",
+      "viewDetails": "View Details",
+      "closeDetails": "Close Detail Panel",
+      "addBookmark": "Bookmark this log",
+      "removeBookmark": "Remove bookmark",
+      "logsPerMin": "logs/min"
+    },
+
+    "dashboard": {
+      "noData": "No log data available for visualization",
+      "totalLogs": "Total Logs",
+      "errorRate": "Error Rate",
+      "errors": "errors",
+      "topModule": "Most Active Module",
+      "timeSpan": "Time Span",
+      "levelDistribution": "Level Distribution",
+      "logVolume": "Log Volume Over Time",
+      "moduleActivity": "Module Activity"
+    },
+
+    "timeline": {
+      "title": "Timeline",
+      "total": "Total",
+      "errors": "Errors",
+      "warnings": "Warnings"
+    },
+
+    "detail": {
+      "title": "Log Detail",
+      "message": "Message",
+      "timestamp": "Timestamp",
+      "module": "Module",
+      "sessionId": "Session ID",
+      "tags": "Tags",
+      "relatedLogs": "Related Logs",
+      "copyMessage": "Copy message",
+      "copyTraceId": "Copy trace ID",
+      "copyData": "Copy data",
+      "copyStack": "Copy stack trace",
+      "addBookmark": "Bookmark",
+      "removeBookmark": "Remove bookmark"
     },
     
     "settings": {

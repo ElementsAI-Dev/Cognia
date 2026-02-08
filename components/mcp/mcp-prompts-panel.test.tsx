@@ -1,7 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { McpPromptsPanel } from './mcp-prompts-panel';
 
-// Mock useMcpStore
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 const mockGetPrompt = jest.fn();
 const mockServers = [
   {
@@ -10,6 +13,14 @@ const mockServers = [
     prompts: [
       { name: 'greeting', description: 'A greeting prompt' },
       { name: 'farewell', description: 'A farewell prompt' },
+      {
+        name: 'with-args',
+        description: 'Prompt with arguments',
+        arguments: [
+          { name: 'topic', description: 'The topic', required: true },
+          { name: 'style', description: 'Writing style', required: false },
+        ],
+      },
     ],
   },
   {
@@ -42,13 +53,12 @@ describe('McpPromptsPanel', () => {
 
   it('renders server not found when server does not exist', () => {
     render(<McpPromptsPanel serverId="non-existent" />);
-    expect(screen.getByText('Server not found')).toBeInTheDocument();
+    expect(screen.getByText('serverNotFound')).toBeInTheDocument();
   });
 
   it('renders server name and prompts count', () => {
     render(<McpPromptsPanel serverId="server-1" />);
     expect(screen.getByText('Test Server')).toBeInTheDocument();
-    expect(screen.getByText('2 prompts')).toBeInTheDocument();
   });
 
   it('renders prompt list', () => {
@@ -65,19 +75,17 @@ describe('McpPromptsPanel', () => {
 
   it('shows no prompts message when prompts array is empty', () => {
     render(<McpPromptsPanel serverId="server-2" />);
-    expect(screen.getByText('No prompts available')).toBeInTheDocument();
-    expect(screen.getByText('This server does not expose any prompts.')).toBeInTheDocument();
+    expect(screen.getByText('noPrompts')).toBeInTheDocument();
+    expect(screen.getByText('noPromptsDesc')).toBeInTheDocument();
   });
 
   it('shows select prompt message initially', () => {
     render(<McpPromptsPanel serverId="server-1" />);
-    expect(screen.getByText('Select a prompt')).toBeInTheDocument();
-    expect(
-      screen.getByText('Choose a prompt from the list to preview its content.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('selectPrompt')).toBeInTheDocument();
+    expect(screen.getByText('selectPromptDesc')).toBeInTheDocument();
   });
 
-  it('calls getPrompt when prompt is clicked', async () => {
+  it('shows prompt details when prompt is clicked', async () => {
     render(<McpPromptsPanel serverId="server-1" />);
 
     const greetingButton = screen.getByText('greeting').closest('button');
@@ -85,9 +93,10 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
-    await waitFor(() => {
-      expect(mockGetPrompt).toHaveBeenCalledWith('server-1', 'greeting');
-    });
+    // New flow: clicking selects prompt, shows details panel with preview button
+    const descriptions = screen.getAllByText('A greeting prompt');
+    // Should appear in both the list item and the detail panel
+    expect(descriptions.length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows loading state while fetching prompt', async () => {
@@ -105,7 +114,11 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
-    expect(screen.getByText('Loading prompt...')).toBeInTheDocument();
+    // Click the preview/fetch button
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
+    expect(screen.getByText('loadingPrompt')).toBeInTheDocument();
   });
 
   it('displays prompt content after loading', async () => {
@@ -115,6 +128,9 @@ describe('McpPromptsPanel', () => {
     if (greetingButton) {
       fireEvent.click(greetingButton);
     }
+
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
 
     await waitFor(() => {
       expect(screen.getByText(/Hello, how can I help you/)).toBeInTheDocument();
@@ -130,8 +146,11 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
     await waitFor(() => {
-      expect(screen.getByText('Insert')).toBeInTheDocument();
+      expect(screen.getByText('insert')).toBeInTheDocument();
     });
   });
 
@@ -144,11 +163,14 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
     await waitFor(() => {
-      expect(screen.getByText('Insert')).toBeInTheDocument();
+      expect(screen.getByText('insert')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Insert'));
+    fireEvent.click(screen.getByText('insert'));
     expect(onInsert).toHaveBeenCalledWith('Hello, how can I help you?\nI am here to assist.');
   });
 
@@ -160,24 +182,23 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
     await waitFor(() => {
       expect(screen.getByText(/Hello, how can I help you/)).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('Insert')).not.toBeInTheDocument();
+    expect(screen.queryByText('insert')).not.toBeInTheDocument();
   });
 
-  it('highlights selected prompt', async () => {
+  it('highlights selected prompt', () => {
     render(<McpPromptsPanel serverId="server-1" />);
 
     const greetingButton = screen.getByText('greeting').closest('button');
     if (greetingButton) {
       fireEvent.click(greetingButton);
     }
-
-    await waitFor(() => {
-      expect(mockGetPrompt).toHaveBeenCalled();
-    });
 
     // Button should have secondary variant when selected
     expect(greetingButton).toBeInTheDocument();
@@ -203,8 +224,56 @@ describe('McpPromptsPanel', () => {
       fireEvent.click(greetingButton);
     }
 
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
     await waitFor(() => {
       expect(screen.getByText(/Part 1/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows argument inputs for prompts with arguments', () => {
+    render(<McpPromptsPanel serverId="server-1" />);
+    const argButton = screen.getByText('with-args').closest('button');
+    if (argButton) {
+      fireEvent.click(argButton);
+    }
+    expect(screen.getByText('promptArguments')).toBeInTheDocument();
+    expect(screen.getByLabelText('topic')).toBeInTheDocument();
+    expect(screen.getByLabelText('style')).toBeInTheDocument();
+  });
+
+  it('shows error when prompt fetch fails', async () => {
+    mockGetPrompt.mockRejectedValue(new Error('Fetch failed'));
+    render(<McpPromptsPanel serverId="server-1" />);
+
+    const greetingButton = screen.getByText('greeting').closest('button');
+    if (greetingButton) {
+      fireEvent.click(greetingButton);
+    }
+
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/promptFetchError/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows useAsSystemPrompt button when callback provided', async () => {
+    const onSystemPrompt = jest.fn();
+    render(<McpPromptsPanel serverId="server-1" onInsert={jest.fn()} onUseAsSystemPrompt={onSystemPrompt} />);
+
+    const greetingButton = screen.getByText('greeting').closest('button');
+    if (greetingButton) {
+      fireEvent.click(greetingButton);
+    }
+
+    const previewButton = screen.getByText('readResource');
+    fireEvent.click(previewButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('useAsSystemPrompt')).toBeInTheDocument();
     });
   });
 

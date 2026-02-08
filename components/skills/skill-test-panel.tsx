@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CopyButton } from '@/components/chat/ui/copy-button';
-import { EmptyState } from '@/components/layout/empty-state';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import {
   Card,
   CardContent,

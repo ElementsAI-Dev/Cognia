@@ -4,24 +4,29 @@
  * Components for the Socratic Method-based learning mode.
  */
 
-export { LearningModePanel } from './learning-mode-panel';
-export { LearningStartDialog } from './learning-start-dialog';
+// Session management components
+export { LearningModePanel } from './session/learning-mode-panel';
+export { LearningStartDialog } from './session/learning-start-dialog';
+export { LearningHistoryPanel } from './session/learning-history-panel';
+export { LearningNotesPanel } from './session/learning-notes-panel';
+export { LearningStatisticsPanel } from './session/learning-statistics-panel';
+export { LearningPathDashboard } from './session/learning-path-dashboard';
 
-// Learning content components (moved from ai-elements)
-export * from './flashcard';
-export * from './quiz';
-export * from './review-session';
-export * from './video';
+// Learning content components
+export * from './content/flashcard';
+export * from './content/quiz';
+export * from './content/review-session';
+export * from './content/video';
 
-// Interactive animation components
+// Interactive visualization components
 export * from '@/types/learning/animation-types';
-export { InteractiveAnimation, useAnimation } from './interactive-animation';
-export { StepGuide } from './step-guide';
-export type { GuideStep, StepGuideProps } from './step-guide';
-export { ConceptVisualizer } from './concept-visualizer';
-export type { ConceptNode, ConceptData, ConceptVisualizerProps } from './concept-visualizer';
-export { TransformerDiagram } from './transformer-diagram';
-export type { TransformerDiagramProps } from './transformer-diagram';
+export { InteractiveAnimation, useAnimation } from './visualization/interactive-animation';
+export { StepGuide } from './visualization/step-guide';
+export type { GuideStep, StepGuideProps } from './visualization/step-guide';
+export { ConceptVisualizer } from './visualization/concept-visualizer';
+export type { ConceptNode, ConceptData, ConceptVisualizerProps } from './visualization/concept-visualizer';
+export { TransformerDiagram } from './visualization/transformer-diagram';
+export type { TransformerDiagramProps } from './visualization/transformer-diagram';
 
 // PPT components have been moved to @/components/ppt
 // Import from '@/components/ppt' instead

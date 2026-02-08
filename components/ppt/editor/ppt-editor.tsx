@@ -49,6 +49,7 @@ import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { SlideEditor } from './slide-editor';
 import { SortableSlideItem } from './sortable-slide-item';
 import { AlignmentToolbar } from './alignment-toolbar';
+import { AIToolbar } from './ai-toolbar';
 import { SlideshowView } from '../slideshow';
 import { ThemeCustomizer } from '../theme';
 import { alignElements, distributeElements, autoArrangeElements } from '../utils';
@@ -265,11 +266,68 @@ export function PPTEditor({
         e.preventDefault();
         handleToggleFullscreen();
       }
+      // Only handle editing shortcuts in edit mode
+      if (mode === 'edit') {
+        const store = usePPTEditorStore.getState();
+        // Ctrl/Cmd + C: Copy
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey) {
+          const activeEl = document.activeElement;
+          if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+            e.preventDefault();
+            store.copy();
+          }
+        }
+        // Ctrl/Cmd + V: Paste
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey) {
+          const activeEl = document.activeElement;
+          if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+            e.preventDefault();
+            store.paste();
+          }
+        }
+        // Ctrl/Cmd + X: Cut
+        if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey) {
+          const activeEl = document.activeElement;
+          if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+            e.preventDefault();
+            store.cut();
+          }
+        }
+        // Ctrl/Cmd + D: Duplicate current slide
+        if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+          e.preventDefault();
+          if (currentSlide) {
+            duplicateSlide(currentSlide.id);
+          }
+        }
+        // Ctrl/Cmd + A: Select all elements on current slide
+        if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+          const activeEl = document.activeElement;
+          if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+            e.preventDefault();
+            if (currentSlide) {
+              store.selectElements(currentSlide.elements.map(el => el.id));
+            }
+          }
+        }
+        // Delete/Backspace: Delete selected elements
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          const activeEl = document.activeElement;
+          if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+            e.preventDefault();
+            if (currentSlide && store.selection.elementIds.length > 0) {
+              store.selection.elementIds.forEach(id => {
+                store.deleteElement(currentSlide.id, id);
+              });
+            }
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, effectiveFullscreen, isTauri, canUndo, canRedo, undo, redo, prevSlide, nextSlide, setMode, handleSave, handleToggleFullscreen]);
+  }, [mode, effectiveFullscreen, isTauri, canUndo, canRedo, undo, redo, prevSlide, nextSlide, setMode, handleSave, handleToggleFullscreen, currentSlide, duplicateSlide]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -462,6 +520,35 @@ export function PPTEditor({
             </PopoverContent>
           </Popover>
 
+          {/* Aspect ratio selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-xs h-8 px-2">
+                {presentation.aspectRatio || '16:9'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {(['16:9', '4:3', '16:10'] as const).map(ratio => (
+                <DropdownMenuItem
+                  key={ratio}
+                  onClick={() => {
+                    const store = usePPTEditorStore.getState();
+                    if (store.presentation) {
+                      usePPTEditorStore.setState({
+                        presentation: { ...store.presentation, aspectRatio: ratio },
+                        isDirty: true,
+                      });
+                    }
+                  }}
+                >
+                  <span className={presentation.aspectRatio === ratio ? 'font-semibold' : ''}>
+                    {ratio}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Separator orientation="vertical" className="h-6" />
 
           {/* Alignment Toolbar - shown when elements are selected */}
@@ -644,6 +731,19 @@ export function PPTEditor({
 
         {/* Main slide editor */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* AI Toolbar */}
+          {mode === 'edit' && currentSlide && (
+            <div className="border-b px-4 py-1.5 bg-muted/20">
+              <AIToolbar
+                slide={currentSlide}
+                presentation={presentation}
+                onSlideUpdate={(updates) => {
+                  usePPTEditorStore.getState().updateSlide(currentSlide.id, updates);
+                }}
+              />
+            </div>
+          )}
+
           <div className="flex-1 overflow-auto p-4 bg-muted/20">
             <div
               className="mx-auto"

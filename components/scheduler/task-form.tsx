@@ -42,7 +42,8 @@ import {
   TIMEZONE_OPTIONS,
   DEFAULT_EXECUTION_CONFIG,
 } from '@/types/scheduler';
-import { validateCronExpression, describeCronExpression } from '@/lib/scheduler/cron-parser';
+import { validateCronExpression, describeCronExpression, formatCronExpression, parseCronExpression } from '@/lib/scheduler/cron-parser';
+import { testNotificationChannel } from '@/lib/scheduler/notification-integration';
 
 interface TaskFormProps {
   initialValues?: Partial<CreateScheduledTaskInput>;
@@ -113,12 +114,40 @@ export function TaskForm({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [cronError, setCronError] = useState<string | null>(null);
   const [payloadError, setPayloadError] = useState<string | null>(null);
+  const [notificationTestResult, setNotificationTestResult] = useState<{ channel: string; success: boolean; error?: string } | null>(null);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
 
   // Validate cron expression
   const handleCronChange = useCallback((value: string) => {
     setCronExpression(value);
     const result = validateCronExpression(value);
     setCronError(result.valid ? null : result.error || 'Invalid expression');
+  }, []);
+
+  // Format cron expression (normalize whitespace/parts)
+  const handleFormatCron = useCallback(() => {
+    const parts = parseCronExpression(cronExpression);
+    if (parts) {
+      const formatted = formatCronExpression(parts);
+      if (formatted !== cronExpression) {
+        setCronExpression(formatted);
+        setCronError(null);
+      }
+    }
+  }, [cronExpression]);
+
+  // Test notification channel
+  const handleTestNotification = useCallback(async (channel: NotificationChannel) => {
+    setIsTestingNotification(true);
+    setNotificationTestResult(null);
+    try {
+      const result = await testNotificationChannel(channel);
+      setNotificationTestResult({ channel, success: result.success, error: result.error });
+    } catch (err) {
+      setNotificationTestResult({ channel, success: false, error: err instanceof Error ? err.message : 'Test failed' });
+    } finally {
+      setIsTestingNotification(false);
+    }
   }, []);
 
   // Handle cron preset selection
@@ -338,9 +367,18 @@ export function TaskForm({
                   {cronError ? (
                     <p className="text-xs text-destructive">{cronError}</p>
                   ) : (
-                    <p className="rounded-md bg-green-500/10 px-2 py-1 text-xs text-green-600 dark:text-green-400">
-                      {describeCronExpression(cronExpression)}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="rounded-md bg-green-500/10 px-2 py-1 text-xs text-green-600 dark:text-green-400">
+                        {describeCronExpression(cronExpression)}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleFormatCron}
+                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {t('formatExpression') || 'Format expression'}
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -496,22 +534,45 @@ export function TaskForm({
             <Label className="text-sm font-medium">{t('notificationChannels') || 'Channels'}</Label>
             <div className="flex gap-2">
               {(['desktop', 'toast'] as NotificationChannel[]).map((channel) => (
-                <button
-                  key={channel}
-                  type="button"
-                  onClick={() => toggleChannel(channel)}
-                  className={cn(
-                    'flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-all',
-                    'hover:border-amber-500/50 hover:bg-amber-500/5',
-                    notificationChannels.includes(channel)
-                      ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                      : 'border-border bg-background/50 text-muted-foreground'
+                <div key={channel} className="flex-1 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleChannel(channel)}
+                    className={cn(
+                      'w-full rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-all',
+                      'hover:border-amber-500/50 hover:bg-amber-500/5',
+                      notificationChannels.includes(channel)
+                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        : 'border-border bg-background/50 text-muted-foreground'
+                    )}
+                  >
+                    {channel}
+                  </button>
+                  {notificationChannels.includes(channel) && (
+                    <button
+                      type="button"
+                      onClick={() => handleTestNotification(channel)}
+                      disabled={isTestingNotification}
+                      className="w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    >
+                      {isTestingNotification ? (t('testing') || 'Testing...') : (t('testChannel') || 'Test')}
+                    </button>
                   )}
-                >
-                  {channel}
-                </button>
+                </div>
               ))}
             </div>
+            {notificationTestResult && (
+              <p className={cn(
+                'text-xs px-2 py-1 rounded-md',
+                notificationTestResult.success
+                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                  : 'bg-red-500/10 text-red-600 dark:text-red-400'
+              )}>
+                {notificationTestResult.success
+                  ? `${notificationTestResult.channel}: ${t('testSuccess') || 'Test passed'}`
+                  : `${notificationTestResult.channel}: ${notificationTestResult.error || t('testFailed') || 'Test failed'}`}
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -45,7 +45,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/layout/empty-state';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import {
   DropdownMenu,
   DropdownMenuContent,

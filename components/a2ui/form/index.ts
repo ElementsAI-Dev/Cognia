@@ -15,3 +15,4 @@ export { A2UITimePicker } from './a2ui-timepicker';
 export { A2UIDateTimePicker } from './a2ui-datetimepicker';
 export { A2UIFormGroup, type A2UIFormGroupComponent } from './a2ui-form-group';
 export { A2UISwitch, type A2UISwitchComponent } from './a2ui-switch';
+export { A2UIToggle } from './a2ui-toggle';

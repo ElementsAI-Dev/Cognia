@@ -132,7 +132,7 @@ jest.mock('@/components/ui/input', () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
-jest.mock('@/components/layout/keyboard-shortcuts-dialog', () => ({
+jest.mock('@/components/layout/overlays/keyboard-shortcuts-dialog', () => ({
   KeyboardShortcutsDialog: () => <div data-testid="keyboard-shortcuts-dialog" />,
 }));
 

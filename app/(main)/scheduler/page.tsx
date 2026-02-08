@@ -5,7 +5,7 @@
  * Main page for managing scheduled tasks
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus,
@@ -18,13 +18,31 @@ import {
   FileText,
   Database,
   Workflow,
+  Search,
+  X,
+  Trash2,
+  Pause,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  ArrowRight,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Sheet,
   SheetContent,
@@ -75,6 +93,12 @@ export default function SchedulerPage() {
     executions,
     statistics,
     selectedTask,
+    activeTasks,
+    pausedTasks,
+    upcomingTasks,
+    recentExecutions,
+    schedulerStatus,
+    filter,
     isLoading,
     isInitialized,
     createTask,
@@ -84,7 +108,15 @@ export default function SchedulerPage() {
     resumeTask,
     runTaskNow,
     selectTask,
+    setFilter,
+    clearFilter,
     refresh,
+    loadRecentExecutions,
+    loadUpcomingTasks,
+    cleanupOldExecutions,
+    cancelPluginExecution,
+    getActivePluginCount,
+    isPluginExecutionActive,
   } = useScheduler();
   const {
     capabilities,
@@ -121,7 +153,44 @@ export default function SchedulerPage() {
   const [systemSubmitting, setSystemSubmitting] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState(filter.search || '');
+  const [showDashboard, setShowDashboard] = useState(false);
+
   const isSystemView = schedulerTab === 'system';
+
+  // Load recent executions and upcoming tasks when dashboard is shown
+  useEffect(() => {
+    if (showDashboard && isInitialized) {
+      loadRecentExecutions(20);
+      loadUpcomingTasks(5);
+    }
+  }, [showDashboard, isInitialized, loadRecentExecutions, loadUpcomingTasks]);
+
+  // Debounced search filter
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchQuery.trim()) {
+        setFilter({ search: searchQuery.trim() });
+      } else if (filter.search) {
+        clearFilter();
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery, setFilter, clearFilter, filter.search]);
+
+  const handleCleanup = useCallback(async () => {
+    const deleted = await cleanupOldExecutions(30);
+    if (deleted > 0) {
+      loadRecentExecutions(20);
+    }
+  }, [cleanupOldExecutions, loadRecentExecutions]);
+
+  const formatDuration = (ms: number | undefined): string => {
+    if (!ms) return '-';
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
+  };
   const isRefreshing = isSystemView ? systemLoading : isLoading;
   const selectedSystemTask = useMemo(
     () => systemTasks.find((task) => task.id === systemEditTaskId) || null,
@@ -360,96 +429,238 @@ export default function SchedulerPage() {
           </div>
         </div>
 
-        {/* Statistics */}
+        {/* Statistics + Scheduler Status */}
         {!isSystemView && statistics && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-3 sm:mt-4">
-            <Card className="bg-gradient-to-br from-card to-muted/20">
-              <CardContent className="p-2.5 sm:p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="space-y-2 mt-3 sm:mt-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+              <Card className="bg-gradient-to-br from-card to-muted/20">
+                <CardContent className="p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-base sm:text-lg font-bold">{statistics.totalTasks}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('totalTasks') || 'Total'}</div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-base sm:text-lg font-bold">{statistics.totalTasks}</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('totalTasks') || 'Total'}</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10">
+                <CardContent className="p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
+                      <Activity className="h-4 w-4 text-green-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-base sm:text-lg font-bold text-green-500">{activeTasks.length}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('activeTasks') || 'Active'}</div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10">
-              <CardContent className="p-2.5 sm:p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-                    <Activity className="h-4 w-4 text-green-500" />
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
+                <CardContent className="p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/10">
+                      <Pause className="h-4 w-4 text-yellow-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-base sm:text-lg font-bold text-yellow-500">{pausedTasks.length}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('pausedTasks') || 'Paused'}</div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-base sm:text-lg font-bold text-green-500">{statistics.activeTasks}</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('activeTasks') || 'Active'}</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-card to-muted/20">
+                <CardContent className="p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <Badge variant="outline" className="text-green-500 text-xs px-1.5">
+                        {statistics.successfulExecutions}
+                      </Badge>
+                      <span className="text-muted-foreground">/</span>
+                      <Badge variant="outline" className="text-red-500 text-xs px-1.5">
+                        {statistics.failedExecutions}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">
+                      {t('successFailed') || 'S/F'}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10">
-              <CardContent className="p-2.5 sm:p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-base sm:text-lg font-bold">{statistics.upcomingExecutions}</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('upcoming') || 'Upcoming'}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-card to-muted/20">
-              <CardContent className="p-2.5 sm:p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <Badge variant="outline" className="text-green-500 text-xs px-1.5">
-                      {statistics.successfulExecutions}
-                    </Badge>
-                    <span className="text-muted-foreground">/</span>
-                    <Badge variant="outline" className="text-red-500 text-xs px-1.5">
-                      {statistics.failedExecutions}
-                    </Badge>
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-muted-foreground">
-                    {t('successFailed') || 'S/F'}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Scheduler Status Indicator */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${schedulerStatus === 'running' ? 'bg-green-500 animate-pulse' : schedulerStatus === 'stopped' ? 'bg-red-500' : 'bg-gray-400'}`} />
+                <span>{schedulerStatus === 'running' ? t('schedulerRunning') || 'Scheduler running' : schedulerStatus === 'stopped' ? t('schedulerStopped') || 'Scheduler stopped' : t('schedulerIdle') || 'Scheduler idle'}</span>
+              </div>
+              {getActivePluginCount() > 0 && (
+                <Badge variant="outline" className="text-blue-500 text-[10px]">
+                  {getActivePluginCount()} {t('activePluginTasks') || 'active plugin task(s)'}
+                </Badge>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* Search + Quick Actions */}
       {!isSystemView && (
-        <div className="px-3 sm:px-4 py-2 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground mr-1">
-            {t('quickActions') || 'Quick Actions'}:
-          </span>
-          <WorkflowScheduleDialog
-            workflowId="default"
-            workflowName="Workflow"
-            trigger={
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                <Workflow className="h-3.5 w-3.5" />
-                {t('scheduleWorkflowAction') || 'Schedule Workflow'}
-              </Button>
-            }
-            onScheduled={() => refresh()}
-          />
-          <BackupScheduleDialog
-            trigger={
-              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                <Database className="h-3.5 w-3.5" />
-                {t('scheduleBackup') || 'Schedule Backup'}
-              </Button>
-            }
-            onScheduled={() => refresh()}
-          />
+        <div className="px-3 sm:px-4 py-2 space-y-2">
+          {/* Search / Filter Bar */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('searchTasks') || 'Search tasks...'}
+                className="h-8 pl-8 pr-8 text-sm"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); clearFilter(); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showDashboard ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setShowDashboard(!showDashboard)}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('toggleDashboard') || 'Toggle Dashboard'}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8" onClick={handleCleanup}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('cleanupOldExecutions') || 'Cleanup old executions (30d)'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground mr-1">
+              {t('quickActions') || 'Quick Actions'}:
+            </span>
+            <WorkflowScheduleDialog
+              workflowId="default"
+              workflowName="Workflow"
+              trigger={
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                  <Workflow className="h-3.5 w-3.5" />
+                  {t('scheduleWorkflowAction') || 'Schedule Workflow'}
+                </Button>
+              }
+              onScheduled={() => refresh()}
+            />
+            <BackupScheduleDialog
+              trigger={
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                  <Database className="h-3.5 w-3.5" />
+                  {t('scheduleBackup') || 'Schedule Backup'}
+                </Button>
+              }
+              onScheduled={() => refresh()}
+            />
+          </div>
+
+          {/* Dashboard Panel - Upcoming Tasks & Recent Executions */}
+          {showDashboard && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-2">
+              {/* Upcoming Tasks */}
+              <Card>
+                <CardHeader className="pb-2 px-3 pt-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    {t('upcomingTasks') || 'Upcoming Tasks'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  {upcomingTasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">{t('noUpcomingTasks') || 'No upcoming tasks'}</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {upcomingTasks.map((task) => (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => { selectTask(task.id); setShowDashboard(false); }}
+                          className="flex items-center justify-between w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium truncate">{task.name}</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {task.nextRunAt?.toLocaleString() || '-'}
+                            </div>
+                          </div>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 ml-2" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Executions */}
+              <Card>
+                <CardHeader className="pb-2 px-3 pt-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-green-500" />
+                    {t('recentExecutions') || 'Recent Executions'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3">
+                  {recentExecutions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">{t('noRecentExecutions') || 'No recent executions'}</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {recentExecutions.slice(0, 8).map((exec) => (
+                        <div
+                          key={exec.id}
+                          className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {exec.status === 'completed' ? (
+                              <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                            ) : exec.status === 'failed' ? (
+                              <XCircle className="h-3 w-3 text-red-500 shrink-0" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 text-yellow-500 shrink-0" />
+                            )}
+                            <span className="truncate font-medium">{exec.taskName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <span className="text-muted-foreground">{formatDuration(exec.duration)}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {exec.startedAt.toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -502,6 +713,8 @@ export default function SchedulerPage() {
                   onDelete={() => setDeleteTaskId(selectedTask.id)}
                   onEdit={() => setShowEditSheet(true)}
                   isLoading={isLoading}
+                  onCancelPluginExecution={cancelPluginExecution}
+                  isPluginExecutionActive={isPluginExecutionActive}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-center p-4">
@@ -580,6 +793,8 @@ export default function SchedulerPage() {
                     onDelete={() => setDeleteTaskId(selectedTask.id)}
                     onEdit={() => setShowEditSheet(true)}
                     isLoading={isLoading}
+                    onCancelPluginExecution={cancelPluginExecution}
+                    isPluginExecutionActive={isPluginExecutionActive}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-center p-4">

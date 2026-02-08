@@ -33,9 +33,10 @@ export function FeaturedPluginCard({
   plugin,
   onInstall,
   onViewDetails,
+  isFavorite = false,
+  onToggleFavorite,
 }: PluginCardProps) {
   const [isInstalling, setIsInstalling] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
 
   const handleInstall = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,7 +115,7 @@ export function FeaturedPluginCard({
             className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity absolute top-3 right-3 sm:static"
             onClick={(e) => {
               e.stopPropagation();
-              setIsFavorite(!isFavorite);
+              onToggleFavorite?.(plugin.id);
             }}
           >
             <Heart className={cn('h-4 w-4 transition-all', isFavorite ? 'fill-red-500 text-red-500 scale-110' : 'hover:scale-110')} />

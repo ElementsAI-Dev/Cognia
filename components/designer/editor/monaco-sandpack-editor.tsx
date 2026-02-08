@@ -72,6 +72,11 @@ import {
 } from '@/lib/monaco';
 import { setupTypeScript } from '@/lib/monaco/typescript-config';
 import { registerAllSnippets, registerEmmetSupport } from '@/lib/monaco/snippets';
+import { registerAllCompletionProviders } from '@/lib/monaco/completion-providers';
+import { registerCodeActionProvider } from '@/lib/monaco/code-actions';
+import { registerEnhancedHoverProvider } from '@/lib/monaco/hover-provider';
+import { registerColorProvider } from '@/lib/monaco/color-provider';
+import { registerDocumentSymbolProvider } from '@/lib/monaco/symbol-provider';
 import type * as Monaco from 'monaco-editor';
 
 interface MonacoSandpackEditorProps {
@@ -111,6 +116,7 @@ interface EditorPreferences {
   bracketPairColorization: boolean;
   stickyScroll: boolean;
   renderWhitespace: 'none' | 'boundary' | 'selection' | 'trailing' | 'all';
+  autoSave: boolean;
 }
 
 const DEFAULT_PREFERENCES: EditorPreferences = {
@@ -123,6 +129,7 @@ const DEFAULT_PREFERENCES: EditorPreferences = {
   bracketPairColorization: true,
   stickyScroll: true,
   renderWhitespace: 'selection',
+  autoSave: true,
 };
 
 const MONACO_CDN_URL = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.0/min/vs';
@@ -207,6 +214,8 @@ export function MonacoSandpackEditor({
     return DEFAULT_PREFERENCES;
   });
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const preloadedRef = useRef(false);
   const typescriptConfiguredRef = useRef(false);
 
@@ -356,6 +365,16 @@ export function MonacoSandpackEditor({
       snippetDisposablesRef.current = [
         ...registerAllSnippets(monaco),
         ...registerEmmetSupport(monaco),
+        // Register advanced completion providers (import paths, Tailwind CSS, JSX attributes)
+        ...registerAllCompletionProviders(monaco),
+        // Register code actions (quick fixes, refactoring)
+        ...registerCodeActionProvider(monaco),
+        // Register enhanced hover provider (Tailwind CSS→CSS, color preview, unit conversion)
+        ...registerEnhancedHoverProvider(monaco),
+        // Register color provider (inline color decorations and color picker)
+        ...registerColorProvider(monaco),
+        // Register document symbol provider (Go to Symbol, breadcrumbs)
+        ...registerDocumentSymbolProvider(monaco),
       ];
 
       setLoadingProgress(50);
@@ -386,13 +405,27 @@ export function MonacoSandpackEditor({
 
       monacoEditorRef.current = editor;
 
-      // Listen for content changes
+      // Listen for content changes with auto-save
       editor.onDidChangeModelContent(() => {
         const newCode = editor.getValue();
         setCode(newCode, false);
         updateStats(editor);
         // Debounce diagnostics update
         setTimeout(updateDiagnostics, 500);
+
+        // Auto-save with debounce
+        if (editorPrefs.autoSave) {
+          setSaveStatus('unsaved');
+          if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+          }
+          autoSaveTimerRef.current = setTimeout(() => {
+            setSaveStatus('saving');
+            void parseCodeToElements(newCode);
+            onSave?.(newCode);
+            setSaveStatus('saved');
+          }, 1500);
+        }
       });
 
       // Listen for cursor position changes
@@ -972,6 +1005,14 @@ export function MonacoSandpackEditor({
                           className="scale-75"
                         />
                       </div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">{t('autoSave') || 'Auto Save'}</Label>
+                        <Switch
+                          checked={editorPrefs.autoSave}
+                          onCheckedChange={(v) => updateEditorPref('autoSave', v)}
+                          className="scale-75"
+                        />
+                      </div>
                     </div>
                   </div>
                 </PopoverContent>
@@ -1108,6 +1149,18 @@ export function MonacoSandpackEditor({
               </Popover>
 
               <Separator orientation="vertical" className="h-3.5" />
+
+              {/* Auto-save Status */}
+              {editorPrefs.autoSave && (
+                <span className={cn(
+                  'px-1 py-0.5',
+                  saveStatus === 'unsaved' && 'text-yellow-500',
+                  saveStatus === 'saving' && 'text-blue-500',
+                  saveStatus === 'saved' && 'text-muted-foreground'
+                )}>
+                  {saveStatus === 'unsaved' ? '●' : saveStatus === 'saving' ? '↻' : '✓'}
+                </span>
+              )}
 
               {/* Line/Char Count */}
               <div className="flex items-center gap-1 px-1 py-0.5">

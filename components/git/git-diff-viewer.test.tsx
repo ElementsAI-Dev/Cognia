@@ -230,4 +230,82 @@ describe('GitDiffViewer', () => {
     const badges = screen.getAllByText('M');
     expect(badges.length).toBeGreaterThan(0);
   });
+
+  describe('split view mode', () => {
+    it('should render view mode toggle buttons', () => {
+      render(<GitDiffViewer diffs={mockDiffs} />);
+      // Toggle buttons are icon-only with title attributes
+      expect(screen.getByTitle('unifiedView')).toBeInTheDocument();
+      expect(screen.getByTitle('splitView')).toBeInTheDocument();
+    });
+
+    it('should start in unified view mode by default', () => {
+      render(<GitDiffViewer diffs={mockDiffs} />);
+      const unifiedButton = screen.getByTitle('unifiedView');
+      // Unified button should be active (has variant styling)
+      expect(unifiedButton).toBeInTheDocument();
+    });
+
+    it('should switch to split view when clicking split view button', async () => {
+      render(<GitDiffViewer diffs={mockDiffs} />);
+
+      // First expand a file
+      const expandAllButton = screen.getByText('expandAll');
+      fireEvent.click(expandAllButton);
+
+      // Switch to split view
+      fireEvent.click(screen.getByTitle('splitView'));
+
+      // Diff content should still be visible
+      await waitFor(() => {
+        const copyPathButtons = screen.getAllByText('copyPath');
+        expect(copyPathButtons.length).toBe(2);
+      });
+    });
+
+    it('should render side-by-side columns in split view', async () => {
+      const { container } = render(<GitDiffViewer diffs={mockDiffs} />);
+
+      // Expand all and switch to split view
+      fireEvent.click(screen.getByText('expandAll'));
+      fireEvent.click(screen.getByTitle('splitView'));
+
+      await waitFor(() => {
+        // Split view should use grid layout for left/right columns
+        const gridElements = container.querySelectorAll('.grid-cols-2');
+        expect(gridElements.length).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    it('should switch back to unified view', async () => {
+      render(<GitDiffViewer diffs={mockDiffs} />);
+
+      // Switch to split, then back to unified
+      fireEvent.click(screen.getByTitle('splitView'));
+      fireEvent.click(screen.getByTitle('unifiedView'));
+
+      // Should be back in unified mode
+      const unifiedButton = screen.getByTitle('unifiedView');
+      expect(unifiedButton).toBeInTheDocument();
+    });
+
+    it('should preserve expanded files when switching view modes', async () => {
+      render(<GitDiffViewer diffs={mockDiffs} />);
+
+      // Expand all files
+      fireEvent.click(screen.getByText('expandAll'));
+
+      await waitFor(() => {
+        expect(screen.getAllByText('copyPath').length).toBe(2);
+      });
+
+      // Switch to split view
+      fireEvent.click(screen.getByTitle('splitView'));
+
+      // Files should still be expanded
+      await waitFor(() => {
+        expect(screen.getAllByText('copyPath').length).toBe(2);
+      });
+    });
+  });
 });

@@ -55,6 +55,7 @@ interface AgentTeamState {
   // Team CRUD
   createTeam: (input: CreateTeamInput) => AgentTeam;
   updateTeam: (teamId: string, updates: Partial<AgentTeam>) => void;
+  updateTeamConfig: (teamId: string, config: AgentTeamConfig) => void;
   deleteTeam: (teamId: string) => void;
   setTeamStatus: (teamId: string, status: TeamStatus) => void;
 
@@ -85,6 +86,10 @@ interface AgentTeamState {
   // Templates
   addTemplate: (template: AgentTeamTemplate) => void;
   deleteTemplate: (templateId: string) => void;
+  saveAsTemplate: (teamId: string, name: string, category?: AgentTeamTemplate['category']) => AgentTeamTemplate | null;
+  updateTemplate: (templateId: string, updates: Partial<AgentTeamTemplate>) => void;
+  importTemplates: (templates: AgentTeamTemplate[]) => number;
+  exportTemplates: () => AgentTeamTemplate[];
 
   // UI State
   setActiveTeam: (teamId: string | null) => void;
@@ -208,6 +213,16 @@ export const useAgentTeamStore = create<AgentTeamState>()(
           if (!team) return state;
           return {
             teams: { ...state.teams, [teamId]: { ...team, ...updates } },
+          };
+        });
+      },
+
+      updateTeamConfig: (teamId, config) => {
+        set((state) => {
+          const team = state.teams[teamId];
+          if (!team) return state;
+          return {
+            teams: { ...state.teams, [teamId]: { ...team, config } },
           };
         });
       },
@@ -553,6 +568,86 @@ export const useAgentTeamStore = create<AgentTeamState>()(
           const { [templateId]: _, ...rest } = state.templates;
           return { templates: rest };
         });
+      },
+
+      saveAsTemplate: (teamId, name, category) => {
+        const state = get();
+        const team = state.teams[teamId];
+        if (!team) return null;
+
+        const teammates = team.teammateIds
+          .map(id => state.teammates[id])
+          .filter((tm): tm is AgentTeammate => tm !== undefined && tm.role !== 'lead');
+
+        const template: AgentTeamTemplate = {
+          id: nanoid(),
+          name,
+          description: team.description || `Template created from team "${team.name}"`,
+          category: category || 'general',
+          teammates: teammates.map(tm => ({
+            name: tm.name,
+            description: tm.description,
+            specialization: tm.config.specialization,
+            config: {
+              provider: tm.config.provider,
+              model: tm.config.model,
+              temperature: tm.config.temperature,
+              maxSteps: tm.config.maxSteps,
+              specialization: tm.config.specialization,
+            },
+          })),
+          config: {
+            executionMode: team.config.executionMode,
+            maxConcurrentTeammates: team.config.maxConcurrentTeammates,
+            requirePlanApproval: team.config.requirePlanApproval,
+            enableMessaging: team.config.enableMessaging,
+            maxRetries: team.config.maxRetries,
+            maxPlanRevisions: team.config.maxPlanRevisions,
+            enableTaskRetry: team.config.enableTaskRetry,
+            tokenBudget: team.config.tokenBudget,
+          },
+          isBuiltIn: false,
+        };
+
+        set((s) => ({
+          templates: { ...s.templates, [template.id]: template },
+        }));
+
+        return template;
+      },
+
+      updateTemplate: (templateId, updates) => {
+        set((state) => {
+          const template = state.templates[templateId];
+          if (!template || template.isBuiltIn) return state;
+          return {
+            templates: {
+              ...state.templates,
+              [templateId]: { ...template, ...updates, id: templateId, isBuiltIn: false },
+            },
+          };
+        });
+      },
+
+      importTemplates: (templates) => {
+        let imported = 0;
+        set((state) => {
+          const updated = { ...state.templates };
+          for (const template of templates) {
+            const id = template.id || nanoid();
+            if (!updated[id] || !updated[id].isBuiltIn) {
+              updated[id] = { ...template, id, isBuiltIn: false };
+              imported++;
+            }
+          }
+          return { templates: updated };
+        });
+        return imported;
+      },
+
+      exportTemplates: () => {
+        const state = get();
+        return Object.values(state.templates).filter(t => !t.isBuiltIn);
       },
 
       // ====================================================================

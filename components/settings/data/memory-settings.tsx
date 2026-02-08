@@ -23,7 +23,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group';
-import { EmptyState } from '@/components/layout/empty-state';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import {
   Select,
   SelectContent,

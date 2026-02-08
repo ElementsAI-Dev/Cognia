@@ -5,7 +5,7 @@
  * Supports filtering, grouping by trace ID, and auto-refresh.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   IndexedDBTransport,
   type StructuredLogEntry,
@@ -28,6 +28,10 @@ export interface LogStreamOptions {
   traceId?: string;
   /** Search query for message content */
   searchQuery?: string;
+  /** Use regex for search query */
+  useRegex?: boolean;
+  /** Filter by tags */
+  tags?: string[];
   /** Group logs by trace ID */
   groupByTraceId?: boolean;
 }
@@ -52,7 +56,11 @@ export interface LogStreamResult {
     total: number;
     byLevel: Record<LogLevel, number>;
     byModule: Record<string, number>;
+    oldestEntry?: Date;
+    newestEntry?: Date;
   };
+  /** Log rate (logs per minute, averaged over recent window) */
+  logRate: number;
 }
 
 const DEFAULT_OPTIONS: LogStreamOptions = {
@@ -60,6 +68,7 @@ const DEFAULT_OPTIONS: LogStreamOptions = {
   refreshInterval: 2000,
   maxLogs: 1000,
   level: 'all',
+  useRegex: false,
   groupByTraceId: false,
 };
 
@@ -112,11 +121,37 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
       
       // Apply search filter (client-side)
       if (opts.searchQuery) {
-        const query = opts.searchQuery.toLowerCase();
-        fetchedLogs = fetchedLogs.filter(log => 
-          log.message.toLowerCase().includes(query) ||
-          log.module.toLowerCase().includes(query) ||
-          (log.traceId && log.traceId.toLowerCase().includes(query))
+        if (opts.useRegex) {
+          try {
+            const regex = new RegExp(opts.searchQuery, 'i');
+            fetchedLogs = fetchedLogs.filter(log =>
+              regex.test(log.message) ||
+              regex.test(log.module) ||
+              (log.traceId && regex.test(log.traceId)) ||
+              (log.data && regex.test(JSON.stringify(log.data)))
+            );
+          } catch {
+            // Invalid regex, fall back to literal search
+            const query = opts.searchQuery.toLowerCase();
+            fetchedLogs = fetchedLogs.filter(log =>
+              log.message.toLowerCase().includes(query)
+            );
+          }
+        } else {
+          const query = opts.searchQuery.toLowerCase();
+          fetchedLogs = fetchedLogs.filter(log => 
+            log.message.toLowerCase().includes(query) ||
+            log.module.toLowerCase().includes(query) ||
+            (log.traceId && log.traceId.toLowerCase().includes(query)) ||
+            (log.data && JSON.stringify(log.data).toLowerCase().includes(query))
+          );
+        }
+      }
+
+      // Apply tag filter (client-side)
+      if (opts.tags && opts.tags.length > 0) {
+        fetchedLogs = fetchedLogs.filter(log =>
+          log.tags && opts.tags!.some(tag => log.tags!.includes(tag))
         );
       }
       
@@ -126,7 +161,7 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
     } finally {
       setIsLoading(false);
     }
-  }, [opts.maxLogs, opts.level, opts.module, opts.traceId, opts.searchQuery]);
+  }, [opts.maxLogs, opts.level, opts.module, opts.traceId, opts.searchQuery, opts.useRegex, opts.tags]);
 
   // Initial fetch
   useEffect(() => {
@@ -188,17 +223,38 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
   const stats = useCallback(() => {
     const byLevel: Record<string, number> = {};
     const byModule: Record<string, number> = {};
+    let oldest: Date | undefined;
+    let newest: Date | undefined;
     
     for (const log of logs) {
       byLevel[log.level] = (byLevel[log.level] || 0) + 1;
       byModule[log.module] = (byModule[log.module] || 0) + 1;
+      
+      const ts = new Date(log.timestamp);
+      if (!oldest || ts < oldest) oldest = ts;
+      if (!newest || ts > newest) newest = ts;
     }
     
     return {
       total: logs.length,
       byLevel: byLevel as Record<LogLevel, number>,
       byModule,
+      oldestEntry: oldest,
+      newestEntry: newest,
     };
+  }, [logs]);
+
+  // Calculate log rate (logs per minute in the last 5 minutes)
+  const logRate = useMemo(() => {
+    if (logs.length < 2) return 0;
+    const now = Date.now();
+    const fiveMinAgo = now - 5 * 60 * 1000;
+    const recentLogs = logs.filter(l => new Date(l.timestamp).getTime() >= fiveMinAgo);
+    if (recentLogs.length === 0) return 0;
+    
+    const oldest = Math.min(...recentLogs.map(l => new Date(l.timestamp).getTime()));
+    const spanMinutes = Math.max((now - oldest) / (1000 * 60), 1 / 60);
+    return Math.round(recentLogs.length / spanMinutes);
   }, [logs]);
 
   return {
@@ -210,6 +266,7 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
     clearLogs,
     exportLogs,
     stats: stats(),
+    logRate,
   };
 }
 

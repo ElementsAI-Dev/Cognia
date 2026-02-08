@@ -306,7 +306,9 @@ export type AcpSessionUpdateType =
   | 'tool_call_update'
   | 'plan'
   | 'available_commands_update'
-  | 'mode_change';
+  | 'mode_change'
+  | 'current_mode_update'
+  | 'config_options_update';
 
 /**
  * ACP Tool call status
@@ -315,6 +317,7 @@ export type AcpToolCallStatus =
   | 'pending'
   | 'in_progress'
   | 'completed'
+  | 'failed'
   | 'cancelled'
   | 'error';
 
@@ -324,20 +327,32 @@ export type AcpToolCallStatus =
 export type AcpToolCallKind =
   | 'file_read'
   | 'file_write'
+  | 'read'
+  | 'write'
+  | 'execute'
   | 'terminal'
   | 'browser'
   | 'mcp'
+  | 'switch_mode'
   | 'other';
 
 /**
  * ACP Content block for session updates
  */
 export interface AcpContentBlock {
-  type: 'text' | 'image' | 'resource' | 'resource_link' | 'content';
+  type: 'text' | 'image' | 'audio' | 'resource' | 'resource_link' | 'content';
   text?: string;
   data?: string;
   mimeType?: string;
   uri?: string;
+  /** Resource name (for resource_link) */
+  name?: string;
+  /** Resource title (for resource_link) */
+  title?: string;
+  /** Resource description (for resource_link) */
+  description?: string;
+  /** Resource size in bytes (for resource_link) */
+  size?: number;
   resource?: {
     uri: string;
     mimeType?: string;
@@ -345,6 +360,8 @@ export interface AcpContentBlock {
     blob?: string;
   };
   content?: AcpContentBlock;
+  /** Content annotations */
+  annotations?: AcpContentAnnotations;
 }
 
 /**
@@ -380,6 +397,14 @@ export interface AcpToolCallUpdate {
   title: string;
   kind: AcpToolCallKind;
   status: AcpToolCallStatus;
+  /** Content produced by the tool call */
+  content?: AcpToolCallContent[];
+  /** File locations affected by this tool call */
+  locations?: AcpToolCallLocation[];
+  /** Raw input parameters sent to the tool */
+  rawInput?: Record<string, unknown>;
+  /** Raw output returned by the tool */
+  rawOutput?: Record<string, unknown>;
 }
 
 /**
@@ -388,11 +413,16 @@ export interface AcpToolCallUpdate {
 export interface AcpToolCallStatusUpdate {
   sessionUpdate: 'tool_call_update';
   toolCallId: string;
-  status: AcpToolCallStatus;
-  content?: Array<{
-    type: 'content';
-    content: AcpContentBlock;
-  }>;
+  status?: AcpToolCallStatus;
+  title?: string;
+  kind?: AcpToolCallKind;
+  content?: AcpToolCallContent[];
+  /** File locations affected by this tool call */
+  locations?: AcpToolCallLocation[];
+  /** Raw input parameters sent to the tool */
+  rawInput?: Record<string, unknown>;
+  /** Raw output returned by the tool */
+  rawOutput?: Record<string, unknown>;
 }
 
 /**
@@ -413,10 +443,203 @@ export interface AcpAvailableCommandsUpdate {
 
 /**
  * ACP Mode change update
+ * @deprecated Use config_options_update with category 'mode' instead
  */
 export interface AcpModeChangeUpdate {
   sessionUpdate: 'mode_change';
   modeId: AcpPermissionMode;
+}
+
+/**
+ * ACP Current mode update (agent-initiated mode change)
+ * @see https://agentclientprotocol.com/protocol/session-modes
+ */
+export interface AcpCurrentModeUpdate {
+  sessionUpdate: 'current_mode_update';
+  modeId: string;
+}
+
+// ============================================================================
+// ACP Session Config Options
+// @see https://agentclientprotocol.com/protocol/session-config-options
+// ============================================================================
+
+/**
+ * Config option category for semantic UX hints
+ * Categories starting with '_' are for custom use
+ */
+export type AcpConfigOptionCategory = 'mode' | 'model' | 'thought_level' | string;
+
+/**
+ * Config option type (currently only 'select' is supported by the spec)
+ */
+export type AcpConfigOptionType = 'select';
+
+/**
+ * A single value within a config option
+ */
+export interface AcpConfigOptionValue {
+  /** The value identifier used when setting this option */
+  value: string;
+  /** Human-readable name to display */
+  name: string;
+  /** Optional description of what this value does */
+  description?: string;
+}
+
+/**
+ * A configuration option for a session
+ * @see https://agentclientprotocol.com/protocol/session-config-options
+ */
+export interface AcpConfigOption {
+  /** Unique identifier for this configuration option */
+  id: string;
+  /** Human-readable label for the option */
+  name: string;
+  /** Optional description */
+  description?: string;
+  /** Semantic category for UX hints */
+  category?: AcpConfigOptionCategory;
+  /** The type of input control */
+  type: AcpConfigOptionType;
+  /** The currently selected value */
+  currentValue: string;
+  /** The available values */
+  options: AcpConfigOptionValue[];
+}
+
+/**
+ * ACP Config options update (session notification)
+ * @see https://agentclientprotocol.com/protocol/session-config-options
+ */
+export interface AcpConfigOptionsUpdate {
+  sessionUpdate: 'config_options_update';
+  configOptions: AcpConfigOption[];
+}
+
+// ============================================================================
+// ACP Tool Call Content Types
+// @see https://agentclientprotocol.com/protocol/tool-calls
+// ============================================================================
+
+/**
+ * Diff content produced by tool calls
+ */
+export interface AcpToolCallDiffContent {
+  type: 'diff';
+  /** Absolute file path being modified */
+  path: string;
+  /** Original content (null for new files) */
+  oldText: string | null;
+  /** New content after modification */
+  newText: string;
+}
+
+/**
+ * Terminal content embedded in tool calls
+ */
+export interface AcpToolCallTerminalContent {
+  type: 'terminal';
+  /** ID of a terminal created with terminal/create */
+  terminalId: string;
+}
+
+/**
+ * Regular content embedded in tool calls
+ */
+export interface AcpToolCallRegularContent {
+  type: 'content';
+  content: AcpContentBlock;
+}
+
+/**
+ * Union of all tool call content types
+ */
+export type AcpToolCallContent =
+  | AcpToolCallRegularContent
+  | AcpToolCallDiffContent
+  | AcpToolCallTerminalContent;
+
+/**
+ * File location affected by a tool call (for follow-along features)
+ */
+export interface AcpToolCallLocation {
+  /** Absolute file path being accessed or modified */
+  path: string;
+  /** Optional line number within the file */
+  line?: number;
+}
+
+/**
+ * Permission option kind
+ * @see https://agentclientprotocol.com/protocol/tool-calls
+ */
+export type AcpPermissionOptionKind =
+  | 'allow_once'
+  | 'allow_always'
+  | 'reject_once'
+  | 'reject_always';
+
+/**
+ * Permission option presented to the user
+ */
+export interface AcpPermissionOption {
+  /** Unique identifier for this option */
+  optionId: string;
+  /** Human-readable label */
+  name: string;
+  /** Kind hint for UI treatment */
+  kind: AcpPermissionOptionKind;
+}
+
+/**
+ * Permission request outcome
+ */
+export interface AcpPermissionOutcome {
+  outcome: 'selected' | 'cancelled';
+  optionId?: string;
+}
+
+// ============================================================================
+// ACP Content Annotations
+// @see https://agentclientprotocol.com/protocol/content
+// ============================================================================
+
+/**
+ * Annotations on content blocks
+ */
+export interface AcpContentAnnotations {
+  /** Intended audience */
+  audience?: ('user' | 'assistant')[];
+  /** Priority level */
+  priority?: number;
+  /** Custom annotation data */
+  _meta?: Record<string, unknown>;
+}
+
+/**
+ * Audio content block
+ * @see https://agentclientprotocol.com/protocol/content
+ */
+export interface AcpAudioContentBlock {
+  type: 'audio';
+  /** Base64-encoded audio data */
+  data: string;
+  /** MIME type of the audio (e.g., "audio/wav", "audio/mp3") */
+  mimeType: string;
+  /** Optional annotations */
+  annotations?: AcpContentAnnotations;
+}
+
+/**
+ * Terminal exit status
+ * @see https://agentclientprotocol.com/protocol/terminals
+ */
+export interface AcpTerminalExitStatus {
+  /** Process exit code (may be null if terminated by signal) */
+  exitCode: number | null;
+  /** Signal that terminated the process (may be null if exited normally) */
+  signal: string | null;
 }
 
 /**
@@ -430,7 +653,9 @@ export type AcpSessionUpdate =
   | AcpToolCallStatusUpdate
   | AcpPlanUpdate
   | AcpAvailableCommandsUpdate
-  | AcpModeChangeUpdate;
+  | AcpModeChangeUpdate
+  | AcpCurrentModeUpdate
+  | AcpConfigOptionsUpdate;
 
 /**
  * ACP session/update notification params
@@ -880,11 +1105,14 @@ export type ExternalAgentEventType =
   | 'tool_use_delta'
   | 'tool_use_end'
   | 'tool_result'
+  | 'tool_call_update'
   | 'permission_request'
   | 'permission_response'
   | 'thinking'
   | 'plan_update'
   | 'commands_update'
+  | 'config_options_update'
+  | 'mode_update'
   | 'progress'
   | 'error'
   | 'done';
@@ -1027,6 +1255,40 @@ export interface ExternalAgentCommandsUpdateEvent extends ExternalAgentEventBase
 }
 
 /**
+ * Config options update event
+ * @see https://agentclientprotocol.com/protocol/session-config-options
+ */
+export interface ExternalAgentConfigOptionsUpdateEvent extends ExternalAgentEventBase {
+  type: 'config_options_update';
+  configOptions: AcpConfigOption[];
+}
+
+/**
+ * Mode update event (agent-initiated mode change)
+ * @see https://agentclientprotocol.com/protocol/session-modes
+ */
+export interface ExternalAgentModeUpdateEvent extends ExternalAgentEventBase {
+  type: 'mode_update';
+  modeId: string;
+}
+
+/**
+ * Tool call update event (enhanced with diff, locations, etc.)
+ * @see https://agentclientprotocol.com/protocol/tool-calls
+ */
+export interface ExternalAgentToolCallUpdateEvent extends ExternalAgentEventBase {
+  type: 'tool_call_update';
+  toolCallId: string;
+  status?: AcpToolCallStatus;
+  title?: string;
+  kind?: AcpToolCallKind;
+  content?: AcpToolCallContent[];
+  locations?: AcpToolCallLocation[];
+  rawInput?: Record<string, unknown>;
+  rawOutput?: Record<string, unknown>;
+}
+
+/**
  * Progress event
  */
 export interface ExternalAgentProgressEvent extends ExternalAgentEventBase {
@@ -1069,11 +1331,14 @@ export type ExternalAgentEvent =
   | ExternalAgentToolUseDeltaEvent
   | ExternalAgentToolUseEndEvent
   | ExternalAgentToolResultEvent
+  | ExternalAgentToolCallUpdateEvent
   | ExternalAgentPermissionRequestEvent
   | ExternalAgentPermissionResponseEvent
   | ExternalAgentThinkingEvent
   | ExternalAgentPlanUpdateEvent
   | ExternalAgentCommandsUpdateEvent
+  | ExternalAgentConfigOptionsUpdateEvent
+  | ExternalAgentModeUpdateEvent
   | ExternalAgentProgressEvent
   | ExternalAgentErrorEvent
   | ExternalAgentDoneEvent;

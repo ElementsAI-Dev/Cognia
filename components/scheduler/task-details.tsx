@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import type { ScheduledTask, TaskExecution, TaskExecutionStatus } from '@/types/scheduler';
-import { describeCronExpression } from '@/lib/scheduler/cron-parser';
+import { describeCronExpression, getNextCronTimes, matchesCronExpression } from '@/lib/scheduler/cron-parser';
 
 interface TaskDetailsProps {
   task: ScheduledTask;
@@ -51,6 +51,8 @@ interface TaskDetailsProps {
   onDelete: () => void;
   onEdit: () => void;
   isLoading?: boolean;
+  onCancelPluginExecution?: (executionId: string) => boolean;
+  isPluginExecutionActive?: (executionId: string) => boolean;
 }
 
 const executionStatusConfig: Record<TaskExecutionStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -71,6 +73,8 @@ export function TaskDetails({
   onDelete,
   onEdit,
   isLoading,
+  onCancelPluginExecution,
+  isPluginExecutionActive,
 }: TaskDetailsProps) {
   const t = useTranslations('scheduler');
 
@@ -99,6 +103,20 @@ export function TaskDetails({
     if (total === 0) return null;
     return Math.round((task.successCount / total) * 100);
   }, [task.successCount, task.failureCount]);
+
+  const nextRunTimes = useMemo(() => {
+    if (task.trigger.type === 'cron' && task.trigger.cronExpression) {
+      return getNextCronTimes(task.trigger.cronExpression, 5, new Date());
+    }
+    return [];
+  }, [task.trigger]);
+
+  const isCurrentlyMatching = useMemo(() => {
+    if (task.trigger.type === 'cron' && task.trigger.cronExpression) {
+      return matchesCronExpression(task.trigger.cronExpression, new Date());
+    }
+    return false;
+  }, [task.trigger]);
 
   const formatDuration = (ms: number | undefined): string => {
     if (!ms) return '-';
@@ -224,8 +242,36 @@ export function TaskDetails({
                   {task.lastRunAt ? task.lastRunAt.toLocaleString() : 'Never'}
                 </span>
               </div>
+              {isCurrentlyMatching && (
+                <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 bg-green-500/10 rounded-md px-2 py-1">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  {t('cronMatchingNow') || 'Cron expression matches current time'}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Upcoming Runs Preview */}
+          {nextRunTimes.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {t('upcomingRuns') || 'Upcoming Runs'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {nextRunTimes.map((time, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">#{index + 1}</span>
+                      <span className="font-mono text-xs">{time.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Statistics */}
           <Card>
@@ -296,9 +342,21 @@ export function TaskDetails({
                               </Badge>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDuration(execution.duration)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {execution.status === 'running' && isPluginExecutionActive?.(execution.id) && onCancelPluginExecution && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                                onClick={() => onCancelPluginExecution(execution.id)}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDuration(execution.duration)}
+                            </span>
+                          </div>
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
                           {execution.startedAt.toLocaleString()}

@@ -4,7 +4,7 @@
  * Chat layout - wraps chat pages with sidebar and panels
  */
 
-import { AppShell } from '@/components/layout/app-shell';
+import { AppShell } from '@/components/layout/shell/app-shell';
 import { SidebarContainer } from '@/components/sidebar';
 import { ArtifactPanel } from '@/components/artifacts';
 import { CanvasPanel } from '@/components/canvas';

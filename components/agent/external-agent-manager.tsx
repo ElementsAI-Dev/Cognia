@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { useExternalAgent } from '@/hooks/agent';
 import { ExternalAgentCommands } from './external-agent-commands';
 import { ExternalAgentPlan } from './external-agent-plan';
+import { ExternalAgentConfigOptions } from './external-agent-config-options';
 import type {
   ExternalAgentConfig,
   ExternalAgentConnectionStatus,
@@ -414,12 +415,14 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
     availableCommands,
     planEntries,
     planStep,
+    configOptions,
     addAgent,
     removeAgent,
     connect,
     disconnect,
     execute,
     setActiveAgent,
+    setConfigOption,
     refresh,
     clearError,
   } = useExternalAgent();
@@ -549,6 +552,16 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
           </div>
         )}
       </ScrollArea>
+
+      {/* Config Options */}
+      {configOptions.length > 0 && (
+        <ExternalAgentConfigOptions
+          configOptions={configOptions}
+          onSetConfigOption={setConfigOption}
+          disabled={isExecuting}
+          compact
+        />
+      )}
 
       {(availableCommands.length > 0 || planEntries.length > 0) && (
         <div className="flex flex-col gap-3">

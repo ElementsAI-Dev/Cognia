@@ -28,6 +28,8 @@ import {
   Settings2,
   Trash2,
   ExternalLink,
+  ArrowUpDown,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -64,6 +66,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PluginList } from '../core/plugin-list';
 import { PluginEmptyState } from '../core/plugin-empty-state';
 import { PluginGroupedList } from '../core/plugin-grouped-list';
+import { PluginInstalledDetail } from '../core/plugin-installed-detail';
 import { PluginAnalytics } from '../monitoring/plugin-analytics';
 import { PluginCreateWizard } from './plugin-create-wizard';
 import { PluginConfig } from './plugin-config';
@@ -118,11 +121,11 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [_sortBy, _setSortBy] = useState<SortOption>('name');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
   const [filterBy, setFilterBy] = useState<FilterStatus>('all');
   const [typeFilter, setTypeFilter] = useState<FilterType>('all');
   const [capabilityFilter, setCapabilityFilter] = useState<FilterCapability>('all');
-  const [groupBy, _setGroupBy] = useState<'none' | 'type' | 'capability' | 'status'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'type' | 'capability' | 'status'>('none');
 
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -134,6 +137,10 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
 
   // Config dialog state
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null);
+
+  // Detail sheet state
+  const [detailPlugin, setDetailPlugin] = useState<Plugin | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // Reset confirmation dialog state
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -185,7 +192,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
       return true;
     })
     .sort((a, b) => {
-      switch (_sortBy) {
+      switch (sortBy) {
         case 'name':
           return a.manifest.name.localeCompare(b.manifest.name);
         case 'recent':
@@ -417,6 +424,12 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
     setConfigPlugin(plugin);
   }, []);
 
+  // View plugin details handler
+  const handleViewDetails = useCallback((plugin: Plugin) => {
+    setDetailPlugin(plugin);
+    setIsDetailOpen(true);
+  }, []);
+
   return (
     <TooltipProvider delayDuration={300}>
       <Tabs
@@ -619,6 +632,56 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 activeCount={filteredPlugins.length}
               />
 
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">
+                      {sortBy === 'name' ? t('filters.sortByName') : sortBy === 'recent' ? t('filters.sortByRecent') : t('filters.sortByStatus')}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                  <DropdownMenuItem onClick={() => setSortBy('name')} className={cn(sortBy === 'name' && 'bg-accent')}>
+                    {t('filters.sortByName')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('recent')} className={cn(sortBy === 'recent' && 'bg-accent')}>
+                    {t('filters.sortByRecent')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('status')} className={cn(sortBy === 'status' && 'bg-accent')}>
+                    {t('filters.sortByStatus')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* GroupBy Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant={groupBy !== 'none' ? 'default' : 'outline'} size="sm" className="h-9 gap-1.5">
+                    <Layers className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">
+                      {groupBy === 'none' ? t('filters.noGroup') : groupBy === 'type' ? t('filters.groupByType') : groupBy === 'capability' ? t('filters.groupByCapability') : t('filters.groupByStatus')}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setGroupBy('none')} className={cn(groupBy === 'none' && 'bg-accent')}>
+                    {t('filters.noGroup')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setGroupBy('type')} className={cn(groupBy === 'type' && 'bg-accent')}>
+                    {t('filters.groupByType')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGroupBy('capability')} className={cn(groupBy === 'capability' && 'bg-accent')}>
+                    {t('filters.groupByCapability')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGroupBy('status')} className={cn(groupBy === 'status' && 'bg-accent')}>
+                    {t('filters.groupByStatus')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* View Mode Toggle - Enhanced with ToggleGroup */}
               <ToggleGroup
                 type="single"
@@ -681,7 +744,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                 searchQuery={searchQuery}
                 onCreatePlugin={() => setIsCreateWizardOpen(true)}
                 onBrowseMarketplace={() => setActiveTab('marketplace')}
-                onImportPlugin={() => {}}
+                onImportPlugin={handleImportFromFolder}
                 onClearFilters={resetFilters}
               />
             ) : groupBy !== 'none' ? (
@@ -714,6 +777,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     void uninstallPlugin(plugin.manifest.id);
                   }
                 }}
+                onViewDetails={handleViewDetails}
               />
             ) : (
               <PluginList
@@ -744,6 +808,7 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                     void uninstallPlugin(plugin.manifest.id);
                   }
                 }}
+                onViewDetails={handleViewDetails}
                 enableSelection={isSelectionMode}
                 onBatchEnable={handleBatchEnable}
                 onBatchDisable={async () => {
@@ -1019,6 +1084,14 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
             console.error('Failed to install plugin from marketplace:', error);
           }
         }}
+      />
+
+      {/* Installed Plugin Detail Sheet */}
+      <PluginInstalledDetail
+        plugin={detailPlugin}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        onConfigure={handleConfigurePlugin}
       />
     </TooltipProvider>
   );

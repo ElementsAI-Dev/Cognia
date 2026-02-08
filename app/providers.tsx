@@ -31,10 +31,10 @@ import {
 } from '@/lib/themes';
 import type { ColorThemePreset as _ColorThemePreset } from '@/lib/themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { CommandPalette } from '@/components/layout/command-palette';
+import { CommandPalette } from '@/components/layout/overlays/command-palette';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from '@/components/ui/sonner';
-import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
+import { KeyboardShortcutsDialog } from '@/components/layout/overlays/keyboard-shortcuts-dialog';
 import { SetupWizard } from '@/components/settings';
 import { BackgroundRenderer } from '@/components/layout';
 import { TourManager, isOnboardingCompleted } from '@/components/onboarding';

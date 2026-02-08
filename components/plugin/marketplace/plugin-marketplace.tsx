@@ -5,7 +5,7 @@
  * Refactored with extracted sub-components for better maintainability
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -19,6 +19,9 @@ import {
   X,
   ChevronDown,
   Command,
+  AlertCircle,
+  Loader2,
+  Heart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,8 +39,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { usePluginStore } from '@/stores/plugin';
 import { useMarketplace } from '@/hooks/plugin';
+import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
 import { cn } from '@/lib/utils';
 
 // Import extracted components
@@ -58,7 +61,16 @@ import {
   MarketplaceEmptyState,
   MarketplaceLoadingSkeleton,
   TrendingPluginItem,
+  SearchSuggestions,
+  RecentlyViewedSection,
 } from './components';
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const SEARCH_DEBOUNCE_MS = 300;
+const PAGE_SIZE = 20;
 
 // =============================================================================
 // Types
@@ -66,7 +78,6 @@ import {
 
 interface PluginMarketplaceProps {
   className?: string;
-  onInstall?: (pluginId: string) => Promise<void>;
   onViewDetails?: (plugin: MarketplacePlugin) => void;
 }
 
@@ -76,20 +87,64 @@ interface PluginMarketplaceProps {
 
 export function PluginMarketplace({
   className,
-  onInstall,
   onViewDetails,
 }: PluginMarketplaceProps) {
   const t = useTranslations('pluginMarketplace');
-  const { plugins: pluginsById } = usePluginStore();
-  const { plugins: marketplacePlugins, featuredPlugins, trendingPlugins, isLoading, isUsingMockData: _isUsingMockData } = useMarketplace();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('popular');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const {
+    plugins: marketplacePlugins,
+    featuredPlugins,
+    trendingPlugins,
+    isLoading,
+    error,
+    refresh,
+    installPlugin,
+    isFavorite,
+    toggleFavorite,
+  } = useMarketplace();
 
-  const _installedPluginIds = useMemo(() => new Set(Object.keys(pluginsById)), [pluginsById]);
+  const {
+    viewMode,
+    setViewMode,
+    searchHistory,
+    addSearchHistory,
+    clearSearchHistory,
+    recentlyViewed,
+    favorites,
+  } = usePluginMarketplaceStore();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sortBy, setSortByState] = useState<SortOption>('popular');
+  const [categoryFilter, setCategoryFilterState] = useState<CategoryFilter>('all');
+  const [quickFilter, setQuickFilterState] = useState<QuickFilter>('all');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [errorDismissed, setErrorDismissed] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Search debounce + persist to search history
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      setVisibleCount(PAGE_SIZE);
+      if (searchQuery.trim().length >= 2) {
+        addSearchHistory(searchQuery.trim());
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery, addSearchHistory]);
+
+  // Close search suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Keyboard shortcut for search focus (Cmd/Ctrl + K)
   useEffect(() => {
@@ -104,21 +159,81 @@ export function PluginMarketplace({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // featuredPlugins and trendingPlugins are now provided by useMarketplace hook
-  void _isUsingMockData; // Available for debugging
+  // Resolve favorite plugin objects
+  const favoritePlugins = useMemo(() => {
+    return marketplacePlugins.filter((p) => favorites.has(p.id));
+  }, [favorites, marketplacePlugins]);
+
+  // Resolve recently viewed plugin objects
+  const recentlyViewedPlugins = useMemo(() => {
+    return recentlyViewed
+      .map((id) => marketplacePlugins.find((p) => p.id === id))
+      .filter((p): p is MarketplacePlugin => !!p)
+      .slice(0, 8);
+  }, [recentlyViewed, marketplacePlugins]);
+
+  // Dynamic stats computed from data
+  const computedStats = useMemo(() => {
+    const totalPlugins = marketplacePlugins.length;
+    const totalDownloads = marketplacePlugins.reduce((sum, p) => sum + p.downloadCount, 0);
+    const developers = new Set(marketplacePlugins.map((p) => p.author.name)).size;
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weeklyNew = marketplacePlugins.filter((p) => new Date(p.lastUpdated) >= weekAgo).length;
+    return { totalPlugins, totalDownloads, totalDevelopers: developers, weeklyNewPlugins: weeklyNew };
+  }, [marketplacePlugins]);
+
+  const handleInstall = useCallback(async (pluginId: string) => {
+    await installPlugin(pluginId);
+  }, [installPlugin]);
+
+  const setSortBy = useCallback((v: SortOption) => {
+    setSortByState(v);
+    setVisibleCount(PAGE_SIZE);
+  }, []);
+
+  const setCategoryFilter = useCallback((v: CategoryFilter) => {
+    setCategoryFilterState(v);
+    setVisibleCount(PAGE_SIZE);
+  }, []);
+
+  const setQuickFilter = useCallback((v: QuickFilter) => {
+    setQuickFilterState(v);
+    setVisibleCount(PAGE_SIZE);
+  }, []);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
+    setDebouncedQuery('');
     setCategoryFilter('all');
     setQuickFilter('all');
+  }, [setCategoryFilter, setQuickFilter]);
+
+  const handleSearchSelect = useCallback((term: string) => {
+    setSearchQuery(term);
+    setDebouncedQuery(term);
+    setVisibleCount(PAGE_SIZE);
+    setIsSearchFocused(false);
   }, []);
+
+  const handleCollectionClick = useCallback((collectionTags: string[]) => {
+    if (collectionTags.length > 0) {
+      setSearchQuery(collectionTags[0]);
+      setDebouncedQuery(collectionTags[0]);
+    }
+  }, []);
+
+  const handleTrendingViewAll = useCallback(() => {
+    setQuickFilter('popular');
+    setSortBy('downloads');
+  }, [setQuickFilter, setSortBy]);
 
   const filteredPlugins = useMemo(() => {
     let result = [...marketplacePlugins];
 
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    // Search filter (uses debounced value)
+    if (debouncedQuery) {
+      const query = debouncedQuery.toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
@@ -140,11 +255,12 @@ export function PluginMarketplace({
       case 'free':
         result = result.filter((p) => !p.price || p.price === 0);
         break;
-      case 'new':
+      case 'new': {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         result = result.filter((p) => new Date(p.lastUpdated) >= weekAgo);
         break;
+      }
       case 'popular':
         result = result.filter((p) => p.downloadCount > 20000);
         break;
@@ -170,17 +286,37 @@ export function PluginMarketplace({
     }
 
     return result;
-  }, [marketplacePlugins, searchQuery, categoryFilter, quickFilter, sortBy]);
+  }, [marketplacePlugins, debouncedQuery, categoryFilter, quickFilter, sortBy]);
 
-  const hasActiveFilters = searchQuery || categoryFilter !== 'all' || quickFilter !== 'all';
+  const visiblePlugins = useMemo(
+    () => filteredPlugins.slice(0, visibleCount),
+    [filteredPlugins, visibleCount]
+  );
+  const hasMore = visibleCount < filteredPlugins.length;
+
+  const hasActiveFilters = debouncedQuery || categoryFilter !== 'all' || quickFilter !== 'all';
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
+      {/* Error Banner */}
+      {error && !errorDismissed && (
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-destructive/10 border-b border-destructive/20 text-destructive text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="flex-1 truncate">{error}</span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => refresh()}>
+            {t('error.retry')}
+          </Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setErrorDismissed(true)}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* Hero Section with Stats */}
       <div className="p-4 sm:p-6 border-b bg-muted/30">
         <div className="space-y-4">
           {/* Stats Bar */}
-          <MarketplaceStatsBar />
+          <MarketplaceStatsBar stats={computedStats} />
           
           {/* Featured Section - Horizontal scroll on mobile */}
           <div>
@@ -190,7 +326,7 @@ export function PluginMarketplace({
                 <h2 className="text-base sm:text-lg font-semibold">{t('featured.title')}</h2>
               </div>
               <span className="text-xs text-muted-foreground hidden sm:inline">
-                {featuredPlugins.length} featured
+                {featuredPlugins.length} {t('featured.count')}
               </span>
             </div>
             <ScrollArea className="w-full lg:hidden">
@@ -199,8 +335,10 @@ export function PluginMarketplace({
                   <div key={plugin.id} className="w-[280px] shrink-0">
                     <FeaturedPluginCard
                       plugin={plugin}
-                      onInstall={onInstall}
+                      onInstall={handleInstall}
                       onViewDetails={onViewDetails}
+                      isFavorite={isFavorite(plugin.id)}
+                      onToggleFavorite={toggleFavorite}
                     />
                   </div>
                 ))}
@@ -212,8 +350,10 @@ export function PluginMarketplace({
                 <FeaturedPluginCard
                   key={plugin.id}
                   plugin={plugin}
-                  onInstall={onInstall}
+                  onInstall={handleInstall}
                   onViewDetails={onViewDetails}
+                  isFavorite={isFavorite(plugin.id)}
+                  onToggleFavorite={toggleFavorite}
                 />
               ))}
             </div>
@@ -226,22 +366,54 @@ export function PluginMarketplace({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-purple-500" />
-            <h3 className="font-semibold text-sm sm:text-base">Collections</h3>
+            <h3 className="font-semibold text-sm sm:text-base">{t('collections.title')}</h3>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs">
-            View All
-            <ChevronRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
         </div>
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2">
             {PLUGIN_COLLECTIONS.map((collection) => (
-              <CollectionCard key={collection.id} collection={collection} />
+              <CollectionCard
+                key={collection.id}
+                collection={collection}
+                onClick={() => handleCollectionClick(collection.pluginIds)}
+              />
             ))}
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
+
+      {/* Favorites Section */}
+      {favoritePlugins.length > 0 && (
+        <div className="p-4 sm:px-6 border-b">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+              <h3 className="font-semibold text-sm sm:text-base">{t('favorites.title')}</h3>
+              <span className="text-xs text-muted-foreground">({favoritePlugins.length})</span>
+            </div>
+          </div>
+          <ScrollArea className="w-full">
+            <div className="flex gap-3 pb-2">
+              {favoritePlugins.map((plugin) => (
+                <div key={plugin.id} className="w-[280px] shrink-0">
+                  <FeaturedPluginCard
+                    plugin={plugin}
+                    onInstall={handleInstall}
+                    onViewDetails={onViewDetails}
+                    isFavorite={true}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                </div>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Recently Viewed Section */}
+      <RecentlyViewedSection plugins={recentlyViewedPlugins} onViewDetails={onViewDetails} />
 
       {/* Trending Section */}
       <div className="p-4 sm:px-6 border-b">
@@ -250,7 +422,7 @@ export function PluginMarketplace({
             <TrendingUp className="h-5 w-5 text-orange-500" />
             <h3 className="font-semibold text-sm sm:text-base">{t('trending.title')}</h3>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={handleTrendingViewAll}>
             {t('trending.viewAll')}
             <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Button>
@@ -296,19 +468,26 @@ export function PluginMarketplace({
 
         {/* Search and Filters - Desktop */}
         <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 sm:px-6 border-b bg-muted/30">
-          <div className="relative flex-1 min-w-[180px] max-w-md">
+          <div className="relative flex-1 min-w-[180px] max-w-md" ref={searchContainerRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="marketplace-search"
               placeholder={t('search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
               className="pl-9 pr-16 h-9"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
               <Command className="h-3 w-3" />
               <span>K</span>
             </div>
+            <SearchSuggestions
+              searchHistory={searchHistory}
+              onSelect={handleSearchSelect}
+              onClearHistory={clearSearchHistory}
+              visible={isSearchFocused && !searchQuery}
+            />
           </div>
 
           <Select
@@ -377,7 +556,7 @@ export function PluginMarketplace({
                 variant="ghost"
                 size="icon"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setDebouncedQuery(''); }}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -389,7 +568,7 @@ export function PluginMarketplace({
               <CollapsibleTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 flex-1">
                   <Filter className="h-3.5 w-3.5" />
-                  Filters
+                  {t('filters.title')}
                   {hasActiveFilters && (
                     <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
@@ -419,7 +598,7 @@ export function PluginMarketplace({
                   onValueChange={(v) => setCategoryFilter(v as CategoryFilter)}
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Category" />
+                    <SelectValue placeholder={t('filters.category')} />
                   </SelectTrigger>
                   <SelectContent>
                     {(Object.keys(CATEGORY_INFO) as CategoryFilter[]).slice(0, 8).map((cat) => {
@@ -435,7 +614,7 @@ export function PluginMarketplace({
 
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue placeholder={t('filters.sortBy')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="popular">{t('sort.popular')}</SelectItem>
@@ -454,51 +633,88 @@ export function PluginMarketplace({
                   onClick={clearFilters}
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Clear all filters
+                  {t('filters.clearAll')}
                 </Button>
               )}
             </CollapsibleContent>
           </Collapsible>
         </div>
 
-        {/* Results - Enhanced grid with better spacing */}
+        {/* Results */}
         <ScrollArea className="flex-1 p-4 sm:p-6">
           {isLoading ? (
             <MarketplaceLoadingSkeleton viewMode={viewMode} />
           ) : filteredPlugins.length === 0 ? (
-            <MarketplaceEmptyState searchQuery={searchQuery} onClear={clearFilters} />
+            <MarketplaceEmptyState
+              searchQuery={debouncedQuery}
+              onClear={clearFilters}
+              onSearch={handleSearchSelect}
+              onRefresh={refresh}
+            />
           ) : viewMode === 'grid' ? (
-            <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {filteredPlugins.map((plugin, index) => (
-                <div 
-                  key={plugin.id}
-                  className="animate-in fade-in-0 slide-in-from-bottom-2"
-                  style={{ animationDelay: `${index * 30}ms`, animationFillMode: 'backwards' }}
-                >
-                  <PluginGridCard
-                    plugin={plugin}
-                    onInstall={onInstall}
-                    onViewDetails={onViewDetails}
-                  />
+            <>
+              <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                {visiblePlugins.map((plugin, index) => (
+                  <div 
+                    key={plugin.id}
+                    className="animate-in fade-in-0 slide-in-from-bottom-2"
+                    style={{ animationDelay: `${Math.min(index, 10) * 30}ms`, animationFillMode: 'backwards' }}
+                  >
+                    <PluginGridCard
+                      plugin={plugin}
+                      onInstall={handleInstall}
+                      onViewDetails={onViewDetails}
+                      isFavorite={isFavorite(plugin.id)}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  </div>
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                    className="gap-2"
+                  >
+                    <Loader2 className="h-4 w-4" />
+                    {t('results.loadMore')}
+                  </Button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : (
-            <div className="space-y-3">
-              {filteredPlugins.map((plugin, index) => (
-                <div 
-                  key={plugin.id}
-                  className="animate-in fade-in-0 slide-in-from-left-2"
-                  style={{ animationDelay: `${index * 20}ms`, animationFillMode: 'backwards' }}
-                >
-                  <PluginListItem
-                    plugin={plugin}
-                    onInstall={onInstall}
-                    onViewDetails={onViewDetails}
-                  />
+            <>
+              <div className="space-y-3">
+                {visiblePlugins.map((plugin, index) => (
+                  <div 
+                    key={plugin.id}
+                    className="animate-in fade-in-0 slide-in-from-left-2"
+                    style={{ animationDelay: `${Math.min(index, 10) * 20}ms`, animationFillMode: 'backwards' }}
+                  >
+                    <PluginListItem
+                      plugin={plugin}
+                      onInstall={handleInstall}
+                      onViewDetails={onViewDetails}
+                      isFavorite={isFavorite(plugin.id)}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  </div>
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                    className="gap-2"
+                  >
+                    <Loader2 className="h-4 w-4" />
+                    {t('results.loadMore')}
+                  </Button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </ScrollArea>
 
@@ -512,7 +728,7 @@ export function PluginMarketplace({
               className="h-7 px-2 text-xs hover:bg-background" 
               onClick={clearFilters}
             >
-              Clear filters
+              {t('filters.clearAll')}
             </Button>
           )}
         </div>

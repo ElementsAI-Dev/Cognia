@@ -378,3 +378,9 @@ export {
   executePluginTask,
   executeScriptTask,
 };
+
+export {
+  cancelPluginTaskExecution,
+  getActivePluginTaskCount,
+  isPluginTaskExecutionActive,
+} from './plugin-executor';

@@ -390,6 +390,101 @@ function isEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
+// =============================================================================
+// Computed Data Model
+// =============================================================================
+
+/**
+ * A computed field definition — derives a value from other data model paths
+ */
+export interface ComputedField {
+  /** Paths this computed field depends on */
+  deps: string[];
+  /** Compute function receiving resolved dependency values */
+  compute: (...values: unknown[]) => unknown;
+}
+
+/**
+ * Registry of computed fields for a surface
+ */
+export type ComputedFieldRegistry = Record<string, ComputedField>;
+
+/**
+ * Resolve all computed fields and merge them into the data model.
+ * Returns a new data model object with computed values applied.
+ */
+export function resolveComputedFields(
+  dataModel: Record<string, unknown>,
+  computedFields: ComputedFieldRegistry
+): Record<string, unknown> {
+  const result = { ...dataModel };
+
+  for (const [path, field] of Object.entries(computedFields)) {
+    try {
+      const depValues = field.deps.map((dep) => getValueByPath(result, dep));
+      const computedValue = field.compute(...depValues);
+      // Apply computed value using path segments
+      const segments = path.split('/').filter(Boolean);
+      if (segments.length === 1) {
+        result[segments[0]] = computedValue;
+      } else {
+        // Use setValueByPath for nested paths
+        const updated = setValueByPath(result, path, computedValue);
+        Object.assign(result, updated);
+      }
+    } catch {
+      // Silently skip failed computations
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Create common computed field helpers
+ */
+export const computedHelpers = {
+  /** Sum numeric values at paths */
+  sum: (...deps: string[]): ComputedField => ({
+    deps,
+    compute: (...values) => values.reduce((acc: number, v) => acc + (Number(v) || 0), 0),
+  }),
+
+  /** Count items in an array at a path */
+  count: (arrayPath: string): ComputedField => ({
+    deps: [arrayPath],
+    compute: (arr) => (Array.isArray(arr) ? arr.length : 0),
+  }),
+
+  /** Count items matching a predicate */
+  countWhere: (arrayPath: string, predicate: (item: unknown) => boolean): ComputedField => ({
+    deps: [arrayPath],
+    compute: (arr) => (Array.isArray(arr) ? arr.filter(predicate).length : 0),
+  }),
+
+  /** Format a number as currency */
+  currency: (valuePath: string, symbol = '$', decimals = 2): ComputedField => ({
+    deps: [valuePath],
+    compute: (value) => `${symbol}${(Number(value) || 0).toFixed(decimals)}`,
+  }),
+
+  /** Concatenate string values */
+  concat: (separator: string, ...deps: string[]): ComputedField => ({
+    deps,
+    compute: (...values) => values.filter(Boolean).join(separator),
+  }),
+
+  /** Percentage: (part / total) * 100 */
+  percentage: (partPath: string, totalPath: string): ComputedField => ({
+    deps: [partPath, totalPath],
+    compute: (part, total) => {
+      const p = Number(part) || 0;
+      const t = Number(total) || 0;
+      return t > 0 ? Math.round((p / t) * 100) : 0;
+    },
+  }),
+};
+
 /**
  * Extract all paths referenced in a component tree
  */

@@ -4,7 +4,7 @@
  * Plugin Dev Tools - Development and debugging tools for plugins
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePluginStore } from '@/stores/plugin';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Play,
@@ -34,6 +35,8 @@ import {
   Copy,
   Check,
   Activity,
+  Layers,
+  Zap,
 } from 'lucide-react';
 import { PluginProfiler } from '../monitoring/plugin-profiler';
 import { invoke } from '@tauri-apps/api/core';
@@ -105,9 +108,10 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
     setTimeout(() => setCopied(false), 2000);
   }, [output]);
 
-  const pythonPlugins = enabledPlugins.filter(
-    (p) => p.manifest.type === 'python' || p.manifest.type === 'hybrid'
-  );
+  const isPythonCapable = useMemo(() => {
+    if (!selectedPlugin) return false;
+    return selectedPlugin.manifest.type === 'python' || selectedPlugin.manifest.type === 'hybrid';
+  }, [selectedPlugin]);
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -127,9 +131,14 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
               <SelectValue placeholder={t('selectPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
-              {pythonPlugins.map((plugin) => (
+              {enabledPlugins.map((plugin) => (
                 <SelectItem key={plugin.manifest.id} value={plugin.manifest.id}>
-                  {plugin.manifest.name}
+                  <div className="flex items-center gap-2">
+                    <span>{plugin.manifest.name}</span>
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                      {plugin.manifest.type}
+                    </Badge>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -138,14 +147,16 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
       </div>
 
       {selectedPlugin ? (
-        <Tabs defaultValue="eval" className="flex-1 flex flex-col">
+        <Tabs defaultValue={isPythonCapable ? 'eval' : 'info'} className="flex-1 flex flex-col">
           <div className="border-b px-2 sm:px-4 overflow-x-auto scrollbar-none">
             <TabsList className="h-9 sm:h-10 w-max sm:w-auto inline-flex">
-              <TabsTrigger value="eval" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
-                <Code className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline">{t('tabs.eval')}</span>
-                <span className="xs:hidden">Eval</span>
-              </TabsTrigger>
+              {isPythonCapable && (
+                <TabsTrigger value="eval" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
+                  <Code className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline">{t('tabs.eval')}</span>
+                  <span className="xs:hidden">Eval</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="tools" className="gap-1.5 sm:gap-2 text-xs sm:text-sm px-2.5 sm:px-3">
                 <Terminal className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span className="hidden xs:inline">{t('tabs.tools')}</span>
@@ -263,6 +274,58 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
                     </CardContent>
                   </Card>
 
+                  {/* Components */}
+                  {selectedPlugin.components && selectedPlugin.components.length > 0 && (
+                    <Card>
+                      <CardHeader className="p-3 sm:p-4 pb-2">
+                        <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
+                          <Layers className="h-3.5 w-3.5" />
+                          {t('info.registeredComponents')}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 sm:p-4 pt-0">
+                        <ul className="space-y-1.5 sm:space-y-2">
+                          {selectedPlugin.components.map((comp) => (
+                            <li
+                              key={comp.type}
+                              className="text-xs sm:text-sm font-mono bg-muted/50 p-1.5 sm:p-2 rounded flex items-center justify-between"
+                            >
+                              <span>{comp.type}</span>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{comp.pluginId}</Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Modes */}
+                  {selectedPlugin.modes && selectedPlugin.modes.length > 0 && (
+                    <Card>
+                      <CardHeader className="p-3 sm:p-4 pb-2">
+                        <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
+                          <Zap className="h-3.5 w-3.5" />
+                          {t('info.registeredModes')}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-3 sm:p-4 pt-0">
+                        <ul className="space-y-1.5 sm:space-y-2">
+                          {selectedPlugin.modes.map((mode) => (
+                            <li
+                              key={mode.id}
+                              className="text-xs sm:text-sm bg-muted/50 p-1.5 sm:p-2 rounded"
+                            >
+                              <div className="font-mono font-medium">{mode.name || mode.id}</div>
+                              {mode.description && (
+                                <div className="text-muted-foreground text-[10px] mt-0.5">{mode.description}</div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <Card>
                     <CardHeader className="p-3 sm:p-4 pb-2">
                       <CardTitle className="text-xs sm:text-sm">{t('info.pluginState')}</CardTitle>
@@ -274,8 +337,12 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
                             id: selectedPlugin.manifest.id,
                             status: selectedPlugin.status,
                             type: selectedPlugin.manifest.type,
+                            capabilities: selectedPlugin.manifest.capabilities,
                             path: selectedPlugin.path,
                             config: selectedPlugin.config,
+                            toolCount: selectedPlugin.tools?.length || 0,
+                            componentCount: selectedPlugin.components?.length || 0,
+                            modeCount: selectedPlugin.modes?.length || 0,
                           },
                           null,
                           2
@@ -325,7 +392,7 @@ export function PluginDevTools({ className }: PluginDevToolsProps) {
         </Tabs>
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground p-4">
-          <p className="text-sm text-center">{t('selectPrompt')}</p>
+          <p className="text-sm text-center">{t('selectPromptAll')}</p>
         </div>
       )}
     </div>

@@ -14,7 +14,11 @@ import {
   selectSelectedTaskId,
   selectSelectedTask,
   selectActiveTasks,
+  selectPausedTasks,
   selectUpcomingTasks,
+  selectRecentExecutions,
+  selectSchedulerStatus,
+  selectFilter,
   selectIsLoading,
   selectError,
   selectIsInitialized,
@@ -36,7 +40,11 @@ export function useScheduler() {
   const selectedTaskId = useSchedulerStore(selectSelectedTaskId);
   const selectedTask = useSchedulerStore(selectSelectedTask);
   const activeTasks = useSchedulerStore(selectActiveTasks);
+  const pausedTasks = useSchedulerStore(selectPausedTasks);
   const upcomingTasks = useSchedulerStore(selectUpcomingTasks);
+  const recentExecutions = useSchedulerStore(selectRecentExecutions);
+  const schedulerStatus = useSchedulerStore(selectSchedulerStatus);
+  const filter = useSchedulerStore(selectFilter);
   const isLoading = useSchedulerStore(selectIsLoading);
   const error = useSchedulerStore(selectError);
   const isInitialized = useSchedulerStore(selectIsInitialized);
@@ -144,6 +152,21 @@ export function useScheduler() {
     [store]
   );
 
+  const cancelPluginExecution = useCallback(
+    (executionId: string) => store.cancelPluginExecution(executionId),
+    [store]
+  );
+
+  const getActivePluginCount = useCallback(
+    () => store.getActivePluginCount(),
+    [store]
+  );
+
+  const isPluginExecutionActive = useCallback(
+    (executionId: string) => store.isPluginExecutionActive(executionId),
+    [store]
+  );
+
   return {
     // State
     tasks,
@@ -152,7 +175,11 @@ export function useScheduler() {
     selectedTaskId,
     selectedTask,
     activeTasks,
+    pausedTasks,
     upcomingTasks,
+    recentExecutions,
+    schedulerStatus,
+    filter,
     isLoading,
     error,
     isInitialized,
@@ -172,6 +199,9 @@ export function useScheduler() {
     loadRecentExecutions,
     loadUpcomingTasks,
     cleanupOldExecutions,
+    cancelPluginExecution,
+    getActivePluginCount,
+    isPluginExecutionActive,
   };
 }
 

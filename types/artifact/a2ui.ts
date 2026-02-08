@@ -390,6 +390,19 @@ export interface A2UITableColumn {
   render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
+/**
+ * Table i18n labels
+ */
+export interface A2UITableLocale {
+  empty?: string;
+  showing?: string; // "Showing {start} to {end} of {total} entries"
+  previous?: string;
+  next?: string;
+  page?: string; // "Page {current} of {total}"
+  selectAll?: string;
+  selectRow?: string;
+}
+
 export interface A2UITableComponent extends A2UIBaseComponent {
   component: 'Table';
   columns: A2UITableColumn[];
@@ -398,12 +411,14 @@ export interface A2UITableComponent extends A2UIBaseComponent {
   rowKey?: string;
   selectable?: boolean;
   selectedRows?: A2UIArrayOrPath<string>;
+  selectAction?: string;
   rowClickAction?: string;
   sortAction?: string;
   pageChangeAction?: string;
   emptyMessage?: string;
   pageSize?: number;
   pagination?: boolean;
+  locale?: A2UITableLocale;
 }
 
 /**
@@ -494,6 +509,54 @@ export interface A2UIIconComponent extends A2UIBaseComponent {
 }
 
 /**
+ * Tabs component
+ */
+export interface A2UITabItem {
+  id: string;
+  label: string;
+  children: string[]; // Component IDs for tab content
+  icon?: string;
+  disabled?: boolean;
+}
+
+export interface A2UITabsComponent extends A2UIBaseComponent {
+  component: 'Tabs';
+  tabs: A2UITabItem[];
+  defaultTab?: string;
+  activeTab?: A2UIStringOrPath;
+  tabChangeAction?: string;
+}
+
+/**
+ * Accordion component
+ */
+export interface A2UIAccordionItem {
+  id: string;
+  title: string;
+  children: string[]; // Component IDs for accordion content
+  defaultOpen?: boolean;
+}
+
+export interface A2UIAccordionComponent extends A2UIBaseComponent {
+  component: 'Accordion';
+  items: A2UIAccordionItem[];
+  multiple?: boolean; // Allow multiple open at once
+  collapsible?: boolean;
+}
+
+/**
+ * Toggle component
+ */
+export interface A2UIToggleComponent extends A2UIBaseComponent {
+  component: 'Toggle';
+  label?: A2UIStringOrPath;
+  pressed?: A2UIBooleanOrPath;
+  variant?: 'default' | 'outline';
+  size?: 'default' | 'sm' | 'lg';
+  action?: string;
+}
+
+/**
  * Union type of all component definitions
  */
 export type A2UIComponent =
@@ -524,6 +587,9 @@ export type A2UIComponent =
   | A2UIAlertComponent
   | A2UILinkComponent
   | A2UIIconComponent
+  | A2UITabsComponent
+  | A2UIAccordionComponent
+  | A2UIToggleComponent
   | A2UIBaseComponent; // Fallback for custom components
 
 // =============================================================================

@@ -718,3 +718,53 @@ export interface GitCommitDetail {
   totalAdditions: number;
   totalDeletions: number;
 }
+
+// ==================== Graph Types ====================
+
+/** Commit with parent references for graph rendering */
+export interface GitGraphCommit extends GitCommitInfo {
+  parents: string[];
+  refs: string[];
+  lane: number;
+}
+
+// ==================== Checkpoint Types ====================
+
+/** Code checkpoint / snapshot entry */
+export interface GitCheckpoint {
+  id: string;
+  hash: string;
+  message: string;
+  timestamp: string;
+  filesChanged: number;
+  additions: number;
+  deletions: number;
+}
+
+// ==================== Stats Types ====================
+
+/** Per-contributor statistics */
+export interface GitContributorStats {
+  name: string;
+  email: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+  firstCommit: string;
+  lastCommit: string;
+}
+
+/** Single day activity entry */
+export interface GitActivityDay {
+  date: string;
+  commits: number;
+}
+
+/** Repository-level statistics */
+export interface GitRepoStats {
+  totalCommits: number;
+  totalContributors: number;
+  contributors: GitContributorStats[];
+  activity: GitActivityDay[];
+  fileTypeDistribution: Record<string, number>;
+}

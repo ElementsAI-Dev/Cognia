@@ -72,6 +72,130 @@ const EXTENDED_SNIPPETS: Record<string, Record<string, { prefix: string; body: s
 }`,
       description: 'Try-catch block with error logging',
     },
+    context: {
+      prefix: 'rctx',
+      body: `import { createContext, useContext, useState, type ReactNode } from 'react';
+
+interface $\{1:MyContext}Value {
+  $\{2:value}: $\{3:string};
+  $\{4:setValue}: (value: $\{3:string}) => void;
+}
+
+const $\{1:MyContext}Context = createContext<$\{1:MyContext}Value | undefined>(undefined);
+
+export function $\{1:MyContext}Provider({ children }: { children: ReactNode }) {
+  const [$\{2:value}, $\{4:setValue}] = useState<$\{3:string}>($\{5:''});
+
+  return (
+    <$\{1:MyContext}Context.Provider value={{ $\{2:value}, $\{4:setValue} }}>
+      {children}
+    </$\{1:MyContext}Context.Provider>
+  );
+}
+
+export function use$\{1:MyContext}() {
+  const context = useContext($\{1:MyContext}Context);
+  if (!context) {
+    throw new Error('use$\{1:MyContext} must be used within a $\{1:MyContext}Provider');
+  }
+  return context;
+}`,
+      description: 'React Context with Provider and Hook',
+    },
+    reducer: {
+      prefix: 'rred',
+      body: `import { useReducer } from 'react';
+
+type $\{1:State} = {
+  $\{2:count}: number;
+};
+
+type $\{1:State}Action =
+  | { type: '$\{3:INCREMENT}' }
+  | { type: '$\{4:DECREMENT}' }
+  | { type: '$\{5:RESET}'; payload: number };
+
+function $\{1:state}Reducer(state: $\{1:State}, action: $\{1:State}Action): $\{1:State} {
+  switch (action.type) {
+    case '$\{3:INCREMENT}':
+      return { ...state, $\{2:count}: state.$\{2:count} + 1 };
+    case '$\{4:DECREMENT}':
+      return { ...state, $\{2:count}: state.$\{2:count} - 1 };
+    case '$\{5:RESET}':
+      return { ...state, $\{2:count}: action.payload };
+    default:
+      return state;
+  }
+}
+
+const initialState: $\{1:State} = { $\{2:count}: 0 };
+
+export function use$\{1:State}() {
+  return useReducer($\{1:state}Reducer, initialState);
+}`,
+      description: 'React useReducer Pattern',
+    },
+    suspenseBoundary: {
+      prefix: 'rsus',
+      body: `import { Suspense } from 'react';
+
+function $\{1:Component}Fallback() {
+  return (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+    </div>
+  );
+}
+
+export function $\{2:Wrapper}() {
+  return (
+    <Suspense fallback={<$\{1:Component}Fallback />}>
+      <$\{3:AsyncComponent} />
+    </Suspense>
+  );
+}`,
+      description: 'React Suspense Boundary',
+    },
+    forwardRefComponent: {
+      prefix: 'rfref',
+      body: `import { forwardRef } from 'react';
+
+interface $\{1:Component}Props {
+  $\{2:// props}
+}
+
+export const $\{1:Component} = forwardRef<$\{3:HTMLDivElement}, $\{1:Component}Props>(
+  ({ $\{4:...props} }, ref) => {
+    return (
+      <div ref={ref} $\{4:...props}>
+        $\{5:// content}
+      </div>
+    );
+  }
+);
+
+$\{1:Component}.displayName = '$\{1:Component}';`,
+      description: 'React forwardRef Component',
+    },
+    customHookWithState: {
+      prefix: 'rhook',
+      body: `import { useState, useCallback } from 'react';
+
+export function use$\{1:Hook}($\{2:initialValue}: $\{3:string} = $\{4:''}) {
+  const [$\{5:state}, set$\{5/(.*)/$\{1:/capitalize}/}] = useState<$\{3:string}>($\{2:initialValue});
+
+  const $\{6:update} = useCallback(($\{7:newValue}: $\{3:string}) => {
+    set$\{5/(.*)/$\{1:/capitalize}/}($\{7:newValue});
+  }, []);
+
+  const $\{8:reset} = useCallback(() => {
+    set$\{5/(.*)/$\{1:/capitalize}/}($\{2:initialValue});
+  }, [$\{2:initialValue}]);
+
+  return { $\{5:state}, $\{6:update}, $\{8:reset} } as const;
+}`,
+      description: 'Custom React Hook with State',
+    },
   },
   html: {
     div: {
@@ -146,6 +270,246 @@ gap: $\{2:1rem};`,
   }
 }`,
       description: 'CSS keyframes animation',
+    },
+  },
+  // Next.js App Router patterns
+  nextjs: {
+    page: {
+      prefix: 'npage',
+      body: `export default function $\{1:Page}() {
+  return (
+    <div className="$\{2:container mx-auto p-4}">
+      <h1 className="text-2xl font-bold">$\{3:Page Title}</h1>
+      $\{4:// content}
+    </div>
+  );
+}`,
+      description: 'Next.js Page Component',
+    },
+    layout: {
+      prefix: 'nlayout',
+      body: `export default function $\{1:Root}Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="$\{2:min-h-screen}">
+      $\{3:// header, nav, etc.}
+      <main>{children}</main>
+    </div>
+  );
+}`,
+      description: 'Next.js Layout Component',
+    },
+    loading: {
+      prefix: 'nloading',
+      body: `export default function Loading() {
+  return (
+    <div className="flex items-center justify-center min-h-[200px]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+}`,
+      description: 'Next.js Loading Component',
+    },
+    error: {
+      prefix: 'nerror',
+      body: `'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[200px] gap-4">
+      <h2 className="text-xl font-semibold text-destructive">Something went wrong!</h2>
+      <p className="text-muted-foreground">{error.message}</p>
+      <button
+        onClick={reset}
+        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}`,
+      description: 'Next.js Error Boundary Component',
+    },
+    notFound: {
+      prefix: 'nnotfound',
+      body: `export default function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <h2 className="text-4xl font-bold">404</h2>
+      <p className="text-muted-foreground">$\{1:Page not found}</p>
+    </div>
+  );
+}`,
+      description: 'Next.js Not Found Component',
+    },
+    routeHandler: {
+      prefix: 'nroute',
+      body: `import { NextResponse } from 'next/server';
+
+export async function $\{1|GET,POST,PUT,PATCH,DELETE|}(request: Request) {
+  try {
+    $\{2:// implementation}
+
+    return NextResponse.json({ $\{3:data: null} });
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}`,
+      description: 'Next.js API Route Handler',
+    },
+    middleware: {
+      prefix: 'nmiddleware',
+      body: `import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  $\{1:// middleware logic}
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['$\{2:/((?!api|_next/static|_next/image|favicon.ico).*)}'  ],
+};`,
+      description: 'Next.js Middleware',
+    },
+    generateMetadata: {
+      prefix: 'nmeta',
+      body: `import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: '$\{1:Page Title}',
+  description: '$\{2:Page description}',
+  openGraph: {
+    title: '$\{1:Page Title}',
+    description: '$\{2:Page description}',
+  },
+};`,
+      description: 'Next.js Static Metadata',
+    },
+    serverAction: {
+      prefix: 'naction',
+      body: `'use server';
+
+export async function $\{1:actionName}($\{2:formData: FormData}) {
+  try {
+    $\{3:// server action implementation}
+
+    return { success: true };
+  } catch (error) {
+    console.error('Action error:', error);
+    return { success: false, error: 'Failed to execute action' };
+  }
+}`,
+      description: 'Next.js Server Action',
+    },
+    useClient: {
+      prefix: 'nuc',
+      body: `'use client';
+
+$\{1:}`,
+      description: "Next.js 'use client' directive",
+    },
+    useServer: {
+      prefix: 'nus',
+      body: `'use server';
+
+$\{1:}`,
+      description: "Next.js 'use server' directive",
+    },
+  },
+  // Testing patterns (Jest/Vitest)
+  test: {
+    describeBlock: {
+      prefix: 'desc',
+      body: `describe('$\{1:component/function}', () => {
+  $\{2:// test cases}
+});`,
+      description: 'Test describe block',
+    },
+    testCase: {
+      prefix: 'test',
+      body: `it('should $\{1:do something}', () => {
+  $\{2:// arrange}
+  $\{3:// act}
+  $\{4:// assert}
+});`,
+      description: 'Test case (it block)',
+    },
+    asyncTest: {
+      prefix: 'atest',
+      body: `it('should $\{1:do something}', async () => {
+  $\{2:// arrange}
+  $\{3:// act}
+  $\{4:// assert}
+});`,
+      description: 'Async test case',
+    },
+    beforeAfter: {
+      prefix: 'bdd',
+      body: `beforeEach(() => {
+  $\{1:// setup}
+});
+
+afterEach(() => {
+  $\{2:// cleanup}
+});`,
+      description: 'beforeEach/afterEach setup',
+    },
+    mockFn: {
+      prefix: 'jmock',
+      body: `const $\{1:mockFn} = jest.fn($\{2:});`,
+      description: 'Jest mock function',
+    },
+    spyOn: {
+      prefix: 'jspy',
+      body: `jest.spyOn($\{1:object}, '$\{2:method}').mockImplementation($\{3:() => {}});`,
+      description: 'Jest spyOn',
+    },
+    expectToEqual: {
+      prefix: 'exp',
+      body: `expect($\{1:actual}).toEqual($\{2:expected});`,
+      description: 'expect().toEqual()',
+    },
+    expectToBe: {
+      prefix: 'exb',
+      body: `expect($\{1:actual}).toBe($\{2:expected});`,
+      description: 'expect().toBe()',
+    },
+    renderTest: {
+      prefix: 'rtl',
+      body: `import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { $\{1:Component} } from './$\{2:component}';
+
+describe('$\{1:Component}', () => {
+  it('renders correctly', () => {
+    render(<$\{1:Component} />);
+    expect(screen.getByText('$\{3:text}')).toBeInTheDocument();
+  });
+
+  it('handles user interaction', async () => {
+    const user = userEvent.setup();
+    render(<$\{1:Component} />);
+
+    await user.click(screen.getByRole('button', { name: '$\{4:button}' }));
+    $\{5:// assertions}
+  });
+});`,
+      description: 'React Testing Library test suite',
     },
   },
   json: {

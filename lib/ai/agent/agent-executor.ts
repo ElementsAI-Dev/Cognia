@@ -720,6 +720,8 @@ export async function executeAgent(
   
   // Track cumulative token usage for agent trace
   const cumulativeTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  // Track per-step start time for duration calculation
+  const stepStartTimes = new Map<number, number>();
 
   const modelId = provider && model ? `${provider}/${model}` : undefined;
   const turnId = sessionId;
@@ -966,6 +968,7 @@ export async function executeAgent(
       stopWhen: stepCountIs(maxSteps),
       prepareStep: async () => {
         stepCount++;
+        stepStartTimes.set(stepCount, Date.now());
         onStepStart?.(stepCount);
 
         if (effectiveEnableAgentTrace && sessionId) {
@@ -1126,6 +1129,10 @@ export async function executeAgent(
         }
 
         if (effectiveEnableAgentTrace && sessionId) {
+          const stepDuration = stepStartTimes.has(stepCount)
+            ? Date.now() - stepStartTimes.get(stepCount)!
+            : undefined;
+
           void recordAgentTraceEvent({
             sessionId,
             contributorType: 'ai',
@@ -1133,6 +1140,7 @@ export async function executeAgent(
             eventType: 'step_finish',
             turnId,
             stepId: buildStepId(stepCount),
+            duration: stepDuration,
             metadata: {
               stepNumber: stepCount,
               finishReason: event.finishReason,
@@ -1248,6 +1256,7 @@ export async function executeAgent(
         eventType: 'response',
         turnId,
         stepId: buildStepId(stepCount || 1),
+        duration,
         metadata: {
           success: true,
           stepCount,

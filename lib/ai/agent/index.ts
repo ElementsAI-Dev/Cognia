@@ -116,8 +116,11 @@ export {
   executeSubAgent,
   executeSubAgentsParallel,
   executeSubAgentsSequential,
+  executeSubAgentsDependencyGraph,
+  topologicalSort,
   cancelSubAgent,
   cancelAllSubAgents,
+  aggregateTokenUsage,
   type SubAgentExecutorConfig,
 } from './sub-agent-executor';
 
@@ -316,6 +319,35 @@ export {
   resetAgentTeamManager,
   createTeamFromTemplate,
 } from './agent-team';
+
+// Agent Bridge exports (inter-agent communication)
+export {
+  AgentBridge,
+  getAgentBridge,
+  setAgentBridge,
+  resetAgentBridge,
+  SharedMemoryManager,
+  BridgeEventEmitter,
+  type BridgeEventType,
+  type BridgeEventPayloads,
+  type BridgeEventListener,
+  type DelegateToTeamOptions,
+  type DelegateToBackgroundOptions,
+  type DelegateToSubAgentOptions,
+} from './agent-bridge';
+
+// Agent Team Tools exports
+export {
+  createTeamTools,
+  createSpawnTeamTool,
+  createSpawnTeammateTool,
+  createAssignTaskTool,
+  createSendTeamMessageTool,
+  createGetTeamStatusTool,
+  createShutdownTeammateTool,
+  createSpawnTeamFromTemplateTool,
+  getTeamToolsSystemPrompt,
+} from './teammate-tool';
 
 // Prompts exports
 export {

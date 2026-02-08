@@ -25,9 +25,10 @@ export function PluginListItem({
   plugin,
   onInstall,
   onViewDetails,
+  isFavorite = false,
+  onToggleFavorite,
 }: PluginCardProps) {
   const [isInstalling, setIsInstalling] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
 
   const handleInstall = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -119,7 +120,7 @@ export function PluginListItem({
           className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
           onClick={(e) => {
             e.stopPropagation();
-            setIsFavorite(!isFavorite);
+            onToggleFavorite?.(plugin.id);
           }}
         >
           <Heart className={cn('h-4 w-4 transition-all', isFavorite && 'fill-red-500 text-red-500')} />

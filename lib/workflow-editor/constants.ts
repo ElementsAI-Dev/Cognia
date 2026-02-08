@@ -20,6 +20,12 @@ import {
   GitMerge,
   Group,
   StickyNote,
+  // Dify-inspired icons
+  BookOpen,
+  ListChecks,
+  Combine,
+  MessageSquare,
+  FileCode,
   // Chart icons
   BarChart3,
   LineChart,
@@ -52,6 +58,12 @@ export const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ classNam
   merge: GitMerge,
   group: Group,
   annotation: StickyNote,
+  // Dify-inspired types
+  knowledgeRetrieval: BookOpen,
+  parameterExtractor: ListChecks,
+  variableAggregator: Combine,
+  questionClassifier: MessageSquare,
+  templateTransform: FileCode,
   // Chart types
   chart: BarChart3,
   lineChart: LineChart,
@@ -94,6 +106,12 @@ export const NODE_TYPE_TAGS: Record<WorkflowNodeType, string[]> = {
   merge: ['flow', 'data'],
   group: ['flow', 'utility'],
   annotation: ['utility'],
+  // Dify-inspired tags
+  knowledgeRetrieval: ['ai', 'data'],
+  parameterExtractor: ['ai', 'data'],
+  variableAggregator: ['data', 'flow'],
+  questionClassifier: ['ai', 'flow'],
+  templateTransform: ['data', 'utility'],
   // Chart tags
   chart: ['visualization', 'data'],
   lineChart: ['visualization', 'data'],

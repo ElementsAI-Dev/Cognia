@@ -22,6 +22,7 @@ import type {
   AcpPermissionResponse,
   AcpAuthMethod,
   AcpSessionModelState,
+  AcpConfigOption,
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
 import {
@@ -126,6 +127,30 @@ export class ExternalAgentManager {
       return undefined;
     }
     return adapter.getSessionModels(sessionId);
+  }
+
+  /**
+   * Set a session config option
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  async setConfigOption(agentId: string, sessionId: string, configId: string, value: string): Promise<AcpConfigOption[]> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.setConfigOption) {
+      throw new Error('Agent does not support config options');
+    }
+    return adapter.setConfigOption(sessionId, configId, value);
+  }
+
+  /**
+   * Get session config options
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  getConfigOptions(agentId: string, sessionId: string): AcpConfigOption[] | undefined {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.getConfigOptions) {
+      return undefined;
+    }
+    return adapter.getConfigOptions(sessionId);
   }
 
   getAuthMethods(agentId: string): AcpAuthMethod[] {

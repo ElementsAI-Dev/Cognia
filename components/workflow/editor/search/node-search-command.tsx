@@ -51,6 +51,11 @@ import {
   AreaChart,
   ScatterChart,
   Radar,
+  BookOpen,
+  ListChecks,
+  Combine,
+  MessageSquare,
+  FileCode,
 } from 'lucide-react';
 import { NODE_TYPE_COLORS, type WorkflowNodeType } from '@/types/workflow/workflow-editor';
 import { Kbd } from '@/components/ui/kbd';
@@ -72,6 +77,11 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   merge: GitMerge,
   group: FolderOpen,
   annotation: StickyNote,
+  knowledgeRetrieval: BookOpen,
+  parameterExtractor: ListChecks,
+  variableAggregator: Combine,
+  questionClassifier: MessageSquare,
+  templateTransform: FileCode,
   chart: BarChart2,
   lineChart: LineChart,
   barChart: BarChart2,

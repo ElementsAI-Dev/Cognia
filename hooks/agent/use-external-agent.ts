@@ -25,6 +25,7 @@ import type {
   AcpPermissionMode,
   AcpSessionModelState,
   AcpAuthMethod,
+  AcpConfigOption,
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
 
@@ -62,6 +63,8 @@ export interface UseExternalAgentState {
   streamingResponse: string;
   /** Last execution result */
   lastResult: ExternalAgentResult | null;
+  /** Session config options (ACP spec) */
+  configOptions: AcpConfigOption[];
 }
 
 /**
@@ -107,6 +110,10 @@ export interface UseExternalAgentActions {
   isAuthenticationRequired: () => boolean;
   /** Authenticate with the agent */
   authenticate: (methodId: string, credentials?: Record<string, unknown>) => Promise<void>;
+  /** Set a session config option */
+  setConfigOption: (configId: string, value: string) => Promise<AcpConfigOption[]>;
+  /** Get session config options */
+  getConfigOptions: () => AcpConfigOption[];
   /** Get agent tools as Cognia AgentTools */
   getAgentTools: (agentId?: string) => Record<string, AgentTool>;
   /** Check agent health */
@@ -169,6 +176,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
   const [planStep, setPlanStep] = useState<number | null>(null);
   const [streamingResponse, setStreamingResponse] = useState('');
+  const [configOptions, setConfigOptions] = useState<AcpConfigOption[]>([]);
   const [lastResult, setLastResult] = useState<ExternalAgentResult | null>(null);
 
   // Type for the external agent manager
@@ -250,12 +258,24 @@ export function useExternalAgent(): UseExternalAgentReturn {
           setPlanEntries(event.entries);
           setPlanStep(event.step ?? null);
         }
+        if (event.type === 'config_options_update') {
+          setConfigOptions(event.configOptions);
+        }
+        if (event.type === 'mode_update') {
+          // Sync configOptions mode value if present
+          setConfigOptions((prev) =>
+            prev.map((opt) =>
+              opt.category === 'mode' ? { ...opt, currentValue: event.modeId } : opt
+            )
+          );
+        }
       });
 
       if (activeSession) {
         const session = manager.getSession(activeAgentId, activeSession.id);
         const sessionCommands = session?.metadata?.availableCommands as AcpAvailableCommand[] | undefined;
         const sessionPlan = session?.metadata?.plan as AcpPlanEntry[] | undefined;
+        const sessionConfigOptions = session?.metadata?.configOptions as AcpConfigOption[] | undefined;
         if (sessionCommands) {
           setAvailableCommands(sessionCommands);
         }
@@ -263,6 +283,9 @@ export function useExternalAgent(): UseExternalAgentReturn {
           setPlanEntries(sessionPlan);
           const activeIndex = sessionPlan.findIndex((entry) => entry.status === 'in_progress');
           setPlanStep(activeIndex >= 0 ? activeIndex : null);
+        }
+        if (sessionConfigOptions) {
+          setConfigOptions(sessionConfigOptions);
         }
       }
     };
@@ -663,6 +686,28 @@ export function useExternalAgent(): UseExternalAgentReturn {
     [getManager, activeAgentId]
   );
 
+  // Set config option
+  const setConfigOption = useCallback(
+    async (configId: string, value: string): Promise<AcpConfigOption[]> => {
+      if (!activeAgentId || !activeSession) {
+        throw new Error('No active session to update');
+      }
+      const manager = await getManager();
+      const updated = await manager.setConfigOption(activeAgentId, activeSession.id, configId, value);
+      setConfigOptions(updated);
+      return updated;
+    },
+    [getManager, activeAgentId, activeSession]
+  );
+
+  // Get config options
+  const getConfigOptions = useCallback((): AcpConfigOption[] => {
+    if (!activeAgentId || !activeSession || !managerRef.current) {
+      return configOptions;
+    }
+    return managerRef.current.getConfigOptions(activeAgentId, activeSession.id) || configOptions;
+  }, [activeAgentId, activeSession, configOptions]);
+
   // Get agent tools
   const getAgentTools = useCallback(
     (agentId?: string): Record<string, AgentTool> => {
@@ -709,6 +754,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
     planStep,
     streamingResponse,
     lastResult,
+    configOptions,
     // Actions
     addAgent,
     removeAgent,
@@ -728,6 +774,8 @@ export function useExternalAgent(): UseExternalAgentReturn {
     getAuthMethods,
     isAuthenticationRequired,
     authenticate,
+    setConfigOption,
+    getConfigOptions,
     getAgentTools,
     checkHealth,
     refresh,

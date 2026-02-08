@@ -365,6 +365,52 @@ export async function getKernelConfig(): Promise<KernelConfig | null> {
   }
 }
 
+// ==================== Notebook File I/O ====================
+
+/** Notebook file metadata */
+export interface NotebookFileInfo {
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  cellCount: number;
+  codeCells: number;
+  markdownCells: number;
+  kernelName: string;
+  nbformat: number;
+}
+
+/** Open a .ipynb notebook file from disk */
+export async function openNotebook(path: string): Promise<string> {
+  if (!isTauri()) {
+    throw new Error('Notebook file I/O requires Tauri environment');
+  }
+
+  return invoke<string>('jupyter_open_notebook', { path });
+}
+
+/** Save notebook content to a .ipynb file on disk */
+export async function saveNotebook(
+  path: string,
+  content: string
+): Promise<void> {
+  if (!isTauri()) {
+    throw new Error('Notebook file I/O requires Tauri environment');
+  }
+
+  return invoke('jupyter_save_notebook', { path, content });
+}
+
+/** Get notebook file metadata without reading full content */
+export async function getNotebookInfo(
+  path: string
+): Promise<NotebookFileInfo> {
+  if (!isTauri()) {
+    throw new Error('Notebook file I/O requires Tauri environment');
+  }
+
+  return invoke<NotebookFileInfo>('jupyter_get_notebook_info', { path });
+}
+
 // ==================== Event Listeners ====================
 
 /** Listen for kernel status events */
@@ -439,6 +485,10 @@ export const kernelService = {
   cleanup,
   // Configuration
   getKernelConfig,
+  // Notebook File I/O
+  openNotebook,
+  saveNotebook,
+  getNotebookInfo,
   // Events
   onKernelStatus,
   onKernelOutput,

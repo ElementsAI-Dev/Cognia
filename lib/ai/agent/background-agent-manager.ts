@@ -46,6 +46,7 @@ import {
   type AgentCheckpoint,
   type HealthWarning,
 } from './background-agent-events';
+import { getAgentBridge } from './agent-bridge';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.agent;
@@ -114,6 +115,10 @@ export class BackgroundAgentManager {
     if (this.healthCheckConfig.enabled) {
       this.startHealthCheck();
     }
+
+    // Register with bridge for cross-system delegation
+    const bridge = getAgentBridge();
+    bridge.setBackgroundManagerGetter(() => this);
   }
 
   /**
@@ -929,6 +934,73 @@ export class BackgroundAgentManager {
     });
 
     return true;
+  }
+
+  /**
+   * Delegate a background agent's task to an AgentTeam via the bridge
+   * Useful for complex tasks that benefit from multi-agent decomposition
+   */
+  async delegateToTeam(
+    agentId: string,
+    options: {
+      teamName?: string;
+      teamDescription?: string;
+      teamConfig?: Record<string, unknown>;
+      templateId?: string;
+    } = {}
+  ): Promise<string | null> {
+    const agent = this.agents.get(agentId);
+    if (!agent) return null;
+
+    const bridge = getAgentBridge();
+
+    this.addLog(agent, 'info', 'Delegating task to AgentTeam', 'system');
+
+    try {
+      const delegation = await bridge.delegateToTeam({
+        task: agent.task,
+        teamName: options.teamName || `Team for: ${agent.name}`,
+        teamDescription: options.teamDescription || agent.description,
+        teamConfig: options.teamConfig as Record<string, unknown> | undefined,
+        templateId: options.templateId || agent.config.teamTemplateId,
+        sourceType: 'background',
+        sourceId: agentId,
+        sessionId: agent.sessionId,
+        metadata: {
+          backgroundAgentId: agentId,
+          ...agent.metadata,
+        },
+      });
+
+      if (delegation.status === 'completed' && delegation.result) {
+        // Update the background agent with the team's result
+        agent.result = {
+          success: true,
+          finalResponse: delegation.result,
+          steps: agent.steps,
+          totalSteps: agent.steps.length,
+          duration: agent.startedAt ? Date.now() - agent.startedAt.getTime() : 0,
+          retryCount: agent.retryCount,
+        };
+        agent.status = 'completed';
+        agent.completedAt = new Date();
+
+        this.addLog(agent, 'info', 'Task completed via team delegation', 'system');
+        this.eventEmitter.emit('agent:completed', { agent, result: agent.result });
+
+        if (agent.config.notifyOnComplete) {
+          this.addNotification(agent, 'completed', 'Task Completed', 'Task was completed via team delegation');
+        }
+      } else if (delegation.status === 'failed') {
+        this.addLog(agent, 'error', `Team delegation failed: ${delegation.error}`, 'system');
+      }
+
+      return delegation.id;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Team delegation failed';
+      this.addLog(agent, 'error', errorMessage, 'system');
+      return null;
+    }
   }
 
   /**

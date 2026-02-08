@@ -367,6 +367,255 @@ function drawPieChart(
   }
 }
 
+function drawHorizontalBarChart(
+  ctx: CanvasRenderingContext2D,
+  data: ChartData,
+  options: ChartOptions,
+  width: number,
+  height: number,
+  colors: string[]
+): void {
+  const padding = { top: 40, right: 40, bottom: 40, left: 100 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const allValues = data.datasets.flatMap(d => d.data);
+  const maxValue = Math.max(...allValues) * 1.1;
+
+  // Draw grid (vertical)
+  if (options.showGrid !== false) {
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const x = padding.left + (chartWidth / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, padding.top);
+      ctx.lineTo(x, height - padding.bottom);
+      ctx.stroke();
+    }
+  }
+
+  // Draw bars
+  const barGroupHeight = chartHeight / data.labels.length;
+  const barHeight = (barGroupHeight * 0.7) / data.datasets.length;
+  const barGap = barGroupHeight * 0.15;
+
+  data.datasets.forEach((dataset, datasetIndex) => {
+    const color = dataset.color || dataset.backgroundColor || getColor(datasetIndex, colors);
+    ctx.fillStyle = color;
+
+    dataset.data.forEach((value, i) => {
+      const barW = (value / maxValue) * chartWidth;
+      const x = padding.left;
+      const y = padding.top + i * barGroupHeight + barGap + datasetIndex * barHeight;
+
+      ctx.fillRect(x, y, barW, barHeight - 2);
+
+      if (options.showDataLabels) {
+        ctx.fillStyle = '#374151';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(value.toString(), x + barW + 5, y + barHeight / 2 + 4);
+        ctx.fillStyle = color;
+      }
+    });
+  });
+
+  // Draw labels (Y-axis)
+  ctx.fillStyle = '#374151';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  data.labels.forEach((label, i) => {
+    const y = padding.top + i * barGroupHeight + barGroupHeight / 2;
+    ctx.fillText(label.length > 12 ? label.slice(0, 12) + '…' : label, padding.left - 8, y);
+  });
+
+  if (options.title) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(options.title, width / 2, 20);
+  }
+}
+
+function drawAreaChart(
+  ctx: CanvasRenderingContext2D,
+  data: ChartData,
+  options: ChartOptions,
+  width: number,
+  height: number,
+  colors: string[]
+): void {
+  const padding = { top: 40, right: 20, bottom: 60, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const allValues = data.datasets.flatMap(d => d.data);
+  const maxValue = Math.max(...allValues) * 1.1;
+
+  // Draw grid
+  if (options.showGrid !== false) {
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (chartHeight / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+    }
+  }
+
+  const pointSpacing = chartWidth / (data.labels.length - 1 || 1);
+
+  data.datasets.forEach((dataset, datasetIndex) => {
+    const color = dataset.color || dataset.borderColor || getColor(datasetIndex, colors);
+
+    // Draw filled area
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + chartHeight);
+
+    dataset.data.forEach((value, i) => {
+      const x = padding.left + i * pointSpacing;
+      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+      ctx.lineTo(x, y);
+    });
+
+    ctx.lineTo(padding.left + (dataset.data.length - 1) * pointSpacing, padding.top + chartHeight);
+    ctx.closePath();
+    ctx.fillStyle = color + '30';
+    ctx.fill();
+
+    // Draw line on top
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    dataset.data.forEach((value, i) => {
+      const x = padding.left + i * pointSpacing;
+      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Draw points
+    ctx.fillStyle = color;
+    dataset.data.forEach((value, i) => {
+      const x = padding.left + i * pointSpacing;
+      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
+  // Draw labels
+  ctx.fillStyle = '#374151';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  data.labels.forEach((label, i) => {
+    const x = padding.left + i * pointSpacing;
+    ctx.fillText(label, x, height - padding.bottom + 20);
+  });
+
+  if (options.title) {
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(options.title, width / 2, 20);
+  }
+}
+
+function drawScatterChart(
+  ctx: CanvasRenderingContext2D,
+  data: ChartData,
+  options: ChartOptions,
+  width: number,
+  height: number,
+  colors: string[]
+): void {
+  const padding = { top: 40, right: 20, bottom: 60, left: 60 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  const allValues = data.datasets.flatMap(d => d.data);
+  const maxValue = Math.max(...allValues) * 1.1;
+
+  // Draw grid
+  if (options.showGrid !== false) {
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (chartHeight / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      const x = padding.left + (chartWidth / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, padding.top);
+      ctx.lineTo(x, height - padding.bottom);
+      ctx.stroke();
+    }
+  }
+
+  // Draw axes
+  ctx.strokeStyle = '#9CA3AF';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, height - padding.bottom);
+  ctx.lineTo(width - padding.right, height - padding.bottom);
+  ctx.stroke();
+
+  // Draw scatter points
+  const pointSpacing = chartWidth / (data.labels.length - 1 || 1);
+
+  data.datasets.forEach((dataset, datasetIndex) => {
+    const color = dataset.color || getColor(datasetIndex, colors);
+    ctx.fillStyle = color;
+
+    dataset.data.forEach((value, i) => {
+      const x = padding.left + i * pointSpacing;
+      const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+
+      // Draw dot with slight transparency
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Outline
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (options.showDataLabels) {
+        ctx.fillStyle = '#374151';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(value.toString(), x, y - 10);
+        ctx.fillStyle = color;
+      }
+    });
+  });
+
+  // Draw labels
+  ctx.fillStyle = '#374151';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'center';
+  data.labels.forEach((label, i) => {
+    const x = padding.left + i * pointSpacing;
+    ctx.fillText(label, x, height - padding.bottom + 20);
+  });
+
+  if (options.title) {
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(options.title, width / 2, 20);
+  }
+}
+
 // =====================
 // Main Component
 // =====================
@@ -419,12 +668,13 @@ export function ChartElement({
         drawBarChart(ctx, normalizedData, options, rect.width, rect.height, colors);
         break;
       case 'horizontal-bar':
-        // TODO: Implement horizontal bar chart
-        drawBarChart(ctx, normalizedData, options, rect.width, rect.height, colors);
+        drawHorizontalBarChart(ctx, normalizedData, options, rect.width, rect.height, colors);
         break;
       case 'line':
-      case 'area':
         drawLineChart(ctx, normalizedData, options, rect.width, rect.height, colors);
+        break;
+      case 'area':
+        drawAreaChart(ctx, normalizedData, options, rect.width, rect.height, colors);
         break;
       case 'pie':
         drawPieChart(ctx, normalizedData, options, rect.width, rect.height, colors, false);
@@ -433,8 +683,7 @@ export function ChartElement({
         drawPieChart(ctx, normalizedData, options, rect.width, rect.height, colors, true);
         break;
       case 'scatter':
-        // TODO: Implement scatter chart
-        drawLineChart(ctx, normalizedData, options, rect.width, rect.height, colors);
+        drawScatterChart(ctx, normalizedData, options, rect.width, rect.height, colors);
         break;
       default:
         drawBarChart(ctx, normalizedData, options, rect.width, rect.height, colors);

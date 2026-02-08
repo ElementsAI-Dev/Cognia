@@ -51,7 +51,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { EmptyState } from "@/components/layout/empty-state";
+import { EmptyState } from "@/components/layout/feedback/empty-state";
 
 // Re-export SelectionTemplate as Template for backward compatibility
 export type Template = SelectionTemplate;

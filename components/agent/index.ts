@@ -36,9 +36,22 @@ export { AgentTeamCreateDialog, type AgentTeamCreateDialogProps } from './agent-
 export { AgentTeamTeammateEditor, type AgentTeamTeammateEditorProps } from './agent-team-teammate-editor';
 export { AgentTeamIndicator, type AgentTeamIndicatorProps } from './agent-team-indicator';
 export { AgentTeamResultCard, type AgentTeamResultCardProps } from './agent-team-result-card';
+export { AgentTeamChat, type AgentTeamChatProps } from './agent-team-chat';
+export { AgentTeamTaskBoard, type AgentTeamTaskBoardProps } from './agent-team-task-board';
+export { AgentTeamAnalytics, type AgentTeamAnalyticsProps } from './agent-team-analytics';
+export { AgentTeamGraph, type AgentTeamGraphProps } from './agent-team-graph';
+export { AgentTeamTimeline, type AgentTeamTimelineProps } from './agent-team-timeline';
+export { AgentTeamActivityFeed, type AgentTeamActivityFeedProps } from './agent-team-activity-feed';
+export { AgentTeamConfigEditor, type AgentTeamConfigEditorProps } from './agent-team-config-editor';
 
 // External agent components
 export { ExternalAgentSelector } from './external-agent-selector';
 export { ExternalAgentManager } from './external-agent-manager';
 export { ExternalAgentCommands, type ExternalAgentCommandsProps } from './external-agent-commands';
 export { ExternalAgentPlan, type ExternalAgentPlanProps } from './external-agent-plan';
+
+// Agent trace components
+export { CheckpointPanel } from './checkpoint-panel';
+export { BlameSummary } from './blame-summary';
+export { LiveTracePanel } from './live-trace-panel';
+export { SessionReplay } from './session-replay';

@@ -11,3 +11,9 @@ export { MCPCallTimeline, type MCPCallTimelineProps, type MCPCallStep } from './
 export { MCPLogViewer, type MCPLogViewerProps, type MCPLogEntry } from './mcp-log-viewer';
 export { MCPServerBadge, type MCPServerBadgeProps } from './mcp-server-badge';
 export { McpPromptsPanel, type McpPromptsPanelProps } from './mcp-prompts-panel';
+export { MCPResourceBrowser, type MCPResourceBrowserProps } from './mcp-resource-browser';
+export { MCPToolUsageStats, type MCPToolUsageStatsProps } from './mcp-tool-usage-stats';
+export { MCPServerHealth, type MCPServerHealthProps } from './mcp-server-health';
+export { MCPActiveCalls, type MCPActiveCallsProps } from './mcp-active-calls';
+export { MCPErrorDisplay, type MCPErrorDisplayProps } from './mcp-error-display';
+export { MCPToolSelectionConfig, type MCPToolSelectionConfigProps } from './mcp-tool-selection-config';

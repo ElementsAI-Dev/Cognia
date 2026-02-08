@@ -14,7 +14,7 @@ jest.mock('@/stores/skills', () => ({
 jest.mock('@/lib/skills/packager', () => ({
   downloadSkillAsMarkdown: jest.fn(),
 }));
-jest.mock('@/components/layout/empty-state', () => ({
+jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ title, description, actions }: { title?: string; description?: string; actions?: Array<{ label: string }> }) => (
     <div data-testid="empty-state">
       {title && <h3>{title}</h3>}

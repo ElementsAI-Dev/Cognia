@@ -4,6 +4,51 @@
 
 Jupyter 模块为 Cognia 提供了完整的 Python 代码执行能力，包括内核管理、会话管理、代码执行、变量检查等功能。整体实现质量良好，架构清晰，但在以下方面存在优化空间：执行方式（subprocess vs ZeroMQ）、未使用代码清理、错误处理增强、性能优化。
 
+## ✅ 已完成的改进 (2025-02)
+
+### Phase 1: 持久化 Python REPL 进程 ✅
+- **重写 `kernel.rs`**: 用持久化 Python REPL 子进程替代每次执行都创建新子进程的模式
+- **JSON 命令协议**: 通过 `__COGNIA_EXEC_START__` / `__COGNIA_EXEC_END__` 哨兵标记分隔通信
+- **Base64 编码**: 代码通过 base64 编码传输，避免转义问题（修复问题 5）
+- **真正的中断**: Unix 上发送 SIGINT 信号中断执行（修复问题 1 的 interrupt 部分）
+- **变量实时查询**: 直接从持久化进程的命名空间查询变量（修复问题 6）
+- **AST 智能执行**: 自动显示最后一个表达式的结果（类似 IPython 行为）
+
+### Phase 2: Notebook 文件 I/O ✅
+- **Rust 命令**: `jupyter_open_notebook`, `jupyter_save_notebook`, `jupyter_get_notebook_info`
+- **TypeScript 封装**: `openNotebook()`, `saveNotebook()`, `getNotebookInfo()` 
+- **Tauri 文件对话框**: 支持通过系统文件选择器打开/保存 .ipynb 文件
+- **键盘快捷键**: Ctrl+S 保存, Ctrl+Shift+S 另存为, Ctrl+O 打开
+- **脏状态追踪**: 显示未保存更改标记
+- **i18n**: 英文和中文翻译
+
+### Phase 4: 单元格编辑 ✅
+- **添加单元格**: 在任意位置插入代码或 Markdown 单元格（+ 按钮）
+- **删除单元格**: 从笔记本中移除单元格（垃圾桶按钮）
+- **移动单元格**: 上下移动单元格顺序（箭头按钮）
+- **编辑源码**: 双击或点击铅笔图标进入编辑模式，Ctrl+Enter 保存，Esc 取消
+
+### Phase 5: 自动包安装 ✅
+- **ImportError 检测**: 当代码抛出 ImportError/ModuleNotFoundError 时自动安装
+- **已知映射表**: cv2→opencv-python, sklearn→scikit-learn, PIL→Pillow 等
+- **自动重试**: 安装成功后自动重新执行代码
+
+### Phase 7: Matplotlib 增强 ✅
+- **Agg 后端**: 启动时自动设置 `matplotlib.use('Agg')`
+- **图形捕获**: `_capture_plots()` 自动捕获所有 matplotlib 图形为 base64 PNG
+- **显示数据**: 图形作为 display_data 返回到前端
+
+### 已解决的原始问题
+| 问题 | 状态 | 说明 |
+|------|------|------|
+| 问题 1: Subprocess 执行方式 | ✅ 已修复 | 持久化 REPL 进程 + SIGINT 中断 |
+| 问题 5: Python 代码转义 | ✅ 已修复 | 使用 base64 编码传输代码 |
+| 问题 6: 变量缓存不准确 | ✅ 已修复 | 直接从进程命名空间查询 |
+
+### 待完成
+- **Phase 3: 流式输出** — 需要架构重构以支持实时逐行输出
+- **Phase 8: ZeroMQ** — 长期目标，持久化 REPL 已覆盖大部分需求
+
 ---
 
 ## 模块依赖图

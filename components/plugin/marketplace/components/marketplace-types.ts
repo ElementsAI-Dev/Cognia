@@ -80,6 +80,8 @@ export interface PluginCardProps {
   onViewDetails?: (plugin: MarketplacePlugin) => void;
   installProgress?: number;
   isInstalling?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: (pluginId: string) => void;
 }
 
 export type InstallStage = 'idle' | 'downloading' | 'extracting' | 'installing' | 'configuring' | 'complete' | 'error';

@@ -2,8 +2,8 @@
  * Sandbox Components - UI components for sandbox code execution
  */
 
-export { SandboxPanel } from '@/components/native/sandbox-panel';
-export type { SandboxPanelProps } from '@/components/native/sandbox-panel';
+export { SandboxPanel } from '@/components/native/sandbox/sandbox-panel';
+export type { SandboxPanelProps } from '@/components/native/sandbox/sandbox-panel';
 
 export { ExecutionHistory } from './execution-history';
 export type { ExecutionHistoryProps } from './execution-history';

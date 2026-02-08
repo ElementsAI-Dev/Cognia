@@ -189,6 +189,18 @@ export interface DBAgentTrace {
   filePaths?: string[];
 }
 
+export interface DBCheckpoint {
+  id: string;
+  sessionId: string;
+  traceId: string;
+  filePath: string;
+  originalContent: string;
+  modifiedContent: string | null;
+  modelId: string | null;
+  timestamp: Date;
+  createdAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -201,6 +213,7 @@ class CogniaDB extends Dexie {
   workflowExecutions!: EntityTable<DBWorkflowExecution, 'id'>;
   summaries!: EntityTable<DBSummary, 'id'>;
   agentTraces!: EntityTable<DBAgentTrace, 'id'>;
+  checkpoints!: EntityTable<DBCheckpoint, 'id'>;
   assets!: EntityTable<DBAsset, 'id'>;
   folders!: EntityTable<DBFolder, 'id'>;
 
@@ -313,6 +326,23 @@ class CogniaDB extends Dexie {
       workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
       summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
       agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+    });
+
+    // Version 10: Add checkpoints table for agent trace rollback support
+    this.version(10).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
+      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
       assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
     });

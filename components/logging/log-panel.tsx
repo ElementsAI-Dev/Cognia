@@ -5,6 +5,8 @@
  *
  * A comprehensive log viewing component that aggregates logs from multiple sources
  * (frontend, Tauri, MCP, plugins) with filtering, grouping, and export capabilities.
+ * Enhanced with dashboard view, timeline visualization, detail panel, search highlighting,
+ * regex search, and bookmark support.
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -33,6 +35,14 @@ import {
   FileJson,
   FileText,
   FileSpreadsheet,
+  BarChart3,
+  List,
+  Regex,
+  Bookmark,
+  BookmarkCheck,
+  Activity,
+  PanelRightOpen,
+  PanelRightClose,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -60,6 +70,9 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { useLogStream, useLogModules } from '@/hooks/logging';
+import { LogStatsDashboard } from './log-stats-dashboard';
+import { LogTimeline } from './log-timeline';
+import { LogDetailPanel } from './log-detail-panel';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
 
 // Time range options in milliseconds
@@ -74,6 +87,9 @@ const TIME_RANGES = {
 
 type TimeRange = keyof typeof TIME_RANGES;
 type ExportFormat = 'json' | 'csv' | 'text';
+type ViewMode = 'list' | 'dashboard';
+
+const BOOKMARKS_STORAGE_KEY = 'cognia-log-bookmarks';
 
 export interface LogPanelProps {
   /** CSS class name */
@@ -88,6 +104,8 @@ export interface LogPanelProps {
   groupByTraceId?: boolean;
   /** Show statistics panel */
   showStats?: boolean;
+  /** Show timeline visualization */
+  showTimeline?: boolean;
   /** Filter by specific sources */
   sources?: ('frontend' | 'tauri' | 'mcp' | 'plugin')[];
 }
@@ -108,15 +126,76 @@ const LEVEL_CONFIG: Record<LogLevel, { icon: React.ElementType; color: string; b
 
 const ALL_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
 
+/**
+ * Split text by search query into parts for highlighting.
+ * Returns null if query is invalid or empty.
+ */
+function splitByQuery(
+  text: string,
+  query: string,
+  isRegex: boolean
+): { parts: string[]; regex: RegExp } | null {
+  if (!query) return null;
+  try {
+    const regex = isRegex
+      ? new RegExp(`(${query})`, 'gi')
+      : new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return { parts: text.split(regex), regex };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Highlight search matches within text.
+ */
+function HighlightedText({
+  text,
+  query,
+  useRegex,
+}: {
+  text: string;
+  query: string;
+  useRegex: boolean;
+}) {
+  const result = splitByQuery(text, query, useRegex);
+  if (!result) return <>{text}</>;
+
+  const { parts, regex } = result;
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 function LogEntry({
   log,
   isExpanded,
   onToggle,
+  onSelect,
+  searchQuery,
+  useRegex,
+  isBookmarked,
+  onToggleBookmark,
   t,
 }: {
   log: StructuredLogEntry;
   isExpanded: boolean;
   onToggle: () => void;
+  onSelect?: () => void;
+  searchQuery: string;
+  useRegex: boolean;
+  isBookmarked: boolean;
+  onToggleBookmark?: (id: string) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
   const [copied, setCopied] = useState(false);
@@ -182,24 +261,72 @@ function LogEntry({
           </Tooltip>
         )}
 
-        <span className="text-sm flex-1 break-words">{log.message}</span>
+        <span className="text-sm flex-1 break-words">
+          <HighlightedText text={log.message} query={searchQuery} useRegex={useRegex} />
+        </span>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCopy();
-              }}
-            >
-              {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('panel.copyEntry')}</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {onToggleBookmark && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBookmark(log.id);
+                  }}
+                >
+                  {isBookmarked ? (
+                    <BookmarkCheck className="h-3 w-3 text-yellow-500" />
+                  ) : (
+                    <Bookmark className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isBookmarked ? t('panel.removeBookmark') : t('panel.addBookmark')}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {onSelect && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect();
+                  }}
+                >
+                  <PanelRightOpen className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.viewDetails')}</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+              >
+                {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('panel.copyEntry')}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {isExpanded && hasDetails && (
@@ -291,6 +418,7 @@ export function LogPanel({
   refreshInterval = 2000,
   groupByTraceId = false,
   showStats = true,
+  showTimeline = true,
 }: LogPanelProps) {
   const t = useTranslations('logging');
 
@@ -298,13 +426,44 @@ export function LogPanel({
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [useRegex, setUseRegex] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [autoScroll, setAutoScroll] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [selectedLog, setSelectedLog] = useState<StructuredLogEntry | null>(null);
+  const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const stored = localStorage.getItem(BOOKMARKS_STORAGE_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const modules = useLogModules();
+
+  // Persist bookmarks to localStorage
+  const toggleBookmark = useCallback((id: string) => {
+    setBookmarkedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      try {
+        localStorage.setItem(BOOKMARKS_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  }, []);
 
   // Get time range cutoff (calculated during filter, not in useMemo to avoid impure function issue)
   const getTimeRangeCutoff = useCallback(() => {
@@ -312,13 +471,14 @@ export function LogPanel({
     return Date.now() - TIME_RANGES[timeRange];
   }, [timeRange]);
 
-  const { logs, groupedLogs, isLoading, error, refresh, clearLogs, exportLogs, stats } =
+  const { logs, groupedLogs, isLoading, error, refresh, clearLogs, exportLogs, stats, logRate } =
     useLogStream({
       autoRefresh,
       refreshInterval,
       level: levelFilter,
       module: moduleFilter === 'all' ? undefined : moduleFilter,
       searchQuery: searchQuery || undefined,
+      useRegex,
       groupByTraceId,
       maxLogs: 1000,
     });
@@ -400,6 +560,18 @@ export function LogPanel({
     return logs.filter((log) => new Date(log.timestamp).getTime() >= cutoff);
   }, [logs, timeRange, getTimeRangeCutoff]);
 
+  // Related logs for the detail panel (same traceId)
+  const relatedLogs = useMemo(() => {
+    if (!selectedLog?.traceId) return [];
+    return logs.filter((l) => l.traceId === selectedLog.traceId);
+  }, [logs, selectedLog]);
+
+  // Handle selecting a log for detail view
+  const handleSelectLog = useCallback((log: StructuredLogEntry) => {
+    setSelectedLog(log);
+    setShowDetailPanel(true);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -412,7 +584,14 @@ export function LogPanel({
         e.preventDefault();
         refresh();
       } else if (e.key === 'Escape') {
-        setSearchQuery('');
+        if (showDetailPanel) {
+          setShowDetailPanel(false);
+        } else {
+          setSearchQuery('');
+        }
+      } else if (e.key === 'd' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setViewMode((prev) => (prev === 'list' ? 'dashboard' : 'list'));
       }
     };
 
@@ -421,7 +600,7 @@ export function LogPanel({
       container.addEventListener('keydown', handleKeyDown);
       return () => container.removeEventListener('keydown', handleKeyDown);
     }
-  }, [refresh]);
+  }, [refresh, showDetailPanel]);
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {
@@ -434,17 +613,65 @@ export function LogPanel({
     <div className={cn('flex flex-col border rounded-lg bg-background', className)}>
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 p-2 sm:p-3 border-b bg-muted/30">
-        {/* Search - full width on mobile */}
-        <InputGroup className="w-full sm:flex-1 sm:min-w-[160px] sm:max-w-xs h-8">
-          <InputGroupAddon>
-            <Search className="h-4 w-4" />
-          </InputGroupAddon>
-          <InputGroupInput
-            placeholder={t('panel.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </InputGroup>
+        {/* View mode toggle + Search */}
+        <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-1 sm:min-w-0">
+          {/* View mode toggle */}
+          <div className="flex items-center border rounded-md shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.listView')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={viewMode === 'dashboard' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => setViewMode('dashboard')}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.dashboardView')}</TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Search with regex toggle */}
+          <InputGroup className="flex-1 sm:max-w-xs h-8">
+            <InputGroupAddon>
+              <Search className="h-4 w-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder={useRegex ? t('panel.regexPlaceholder') : t('panel.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={useRegex && searchQuery ? 'font-mono text-xs' : ''}
+            />
+          </InputGroup>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={useRegex ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 px-2 shrink-0"
+                onClick={() => setUseRegex(!useRegex)}
+              >
+                <Regex className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('panel.toggleRegex')}</TooltipContent>
+          </Tooltip>
+        </div>
 
         {/* Filters row - scrollable on mobile */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0">
@@ -553,6 +780,22 @@ export function LogPanel({
             <TooltipContent>{t('panel.clear')}</TooltipContent>
           </Tooltip>
 
+          {/* Detail panel toggle */}
+          {showDetailPanel && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDetailPanel(false)}
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('panel.closeDetails')}</TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Scroll controls */}
           <div className="flex items-center border-l pl-1 ml-1">
             <Tooltip>
@@ -608,53 +851,94 @@ export function LogPanel({
               </span>
             );
           })}
+          {logRate > 0 && (
+            <span className="flex items-center gap-1 text-muted-foreground ml-auto">
+              <Activity className="h-3 w-3" />
+              ~{logRate} {t('panel.logsPerMin')}
+            </span>
+          )}
         </div>
       )}
 
-      {/* Log content */}
-      <ScrollArea ref={scrollRef} className="flex-1" style={{ maxHeight }}>
-        {isLoading && filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
-            <InlineLoading text={t('panel.loadingLogs')} />
-          </div>
-        ) : error ? (
-          <Alert variant="destructive" className="m-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{t('panel.errorLoading')}</AlertDescription>
-          </Alert>
-        ) : filteredLogs.length === 0 ? (
-          <Empty className="py-8 border-0">
-            <EmptyTitle className="text-sm font-normal text-muted-foreground">
-              {t('panel.noLogs')}
-            </EmptyTitle>
-          </Empty>
-        ) : groupByTraceId ? (
-          <div className="p-2">
-            {Array.from(groupedLogs.entries()).map(([traceId, traceLogs]) => (
-              <TraceGroup
-                key={traceId}
-                traceId={traceId}
-                logs={traceLogs}
-                expandedIds={expandedIds}
-                toggleExpanded={toggleExpanded}
-                t={t}
-              />
-            ))}
-          </div>
-        ) : (
-          <div ref={containerRef} tabIndex={0} className="outline-none">
-            {filteredLogs.map((log) => (
-              <LogEntry
-                key={log.id}
-                log={log}
-                isExpanded={expandedIds.has(log.id)}
-                onToggle={() => toggleExpanded(log.id)}
-                t={t}
-              />
-            ))}
-          </div>
+      {/* Main content area with optional detail panel */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Log list or Dashboard */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Timeline visualization */}
+          {showTimeline && viewMode === 'list' && filteredLogs.length > 0 && (
+            <LogTimeline logs={filteredLogs} />
+          )}
+
+          {/* Content based on view mode */}
+          {viewMode === 'dashboard' ? (
+            <ScrollArea className="flex-1" style={{ maxHeight }}>
+              <LogStatsDashboard logs={filteredLogs} />
+            </ScrollArea>
+          ) : (
+            <ScrollArea ref={scrollRef} className="flex-1" style={{ maxHeight }}>
+              {isLoading && filteredLogs.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <InlineLoading text={t('panel.loadingLogs')} />
+                </div>
+              ) : error ? (
+                <Alert variant="destructive" className="m-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{t('panel.errorLoading')}</AlertDescription>
+                </Alert>
+              ) : filteredLogs.length === 0 ? (
+                <Empty className="py-8 border-0">
+                  <EmptyTitle className="text-sm font-normal text-muted-foreground">
+                    {t('panel.noLogs')}
+                  </EmptyTitle>
+                </Empty>
+              ) : groupByTraceId ? (
+                <div className="p-2">
+                  {Array.from(groupedLogs.entries()).map(([traceId, traceLogs]) => (
+                    <TraceGroup
+                      key={traceId}
+                      traceId={traceId}
+                      logs={traceLogs}
+                      expandedIds={expandedIds}
+                      toggleExpanded={toggleExpanded}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div ref={containerRef} tabIndex={0} className="outline-none">
+                  {filteredLogs.map((log) => (
+                    <LogEntry
+                      key={log.id}
+                      log={log}
+                      isExpanded={expandedIds.has(log.id)}
+                      onToggle={() => toggleExpanded(log.id)}
+                      onSelect={() => handleSelectLog(log)}
+                      searchQuery={searchQuery}
+                      useRegex={useRegex}
+                      isBookmarked={bookmarkedIds.has(log.id)}
+                      onToggleBookmark={toggleBookmark}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          )}
+        </div>
+
+        {/* Right: Detail Panel */}
+        {showDetailPanel && selectedLog && (
+          <LogDetailPanel
+            log={selectedLog}
+            relatedLogs={relatedLogs}
+            isBookmarked={bookmarkedIds.has(selectedLog.id)}
+            onClose={() => setShowDetailPanel(false)}
+            onToggleBookmark={toggleBookmark}
+            onSelectRelated={(log) => setSelectedLog(log)}
+            className="w-[350px] lg:w-[400px] shrink-0"
+          />
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

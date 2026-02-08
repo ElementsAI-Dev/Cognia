@@ -19,6 +19,11 @@ export { TransformNode } from './transform-node';
 export { MergeNode } from './merge-node';
 export { GroupNode } from './group-node';
 export { AnnotationNode } from './annotation-node';
+export { KnowledgeRetrievalNode } from './knowledge-retrieval-node';
+export { ParameterExtractorNode } from './parameter-extractor-node';
+export { VariableAggregatorNode } from './variable-aggregator-node';
+export { QuestionClassifierNode } from './question-classifier-node';
+export { TemplateTransformNode } from './template-transform-node';
 
 import { StartNode } from './start-node';
 import { EndNode } from './end-node';
@@ -36,6 +41,11 @@ import { TransformNode } from './transform-node';
 import { MergeNode } from './merge-node';
 import { GroupNode } from './group-node';
 import { AnnotationNode } from './annotation-node';
+import { KnowledgeRetrievalNode } from './knowledge-retrieval-node';
+import { ParameterExtractorNode } from './parameter-extractor-node';
+import { VariableAggregatorNode } from './variable-aggregator-node';
+import { QuestionClassifierNode } from './question-classifier-node';
+import { TemplateTransformNode } from './template-transform-node';
 
 /**
  * Node type to component mapping for React Flow
@@ -57,4 +67,9 @@ export const nodeTypes = {
   merge: MergeNode,
   group: GroupNode,
   annotation: AnnotationNode,
+  knowledgeRetrieval: KnowledgeRetrievalNode,
+  parameterExtractor: ParameterExtractorNode,
+  variableAggregator: VariableAggregatorNode,
+  questionClassifier: QuestionClassifierNode,
+  templateTransform: TemplateTransformNode,
 };

@@ -30,6 +30,12 @@ export type WorkflowNodeType =
   | 'merge'
   | 'group'
   | 'annotation'
+  // Dify-inspired nodes
+  | 'knowledgeRetrieval'
+  | 'parameterExtractor'
+  | 'variableAggregator'
+  | 'questionClassifier'
+  | 'templateTransform'
   // Chart nodes
   | 'chart'
   | 'lineChart'
@@ -51,6 +57,73 @@ export type NodeExecutionStatus =
   | 'skipped'
   | 'waiting';
 
+// =====================
+// Variable Reference System (Dify-inspired)
+// =====================
+
+/**
+ * Reference to an upstream node's output variable
+ * Enables Dify-style variable selector across nodes
+ */
+export interface VariableReference {
+  nodeId: string;
+  variableName: string;
+  variablePath?: string[];
+}
+
+/**
+ * Variable selector option for UI dropdowns
+ */
+export interface VariableSelectorOption {
+  nodeId: string;
+  nodeLabel: string;
+  nodeType: WorkflowNodeType;
+  variables: Array<{
+    name: string;
+    type: string;
+    description?: string;
+    path?: string[];
+  }>;
+}
+
+// =====================
+// Per-Node Error Handling (n8n-inspired)
+// =====================
+
+/**
+ * Node-level error handling configuration
+ */
+export interface NodeErrorConfig {
+  retryOnFailure: boolean;
+  maxRetries: number;
+  retryInterval: number;
+  continueOnFail: boolean;
+  fallbackOutput?: Record<string, unknown>;
+  errorBranch?: 'stop' | 'continue' | 'fallback';
+  timeout?: number;
+}
+
+export const DEFAULT_NODE_ERROR_CONFIG: NodeErrorConfig = {
+  retryOnFailure: false,
+  maxRetries: 0,
+  retryInterval: 1000,
+  continueOnFail: false,
+  errorBranch: 'stop',
+};
+
+// =====================
+// Pinned Data (n8n-inspired)
+// =====================
+
+/**
+ * Pinned output data for a node (for debugging/testing)
+ */
+export interface NodePinnedData {
+  isPinned: boolean;
+  data?: Record<string, unknown>;
+  pinnedAt?: Date;
+}
+
 /**
  * Base node data structure
  */
@@ -66,6 +139,9 @@ export interface BaseNodeData {
   errorMessage?: string;
   executionTime?: number;
   executionOutput?: unknown;
+  errorConfig?: NodeErrorConfig;
+  pinnedData?: NodePinnedData;
+  notes?: string;
 }
 
 /**
@@ -268,6 +344,85 @@ export interface AnnotationNodeData extends BaseNodeData {
   showBorder: boolean;
 }
 
+// =====================
+// Dify-inspired Node Data Types
+// =====================
+
+/**
+ * Knowledge Retrieval node data - RAG node for querying knowledge bases
+ */
+export interface KnowledgeRetrievalNodeData extends BaseNodeData {
+  nodeType: 'knowledgeRetrieval';
+  queryVariable: VariableReference | null;
+  knowledgeBaseIds: string[];
+  retrievalMode: 'single' | 'multiple';
+  topK: number;
+  scoreThreshold: number;
+  rerankingEnabled: boolean;
+  rerankingModel?: string;
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
+/**
+ * Parameter Extractor node data - LLM-based structured extraction
+ */
+export interface ParameterExtractorNodeData extends BaseNodeData {
+  nodeType: 'parameterExtractor';
+  model?: string;
+  instruction: string;
+  inputVariable: VariableReference | null;
+  parameters: Array<{
+    name: string;
+    type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+    description: string;
+    required: boolean;
+    enumValues?: string[];
+  }>;
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
+/**
+ * Variable Aggregator node data - merge multi-branch variables
+ */
+export interface VariableAggregatorNodeData extends BaseNodeData {
+  nodeType: 'variableAggregator';
+  variableRefs: VariableReference[];
+  aggregationMode: 'first' | 'last' | 'array' | 'merge';
+  outputVariableName: string;
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
+/**
+ * Question Classifier node data - AI-powered question classification
+ */
+export interface QuestionClassifierNodeData extends BaseNodeData {
+  nodeType: 'questionClassifier';
+  model?: string;
+  inputVariable: VariableReference | null;
+  classes: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
+/**
+ * Template Transform node data - Jinja2-style template rendering
+ */
+export interface TemplateTransformNodeData extends BaseNodeData {
+  nodeType: 'templateTransform';
+  template: string;
+  variableRefs: VariableReference[];
+  outputType: 'string' | 'json';
+  inputs: Record<string, WorkflowIOSchema>;
+  outputs: Record<string, WorkflowIOSchema>;
+}
+
 /**
  * Chart type options
  */
@@ -323,6 +478,11 @@ export type WorkflowNodeData =
   | MergeNodeData
   | GroupNodeData
   | AnnotationNodeData
+  | KnowledgeRetrievalNodeData
+  | ParameterExtractorNodeData
+  | VariableAggregatorNodeData
+  | QuestionClassifierNodeData
+  | TemplateTransformNodeData
   | ChartNodeData;
 
 /**
@@ -646,6 +806,12 @@ export const NODE_TYPE_COLORS: Record<WorkflowNodeType, string> = {
   merge: '#0ea5e9',
   group: '#6b7280',
   annotation: '#fbbf24',
+  // Dify-inspired colors
+  knowledgeRetrieval: '#0891b2',
+  parameterExtractor: '#7c3aed',
+  variableAggregator: '#0d9488',
+  questionClassifier: '#d97706',
+  templateTransform: '#9333ea',
   // Chart colors
   chart: '#10b981',
   lineChart: '#3b82f6',
@@ -676,6 +842,12 @@ export const NODE_TYPE_ICONS: Record<WorkflowNodeType, string> = {
   merge: 'GitMerge',
   group: 'FolderOpen',
   annotation: 'StickyNote',
+  // Dify-inspired icons
+  knowledgeRetrieval: 'BookOpen',
+  parameterExtractor: 'ListChecks',
+  variableAggregator: 'Combine',
+  questionClassifier: 'MessageSquare',
+  templateTransform: 'FileCode',
   // Chart icons
   chart: 'BarChart3',
   lineChart: 'LineChart',
@@ -831,6 +1003,79 @@ export function createDefaultNodeData(type: WorkflowNodeType, label?: string): W
         fontSize: 'medium',
         showBorder: false,
       } as AnnotationNodeData;
+    case 'knowledgeRetrieval':
+      return {
+        ...base,
+        nodeType: 'knowledgeRetrieval',
+        queryVariable: null,
+        knowledgeBaseIds: [],
+        retrievalMode: 'single',
+        topK: 3,
+        scoreThreshold: 0.5,
+        rerankingEnabled: false,
+        inputs: {
+          query: { type: 'string', description: 'Search query' },
+        },
+        outputs: {
+          results: { type: 'array', description: 'Retrieved documents' },
+        },
+      } as KnowledgeRetrievalNodeData;
+    case 'parameterExtractor':
+      return {
+        ...base,
+        nodeType: 'parameterExtractor',
+        instruction: '',
+        inputVariable: null,
+        parameters: [],
+        inputs: {
+          text: { type: 'string', description: 'Input text to extract from' },
+        },
+        outputs: {
+          extracted: { type: 'object', description: 'Extracted parameters' },
+        },
+      } as ParameterExtractorNodeData;
+    case 'variableAggregator':
+      return {
+        ...base,
+        nodeType: 'variableAggregator',
+        variableRefs: [],
+        aggregationMode: 'array',
+        outputVariableName: 'aggregated',
+        inputs: {},
+        outputs: {
+          aggregated: { type: 'array', description: 'Aggregated variables' },
+        },
+      } as VariableAggregatorNodeData;
+    case 'questionClassifier':
+      return {
+        ...base,
+        nodeType: 'questionClassifier',
+        inputVariable: null,
+        classes: [
+          { id: 'class-1', name: 'Class 1', description: '' },
+          { id: 'class-2', name: 'Class 2', description: '' },
+        ],
+        inputs: {
+          question: { type: 'string', description: 'Input question' },
+        },
+        outputs: {
+          classId: { type: 'string', description: 'Matched class ID' },
+          className: { type: 'string', description: 'Matched class name' },
+          confidence: { type: 'number', description: 'Classification confidence' },
+        },
+      } as QuestionClassifierNodeData;
+    case 'templateTransform':
+      return {
+        ...base,
+        nodeType: 'templateTransform',
+        template: '',
+        variableRefs: [],
+        outputType: 'string',
+        inputs: {},
+        outputs: {
+          result: { type: 'string', description: 'Rendered template output' },
+        },
+      } as TemplateTransformNodeData;
     case 'chart':
     case 'lineChart':
     case 'barChart':
@@ -890,6 +1135,12 @@ export function getDefaultNodeLabel(type: WorkflowNodeType): string {
     merge: 'Merge',
     group: 'Group',
     annotation: 'Note',
+    // Dify-inspired labels
+    knowledgeRetrieval: 'Knowledge Retrieval',
+    parameterExtractor: 'Parameter Extractor',
+    variableAggregator: 'Variable Aggregator',
+    questionClassifier: 'Question Classifier',
+    templateTransform: 'Template',
     // Chart labels
     chart: 'Chart',
     lineChart: 'Line Chart',
@@ -1031,6 +1282,54 @@ export const NODE_CATEGORIES: NodeCategory[] = [
         icon: 'Shuffle',
         color: NODE_TYPE_COLORS.transform,
         defaultData: createDefaultNodeData('transform'),
+      },
+    ],
+  },
+  {
+    id: 'ai-advanced',
+    name: 'AI Advanced',
+    icon: 'Brain',
+    description: 'Advanced AI-powered processing nodes',
+    nodes: [
+      {
+        type: 'knowledgeRetrieval',
+        name: 'Knowledge Retrieval',
+        description: 'Retrieve from knowledge bases (RAG)',
+        icon: 'BookOpen',
+        color: NODE_TYPE_COLORS.knowledgeRetrieval,
+        defaultData: createDefaultNodeData('knowledgeRetrieval'),
+      },
+      {
+        type: 'parameterExtractor',
+        name: 'Parameter Extractor',
+        description: 'Extract structured parameters via LLM',
+        icon: 'ListChecks',
+        color: NODE_TYPE_COLORS.parameterExtractor,
+        defaultData: createDefaultNodeData('parameterExtractor'),
+      },
+      {
+        type: 'questionClassifier',
+        name: 'Question Classifier',
+        description: 'AI-powered question classification',
+        icon: 'MessageSquareQuestion',
+        color: NODE_TYPE_COLORS.questionClassifier,
+        defaultData: createDefaultNodeData('questionClassifier'),
+      },
+      {
+        type: 'variableAggregator',
+        name: 'Variable Aggregator',
+        description: 'Merge variables from multiple branches',
+        icon: 'Combine',
+        color: NODE_TYPE_COLORS.variableAggregator,
+        defaultData: createDefaultNodeData('variableAggregator'),
+      },
+      {
+        type: 'templateTransform',
+        name: 'Template',
+        description: 'Render template with variables',
+        icon: 'FileCode',
+        color: NODE_TYPE_COLORS.templateTransform,
+        defaultData: createDefaultNodeData('templateTransform'),
       },
     ],
   },

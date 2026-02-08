@@ -6,7 +6,7 @@
  * Dynamically renders a configuration form based on JSON Schema.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { SchemaField } from './schema-field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,7 +71,7 @@ export function SchemaForm({
   onReset,
   disabled = false,
   loading = false,
-  errors = {},
+  errors: externalErrors = {},
   showSubmit = true,
   showReset = true,
   submitLabel = 'Save',
@@ -100,14 +100,25 @@ export function SchemaForm({
     [value, onChange]
   );
 
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  const mergedErrors = useMemo(() => {
+    return { ...validationErrors, ...externalErrors };
+  }, [validationErrors, externalErrors]);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+      const schemaErrors = validateAgainstSchema(value, schema);
+      setValidationErrors(schemaErrors);
+      if (Object.keys(schemaErrors).length > 0) {
+        return;
+      }
       if (onSubmit) {
         await onSubmit(value);
       }
     },
-    [value, onSubmit]
+    [value, onSubmit, schema]
   );
 
   const handleReset = useCallback(() => {
@@ -125,7 +136,7 @@ export function SchemaForm({
     }
   }, [onReset, properties, onChange]);
 
-  const hasErrors = Object.keys(errors).length > 0;
+  const hasErrors = Object.keys(mergedErrors).length > 0;
 
   if (schema.type !== 'object') {
     return (
@@ -159,7 +170,7 @@ export function SchemaForm({
               onChange={(v: unknown) => handleFieldChange(key, v)}
               required={required}
               disabled={disabled || loading}
-              error={errors[key]}
+              error={mergedErrors[key]}
             />
           ))}
 

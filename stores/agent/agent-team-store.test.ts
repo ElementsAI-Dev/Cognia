@@ -67,6 +67,23 @@ describe('AgentTeamStore', () => {
       expect(getStore().teams[team.id].name).toBe('Updated Name');
     });
 
+    it('should update team config', () => {
+      const team = getStore().createTeam({ name: 'Test Team', task: 'Test task' });
+      const originalConfig = getStore().teams[team.id].config;
+      const newConfig = { ...originalConfig, executionMode: 'autonomous' as const, tokenBudget: 50000 };
+      getStore().updateTeamConfig(team.id, newConfig);
+
+      const updated = getStore().teams[team.id];
+      expect(updated.config.executionMode).toBe('autonomous');
+      expect(updated.config.tokenBudget).toBe(50000);
+    });
+
+    it('should not update config for nonexistent team', () => {
+      const before = { ...getStore() };
+      getStore().updateTeamConfig('nonexistent', { ...DEFAULT_TEAM_CONFIG });
+      expect(Object.keys(getStore().teams)).toEqual(Object.keys(before.teams));
+    });
+
     it('should set team status with timestamps', () => {
       const team = getStore().createTeam({ name: 'Test Team', task: 'Test task' });
 
@@ -408,6 +425,83 @@ describe('AgentTeamStore', () => {
     it('should set selected teammate', () => {
       getStore().setSelectedTeammate('some-id');
       expect(getStore().selectedTeammateId).toBe('some-id');
+    });
+  });
+
+  describe('template management', () => {
+    it('should save a team as a custom template', () => {
+      const team = getStore().createTeam({ name: 'Research Team', task: 'Research AI' });
+      getStore().addTeammate({ teamId: team.id, name: 'Researcher', description: 'Primary researcher', config: { specialization: 'research' } });
+      getStore().addTeammate({ teamId: team.id, name: 'Analyst', description: 'Data analyst', config: { specialization: 'analysis' } });
+
+      const template = getStore().saveAsTemplate(team.id, 'My Research Template', 'research');
+
+      expect(template).not.toBeNull();
+      expect(template!.name).toBe('My Research Template');
+      expect(template!.category).toBe('research');
+      expect(template!.isBuiltIn).toBe(false);
+      expect(template!.teammates).toHaveLength(2);
+      expect(template!.teammates[0].name).toBe('Researcher');
+      expect(template!.teammates[1].name).toBe('Analyst');
+      expect(getStore().templates[template!.id]).toBeDefined();
+    });
+
+    it('should return null when saving template for non-existent team', () => {
+      const result = getStore().saveAsTemplate('non-existent', 'Test');
+      expect(result).toBeNull();
+    });
+
+    it('should update a custom template', () => {
+      const team = getStore().createTeam({ name: 'Test', task: 'Test' });
+      const template = getStore().saveAsTemplate(team.id, 'Original Name');
+      expect(template).not.toBeNull();
+
+      getStore().updateTemplate(template!.id, { name: 'Updated Name', description: 'New desc' });
+      const updated = getStore().templates[template!.id];
+      expect(updated.name).toBe('Updated Name');
+      expect(updated.description).toBe('New desc');
+      expect(updated.isBuiltIn).toBe(false);
+    });
+
+    it('should not update built-in templates', () => {
+      const builtInId = Object.values(getStore().templates).find(t => t.isBuiltIn)?.id;
+      if (builtInId) {
+        const original = getStore().templates[builtInId];
+        getStore().updateTemplate(builtInId, { name: 'Hacked Name' });
+        expect(getStore().templates[builtInId].name).toBe(original.name);
+      }
+    });
+
+    it('should import templates', () => {
+      const count = getStore().importTemplates([
+        { id: 'imported-1', name: 'Imported A', description: 'Desc A', category: 'general', teammates: [] },
+        { id: 'imported-2', name: 'Imported B', description: 'Desc B', category: 'debugging', teammates: [] },
+      ]);
+
+      expect(count).toBe(2);
+      expect(getStore().templates['imported-1']).toBeDefined();
+      expect(getStore().templates['imported-2']).toBeDefined();
+      expect(getStore().templates['imported-1'].isBuiltIn).toBe(false);
+    });
+
+    it('should not overwrite built-in templates during import', () => {
+      const builtIn = Object.values(getStore().templates).find(t => t.isBuiltIn);
+      if (builtIn) {
+        getStore().importTemplates([
+          { id: builtIn.id, name: 'Overwrite Attempt', description: 'X', category: 'general', teammates: [] },
+        ]);
+        expect(getStore().templates[builtIn.id].name).toBe(builtIn.name);
+      }
+    });
+
+    it('should export only custom templates', () => {
+      const team = getStore().createTeam({ name: 'T', task: 'T' });
+      getStore().saveAsTemplate(team.id, 'Custom Template');
+
+      const exported = getStore().exportTemplates();
+      expect(exported.length).toBeGreaterThanOrEqual(1);
+      expect(exported.every(t => !t.isBuiltIn)).toBe(true);
+      expect(exported.some(t => t.name === 'Custom Template')).toBe(true);
     });
   });
 

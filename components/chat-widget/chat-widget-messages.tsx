@@ -27,7 +27,7 @@ import {
 import { Streamdown } from 'streamdown';
 import { InlineCopyButton } from '@/components/chat/ui/copy-button';
 import { LoadingAnimation } from '@/components/chat/renderers/loading-animation';
-import { EmptyState } from '@/components/layout/empty-state';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { useSpeech } from '@/hooks/media/use-speech';
 import type { ChatWidgetMessage, MessageFeedback } from '@/stores/chat';
 

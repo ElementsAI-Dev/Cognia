@@ -16,6 +16,13 @@ import {
   Pie,
   AreaChart,
   Area,
+  ScatterChart,
+  Scatter,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,6 +30,7 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
+  Label,
 } from 'recharts';
 import type { A2UIComponentProps, A2UIChartComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../a2ui-context';
@@ -65,8 +73,16 @@ export function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartC
         return (
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs" />
-            <YAxis className="text-xs" />
+            <XAxis dataKey={xKey} className="text-xs">
+              {component.xAxisLabel && (
+                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
+              )}
+            </XAxis>
+            <YAxis className="text-xs">
+              {component.yAxisLabel && (
+                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
+              )}
+            </YAxis>
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
@@ -119,8 +135,16 @@ export function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartC
         return (
           <AreaChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs" />
-            <YAxis className="text-xs" />
+            <XAxis dataKey={xKey} className="text-xs">
+              {component.xAxisLabel && (
+                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
+              )}
+            </XAxis>
+            <YAxis className="text-xs">
+              {component.yAxisLabel && (
+                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
+              )}
+            </YAxis>
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
@@ -143,13 +167,112 @@ export function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartC
           </AreaChart>
         );
 
+      case 'scatter':
+        return (
+          <ScatterChart>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis dataKey={xKey} className="text-xs" name={component.xAxisLabel || xKey}>
+              {component.xAxisLabel && (
+                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
+              )}
+            </XAxis>
+            <YAxis className="text-xs" name={component.yAxisLabel || yKeys[0]}>
+              {component.yAxisLabel && (
+                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
+              )}
+            </YAxis>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+              }}
+              cursor={{ strokeDasharray: '3 3' }}
+            />
+            {component.showLegend !== false && <Legend />}
+            {yKeys.map((yKey: string, idx: number) => (
+              <Scatter
+                key={yKey}
+                name={yKey}
+                data={data}
+                fill={colors[idx % colors.length]}
+                cursor={component.clickAction ? 'pointer' : 'default'}
+              />
+            ))}
+          </ScatterChart>
+        );
+
+      case 'radar':
+        return (
+          <RadarChart cx="50%" cy="50%" outerRadius={height / 3} data={data}>
+            <PolarGrid />
+            <PolarAngleAxis dataKey={xKey} className="text-xs" />
+            <PolarRadiusAxis className="text-xs" />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+              }}
+            />
+            {component.showLegend !== false && <Legend />}
+            {yKeys.map((yKey: string, idx: number) => (
+              <Radar
+                key={yKey}
+                name={yKey}
+                dataKey={yKey}
+                stroke={colors[idx % colors.length]}
+                fill={colors[idx % colors.length]}
+                fillOpacity={0.3}
+              />
+            ))}
+          </RadarChart>
+        );
+
+      case 'donut':
+        return (
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey={yKeys[0]}
+              nameKey={xKey}
+              cx="50%"
+              cy="50%"
+              innerRadius={height / 5}
+              outerRadius={height / 3}
+              label={component.showLabels !== false}
+              cursor={component.clickAction ? 'pointer' : 'default'}
+            >
+              {data.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+              }}
+            />
+            {component.showLegend !== false && <Legend />}
+          </PieChart>
+        );
+
       case 'line':
       default:
         return (
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs" />
-            <YAxis className="text-xs" />
+            <XAxis dataKey={xKey} className="text-xs">
+              {component.xAxisLabel && (
+                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
+              )}
+            </XAxis>
+            <YAxis className="text-xs">
+              {component.yAxisLabel && (
+                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
+              )}
+            </YAxis>
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',

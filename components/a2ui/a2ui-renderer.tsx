@@ -17,7 +17,10 @@ import { A2UICard } from './layout/a2ui-card';
 import { A2UIDivider } from './layout/a2ui-divider';
 import { A2UISpacer } from './layout/a2ui-spacer';
 import { A2UIDialog } from './layout/a2ui-dialog';
+import { A2UITabs } from './layout/a2ui-tabs';
+import { A2UIAccordion } from './layout/a2ui-accordion';
 import { A2UIFallback } from './layout/a2ui-fallback';
+import { A2UIErrorBoundary } from './a2ui-error-boundary';
 
 // Import display components
 import { A2UIText } from './display/a2ui-text';
@@ -39,6 +42,7 @@ import { A2UISlider } from './form/a2ui-slider';
 import { A2UIDatePicker } from './form/a2ui-datepicker';
 import { A2UITimePicker } from './form/a2ui-timepicker';
 import { A2UIDateTimePicker } from './form/a2ui-datetimepicker';
+import { A2UIToggle } from './form/a2ui-toggle';
 
 // Import data components
 import { A2UIChart } from './data/a2ui-chart';
@@ -62,6 +66,8 @@ const builtInComponents: Record<string, React.ComponentType<A2UIComponentProps>>
   Divider: A2UIDivider as React.ComponentType<A2UIComponentProps>,
   Spacer: A2UISpacer as React.ComponentType<A2UIComponentProps>,
   Dialog: A2UIDialog as React.ComponentType<A2UIComponentProps>,
+  Tabs: A2UITabs as React.ComponentType<A2UIComponentProps>,
+  Accordion: A2UIAccordion as React.ComponentType<A2UIComponentProps>,
 
   // Text and display components
   Text: A2UIText as React.ComponentType<A2UIComponentProps>,
@@ -83,6 +89,7 @@ const builtInComponents: Record<string, React.ComponentType<A2UIComponentProps>>
   DatePicker: A2UIDatePicker as React.ComponentType<A2UIComponentProps>,
   TimePicker: A2UITimePicker as React.ComponentType<A2UIComponentProps>,
   DateTimePicker: A2UIDateTimePicker as React.ComponentType<A2UIComponentProps>,
+  Toggle: A2UIToggle as React.ComponentType<A2UIComponentProps>,
 
   // Data display components
   Chart: A2UIChart as React.ComponentType<A2UIComponentProps>,
@@ -153,7 +160,11 @@ export function A2UIRenderer({ component, className }: A2UIRendererProps) {
     renderChild,
   };
 
-  return <ComponentToRender {...componentProps} />;
+  return (
+    <A2UIErrorBoundary componentType={component.component} componentId={component.id}>
+      <ComponentToRender {...componentProps} />
+    </A2UIErrorBoundary>
+  );
 }
 
 /**

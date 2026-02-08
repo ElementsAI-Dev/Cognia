@@ -355,6 +355,106 @@ function addElement(
         fill: { color: 'F5F5F5' },
       });
       break;
+
+    case 'table': {
+      const tableData = element.metadata?.tableData as string[][] | undefined;
+      if (tableData && tableData.length > 0) {
+        const rows: PptxGenJS.TableRow[] = tableData.map((row, ri) =>
+          row.map(cell => ({
+            text: cell,
+            options: {
+              fontSize: 11,
+              fontFace: theme.bodyFont,
+              color: formatColor(theme.textColor),
+              bold: ri === 0,
+              fill: ri === 0 ? { color: formatColor(theme.primaryColor) + '25' } : undefined,
+              border: [
+                { pt: 0.5, color: formatColor(theme.primaryColor) + '60' },
+                { pt: 0.5, color: formatColor(theme.primaryColor) + '60' },
+                { pt: 0.5, color: formatColor(theme.primaryColor) + '60' },
+                { pt: 0.5, color: formatColor(theme.primaryColor) + '60' },
+              ],
+            },
+          }))
+        );
+        pptxSlide.addTable(rows, {
+          x, y, w, h,
+          colW: w / (tableData[0]?.length || 1),
+          fontSize: 11,
+          fontFace: theme.bodyFont,
+          color: formatColor(theme.textColor),
+        });
+      } else {
+        pptxSlide.addText(element.content || 'Table', {
+          x, y, w, h,
+          fontSize: 12,
+          fontFace: theme.bodyFont,
+          color: formatColor(theme.textColor),
+        });
+      }
+      break;
+    }
+
+    case 'chart': {
+      const chartType = (element.metadata?.chartType as string) || 'bar';
+      const chartData = element.metadata?.chartData as { labels?: string[]; datasets?: Array<{ label: string; data: number[] }> } | undefined;
+      if (chartData?.labels && chartData?.datasets) {
+        try {
+          const pptxChartType = chartType === 'pie' || chartType === 'doughnut'
+            ? 'pie' as const
+            : chartType === 'line' || chartType === 'area'
+              ? 'line' as const
+              : chartType === 'scatter'
+                ? 'scatter' as const
+                : 'bar' as const;
+
+          const chartDataForPptx = chartData.datasets.map(ds => ({
+            name: ds.label,
+            labels: chartData.labels!,
+            values: ds.data,
+          }));
+
+          pptxSlide.addChart(pptxChartType, chartDataForPptx, {
+            x, y, w, h,
+            showTitle: false,
+            showLegend: true,
+            legendPos: 'b',
+          });
+        } catch {
+          pptxSlide.addText(`[${chartType} chart]`, {
+            x, y, w, h,
+            fontSize: 14,
+            fontFace: theme.bodyFont,
+            color: formatColor(theme.textColor),
+            align: 'center',
+            valign: 'middle',
+          });
+        }
+      }
+      break;
+    }
+
+    case 'video':
+      pptxSlide.addText(`[Video: ${element.content || 'embedded'}]`, {
+        x, y, w, h,
+        fontSize: 12,
+        fontFace: theme.bodyFont,
+        color: formatColor(theme.textColor),
+        align: 'center',
+        valign: 'middle',
+        fill: { color: 'F0F0F0' },
+      });
+      break;
+
+    case 'icon':
+      pptxSlide.addText(element.content || '●', {
+        x, y, w, h,
+        fontSize: 24,
+        align: 'center',
+        valign: 'middle',
+        color: formatColor(theme.primaryColor),
+      });
+      break;
   }
 }
 

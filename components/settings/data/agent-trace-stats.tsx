@@ -7,6 +7,7 @@ import {
   Clock,
   Layers,
   Coins,
+  DollarSign,
   CheckCircle2,
   XCircle,
   BarChart3,
@@ -14,6 +15,7 @@ import {
 
 import { cn } from '@/lib/utils';
 import type { SessionTraceSummary, TraceStats } from '@/lib/db/repositories/agent-trace-repository';
+import { formatCost } from '@/lib/agent-trace/cost-estimator';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -92,6 +94,13 @@ export function AgentTraceStatsOverview({ stats, className }: AgentTraceStatsPro
         label={t('storage')}
         value={formatBytes(stats.storageEstimateBytes)}
       />
+      {stats.totalCost > 0 && (
+        <StatCard
+          icon={<DollarSign className="h-4 w-4" />}
+          label={t('totalCost') || 'Total Cost'}
+          value={formatCost(stats.totalCost)}
+        />
+      )}
     </div>
   );
 }
@@ -133,6 +142,13 @@ export function AgentTraceSessionSummary({ summary, className }: AgentTraceSessi
           label={t('avgLatency')}
           value={summary.avgLatencyMs > 0 ? formatDuration(summary.avgLatencyMs) : '-'}
         />
+        {summary.totalCost > 0 && (
+          <StatCard
+            icon={<DollarSign className="h-4 w-4" />}
+            label={t('totalCost') || 'Est. Cost'}
+            value={formatCost(summary.totalCost)}
+          />
+        )}
       </div>
 
       {/* Tool call metrics */}

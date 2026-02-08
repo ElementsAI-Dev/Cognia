@@ -16,6 +16,8 @@ import {
   Check,
   Maximize2,
   X,
+  Columns2,
+  AlignJustify,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,11 +29,18 @@ import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
 
+type DiffViewMode = 'unified' | 'split';
+
 interface DiffLine {
   type: 'add' | 'remove' | 'context' | 'header';
   content: string;
   oldLineNumber?: number;
   newLineNumber?: number;
+}
+
+interface SplitRow {
+  left: DiffLine | null;
+  right: DiffLine | null;
 }
 
 interface GitDiffViewerProps {
@@ -55,6 +64,7 @@ export function GitDiffViewer({
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [fullscreenDiff, setFullscreenDiff] = useState<GitDiffInfo | null>(null);
+  const [viewMode, setViewMode] = useState<DiffViewMode>('unified');
 
   const toggleFile = (path: string) => {
     setExpandedFiles((prev) => {
@@ -133,6 +143,48 @@ export function GitDiffViewer({
     return fileStatus.find((f) => f.path === path);
   };
 
+  const buildSplitRows = (lines: DiffLine[]): SplitRow[] => {
+    const rows: SplitRow[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.type === 'header') {
+        rows.push({ left: line, right: line });
+        i++;
+      } else if (line.type === 'context') {
+        rows.push({ left: line, right: line });
+        i++;
+      } else if (line.type === 'remove') {
+        // Collect consecutive removes
+        const removes: DiffLine[] = [];
+        while (i < lines.length && lines[i].type === 'remove') {
+          removes.push(lines[i]);
+          i++;
+        }
+        // Collect consecutive adds
+        const adds: DiffLine[] = [];
+        while (i < lines.length && lines[i].type === 'add') {
+          adds.push(lines[i]);
+          i++;
+        }
+        // Pair them up
+        const maxLen = Math.max(removes.length, adds.length);
+        for (let j = 0; j < maxLen; j++) {
+          rows.push({
+            left: j < removes.length ? removes[j] : null,
+            right: j < adds.length ? adds[j] : null,
+          });
+        }
+      } else if (line.type === 'add') {
+        rows.push({ left: null, right: line });
+        i++;
+      } else {
+        i++;
+      }
+    }
+    return rows;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'added':
@@ -167,6 +219,27 @@ export function GitDiffViewer({
           {t('filesChanged', { count: diffs.length })}
         </span>
         <div className="flex gap-1">
+          {/* View mode toggle */}
+          <div className="flex border rounded-md">
+            <Button
+              size="sm"
+              variant={viewMode === 'unified' ? 'secondary' : 'ghost'}
+              className="h-7 px-2 rounded-r-none"
+              onClick={() => setViewMode('unified')}
+              title={t('unifiedView')}
+            >
+              <AlignJustify className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'split' ? 'secondary' : 'ghost'}
+              className="h-7 px-2 rounded-l-none"
+              onClick={() => setViewMode('split')}
+              title={t('splitView')}
+            >
+              <Columns2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -306,44 +379,114 @@ export function GitDiffViewer({
                         )}
                       </div>
 
+                      {/* Change bar */}
+                      {diff.additions + diff.deletions > 0 && (
+                        <div className="flex items-center gap-2 px-2 py-1 bg-muted/20 border-b">
+                          <div className="flex h-2 flex-1 rounded-full overflow-hidden bg-muted">
+                            <div
+                              className="bg-green-500 h-full"
+                              style={{ width: `${(diff.additions / (diff.additions + diff.deletions)) * 100}%` }}
+                            />
+                            <div
+                              className="bg-red-500 h-full"
+                              style={{ width: `${(diff.deletions / (diff.additions + diff.deletions)) * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            +{diff.additions} -{diff.deletions}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Diff Content */}
                       {diff.content ? (
-                        <div className="font-mono text-xs overflow-x-auto">
-                          {parseDiffContent(diff.content).map((line, idx) => (
-                            <div
-                              key={idx}
-                              className={cn(
-                                'flex',
-                                line.type === 'add' && 'bg-green-500/10',
-                                line.type === 'remove' && 'bg-red-500/10',
-                                line.type === 'header' && 'bg-blue-500/10 text-blue-600'
-                              )}
-                            >
-                              {line.type !== 'header' && (
-                                <>
-                                  <span className="w-10 px-1 text-right text-muted-foreground select-none border-r">
-                                    {line.oldLineNumber || ''}
-                                  </span>
-                                  <span className="w-10 px-1 text-right text-muted-foreground select-none border-r">
-                                    {line.newLineNumber || ''}
-                                  </span>
-                                </>
-                              )}
-                              <span
+                        viewMode === 'split' ? (
+                          /* Split (side-by-side) view */
+                          <div className="font-mono text-xs overflow-x-auto">
+                            {buildSplitRows(parseDiffContent(diff.content)).map((row, idx) => {
+                              if (row.left?.type === 'header') {
+                                return (
+                                  <div key={idx} className="flex bg-blue-500/10 text-blue-600">
+                                    <span className="flex-1 px-2 whitespace-pre border-r">{row.left.content}</span>
+                                    <span className="flex-1 px-2 whitespace-pre">{row.right?.content}</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={idx} className="flex">
+                                  {/* Left (old) */}
+                                  <div className={cn(
+                                    'flex flex-1 border-r min-w-0',
+                                    row.left?.type === 'remove' && 'bg-red-500/10',
+                                  )}>
+                                    <span className="w-10 px-1 text-right text-muted-foreground select-none border-r shrink-0">
+                                      {row.left?.oldLineNumber || ''}
+                                    </span>
+                                    <span className={cn(
+                                      'flex-1 px-2 whitespace-pre truncate',
+                                      row.left?.type === 'remove' && 'text-red-700 dark:text-red-400',
+                                    )}>
+                                      {row.left ? row.left.content : ''}
+                                    </span>
+                                  </div>
+                                  {/* Right (new) */}
+                                  <div className={cn(
+                                    'flex flex-1 min-w-0',
+                                    row.right?.type === 'add' && 'bg-green-500/10',
+                                  )}>
+                                    <span className="w-10 px-1 text-right text-muted-foreground select-none border-r shrink-0">
+                                      {row.right?.newLineNumber || ''}
+                                    </span>
+                                    <span className={cn(
+                                      'flex-1 px-2 whitespace-pre truncate',
+                                      row.right?.type === 'add' && 'text-green-700 dark:text-green-400',
+                                    )}>
+                                      {row.right ? row.right.content : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* Unified view (original) */
+                          <div className="font-mono text-xs overflow-x-auto">
+                            {parseDiffContent(diff.content).map((line, idx) => (
+                              <div
+                                key={idx}
                                 className={cn(
-                                  'flex-1 px-2 whitespace-pre',
-                                  line.type === 'add' && 'text-green-700 dark:text-green-400',
-                                  line.type === 'remove' && 'text-red-700 dark:text-red-400'
+                                  'flex',
+                                  line.type === 'add' && 'bg-green-500/10',
+                                  line.type === 'remove' && 'bg-red-500/10',
+                                  line.type === 'header' && 'bg-blue-500/10 text-blue-600'
                                 )}
                               >
-                                {line.type === 'add' && '+'}
-                                {line.type === 'remove' && '-'}
-                                {line.type === 'context' && ' '}
-                                {line.content}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                                {line.type !== 'header' && (
+                                  <>
+                                    <span className="w-10 px-1 text-right text-muted-foreground select-none border-r">
+                                      {line.oldLineNumber || ''}
+                                    </span>
+                                    <span className="w-10 px-1 text-right text-muted-foreground select-none border-r">
+                                      {line.newLineNumber || ''}
+                                    </span>
+                                  </>
+                                )}
+                                <span
+                                  className={cn(
+                                    'flex-1 px-2 whitespace-pre',
+                                    line.type === 'add' && 'text-green-700 dark:text-green-400',
+                                    line.type === 'remove' && 'text-red-700 dark:text-red-400'
+                                  )}
+                                >
+                                  {line.type === 'add' && '+'}
+                                  {line.type === 'remove' && '-'}
+                                  {line.type === 'context' && ' '}
+                                  {line.content}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )
                       ) : (
                         <div className="p-4 text-center text-sm text-muted-foreground">
                           {t('binaryOrEmpty')}

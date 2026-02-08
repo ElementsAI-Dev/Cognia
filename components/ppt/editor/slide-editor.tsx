@@ -49,9 +49,12 @@ export function SlideEditor({
     deleteElement,
     selection,
     selectElement,
+    addToSelection,
     clearSelection,
     startEditing,
     stopEditing,
+    showGrid,
+    showGuides,
   } = usePPTEditorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,14 +113,18 @@ export function SlideEditor({
     setShowAddElement(false);
   }, [slide.id, addElement]);
 
-  // Handle element click
+  // Handle element click (supports multi-select with Shift/Ctrl)
   const handleElementClick = useCallback((e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
-    selectElement(elementId);
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && isEditing) {
+      addToSelection(elementId);
+    } else {
+      selectElement(elementId);
+    }
     if (isEditing) {
       startEditing(elementId);
     }
-  }, [selectElement, startEditing, isEditing]);
+  }, [selectElement, addToSelection, startEditing, isEditing]);
 
   // Handle slide background click
   const handleBackgroundClick = useCallback(() => {
@@ -164,6 +171,40 @@ export function SlideEditor({
       {/* Background overlay for images */}
       {slide.backgroundImage && (
         <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+      )}
+
+      {/* Grid overlay */}
+      {isEditing && showGrid && (
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-[1]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="ppt-grid-small" width="5%" height="5%" patternUnits="userSpaceOnUse">
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(156,163,175,0.15)" strokeWidth="0.5" />
+            </pattern>
+            <pattern id="ppt-grid-large" width="10%" height="10%" patternUnits="userSpaceOnUse">
+              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(156,163,175,0.3)" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#ppt-grid-small)" />
+          <rect width="100%" height="100%" fill="url(#ppt-grid-large)" />
+        </svg>
+      )}
+
+      {/* Center guides overlay */}
+      {isEditing && showGuides && (
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-[1]" xmlns="http://www.w3.org/2000/svg">
+          {/* Horizontal center */}
+          <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(59,130,246,0.35)" strokeWidth="1" strokeDasharray="6 4" />
+          {/* Vertical center */}
+          <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(59,130,246,0.35)" strokeWidth="1" strokeDasharray="6 4" />
+          {/* Thirds horizontal */}
+          <line x1="0" y1="33.33%" x2="100%" y2="33.33%" stroke="rgba(59,130,246,0.15)" strokeWidth="0.5" strokeDasharray="4 6" />
+          <line x1="0" y1="66.67%" x2="100%" y2="66.67%" stroke="rgba(59,130,246,0.15)" strokeWidth="0.5" strokeDasharray="4 6" />
+          {/* Thirds vertical */}
+          <line x1="33.33%" y1="0" x2="33.33%" y2="100%" stroke="rgba(59,130,246,0.15)" strokeWidth="0.5" strokeDasharray="4 6" />
+          <line x1="66.67%" y1="0" x2="66.67%" y2="100%" stroke="rgba(59,130,246,0.15)" strokeWidth="0.5" strokeDasharray="4 6" />
+          {/* Safe margin (5% inset) */}
+          <rect x="5%" y="5%" width="90%" height="90%" fill="none" stroke="rgba(239,68,68,0.15)" strokeWidth="0.5" strokeDasharray="3 5" />
+        </svg>
       )}
 
       {/* Slide content */}

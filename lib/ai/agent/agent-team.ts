@@ -35,8 +35,16 @@ import {
   type AddTeammateInput,
   type CreateTaskInput,
   type SendMessageInput,
+  type SharedMemoryEntry,
+  type SharedMemoryNamespace,
+  type ConsensusRequest,
+  type ConsensusVote,
+  type CreateConsensusInput,
+  type CastVoteInput,
 } from '@/types/agent/agent-team';
 import type { SubAgentTokenUsage } from '@/types/agent/sub-agent';
+import { getAgentBridge } from './agent-bridge';
+import type { SharedMemoryManager } from './agent-bridge';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.agent;
@@ -128,11 +136,15 @@ export class AgentTeamManager {
   private messages: Map<string, AgentTeamMessage> = new Map();
   private activeExecutions: Map<string, AbortController> = new Map();
   private globalTools: Record<string, AgentTool> = {};
+  private consensusRequests: Map<string, ConsensusRequest> = new Map();
 
   constructor(tools?: Record<string, AgentTool>) {
     if (tools) {
       this.globalTools = tools;
     }
+    // Register with bridge for cross-system delegation
+    const bridge = getAgentBridge();
+    bridge.setTeamManagerGetter(() => this);
   }
 
   // ==========================================================================
@@ -360,9 +372,25 @@ export class AgentTeamManager {
       }
     }
 
-    // When a task completes, unblock dependent tasks
+    // When a task completes, unblock dependent tasks and write to shared memory
     if (status === 'completed') {
       this.unblockDependentTasks(taskId, task.teamId);
+
+      // Write result to shared memory (blackboard pattern)
+      if (result) {
+        const claimedByTeammate = task.claimedBy ? this.teammates.get(task.claimedBy) : undefined;
+        this.writeSharedMemory(
+          task.teamId,
+          `task:${taskId}:result`,
+          result,
+          task.claimedBy || 'system',
+          {
+            namespace: 'results',
+            writerName: claimedByTeammate?.name || 'Unknown',
+            tags: ['task_result', task.title],
+          }
+        );
+      }
     }
   }
 
@@ -646,6 +674,10 @@ export class AgentTeamManager {
 
   /**
    * Execute all teammates on their assigned tasks
+   * Supports three execution modes:
+   * - coordinated: Lead assigns tasks to specific teammates
+   * - autonomous: Teammates self-claim the next available task
+   * - delegate: Lead assigns tasks, never implements itself
    */
   private async executeTeammates(
     team: AgentTeam,
@@ -654,12 +686,28 @@ export class AgentTeamManager {
   ): Promise<void> {
     const teammateIds = team.teammateIds.filter(id => id !== team.leadId);
     const maxConcurrent = team.config.maxConcurrentTeammates;
+    const executionMode = team.config.executionMode;
 
-    // Execute in batches respecting concurrency
     let completedCount = 0;
     const totalTasks = team.taskIds.length;
+    let deadlockAttempts = 0;
+    const MAX_DEADLOCK_ATTEMPTS = 3;
 
     while (!signal.aborted) {
+      // Token budget check
+      if (team.config.tokenBudget && team.config.tokenBudget > 0) {
+        this.aggregateTokenUsage(team);
+        if (team.totalTokenUsage.totalTokens >= team.config.tokenBudget) {
+          log.warn('Token budget exceeded', {
+            teamId: team.id,
+            used: team.totalTokenUsage.totalTokens,
+            budget: team.config.tokenBudget,
+          });
+          this.emitEvent(team, 'budget_exceeded', options);
+          break;
+        }
+      }
+
       // Check if all tasks are done
       const allTasks = team.taskIds.map(id => this.tasks.get(id)).filter(Boolean) as AgentTeamTask[];
       const pendingTasks = allTasks.filter(t =>
@@ -668,16 +716,33 @@ export class AgentTeamManager {
 
       if (pendingTasks.length === 0) break;
 
-      // Find available tasks
+      // Find available tasks (pending + no unmet dependencies)
       const availableTasks = allTasks.filter(t => t.status === 'pending');
+
+      // Deadlock detection and recovery
       if (availableTasks.length === 0 && pendingTasks.every(t => t.status === 'blocked')) {
-        // Deadlock detection
-        log.warn('Potential deadlock detected', { teamId: team.id });
+        if (team.config.enableDeadlockRecovery && deadlockAttempts < MAX_DEADLOCK_ATTEMPTS) {
+          deadlockAttempts++;
+          log.warn('Deadlock detected, attempting recovery', {
+            teamId: team.id,
+            attempt: deadlockAttempts,
+          });
+          const resolved = this.resolveDeadlock(team);
+          if (resolved) {
+            this.emitEvent(team, 'deadlock_resolved', options);
+            continue;
+          }
+        }
+        log.error('Unresolvable deadlock', { teamId: team.id });
         break;
       }
 
+      // Reset deadlock counter when tasks are available
+      if (availableTasks.length > 0) {
+        deadlockAttempts = 0;
+      }
+
       if (availableTasks.length === 0) {
-        // Wait for in-progress tasks to complete
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
       }
@@ -702,23 +767,26 @@ export class AgentTeamManager {
         continue;
       }
 
-      // Start teammates on available tasks
+      // Start teammates on available tasks (mode-specific assignment)
       const executions: Promise<void>[] = [];
       for (let i = 0; i < toStart; i++) {
         const task = availableTasks[i];
         let teammate: AgentTeammate | undefined;
 
-        // If task is assigned to a specific teammate, use them
-        if (task.assignedTo) {
-          teammate = this.teammates.get(task.assignedTo);
-          if (teammate && teammate.status !== 'idle' && teammate.status !== 'completed') {
-            teammate = undefined; // Assigned teammate is busy
+        if (executionMode === 'autonomous') {
+          // Autonomous: any idle teammate can self-claim
+          teammate = this.findBestTeammateForTask(task, idleTeammates, i);
+        } else {
+          // Coordinated / Delegate: respect explicit assignments
+          if (task.assignedTo) {
+            teammate = this.teammates.get(task.assignedTo);
+            if (teammate && teammate.status !== 'idle' && teammate.status !== 'completed') {
+              teammate = undefined;
+            }
           }
-        }
-
-        // Otherwise use any idle teammate
-        if (!teammate) {
-          teammate = idleTeammates[i];
+          if (!teammate) {
+            teammate = this.findBestTeammateForTask(task, idleTeammates, i);
+          }
         }
 
         if (!teammate) continue;
@@ -736,6 +804,47 @@ export class AgentTeamManager {
               const progress = 10 + Math.round((completedCount / totalTasks) * 80);
               team.progress = progress;
               options.onProgress?.(progress, `Completed ${completedCount}/${totalTasks} tasks`);
+
+              // Autonomous mode: teammate auto-claims next task after completion
+              if (executionMode === 'autonomous' && teammate && teammate.status === 'idle') {
+                const nextTask = this.getAvailableTasks(team.id, teammate.id)[0];
+                if (nextTask) {
+                  log.info('Autonomous self-claim', {
+                    teammateId: teammate.id,
+                    taskId: nextTask.id,
+                  });
+                }
+              }
+            })
+            .catch(async (_err) => {
+              // Error retry: if enabled and retries remaining, retry the task
+              if (team.config.enableTaskRetry && task.status === 'failed') {
+                const maxRetries = team.config.maxRetries ?? 1;
+                const currentRetries = task.retryCount ?? 0;
+                if (currentRetries < maxRetries) {
+                  log.info('Retrying failed task', {
+                    taskId: task.id,
+                    attempt: currentRetries + 1,
+                    maxRetries,
+                  });
+                  task.retryCount = currentRetries + 1;
+                  task.status = 'pending';
+                  task.error = undefined;
+                  task.result = undefined;
+                  task.claimedBy = undefined;
+                  task.startedAt = undefined;
+                  task.completedAt = undefined;
+                  task.actualDuration = undefined;
+
+                  // Try to reassign to a different teammate if available
+                  const otherTeammates = idleTeammates.filter(tm => tm.id !== teammate?.id);
+                  if (otherTeammates.length > 0) {
+                    task.assignedTo = otherTeammates[0].id;
+                  }
+
+                  this.emitEvent(team, 'task_retried', options, teammate?.id, task.id);
+                }
+              }
             })
         );
       }
@@ -748,6 +857,68 @@ export class AgentTeamManager {
       // Small delay to prevent tight loop
       await new Promise(resolve => setTimeout(resolve, 100));
     }
+  }
+
+  /**
+   * Find the best idle teammate for a task based on specialization match
+   */
+  private findBestTeammateForTask(
+    task: AgentTeamTask,
+    idleTeammates: AgentTeammate[],
+    fallbackIndex: number
+  ): AgentTeammate | undefined {
+    // Try to match by specialization via task tags
+    if (task.tags.length > 0) {
+      const specialized = idleTeammates.find(tm =>
+        tm.config.specialization &&
+        task.tags.some(tag =>
+          tag.toLowerCase().includes(tm.config.specialization!.toLowerCase()) ||
+          tm.config.specialization!.toLowerCase().includes(tag.toLowerCase())
+        )
+      );
+      if (specialized) return specialized;
+    }
+
+    // Fallback: round-robin assignment
+    return idleTeammates[fallbackIndex % idleTeammates.length];
+  }
+
+  /**
+   * Attempt to resolve a deadlock by cancelling circular dependencies
+   */
+  private resolveDeadlock(team: AgentTeam): boolean {
+    const allTasks = team.taskIds
+      .map(id => this.tasks.get(id))
+      .filter((t): t is AgentTeamTask => t !== undefined && t.status === 'blocked');
+
+    if (allTasks.length === 0) return false;
+
+    // Strategy 1: Find tasks whose dependencies are all failed/cancelled → unblock them
+    for (const task of allTasks) {
+      const depsAllTerminal = task.dependencies.every(depId => {
+        const dep = this.tasks.get(depId);
+        return dep && (dep.status === 'completed' || dep.status === 'failed' || dep.status === 'cancelled');
+      });
+      if (depsAllTerminal) {
+        task.status = 'pending';
+        log.info('Unblocked task with terminal dependencies', { taskId: task.id });
+        return true;
+      }
+    }
+
+    // Strategy 2: Cancel the blocked task with the most dependencies (break the cycle)
+    const sorted = [...allTasks].sort((a, b) => b.dependencies.length - a.dependencies.length);
+    if (sorted.length > 0) {
+      const toCancel = sorted[0];
+      toCancel.status = 'cancelled';
+      toCancel.error = 'Cancelled to resolve deadlock';
+      toCancel.completedAt = new Date();
+      this.unblockDependentTasks(toCancel.id, team.id);
+      log.info('Cancelled task to resolve deadlock', { taskId: toCancel.id });
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -878,7 +1049,8 @@ export class AgentTeamManager {
   }
 
   /**
-   * Handle plan approval workflow
+   * Handle plan approval workflow with multi-round revision support
+   * Supports up to maxPlanRevisions rounds before auto-approving
    */
   private async handlePlanApproval(
     team: AgentTeam,
@@ -887,9 +1059,11 @@ export class AgentTeamManager {
     options: TeamExecutionOptions,
     signal: AbortSignal
   ): Promise<void> {
-    teammate.status = 'planning';
+    const maxRevisions = Math.min(team.config.maxPlanRevisions ?? 3, 5);
+    let currentPlan = '';
+    let approved = false;
+    let feedback = '';
 
-    // Have the teammate generate a plan
     const config = this.resolveTeammateModelConfig(teammate, team.config);
     const modelInstance = getProviderModel(
       config.provider,
@@ -898,29 +1072,6 @@ export class AgentTeamManager {
       config.baseURL
     );
 
-    const planResult = await generateText({
-      model: modelInstance,
-      prompt: `You are ${teammate.name}. ${teammate.description}\n\nCreate a detailed plan for the following task. Describe what steps you will take, what tools you will use, and what output you expect.\n\nTask: ${task.description}`,
-      temperature: 0.5,
-    });
-
-    teammate.proposedPlan = planResult.text;
-    teammate.status = 'awaiting_approval';
-
-    this.emitEvent(team, 'plan_submitted', options, teammate.id, task.id);
-    options.onPlanSubmitted?.(teammate, planResult.text);
-
-    // Send plan to lead for review
-    this.sendMessage({
-      teamId: team.id,
-      senderId: teammate.id,
-      type: 'plan_approval',
-      recipientId: team.leadId,
-      content: `Plan for "${task.title}":\n\n${planResult.text}`,
-      taskId: task.id,
-    });
-
-    // Have the lead review the plan
     const lead = this.teammates.get(team.leadId);
     if (!lead) throw new Error('Team lead not found');
 
@@ -932,64 +1083,105 @@ export class AgentTeamManager {
       leadConfig.baseURL
     );
 
-    const reviewPrompt = PLAN_REVIEW_PROMPT
-      .replace('{{task}}', task.description)
-      .replace('{{teammateName}}', teammate.name)
-      .replace('{{teammateDescription}}', teammate.description)
-      .replace('{{plan}}', planResult.text)
-      .replace('{{criteria}}', 'The plan should be thorough, well-structured, and achievable within the task scope.');
+    for (let revision = 0; revision <= maxRevisions; revision++) {
+      if (signal.aborted) throw new Error('Team execution cancelled');
 
-    const reviewResult = await generateText({
-      model: leadModel,
-      prompt: reviewPrompt,
-      temperature: 0.3,
-    });
+      teammate.status = 'planning';
 
-    // Parse review result
-    let approved = true;
-    let feedback = '';
-    try {
-      const reviewJson = JSON.parse(reviewResult.text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-      approved = reviewJson.approved ?? true;
-      feedback = reviewJson.feedback || '';
-    } catch {
-      // If parsing fails, approve by default
-      approved = true;
-      feedback = 'Plan approved (auto-approved due to parsing failure)';
-    }
+      // Generate or revise the plan
+      const planPrompt = revision === 0
+        ? `You are ${teammate.name}. ${teammate.description}\n\nCreate a detailed plan for the following task. Describe what steps you will take, what tools you will use, and what output you expect.\n\nTask: ${task.description}`
+        : `You are ${teammate.name}. ${teammate.description}\n\nYour previous plan was not approved (revision ${revision}/${maxRevisions}).\n\nFeedback from lead: ${feedback}\n\nRevise your plan accordingly for: ${task.description}\n\nPrevious plan:\n${currentPlan}`;
 
-    teammate.planFeedback = feedback;
+      const planResult = await generateText({
+        model: modelInstance,
+        prompt: planPrompt,
+        temperature: 0.5,
+      });
 
-    if (approved) {
-      this.emitEvent(team, 'plan_approved', options, teammate.id, task.id);
+      currentPlan = planResult.text;
+      teammate.proposedPlan = currentPlan;
+      teammate.status = 'awaiting_approval';
+
+      this.emitEvent(team, 'plan_submitted', options, teammate.id, task.id);
+      options.onPlanSubmitted?.(teammate, currentPlan);
+
       this.sendMessage({
         teamId: team.id,
-        senderId: team.leadId,
-        type: 'plan_feedback',
-        recipientId: teammate.id,
-        content: `Plan approved: ${feedback}`,
+        senderId: teammate.id,
+        type: 'plan_approval',
+        recipientId: team.leadId,
+        content: revision === 0
+          ? `Plan for "${task.title}":\n\n${currentPlan}`
+          : `Revised plan (revision ${revision}) for "${task.title}":\n\n${currentPlan}`,
         taskId: task.id,
       });
-    } else {
+
+      // Lead reviews the plan
+      const reviewPrompt = PLAN_REVIEW_PROMPT
+        .replace('{{task}}', task.description)
+        .replace('{{teammateName}}', teammate.name)
+        .replace('{{teammateDescription}}', teammate.description)
+        .replace('{{plan}}', currentPlan)
+        .replace('{{criteria}}', revision > 0
+          ? `This is revision ${revision}/${maxRevisions}. Previous feedback was: "${feedback}". Check if the revision addresses the feedback. The plan should be thorough, well-structured, and achievable.`
+          : 'The plan should be thorough, well-structured, and achievable within the task scope.');
+
+      const reviewResult = await generateText({
+        model: leadModel,
+        prompt: reviewPrompt,
+        temperature: 0.3,
+      });
+
+      try {
+        const reviewJson = JSON.parse(reviewResult.text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+        approved = reviewJson.approved ?? true;
+        feedback = reviewJson.feedback || '';
+      } catch {
+        approved = true;
+        feedback = 'Plan approved (auto-approved due to parsing failure)';
+      }
+
+      teammate.planFeedback = feedback;
+
+      if (approved) {
+        this.emitEvent(team, 'plan_approved', options, teammate.id, task.id);
+        this.sendMessage({
+          teamId: team.id,
+          senderId: team.leadId,
+          type: 'plan_feedback',
+          recipientId: teammate.id,
+          content: `Plan approved: ${feedback}`,
+          taskId: task.id,
+        });
+        break;
+      }
+
       this.emitEvent(team, 'plan_rejected', options, teammate.id, task.id);
       this.sendMessage({
         teamId: team.id,
         senderId: team.leadId,
         type: 'plan_feedback',
         recipientId: teammate.id,
-        content: `Plan needs revision: ${feedback}`,
+        content: `Plan needs revision (${revision + 1}/${maxRevisions}): ${feedback}`,
         taskId: task.id,
       });
 
-      // Have teammate revise and resubmit (one retry)
-      if (!signal.aborted) {
-        const revisionResult = await generateText({
-          model: modelInstance,
-          prompt: `Your plan was not approved. Feedback: ${feedback}\n\nRevise your plan for: ${task.description}`,
-          temperature: 0.5,
+      // If max revisions reached, auto-approve to prevent infinite loop
+      if (revision === maxRevisions) {
+        log.warn('Max plan revisions reached, auto-approving', {
+          teammateId: teammate.id,
+          taskId: task.id,
+          revisions: maxRevisions,
         });
-        teammate.proposedPlan = revisionResult.text;
-        // Auto-approve revision to avoid infinite loop
+        this.sendMessage({
+          teamId: team.id,
+          senderId: team.leadId,
+          type: 'plan_feedback',
+          recipientId: teammate.id,
+          content: `Plan auto-approved after ${maxRevisions} revisions. Proceed with latest version.`,
+          taskId: task.id,
+        });
       }
     }
 
@@ -1173,6 +1365,422 @@ export class AgentTeamManager {
   }
 
   // ==========================================================================
+  // Shared Memory (Blackboard Pattern)
+  // ==========================================================================
+
+  /**
+   * Get the shared memory manager from the bridge
+   */
+  private getSharedMemory(): SharedMemoryManager {
+    return getAgentBridge().getSharedMemory();
+  }
+
+  /**
+   * Write to team shared memory
+   */
+  writeSharedMemory(
+    teamId: string,
+    key: string,
+    value: unknown,
+    writtenBy: string,
+    options: {
+      namespace?: SharedMemoryNamespace;
+      writerName?: string;
+      expiresInMs?: number;
+      tags?: string[];
+      readableBy?: string[];
+    } = {}
+  ): SharedMemoryEntry | null {
+    const team = this.teams.get(teamId);
+    if (!team) return null;
+
+    const namespace = options.namespace || 'results';
+    const namespacedKey = `team:${teamId}:${namespace}:${key}`;
+
+    const entry = this.getSharedMemory().write(
+      namespace,
+      namespacedKey,
+      value,
+      writtenBy,
+      {
+        writerName: options.writerName,
+        expiresInMs: options.expiresInMs,
+        tags: [...(options.tags || []), `team:${teamId}`],
+        readableBy: options.readableBy,
+      }
+    );
+
+    // Also store locally on the team object
+    if (!team.sharedMemory) team.sharedMemory = {};
+    team.sharedMemory[key] = entry;
+
+    return entry;
+  }
+
+  /**
+   * Read from team shared memory
+   */
+  readSharedMemory(
+    teamId: string,
+    key: string,
+    readerId?: string,
+    namespace: SharedMemoryNamespace = 'results'
+  ): SharedMemoryEntry | undefined {
+    const namespacedKey = `team:${teamId}:${namespace}:${key}`;
+    return this.getSharedMemory().read(namespace, namespacedKey, readerId);
+  }
+
+  /**
+   * Read all shared memory for a team in a namespace
+   */
+  readAllSharedMemory(
+    teamId: string,
+    readerId?: string,
+    namespace: SharedMemoryNamespace = 'results'
+  ): SharedMemoryEntry[] {
+    return this.getSharedMemory()
+      .searchByTags(namespace, [`team:${teamId}`], readerId);
+  }
+
+  /**
+   * Build a context string from shared memory for injection into prompts
+   */
+  buildSharedMemoryContext(
+    teamId: string,
+    readerId?: string,
+    namespace: SharedMemoryNamespace = 'results'
+  ): string {
+    const entries = this.readAllSharedMemory(teamId, readerId, namespace);
+    if (entries.length === 0) return '';
+
+    const parts = entries.map((entry) => {
+      const shortKey = entry.key.replace(`team:${teamId}:${namespace}:`, '');
+      const value = typeof entry.value === 'string'
+        ? entry.value
+        : JSON.stringify(entry.value, null, 2);
+      const meta = entry.writerName ? ` (by ${entry.writerName})` : '';
+      return `[${shortKey}]${meta}: ${typeof value === 'string' && value.length > 500 ? value.slice(0, 500) + '...' : value}`;
+    });
+
+    return `\n--- Team Shared Memory (${namespace}) ---\n${parts.join('\n')}`;
+  }
+
+  // ==========================================================================
+  // Consensus / Voting
+  // ==========================================================================
+
+  /**
+   * Create a consensus request for team-wide decision making
+   */
+  createConsensus(input: CreateConsensusInput): ConsensusRequest {
+    const request: ConsensusRequest = {
+      id: nanoid(),
+      teamId: input.teamId,
+      initiatorId: input.initiatorId,
+      question: input.question,
+      options: input.options,
+      type: input.type || 'majority',
+      status: 'open',
+      votes: [],
+      taskId: input.taskId,
+      timeoutMs: input.timeoutMs,
+      createdAt: new Date(),
+    };
+
+    this.consensusRequests.set(request.id, request);
+
+    const team = this.teams.get(input.teamId);
+    if (team) {
+      if (!team.consensusIds) team.consensusIds = [];
+      team.consensusIds.push(request.id);
+    }
+
+    // Broadcast the consensus request to all teammates
+    if (team?.config.enableMessaging) {
+      this.sendMessage({
+        teamId: input.teamId,
+        senderId: input.initiatorId,
+        type: 'broadcast',
+        content: `🗳️ Consensus requested: "${input.question}"\nOptions: ${input.options.map((o, i) => `${i + 1}. ${o}`).join(', ')}`,
+        metadata: { consensusId: request.id },
+      });
+    }
+
+    log.info('Consensus request created', {
+      id: request.id,
+      teamId: input.teamId,
+      question: input.question,
+      type: request.type,
+    });
+
+    return request;
+  }
+
+  /**
+   * Cast a vote on a consensus request
+   */
+  castVote(input: CastVoteInput): ConsensusVote | null {
+    const request = this.consensusRequests.get(input.consensusId);
+    if (!request || request.status !== 'open') return null;
+
+    // Prevent duplicate votes
+    if (request.votes.some((v) => v.voterId === input.voterId)) {
+      log.warn('Duplicate vote attempt', {
+        consensusId: input.consensusId,
+        voterId: input.voterId,
+      });
+      return null;
+    }
+
+    // Validate option index
+    if (input.optionIndex < 0 || input.optionIndex >= request.options.length) {
+      return null;
+    }
+
+    const voter = this.teammates.get(input.voterId);
+    const vote: ConsensusVote = {
+      voterId: input.voterId,
+      voterName: voter?.name || 'Unknown',
+      optionIndex: input.optionIndex,
+      reasoning: input.reasoning,
+      weight: voter?.role === 'lead' ? 2 : 1,
+      votedAt: new Date(),
+    };
+
+    request.votes.push(vote);
+
+    // Check if consensus is reached
+    const team = this.teams.get(request.teamId);
+    if (team) {
+      const totalVoters = team.teammateIds.length;
+      if (request.votes.length >= totalVoters) {
+        this.resolveConsensus(request);
+      }
+    }
+
+    return vote;
+  }
+
+  /**
+   * Resolve a consensus request by tallying votes
+   */
+  private resolveConsensus(request: ConsensusRequest): void {
+    if (request.status !== 'open') return;
+
+    const tallies: number[] = new Array(request.options.length).fill(0);
+
+    for (const vote of request.votes) {
+      const weight = request.type === 'weighted' ? (vote.weight ?? 1) : 1;
+      tallies[vote.optionIndex] += weight;
+    }
+
+    const maxTally = Math.max(...tallies);
+    const winningIndex = tallies.indexOf(maxTally);
+    const totalWeight = request.type === 'weighted'
+      ? request.votes.reduce((sum, v) => sum + (v.weight ?? 1), 0)
+      : request.votes.length;
+
+    let isResolved = false;
+
+    switch (request.type) {
+      case 'majority':
+        isResolved = maxTally > totalWeight / 2;
+        break;
+      case 'supermajority':
+        isResolved = maxTally >= totalWeight * 2 / 3;
+        break;
+      case 'unanimous':
+        isResolved = maxTally === totalWeight;
+        break;
+      case 'weighted':
+        isResolved = maxTally > totalWeight / 2;
+        break;
+      case 'lead_override':
+        isResolved = true; // Lead can always decide
+        break;
+    }
+
+    if (isResolved) {
+      request.status = 'resolved';
+      request.winningOption = winningIndex;
+      request.summary = `Decision: "${request.options[winningIndex]}" (${maxTally}/${totalWeight} votes)`;
+      request.resolvedAt = new Date();
+
+      // Store decision in shared memory
+      this.writeSharedMemory(
+        request.teamId,
+        `consensus:${request.id}`,
+        {
+          question: request.question,
+          decision: request.options[winningIndex],
+          votes: request.votes.length,
+          tallies,
+        },
+        request.initiatorId,
+        { namespace: 'decisions', tags: ['consensus'] }
+      );
+
+      // Broadcast result
+      const team = this.teams.get(request.teamId);
+      if (team?.config.enableMessaging) {
+        this.sendMessage({
+          teamId: request.teamId,
+          senderId: request.initiatorId,
+          type: 'broadcast',
+          content: `✅ Consensus reached: "${request.options[winningIndex]}" for "${request.question}"`,
+          metadata: { consensusId: request.id, result: request.winningOption },
+        });
+      }
+
+      log.info('Consensus resolved', {
+        id: request.id,
+        winner: request.options[winningIndex],
+        votes: maxTally,
+        total: totalWeight,
+      });
+    }
+  }
+
+  /**
+   * Auto-vote for a consensus using LLM (for autonomous mode)
+   */
+  async autoVoteConsensus(
+    consensusId: string,
+    teammateId: string
+  ): Promise<ConsensusVote | null> {
+    const request = this.consensusRequests.get(consensusId);
+    if (!request || request.status !== 'open') return null;
+
+    const teammate = this.teammates.get(teammateId);
+    if (!teammate) return null;
+
+    const team = this.teams.get(request.teamId);
+    if (!team) return null;
+
+    const config = this.resolveTeammateModelConfig(teammate, team.config);
+    const modelInstance = getProviderModel(
+      config.provider,
+      config.model,
+      config.apiKey,
+      config.baseURL
+    );
+
+    const prompt = `You are "${teammate.name}" (${teammate.description}).
+You need to vote on the following decision:
+
+Question: ${request.question}
+
+Options:
+${request.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}
+
+${request.votes.length > 0 ? `\nPrevious votes:\n${request.votes.map((v) => `- ${v.voterName}: Option ${v.optionIndex + 1} (${request.options[v.optionIndex]})${v.reasoning ? ` - ${v.reasoning}` : ''}`).join('\n')}` : ''}
+
+Respond with a JSON object: {"optionIndex": <0-based index>, "reasoning": "<your reasoning>"}`;
+
+    try {
+      const result = await generateText({
+        model: modelInstance,
+        prompt,
+        temperature: 0.3,
+      });
+
+      const parsed = JSON.parse(result.text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      const optionIndex = typeof parsed.optionIndex === 'number'
+        ? Math.max(0, Math.min(parsed.optionIndex, request.options.length - 1))
+        : 0;
+
+      return this.castVote({
+        consensusId,
+        voterId: teammateId,
+        optionIndex,
+        reasoning: parsed.reasoning || '',
+      });
+    } catch (error) {
+      log.error('Auto-vote failed', { consensusId, teammateId, error: String(error) });
+      return null;
+    }
+  }
+
+  /**
+   * Get a consensus request
+   */
+  getConsensus(consensusId: string): ConsensusRequest | undefined {
+    return this.consensusRequests.get(consensusId);
+  }
+
+  /**
+   * Get all consensus requests for a team
+   */
+  getTeamConsensus(teamId: string): ConsensusRequest[] {
+    return Array.from(this.consensusRequests.values())
+      .filter((r) => r.teamId === teamId);
+  }
+
+  // ==========================================================================
+  // Bridge Delegation
+  // ==========================================================================
+
+  /**
+   * Delegate a subtask to a BackgroundAgent via the bridge
+   * Useful when a team task is long-running and should execute asynchronously
+   */
+  async delegateTaskToBackground(
+    teamId: string,
+    taskId: string,
+    options: {
+      priority?: number;
+      name?: string;
+      description?: string;
+    } = {}
+  ): Promise<string | null> {
+    const team = this.teams.get(teamId);
+    const task = this.tasks.get(taskId);
+    if (!team || !task) return null;
+
+    const bridge = getAgentBridge();
+
+    const delegation = await bridge.delegateToBackground({
+      task: task.description,
+      name: options.name || `Team task: ${task.title}`,
+      description: options.description || `Delegated from team "${team.name}"`,
+      sourceType: 'team',
+      sourceId: teamId,
+      sessionId: team.sessionId,
+      priority: options.priority,
+      config: {
+        taskId: task.id,
+        teamId: team.id,
+      },
+    });
+
+    // Update task metadata with delegation info
+    task.metadata = {
+      ...task.metadata,
+      delegationId: delegation.id,
+      delegatedToBackground: true,
+    };
+
+    // Track on team
+    if (!team.delegationIds) team.delegationIds = [];
+    team.delegationIds.push(delegation.id);
+
+    log.info('Task delegated to background', {
+      teamId,
+      taskId,
+      delegationId: delegation.id,
+    });
+
+    // When delegation completes, update the task result
+    if (delegation.status === 'completed') {
+      this.updateTaskStatus(taskId, 'completed', delegation.result);
+    } else if (delegation.status === 'failed') {
+      this.updateTaskStatus(taskId, 'failed', undefined, delegation.error);
+    }
+
+    return delegation.id;
+  }
+
+  // ==========================================================================
   // Getters
   // ==========================================================================
 
@@ -1260,24 +1868,65 @@ export class AgentTeamManager {
       parts.push(`Expected output: ${task.expectedOutput}`);
     }
 
+    // Include completed task results for context (richer than just messages)
+    const completedTasks = team.taskIds
+      .map(id => this.tasks.get(id))
+      .filter((t): t is AgentTeamTask =>
+        t !== undefined && t.status === 'completed' && t.id !== task.id && !!t.result
+      );
+
+    if (completedTasks.length > 0) {
+      parts.push(`\n--- Completed Task Results (for context) ---`);
+      for (const ct of completedTasks.slice(-5)) {
+        const assignee = ct.claimedBy ? this.teammates.get(ct.claimedBy) : undefined;
+        parts.push(`[${assignee?.name || 'Unknown'}] ${ct.title}: ${ct.result!.slice(0, 300)}`);
+      }
+    }
+
     // Include messages from other teammates (context sharing)
     if (team.config.enableMessaging) {
       const relevantMessages = this.getUnreadMessages(teammate.id)
-        .filter(msg => msg.type === 'result_share')
-        .slice(-5); // Last 5 results
+        .filter(msg => msg.type === 'result_share' || msg.type === 'direct')
+        .slice(-5);
 
       if (relevantMessages.length > 0) {
-        parts.push(`\n--- Results from Other Teammates ---`);
+        parts.push(`\n--- Messages from Teammates ---`);
         for (const msg of relevantMessages) {
           parts.push(`[${msg.senderName}]: ${msg.content.slice(0, 500)}`);
         }
       }
     }
 
+    // Include shared memory context (blackboard pattern)
+    const sharedMemoryContext = this.buildSharedMemoryContext(team.id, teammate.id, 'results');
+    if (sharedMemoryContext) {
+      parts.push(sharedMemoryContext);
+    }
+    const decisionsContext = this.buildSharedMemoryContext(team.id, teammate.id, 'decisions');
+    if (decisionsContext) {
+      parts.push(decisionsContext);
+    }
+
     // Plan feedback if available
     if (teammate.planFeedback) {
       parts.push(`\n--- Plan Feedback ---`);
       parts.push(teammate.planFeedback);
+    }
+
+    // Execution mode context
+    if (team.config.executionMode === 'autonomous') {
+      parts.push('\nYou are operating in autonomous mode. After completing this task, you may self-claim the next available task.');
+    } else if (team.config.executionMode === 'delegate') {
+      parts.push('\nYou are operating in delegate mode. Focus only on your assigned task.');
+    }
+
+    // Token budget awareness
+    if (team.config.tokenBudget && team.config.tokenBudget > 0) {
+      this.aggregateTokenUsage(team);
+      const remaining = team.config.tokenBudget - team.totalTokenUsage.totalTokens;
+      if (remaining < team.config.tokenBudget * 0.2) {
+        parts.push(`\nToken budget is running low (${remaining.toLocaleString()} tokens remaining). Be concise.`);
+      }
     }
 
     parts.push('\nFocus on completing your task efficiently. Provide clear, actionable results.');

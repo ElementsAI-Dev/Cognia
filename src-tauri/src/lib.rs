@@ -1061,6 +1061,9 @@ pub fn run() {
             commands::devtools::jupyter::jupyter_get_session_by_id,
             commands::devtools::jupyter::jupyter_get_config,
             commands::devtools::jupyter::jupyter_validate_config,
+            commands::devtools::jupyter::jupyter_open_notebook,
+            commands::devtools::jupyter::jupyter_save_notebook,
+            commands::devtools::jupyter::jupyter_get_notebook_info,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
@@ -1245,6 +1248,12 @@ pub fn run() {
             commands::devtools::git::git_rename_branch,
             commands::devtools::git::git_show_commit,
             commands::devtools::git::git_merge_abort,
+            commands::devtools::git::git_log_graph,
+            commands::devtools::git::git_repo_stats,
+            commands::devtools::git::git_checkpoint_create,
+            commands::devtools::git::git_checkpoint_list,
+            commands::devtools::git::git_checkpoint_restore,
+            commands::devtools::git::git_checkpoint_delete,
             // Git credentials commands
             commands::devtools::git_credentials::git_list_credentials,
             commands::devtools::git_credentials::git_set_credential,

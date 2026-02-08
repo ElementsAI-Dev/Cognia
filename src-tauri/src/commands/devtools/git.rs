@@ -2603,3 +2603,473 @@ pub async fn git_merge_abort(repo_path: String) -> GitOperationResult<()> {
         Err(e) => GitOperationResult::error(e),
     }
 }
+
+// ==================== Graph Commands ====================
+
+/// Graph commit info with parent references
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitGraphCommit {
+    pub hash: String,
+    #[serde(rename = "shortHash")]
+    pub short_hash: String,
+    pub author: String,
+    #[serde(rename = "authorEmail")]
+    pub author_email: String,
+    pub date: String,
+    pub message: String,
+    #[serde(rename = "messageBody")]
+    pub message_body: Option<String>,
+    pub parents: Vec<String>,
+    pub refs: Vec<String>,
+    pub lane: i32,
+}
+
+/// Get commit log with parent hashes for graph rendering
+#[tauri::command]
+pub async fn git_log_graph(
+    repo_path: String,
+    max_count: Option<u32>,
+) -> GitOperationResult<Vec<GitGraphCommit>> {
+    let count = max_count.unwrap_or(200).to_string();
+    let format = "%H\x00%P\x00%an\x00%ae\x00%aI\x00%s\x00%D";
+    let format_arg = format!("--format={}\x00\x00", format);
+
+    match run_git_command(
+        &["log", "--all", &format_arg, "--max-count", &count],
+        Some(&repo_path),
+    ) {
+        Ok(output) => {
+            let commits: Vec<GitGraphCommit> = output
+                .split("\x00\x00")
+                .filter(|entry| !entry.trim().is_empty())
+                .map(|entry| {
+                    let parts: Vec<&str> = entry.trim().splitn(7, '\x00').collect();
+                    let parents = if parts.len() > 1 && !parts[1].is_empty() {
+                        parts[1]
+                            .split_whitespace()
+                            .map(|s| s.to_string())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let refs_str = if parts.len() > 6 { parts[6] } else { "" };
+                    let refs: Vec<String> = if refs_str.is_empty() {
+                        Vec::new()
+                    } else {
+                        refs_str
+                            .split(", ")
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    };
+                    let hash = parts.first().unwrap_or(&"").to_string();
+                    let short_hash = hash.chars().take(7).collect();
+
+                    GitGraphCommit {
+                        hash,
+                        short_hash,
+                        author: parts.get(2).unwrap_or(&"").to_string(),
+                        author_email: parts.get(3).unwrap_or(&"").to_string(),
+                        date: parts.get(4).unwrap_or(&"").to_string(),
+                        message: parts.get(5).unwrap_or(&"").to_string(),
+                        message_body: None,
+                        parents,
+                        refs,
+                        lane: 0,
+                    }
+                })
+                .collect();
+            GitOperationResult::success(commits)
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+// ==================== Stats Commands ====================
+
+/// Per-contributor statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitContributorStats {
+    pub name: String,
+    pub email: String,
+    pub commits: i32,
+    pub additions: i64,
+    pub deletions: i64,
+    #[serde(rename = "firstCommit")]
+    pub first_commit: String,
+    #[serde(rename = "lastCommit")]
+    pub last_commit: String,
+}
+
+/// Single day activity
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitActivityDay {
+    pub date: String,
+    pub commits: i32,
+}
+
+/// Repository statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitRepoStats {
+    #[serde(rename = "totalCommits")]
+    pub total_commits: i32,
+    #[serde(rename = "totalContributors")]
+    pub total_contributors: i32,
+    pub contributors: Vec<GitContributorStats>,
+    pub activity: Vec<GitActivityDay>,
+    #[serde(rename = "fileTypeDistribution")]
+    pub file_type_distribution: std::collections::HashMap<String, i32>,
+}
+
+/// Get repository statistics
+#[tauri::command]
+pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStats> {
+    // 1. Get contributor commit counts + emails
+    let shortlog = match run_git_command(
+        &["shortlog", "-sne", "--all"],
+        Some(&repo_path),
+    ) {
+        Ok(output) => output,
+        Err(e) => return GitOperationResult::error(e),
+    };
+
+    let mut contributors_map: std::collections::HashMap<String, GitContributorStats> =
+        std::collections::HashMap::new();
+
+    for line in shortlog.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        // Format: "   123\tAuthor Name <email>"
+        let parts: Vec<&str> = line.splitn(2, '\t').collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        let commits: i32 = parts[0].trim().parse().unwrap_or(0);
+        let name_email = parts[1].trim();
+
+        let (name, email) = if let Some(idx) = name_email.rfind('<') {
+            let name = name_email[..idx].trim().to_string();
+            let email = name_email[idx + 1..]
+                .trim_end_matches('>')
+                .trim()
+                .to_string();
+            (name, email)
+        } else {
+            (name_email.to_string(), String::new())
+        };
+
+        let key = email.clone();
+        let entry = contributors_map.entry(key).or_insert(GitContributorStats {
+            name: name.clone(),
+            email: email.clone(),
+            commits: 0,
+            additions: 0,
+            deletions: 0,
+            first_commit: String::new(),
+            last_commit: String::new(),
+        });
+        entry.commits += commits;
+    }
+
+    // 2. Get per-author first/last commit dates
+    for stats in contributors_map.values_mut() {
+        // Last commit
+        if let Ok(date) = run_git_command(
+            &[
+                "log",
+                "--all",
+                "--author",
+                &stats.email,
+                "-1",
+                "--format=%aI",
+            ],
+            Some(&repo_path),
+        ) {
+            stats.last_commit = date.trim().to_string();
+        }
+        // First commit
+        if let Ok(date) = run_git_command(
+            &[
+                "log",
+                "--all",
+                "--author",
+                &stats.email,
+                "--format=%aI",
+                "--reverse",
+            ],
+            Some(&repo_path),
+        ) {
+            if let Some(first_line) = date.lines().next() {
+                stats.first_commit = first_line.trim().to_string();
+            }
+        }
+    }
+
+    // 3. Get numstat per author for additions/deletions
+    if let Ok(numstat_output) = run_git_command(
+        &["log", "--all", "--numstat", "--format=\x01%ae"],
+        Some(&repo_path),
+    ) {
+        let mut current_email = String::new();
+        for line in numstat_output.lines() {
+            let line = line.trim();
+            if line.starts_with('\x01') {
+                current_email = line[1..].trim().to_string();
+            } else if !line.is_empty() && !current_email.is_empty() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let additions: i64 = parts[0].parse().unwrap_or(0);
+                    let deletions: i64 = parts[1].parse().unwrap_or(0);
+                    if let Some(stats) = contributors_map.get_mut(&current_email) {
+                        stats.additions += additions;
+                        stats.deletions += deletions;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut contributors: Vec<GitContributorStats> =
+        contributors_map.into_values().collect();
+    contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
+
+    let total_commits: i32 = contributors.iter().map(|c| c.commits).sum();
+    let total_contributors = contributors.len() as i32;
+
+    // 4. Get daily activity (last year)
+    let mut activity_map: std::collections::HashMap<String, i32> =
+        std::collections::HashMap::new();
+    if let Ok(dates_output) = run_git_command(
+        &[
+            "log",
+            "--all",
+            "--format=%aI",
+            "--no-merges",
+            "--since=1 year ago",
+        ],
+        Some(&repo_path),
+    ) {
+        for line in dates_output.lines() {
+            let date = line.trim().split('T').next().unwrap_or("").to_string();
+            if !date.is_empty() {
+                *activity_map.entry(date).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut activity: Vec<GitActivityDay> = activity_map
+        .into_iter()
+        .map(|(date, commits)| GitActivityDay { date, commits })
+        .collect();
+    activity.sort_by(|a, b| a.date.cmp(&b.date));
+
+    // 5. File type distribution
+    let mut file_type_map: std::collections::HashMap<String, i32> =
+        std::collections::HashMap::new();
+    if let Ok(ls_output) = run_git_command(
+        &["ls-files"],
+        Some(&repo_path),
+    ) {
+        for line in ls_output.lines() {
+            let path = line.trim();
+            if let Some(ext) = path.rsplit('.').next() {
+                if ext != path && ext.len() <= 10 {
+                    *file_type_map
+                        .entry(format!(".{}", ext.to_lowercase()))
+                        .or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    GitOperationResult::success(GitRepoStats {
+        total_commits,
+        total_contributors,
+        contributors,
+        activity,
+        file_type_distribution: file_type_map,
+    })
+}
+
+// ==================== Checkpoint Commands ====================
+
+/// Checkpoint entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitCheckpoint {
+    pub id: String,
+    pub hash: String,
+    pub message: String,
+    pub timestamp: String,
+    #[serde(rename = "filesChanged")]
+    pub files_changed: i32,
+    pub additions: i32,
+    pub deletions: i32,
+}
+
+/// Create a checkpoint (snapshot) of current working state
+#[tauri::command]
+pub async fn git_checkpoint_create(
+    repo_path: String,
+    message: Option<String>,
+) -> GitOperationResult<GitCheckpoint> {
+    // Create a stash-like object without affecting worktree
+    let hash = match run_git_command(&["stash", "create"], Some(&repo_path)) {
+        Ok(h) if !h.trim().is_empty() => h.trim().to_string(),
+        _ => {
+            // No changes to snapshot - use HEAD
+            match run_git_command(&["rev-parse", "HEAD"], Some(&repo_path)) {
+                Ok(h) => h.trim().to_string(),
+                Err(e) => return GitOperationResult::error(format!("No HEAD found: {}", e)),
+            }
+        }
+    };
+
+    let timestamp = get_current_timestamp();
+    let id = format!(
+        "cognia-cp/{}",
+        timestamp.replace(':', "-").replace('+', "p")
+    );
+    let msg = message.unwrap_or_else(|| format!("Checkpoint {}", &timestamp[..19]));
+
+    // Create a lightweight tag pointing to the stash object
+    if let Err(e) = run_git_command(
+        &["tag", "-a", &id, &hash, "-m", &msg],
+        Some(&repo_path),
+    ) {
+        return GitOperationResult::error(format!("Failed to create checkpoint tag: {}", e));
+    }
+
+    // Get diff stats vs HEAD
+    let (files_changed, additions, deletions) =
+        if let Ok(stat) = run_git_command(&["diff", "--shortstat", "HEAD", &hash], Some(&repo_path))
+        {
+            parse_shortstat(&stat)
+        } else {
+            (0, 0, 0)
+        };
+
+    GitOperationResult::success(GitCheckpoint {
+        id,
+        hash,
+        message: msg,
+        timestamp,
+        files_changed,
+        additions,
+        deletions,
+    })
+}
+
+/// List all checkpoints
+#[tauri::command]
+pub async fn git_checkpoint_list(repo_path: String) -> GitOperationResult<Vec<GitCheckpoint>> {
+    let format_str = "%(refname:short)\x00%(objectname:short)\x00%(*objectname:short)\x00%(contents:subject)\x00%(creatordate:iso-strict)";
+    match run_git_command(
+        &[
+            "tag",
+            "-l",
+            "cognia-cp/*",
+            "--sort=-creatordate",
+            &format!("--format={}\x00\x00", format_str),
+        ],
+        Some(&repo_path),
+    ) {
+        Ok(output) => {
+            let checkpoints: Vec<GitCheckpoint> = output
+                .split("\x00\x00")
+                .filter(|e| !e.trim().is_empty())
+                .map(|entry| {
+                    let parts: Vec<&str> = entry.trim().splitn(5, '\x00').collect();
+                    let id = parts.first().unwrap_or(&"").to_string();
+                    let tag_hash = parts.get(1).unwrap_or(&"").to_string();
+                    let deref_hash = parts.get(2).unwrap_or(&"").to_string();
+                    let hash = if deref_hash.is_empty() {
+                        tag_hash
+                    } else {
+                        deref_hash
+                    };
+                    let message = parts.get(3).unwrap_or(&"").to_string();
+                    let timestamp = parts.get(4).unwrap_or(&"").to_string();
+
+                    GitCheckpoint {
+                        id,
+                        hash,
+                        message,
+                        timestamp,
+                        files_changed: 0,
+                        additions: 0,
+                        deletions: 0,
+                    }
+                })
+                .collect();
+            GitOperationResult::success(checkpoints)
+        }
+        Err(e) => GitOperationResult::error(e),
+    }
+}
+
+/// Restore a checkpoint (non-destructive apply)
+#[tauri::command]
+pub async fn git_checkpoint_restore(
+    repo_path: String,
+    checkpoint_id: String,
+) -> GitOperationResult<()> {
+    // Get the hash the tag points to
+    let hash = match run_git_command(
+        &["rev-parse", &checkpoint_id],
+        Some(&repo_path),
+    ) {
+        Ok(h) => h.trim().to_string(),
+        Err(e) => return GitOperationResult::error(format!("Checkpoint not found: {}", e)),
+    };
+
+    // Try to apply the stash object
+    match run_git_command(&["stash", "apply", &hash], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(format!("Failed to restore checkpoint: {}", e)),
+    }
+}
+
+/// Delete a checkpoint
+#[tauri::command]
+pub async fn git_checkpoint_delete(
+    repo_path: String,
+    checkpoint_id: String,
+) -> GitOperationResult<()> {
+    match run_git_command(&["tag", "-d", &checkpoint_id], Some(&repo_path)) {
+        Ok(output) => GitOperationResult::ok_with_output(output),
+        Err(e) => GitOperationResult::error(format!("Failed to delete checkpoint: {}", e)),
+    }
+}
+
+/// Parse --shortstat output: "3 files changed, 10 insertions(+), 5 deletions(-)"
+fn parse_shortstat(stat: &str) -> (i32, i32, i32) {
+    let mut files = 0i32;
+    let mut adds = 0i32;
+    let mut dels = 0i32;
+
+    for part in stat.split(',') {
+        let part = part.trim();
+        if part.contains("file") {
+            files = part
+                .split_whitespace()
+                .next()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(0);
+        } else if part.contains("insertion") {
+            adds = part
+                .split_whitespace()
+                .next()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(0);
+        } else if part.contains("deletion") {
+            dels = part
+                .split_whitespace()
+                .next()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(0);
+        }
+    }
+
+    (files, adds, dels)
+}

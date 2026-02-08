@@ -6,7 +6,7 @@
  * Enhanced with animations, favorites, and better visual design
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import type { Plugin, PluginCapability } from '@/types/plugin';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ import {
 import { InlineLoading } from '@/components/ui/loading-states';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
+import { usePluginMarketplaceStore } from '@/stores/plugin';
 import { TRANSPARENCY_CONFIG } from '@/lib/constants/transparency';
 
 type PluginCardVariant = 'card' | 'compact';
@@ -87,7 +88,8 @@ export function PluginCard({
   const isEnabled = status === 'enabled';
   const isError = status === 'error';
   const isLoading = status === 'loading' || status === 'enabling' || status === 'disabling';
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { favorites, toggleFavorite } = usePluginMarketplaceStore();
+  const isFavorite = favorites.has(manifest.id);
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
 
@@ -177,7 +179,7 @@ export function PluginCard({
               className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsFavorite(!isFavorite);
+                toggleFavorite(manifest.id);
               }}
             >
               <Heart className={cn('h-4 w-4', isFavorite && 'fill-red-500 text-red-500')} />
@@ -270,7 +272,7 @@ export function PluginCard({
                 className="h-7 w-7 sm:h-8 sm:w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsFavorite(!isFavorite);
+                  toggleFavorite(manifest.id);
                 }}
               >
                 <Heart className={cn('h-4 w-4', isFavorite && 'fill-red-500 text-red-500')} />

@@ -12,6 +12,13 @@ export * from './types';
 // IO Schema Editor (eagerly loaded - commonly used)
 export { IOSchemaEditor } from './io-schema-editor';
 
+// Variable Selector (eagerly loaded - commonly used)
+export { VariableSelector, MultiVariableSelector } from './variable-selector';
+
+// Error Config & Output Preview (eagerly loaded - commonly used)
+export { NodeErrorConfigPanel } from './node-error-config';
+export { NodeOutputPreview } from './node-output-preview';
+
 // Lazy load heavy components
 export const AINodeConfig = lazy(() => import('./ai-config'));
 export const ToolNodeConfig = lazy(() => import('./tool-config'));
@@ -29,6 +36,12 @@ export const TransformNodeConfig = lazy(() => import('./transform-config'));
 export const MergeNodeConfig = lazy(() => import('./merge-config'));
 export const GroupNodeConfig = lazy(() => import('./group-config'));
 export const AnnotationNodeConfig = lazy(() => import('./annotation-config'));
+// Dify-inspired node configs
+export const KnowledgeRetrievalNodeConfig = lazy(() => import('./knowledge-retrieval-config'));
+export const ParameterExtractorNodeConfig = lazy(() => import('./parameter-extractor-config'));
+export const VariableAggregatorNodeConfig = lazy(() => import('./variable-aggregator-config'));
+export const QuestionClassifierNodeConfig = lazy(() => import('./question-classifier-config'));
+export const TemplateTransformNodeConfig = lazy(() => import('./template-transform-config'));
 
 // Loading fallback component
 export function ConfigLoadingFallback() {
@@ -71,6 +84,11 @@ export const NODE_CONFIG_COMPONENTS = {
   merge: MergeNodeConfig,
   group: GroupNodeConfig,
   annotation: AnnotationNodeConfig,
+  knowledgeRetrieval: KnowledgeRetrievalNodeConfig,
+  parameterExtractor: ParameterExtractorNodeConfig,
+  variableAggregator: VariableAggregatorNodeConfig,
+  questionClassifier: QuestionClassifierNodeConfig,
+  templateTransform: TemplateTransformNodeConfig,
 } as const;
 
 export type NodeConfigComponentType = keyof typeof NODE_CONFIG_COMPONENTS;

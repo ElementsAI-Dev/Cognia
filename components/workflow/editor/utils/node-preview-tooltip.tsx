@@ -41,6 +41,11 @@ import {
   AreaChart,
   ScatterChart,
   Radar,
+  BookOpen,
+  ListChecks,
+  Combine,
+  MessageSquare,
+  FileCode,
 } from 'lucide-react';
 import type {
   WorkflowNodeData,
@@ -73,6 +78,11 @@ const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: str
   merge: GitMerge,
   group: Group,
   annotation: StickyNote,
+  knowledgeRetrieval: BookOpen,
+  parameterExtractor: ListChecks,
+  variableAggregator: Combine,
+  questionClassifier: MessageSquare,
+  templateTransform: FileCode,
   chart: BarChart2,
   lineChart: LineChart,
   barChart: BarChart2,

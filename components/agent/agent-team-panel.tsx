@@ -7,7 +7,7 @@
  * Follows the existing component patterns (BackgroundAgentPanel, ProcessManagerPanel).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import {
   Users,
   Plus,
@@ -52,6 +52,10 @@ import {
 } from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
 import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
+import { AgentTeamChat } from './agent-team-chat';
+import { AgentTeamActivityFeed } from './agent-team-activity-feed';
+import { AgentTeamTimeline } from './agent-team-timeline';
+import { AgentTeamConfigEditor } from './agent-team-config-editor';
 import {
   TEAM_STATUS_CONFIG,
   TEAMMATE_STATUS_CONFIG,
@@ -62,6 +66,11 @@ import {
   type AgentTeamMessage,
   type TeamDisplayMode,
 } from '@/types/agent/agent-team';
+
+// Lazy load graph component (heavy xyflow dependency)
+const AgentTeamGraph = lazy(() =>
+  import('./agent-team-graph').then((m) => ({ default: m.AgentTeamGraph }))
+);
 
 // ============================================================================
 // Status Icon Helper
@@ -249,7 +258,7 @@ interface MessageItemProps {
   message: AgentTeamMessage;
 }
 
-function MessageItem({ message }: MessageItemProps) {
+function _MessageItem({ message }: MessageItemProps) {
   return (
     <div className={cn(
       'rounded-md p-2 text-xs',
@@ -460,6 +469,20 @@ export function AgentTeamPanel({
 
       {/* Active Team Content */}
       {activeTeam ? (
+        displayMode === 'split' ? (
+          /* Split mode: Graph visualization */
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading graph...
+            </div>
+          }>
+            <AgentTeamGraph
+              teamId={activeTeam.id}
+              className="flex-1"
+              onTeammateClick={(id) => setSelectedTeammate(id === selectedTeammateId ? null : id)}
+            />
+          </Suspense>
+        ) : (
         <ScrollArea className="flex-1">
           <div className="p-3 space-y-3">
             {/* Team Overview */}
@@ -590,7 +613,7 @@ export function AgentTeamPanel({
 
             <Separator />
 
-            {/* Messages Section */}
+            {/* Messages Section (Interactive Chat) */}
             <Collapsible open={expandedSections.messages} onOpenChange={() => toggleSection('messages')}>
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
                 <div className="flex items-center gap-2">
@@ -601,16 +624,8 @@ export function AgentTeamPanel({
                   </span>
                 </div>
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 space-y-1.5">
-                {teamMessages.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2 text-center">
-                    No messages yet.
-                  </p>
-                ) : (
-                  teamMessages.slice(-20).map(message => (
-                    <MessageItem key={message.id} message={message} />
-                  ))
-                )}
+              <CollapsibleContent className="mt-2">
+                <AgentTeamChat teamId={activeTeam.id} maxHeight="300px" />
               </CollapsibleContent>
             </Collapsible>
 
@@ -645,8 +660,54 @@ export function AgentTeamPanel({
                 </div>
               </>
             )}
+
+            <Separator />
+
+            {/* Timeline */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">Timeline</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <AgentTeamTimeline teamId={activeTeam.id} />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator />
+
+            {/* Activity Feed */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <Eye className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">Activity</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <AgentTeamActivityFeed teamId={activeTeam.id} maxHeight="250px" />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator />
+
+            {/* Config */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <Brain className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">Configuration</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <AgentTeamConfigEditor teamId={activeTeam.id} />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </ScrollArea>
+        )
       ) : (
         <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
           Select a team to view details

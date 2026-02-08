@@ -12,5 +12,16 @@
   "toggleVariables": "切换变量面板",
   "variables": "变量",
   "variablesHint": "代码执行后，内核命名空间中的变量将显示在这里。",
-  "startKernelHint": "启动内核以检查变量"
+  "startKernelHint": "启动内核以检查变量",
+  "openNotebook": "打开笔记本",
+  "saveNotebook": "保存笔记本",
+  "saveAs": "另存为...",
+  "openFile": "打开 .ipynb 文件",
+  "unsavedChanges": "未保存的更改",
+  "saved": "已保存",
+  "untitled": "未命名笔记本",
+  "openFailed": "打开笔记本失败",
+  "saveFailed": "保存笔记本失败",
+  "saveSuccess": "笔记本保存成功",
+  "notebookFilter": "Jupyter 笔记本"
 }

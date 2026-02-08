@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +25,11 @@ import {
   Image as ImageIcon,
   BarChart3,
   Layout,
+  Plus,
+  Trash2,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { PPTTheme } from '@/types/workflow';
 
@@ -54,6 +60,7 @@ export interface PPTOutlinePreviewProps {
   onStartGeneration: () => void;
   onEditOutline?: () => void;
   onRegenerateOutline?: () => void;
+  onOutlineChange?: (outline: PPTOutline) => void;
   onCancel?: () => void;
   className?: string;
 }
@@ -85,11 +92,13 @@ export function PPTOutlinePreview({
   onStartGeneration,
   onEditOutline,
   onRegenerateOutline,
+  onOutlineChange,
   onCancel,
   className,
 }: PPTOutlinePreviewProps) {
   const t = useTranslations('pptGenerator');
   const [expandedSlides, setExpandedSlides] = useState<Set<number>>(new Set([0]));
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const toggleSlide = useCallback((index: number) => {
     setExpandedSlides(prev => {
@@ -110,6 +119,96 @@ export function PPTOutlinePreview({
   const collapseAll = useCallback(() => {
     setExpandedSlides(new Set());
   }, []);
+
+  // --- Inline editing handlers ---
+  const updateSlideTitle = useCallback((index: number, title: string) => {
+    if (!onOutlineChange) return;
+    const newOutline = { ...outline, outline: [...outline.outline] };
+    newOutline.outline[index] = { ...newOutline.outline[index], title };
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const updateKeyPoint = useCallback((slideIndex: number, pointIndex: number, value: string) => {
+    if (!onOutlineChange) return;
+    const newOutline = { ...outline, outline: [...outline.outline] };
+    const slide = { ...newOutline.outline[slideIndex] };
+    const points = [...(slide.keyPoints || [])];
+    points[pointIndex] = value;
+    slide.keyPoints = points;
+    newOutline.outline[slideIndex] = slide;
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const addKeyPoint = useCallback((slideIndex: number) => {
+    if (!onOutlineChange) return;
+    const newOutline = { ...outline, outline: [...outline.outline] };
+    const slide = { ...newOutline.outline[slideIndex] };
+    slide.keyPoints = [...(slide.keyPoints || []), ''];
+    newOutline.outline[slideIndex] = slide;
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const removeKeyPoint = useCallback((slideIndex: number, pointIndex: number) => {
+    if (!onOutlineChange) return;
+    const newOutline = { ...outline, outline: [...outline.outline] };
+    const slide = { ...newOutline.outline[slideIndex] };
+    slide.keyPoints = (slide.keyPoints || []).filter((_, i) => i !== pointIndex);
+    newOutline.outline[slideIndex] = slide;
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const moveSlide = useCallback((index: number, direction: 'up' | 'down') => {
+    if (!onOutlineChange) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= outline.outline.length) return;
+    const newOutline = { ...outline, outline: [...outline.outline] };
+    const temp = newOutline.outline[index];
+    newOutline.outline[index] = newOutline.outline[newIndex];
+    newOutline.outline[newIndex] = temp;
+    // Renumber
+    newOutline.outline = newOutline.outline.map((s, i) => ({ ...s, slideNumber: i + 1 }));
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const addSlide = useCallback(() => {
+    if (!onOutlineChange) return;
+    const newSlide: OutlineSlide = {
+      slideNumber: outline.outline.length + 1,
+      title: 'New Slide',
+      layout: 'title-content',
+      keyPoints: ['Key point'],
+    };
+    const newOutline = {
+      ...outline,
+      outline: [...outline.outline, newSlide],
+      slideCount: outline.slideCount + 1,
+    };
+    onOutlineChange(newOutline);
+    setExpandedSlides(prev => new Set([...prev, outline.outline.length]));
+  }, [outline, onOutlineChange]);
+
+  const removeSlide = useCallback((index: number) => {
+    if (!onOutlineChange || outline.outline.length <= 1) return;
+    const newOutline = {
+      ...outline,
+      outline: outline.outline
+        .filter((_, i) => i !== index)
+        .map((s, i) => ({ ...s, slideNumber: i + 1 })),
+      slideCount: outline.slideCount - 1,
+    };
+    onOutlineChange(newOutline);
+  }, [outline, onOutlineChange]);
+
+  const handleEditToggle = useCallback(() => {
+    if (onOutlineChange) {
+      setIsEditMode(prev => !prev);
+      if (!isEditMode) {
+        expandAll();
+      }
+    } else if (onEditOutline) {
+      onEditOutline();
+    }
+  }, [onOutlineChange, onEditOutline, isEditMode, expandAll]);
 
   return (
     <Card className={`w-full max-w-2xl ${className || ''}`}>
@@ -177,22 +276,54 @@ export function PPTOutlinePreview({
                 open={expandedSlides.has(index)}
                 onOpenChange={() => toggleSlide(index)}
               >
-                <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                      {slide.slideNumber}
-                    </span>
-                    {getLayoutIcon(slide.layout)}
-                    <span className="flex-1 font-medium text-sm truncate">
-                      {slide.title}
-                    </span>
-                    {expandedSlides.has(index) ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </CollapsibleTrigger>
+                <div className="flex items-center gap-1">
+                  {isEditMode && (
+                    <div className="flex flex-col">
+                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => moveSlide(index, 'up')} disabled={index === 0}>
+                        <ArrowUp className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => moveSlide(index, 'down')} disabled={index === outline.outline.length - 1}>
+                        <ArrowDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-left">
+                      {isEditMode && <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
+                        {slide.slideNumber}
+                      </span>
+                      {getLayoutIcon(slide.layout)}
+                      {isEditMode ? (
+                        <Input
+                          value={slide.title}
+                          onChange={(e) => { e.stopPropagation(); updateSlideTitle(index, e.target.value); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 h-7 text-sm font-medium"
+                        />
+                      ) : (
+                        <span className="flex-1 font-medium text-sm truncate">
+                          {slide.title}
+                        </span>
+                      )}
+                      {isEditMode && outline.outline.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); removeSlide(index); }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {expandedSlides.has(index) ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                </div>
                 <CollapsibleContent>
                   <div className="ml-9 pl-3 border-l-2 border-muted py-2 space-y-2">
                     <div className="flex items-center gap-2">
@@ -207,13 +338,32 @@ export function PPTOutlinePreview({
                           {slide.keyPoints.map((point, i) => (
                             <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                               <span className="text-primary mt-1">•</span>
-                              {point}
+                              {isEditMode ? (
+                                <div className="flex-1 flex items-center gap-1">
+                                  <Input
+                                    value={point}
+                                    onChange={(e) => updateKeyPoint(index, i, e.target.value)}
+                                    className="h-6 text-xs flex-1"
+                                  />
+                                  <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeKeyPoint(index, i)}>
+                                    <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                point
+                              )}
                             </li>
                           ))}
                         </ul>
+                        {isEditMode && (
+                          <Button variant="ghost" size="sm" className="h-6 text-xs ml-4" onClick={() => addKeyPoint(index)}>
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('addPoint') || 'Add point'}
+                          </Button>
+                        )}
                       </div>
                     )}
-                    {slide.suggestedVisual && (
+                    {!isEditMode && slide.suggestedVisual && (
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
                         <ImageIcon className="h-3 w-3" />
                         {slide.suggestedVisual}
@@ -223,6 +373,12 @@ export function PPTOutlinePreview({
                 </CollapsibleContent>
               </Collapsible>
             ))}
+            {isEditMode && (
+              <Button variant="outline" size="sm" className="w-full mt-2" onClick={addSlide}>
+                <Plus className="h-3 w-3 mr-1" />
+                {t('addSlide') || 'Add Slide'}
+              </Button>
+            )}
           </div>
         </ScrollArea>
       </CardContent>
@@ -252,10 +408,10 @@ export function PPTOutlinePreview({
 
         {/* Secondary actions */}
         <div className="flex gap-2 w-full">
-          {onEditOutline && (
-            <Button variant="outline" className="flex-1" onClick={onEditOutline} disabled={isGenerating}>
+          {(onEditOutline || onOutlineChange) && (
+            <Button variant={isEditMode ? 'default' : 'outline'} className="flex-1" onClick={handleEditToggle} disabled={isGenerating}>
               <Edit3 className="mr-2 h-4 w-4" />
-              {t('editOutline')}
+              {isEditMode ? (t('doneEditing') || 'Done') : t('editOutline')}
             </Button>
           )}
           {onRegenerateOutline && (

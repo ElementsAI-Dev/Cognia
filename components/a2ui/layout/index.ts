@@ -10,3 +10,5 @@ export { A2UICard } from './a2ui-card';
 export { A2UIDivider } from './a2ui-divider';
 export { A2UISpacer } from './a2ui-spacer';
 export { A2UIDialog } from './a2ui-dialog';
+export { A2UITabs } from './a2ui-tabs';
+export { A2UIAccordion } from './a2ui-accordion';

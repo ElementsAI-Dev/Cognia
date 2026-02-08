@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { usePluginStore } from '@/stores/plugin';
+import { getPluginManager } from '@/lib/plugin';
 import { PluginList } from './plugin-list';
 import { PluginConfig } from '../config/plugin-config';
 import type { Plugin } from '@/types/plugin';
@@ -20,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { toast } from '@/components/ui/sonner';
 import {
   Search,
   Plus,
@@ -28,6 +30,7 @@ import {
   Code,
   Puzzle,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 
 interface PluginManagerProps {
@@ -50,6 +53,7 @@ export function PluginManager({ className }: PluginManagerProps) {
   const [isInstallOpen, setIsInstallOpen] = useState(false);
   const [installSource, setInstallSource] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   // Filter plugins based on search
   const filteredPlugins = Object.values(plugins).filter((plugin) => {
@@ -172,13 +176,34 @@ export function PluginManager({ className }: PluginManagerProps) {
                   </Button>
                   <Button
                     onClick={async () => {
-                      // Install logic would go here
-                      setIsInstallOpen(false);
-                      setInstallSource('');
+                      setIsInstalling(true);
+                      try {
+                        const source = installSource.trim();
+                        const isGitUrl = source.startsWith('http') || source.startsWith('git@') || source.endsWith('.git');
+                        const manager = getPluginManager();
+                        await manager.installPlugin(source, { type: isGitUrl ? 'git' : 'local' });
+                        await scanPlugins();
+                        toast.success('Plugin installed successfully');
+                        setIsInstallOpen(false);
+                        setInstallSource('');
+                      } catch (error) {
+                        const message = error instanceof Error ? error.message : String(error);
+                        toast.error(message || 'Failed to install plugin');
+                        console.error('Failed to install plugin:', error);
+                      } finally {
+                        setIsInstalling(false);
+                      }
                     }}
-                    disabled={!installSource}
+                    disabled={!installSource || isInstalling}
                   >
-                    Install
+                    {isInstalling ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Installing...
+                      </>
+                    ) : (
+                      'Install'
+                    )}
                   </Button>
                 </div>
               </div>

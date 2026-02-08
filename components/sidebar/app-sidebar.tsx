@@ -87,7 +87,7 @@ import { cn } from '@/lib/utils';
 import { useSessionStore, useSettingsStore, useProjectStore } from '@/stores';
 import { ArtifactListCompact } from '@/components/artifacts';
 import { messageRepository } from '@/lib/db';
-import { KeyboardShortcutsDialog } from '@/components/layout/keyboard-shortcuts-dialog';
+import { KeyboardShortcutsDialog } from '@/components/layout/overlays/keyboard-shortcuts-dialog';
 import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
 import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
 import { SidebarAgentTeams } from './widgets/sidebar-agent-teams';

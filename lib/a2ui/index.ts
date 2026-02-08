@@ -39,7 +39,11 @@ export {
   createRelativePathResolver,
   watchPaths,
   extractReferencedPaths,
+  resolveComputedFields,
+  computedHelpers,
   type PathWatcher,
+  type ComputedField,
+  type ComputedFieldRegistry,
 } from './data-model';
 
 // Component Catalog

@@ -403,6 +403,18 @@ export {
   selectUpcomingTasks,
 } from './scheduler';
 
+// Agent Trace stores
+export {
+  useAgentTraceStore,
+  selectActiveSessionIds,
+  selectRunningSessions,
+  selectSessionEvents,
+  type AgentTraceStore,
+  type AgentTraceEvent,
+  type ActiveSessionTrace,
+  type TokenUsageSnapshot,
+} from './agent-trace';
+
 // External Agent stores (merged into agent/external-agent-store)
 export {
   useExternalAgentStore,

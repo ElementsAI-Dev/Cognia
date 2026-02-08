@@ -16,6 +16,11 @@ import type {
 } from '@/types/scheduler';
 import { getTaskScheduler } from '@/lib/scheduler/task-scheduler';
 import { schedulerDb } from '@/lib/scheduler/scheduler-db';
+import {
+  cancelPluginTaskExecution,
+  getActivePluginTaskCount,
+  isPluginTaskExecutionActive,
+} from '@/lib/scheduler/executors/plugin-executor';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
@@ -66,6 +71,11 @@ interface SchedulerActions {
   
   // Maintenance
   cleanupOldExecutions: (maxAgeDays?: number) => Promise<number>;
+  
+  // Plugin Execution Management
+  cancelPluginExecution: (executionId: string) => boolean;
+  getActivePluginCount: () => number;
+  isPluginExecutionActive: (executionId: string) => boolean;
   
   // System Status
   setSchedulerStatus: (status: SchedulerStatus) => void;
@@ -379,6 +389,20 @@ export const useSchedulerStore = create<SchedulerStore>()(
           log.error('SchedulerStore: Cleanup old executions failed', error as Error);
           return 0;
         }
+      },
+
+      // ========== Plugin Execution Management ==========
+
+      cancelPluginExecution: (executionId) => {
+        return cancelPluginTaskExecution(executionId);
+      },
+
+      getActivePluginCount: () => {
+        return getActivePluginTaskCount();
+      },
+
+      isPluginExecutionActive: (executionId) => {
+        return isPluginTaskExecutionActive(executionId);
       },
 
       // ========== System Status ==========

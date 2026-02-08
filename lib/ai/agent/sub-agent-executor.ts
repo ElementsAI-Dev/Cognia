@@ -910,6 +910,218 @@ export async function executeSubAgentsSequential(
 }
 
 /**
+ * Topological sort of sub-agents based on dependency graph
+ * Returns layers where each layer's agents can run in parallel
+ */
+export function topologicalSort(subAgents: SubAgent[]): SubAgent[][] {
+  const agentMap = new Map<string, SubAgent>();
+  const inDegree = new Map<string, number>();
+  const adjacency = new Map<string, string[]>();
+
+  // Build graph
+  for (const agent of subAgents) {
+    agentMap.set(agent.id, agent);
+    inDegree.set(agent.id, 0);
+    adjacency.set(agent.id, []);
+  }
+
+  for (const agent of subAgents) {
+    const deps = agent.config.dependencies || [];
+    for (const depId of deps) {
+      if (agentMap.has(depId)) {
+        adjacency.get(depId)!.push(agent.id);
+        inDegree.set(agent.id, (inDegree.get(agent.id) || 0) + 1);
+      }
+    }
+  }
+
+  // BFS layer by layer (Kahn's algorithm)
+  const layers: SubAgent[][] = [];
+  let queue = subAgents
+    .filter((a) => (inDegree.get(a.id) || 0) === 0)
+    .sort((a, b) => a.order - b.order);
+
+  while (queue.length > 0) {
+    layers.push(queue);
+    const nextQueue: SubAgent[] = [];
+
+    for (const agent of queue) {
+      for (const neighborId of adjacency.get(agent.id) || []) {
+        const newDegree = (inDegree.get(neighborId) || 1) - 1;
+        inDegree.set(neighborId, newDegree);
+        if (newDegree === 0) {
+          const neighbor = agentMap.get(neighborId);
+          if (neighbor) nextQueue.push(neighbor);
+        }
+      }
+    }
+
+    queue = nextQueue.sort((a, b) => a.order - b.order);
+  }
+
+  // Check for cycles (agents not included in any layer)
+  const included = new Set(layers.flat().map((a) => a.id));
+  const cyclic = subAgents.filter((a) => !included.has(a.id));
+  if (cyclic.length > 0) {
+    log.warn('Dependency cycle detected, appending cyclic agents', {
+      cyclicIds: cyclic.map((a) => a.id),
+    });
+    layers.push(cyclic);
+  }
+
+  return layers;
+}
+
+/**
+ * Execute sub-agents using dependency graph (DAG) walker
+ *
+ * This is the most advanced execution mode:
+ * - Performs topological sort on the dependency graph
+ * - Executes each independent layer in parallel
+ * - Respects conditions and dependencies
+ * - Shares results between layers via sibling context
+ * - Falls back gracefully on cycles
+ */
+export async function executeSubAgentsDependencyGraph(
+  subAgents: SubAgent[],
+  executorConfig: SubAgentExecutorConfig,
+  options: SubAgentExecutionOptions = {},
+  concurrency: number = 3
+): Promise<SubAgentOrchestrationResult> {
+  const startTime = Date.now();
+  const results: Record<string, SubAgentResult> = {};
+  const errors: Record<string, string> = {};
+
+  // Sort into execution layers
+  const layers = topologicalSort(subAgents);
+
+  log.info('Dependency graph execution starting', {
+    totalAgents: subAgents.length,
+    layers: layers.length,
+    layerSizes: layers.map((l) => l.length),
+  });
+
+  for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
+    const layer = layers[layerIdx];
+
+    // Filter agents whose conditions are met
+    const executableAgents = layer.filter((agent) => {
+      // Check dependencies (should all be met by now due to topo sort)
+      if (agent.config.dependencies && agent.config.dependencies.length > 0) {
+        const unmet = agent.config.dependencies.filter((depId) => {
+          const depResult = results[depId];
+          return !depResult || !depResult.success;
+        });
+        if (unmet.length > 0) {
+          const errorMessage = `Unmet dependencies: ${unmet.join(', ')}`;
+          errors[agent.id] = errorMessage;
+          agent.status = 'failed';
+          agent.error = errorMessage;
+          addLog(agent, 'error', errorMessage);
+          return false;
+        }
+      }
+
+      // Check condition
+      if (agent.config.condition) {
+        const context: SubAgentContext = {
+          parentAgentId: agent.parentAgentId,
+          sessionId: '',
+          siblingResults: results,
+          startTime: new Date(),
+          currentStep: 0,
+        };
+        const shouldExecute = evaluateCondition(agent.config.condition, context);
+        if (!shouldExecute) {
+          agent.status = 'cancelled';
+          addLog(agent, 'info', 'Skipped: condition not met');
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    if (executableAgents.length === 0) continue;
+
+    // Execute this layer's agents in parallel (with concurrency limit)
+    const siblingResults = { ...executorConfig.siblingResults, ...results };
+    const layerConfig = { ...executorConfig, siblingResults };
+
+    // Use existing parallel executor for each layer
+    if (executableAgents.length === 1) {
+      // Single agent, execute directly
+      try {
+        const result = await executeSubAgent(executableAgents[0], layerConfig, options);
+        results[executableAgents[0].id] = result;
+        if (!result.success) {
+          errors[executableAgents[0].id] = result.error || 'Unknown error';
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        errors[executableAgents[0].id] = errorMessage;
+        results[executableAgents[0].id] = {
+          success: false,
+          finalResponse: '',
+          steps: [],
+          totalSteps: 0,
+          duration: 0,
+          error: errorMessage,
+        };
+      }
+    } else {
+      // Multiple agents, execute in parallel with concurrency
+      const layerResult = await executeSubAgentsParallel(
+        executableAgents,
+        layerConfig,
+        options,
+        concurrency
+      );
+
+      // Merge results
+      for (const [id, result] of Object.entries(layerResult.results)) {
+        results[id] = result;
+        if (!result.success && result.error) {
+          errors[id] = result.error;
+        }
+      }
+    }
+
+    log.debug('Dependency graph layer completed', {
+      layer: layerIdx + 1,
+      totalLayers: layers.length,
+      completed: Object.keys(results).length,
+      total: subAgents.length,
+    });
+  }
+
+  // Calculate totals
+  const totalDuration = Date.now() - startTime;
+  const allSucceeded = subAgents.every((a) => {
+    const r = results[a.id];
+    return r?.success || a.status === 'cancelled';
+  });
+
+  const totalTokenUsage = aggregateTokenUsage(results);
+
+  const successfulResponses = Object.entries(results)
+    .filter(([_, r]) => r.success)
+    .map(([id, r]) => {
+      const agent = subAgents.find((a) => a.id === id);
+      return `[${agent?.name || id}]: ${r.finalResponse}`;
+    });
+
+  return {
+    success: allSucceeded,
+    results,
+    aggregatedResponse: successfulResponses.join('\n\n'),
+    totalDuration,
+    totalTokenUsage,
+    errors: Object.keys(errors).length > 0 ? errors : undefined,
+  };
+}
+
+/**
  * Cancel a sub-agent execution
  */
 export function cancelSubAgent(subAgent: SubAgent): void {

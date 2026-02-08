@@ -18,6 +18,7 @@ import type {
   AcpPermissionMode,
   AcpAuthMethod,
   AcpSessionModelState,
+  AcpConfigOption,
   ExternalAgentConnectionStatus,
 } from '@/types/agent/external-agent';
 
@@ -116,6 +117,18 @@ export interface ProtocolAdapter {
    * Optional: Get session model state (ACP)
    */
   getSessionModels?: (sessionId: string) => AcpSessionModelState | undefined;
+
+  /**
+   * Optional: Set a session config option (ACP)
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  setConfigOption?: (sessionId: string, configId: string, value: string) => Promise<AcpConfigOption[]>;
+
+  /**
+   * Optional: Get session config options (ACP)
+   * @see https://agentclientprotocol.com/protocol/session-config-options
+   */
+  getConfigOptions?: (sessionId: string) => AcpConfigOption[] | undefined;
 
   /**
    * Optional: Get available auth methods (ACP)

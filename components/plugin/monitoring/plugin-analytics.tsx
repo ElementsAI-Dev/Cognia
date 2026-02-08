@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Activity,
@@ -35,6 +35,7 @@ import {
   type PluginHealthStatus,
 } from '@/lib/plugin';
 import { usePluginStore } from '@/stores/plugin';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
@@ -225,24 +226,39 @@ export function PluginAnalytics({ pluginId, className }: PluginAnalyticsProps) {
     ? ((aggregateStats.successfulCalls / aggregateStats.totalCalls) * 100).toFixed(1)
     : '100';
 
-  const handleInsightAction = (insight: LearningInsight) => {
+  const { enablePlugin, disablePlugin } = usePluginStore();
+
+  const handleInsightAction = useCallback(async (insight: LearningInsight) => {
     if (!insight.action) return;
     
     switch (insight.action.type) {
       case 'configure':
-        // Open config dialog
         if (insight.pluginId) {
           setSelectedPlugin(insight.pluginId);
         }
         break;
       case 'disable_plugin':
-        // Trigger disable
+        if (insight.pluginId) {
+          try {
+            await disablePlugin(insight.pluginId);
+            toast.success(`Plugin disabled: ${insight.pluginId}`);
+          } catch (error) {
+            toast.error(`Failed to disable plugin: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
         break;
       case 'enable_plugin':
-        // Trigger enable
+        if (insight.pluginId) {
+          try {
+            await enablePlugin(insight.pluginId);
+            toast.success(`Plugin enabled: ${insight.pluginId}`);
+          } catch (error) {
+            toast.error(`Failed to enable plugin: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
         break;
     }
-  };
+  }, [enablePlugin, disablePlugin]);
 
   return (
     <div className={cn('flex flex-col gap-4 sm:gap-6 h-full', className)}>

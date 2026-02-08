@@ -126,7 +126,7 @@ jest.mock('@/components/ui/badge', () => ({
 }));
 
 // Mock EmptyState to avoid issues with icon rendering
-jest.mock('@/components/layout/empty-state', () => ({
+jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ title, description }: { title: string; description?: string }) => (
     <div data-testid="empty-state">
       <span>{title}</span>

@@ -105,6 +105,114 @@
       "synthesizing": "Synthesizing results...",
       "teamCompleted": "Team completed",
       "completedTasks": "Completed {completed}/{total} tasks"
-    }
+    },
+
+    "messages": {
+      "noMessages": "No messages yet",
+      "broadcast": "Broadcast to All",
+      "messageTo": "Message",
+      "send": "Send",
+      "selectRecipient": "Select recipient"
+    },
+
+    "taskBoard": {
+      "title": "Task Board",
+      "tasks": "tasks",
+      "addTask": "Add Task",
+      "createTask": "Create Task",
+      "taskTitle": "Title",
+      "taskDescription": "Description",
+      "priority": "Priority",
+      "assignTo": "Assign To",
+      "create": "Create",
+      "empty": "No tasks",
+      "retry": "Retry",
+      "cancel": "Cancel"
+    },
+
+    "analytics": {
+      "title": "Analytics",
+      "totalTokens": "Total Tokens",
+      "totalDuration": "Duration",
+      "successRate": "Success Rate",
+      "teammates": "Teammates",
+      "tokenBudget": "Token Budget",
+      "tokensByTeammate": "Tokens by Teammate",
+      "taskDurations": "Task Durations",
+      "budgetLow": "Budget running low",
+      "budgetExceeded": "Budget exceeded"
+    },
+
+    "templateManage": {
+      "saveAsTemplate": "Save as Template",
+      "editTemplate": "Edit Template",
+      "importTemplates": "Import Templates",
+      "exportTemplates": "Export Templates",
+      "templateName": "Template Name",
+      "templateSaved": "Template saved successfully",
+      "importSuccess": "Imported {count} template(s)",
+      "exportSuccess": "Templates exported"
+    },
+
+    "budget": {
+      "label": "Token Budget",
+      "remaining": "{count} remaining",
+      "exceeded": "Budget exceeded",
+      "warning": "Budget running low"
+    },
+
+    "error": {
+      "deadlock": "Deadlock detected in task dependencies",
+      "deadlockResolved": "Deadlock resolved automatically",
+      "budgetExceeded": "Team token budget exceeded",
+      "retryFailed": "Task retry failed",
+      "maxRevisionsReached": "Max plan revisions reached, auto-approved"
+    },
+
+    "graph": {
+      "teamView": "Team",
+      "teamViewTooltip": "Team structure & communication",
+      "taskView": "Tasks",
+      "taskViewTooltip": "Task dependency DAG",
+      "loadingGraph": "Loading graph..."
+    },
+
+    "timeline": {
+      "title": "Execution Timeline",
+      "executing": "Executing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "planning": "Planning"
+    },
+
+    "activityFeed": {
+      "title": "Activity",
+      "filter": "Filter",
+      "noEvents": "No events yet"
+    },
+
+    "configEditor": {
+      "title": "Team Configuration",
+      "readOnly": "read-only during execution",
+      "executionMode": "Execution Mode",
+      "coordinated": "Coordinated",
+      "autonomous": "Autonomous",
+      "delegate": "Delegate",
+      "coordinatedDesc": "Lead assigns tasks to specific teammates",
+      "autonomousDesc": "Teammates self-claim available tasks",
+      "delegateDesc": "Lead delegates, never implements itself",
+      "maxConcurrent": "Max Concurrent Teammates",
+      "tokenBudget": "Token Budget",
+      "tokenBudgetDesc": "0 = unlimited. Team stops when budget is exceeded.",
+      "planApproval": "Require Plan Approval",
+      "planApprovalDesc": "Lead reviews teammate plans before execution",
+      "messaging": "Enable Messaging",
+      "messagingDesc": "Teammates share results via messages",
+      "taskRetry": "Enable Task Retry",
+      "taskRetryDesc": "Failed tasks are automatically retried",
+      "maxRetries": "Max Retries"
+    },
+
+    "cancel": "Cancel"
   }
 }

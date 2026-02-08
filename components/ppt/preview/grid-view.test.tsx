@@ -4,9 +4,18 @@ import type { PPTSlide, PPTTheme } from '@/types/workflow';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: { count: number }) => {
-    if (key === 'more') return `+${params?.count || 0} more`;
-    return key;
+  useTranslations: () => (key: string, params?: Record<string, string | number>) => {
+    const translations: Record<string, string> = {
+      slideCount: `${params?.count ?? 0} slides`,
+      selectedSlide: `Selected: slide ${params?.index ?? ''}`,
+      more: `+${params?.count ?? 0} more`,
+      smallSize: 'Small',
+      mediumSize: 'Medium',
+      largeSize: 'Large',
+      notes: 'Notes',
+      untitled: 'Untitled',
+    };
+    return translations[key] || key;
   },
 }));
 
@@ -89,12 +98,12 @@ describe('GridView', () => {
 
   it('displays slide count', () => {
     render(<GridView {...defaultProps} />);
-    expect(screen.getByText('3 张幻灯片')).toBeInTheDocument();
+    expect(screen.getByText('3 slides')).toBeInTheDocument();
   });
 
   it('displays selected slide info', () => {
     render(<GridView {...defaultProps} currentIndex={1} />);
-    expect(screen.getByText('选中第 2 张')).toBeInTheDocument();
+    expect(screen.getByText('Selected: slide 2')).toBeInTheDocument();
   });
 
   it('calls onSelect when slide is clicked', () => {
@@ -218,12 +227,12 @@ describe('GridView', () => {
 
   it('handles empty slides array', () => {
     render(<GridView {...defaultProps} slides={[]} />);
-    expect(screen.getByText('0 张幻灯片')).toBeInTheDocument();
+    expect(screen.getByText('0 slides')).toBeInTheDocument();
   });
 
   it('does not show selected slide info when currentIndex is -1', () => {
     render(<GridView {...defaultProps} currentIndex={-1} />);
-    expect(screen.queryByText(/选中第/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Selected: slide/)).not.toBeInTheDocument();
   });
 
   it('shows notes indicator for slides with notes', () => {

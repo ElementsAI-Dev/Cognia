@@ -218,7 +218,7 @@ jest.mock('@/components/ui/input-group', () => ({
   ),
 }));
 
-jest.mock('@/components/layout/empty-state', () => ({
+jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ message }: { message?: string }) => <div data-testid="empty-state">{message || 'No memories stored yet'}</div>,
 }));
 

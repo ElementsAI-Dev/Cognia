@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/layout/empty-state';
+import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { useUsageStore } from '@/stores';
 import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
 import { UsageAnalyticsCard } from '@/components/chat/utils/usage-analytics-card';

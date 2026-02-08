@@ -55,6 +55,9 @@ import {
   onKernelStatus,
   onKernelOutput,
   onCellOutput,
+  openNotebook,
+  saveNotebook,
+  getNotebookInfo,
   kernelService,
 } from './kernel';
 
@@ -699,6 +702,85 @@ describe('Jupyter Kernel Service', () => {
     });
   });
 
+  describe('Notebook File I/O', () => {
+    describe('openNotebook', () => {
+      it('should open notebook when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue('{"cells":[],"nbformat":4,"nbformat_minor":5,"metadata":{}}');
+
+        const result = await openNotebook('/path/to/notebook.ipynb');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_open_notebook', {
+          path: '/path/to/notebook.ipynb',
+        });
+        expect(result).toContain('"cells"');
+      });
+
+      it('should throw error when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        await expect(openNotebook('/path/to/notebook.ipynb')).rejects.toThrow(
+          'Notebook file I/O requires Tauri environment'
+        );
+      });
+    });
+
+    describe('saveNotebook', () => {
+      it('should save notebook when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue(undefined);
+
+        const content = '{"cells":[],"nbformat":4,"nbformat_minor":5,"metadata":{}}';
+        await saveNotebook('/path/to/notebook.ipynb', content);
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_save_notebook', {
+          path: '/path/to/notebook.ipynb',
+          content,
+        });
+      });
+
+      it('should throw error when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        await expect(saveNotebook('/path', 'content')).rejects.toThrow(
+          'Notebook file I/O requires Tauri environment'
+        );
+      });
+    });
+
+    describe('getNotebookInfo', () => {
+      it('should get notebook info when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        const mockInfo = {
+          path: '/path/to/notebook.ipynb',
+          fileName: 'notebook.ipynb',
+          sizeBytes: 1024,
+          cellCount: 5,
+          codeCells: 3,
+          markdownCells: 2,
+          kernelName: 'python3',
+          nbformat: 4,
+        };
+        mockInvoke.mockResolvedValue(mockInfo);
+
+        const result = await getNotebookInfo('/path/to/notebook.ipynb');
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_notebook_info', {
+          path: '/path/to/notebook.ipynb',
+        });
+        expect(result).toEqual(mockInfo);
+      });
+
+      it('should throw error when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        await expect(getNotebookInfo('/path')).rejects.toThrow(
+          'Notebook file I/O requires Tauri environment'
+        );
+      });
+    });
+  });
+
   describe('Event Listeners', () => {
     describe('onKernelStatus', () => {
       it('should register status listener when in Tauri environment', async () => {
@@ -867,6 +949,10 @@ describe('Jupyter Kernel Service', () => {
       expect(kernelService.onKernelStatus).toBe(onKernelStatus);
       expect(kernelService.onKernelOutput).toBe(onKernelOutput);
       expect(kernelService.onCellOutput).toBe(onCellOutput);
+      // Notebook File I/O
+      expect(kernelService.openNotebook).toBe(openNotebook);
+      expect(kernelService.saveNotebook).toBe(saveNotebook);
+      expect(kernelService.getNotebookInfo).toBe(getNotebookInfo);
     });
   });
 });

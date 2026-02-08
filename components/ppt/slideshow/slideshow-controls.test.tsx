@@ -2,6 +2,39 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SlideshowControls, KeyboardHelpModal } from './slideshow-controls';
 import type { SlideshowSettings } from '../types';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string, params?: Record<string, string | number>) => {
+    const translations: Record<string, string> = {
+      pauseAutoPlay: 'Pause auto-play',
+      autoPlay: 'Auto-play',
+      thumbnails: 'Thumbnails',
+      speakerNotes: 'Speaker Notes',
+      keyboardShortcuts: 'Keyboard Shortcuts',
+      playbackSettings: 'Playback Settings',
+      autoPlayLabel: 'Auto-play',
+      playbackInterval: `Interval: ${params?.seconds ?? ''}s`,
+      showTimer: 'Show Timer',
+      showProgress: 'Show Progress Bar',
+      enableTransitions: 'Enable Transitions',
+      exitPresentation: 'Exit Presentation (Esc)',
+      noNotes: 'No notes available',
+      nextSlide: 'Next Slide',
+      noTitle: 'Untitled',
+      prevSlide: 'Previous slide',
+      firstSlide: 'First slide',
+      lastSlide: 'Last slide',
+      exitMode: 'Exit presentation mode',
+      toggleFullscreen: 'Toggle fullscreen',
+      showHideThumbnails: 'Show/hide thumbnails',
+      showHideNotes: 'Show/hide notes',
+      startPauseAutoplay: 'Start/pause auto-play',
+      showHelp: 'Show keyboard shortcuts',
+    };
+    return translations[key] || key;
+  },
+}));
+
 const defaultSettings: SlideshowSettings = {
   showThumbnails: false,
   showProgress: true,
@@ -223,27 +256,27 @@ describe('SlideshowControls', () => {
 describe('KeyboardHelpModal', () => {
   it('renders when isOpen is true', () => {
     render(<KeyboardHelpModal isOpen={true} onClose={jest.fn()} />);
-    expect(screen.getByText('键盘快捷键')).toBeInTheDocument();
+    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
   });
 
   it('does not render when isOpen is false', () => {
     render(<KeyboardHelpModal isOpen={false} onClose={jest.fn()} />);
-    expect(screen.queryByText('键盘快捷键')).not.toBeInTheDocument();
+    expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument();
   });
 
   it('displays all keyboard shortcuts', () => {
     render(<KeyboardHelpModal isOpen={true} onClose={jest.fn()} />);
     
-    expect(screen.getByText('上一张幻灯片')).toBeInTheDocument();
-    expect(screen.getByText('下一张幻灯片')).toBeInTheDocument();
-    expect(screen.getByText('第一张幻灯片')).toBeInTheDocument();
-    expect(screen.getByText('最后一张幻灯片')).toBeInTheDocument();
-    expect(screen.getByText('退出演示模式')).toBeInTheDocument();
-    expect(screen.getByText('切换全屏')).toBeInTheDocument();
-    expect(screen.getByText('显示/隐藏缩略图')).toBeInTheDocument();
-    expect(screen.getByText('显示/隐藏备注')).toBeInTheDocument();
-    expect(screen.getByText('开始/暂停自动播放')).toBeInTheDocument();
-    expect(screen.getByText('显示快捷键帮助')).toBeInTheDocument();
+    expect(screen.getByText('Previous slide')).toBeInTheDocument();
+    expect(screen.getByText('Next Slide')).toBeInTheDocument();
+    expect(screen.getByText('First slide')).toBeInTheDocument();
+    expect(screen.getByText('Last slide')).toBeInTheDocument();
+    expect(screen.getByText('Exit presentation mode')).toBeInTheDocument();
+    expect(screen.getByText('Toggle fullscreen')).toBeInTheDocument();
+    expect(screen.getByText('Show/hide thumbnails')).toBeInTheDocument();
+    expect(screen.getByText('Show/hide notes')).toBeInTheDocument();
+    expect(screen.getByText('Start/pause auto-play')).toBeInTheDocument();
+    expect(screen.getByText('Show keyboard shortcuts')).toBeInTheDocument();
   });
 
   it('calls onClose when backdrop is clicked', () => {
@@ -274,7 +307,7 @@ describe('KeyboardHelpModal', () => {
     render(<KeyboardHelpModal isOpen={true} onClose={onClose} />);
     
     // Click on the modal content
-    const modalContent = screen.getByText('键盘快捷键');
+    const modalContent = screen.getByText('Keyboard Shortcuts');
     fireEvent.click(modalContent);
     
     // onClose should not be called because we stopped propagation

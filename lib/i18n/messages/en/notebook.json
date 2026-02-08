@@ -12,5 +12,16 @@
   "toggleVariables": "Toggle variables panel",
   "variables": "Variables",
   "variablesHint": "Variables from the kernel namespace will appear here after code execution.",
-  "startKernelHint": "Start a kernel to inspect variables"
+  "startKernelHint": "Start a kernel to inspect variables",
+  "openNotebook": "Open Notebook",
+  "saveNotebook": "Save Notebook",
+  "saveAs": "Save As...",
+  "openFile": "Open .ipynb File",
+  "unsavedChanges": "Unsaved changes",
+  "saved": "Saved",
+  "untitled": "Untitled Notebook",
+  "openFailed": "Failed to open notebook",
+  "saveFailed": "Failed to save notebook",
+  "saveSuccess": "Notebook saved successfully",
+  "notebookFilter": "Jupyter Notebooks"
 }

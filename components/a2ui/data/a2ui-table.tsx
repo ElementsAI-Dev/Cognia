@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import type { A2UIComponentProps, A2UITableComponent, A2UITableColumn } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../a2ui-context';
@@ -23,7 +24,7 @@ import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 type SortDirection = 'asc' | 'desc' | null;
 
-export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableComponent>) {
+export function A2UITable({ component, onAction, onDataChange }: A2UIComponentProps<A2UITableComponent>) {
   const { dataModel } = useA2UIContext();
 
   // Resolve data - can be static array or data-bound
@@ -38,7 +39,11 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
   const pageSize = component.pageSize || 10;
+  const rowKey = component.rowKey || 'id';
+  const selectable = component.selectable || false;
+  const locale = component.locale || {};
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -89,6 +94,48 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
       onAction(component.rowClickAction, { row, index });
     }
   }, [component.rowClickAction, onAction]);
+
+  // Row selection handlers
+  const getRowId = useCallback((row: Record<string, unknown>, index: number): string => {
+    return String(row[rowKey] ?? index);
+  }, [rowKey]);
+
+  const handleSelectRow = useCallback((rowId: string, checked: boolean) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(rowId);
+      } else {
+        next.delete(rowId);
+      }
+      // Emit data change for selectedRows binding
+      if (component.selectedRows && typeof component.selectedRows === 'object' && 'path' in component.selectedRows) {
+        onDataChange(component.selectedRows.path, Array.from(next));
+      }
+      if (component.selectAction) {
+        onAction(component.selectAction, { selectedRows: Array.from(next) });
+      }
+      return next;
+    });
+  }, [component.selectedRows, component.selectAction, onAction, onDataChange]);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      const allKeys = new Set(paginatedData.map((row, idx) => getRowId(row, idx)));
+      setSelectedRowKeys(allKeys);
+      if (component.selectedRows && typeof component.selectedRows === 'object' && 'path' in component.selectedRows) {
+        onDataChange(component.selectedRows.path, Array.from(allKeys));
+      }
+    } else {
+      setSelectedRowKeys(new Set());
+      if (component.selectedRows && typeof component.selectedRows === 'object' && 'path' in component.selectedRows) {
+        onDataChange(component.selectedRows.path, []);
+      }
+    }
+  }, [paginatedData, getRowId, component.selectedRows, onDataChange]);
+
+  const isAllSelected = paginatedData.length > 0 && paginatedData.every((row, idx) => selectedRowKeys.has(getRowId(row, idx)));
+  const isSomeSelected = paginatedData.some((row, idx) => selectedRowKeys.has(getRowId(row, idx)));
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -155,6 +202,15 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
         <Table>
           <TableHeader>
             <TableRow>
+              {selectable && (
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    aria-label={locale.selectAll || 'Select all rows'}
+                  />
+                </TableHead>
+              )}
               {columns.map((column) => (
                 <TableHead
                   key={column.key}
@@ -178,34 +234,49 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
             {paginatedData.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={columns.length + (selectable ? 1 : 0)}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  {component.emptyMessage || 'No data available'}
+                  {component.emptyMessage || locale.empty || 'No data available'}
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedData.map((row, index) => (
-                <TableRow
-                  key={(row.id as string | number) ?? index}
-                  className={cn(
-                    component.rowClickAction && 'cursor-pointer hover:bg-muted/50'
-                  )}
-                  onClick={() => handleRowClick(row, index)}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      className={cn(
-                        column.align === 'center' && 'text-center',
-                        column.align === 'right' && 'text-right'
-                      )}
-                    >
-                      {renderCell(row, column)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              paginatedData.map((row, index) => {
+                const rid = getRowId(row, index);
+                const isSelected = selectedRowKeys.has(rid);
+                return (
+                  <TableRow
+                    key={(row[rowKey] as string | number) ?? index}
+                    className={cn(
+                      component.rowClickAction && 'cursor-pointer hover:bg-muted/50',
+                      isSelected && 'bg-muted/30'
+                    )}
+                    onClick={() => handleRowClick(row, index)}
+                  >
+                    {selectable && (
+                      <TableCell className="w-[40px]">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectRow(rid, !!checked)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={locale.selectRow ? `${locale.selectRow} ${rid}` : `Select row ${rid}`}
+                        />
+                      </TableCell>
+                    )}
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        className={cn(
+                          column.align === 'center' && 'text-center',
+                          column.align === 'right' && 'text-right'
+                        )}
+                      >
+                        {renderCell(row, column)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -214,9 +285,12 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
       {component.pagination && totalPages > 1 && (
         <div className="flex items-center justify-between px-2 py-4">
           <p className="text-sm text-muted-foreground">
-            Showing {currentPage * pageSize + 1} to{' '}
-            {Math.min((currentPage + 1) * pageSize, sortedData.length)} of{' '}
-            {sortedData.length} entries
+            {locale.showing
+              ? locale.showing
+                  .replace('{start}', String(currentPage * pageSize + 1))
+                  .replace('{end}', String(Math.min((currentPage + 1) * pageSize, sortedData.length)))
+                  .replace('{total}', String(sortedData.length))
+              : `Showing ${currentPage * pageSize + 1} to ${Math.min((currentPage + 1) * pageSize, sortedData.length)} of ${sortedData.length} entries`}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -225,10 +299,14 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 0}
             >
-              Previous
+              {locale.previous || 'Previous'}
             </Button>
             <span className="text-sm">
-              Page {currentPage + 1} of {totalPages}
+              {locale.page
+                ? locale.page
+                    .replace('{current}', String(currentPage + 1))
+                    .replace('{total}', String(totalPages))
+                : `Page ${currentPage + 1} of ${totalPages}`}
             </span>
             <Button
               variant="outline"
@@ -236,7 +314,7 @@ export function A2UITable({ component, onAction }: A2UIComponentProps<A2UITableC
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
             >
-              Next
+              {locale.next || 'Next'}
             </Button>
           </div>
         </div>

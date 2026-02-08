@@ -86,27 +86,46 @@ Implements the Agent Client Protocol for communication with ACP-compatible agent
 - Supports stdio and HTTP transports
 - Handles `session/update` notifications per ACP spec
 - Permission request/response flow via `session/request_permission`
-- Session management with `session/new`, `session/load`, `session/set_mode`
+- Session management with `session/new`, `session/load`, `session/set_mode`, `session/set_config_option`
 - Client capabilities: `fs.readTextFile`, `fs.writeTextFile`, `terminal`
 - Streaming via `session/prompt` with `stopReason` responses
+- Session Config Options (supersedes Session Modes per ACP spec)
+- Enhanced tool call content: regular, diff, terminal types
+- Tool call locations for follow-along features
+- Audio content block support
+- Content annotations support
 
 #### ACP Protocol Methods Implemented
 
 **Client → Agent:**
 
 - `initialize` - Negotiate protocol version and capabilities
-- `session/new` - Create new session with `cwd` and `mcpServers`
+- `session/new` - Create new session with `cwd`, `mcpServers`, returns `configOptions`
 - `session/load` - Resume existing session (if supported)
 - `session/prompt` - Send prompt and receive streaming updates
 - `session/cancel` - Cancel ongoing execution (notification)
-- `session/set_mode` - Change permission mode
+- `session/set_mode` - Change permission mode (legacy)
+- `session/set_config_option` - Set session config option (preferred over set_mode)
 
 **Agent → Client:**
 
-- `fs/read_text_file` - Read file contents
+- `fs/read_text_file` - Read file contents (with `line`/`limit` params)
 - `fs/write_text_file` - Write file contents
-- `session/request_permission` - Request tool execution permission
-- `terminal/*` - Terminal operations (stub implementation)
+- `session/request_permission` - Request tool execution permission (with `PermissionOption` kinds)
+- `terminal/*` - Terminal operations (create, output, kill, release, wait_for_exit)
+
+**Session Update Types (via `session/update` notification):**
+
+- `agent_message_chunk` - Agent text response
+- `user_message_chunk` - User message echo
+- `thought_message_chunk` - Agent thinking/reasoning
+- `tool_call` - Tool invocation start (with content, locations, rawInput/rawOutput)
+- `tool_call_update` - Tool execution progress (with diff, terminal, regular content)
+- `plan` - Execution plan updates
+- `available_commands_update` - Slash commands
+- `mode_change` - Permission mode change (legacy)
+- `current_mode_update` - Agent-initiated mode change
+- `config_options_update` - Agent-initiated config options change
 
 ### 3. External Agent Manager (`manager.ts`)
 
@@ -139,6 +158,10 @@ Converts between Cognia's internal formats and external agent formats:
 - `externalResultToSubAgentResult()` - Convert results
 - `textToExternalMessage()` - Create messages
 - `eventsToSteps()` - Convert events to execution steps
+- `extractToolCallContentText()` - Extract text from tool call content union type
+- `hasDiffContent()` / `hasTerminalContent()` - Check tool call content types
+- `extractDiffs()` - Extract diff entries from tool call content
+- `extractLocations()` - Extract file locations from tool call updates
 
 ## Usage Examples
 
@@ -241,9 +264,16 @@ All types are defined in `types/agent/external-agent.ts`:
 - `ExternalAgentConfig` - Agent configuration
 - `ExternalAgentSession` - Session state
 - `ExternalAgentMessage` - Message format
-- `ExternalAgentEvent` - Streaming events
+- `ExternalAgentEvent` - Streaming events (incl. `config_options_update`, `mode_update`, `tool_call_update`)
 - `ExternalAgentResult` - Execution result
 - `ExternalAgentDelegationRule` - Delegation rules
+- `AcpConfigOption` / `AcpConfigOptionValue` - Session config options
+- `AcpToolCallContent` - Union of regular/diff/terminal content
+- `AcpToolCallLocation` - File location for follow-along
+- `AcpPermissionOption` / `AcpPermissionOptionKind` - Permission option with kind hints
+- `AcpContentAnnotations` - Content block annotations
+- `AcpAudioContentBlock` - Audio content
+- `AcpTerminalExitStatus` - Terminal exit status with signal
 
 ## Plugin Hooks
 
@@ -263,6 +293,13 @@ const hooks: PluginHooksAll = {
 };
 ```
 
+## UI Components
+
+- `ExternalAgentManager` - Main agent management UI
+- `ExternalAgentConfigOptions` - Session config option selectors (mode, model, thought_level)
+- `ExternalAgentCommands` - Slash command execution
+- `ExternalAgentPlan` - Execution plan display
+
 ## Future Enhancements
 
 - [ ] A2A (Agent-to-Agent) protocol support
@@ -271,3 +308,7 @@ const hooks: PluginHooksAll = {
 - [ ] Agent capability discovery and matching
 - [ ] Multi-agent collaboration patterns
 - [ ] Persistent agent sessions across app restarts
+- [ ] Session List (`session/list`) - RFD for discovering existing sessions
+- [ ] Session Fork - RFD for forking sessions
+- [ ] Extension method routing (methods starting with `_`)
+- [ ] `_meta` field propagation on all protocol types

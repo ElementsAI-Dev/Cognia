@@ -80,6 +80,9 @@ export interface UseBackgroundAgentReturn {
 
   // Cleanup
   clearCompleted: () => void;
+
+  // Bridge delegation
+  delegateToTeam: (agentId: string, options?: { teamName?: string; teamDescription?: string; templateId?: string }) => Promise<string | null>;
 }
 
 export function useBackgroundAgent(
@@ -513,6 +516,15 @@ export function useBackgroundAgent(
     clearCompletedAgents();
   }, [clearCompletedAgents]);
 
+  // Delegate to team via bridge
+  const delegateToTeam = useCallback(
+    async (agentId: string, delegateOptions?: { teamName?: string; teamDescription?: string; templateId?: string }) => {
+      const bgManager = getManager();
+      return bgManager.delegateToTeam(agentId, delegateOptions);
+    },
+    []
+  );
+
   return {
     agents,
     runningAgents,
@@ -540,6 +552,7 @@ export function useBackgroundAgent(
     togglePanel,
     selectAgent,
     clearCompleted,
+    delegateToTeam,
   };
 }
 

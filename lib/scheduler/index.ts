@@ -36,6 +36,9 @@ export {
   registerCustomTaskHandler,
   unregisterCustomTaskHandler,
   executeScriptTask,
+  cancelPluginTaskExecution,
+  getActivePluginTaskCount,
+  isPluginTaskExecutionActive,
 } from './executors';
 
 // Script Executor

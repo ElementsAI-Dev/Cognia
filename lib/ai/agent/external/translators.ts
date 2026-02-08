@@ -547,3 +547,76 @@ export function getPrimaryText(content: ExternalAgentContent[]): string {
   const textContent = content.find((c): c is ExternalAgentTextContent => c.type === 'text');
   return textContent?.text || '';
 }
+
+// ============================================================================
+// ACP Tool Call Content Helpers
+// @see https://agentclientprotocol.com/protocol/tool-calls
+// ============================================================================
+
+/**
+ * Extract text from ACP tool call content array (handles union type)
+ */
+export function extractToolCallContentText(
+  content: Array<{ type: string; content?: { text?: string }; path?: string; terminalId?: string }>
+): string {
+  if (!content?.length) return '';
+
+  return content
+    .map((item) => {
+      if (item.type === 'content' && item.content?.text) {
+        return item.content.text;
+      }
+      if (item.type === 'diff' && item.path) {
+        return `[Diff: ${item.path}]`;
+      }
+      if (item.type === 'terminal' && item.terminalId) {
+        return `[Terminal: ${item.terminalId}]`;
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Check if tool call content contains a diff
+ */
+export function hasDiffContent(
+  content?: Array<{ type: string }>
+): boolean {
+  return content?.some((item) => item.type === 'diff') ?? false;
+}
+
+/**
+ * Check if tool call content contains a terminal
+ */
+export function hasTerminalContent(
+  content?: Array<{ type: string }>
+): boolean {
+  return content?.some((item) => item.type === 'terminal') ?? false;
+}
+
+/**
+ * Extract diff entries from tool call content
+ */
+export function extractDiffs(
+  content?: Array<{ type: string; path?: string; oldText?: string | null; newText?: string }>
+): Array<{ path: string; oldText: string | null; newText: string }> {
+  if (!content) return [];
+  return content
+    .filter((item) => item.type === 'diff' && item.path && item.newText !== undefined)
+    .map((item) => ({
+      path: item.path!,
+      oldText: item.oldText ?? null,
+      newText: item.newText!,
+    }));
+}
+
+/**
+ * Extract file locations from tool call update
+ */
+export function extractLocations(
+  locations?: Array<{ path: string; line?: number }>
+): Array<{ path: string; line?: number }> {
+  return locations || [];
+}
