@@ -338,17 +338,18 @@ export class RAGQueryCache {
   }
 
   /**
-   * Get cached result for a query
+   * Get cached result for a query (auto-initializes if needed)
    */
   async get(query: string, collectionName: string): Promise<RAGPipelineContext | null> {
     if (!this.config.enabled) return null;
+    if (!this.initialized) await this.initialize();
 
     const key = LRUCache.generateKey(query, collectionName);
     return this.cache.get(key);
   }
 
   /**
-   * Cache a query result
+   * Cache a query result (auto-initializes if needed)
    */
   async set(
     query: string,
@@ -356,6 +357,7 @@ export class RAGQueryCache {
     result: RAGPipelineContext
   ): Promise<void> {
     if (!this.config.enabled) return;
+    if (!this.initialized) await this.initialize();
 
     const key = LRUCache.generateKey(query, collectionName);
     this.cache.set(key, result, collectionName);

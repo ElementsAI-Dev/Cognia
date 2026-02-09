@@ -13,3 +13,5 @@ export {
   type ChartDataPoint,
   type ChartOptions,
 } from './chart-element';
+
+export { ChartEditor } from './chart-editor';

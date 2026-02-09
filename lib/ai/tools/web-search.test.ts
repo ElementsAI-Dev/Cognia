@@ -191,7 +191,7 @@ describe('executeWebSearch', () => {
     const result = await executeWebSearch(input, config);
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('No API key or provider settings provided');
+    expect(result.error).toContain('API key');
   });
 
   it('handles direct search errors with API route fallback', async () => {

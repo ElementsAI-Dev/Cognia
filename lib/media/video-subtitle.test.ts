@@ -286,6 +286,7 @@ describe('video-subtitle', () => {
         .mockResolvedValueOnce('1\n00:00:00,000 --> 00:00:05,000\nHello');
 
       mockedParseSubtitle.mockReturnValue({
+        format: 'srt',
         tracks: [{
           id: 'track-1',
           label: 'English',
@@ -296,6 +297,9 @@ describe('video-subtitle', () => {
           duration: 5000,
           cues: [{ id: '1', index: 1, startTime: 0, endTime: 5000, text: 'Hello' }],
         }],
+        metadata: {},
+        rawContent: '',
+        errors: [],
       });
 
       const result = await getVideoSubtitles('/path/to/video.mp4', 'api-key');
@@ -353,6 +357,7 @@ describe('video-subtitle', () => {
         .mockResolvedValueOnce('1\n00:00:00,000 --> 00:00:05,000\n你好');
 
       mockedParseSubtitle.mockReturnValue({
+        format: 'srt',
         tracks: [{
           id: 'track-1',
           label: 'Chinese',
@@ -363,6 +368,9 @@ describe('video-subtitle', () => {
           duration: 5000,
           cues: [],
         }],
+        metadata: {},
+        rawContent: '',
+        errors: [],
       });
 
       await getVideoSubtitles('/path/to/video.mp4', 'api-key', {
@@ -391,6 +399,7 @@ describe('video-subtitle', () => {
         .mockResolvedValueOnce('subtitle content');
 
       mockedParseSubtitle.mockReturnValue({
+        format: 'srt',
         tracks: [{
           id: 'track-1',
           label: 'English',
@@ -401,6 +410,9 @@ describe('video-subtitle', () => {
           duration: 5000,
           cues: [{ id: '1', index: 1, startTime: 0, endTime: 5000, text: 'Hello' }],
         }],
+        metadata: {},
+        rawContent: '',
+        errors: [],
       });
 
       const analyzeCallback = jest.fn().mockResolvedValue('Analysis result');
@@ -436,7 +448,11 @@ describe('video-subtitle', () => {
         .mockResolvedValueOnce('subtitle content');
 
       mockedParseSubtitle.mockReturnValue({
+        format: 'srt',
         tracks: [{ id: 't1', label: 'En', language: 'en', format: 'srt', isDefault: true, isSDH: false, duration: 1000, cues: [] }],
+        metadata: {},
+        rawContent: '',
+        errors: [],
       });
 
       const analyzeCallback = jest.fn().mockResolvedValue(

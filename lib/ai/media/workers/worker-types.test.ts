@@ -29,15 +29,8 @@ describe('worker-types', () => {
             contrast: 0,
             saturation: 0,
             hue: 0,
-            exposure: 0,
-            highlights: 0,
-            shadows: 0,
-            whites: 0,
-            blacks: 0,
-            temperature: 0,
-            tint: 0,
-            vibrance: 0,
-            clarity: 0,
+            blur: 0,
+            sharpen: 0,
           },
         },
       };
@@ -72,8 +65,8 @@ describe('worker-types', () => {
           imageData: new ImageData(1, 1),
           transform: {
             rotate: 90,
-            flipH: false,
-            flipV: false,
+            flipHorizontal: false,
+            flipVertical: false,
             scale: 1,
           },
         },
@@ -213,6 +206,7 @@ describe('worker-types', () => {
         amount: 50,
         radius: 1,
         threshold: 0,
+        method: 'unsharp-mask',
       };
 
       expect(options.amount).toBe(50);
@@ -224,11 +218,11 @@ describe('worker-types', () => {
     it('should have correct structure', () => {
       const options: BlurOptions = {
         radius: 5,
-        type: 'gaussian',
+        method: 'gaussian',
       };
 
       expect(options.radius).toBe(5);
-      expect(options.type).toBe('gaussian');
+      expect(options.method).toBe('gaussian');
     });
   });
 

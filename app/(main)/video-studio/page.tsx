@@ -50,12 +50,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import { useSettingsStore, useMediaStore } from '@/stores';
 import { useScreenRecordingStore } from '@/stores/media';
 import { useScreenRecording } from '@/hooks/native/use-screen-recording';
 import {
-  formatDuration,
   formatFileSize,
   type RecordingHistoryEntry,
   type VideoProcessingProgress,
@@ -162,7 +161,7 @@ export default function VideoStudioPage() {
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState<'mp4' | 'webm' | 'gif'>('mp4');
-  const [exportQuality, _setExportQuality] = useState(80);
+  const exportQuality = 80;
   const [exportState, setExportState] = useState({ isExporting: false, progress: 0, message: '' });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -194,7 +193,7 @@ export default function VideoStudioPage() {
 
   // Image-to-video state
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [_referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
+  const [, setReferenceImageFile] = useState<File | null>(null);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -625,10 +624,6 @@ export default function VideoStudioPage() {
     }
   }, []);
 
-  // Apply template (used by AIGenerationSidebar internally)
-  const _handleApplyTemplate = useCallback((templatePrompt: string) => {
-    setPrompt(templatePrompt);
-  }, []);
 
   // Filtered videos
   const displayedVideos = useMemo(() => {
@@ -777,32 +772,6 @@ export default function VideoStudioPage() {
     isMuted,
   ]);
 
-  // Video event handlers for recording preview
-  const _handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime * 1000);
-    }
-  }, []);
-
-  const _handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current) {
-      setVideoDuration(videoRef.current.duration * 1000);
-      setTrimRange({ start: 0, end: 100 });
-    }
-  }, []);
-
-  const _handleVideoEnded = useCallback(() => {
-    setIsPlaying(false);
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-    }
-  }, []);
-
-  const _toggleMute = useCallback(() => {
-    if (!videoRef.current) return;
-    videoRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
-  }, [isMuted]);
 
   // Recording selection
   const handleSelectRecording = useCallback((entry: RecordingHistoryEntry) => {
@@ -1042,34 +1011,9 @@ export default function VideoStudioPage() {
     }
   }, [scheduleExportReset, tEditor]);
 
-  // Format time for recording display
-  const _formatVideoTime = useCallback((ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const milliseconds = Math.floor((ms % 1000) / 10);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
-  }, []);
-
-  // Progress calculation for recording
-  const _progressPercent = videoDuration > 0 ? (currentTime / videoDuration) * 100 : 0;
+  // Trim time calculations for recording
   const trimStartTime = (trimRange.start / 100) * videoDuration;
   const trimEndTime = (trimRange.end / 100) * videoDuration;
-  const _trimmedDuration = trimEndTime - trimStartTime;
-
-  // Get current preview source
-  const _getCurrentPreviewSrc = useCallback(() => {
-    if (studioMode === 'recording' && selectedRecording?.file_path) {
-      return `file://${selectedRecording.file_path}`;
-    }
-    if (studioMode === 'ai-generation' && selectedVideo) {
-      return (
-        selectedVideo.videoUrl ||
-        (selectedVideo.videoBase64 ? `data:video/mp4;base64,${selectedVideo.videoBase64}` : '')
-      );
-    }
-    return '';
-  }, [studioMode, selectedRecording, selectedVideo]);
 
   return (
     <div className="h-full flex flex-col bg-background">

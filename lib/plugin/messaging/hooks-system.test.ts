@@ -12,6 +12,7 @@ import {
   priorityToNumber,
   priorityToString,
   PluginEventHooks,
+  PluginLifecycleHooks,
   getPluginEventHooks,
 } from './hooks-system';
 import type {
@@ -309,6 +310,157 @@ describe('Chat Hook System', () => {
   });
 });
 
+describe('PluginLifecycleHooks - New Dispatchers', () => {
+  let lifecycleHooks: PluginLifecycleHooks;
+
+  beforeEach(() => {
+    lifecycleHooks = new PluginLifecycleHooks();
+  });
+
+  describe('Message Lifecycle Hooks', () => {
+    it('dispatchOnMessageDelete should call registered hooks', () => {
+      const onMessageDelete = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onMessageDelete });
+      lifecycleHooks.dispatchOnMessageDelete('msg-1', 'session-1');
+      expect(onMessageDelete).toHaveBeenCalledWith('msg-1', 'session-1');
+    });
+
+    it('dispatchOnMessageEdit should call registered hooks', () => {
+      const onMessageEdit = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onMessageEdit });
+      lifecycleHooks.dispatchOnMessageEdit('msg-1', 'old text', 'new text', 'session-1');
+      expect(onMessageEdit).toHaveBeenCalledWith('msg-1', 'old text', 'new text', 'session-1');
+    });
+
+    it('dispatchOnMessageDelete should handle errors gracefully', () => {
+      const onMessageDelete = jest.fn(() => { throw new Error('test error'); });
+      lifecycleHooks.registerHooks('test-plugin', { onMessageDelete });
+      expect(() => lifecycleHooks.dispatchOnMessageDelete('msg-1', 'session-1')).not.toThrow();
+    });
+  });
+
+  describe('Session Lifecycle Extended Hooks', () => {
+    it('dispatchOnSessionRename should call registered hooks', () => {
+      const onSessionRename = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onSessionRename });
+      lifecycleHooks.dispatchOnSessionRename('session-1', 'Old Title', 'New Title');
+      expect(onSessionRename).toHaveBeenCalledWith('session-1', 'Old Title', 'New Title');
+    });
+
+    it('dispatchOnSessionClear should call registered hooks', () => {
+      const onSessionClear = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onSessionClear });
+      lifecycleHooks.dispatchOnSessionClear('session-1');
+      expect(onSessionClear).toHaveBeenCalledWith('session-1');
+    });
+  });
+
+  describe('Chat Flow Hooks', () => {
+    it('dispatchOnChatRegenerate should call registered hooks', () => {
+      const onChatRegenerate = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onChatRegenerate });
+      lifecycleHooks.dispatchOnChatRegenerate('msg-1', 'session-1');
+      expect(onChatRegenerate).toHaveBeenCalledWith('msg-1', 'session-1');
+    });
+
+    it('dispatchOnModelSwitch should call registered hooks', () => {
+      const onModelSwitch = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onModelSwitch });
+      lifecycleHooks.dispatchOnModelSwitch('anthropic', 'claude-3', 'openai', 'gpt-4o');
+      expect(onModelSwitch).toHaveBeenCalledWith('anthropic', 'claude-3', 'openai', 'gpt-4o');
+    });
+
+    it('dispatchOnChatModeSwitch should call registered hooks', () => {
+      const onChatModeSwitch = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onChatModeSwitch });
+      lifecycleHooks.dispatchOnChatModeSwitch('session-1', 'agent', 'chat');
+      expect(onChatModeSwitch).toHaveBeenCalledWith('session-1', 'agent', 'chat');
+    });
+
+    it('dispatchOnSystemPromptChange should call registered hooks', () => {
+      const onSystemPromptChange = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onSystemPromptChange });
+      lifecycleHooks.dispatchOnSystemPromptChange('session-1', 'new prompt', 'old prompt');
+      expect(onSystemPromptChange).toHaveBeenCalledWith('session-1', 'new prompt', 'old prompt');
+    });
+  });
+
+  describe('Agent Plan Hooks', () => {
+    it('dispatchOnAgentPlanCreate should call registered hooks', () => {
+      const onAgentPlanCreate = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onAgentPlanCreate });
+      const tasks = [{ id: 'task-1', description: 'Do something' }];
+      lifecycleHooks.dispatchOnAgentPlanCreate('agent-1', tasks);
+      expect(onAgentPlanCreate).toHaveBeenCalledWith('agent-1', tasks);
+    });
+
+    it('dispatchOnAgentPlanStepComplete should call registered hooks', () => {
+      const onAgentPlanStepComplete = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onAgentPlanStepComplete });
+      lifecycleHooks.dispatchOnAgentPlanStepComplete('agent-1', 'task-1', 'result data', true);
+      expect(onAgentPlanStepComplete).toHaveBeenCalledWith('agent-1', 'task-1', 'result data', true);
+    });
+
+    it('dispatchOnAgentPlanStepComplete should handle failed steps', () => {
+      const onAgentPlanStepComplete = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onAgentPlanStepComplete });
+      lifecycleHooks.dispatchOnAgentPlanStepComplete('agent-1', 'task-2', 'error msg', false);
+      expect(onAgentPlanStepComplete).toHaveBeenCalledWith('agent-1', 'task-2', 'error msg', false);
+    });
+  });
+
+  describe('Scheduler Hooks', () => {
+    it('dispatchOnScheduledTaskStart should call registered hooks', () => {
+      const onScheduledTaskStart = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onScheduledTaskStart });
+      lifecycleHooks.dispatchOnScheduledTaskStart('task-1', 'exec-1');
+      expect(onScheduledTaskStart).toHaveBeenCalledWith('task-1', 'exec-1');
+    });
+
+    it('dispatchOnScheduledTaskComplete should call registered hooks', () => {
+      const onScheduledTaskComplete = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onScheduledTaskComplete });
+      const result = { success: true, output: { data: 'test' } };
+      lifecycleHooks.dispatchOnScheduledTaskComplete('task-1', 'exec-1', result);
+      expect(onScheduledTaskComplete).toHaveBeenCalledWith('task-1', 'exec-1', result);
+    });
+
+    it('dispatchOnScheduledTaskError should call registered hooks', () => {
+      const onScheduledTaskError = jest.fn();
+      lifecycleHooks.registerHooks('test-plugin', { onScheduledTaskError });
+      const error = new Error('Task failed');
+      lifecycleHooks.dispatchOnScheduledTaskError('task-1', 'exec-1', error);
+      expect(onScheduledTaskError).toHaveBeenCalledWith('task-1', 'exec-1', error);
+    });
+  });
+
+  describe('Multiple plugins', () => {
+    it('should dispatch to all registered plugins in order', () => {
+      const calls: string[] = [];
+      lifecycleHooks.registerHooks('plugin-a', {
+        onChatRegenerate: () => calls.push('a'),
+      });
+      lifecycleHooks.registerHooks('plugin-b', {
+        onChatRegenerate: () => calls.push('b'),
+      });
+      lifecycleHooks.dispatchOnChatRegenerate('msg-1', 'session-1');
+      expect(calls).toEqual(['a', 'b']);
+    });
+
+    it('should continue dispatching if one plugin throws', () => {
+      const calls: string[] = [];
+      lifecycleHooks.registerHooks('plugin-a', {
+        onModelSwitch: () => { throw new Error('fail'); },
+      });
+      lifecycleHooks.registerHooks('plugin-b', {
+        onModelSwitch: () => calls.push('b'),
+      });
+      lifecycleHooks.dispatchOnModelSwitch('openai', 'gpt-4o');
+      expect(calls).toEqual(['b']);
+    });
+  });
+});
+
 describe('Hook Type Definitions', () => {
   it('should have valid PromptSubmitResult structure', () => {
     const proceed: PromptSubmitResult = { action: 'proceed' };
@@ -383,5 +535,180 @@ describe('Hook Type Definitions', () => {
     expect(withModified.modifiedContent).toBe('Enhanced response with formatting');
     expect(full.additionalMessages).toHaveLength(1);
     expect(full.metadata).toHaveProperty('sentiment', 'positive');
+  });
+});
+
+describe('PluginEventHooks - timeout and new dispatchers', () => {
+  let eventHooks: PluginEventHooks;
+  const { usePluginStore } = jest.requireMock('@/stores/plugin');
+
+  beforeEach(() => {
+    eventHooks = new PluginEventHooks();
+    jest.clearAllMocks();
+  });
+
+  describe('executeHook timeout', () => {
+    it('should not crash when hooks throw errors', () => {
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'error-plugin': {
+            status: 'enabled',
+            hooks: {
+              onCodeExecutionStart: () => { throw new Error('hook crash'); },
+            },
+          },
+        },
+      });
+
+      // Should not throw - errors are caught by executeHook
+      expect(() => {
+        eventHooks.dispatchCodeExecutionStart('python', 'print("hi")');
+      }).not.toThrow();
+    });
+
+    it('should handle hooks that complete before timeout', async () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'fast-plugin': {
+            status: 'enabled',
+            hooks: { onCodeExecutionComplete: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchCodeExecutionComplete('python', { output: 'hello' });
+
+      // Should have called the handler
+      expect(handler).toHaveBeenCalledWith('python', { output: 'hello' }, undefined);
+    });
+  });
+
+  describe('Code Execution dispatchers', () => {
+    it('should dispatch onCodeExecutionStart', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onCodeExecutionStart: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchCodeExecutionStart('javascript', 'console.log("hi")', 'sandbox-1');
+      expect(handler).toHaveBeenCalledWith('javascript', 'console.log("hi")', 'sandbox-1');
+    });
+
+    it('should dispatch onCodeExecutionError', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onCodeExecutionError: handler },
+          },
+        },
+      });
+
+      const error = new Error('Syntax error');
+      eventHooks.dispatchCodeExecutionError('python', error, 'sandbox-2');
+      expect(handler).toHaveBeenCalledWith('python', error, 'sandbox-2');
+    });
+  });
+
+  describe('MCP Server dispatchers', () => {
+    it('should dispatch onMCPServerConnect', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onMCPServerConnect: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchMCPServerConnect('server-1', 'My MCP Server');
+      expect(handler).toHaveBeenCalledWith('server-1', 'My MCP Server');
+    });
+
+    it('should dispatch onMCPServerDisconnect', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onMCPServerDisconnect: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchMCPServerDisconnect('server-1');
+      expect(handler).toHaveBeenCalledWith('server-1');
+    });
+
+    it('should dispatch onMCPToolCall', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onMCPToolCall: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchMCPToolCall('server-1', 'read_file', { path: '/tmp/test.txt' });
+      expect(handler).toHaveBeenCalledWith('server-1', 'read_file', { path: '/tmp/test.txt' });
+    });
+
+    it('should dispatch onMCPToolResult', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'test-plugin': {
+            status: 'enabled',
+            hooks: { onMCPToolResult: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchMCPToolResult('server-1', 'read_file', { content: 'file data' });
+      expect(handler).toHaveBeenCalledWith('server-1', 'read_file', { content: 'file data' });
+    });
+
+    it('should skip disabled plugins', () => {
+      const handler = jest.fn();
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'disabled-plugin': {
+            status: 'disabled',
+            hooks: { onMCPToolCall: handler },
+          },
+        },
+      });
+
+      eventHooks.dispatchMCPToolCall('server-1', 'tool', {});
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('should handle plugin errors gracefully', () => {
+      usePluginStore.getState.mockReturnValue({
+        plugins: {
+          'error-plugin': {
+            status: 'enabled',
+            hooks: {
+              onMCPServerConnect: () => { throw new Error('Plugin crash'); },
+            },
+          },
+        },
+      });
+
+      // Should not throw - errors are caught internally
+      expect(() => {
+        eventHooks.dispatchMCPServerConnect('server-1', 'Test');
+      }).not.toThrow();
+    });
   });
 });

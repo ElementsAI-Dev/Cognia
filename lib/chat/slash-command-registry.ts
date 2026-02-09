@@ -17,6 +17,7 @@ import type {
 } from '@/types/chat/slash-commands';
 import type { SlashCommandCategory } from '@/types/chat/input-completion';
 import { SLASH_COMMAND_CATEGORY_INFO } from '@/types/chat/slash-commands';
+import { getPluginLifecycleHooks } from '@/lib/plugin';
 
 /** Singleton registry instance */
 class SlashCommandRegistry {
@@ -173,6 +174,14 @@ class SlashCommandRegistry {
     }
 
     try {
+      // Dispatch to plugin command hooks first
+      try {
+        const handled = await getPluginLifecycleHooks().dispatchOnCommand(commandName, Object.values(args));
+        if (handled) {
+          return { success: true, message: `Command handled by plugin: /${commandName}` };
+        }
+      } catch { /* plugin system may not be initialized */ }
+
       return await command.handler(args, context);
     } catch (error) {
       return {

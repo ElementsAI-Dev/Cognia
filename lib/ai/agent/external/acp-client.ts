@@ -658,7 +658,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     this.updateSession(sessionId, { status: 'executing' });
 
     // Add message to session history
-    session.messages.push(message);
+    (session.messages ?? (session.messages = [])).push(message);
 
     // Create a queue for events
     const eventQueue: ExternalAgentEvent[] = [];
@@ -1851,7 +1851,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    * Emit an event to all listeners
    */
   private emitEvent(event: ExternalAgentEvent): void {
-    const listeners = this.eventListeners.get(event.sessionId);
+    const listeners = this.eventListeners.get(event.sessionId ?? '');
     if (listeners) {
       for (const listener of listeners) {
         try {

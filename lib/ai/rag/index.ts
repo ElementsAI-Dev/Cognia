@@ -186,3 +186,71 @@ export {
   CITATION_STYLE_INFO,
   getAvailableCitationStyles,
 } from './citation-formatter';
+
+// Retrieval Grader (Corrective RAG)
+export {
+  type RetrievalGraderConfig,
+  type GradedDocument,
+  type GradingResult,
+  gradeDocumentHeuristic,
+  gradeDocumentLLM,
+  gradeRetrievedDocuments,
+  isRetrievalSufficient,
+} from './retrieval-grader';
+
+// Answer Grounding (Self-Reflective RAG)
+export {
+  type GroundingCheckConfig,
+  type GroundingCheckResult,
+  checkGroundingHeuristic,
+  checkGroundingLLM,
+  checkAnswerGrounding,
+  isAnswerGrounded,
+} from './answer-grounding';
+
+// RAG Evaluator (Quality Metrics)
+export {
+  type RAGEvaluationConfig,
+  type RAGEvaluationResult,
+  evaluateContextPrecision,
+  evaluateContextRecall,
+  evaluateFaithfulness,
+  evaluateAnswerRelevance,
+  evaluateRAG,
+} from './rag-evaluator';
+
+// RAG Guardrails (Input/Output Safety)
+export {
+  type GuardrailsConfig,
+  type SanitizationResult,
+  type ValidationResult,
+  type ConfidenceAssessment,
+  sanitizeQuery,
+  validateRetrievalInput,
+  assessConfidence,
+  detectLowConfidence,
+} from './rag-guardrails';
+
+// CJK Tokenizer (Multilingual Support)
+export {
+  isCJKChar,
+  isCJKText,
+  detectCJKLanguage,
+  tokenizeCJK,
+  tokenizeMultilingual,
+  estimateCJKTokenCount,
+  CJK_STOP_WORDS,
+  CHINESE_STOP_WORDS,
+  JAPANESE_STOP_WORDS,
+  KOREAN_STOP_WORDS,
+} from './cjk-tokenizer';
+
+// Embedding Cache (LRU)
+export {
+  type EmbeddingCacheConfig,
+  type EmbeddingCacheStats,
+  EmbeddingCache,
+  createEmbeddingCache,
+  getGlobalEmbeddingCache,
+  resetGlobalEmbeddingCache,
+} from './embedding-cache';

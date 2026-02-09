@@ -28,6 +28,7 @@ import type {
   AcpConfigOption,
 } from '@/types/agent/external-agent';
 import type { AgentTool } from '@/lib/ai/agent';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 // ============================================================================
 // Types
@@ -357,9 +358,14 @@ export function useExternalAgent(): UseExternalAgentReturn {
         const manager = await getManager();
         await manager.connect(agentId);
         await refresh();
+
+        // Dispatch external agent connect hook
+        const agent = manager.getAllAgents().find((a) => a.config.id === agentId);
+        getPluginEventHooks().dispatchExternalAgentConnect(agentId, agent?.config.name || agentId);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
+        getPluginEventHooks().dispatchExternalAgentError(agentId, message);
         throw err;
       } finally {
         setIsLoading(false);
@@ -383,6 +389,9 @@ export function useExternalAgent(): UseExternalAgentReturn {
         }
 
         await refresh();
+
+        // Dispatch external agent disconnect hook
+        getPluginEventHooks().dispatchExternalAgentDisconnect(agentId);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
@@ -508,6 +517,10 @@ export function useExternalAgent(): UseExternalAgentReturn {
           });
         };
 
+        // Dispatch external agent execution start hook
+        const sessionId = activeSession?.id || '';
+        getPluginEventHooks().dispatchExternalAgentExecutionStart(activeAgentId, sessionId, prompt);
+
         const result = await manager.execute(activeAgentId, prompt, {
           ...options,
           onProgress: (p: number, message?: string) => {
@@ -519,10 +532,23 @@ export function useExternalAgent(): UseExternalAgentReturn {
         });
 
         setLastResult(result);
+
+        // Dispatch external agent execution complete hook
+        getPluginEventHooks().dispatchExternalAgentExecutionComplete(
+          activeAgentId,
+          sessionId,
+          result.success,
+          result.finalResponse
+        );
+
         return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
+
+        // Dispatch external agent error hook
+        getPluginEventHooks().dispatchExternalAgentError(activeAgentId, message);
+
         throw err;
       } finally {
         setIsExecuting(false);
@@ -531,7 +557,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
         abortControllerRef.current = null;
       }
     },
-    [getManager, activeAgentId]
+    [getManager, activeAgentId, activeSession]
   );
 
   // Execute with streaming
@@ -620,7 +646,7 @@ export function useExternalAgent(): UseExternalAgentReturn {
       if (activeAgentId && pendingRequest) {
         try {
           const manager = await getManager();
-          await manager.respondToPermission(activeAgentId, pendingRequest.sessionId, response);
+          await manager.respondToPermission(activeAgentId, pendingRequest.sessionId ?? '', response);
         } catch (err) {
           console.error('[useExternalAgent] Failed to respond to permission:', err);
           setError(err instanceof Error ? err.message : String(err));

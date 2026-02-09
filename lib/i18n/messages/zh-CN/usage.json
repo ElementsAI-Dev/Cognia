@@ -19,7 +19,9 @@
     "clearAll": "全部清除",
     "requests": "请求",
     "records": "记录",
-    "searchPlaceholder": "搜索提供商或模型..."
+    "searchPlaceholder": "搜索提供商或模型...",
+    "exportTimeSeries": "导出时间序列 (CSV)",
+    "exportSummary": "导出摘要 (JSON)"
   },
   "usage": {
     "today": "今日",
@@ -52,6 +54,16 @@
     "maxRequestsPerDay": "每日最大请求数",
     "maxTokensPerDay": "每日最大令牌数",
     "maxCostPerDay": "每日最大费用 ($)",
-    "maxCostPerMonth": "每月最大费用 ($)"
+    "maxCostPerMonth": "每月最大费用 ($)",
+    "performanceMetrics": "性能指标",
+    "avgLatency": "平均延迟",
+    "ttft": "首字延迟",
+    "speed": "速度",
+    "errorRate": "错误率",
+    "dailyLimit": "每日限额",
+    "inputTokens": "输入",
+    "outputTokens": "输出",
+    "cost": "费用",
+    "viewFullReport": "查看完整报告"
   }
 }

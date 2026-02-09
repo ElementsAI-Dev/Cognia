@@ -1,12 +1,14 @@
 {
   "name": "@cognia/plugin-docker-tools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Docker container management for Cognia AI agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
     "validate": "cognia-plugin validate --strict",
     "prepublishOnly": "npm run build && npm run validate"
   },

@@ -1,6 +1,6 @@
 /**
  * OpenAI TTS Provider - High-quality neural voices from OpenAI
- * Supports tts-1 and tts-1-hd models
+ * Supports gpt-4o-mini-tts, tts-1, and tts-1-hd models
  */
 
 import type { TTSResponse, OpenAITTSVoice, OpenAITTSModel } from '@/types/media/tts';
@@ -17,6 +17,7 @@ export interface OpenAITTSOptions {
   voice?: OpenAITTSVoice;
   model?: OpenAITTSModel;
   speed?: number; // 0.25 - 4.0
+  instructions?: string; // Voice style instructions (gpt-4o-mini-tts only)
   responseFormat?: 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm';
 }
 
@@ -30,8 +31,9 @@ export async function generateOpenAITTS(
   const {
     apiKey,
     voice = 'alloy',
-    model = 'tts-1',
+    model = 'gpt-4o-mini-tts',
     speed = 1.0,
+    instructions,
     responseFormat = 'mp3',
   } = options;
 
@@ -56,19 +58,27 @@ export async function generateOpenAITTS(
   const clampedSpeed = Math.min(4.0, Math.max(0.25, speed));
 
   try {
+    // Build request body
+    const requestBody: Record<string, unknown> = {
+      model,
+      input: text,
+      voice,
+      speed: clampedSpeed,
+      response_format: responseFormat,
+    };
+
+    // Add instructions for gpt-4o-mini-tts model only
+    if (instructions && model === 'gpt-4o-mini-tts') {
+      requestBody.instructions = instructions;
+    }
+
     const response = await proxyFetch(OPENAI_TTS_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        input: text,
-        voice,
-        speed: clampedSpeed,
-        response_format: responseFormat,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -106,8 +116,9 @@ export async function generateOpenAITTSViaApi(
 ): Promise<TTSResponse> {
   const {
     voice = 'alloy',
-    model = 'tts-1',
+    model = 'gpt-4o-mini-tts',
     speed = 1.0,
+    instructions,
     responseFormat = 'mp3',
   } = options;
 
@@ -122,6 +133,7 @@ export async function generateOpenAITTSViaApi(
         voice,
         model,
         speed,
+        instructions,
         responseFormat,
       }),
     });
@@ -162,8 +174,9 @@ export async function streamOpenAITTS(
   const {
     apiKey,
     voice = 'alloy',
-    model = 'tts-1',
+    model = 'gpt-4o-mini-tts',
     speed = 1.0,
+    instructions,
   } = options;
 
   if (!apiKey) {
@@ -174,19 +187,25 @@ export async function streamOpenAITTS(
   }
 
   try {
+    const streamBody: Record<string, unknown> = {
+      model,
+      input: text,
+      voice,
+      speed: Math.min(4.0, Math.max(0.25, speed)),
+      response_format: 'mp3',
+    };
+
+    if (instructions && model === 'gpt-4o-mini-tts') {
+      streamBody.instructions = instructions;
+    }
+
     const response = await proxyFetch(OPENAI_TTS_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model,
-        input: text,
-        voice,
-        speed: Math.min(4.0, Math.max(0.25, speed)),
-        response_format: 'mp3',
-      }),
+      body: JSON.stringify(streamBody),
     });
 
     if (!response.ok) {

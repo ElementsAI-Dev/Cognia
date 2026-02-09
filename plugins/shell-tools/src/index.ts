@@ -5,7 +5,7 @@
  * Includes command validation, output limiting, and security controls.
  */
 
-import { definePlugin, Schema, parameters } from '@cognia/plugin-sdk';
+import { definePlugin, defineCommand, Schema, parameters } from '@cognia/plugin-sdk';
 import type { PluginContext, PluginHooksAll, PluginToolContext } from '@cognia/plugin-sdk';
 
 // ============================================================================
@@ -486,8 +486,91 @@ function createWhichTool(context: PluginContext) {
 }
 
 // ============================================================================
+// Commands
+// ============================================================================
+
+function createShellCommands(context: PluginContext) {
+  return [
+    defineCommand(
+      'shell-tools.detect-shell',
+      'Detect Shell',
+      async () => {
+        const shell = detectShell();
+        context.ui.showNotification({
+          title: 'Current Shell',
+          message: shell,
+          type: 'info',
+        });
+      },
+      { description: 'Detect the current shell environment', icon: 'terminal' }
+    ),
+    defineCommand(
+      'shell-tools.system-info',
+      'System Info',
+      async () => {
+        const info = [
+          `Platform: ${process.platform}`,
+          `Architecture: ${process.arch}`,
+          `Node: ${process.version}`,
+          `Shell: ${detectShell()}`,
+          `CWD: ${process.cwd()}`,
+        ].join('\n');
+        context.ui.showNotification({
+          title: 'System Information',
+          message: info,
+          type: 'info',
+        });
+      },
+      { description: 'Show system information', icon: 'cpu' }
+    ),
+    defineCommand(
+      'shell-tools.clear-history',
+      'Clear Execution History',
+      async () => {
+        await context.storage.delete('executionHistory');
+        context.ui.showNotification({
+          title: 'History Cleared',
+          message: 'Shell execution history has been cleared',
+          type: 'success',
+        });
+      },
+      { description: 'Clear command execution history', icon: 'trash' }
+    ),
+  ];
+}
+
+// ============================================================================
+// Execution History
+// ============================================================================
+
+interface ExecutionRecord {
+  command: string;
+  exitCode: number;
+  success: boolean;
+  timestamp: number;
+  durationMs: number;
+}
+
+const MAX_HISTORY = 50;
+
+async function recordExecution(
+  context: PluginContext,
+  record: ExecutionRecord
+): Promise<void> {
+  const history = (await context.storage.get<ExecutionRecord[]>('executionHistory')) || [];
+  history.push(record);
+  // Keep only last N entries
+  if (history.length > MAX_HISTORY) {
+    history.splice(0, history.length - MAX_HISTORY);
+  }
+  await context.storage.set('executionHistory', history);
+}
+
+// ============================================================================
 // Plugin Definition
 // ============================================================================
+
+const eventCleanups: Array<() => void> = [];
 
 export default definePlugin({
   activate(context: PluginContext): PluginHooksAll | void {
@@ -527,6 +610,17 @@ export default definePlugin({
 
     context.logger.info(`Registered ${tools.length} shell tools with security controls`);
 
+    // Register commands
+    const commands = createShellCommands(context);
+    context.logger.info(`Registered ${commands.length} commands`);
+
+    // Event listeners
+    const unsub1 = context.events.on('shell-tools:exec-complete', async (data: unknown) => {
+      const record = data as ExecutionRecord;
+      await recordExecution(context, record);
+    });
+    eventCleanups.push(unsub1);
+
     return {
       onEnable: async () => {
         context.logger.info('Shell Tools enabled - security controls active');
@@ -545,6 +639,21 @@ export default definePlugin({
         });
         context.logger.info('Shell Tools config updated');
       },
+      onCommand: (commandId: string) => {
+        const command = commands.find((c) => c.id === commandId);
+        if (command) {
+          command.execute();
+          return true;
+        }
+        return false;
+      },
     };
+  },
+
+  deactivate() {
+    for (const cleanup of eventCleanups) {
+      cleanup();
+    }
+    eventCleanups.length = 0;
   },
 });

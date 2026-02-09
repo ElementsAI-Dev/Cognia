@@ -65,11 +65,11 @@ describe('agent-context-tools', () => {
         },
       });
 
-      const result = await tool.execute({ path: 'context/tool-output/test.txt' });
+      const result = await tool.execute({ path: 'context/tool-output/test.txt' }) as Record<string, unknown>;
 
       expect(result.path).toBe('context/tool-output/test.txt');
       expect(result.content).toBe('file content here');
-      expect(result.metadata.totalSize).toBe(100);
+      expect((result.metadata as Record<string, unknown>).totalSize).toBe(100);
       expect(mockReadContextFile).toHaveBeenCalledWith('context/tool-output/test.txt', {
         startLine: undefined,
         endLine: undefined,
@@ -104,7 +104,7 @@ describe('agent-context-tools', () => {
       const tool = createReadContextFileTool();
       mockReadContextFile.mockResolvedValue(null);
 
-      const result = await tool.execute({ path: 'non-existent.txt' });
+      const result = await tool.execute({ path: 'non-existent.txt' }) as Record<string, unknown>;
 
       expect(result.error).toContain('File not found');
     });
@@ -134,7 +134,7 @@ describe('agent-context-tools', () => {
         },
       });
 
-      const result = await tool.execute({ path: 'test.txt', lineCount: 50 });
+      const result = await tool.execute({ path: 'test.txt', lineCount: 50 }) as Record<string, unknown>;
 
       expect(result.path).toBe('test.txt');
       expect(result.linesReturned).toBe(3);
@@ -159,7 +159,7 @@ describe('agent-context-tools', () => {
       const tool = createTailContextFileTool();
       mockTailContextFile.mockResolvedValue(null);
 
-      const result = await tool.execute({ path: 'missing.txt', lineCount: 10 });
+      const result = await tool.execute({ path: 'missing.txt', lineCount: 10 }) as Record<string, unknown>;
 
       expect(result.error).toContain('File not found');
     });
@@ -185,7 +185,7 @@ describe('agent-context-tools', () => {
         pattern: 'matching',
         ignoreCase: true,
         limit: 20,
-      });
+      }) as Record<string, unknown>;
 
       expect(result.matchCount).toBe(2);
       expect(result.matches).toHaveLength(2);
@@ -260,11 +260,11 @@ describe('agent-context-tools', () => {
         },
       ]);
 
-      const result = await tool.execute({ limit: 20 });
+      const result = await tool.execute({ limit: 20 }) as Record<string, unknown>;
 
       expect(result.fileCount).toBe(2);
       expect(result.files).toHaveLength(2);
-      expect(result.files[0].category).toBe('tool-output');
+      expect((result.files as Array<Record<string, unknown>>)[0].category).toBe('tool-output');
     });
 
     it('should filter by category', async () => {
@@ -320,7 +320,7 @@ describe('agent-context-tools', () => {
         lastAccessed: new Date('2024-01-15'),
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({}) as Record<string, unknown>;
 
       expect(result.filesByCategory).toEqual({
         'tool-output': 10,
@@ -348,7 +348,7 @@ describe('agent-context-tools', () => {
         lastAccessed: undefined,
       });
 
-      const result = await tool.execute({});
+      const result = await tool.execute({}) as Record<string, unknown>;
 
       expect(result.oldestFile).toBeUndefined();
       expect(result.lastAccessed).toBeUndefined();

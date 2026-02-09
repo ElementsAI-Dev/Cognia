@@ -55,15 +55,20 @@ export const TOOL_CATEGORY_CONFIGS: ToolCategoryConfig[] = [
     tools: [
       { name: 'file_read', descriptionKey: 'tools.fileRead', requiresApproval: false },
       { name: 'file_write', descriptionKey: 'tools.fileWrite', requiresApproval: true },
+      { name: 'file_binary_write', descriptionKey: 'tools.fileBinaryWrite', requiresApproval: true },
       { name: 'file_list', descriptionKey: 'tools.fileList', requiresApproval: false },
       { name: 'file_exists', descriptionKey: 'tools.fileExists', requiresApproval: false },
       { name: 'file_delete', descriptionKey: 'tools.fileDelete', requiresApproval: true },
       { name: 'file_copy', descriptionKey: 'tools.fileCopy', requiresApproval: true },
       { name: 'file_rename', descriptionKey: 'tools.fileRename', requiresApproval: true },
+      { name: 'file_move', descriptionKey: 'tools.fileMove', requiresApproval: true },
       { name: 'file_info', descriptionKey: 'tools.fileInfo', requiresApproval: false },
       { name: 'file_search', descriptionKey: 'tools.fileSearch', requiresApproval: false },
       { name: 'file_append', descriptionKey: 'tools.fileAppend', requiresApproval: true },
+      { name: 'file_hash', descriptionKey: 'tools.fileHash', requiresApproval: false },
+      { name: 'content_search', descriptionKey: 'tools.contentSearch', requiresApproval: false },
       { name: 'directory_create', descriptionKey: 'tools.directoryCreate', requiresApproval: true },
+      { name: 'directory_delete', descriptionKey: 'tools.directoryDelete', requiresApproval: true },
     ],
   },
   {
@@ -100,6 +105,37 @@ export const TOOL_CATEGORY_CONFIGS: ToolCategoryConfig[] = [
     descriptionKey: 'codeExecutionDesc',
     requiresApproval: true,
     tools: [{ name: 'execute_code', descriptionKey: 'tools.executeCode', requiresApproval: true }],
+  },
+  {
+    id: 'shell',
+    nameKey: 'shellExecution',
+    descriptionKey: 'shellExecutionDesc',
+    requiresApproval: true,
+    tools: [{ name: 'shell_execute', descriptionKey: 'tools.shellExecute', requiresApproval: true }],
+  },
+  {
+    id: 'process',
+    nameKey: 'processManagement',
+    descriptionKey: 'processManagementDesc',
+    requiresApproval: true,
+    tools: [
+      { name: 'list_processes', descriptionKey: 'tools.listProcesses', requiresApproval: false },
+      { name: 'search_processes', descriptionKey: 'tools.searchProcesses', requiresApproval: false },
+      { name: 'start_process', descriptionKey: 'tools.startProcess', requiresApproval: true },
+      { name: 'terminate_process', descriptionKey: 'tools.terminateProcess', requiresApproval: true },
+    ],
+  },
+  {
+    id: 'environment',
+    nameKey: 'environmentManagement',
+    descriptionKey: 'environmentManagementDesc',
+    requiresApproval: true,
+    tools: [
+      { name: 'create_virtual_env', descriptionKey: 'tools.createVirtualEnv', requiresApproval: true },
+      { name: 'install_packages', descriptionKey: 'tools.installPackages', requiresApproval: true },
+      { name: 'run_python', descriptionKey: 'tools.runPython', requiresApproval: true },
+      { name: 'list_env_packages', descriptionKey: 'tools.listEnvPackages', requiresApproval: false },
+    ],
   },
 ];
 

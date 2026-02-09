@@ -11,28 +11,39 @@ import type { Paper } from '@/types/learning/academic';
 
 const mockPaper: Paper = {
   id: 'test-paper-1',
+  providerId: 'semantic-scholar',
+  externalId: 'ext-1',
   title: 'Deep Learning for Natural Language Processing',
   authors: [
-    { name: 'John Smith', affiliations: [] },
-    { name: 'Jane Doe', affiliations: [] },
+    { name: 'John Smith' },
+    { name: 'Jane Doe' },
   ],
   abstract: 'This paper presents a novel approach to NLP using deep learning.',
   year: 2023,
   venue: 'Conference on Machine Learning',
   citationCount: 100,
-  source: 'arxiv',
+  urls: [],
+  metadata: {},
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  fetchedAt: new Date(),
 };
 
 const _mockPaper2: Paper = {
   id: 'test-paper-2',
+  providerId: 'semantic-scholar',
+  externalId: 'ext-2',
   title: 'Attention Is All You Need',
-  authors: [{ name: 'Ashish Vaswani', affiliations: [] }],
+  authors: [{ name: 'Ashish Vaswani' }],
   abstract: 'The dominant sequence transduction models are based on RNNs...',
   year: 2017,
   venue: 'NeurIPS',
   citationCount: 50000,
-  doi: '10.5555/3295222.3295349',
-  source: 'semantic-scholar',
+  urls: [],
+  metadata: { doi: '10.5555/3295222.3295349' },
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  fetchedAt: new Date(),
 };
 
 describe('Citation Inserter', () => {

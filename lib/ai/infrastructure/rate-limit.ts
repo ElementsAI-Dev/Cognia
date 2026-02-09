@@ -403,3 +403,65 @@ export async function checkRateLimit(
   const limiter = getRateLimiter(provider);
   return limiter.limit(identifier);
 }
+
+/**
+ * Record a Retry-After value from an API response header.
+ * This temporarily blocks the provider for the specified duration,
+ * preventing further requests until the retry-after period expires.
+ *
+ * @param provider - The provider ID
+ * @param retryAfterSeconds - The Retry-After value in seconds from the API response
+ */
+export function recordRetryAfter(provider: string, retryAfterSeconds: number): void {
+  const retryAfterMs = retryAfterSeconds * 1000;
+  retryAfterOverrides.set(provider, {
+    blockedUntil: Date.now() + retryAfterMs,
+    retryAfterSeconds,
+  });
+}
+
+/**
+ * Check if a provider is blocked due to a Retry-After header
+ */
+export function isProviderRetryBlocked(provider: string): { blocked: boolean; retryAfterSeconds?: number } {
+  const override = retryAfterOverrides.get(provider);
+  if (!override) return { blocked: false };
+
+  const now = Date.now();
+  if (now >= override.blockedUntil) {
+    retryAfterOverrides.delete(provider);
+    return { blocked: false };
+  }
+
+  return {
+    blocked: true,
+    retryAfterSeconds: Math.ceil((override.blockedUntil - now) / 1000),
+  };
+}
+
+/**
+ * Parse Retry-After header value (supports both seconds and HTTP-date formats)
+ */
+export function parseRetryAfterHeader(headerValue: string): number | null {
+  if (!headerValue || headerValue.trim() === '') return null;
+
+  // Try parsing as number of seconds
+  const seconds = Number(headerValue);
+  if (!isNaN(seconds) && seconds >= 0) {
+    return seconds;
+  }
+
+  // Try parsing as HTTP-date
+  const date = new Date(headerValue);
+  if (!isNaN(date.getTime())) {
+    const delayMs = date.getTime() - Date.now();
+    return Math.max(0, Math.ceil(delayMs / 1000));
+  }
+
+  return null;
+}
+
+/**
+ * Retry-After overrides per provider (populated from API response headers)
+ */
+const retryAfterOverrides = new Map<string, { blockedUntil: number; retryAfterSeconds: number }>();

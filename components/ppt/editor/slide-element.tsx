@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,18 +16,24 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import {
   Image as ImageIcon,
   BarChart3,
-  Table,
   Trash2,
   Upload,
   Link,
   Plus,
   Minus,
+  Copy,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  RotateCw,
 } from 'lucide-react';
 import { ChartElement } from '../elements/chart-element';
+import { ChartEditor } from '../elements/chart-editor';
+import type { ChartData } from '../elements/chart-element';
 import type { SlideElementProps } from '../types';
 
 type ResizeDirection = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
@@ -57,12 +63,16 @@ export function SlideElement({
   onClick,
   onUpdate,
   onDelete,
+  onDuplicate,
+  onBringToFront,
+  onSendToBack,
 }: SlideElementProps) {
   const t = useTranslations('pptEditor');
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [showImagePopover, setShowImagePopover] = useState(false);
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
+  const [showChartEditor, setShowChartEditor] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<DragState>({
     isDragging: false,
@@ -82,6 +92,10 @@ export function SlideElement({
   const elW = element.position?.width || 20;
   const elH = element.position?.height || 20;
 
+  const elStyle = element.style;
+  const rotation = useMemo(() => parseFloat(elStyle?.transform?.replace(/rotate\(|deg\)/g, '') || '0'), [elStyle]);
+  const opacity = useMemo(() => elStyle?.opacity ? parseFloat(elStyle.opacity) * 100 : 100, [elStyle]);
+
   const style: React.CSSProperties = {
     position: 'absolute',
     left: `${elX}%`,
@@ -89,6 +103,9 @@ export function SlideElement({
     width: `${elW}%`,
     height: `${elH}%`,
     ...element.style,
+    // Ensure rotation and opacity are properly applied
+    transform: rotation ? `rotate(${rotation}deg)` : undefined,
+    opacity: opacity < 100 ? opacity / 100 : undefined,
   };
 
   // --- Drag & Resize ---
@@ -389,23 +406,43 @@ export function SlideElement({
       }
 
       case 'chart':
-        if (element.metadata?.chartData) {
-          return (
-            <ChartElement
-              type={element.metadata?.chartType as string}
-              data={element.metadata?.chartData as { labels: string[]; values: number[] }}
-              theme={theme}
-              className="w-full h-full"
-            />
-          );
-        }
         return (
-          <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded border border-dashed">
-            <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-              <span className="text-sm">{String(element.metadata?.chartType || t('chartPlaceholder'))}</span>
-            </div>
-          </div>
+          <>
+            {element.metadata?.chartData ? (
+              <div
+                className="w-full h-full cursor-pointer"
+                onDoubleClick={() => isEditing && setShowChartEditor(true)}
+              >
+                <ChartElement
+                  type={element.metadata?.chartType as string}
+                  data={element.metadata?.chartData as { labels: string[]; values: number[] }}
+                  theme={theme}
+                  className="w-full h-full"
+                />
+              </div>
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center bg-muted/30 rounded border border-dashed cursor-pointer"
+                onDoubleClick={() => isEditing && setShowChartEditor(true)}
+              >
+                <div className="text-center text-muted-foreground">
+                  <BarChart3 className="h-8 w-8 mx-auto mb-2" />
+                  <span className="text-sm">{String(element.metadata?.chartType || t('chartPlaceholder'))}</span>
+                </div>
+              </div>
+            )}
+            <ChartEditor
+              open={showChartEditor}
+              onOpenChange={setShowChartEditor}
+              chartType={element.metadata?.chartType as string}
+              chartData={element.metadata?.chartData as ChartData | undefined}
+              onSave={(chartType, chartData) => {
+                onUpdate({
+                  metadata: { ...element.metadata, chartType, chartData },
+                });
+              }}
+            />
+          </>
         );
 
       case 'table': {
@@ -541,25 +578,95 @@ export function SlideElement({
           <div className="absolute top-1/2 -right-1 -translate-y-1/2 w-2 h-4 bg-primary/80 rounded-sm cursor-e-resize z-10"
             onMouseDown={(e) => handleMouseDown(e, 'resize', 'e')} />
           
-          {/* Delete button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-4 -right-4 h-6 w-6 opacity-0 group-hover:opacity-100 z-20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('deleteElement')}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {/* Element context toolbar */}
+          <div className="absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-background border rounded-md shadow-md px-1 py-0.5 opacity-0 group-hover:opacity-100 z-20 transition-opacity">
+            <TooltipProvider delayDuration={200}>
+              {/* Duplicate */}
+              {onDuplicate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onDuplicate(); }}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">{t('duplicate') || 'Duplicate'}</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Bring to front */}
+              {onBringToFront && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onBringToFront(); }}>
+                      <ArrowUpToLine className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">{t('bringToFront') || 'Front'}</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Send to back */}
+              {onSendToBack && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onSendToBack(); }}>
+                      <ArrowDownToLine className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">{t('sendToBack') || 'Back'}</TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Rotation control */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
+                    <RotateCw className="h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-3" side="top" onClick={(e) => e.stopPropagation()}>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">{t('rotation') || 'Rotation'}</span>
+                        <span className="text-xs text-muted-foreground">{rotation}°</span>
+                      </div>
+                      <Slider
+                        value={[rotation]}
+                        min={0}
+                        max={360}
+                        step={15}
+                        onValueChange={([v]) => onUpdate({ style: { ...element.style, transform: `rotate(${v}deg)` } })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium">{t('opacity') || 'Opacity'}</span>
+                        <span className="text-xs text-muted-foreground">{Math.round(opacity)}%</span>
+                      </div>
+                      <Slider
+                        value={[opacity]}
+                        min={10}
+                        max={100}
+                        step={5}
+                        onValueChange={([v]) => onUpdate({ style: { ...element.style, opacity: String(v / 100) } })}
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Delete */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">{t('deleteElement')}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </>
       )}
     </div>

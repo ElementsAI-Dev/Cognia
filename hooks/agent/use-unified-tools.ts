@@ -56,6 +56,8 @@ export interface UseUnifiedToolsOptions {
   enableProcessTools?: boolean;
   /** Enable environment tools (Python venv management) */
   enableEnvironmentTools?: boolean;
+  /** Enable shell command execution tools (desktop only) */
+  enableShellTools?: boolean;
   /** Custom tools to include */
   customTools?: Record<string, AgentTool>;
   /** Auto-sync with stores */
@@ -108,6 +110,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
     enableWebScraper = true,
     enableProcessTools = false, // Desktop only, disabled by default for security
     enableEnvironmentTools = false, // Desktop only, disabled by default
+    enableShellTools = false, // Desktop only, disabled by default for security
     customTools = {},
     autoSync = true,
   } = options;
@@ -152,6 +155,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
       enableRAGSearch: false, // We handle RAG separately
       enableProcessTools,
       enableEnvironmentTools,
+      enableShellTools,
     });
 
     // Clear existing builtin tools
@@ -159,7 +163,7 @@ export function useUnifiedTools(options: UseUnifiedToolsOptions = {}): UseUnifie
 
     // Register new builtin tools
     registerBuiltinTools(registry, builtinTools);
-  }, [enableBuiltinTools, enableWebScraper, enableProcessTools, enableEnvironmentTools, providerSettings.tavily?.apiKey, searchProviders, defaultSearchProvider, registry]);
+  }, [enableBuiltinTools, enableWebScraper, enableProcessTools, enableEnvironmentTools, enableShellTools, providerSettings.tavily?.apiKey, searchProviders, defaultSearchProvider, registry]);
 
   // Sync skill tools
   const syncSkillTools = useCallback(() => {

@@ -420,24 +420,67 @@ export function getModelContextLimits(model: string): {
   reserveTokens: number;
 } {
   const limits: Record<string, { maxTokens: number; reserveTokens: number }> = {
+    // OpenAI GPT
     'gpt-4': { maxTokens: 8192, reserveTokens: 2000 },
     'gpt-4-32k': { maxTokens: 32768, reserveTokens: 4000 },
     'gpt-4-turbo': { maxTokens: 128000, reserveTokens: 8000 },
     'gpt-4o': { maxTokens: 128000, reserveTokens: 8000 },
+    'gpt-4o-mini': { maxTokens: 128000, reserveTokens: 8000 },
+    'gpt-4.1': { maxTokens: 1047576, reserveTokens: 10000 },
+    'gpt-4.1-mini': { maxTokens: 1047576, reserveTokens: 10000 },
+    'gpt-4.1-nano': { maxTokens: 1047576, reserveTokens: 8000 },
     'gpt-3.5-turbo': { maxTokens: 16385, reserveTokens: 2000 },
+    'o1': { maxTokens: 200000, reserveTokens: 10000 },
+    'o3': { maxTokens: 200000, reserveTokens: 10000 },
+    'o4-mini': { maxTokens: 200000, reserveTokens: 10000 },
+
+    // Anthropic Claude
     'claude-3-opus': { maxTokens: 200000, reserveTokens: 10000 },
     'claude-3-sonnet': { maxTokens: 200000, reserveTokens: 10000 },
     'claude-3-haiku': { maxTokens: 200000, reserveTokens: 8000 },
+    'claude-3.5-sonnet': { maxTokens: 200000, reserveTokens: 10000 },
+    'claude-3.5-haiku': { maxTokens: 200000, reserveTokens: 8000 },
+    'claude-4-opus': { maxTokens: 200000, reserveTokens: 10000 },
+    'claude-4-sonnet': { maxTokens: 200000, reserveTokens: 10000 },
+    'claude-sonnet': { maxTokens: 200000, reserveTokens: 10000 },
+
+    // Google Gemini
     'gemini-pro': { maxTokens: 32768, reserveTokens: 4000 },
     'gemini-1.5-pro': { maxTokens: 1048576, reserveTokens: 10000 },
+    'gemini-1.5-flash': { maxTokens: 1048576, reserveTokens: 10000 },
+    'gemini-2.0-flash': { maxTokens: 1048576, reserveTokens: 10000 },
+    'gemini-2.5-pro': { maxTokens: 1048576, reserveTokens: 10000 },
+    'gemini-2.5-flash': { maxTokens: 1048576, reserveTokens: 10000 },
+
+    // DeepSeek
+    'deepseek-v3': { maxTokens: 128000, reserveTokens: 8000 },
+    'deepseek-r1': { maxTokens: 128000, reserveTokens: 8000 },
+    'deepseek-chat': { maxTokens: 128000, reserveTokens: 8000 },
+    'deepseek-reasoner': { maxTokens: 128000, reserveTokens: 8000 },
+
+    // Qwen
+    'qwen-2.5': { maxTokens: 131072, reserveTokens: 8000 },
+    'qwen-3': { maxTokens: 131072, reserveTokens: 8000 },
+    'qwen-turbo': { maxTokens: 131072, reserveTokens: 8000 },
+    'qwen-plus': { maxTokens: 131072, reserveTokens: 8000 },
+    'qwen-max': { maxTokens: 131072, reserveTokens: 8000 },
   };
 
-  // Find matching model or use defaults
-  for (const [key, value] of Object.entries(limits)) {
-    if (model.includes(key)) {
-      return value;
+  // Find matching model using substring matching (longer keys first for specificity)
+  const sortedKeys = Object.keys(limits).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    if (model.toLowerCase().includes(key)) {
+      return limits[key];
     }
   }
+
+  // Heuristic fallback based on common patterns
+  const modelLower = model.toLowerCase();
+  if (modelLower.includes('claude')) return { maxTokens: 200000, reserveTokens: 10000 };
+  if (modelLower.includes('gemini')) return { maxTokens: 1048576, reserveTokens: 10000 };
+  if (modelLower.includes('gpt')) return { maxTokens: 128000, reserveTokens: 8000 };
+  if (modelLower.includes('deepseek')) return { maxTokens: 128000, reserveTokens: 8000 };
+  if (modelLower.includes('qwen')) return { maxTokens: 131072, reserveTokens: 8000 };
 
   // Default for unknown models
   return { maxTokens: 8192, reserveTokens: 2000 };

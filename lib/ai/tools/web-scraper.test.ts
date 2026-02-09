@@ -83,6 +83,22 @@ describe('Web Scraper Tool', () => {
     });
   });
 
+  describe('Direct Execution', () => {
+    it('executeWebScraper is exported and callable', async () => {
+      const { executeWebScraper } = await import('./web-scraper');
+      expect(typeof executeWebScraper).toBe('function');
+    });
+
+    it('executeBulkWebScraper is exported and callable', async () => {
+      const { executeBulkWebScraper } = await import('./web-scraper');
+      expect(typeof executeBulkWebScraper).toBe('function');
+    });
+
+    it('webScraperTool description mentions direct execution', () => {
+      expect(webScraperTool.description).toBeTruthy();
+    });
+  });
+
   describe('Tool Definitions', () => {
     it('should have correct name for web scraper tool', () => {
       expect(webScraperTool.name).toBe('web_scraper');

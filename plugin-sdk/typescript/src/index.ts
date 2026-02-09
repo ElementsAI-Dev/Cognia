@@ -422,6 +422,7 @@ export type {
 export { Schema, parameters } from './helpers/schema';
 export { definePlugin, defineTool, defineCommand } from './helpers/plugin';
 export { tool } from './helpers/tool';
+export { composeHooks, defineHooks, conditionalHook, debouncedHook } from './helpers/hooks';
 export type { PluginDefinition } from './helpers/plugin';
 export type { ToolConfig, ToolDefinition, InferSchemaType, InferParams } from './helpers/tool';
 

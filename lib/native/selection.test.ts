@@ -615,9 +615,9 @@ describe('Selection - Detection & Analysis (New APIs)', () => {
   describe('getEnhancedSelection', () => {
     it('should call invoke with text and app info', async () => {
       const mockSelection: Selection = {
-        text: 'test', text_before: null, text_after: null, is_code: false,
-        language: null, is_url: false, is_email: false, has_numbers: false,
-        word_count: 1, char_count: 4, line_count: 1, text_type: 'text', source_app: null,
+        text: 'test', text_before: undefined, text_after: undefined, is_code: false,
+        language: undefined, is_url: false, is_email: false, has_numbers: false,
+        word_count: 1, char_count: 4, line_count: 1, text_type: 'text', source_app: undefined,
       };
       mockInvoke.mockResolvedValue(mockSelection);
       await getEnhancedSelection('test', 'Chrome', 'chrome.exe', 'Google');

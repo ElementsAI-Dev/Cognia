@@ -11,7 +11,7 @@ import { Plus, X, Zap } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ModelSelectorLogo } from '@/components/ai-elements/model-selector';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import {
   Popover,
   PopoverContent,
@@ -166,7 +166,7 @@ export function MultiModelSelector({
           <span className="font-mono text-[10px] opacity-60">
             {String.fromCharCode(65 + m.columnIndex)}
           </span>
-          <ModelSelectorLogo provider={m.provider} className="size-3" />
+          <ProviderIcon providerId={m.provider} size={12} className="shrink-0" />
           {m.displayName}
           <button
             onClick={() => removeModel(m.id)}
@@ -245,7 +245,7 @@ export function MultiModelSelector({
                         disabled={isSelected}
                       >
                         <div className="flex items-center gap-1.5">
-                          <ModelSelectorLogo provider={m.provider} className="size-4" />
+                          <ProviderIcon providerId={m.provider} size={16} className="shrink-0" />
                           <span className="font-medium">{m.displayName}</span>
                         </div>
                         <Badge

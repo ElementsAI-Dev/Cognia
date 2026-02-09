@@ -78,21 +78,6 @@ function FlowChatEdgeComponent({
   const currentStyle = edgeStyles[edgeType] || edgeStyles.conversation;
   const currentClassName = edgeClassNames[edgeType] || edgeClassNames.conversation;
 
-  // Helper to get marker color based on type (reserved for future SVG marker use)
-  const _getMarkerColor = (type: FlowChatEdgeType) => {
-    switch (type) {
-      case 'branch':
-        return 'var(--orange-500)';
-      case 'reference':
-        return 'var(--blue-500)';
-      case 'parallel':
-        return 'var(--purple-500)';
-      case 'conversation':
-      default:
-        return 'var(--muted-foreground)';
-    }
-  };
-
   return (
     <>
       <BaseEdge

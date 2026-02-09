@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useScreenRecordingStore, useIsRecording } from '@/stores/media';
 import type { RecordingRegion } from '@/lib/native/screen-recording';
 import { isTauri } from '@/lib/native/utils';
+import { formatDuration } from '@/lib/utils';
 
 export type RecordingMode = 'fullscreen' | 'window' | 'region';
 
@@ -61,21 +62,6 @@ interface MonitorInfo {
   width: number;
   height: number;
   is_primary: boolean;
-}
-
-/**
- * Format duration in milliseconds to MM:SS or HH:MM:SS format
- */
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 export function useScreenRecording(

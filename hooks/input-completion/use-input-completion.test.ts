@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
 import { useInputCompletion } from './use-input-completion';
 import * as api from '@/lib/native/input-completion';
-import type { CompletionSuggestion, CompletionResult, ImeState } from '@/types/input-completion';
+import type { CompletionSuggestion, InputCompletionResult, ImeState } from '@/types/input-completion';
 
 // Mock config for tests - avoid circular dependency with DEFAULT_COMPLETION_CONFIG
 const mockCompletionConfig = {
@@ -292,7 +292,7 @@ describe('useInputCompletion', () => {
   });
 
   describe('Trigger Action', () => {
-    const mockCompletionResult: CompletionResult = {
+    const mockCompletionResult: InputCompletionResult = {
       suggestions: [
         {
           id: 'test-id',
@@ -325,7 +325,7 @@ describe('useInputCompletion', () => {
     });
 
     it('should handle empty suggestions', async () => {
-      const emptyResult: CompletionResult = {
+      const emptyResult: InputCompletionResult = {
         suggestions: [],
         latency_ms: 50,
         model: 'qwen2.5-coder:0.5b',

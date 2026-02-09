@@ -8,6 +8,7 @@ import {
   getPresetCategories,
   getExportOptionsForPlatform,
 } from './export-presets';
+import type { VideoExportOptions } from '../workers/worker-types';
 
 describe('ExportPresetManager', () => {
   let manager: ExportPresetManager;
@@ -86,6 +87,8 @@ describe('ExportPresetManager', () => {
           crf: 20,
           audioCodec: 'aac',
           audioBitrate: 192000,
+          audioChannels: 2,
+          audioSampleRate: 48000,
         },
         'Custom description'
       );
@@ -99,7 +102,7 @@ describe('ExportPresetManager', () => {
       const custom = manager.createCustomPreset('Original', {
         format: 'mp4',
         codec: 'h264',
-      });
+      } as unknown as VideoExportOptions);
 
       const updated = manager.updateCustomPreset(custom.id, {
         name: 'Updated Name',
@@ -112,7 +115,7 @@ describe('ExportPresetManager', () => {
       const custom = manager.createCustomPreset('To Delete', {
         format: 'mp4',
         codec: 'h264',
-      });
+      } as unknown as VideoExportOptions);
 
       const deleted = manager.deleteCustomPreset(custom.id);
       expect(deleted).toBe(true);
@@ -195,7 +198,7 @@ describe('ExportPresetManager', () => {
 
   describe('import/export', () => {
     it('should export custom presets', () => {
-      manager.createCustomPreset('Export Test', { format: 'mp4', codec: 'h264' });
+      manager.createCustomPreset('Export Test', { format: 'mp4', codec: 'h264' } as unknown as VideoExportOptions);
       const exported = manager.exportCustomPresets();
 
       expect(exported.length).toBe(1);
@@ -209,7 +212,7 @@ describe('ExportPresetManager', () => {
           name: 'Imported Preset',
           description: 'Imported',
           category: 'custom' as const,
-          options: { format: 'mp4' as const, codec: 'h264' as const },
+          options: { format: 'mp4' as const, codec: 'h264' as const } as unknown as VideoExportOptions,
           isBuiltIn: false,
         },
       ];

@@ -65,7 +65,7 @@ const defaultMockReturn = {
   untrackProcess: jest.fn(),
   isProgramAllowed: jest.fn(),
   getTrackedByAgent: jest.fn().mockReturnValue([]),
-};
+} as unknown as ReturnType<typeof useProcessManager>;
 
 describe('ProcessPanel', () => {
   beforeEach(() => {

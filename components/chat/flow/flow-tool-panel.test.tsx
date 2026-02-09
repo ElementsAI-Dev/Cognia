@@ -2,7 +2,7 @@
  * FlowToolPanel - Unit tests
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { FlowToolPanel } from './flow-tool-panel';
 import { useMcpStore } from '@/stores/mcp';
 import { NextIntlClientProvider } from 'next-intl';
@@ -53,13 +53,22 @@ describe('FlowToolPanel', () => {
     expect(screen.getByText('Tools')).toBeInTheDocument();
   });
 
-  it('shows empty state when no tools', () => {
+  it('shows empty state when no servers are configured', () => {
+    (useMcpStore as unknown as jest.Mock).mockImplementation((selector) => {
+      const state = {
+        servers: [],
+        getAllTools: mockGetAllTools,
+        callTool: mockCallTool,
+      };
+      return selector(state);
+    });
+
     render(<FlowToolPanel />, { wrapper });
     
     expect(screen.getByText('No tools available')).toBeInTheDocument();
   });
 
-  it('loads tools when load button is clicked', async () => {
+  it('auto-loads tools on mount when servers are available', async () => {
     const mockTools = [
       {
         serverId: 'server-1',
@@ -73,13 +82,30 @@ describe('FlowToolPanel', () => {
     mockGetAllTools.mockResolvedValue(mockTools);
 
     render(<FlowToolPanel />, { wrapper });
-    
-    // Click load button
-    const loadButton = screen.getByText('Load Tools');
-    fireEvent.click(loadButton);
 
     await waitFor(() => {
       expect(mockGetAllTools).toHaveBeenCalled();
+    });
+  });
+
+  it('shows server group after auto-load', async () => {
+    const mockTools = [
+      {
+        serverId: 'server-1',
+        tool: {
+          name: 'test-tool',
+          description: 'A test tool',
+          inputSchema: { type: 'object', properties: {} },
+        },
+      },
+    ];
+    mockGetAllTools.mockResolvedValue(mockTools);
+
+    render(<FlowToolPanel />, { wrapper });
+
+    await waitFor(() => {
+      // Server name should be visible in the collapsible header
+      expect(screen.getByText('Test Server')).toBeInTheDocument();
     });
   });
 

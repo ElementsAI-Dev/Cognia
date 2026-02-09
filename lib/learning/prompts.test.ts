@@ -53,7 +53,7 @@ function createMockSession(overrides: Partial<LearningSession> = {}): LearningSe
     consecutiveCorrect: 0,
     consecutiveIncorrect: 0,
     ...overrides,
-  };
+  } as unknown as LearningSession;
 }
 
 describe('SOCRATIC_MENTOR_PROMPT', () => {

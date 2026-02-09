@@ -79,67 +79,16 @@ export const ModelSelectorSeparator = (props: ModelSelectorSeparatorProps) => (
   <CommandSeparator {...props} />
 );
 
-export type ModelSelectorLogoProps = Omit<ComponentProps<'img'>, 'src' | 'alt'> & {
-  provider:
-    | 'moonshotai-cn'
-    | 'lucidquery'
-    | 'moonshotai'
-    | 'zai-coding-plan'
-    | 'alibaba'
-    | 'xai'
-    | 'vultr'
-    | 'nvidia'
-    | 'upstage'
-    | 'groq'
-    | 'github-copilot'
-    | 'mistral'
-    | 'vercel'
-    | 'nebius'
-    | 'deepseek'
-    | 'alibaba-cn'
-    | 'google-vertex-anthropic'
-    | 'venice'
-    | 'chutes'
-    | 'cortecs'
-    | 'github-models'
-    | 'togetherai'
-    | 'azure'
-    | 'baseten'
-    | 'huggingface'
-    | 'opencode'
-    | 'fastrouter'
-    | 'google'
-    | 'google-vertex'
-    | 'cloudflare-workers-ai'
-    | 'inception'
-    | 'wandb'
-    | 'openai'
-    | 'zhipuai-coding-plan'
-    | 'perplexity'
-    | 'openrouter'
-    | 'zenmux'
-    | 'v0'
-    | 'iflowcn'
-    | 'synthetic'
-    | 'deepinfra'
-    | 'zhipuai'
-    | 'submodel'
-    | 'zai'
-    | 'inference'
-    | 'requesty'
-    | 'morph'
-    | 'lmstudio'
-    | 'anthropic'
-    | 'aihubmix'
-    | 'fireworks-ai'
-    | 'modelscope'
-    | 'llama'
-    | 'scaleway'
-    | 'amazon-bedrock'
-    | 'cerebras'
-    | (string & {});
+/**
+ * @deprecated Use ProviderIcon from '@/components/providers/ai/provider-icon' instead.
+ */
+export type ModelSelectorLogoProps = ComponentProps<'img'> & {
+  provider: string;
 };
 
+/**
+ * @deprecated Use ProviderIcon from '@/components/providers/ai/provider-icon' instead.
+ */
 export const ModelSelectorLogo = ({ provider, className, ...props }: ModelSelectorLogoProps) => (
   // eslint-disable-next-line @next/next/no-img-element
   <img
@@ -149,18 +98,6 @@ export const ModelSelectorLogo = ({ provider, className, ...props }: ModelSelect
     height={12}
     src={`https://models.dev/logos/${provider}.svg`}
     width={12}
-  />
-);
-
-export type ModelSelectorLogoGroupProps = ComponentProps<'div'>;
-
-export const ModelSelectorLogoGroup = ({ className, ...props }: ModelSelectorLogoGroupProps) => (
-  <div
-    className={cn(
-      '-space-x-1 flex shrink-0 items-center [&>img]:rounded-full [&>img]:bg-background [&>img]:p-px [&>img]:ring-1 dark:[&>img]:bg-foreground',
-      className
-    )}
-    {...props}
   />
 );
 

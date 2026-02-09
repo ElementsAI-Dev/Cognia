@@ -15,11 +15,20 @@ import {
 } from './slash-command-registry';
 import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 
+// Mock plugin lifecycle hooks
+const mockDispatchOnCommand = jest.fn().mockResolvedValue(false);
+jest.mock('@/lib/plugin', () => ({
+  getPluginLifecycleHooks: () => ({
+    dispatchOnCommand: mockDispatchOnCommand,
+  }),
+}));
+
 describe('slashCommandRegistry', () => {
   // Store original commands to restore after tests
   const originalCommands = getAllCommands();
 
   afterEach(() => {
+    jest.clearAllMocks();
     // Clean up any test commands
     slashCommandRegistry.clear();
     // Restore original commands
@@ -202,6 +211,43 @@ describe('slashCommandRegistry', () => {
 
       expect(result.success).toBe(true);
       expect(result.newInput).toContain('a cat');
+    });
+
+    it('should dispatch plugin hook before executing command', async () => {
+      await executeCommand('clear', {}, {
+        input: '',
+        messageCount: 5,
+        mode: 'chat',
+      });
+
+      expect(mockDispatchOnCommand).toHaveBeenCalledWith('clear', []);
+    });
+
+    it('should short-circuit when plugin handles the command', async () => {
+      mockDispatchOnCommand.mockResolvedValueOnce(true);
+
+      const result = await executeCommand('clear', {}, {
+        input: '',
+        messageCount: 5,
+        mode: 'chat',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('handled by plugin');
+    });
+
+    it('should proceed to built-in handler when plugin does not handle', async () => {
+      mockDispatchOnCommand.mockResolvedValueOnce(false);
+
+      const result = await executeCommand('clear', {}, {
+        input: '',
+        messageCount: 5,
+        mode: 'chat',
+      });
+
+      expect(result.success).toBe(true);
+      // Should have the built-in clear action, not plugin message
+      expect(result.message).not.toContain('handled by plugin');
     });
   });
 });

@@ -65,3 +65,4 @@ export {
   getCachedMetadata,
   type LinkMetadata,
 } from './use-link-metadata';
+export { useCurrencyFormat, type CurrencyFormatter } from './use-currency-format';

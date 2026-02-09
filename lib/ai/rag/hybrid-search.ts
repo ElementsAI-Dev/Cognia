@@ -9,7 +9,10 @@
  * - Vector similarity search
  * - Reciprocal Rank Fusion (RRF) for result merging
  * - Configurable weights for each search method
+ * - CJK language support via multilingual tokenizer
  */
+
+import { tokenizeMultilingual } from './cjk-tokenizer';
 
 export interface BM25Config {
   k1?: number;  // Term frequency saturation parameter (default: 1.2)
@@ -63,14 +66,10 @@ export class BM25Index {
   }
 
   /**
-   * Tokenize text into terms
+   * Tokenize text into terms (supports CJK languages via multilingual tokenizer)
    */
   private tokenize(text: string): string[] {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(term => term.length > 1);
+    return tokenizeMultilingual(text);
   }
 
   /**

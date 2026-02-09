@@ -81,6 +81,7 @@ import {
   type ProviderCategory,
 } from '@/lib/ai/providers/provider-helpers';
 import type { ProviderCategoryFilter } from '@/stores/settings/settings-store';
+import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
 
 export function ProviderSettings() {
   const t = useTranslations('providers');
@@ -93,6 +94,7 @@ export function ProviderSettings() {
     setIsMounted(true);
   }, []);
 
+  const language = useSettingsStore((state) => state.language);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const updateProviderSettings = useSettingsStore((state) => state.updateProviderSettings);
   const customProviders = useSettingsStore((state) => state.customProviders);
@@ -991,11 +993,17 @@ export function ProviderSettings() {
                         </div>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell">
-                        {provider.models.some(m => m.pricing) ? (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            ${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)}
-                          </span>
-                        ) : (
+                        {provider.models.some(m => m.pricing) ? (() => {
+                          const cur = getCurrencyForLocale(language);
+                          const cfg = CURRENCIES[cur];
+                          const minConverted = minPrice * cfg.rateFromUSD;
+                          const maxConverted = maxPrice * cfg.rateFromUSD;
+                          return (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {cfg.symbol}{minConverted.toFixed(cfg.decimals)} - {cfg.symbol}{maxConverted.toFixed(cfg.decimals)}
+                            </span>
+                          );
+                        })() : (
                           <Badge variant="secondary" className="text-[10px]">
                             {t('pricingVaries')}
                           </Badge>

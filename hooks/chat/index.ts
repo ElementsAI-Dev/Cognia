@@ -63,3 +63,8 @@ export {
   type UseInputCompletionUnifiedReturn,
 } from './use-input-completion-unified';
 export { useMultiModelChat } from './use-multi-model-chat';
+export {
+  useCompression,
+  type UseCompressionOptions,
+  type UseCompressionReturn,
+} from './use-compression';

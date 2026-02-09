@@ -27,7 +27,6 @@ import {
   getRecordingHistory,
   deleteRecording,
   clearRecordingHistory,
-  formatDuration,
   formatFileSize,
   getDefaultRecordingConfig,
   type RecordingStatus,
@@ -36,6 +35,7 @@ import {
   type RecordingRegion,
   type MonitorInfo,
 } from './screen-recording';
+import { formatDuration } from '@/lib/utils';
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
 

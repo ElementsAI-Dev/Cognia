@@ -5,8 +5,11 @@
  * Eliminates duplicate textarea rendering code in source and split modes
  */
 
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
 
 export interface EditorTextareaConfig {
   fontFamily: string;
@@ -29,6 +32,8 @@ export interface EditorTextareaProps {
   placeholder?: string;
   className?: string;
   currentLine?: number;
+  /** Enable AI ghost text completion */
+  enableAiCompletion?: boolean;
 }
 
 export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProps>(
@@ -45,9 +50,68 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
       placeholder = 'Enter LaTeX code here...',
       className,
       currentLine,
+      enableAiCompletion = false,
     },
     ref
   ) => {
+    const internalRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = (ref && 'current' in ref ? ref : internalRef) as React.RefObject<HTMLTextAreaElement>;
+    const [textareaMounted, setTextareaMounted] = useState(false);
+    const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
+
+    useEffect(() => {
+      setTextareaMounted(!!textareaRef.current);
+    }, [textareaRef]);
+
+    // AI ghost text completion for LaTeX
+    const {
+      state: completionState,
+      handleInputChange: handleCompletionChange,
+      handleKeyDown: handleCompletionKeyDown,
+      acceptGhostText,
+      dismissGhostText,
+    } = useInputCompletionUnified({
+      enableAiCompletion: enableAiCompletion && !readOnly,
+      onAiCompletionAccept: (text) => {
+        // Simulate onChange event with the accepted text
+        const textarea = textareaRef.current;
+        if (textarea) {
+          const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLTextAreaElement.prototype,
+            'value'
+          )?.set;
+          nativeInputValueSetter?.call(textarea, value + text);
+          textarea.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      },
+    });
+
+    const ghostText = completionState.ghostText;
+
+    // Enhanced onChange that notifies the completion system
+    const handleChange = useCallback(
+      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        onChange(e);
+        if (enableAiCompletion) {
+          const pos = e.target.selectionStart || 0;
+          handleCompletionChange(e.target.value, pos);
+        }
+      },
+      [onChange, enableAiCompletion, handleCompletionChange]
+    );
+
+    // Enhanced onKeyDown with ghost text support
+    const handleKeyDownEnhanced = useCallback(
+      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (enableAiCompletion) {
+          const handled = handleCompletionKeyDown(e.nativeEvent);
+          if (handled) return;
+        }
+        onKeyDown(e);
+      },
+      [enableAiCompletion, handleCompletionKeyDown, onKeyDown]
+    );
+
     const lineCount = useMemo(() => value.split('\n').length, [value]);
     const lineNumbers = useMemo(() => 
       Array.from({ length: lineCount }, (_, i) => i + 1), 
@@ -58,30 +122,41 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
 
     if (!showLineNumbers) {
       return (
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          onSelect={onSelect}
-          onClick={onClick}
-          onContextMenu={onContextMenu}
-          className={cn(
-            'w-full h-full min-h-0 p-4 resize-none focus:outline-none',
-            'font-mono text-sm bg-muted/30',
-            'overflow-auto',
-            config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre',
-            className
+        <div className="relative w-full h-full">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDownEnhanced}
+            onSelect={onSelect}
+            onClick={onClick}
+            onContextMenu={onContextMenu}
+            className={cn(
+              'w-full h-full min-h-0 p-4 resize-none focus:outline-none',
+              'font-mono text-sm bg-muted/30',
+              'overflow-auto',
+              config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre',
+              className
+            )}
+            style={{
+              fontFamily: config.fontFamily,
+              fontSize: config.fontSize,
+              tabSize: config.tabSize,
+            }}
+            spellCheck={config.spellCheck}
+            readOnly={readOnly}
+            placeholder={placeholder}
+          />
+          {ghostText && textareaMounted && (
+            <GhostTextOverlay
+              text={ghostText}
+              textareaRef={textareaRef}
+              onAccept={acceptGhostText}
+              onDismiss={dismissGhostText}
+              opacity={ghostTextOpacity}
+            />
           )}
-          style={{
-            fontFamily: config.fontFamily,
-            fontSize: config.fontSize,
-            tabSize: config.tabSize,
-          }}
-          spellCheck={config.spellCheck}
-          readOnly={readOnly}
-          placeholder={placeholder}
-        />
+        </div>
       );
     }
 
@@ -113,30 +188,41 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
         </div>
         
         {/* Textarea */}
-        <textarea
-          ref={ref}
-          value={value}
-          onChange={onChange}
-          onKeyDown={onKeyDown}
-          onSelect={onSelect}
-          onClick={onClick}
-          onContextMenu={onContextMenu}
-          className={cn(
-            'flex-1 h-full min-h-0 p-4 resize-none focus:outline-none',
-            'font-mono text-sm bg-muted/30',
-            'overflow-auto',
-            config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+        <div className="relative flex-1 h-full">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleChange}
+            onKeyDown={handleKeyDownEnhanced}
+            onSelect={onSelect}
+            onClick={onClick}
+            onContextMenu={onContextMenu}
+            className={cn(
+              'w-full h-full min-h-0 p-4 resize-none focus:outline-none',
+              'font-mono text-sm bg-muted/30',
+              'overflow-auto',
+              config.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+            )}
+            style={{
+              fontFamily: config.fontFamily,
+              fontSize: config.fontSize,
+              tabSize: config.tabSize,
+              lineHeight: `${lineHeightPx}px`,
+            }}
+            spellCheck={config.spellCheck}
+            readOnly={readOnly}
+            placeholder={placeholder}
+          />
+          {ghostText && textareaMounted && (
+            <GhostTextOverlay
+              text={ghostText}
+              textareaRef={textareaRef}
+              onAccept={acceptGhostText}
+              onDismiss={dismissGhostText}
+              opacity={ghostTextOpacity}
+            />
           )}
-          style={{
-            fontFamily: config.fontFamily,
-            fontSize: config.fontSize,
-            tabSize: config.tabSize,
-            lineHeight: `${lineHeightPx}px`,
-          }}
-          spellCheck={config.spellCheck}
-          readOnly={readOnly}
-          placeholder={placeholder}
-        />
+        </div>
       </div>
     );
   }

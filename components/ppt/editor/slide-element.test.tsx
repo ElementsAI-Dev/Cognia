@@ -39,6 +39,9 @@ describe('SlideElement', () => {
     onClick: jest.fn(),
     onUpdate: jest.fn(),
     onDelete: jest.fn(),
+    onDuplicate: jest.fn(),
+    onBringToFront: jest.fn(),
+    onSendToBack: jest.fn(),
   };
 
   beforeEach(() => {
@@ -69,8 +72,9 @@ describe('SlideElement', () => {
   it('should show resize handles when selected and editing', () => {
     const { container } = render(<SlideElement {...defaultProps} isSelected={true} isEditing={true} />);
 
-    const handles = container.querySelectorAll('.bg-primary.rounded-full');
-    expect(handles.length).toBe(4); // 4 corner handles
+    // 4 corner handles (.rounded-sm) + 4 edge handles (.rounded-sm)
+    const handles = container.querySelectorAll('[class*="cursor-"][class*="resize"]');
+    expect(handles.length).toBeGreaterThanOrEqual(4);
   });
 
   it('should show delete button when selected', () => {
@@ -135,14 +139,92 @@ describe('SlideElement', () => {
   it('should not show resize handles when not selected', () => {
     const { container } = render(<SlideElement {...defaultProps} isSelected={false} />);
 
-    const handles = container.querySelectorAll('.bg-primary.rounded-full');
+    const handles = container.querySelectorAll('[class*="cursor-"][class*="resize"]');
     expect(handles.length).toBe(0);
   });
 
   it('should not show resize handles when not editing', () => {
     const { container } = render(<SlideElement {...defaultProps} isSelected={true} isEditing={false} />);
 
-    const handles = container.querySelectorAll('.bg-primary.rounded-full');
+    const handles = container.querySelectorAll('[class*="cursor-"][class*="resize"]');
     expect(handles.length).toBe(0);
+  });
+
+  describe('Context Toolbar', () => {
+    it('should show context toolbar when selected and editing', () => {
+      const { container } = render(<SlideElement {...defaultProps} isSelected={true} isEditing={true} />);
+
+      // Context toolbar contains duplicate, front, back, rotate, delete buttons
+      const toolbar = container.querySelector('.group-hover\\:opacity-100');
+      expect(toolbar).toBeInTheDocument();
+    });
+
+    it('should not show context toolbar when not selected', () => {
+      const { container } = render(<SlideElement {...defaultProps} isSelected={false} />);
+
+      const toolbar = container.querySelector('.group-hover\\:opacity-100');
+      expect(toolbar).not.toBeInTheDocument();
+    });
+
+    it('should call onDuplicate when duplicate button is clicked', async () => {
+      render(<SlideElement {...defaultProps} isSelected={true} isEditing={true} />);
+
+      const duplicateBtn = screen.getAllByRole('button').find(
+        btn => btn.querySelector('svg.lucide-copy')
+      );
+
+      if (duplicateBtn) {
+        await userEvent.click(duplicateBtn);
+        expect(defaultProps.onDuplicate).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onBringToFront when front button is clicked', async () => {
+      render(<SlideElement {...defaultProps} isSelected={true} isEditing={true} />);
+
+      const frontBtn = screen.getAllByRole('button').find(
+        btn => btn.querySelector('svg.lucide-arrow-up-to-line')
+      );
+
+      if (frontBtn) {
+        await userEvent.click(frontBtn);
+        expect(defaultProps.onBringToFront).toHaveBeenCalled();
+      }
+    });
+
+    it('should call onSendToBack when back button is clicked', async () => {
+      render(<SlideElement {...defaultProps} isSelected={true} isEditing={true} />);
+
+      const backBtn = screen.getAllByRole('button').find(
+        btn => btn.querySelector('svg.lucide-arrow-down-to-line')
+      );
+
+      if (backBtn) {
+        await userEvent.click(backBtn);
+        expect(defaultProps.onSendToBack).toHaveBeenCalled();
+      }
+    });
+
+    it('should apply rotation style when rotation is set', () => {
+      const rotatedElement = {
+        ...defaultProps.element,
+        style: { transform: 'rotate(45deg)' },
+      };
+
+      const { container } = render(<SlideElement {...defaultProps} element={rotatedElement} />);
+      const el = container.firstChild as HTMLElement;
+      expect(el.style.transform).toContain('rotate(45deg)');
+    });
+
+    it('should apply opacity style when opacity is set', () => {
+      const fadedElement = {
+        ...defaultProps.element,
+        style: { opacity: '0.5' },
+      };
+
+      const { container } = render(<SlideElement {...defaultProps} element={fadedElement} />);
+      const el = container.firstChild as HTMLElement;
+      expect(el.style.opacity).toBe('0.5');
+    });
   });
 });

@@ -32,8 +32,10 @@ import {
 import { getPluginWorkflowIntegration } from '@/lib/plugin';
 import {
   filterMessagesForContext,
+  filterMessagesForContextAsync,
   mergeCompressionSettings,
 } from '../embedding/compression';
+import { shouldPrioritizePrefixStability } from '../embedding/provider-cache-profile';
 import type { UIMessage } from '@/types/core/message';
 import {
   checkSafety,
@@ -352,6 +354,7 @@ export function useAIChat({
       const memoriesSection = getMemoriesForPrompt();
 
       // RAG context retrieval - inject knowledge base context into system prompt
+      // Uses the advanced RAGPipeline with hybrid search, reranking, query expansion etc.
       let ragContextSection = '';
       if (vectorSettings.enableRAGInChat) {
         const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
@@ -359,23 +362,44 @@ export function useAIChat({
           try {
             const embeddingApiKey = providerSettings[vectorSettings.embeddingProvider as keyof typeof providerSettings]?.apiKey;
             if (embeddingApiKey) {
-              const { retrieveContext } = await import('../rag');
-              const ragResult = await retrieveContext(lastUserMessage.content, {
-                collectionName: vectorSettings.defaultCollectionName || 'default',
-                topK: vectorSettings.ragTopK,
-                similarityThreshold: vectorSettings.ragSimilarityThreshold,
-                maxContextLength: vectorSettings.ragMaxContextLength,
-                chromaUrl: vectorSettings.serverUrl,
+              const { createRAGPipeline } = await import('../rag');
+              const pipelineConfig = {
                 embeddingConfig: {
                   provider: vectorSettings.embeddingProvider,
                   model: vectorSettings.embeddingModel,
                 },
                 embeddingApiKey,
-              });
+                hybridSearch: {
+                  enabled: vectorSettings.enableHybridSearch,
+                  vectorWeight: vectorSettings.vectorWeight,
+                  keywordWeight: vectorSettings.keywordWeight,
+                },
+                queryExpansion: {
+                  enabled: vectorSettings.enableQueryExpansion,
+                },
+                reranking: {
+                  enabled: vectorSettings.enableReranking,
+                },
+                topK: vectorSettings.ragTopK,
+                similarityThreshold: vectorSettings.ragSimilarityThreshold,
+                maxContextLength: vectorSettings.ragMaxContextLength,
+                citations: {
+                  enabled: vectorSettings.enableCitations,
+                  style: vectorSettings.citationStyle,
+                },
+              };
+              const pipeline = createRAGPipeline(pipelineConfig);
+              const ragResult = await pipeline.retrieve(
+                vectorSettings.defaultCollectionName || 'default',
+                lastUserMessage.content
+              );
 
               if (ragResult.formattedContext && ragResult.documents.length > 0) {
-                ragContextSection = `\n\n[Knowledge Base Context]\nThe following information was retrieved from the knowledge base and may be relevant to the user's question. Use it to provide accurate answers when applicable:\n\n${ragResult.formattedContext}`;
-                log.debug(`RAG injected ${ragResult.documents.length} chunks (${ragResult.totalTokensEstimate} tokens est.)`);
+                const citationSection = ragResult.citations?.referenceList
+                  ? `\n\nReferences:\n${ragResult.citations.referenceList}`
+                  : '';
+                ragContextSection = `\n\n[Knowledge Base Context]\nThe following information was retrieved from the knowledge base and may be relevant to the user's question. Use it to provide accurate answers when applicable:\n\n${ragResult.formattedContext}${citationSection}`;
+                log.debug(`RAG injected ${ragResult.documents.length} chunks (${ragResult.totalTokensEstimate} tokens est.) [hybrid=${ragResult.searchMetadata.hybridSearchUsed}, rerank=${ragResult.searchMetadata.rerankingUsed}]`);
               }
             }
           } catch (ragError) {
@@ -384,20 +408,6 @@ export function useAIChat({
         }
       }
 
-      // Build enhanced system prompt: base + custom instructions + memories + RAG context
-      let enhancedSystemPrompt = systemPrompt || '';
-      if (customInstructionsSection) {
-        enhancedSystemPrompt += customInstructionsSection;
-      }
-      if (memoriesSection) {
-        enhancedSystemPrompt += memoriesSection;
-      }
-      if (ragContextSection) {
-        enhancedSystemPrompt += ragContextSection;
-      }
-      // Only set system prompt if there's content
-      const finalSystemPrompt = enhancedSystemPrompt.trim() || undefined;
-
       // Apply context compression if enabled
       // Get session compression overrides if available
       const session = sessionId ? getSession(sessionId) : undefined;
@@ -405,6 +415,38 @@ export function useAIChat({
         compressionSettings,
         session?.compressionOverrides
       );
+
+      // Build enhanced system prompt with prefix stability awareness
+      // When prefix stability is important (vLLM, SGLang, OpenAI, Anthropic),
+      // keep stable parts (base + instructions) in system prompt,
+      // and inject dynamic parts (memories + RAG) as late system messages
+      const prefixStable = effectiveCompressionSettings.prefixStabilityMode &&
+        shouldPrioritizePrefixStability(provider as ProviderName);
+
+      let stableSystemPrompt = systemPrompt || '';
+      if (customInstructionsSection) {
+        stableSystemPrompt += customInstructionsSection;
+      }
+
+      // Dynamic context sections — injected differently based on prefix stability
+      let dynamicContextSection = '';
+      if (memoriesSection) {
+        if (prefixStable) {
+          dynamicContextSection += memoriesSection;
+        } else {
+          stableSystemPrompt += memoriesSection;
+        }
+      }
+      if (ragContextSection) {
+        if (prefixStable) {
+          dynamicContextSection += ragContextSection;
+        } else {
+          stableSystemPrompt += ragContextSection;
+        }
+      }
+
+      // Only set system prompt if there's content
+      const finalSystemPrompt = stableSystemPrompt.trim() || undefined;
 
       // Filter messages based on compression settings
       // Convert MultimodalMessage to UIMessage format for filtering
@@ -418,14 +460,33 @@ export function useAIChat({
       // Calculate max tokens for context (use model's max or default)
       const modelMaxTokens = maxTokens || 100000;
 
-      // Apply compression filtering
-      const filteredUIMessages = filterMessagesForContext(
-        messagesAsUIMessage,
-        effectiveCompressionSettings,
-        modelMaxTokens,
-        provider,
-        model
-      );
+      // Use async compression with AI when enabled and provider is available
+      let filteredUIMessages: UIMessage[];
+      const shouldUseAsync = effectiveCompressionSettings.useAISummarization && activeApiKey && provider;
+
+      // Get frozen summary for prefix stability (if available)
+      const frozenSummary = session?.frozenSummary;
+
+      if (shouldUseAsync && sessionId) {
+        filteredUIMessages = await filterMessagesForContextAsync(
+          messagesAsUIMessage,
+          effectiveCompressionSettings,
+          sessionId,
+          modelMaxTokens,
+          provider,
+          model,
+          frozenSummary
+        );
+      } else {
+        filteredUIMessages = filterMessagesForContext(
+          messagesAsUIMessage,
+          effectiveCompressionSettings,
+          modelMaxTokens,
+          provider,
+          model,
+          frozenSummary
+        );
+      }
 
       // Log compression activity if messages were filtered
       if (filteredUIMessages.length < messages.length) {
@@ -438,14 +499,24 @@ export function useAIChat({
 
       // Also include any summary messages that were created during compression
       const summaryMessages: MultimodalMessage[] = filteredUIMessages
-        .filter(m => (m as { compressionState?: { isSummary?: boolean } }).compressionState?.isSummary)
+        .filter(m => m.compressionState?.isSummary)
         .map(m => ({
           role: 'system' as const,
           content: m.content,
         }));
 
-      // Combine summary messages with filtered original messages
-      const finalMessages = [...summaryMessages, ...filteredMessages];
+      // Inject dynamic context as a late system message (prefix stability mode)
+      // This keeps the system prompt stable for KV cache reuse
+      const dynamicContextMessages: MultimodalMessage[] = [];
+      if (prefixStable && dynamicContextSection.trim()) {
+        dynamicContextMessages.push({
+          role: 'system' as const,
+          content: dynamicContextSection.trim(),
+        });
+      }
+
+      // Combine: summary messages + filtered original messages + dynamic context at tail
+      const finalMessages = [...summaryMessages, ...filteredMessages, ...dynamicContextMessages];
 
       // Convert MultimodalMessage to CoreMessage format
       const convertedMessages: CoreMessage[] = finalMessages.map((msg) => {

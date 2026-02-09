@@ -164,6 +164,7 @@ export interface CompletionSettings {
   ghostTextOpacity: number;
   autoDismissDelay: number;
   maxSuggestions: number;
+  enablePartialAccept: boolean;
 }
 
 /** Default completion settings */
@@ -184,6 +185,7 @@ export const DEFAULT_COMPLETION_SETTINGS: CompletionSettings = {
   ghostTextOpacity: 0.5,
   autoDismissDelay: 5000,
   maxSuggestions: 10,
+  enablePartialAccept: true,
 };
 
 /** Completion event types */

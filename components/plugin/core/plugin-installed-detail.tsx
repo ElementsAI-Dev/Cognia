@@ -112,19 +112,22 @@ export function PluginInstalledDetail({
     } catch {
       setHealth(null);
     }
-    try {
-      const rollbackMgr = getPluginRollbackManager();
-      const info = rollbackMgr.getRollbackInfo(plugin.manifest.id);
-      setRollbackInfo(info);
-    } catch {
-      setRollbackInfo(null);
-    }
+    (async () => {
+      try {
+        const rollbackMgr = getPluginRollbackManager();
+        const info = await rollbackMgr.getRollbackInfo(plugin.manifest.id);
+        setRollbackInfo(info);
+      } catch {
+        setRollbackInfo(null);
+      }
+    })();
   }, [plugin]);
 
   // Usage stats from analytics store
   const usageStats = useMemo(() => {
     if (!plugin) return null;
-    return pluginAnalyticsStore.getPluginStats(plugin.manifest.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (pluginAnalyticsStore as any).getPluginStats?.(plugin.manifest.id) ?? null;
   }, [plugin]);
 
   const handleToggle = useCallback(async () => {
@@ -147,7 +150,7 @@ export function PluginInstalledDetail({
     setIsRollingBack(true);
     try {
       const rollbackMgr = getPluginRollbackManager();
-      const result = await rollbackMgr.executeRollback(plugin.manifest.id, selectedRollbackVersion);
+      const result = await rollbackMgr.rollback(plugin.manifest.id, selectedRollbackVersion);
       if (result.success) {
         toast.success(t('rollback.success', { version: selectedRollbackVersion }));
       } else {
@@ -167,7 +170,7 @@ export function PluginInstalledDetail({
     setIsExporting(true);
     try {
       const backupMgr = getPluginBackupManager();
-      const result = await backupMgr.createBackup(plugin.manifest.id, 'manual');
+      const result = await backupMgr.createBackup(plugin.manifest.id, { reason: 'manual' });
       if (result.success) {
         toast.success(t('export.success'));
       } else {
@@ -404,7 +407,7 @@ export function PluginInstalledDetail({
                           {health.issues.map((issue, i) => (
                             <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                               <AlertTriangle className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
-                              <span>{issue}</span>
+                              <span>{typeof issue === 'string' ? issue : (issue as { message?: string }).message ?? String(issue)}</span>
                             </div>
                           ))}
                         </div>

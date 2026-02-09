@@ -26,8 +26,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import { formatDuration, type RecordingHistoryEntry } from '@/lib/native/screen-recording';
+import { cn, formatDuration } from '@/lib/utils';
+import type { RecordingHistoryEntry } from '@/lib/native/screen-recording';
 
 export interface RecordingSidebarProps {
   history: RecordingHistoryEntry[];

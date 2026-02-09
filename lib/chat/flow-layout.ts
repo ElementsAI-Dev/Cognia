@@ -213,6 +213,16 @@ export function messagesToFlowNodes(
     const hierarchyNode = hierarchy.get(message.id);
     const childBranchIds = branchPointMap.get(message.id);
 
+    // Resolve tags from tag definitions
+    const nodeTagIds = canvasState.nodeTags?.[message.id] || [];
+    const resolvedTags = nodeTagIds
+      .map((tagId) => canvasState.tagDefinitions?.find((t) => t.id === tagId))
+      .filter(Boolean) as FlowChatNodeData['tags'];
+
+    // Check if node is highlighted by search
+    const highlightedIds = canvasState.searchState?.highlightedNodeIds || [];
+    const isHighlighted = highlightedIds.includes(message.id);
+
     const nodeData: FlowChatNodeData = {
       message,
       role: message.role,
@@ -223,6 +233,11 @@ export function messagesToFlowNodes(
       isSelected: canvasState.selectedNodeIds.includes(message.id),
       model: message.model,
       provider: message.provider,
+      isBookmarked: canvasState.bookmarkedNodeIds?.includes(message.id) ?? false,
+      tags: resolvedTags,
+      notes: canvasState.nodeNotes?.[message.id],
+      rating: canvasState.nodeRatings?.[message.id],
+      isHighlighted,
     };
 
     const node: FlowChatNode = {

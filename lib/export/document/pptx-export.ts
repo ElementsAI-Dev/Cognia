@@ -261,13 +261,23 @@ function addSlide(
     const imgElement = imageElements[0];
     if (imgElement.content) {
       try {
-        if (imgElement.content.startsWith('data:') || imgElement.content.startsWith('http')) {
+        if (imgElement.content.startsWith('data:')) {
+          pptxSlide.addImage({
+            data: imgElement.content,
+            x: layout.imagePos.x,
+            y: layout.imagePos.y,
+            w: layout.imagePos.w,
+            h: layout.imagePos.h,
+            sizing: { type: 'contain', w: layout.imagePos.w, h: layout.imagePos.h },
+          });
+        } else if (imgElement.content.startsWith('http')) {
           pptxSlide.addImage({
             path: imgElement.content,
             x: layout.imagePos.x,
             y: layout.imagePos.y,
             w: layout.imagePos.w,
             h: layout.imagePos.h,
+            sizing: { type: 'contain', w: layout.imagePos.w, h: layout.imagePos.h },
           });
         }
       } catch {
@@ -327,32 +337,52 @@ function addElement(
       break;
 
     case 'image':
-      if (element.content && (element.content.startsWith('data:') || element.content.startsWith('http'))) {
+      if (element.content) {
         try {
-          pptxSlide.addImage({
-            path: element.content,
-            x, y, w, h,
-          });
+          if (element.content.startsWith('data:')) {
+            // Base64 data URLs must use 'data' property
+            pptxSlide.addImage({
+              data: element.content,
+              x, y, w, h,
+              sizing: { type: 'contain', w, h },
+            });
+          } else if (element.content.startsWith('http')) {
+            pptxSlide.addImage({
+              path: element.content,
+              x, y, w, h,
+              sizing: { type: 'contain', w, h },
+            });
+          }
         } catch {
           // Skip invalid images
         }
       }
       break;
 
-    case 'shape':
-      pptxSlide.addShape('rect', {
+    case 'shape': {
+      const shapeType = (element.metadata?.shape as string) || 'rectangle';
+      const shapeColor = element.style?.backgroundColor || theme.primaryColor;
+      const pptxShape = shapeType === 'circle' || shapeType === 'ellipse'
+        ? 'ellipse' as const
+        : 'rect' as const;
+      pptxSlide.addShape(pptxShape, {
         x, y, w, h,
-        fill: { color: formatColor(theme.primaryColor) },
+        fill: { color: formatColor(shapeColor) },
+        rectRadius: shapeType === 'rounded' ? 0.2 : undefined,
       });
       break;
+    }
 
     case 'code':
       pptxSlide.addText(element.content, {
         x, y, w, h,
-        fontSize: 12,
-        fontFace: theme.codeFont,
-        color: formatColor(theme.textColor),
-        fill: { color: 'F5F5F5' },
+        fontSize: 11,
+        fontFace: theme.codeFont || 'Courier New',
+        color: 'D4D4D4',
+        fill: { color: '1E1E1E' },
+        valign: 'top',
+        paraSpaceAfter: 4,
+        rectRadius: 0.1,
       });
       break;
 
@@ -400,13 +430,56 @@ function addElement(
       const chartData = element.metadata?.chartData as { labels?: string[]; datasets?: Array<{ label: string; data: number[] }> } | undefined;
       if (chartData?.labels && chartData?.datasets) {
         try {
-          const pptxChartType = chartType === 'pie' || chartType === 'doughnut'
-            ? 'pie' as const
-            : chartType === 'line' || chartType === 'area'
-              ? 'line' as const
-              : chartType === 'scatter'
-                ? 'scatter' as const
-                : 'bar' as const;
+          // Map chart types to pptxgenjs equivalents
+          let pptxChartType: 'pie' | 'doughnut' | 'line' | 'area' | 'scatter' | 'bar';
+          const chartOpts: Record<string, unknown> = {
+            x, y, w, h,
+            showTitle: false,
+            showLegend: true,
+            legendPos: 'b',
+            legendFontSize: 10,
+          };
+
+          switch (chartType) {
+            case 'pie':
+              pptxChartType = 'pie';
+              chartOpts.showPercent = true;
+              break;
+            case 'doughnut':
+              pptxChartType = 'doughnut';
+              chartOpts.showPercent = true;
+              chartOpts.holeSize = 50;
+              break;
+            case 'line':
+              pptxChartType = 'line';
+              chartOpts.lineSmooth = true;
+              chartOpts.lineSize = 2;
+              break;
+            case 'area':
+              pptxChartType = 'area';
+              chartOpts.opacity = 50;
+              break;
+            case 'scatter':
+              pptxChartType = 'scatter';
+              chartOpts.lineSize = 0;
+              break;
+            case 'horizontal-bar':
+              pptxChartType = 'bar';
+              chartOpts.barDir = 'bar';
+              break;
+            default:
+              pptxChartType = 'bar';
+              chartOpts.barDir = 'col';
+              break;
+          }
+
+          // Apply theme colors to chart
+          const chartColors = [
+            formatColor(theme.primaryColor),
+            formatColor(theme.secondaryColor || theme.primaryColor),
+            '10B981', 'F59E0B', 'EF4444', '8B5CF6', 'EC4899', '06B6D4',
+          ];
+          chartOpts.chartColors = chartColors;
 
           const chartDataForPptx = chartData.datasets.map(ds => ({
             name: ds.label,
@@ -414,12 +487,7 @@ function addElement(
             values: ds.data,
           }));
 
-          pptxSlide.addChart(pptxChartType, chartDataForPptx, {
-            x, y, w, h,
-            showTitle: false,
-            showLegend: true,
-            legendPos: 'b',
-          });
+          pptxSlide.addChart(pptxChartType, chartDataForPptx, chartOpts);
         } catch {
           pptxSlide.addText(`[${chartType} chart]`, {
             x, y, w, h,

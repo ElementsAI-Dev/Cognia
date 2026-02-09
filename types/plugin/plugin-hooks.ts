@@ -450,6 +450,50 @@ export interface PluginHooksAll extends PluginHooks {
   onShortcut?: UIHookEvents['onShortcut'];
   onContextMenuShow?: UIHookEvents['onContextMenuShow'];
 
+  // Message lifecycle hooks
+  onMessageDelete?: PluginHooks['onMessageDelete'];
+  onMessageEdit?: PluginHooks['onMessageEdit'];
+
+  // Session lifecycle hooks
+  onSessionRename?: PluginHooks['onSessionRename'];
+  onSessionClear?: PluginHooks['onSessionClear'];
+
+  // Chat flow hooks
+  onChatRegenerate?: PluginHooks['onChatRegenerate'];
+  onModelSwitch?: PluginHooks['onModelSwitch'];
+  onChatModeSwitch?: PluginHooks['onChatModeSwitch'];
+  onSystemPromptChange?: PluginHooks['onSystemPromptChange'];
+
+  // Agent plan hooks
+  onAgentPlanCreate?: PluginHooks['onAgentPlanCreate'];
+  onAgentPlanStepComplete?: PluginHooks['onAgentPlanStepComplete'];
+
+  // Scheduler hooks
+  onScheduledTaskStart?: PluginHooks['onScheduledTaskStart'];
+  onScheduledTaskComplete?: PluginHooks['onScheduledTaskComplete'];
+  onScheduledTaskError?: PluginHooks['onScheduledTaskError'];
+  /** Called when a scheduled task is created */
+  onScheduledTaskCreate?: (task: {
+    id: string;
+    pluginId: string;
+    name: string;
+    trigger: unknown;
+    handler: string;
+  }) => void;
+  /** Called when a scheduled task is updated */
+  onScheduledTaskUpdate?: (
+    task: { id: string; pluginId: string; name: string },
+    changes: Record<string, unknown>
+  ) => void;
+  /** Called when a scheduled task is deleted */
+  onScheduledTaskDelete?: (taskId: string) => void;
+  /** Called when a scheduled task is paused */
+  onScheduledTaskPause?: (taskId: string) => void;
+  /** Called when a scheduled task is resumed */
+  onScheduledTaskResume?: (taskId: string) => void;
+  /** Called before a scheduled task runs (return false to cancel) */
+  onScheduledTaskBeforeRun?: (taskId: string, executionId: string) => boolean | Promise<boolean>;
+
   // External Agent hooks
   onExternalAgentConnect?: (agentId: string, agentName: string) => void;
   onExternalAgentDisconnect?: (agentId: string) => void;
@@ -458,6 +502,17 @@ export interface PluginHooksAll extends PluginHooks {
   onExternalAgentPermissionRequest?: (agentId: string, sessionId: string, toolName: string, reason?: string) => void;
   onExternalAgentToolCall?: (agentId: string, sessionId: string, toolName: string, args: Record<string, unknown>) => void;
   onExternalAgentError?: (agentId: string, error: string) => void;
+
+  // Code Execution / Sandbox hooks
+  onCodeExecutionStart?: (language: string, code: string, sandboxId?: string) => void;
+  onCodeExecutionComplete?: (language: string, result: unknown, sandboxId?: string) => void;
+  onCodeExecutionError?: (language: string, error: Error, sandboxId?: string) => void;
+
+  // MCP Server hooks
+  onMCPServerConnect?: (serverId: string, serverName: string) => void;
+  onMCPServerDisconnect?: (serverId: string) => void;
+  onMCPToolCall?: (serverId: string, toolName: string, args: Record<string, unknown>) => void;
+  onMCPToolResult?: (serverId: string, toolName: string, result: unknown) => void;
 }
 
 /**

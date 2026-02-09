@@ -7,7 +7,7 @@
 export type TaskTriggerType = 'cron' | 'interval' | 'once' | 'event';
 
 // Task types that can be scheduled
-export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom' | 'plugin' | 'script';
+export type ScheduledTaskType = 'workflow' | 'agent' | 'sync' | 'backup' | 'custom' | 'plugin' | 'script' | 'test' | 'ai-generation' | 'chat';
 
 // Task execution status
 export type TaskExecutionStatus =
@@ -76,9 +76,9 @@ export interface TaskNotificationConfig {
   /** Notify when task fails */
   onError: boolean;
   /** Notify on progress (for long-running tasks) */
-  onProgress: boolean;
+  onProgress?: boolean;
   /** Notification channels to use */
-  channels: NotificationChannel[];
+  channels?: NotificationChannel[];
   /** Webhook URL for webhook notifications */
   webhookUrl?: string;
 }
@@ -96,7 +96,7 @@ export interface TaskExecutionConfig {
   /** Whether to run missed executions on startup */
   runMissedOnStartup: boolean;
   /** Maximum number of missed executions to run */
-  maxMissedRuns: number;
+  maxMissedRuns?: number;
   /** Whether to allow concurrent executions */
   allowConcurrent: boolean;
 }
@@ -110,7 +110,7 @@ export interface ScheduledTask {
   description?: string;
   type: ScheduledTaskType;
   trigger: TaskTrigger;
-  payload: Record<string, unknown>;
+  payload?: Record<string, unknown>;
   config: TaskExecutionConfig;
   notification: TaskNotificationConfig;
   status: ScheduledTaskStatus;
@@ -173,7 +173,7 @@ export interface CreateScheduledTaskInput {
   description?: string;
   type: ScheduledTaskType;
   trigger: TaskTrigger;
-  payload: Record<string, unknown>;
+  payload?: Record<string, unknown>;
   config?: Partial<TaskExecutionConfig>;
   notification?: Partial<TaskNotificationConfig>;
   tags?: string[];
@@ -199,6 +199,8 @@ export interface UpdateScheduledTaskInput {
 export interface TaskFilter {
   types?: ScheduledTaskType[];
   statuses?: ScheduledTaskStatus[];
+  /** Single status shorthand filter */
+  status?: ScheduledTaskStatus;
   tags?: string[];
   search?: string;
 }

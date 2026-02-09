@@ -85,7 +85,12 @@
     "scheduler": "日程",
     "speedPass": "速过学习",
     "academic": "学术研究",
-    "sandbox": "代码沙箱"
+    "sandbox": "代码沙箱",
+    "dailyLimit": "每日限额",
+    "inputTokens": "输入",
+    "outputTokens": "输出",
+    "cost": "费用",
+    "viewFullReport": "查看完整报告"
   },
   "mobileNav": {
     "home": "首页",

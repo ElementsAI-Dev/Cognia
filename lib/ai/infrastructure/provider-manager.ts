@@ -146,6 +146,7 @@ export class ProviderManager {
   private quotaManager: QuotaManager;
   private availabilityMonitor: AvailabilityMonitor;
   private rateLimiters: Map<string, RateLimiter> = new Map();
+  private lastRateLimitStatus: Map<string, RateLimitResult> = new Map();
   private initialized: boolean = false;
 
   constructor(config?: Partial<ProviderManagerConfig>) {
@@ -407,7 +408,8 @@ export class ProviderManager {
       if (this.config.enableRateLimiting) {
         const limiter = this.rateLimiters.get(selection.providerId);
         if (limiter) {
-          await limiter.limit(selection.providerId);
+          const rateLimitResult = await limiter.limit(selection.providerId);
+          this.lastRateLimitStatus.set(selection.providerId, rateLimitResult);
         }
       }
 
@@ -417,14 +419,24 @@ export class ProviderManager {
         const startTime = Date.now();
 
         if (this.config.enableCircuitBreaker) {
-          const cbResult = await circuitBreakerRegistry
-            .get(selection.providerId, this.config.circuitBreaker)
-            .execute(() => fn(context));
+          const breaker = circuitBreakerRegistry
+            .get(selection.providerId, {
+              ...this.config.circuitBreaker,
+              ...(options.timeout ? { requestTimeout: options.timeout } : {}),
+            });
+          const cbResult = await breaker.execute(() => fn(context));
 
           if (!cbResult.success) {
             throw cbResult.error || new Error('Circuit breaker rejected request');
           }
           result = cbResult.data!;
+        } else if (options.timeout) {
+          result = await Promise.race([
+            fn(context),
+            new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error(`Request timeout after ${options.timeout}ms`)), options.timeout);
+            }),
+          ]);
         } else {
           result = await fn(context);
         }
@@ -550,7 +562,7 @@ export class ProviderManager {
       availability: this.availabilityMonitor.getAvailability(providerId) || null,
       metrics: this.loadBalancer.getProviderMetrics(providerId) || null,
       quota: this.quotaManager.getQuotaStatus(providerId),
-      rateLimit: null, // Would need async call
+      rateLimit: this.lastRateLimitStatus.get(providerId) || null,
       circuitState: circuitBreakerRegistry.getState(providerId) || 'closed',
     };
   }

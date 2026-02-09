@@ -670,6 +670,10 @@ interface SettingsState {
   setEnableCalculator: (enabled: boolean) => void;
   enableProcessTools: boolean;
   setEnableProcessTools: (enabled: boolean) => void;
+  enableEnvironmentTools: boolean;
+  setEnableEnvironmentTools: (enabled: boolean) => void;
+  enableShellTools: boolean;
+  setEnableShellTools: (enabled: boolean) => void;
   alwaysAllowedTools: string[];
   addAlwaysAllowedTool: (toolName: string) => void;
   removeAlwaysAllowedTool: (toolName: string) => void;
@@ -788,6 +792,13 @@ interface SettingsState {
   setCompressionModel: (config: Partial<CompressionModelConfig>) => void;
   setCompressionNotification: (show: boolean) => void;
   setCompressionUndo: (enable: boolean) => void;
+  setCompressionImportanceThreshold: (threshold: number) => void;
+  setCompressionUseAI: (useAI: boolean) => void;
+  setCompressionPreserveToolMetadata: (preserve: boolean) => void;
+  setCompressionMaxToolResultTokens: (tokens: number) => void;
+  setCompressionRecursiveChunkSize: (size: number) => void;
+  setCompressionRetainedThreshold: (threshold: number) => void;
+  setCompressionPrefixStability: (enabled: boolean) => void;
 
   // Auto Router settings
   autoRouterSettings: AutoRouterSettings;
@@ -1043,6 +1054,37 @@ const defaultProviderSettings: Record<string, UserProviderSettings> = {
     defaultModel: 'llama3.2',
     enabled: false,
   },
+  // TTS-specific providers
+  elevenlabs: {
+    providerId: 'elevenlabs',
+    apiKey: '',
+    defaultModel: 'eleven_multilingual_v2',
+    enabled: false,
+  },
+  lmnt: {
+    providerId: 'lmnt',
+    apiKey: '',
+    defaultModel: 'default',
+    enabled: false,
+  },
+  hume: {
+    providerId: 'hume',
+    apiKey: '',
+    defaultModel: 'default',
+    enabled: false,
+  },
+  cartesia: {
+    providerId: 'cartesia',
+    apiKey: '',
+    defaultModel: 'sonic-3',
+    enabled: false,
+  },
+  deepgram: {
+    providerId: 'deepgram',
+    apiKey: '',
+    defaultModel: 'aura-2-asteria-en',
+    enabled: false,
+  },
   // Local inference providers
   lmstudio: {
     providerId: 'lmstudio',
@@ -1166,6 +1208,8 @@ const initialState = {
   enableRAGSearch: true,
   enableCalculator: true,
   enableProcessTools: false, // Disabled by default for security
+  enableEnvironmentTools: false, // Disabled by default for security
+  enableShellTools: false, // Disabled by default for security
   alwaysAllowedTools: [] as string[],
 
   // Response display
@@ -1818,6 +1862,8 @@ export const useSettingsStore = create<SettingsState>()(
       setEnableRAGSearch: (enableRAGSearch) => set({ enableRAGSearch }),
       setEnableCalculator: (enableCalculator) => set({ enableCalculator }),
       setEnableProcessTools: (enableProcessTools) => set({ enableProcessTools }),
+      setEnableEnvironmentTools: (enableEnvironmentTools) => set({ enableEnvironmentTools }),
+      setEnableShellTools: (enableShellTools) => set({ enableShellTools }),
 
       addAlwaysAllowedTool: (toolName) =>
         set((state) => ({
@@ -2125,6 +2171,37 @@ export const useSettingsStore = create<SettingsState>()(
       setCompressionUndo: (enableUndo) =>
         set((state) => ({
           compressionSettings: { ...state.compressionSettings, enableUndo },
+        })),
+      setCompressionImportanceThreshold: (importanceThreshold) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, importanceThreshold },
+        })),
+      setCompressionUseAI: (useAISummarization) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, useAISummarization },
+        })),
+      setCompressionPreserveToolMetadata: (preserveToolCallMetadata) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, preserveToolCallMetadata },
+        })),
+      setCompressionMaxToolResultTokens: (maxToolResultTokens) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, maxToolResultTokens },
+        })),
+      setCompressionRecursiveChunkSize: (recursiveChunkSize) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, recursiveChunkSize },
+        })),
+      setCompressionRetainedThreshold: (retainedThreshold) =>
+        set((state) => ({
+          compressionSettings: {
+            ...state.compressionSettings,
+            retainedThreshold: Math.min(90, Math.max(10, retainedThreshold)),
+          },
+        })),
+      setCompressionPrefixStability: (prefixStabilityMode) =>
+        set((state) => ({
+          compressionSettings: { ...state.compressionSettings, prefixStabilityMode },
         })),
 
       // Auto Router settings actions
@@ -2866,7 +2943,7 @@ export const useSettingsStore = create<SettingsState>()(
             state.themeSchedule = initialState.themeSchedule;
           }
         }
-        return state as SettingsState;
+        return state as unknown as SettingsState;
       },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<SettingsState> | undefined;

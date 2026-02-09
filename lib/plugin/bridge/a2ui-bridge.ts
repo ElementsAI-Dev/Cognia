@@ -7,6 +7,7 @@ import type {
   PluginA2UIComponent,
   A2UITemplateDef,
   A2UIPluginComponentProps,
+  PluginContext,
 } from '@/types/plugin';
 import type { A2UIComponent as _A2UIComponent, A2UISurfaceType } from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
@@ -22,6 +23,7 @@ import { loggers } from '../core/logger';
 interface A2UIBridgeConfig {
   registry: PluginRegistry;
   hooksManager: PluginLifecycleHooks;
+  contextResolver?: (pluginId: string) => PluginContext | undefined;
 }
 
 // =============================================================================
@@ -142,12 +144,16 @@ export class PluginA2UIBridge {
   ): React.ComponentType<A2UIPluginComponentProps> {
     const OriginalComponent = pluginComponent.component;
 
+    const contextResolver = this.config.contextResolver;
+
     // Return a wrapper that injects plugin context
     return function PluginComponentWrapper(props: A2UIPluginComponentProps) {
-      // Add plugin context to props
+      // Try to resolve the real plugin context from the manager
+      const resolvedContext = contextResolver?.(pluginId);
+
       const enhancedProps: A2UIPluginComponentProps = {
         ...props,
-        pluginContext: {
+        pluginContext: resolvedContext || {
           pluginId,
           pluginPath: '',
           config: {},

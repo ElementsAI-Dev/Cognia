@@ -138,6 +138,40 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     fetchHistory();
   }, [onScreenshotTaken, fetchHistory]);
 
+  const handleSendToChat = useCallback(async (imageData: string) => {
+    try {
+      const { emit } = await import('@tauri-apps/api/event');
+      await emit('screenshot-send-to-chat', { imageBase64: imageData });
+    } catch {
+      // Fallback: copy to clipboard if event emission fails
+      try {
+        const response = await fetch(`data:image/png;base64,${imageData}`);
+        const blob = await response.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob }),
+        ]);
+      } catch {
+        // Best-effort
+      }
+    }
+    setEditorOpen(false);
+    setEditorImageData(null);
+  }, []);
+
+  const handleExtractText = useCallback(async (imageData: string) => {
+    const text = await extractText(imageData);
+    if (text) {
+      navigator.clipboard.writeText(text);
+      // Also emit to chat for convenience
+      try {
+        const { emit } = await import('@tauri-apps/api/event');
+        await emit('screenshot-ocr-result', { text, imageBase64: imageData });
+      } catch {
+        // Best-effort
+      }
+    }
+  }, [extractText]);
+
   const handleEditorCancel = useCallback(() => {
     setEditorOpen(false);
     setEditorImageData(null);
@@ -208,6 +242,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
           imageData={editorImageData}
           onConfirm={handleEditorConfirm}
           onCancel={handleEditorCancel}
+          onSendToChat={handleSendToChat}
+          onExtractText={handleExtractText}
           className="flex-1"
         />
       </div>

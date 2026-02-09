@@ -46,7 +46,7 @@ export {
   type PaperComparisonResult,
 } from './academic-analysis-tool';
 export { calculatorTool, executeCalculator, calculatorInputSchema, convertUnit, unitConversions, type CalculatorInput, type CalculatorResult } from './calculator';
-export { documentTools, executeDocumentSummarize, executeDocumentChunk, executeDocumentAnalyze, type DocumentToolResult } from './document-tool';
+export { documentTools, executeDocumentSummarize, executeDocumentChunk, executeDocumentAnalyze, executeDocumentExtractTables, executeDocumentReadFile, documentExtractTablesInputSchema, documentReadFileInputSchema, documentToolSystemPrompt, documentToolPromptSnippet, type DocumentToolResult, type DocumentReadFileInput } from './document-tool';
 export { 
   fileTools,
   executeFileRead,
@@ -83,7 +83,35 @@ export {
   type FileSearchInput,
   type FileAppendInput,
   type FileToolResult,
+  executeBinaryWrite,
+  fileBinaryWriteInputSchema,
+  type FileBinaryWriteInput,
+  executeContentSearch,
+  contentSearchInputSchema,
+  type ContentSearchInput,
+  executeDirectoryDelete,
+  directoryDeleteInputSchema,
+  type DirectoryDeleteInput,
+  executeFileMove,
+  fileMoveInputSchema,
+  type FileMoveInput,
+  executeFileHash,
+  fileHashInputSchema,
+  type FileHashInput,
+  executeFileDiff,
+  fileDiffInputSchema,
+  type FileDiffInput,
+  fileToolSystemPrompt,
+  fileToolPromptSnippet,
 } from './file-tool';
+export {
+  shellTools,
+  executeShellCommand,
+  shellExecuteInputSchema,
+  shellToolSystemPrompt,
+  type ShellExecuteInput,
+  type ShellToolResult,
+} from './shell-tool';
 export {
   pptTools,
   executePPTOutline,
@@ -465,3 +493,18 @@ export {
   latexAssistantInputSchema,
   type LaTeXAssistantInput,
 } from './latex-assistant-tool';
+
+// Tool Execution Middleware - Cache, retry, and rate limiting
+export {
+  withMiddleware,
+  applyMiddlewareToTools,
+  getToolCacheStats,
+  clearToolCache,
+  invalidateToolCache,
+  resetRateLimit,
+  getRateLimitStatus,
+  type ToolMiddlewareConfig,
+  type ToolMiddlewareOptions,
+  type RetryConfig,
+  type RateLimitConfig,
+} from './tool-middleware';

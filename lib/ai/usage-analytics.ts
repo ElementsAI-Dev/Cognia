@@ -416,7 +416,7 @@ export function getDailyUsageSummary(records: UsageRecord[]): {
 }
 
 /**
- * Format cost for display
+ * Format cost for display (USD only, for locale-aware formatting use useCurrencyFormat hook)
  */
 export function formatCost(cost: number): string {
   if (cost < 0.01) return '< $0.01';

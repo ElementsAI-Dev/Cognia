@@ -26,6 +26,8 @@ import {
   MousePointer2,
   ZoomIn,
   Trash,
+  MessageSquare,
+  ScanText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -53,6 +55,8 @@ interface AnnotationToolbarProps {
   onCopy: () => void;
   onSave: () => void;
   onToggleMagnifier: () => void;
+  onSendToChat?: () => void;
+  onExtractText?: () => void;
   className?: string;
 }
 
@@ -92,6 +96,8 @@ export function AnnotationToolbar({
   onCopy,
   onSave,
   onToggleMagnifier,
+  onSendToChat,
+  onExtractText,
   className,
 }: AnnotationToolbarProps) {
   const showFilledToggle = currentTool === 'rectangle' || currentTool === 'ellipse';
@@ -266,6 +272,33 @@ export function AnnotationToolbar({
             <p>{t('actions.save')} ({t('shortcuts.save')})</p>
           </TooltipContent>
         </Tooltip>
+
+        {onExtractText && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onExtractText}>
+                <ScanText className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('actions.extractText') || 'Extract Text (OCR)'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {onSendToChat && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="secondary" size="sm" className="h-8 px-2" onClick={onSendToChat}>
+                <MessageSquare className="h-4 w-4 mr-1" />
+                {t('actions.sendToChat') || 'Chat'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('actions.sendToChatDesc') || 'Send screenshot to AI chat'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         <Button
           variant="ghost"

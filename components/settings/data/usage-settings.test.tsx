@@ -50,6 +50,14 @@ jest.mock('@/types/system/usage', () => ({
     return n.toString();
   },
   formatCost: (n: number) => `$${n.toFixed(2)}`,
+  getCurrencyForLocale: () => 'USD',
+  CURRENCIES: {
+    USD: { code: 'USD', symbol: '$', name: 'US Dollar', locale: 'en', rateFromUSD: 1, decimals: 2, freeLabel: 'Free', symbolPosition: 'prefix' },
+    CNY: { code: 'CNY', symbol: '¥', name: '人民币', locale: 'zh-CN', rateFromUSD: 7.25, decimals: 2, freeLabel: '免费', symbolPosition: 'prefix' },
+  },
+  convertCurrency: (amount: number) => amount,
+  formatCostInCurrency: (cost: number) => `$${cost.toFixed(2)}`,
+  formatModelPricing: () => null,
 }));
 
 // Mock UI components
@@ -144,6 +152,9 @@ describe('UsageSettings', () => {
         clearUsageRecords: mockClearUsageRecords,
       };
       return selector(state);
+    },
+    useSettingsStore: (selector: (state: { language: string }) => unknown) => {
+      return selector({ language: 'en' });
     },
   }));
 

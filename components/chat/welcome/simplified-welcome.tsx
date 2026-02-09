@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Kbd } from '@/components/ui/kbd';
@@ -342,10 +343,13 @@ export function SimplifiedWelcome({
               <TooltipTrigger asChild>
                 <Badge 
                   variant="secondary" 
-                  className="text-xs font-normal px-2 py-0.5 bg-muted/50 hover:bg-muted cursor-default"
+                  className="text-xs font-normal px-2 py-0.5 bg-muted/50 hover:bg-muted cursor-default gap-1.5"
                 >
                   {providerName && (
-                    <span className="text-muted-foreground mr-1">{providerName} /</span>
+                    <ProviderIcon providerId={providerName} size={12} className="shrink-0" />
+                  )}
+                  {providerName && (
+                    <span className="text-muted-foreground">{providerName} /</span>
                   )}
                   {modelName}
                 </Badge>

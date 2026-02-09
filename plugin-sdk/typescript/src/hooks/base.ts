@@ -95,6 +95,12 @@ export interface PluginHooks {
   /** Called to render a custom message UI */
   onMessageRender?: (message: PluginMessage) => unknown; // React.ReactNode | null
 
+  /** Called when a message is deleted */
+  onMessageDelete?: (messageId: string, sessionId: string) => void;
+
+  /** Called when a message is edited */
+  onMessageEdit?: (messageId: string, oldContent: string, newContent: string, sessionId: string) => void;
+
   // Session hooks
   /** Called when a session is created */
   onSessionCreate?: (sessionId: string) => void;
@@ -105,9 +111,35 @@ export interface PluginHooks {
   /** Called when a session is deleted */
   onSessionDelete?: (sessionId: string) => void;
 
+  /** Called when a session is renamed */
+  onSessionRename?: (sessionId: string, oldTitle: string, newTitle: string) => void;
+
+  /** Called when all messages in a session are cleared */
+  onSessionClear?: (sessionId: string) => void;
+
   // Command hooks
   /** Called when a command is executed (return true to handle) */
   onCommand?: (command: string, args: string[]) => boolean | Promise<boolean>;
+
+  // Chat flow hooks
+  /** Called when user regenerates an AI response */
+  onChatRegenerate?: (messageId: string, sessionId: string) => void;
+
+  /** Called when the AI model/provider is switched */
+  onModelSwitch?: (provider: string, model: string, previousProvider?: string, previousModel?: string) => void;
+
+  /** Called when chat mode switches (chat/agent/learning) */
+  onChatModeSwitch?: (sessionId: string, newMode: string, previousMode: string) => void;
+
+  /** Called when the system prompt is changed at runtime */
+  onSystemPromptChange?: (sessionId: string, newPrompt: string, previousPrompt?: string) => void;
+
+  // Agent plan hooks
+  /** Called when an agent creates an execution plan */
+  onAgentPlanCreate?: (agentId: string, tasks: { id: string; description: string }[]) => void;
+
+  /** Called when an agent plan step completes */
+  onAgentPlanStepComplete?: (agentId: string, taskId: string, result: string, success: boolean) => void;
 
   // Scheduler hooks
   /** Called when a scheduled task starts execution */

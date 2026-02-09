@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Kbd } from '@/components/ui/kbd';
+import { useTTS } from '@/hooks';
 
 /** Feature toggle configuration */
 export interface TextSelectionFeatures {
@@ -143,9 +144,8 @@ export function TextSelectionPopover({
   const [quoted, setQuoted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [highlighted, setHighlighted] = useState(false);
-  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const { speak: ttsSpeak, stop: ttsStop, isPlaying: isSpeaking } = useTTS();
   const popoverRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -384,30 +384,13 @@ export function TextSelectionPopover({
     e.preventDefault();
     
     if (isSpeaking) {
-      // Stop speaking
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      speechSynthRef.current = null;
+      ttsStop();
       return;
     }
 
-    // Start speaking
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(selection.text);
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        speechSynthRef.current = null;
-      };
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-        speechSynthRef.current = null;
-      };
-      speechSynthRef.current = utterance;
-      setIsSpeaking(true);
-      window.speechSynthesis.speak(utterance);
-    } else {
+    ttsSpeak(selection.text).catch(() => {
       toast.error(tToasts('speechNotSupported') || 'Speech synthesis not supported');
-    }
+    });
   };
 
   // Handle highlight
@@ -527,17 +510,10 @@ export function TextSelectionPopover({
           break;
         case 'r':
           e.preventDefault();
-          if ('speechSynthesis' in window) {
-            if (window.speechSynthesis.speaking) {
-              window.speechSynthesis.cancel();
-              setIsSpeaking(false);
-            } else {
-              const utterance = new SpeechSynthesisUtterance(selectionTextRef.current);
-              utterance.onend = () => setIsSpeaking(false);
-              utterance.onerror = () => setIsSpeaking(false);
-              setIsSpeaking(true);
-              window.speechSynthesis.speak(utterance);
-            }
+          if (isSpeaking) {
+            ttsStop();
+          } else {
+            ttsSpeak(selectionTextRef.current).catch(() => {});
           }
           break;
         case 'k':
@@ -553,16 +529,14 @@ export function TextSelectionPopover({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [enableShortcuts, onExplain, onTranslate, onSummarize, onDefine, onKnowledgeMap, messageId, messageRole, addQuote, tToasts]);
+  }, [enableShortcuts, onExplain, onTranslate, onSummarize, onDefine, onKnowledgeMap, messageId, messageRole, addQuote, tToasts, isSpeaking, ttsSpeak, ttsStop]);
 
   // Cleanup speech on unmount
   useEffect(() => {
     return () => {
-      if (speechSynthRef.current) {
-        window.speechSynthesis.cancel();
-      }
+      ttsStop();
     };
-  }, []);
+  }, [ttsStop]);
 
   if (!selection.text || !selection.rect) {
     return null;

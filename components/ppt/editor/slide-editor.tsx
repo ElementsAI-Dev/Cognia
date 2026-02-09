@@ -47,6 +47,9 @@ export function SlideEditor({
     addElement,
     updateElement,
     deleteElement,
+    duplicateElement,
+    bringToFront,
+    sendToBack,
     selection,
     selectElement,
     addToSelection,
@@ -439,6 +442,9 @@ export function SlideEditor({
             onClick={(e) => handleElementClick(e, element.id)}
             onUpdate={(updates) => updateElement(slide.id, element.id, updates)}
             onDelete={() => deleteElement(slide.id, element.id)}
+            onDuplicate={() => duplicateElement(slide.id, element.id)}
+            onBringToFront={() => bringToFront(slide.id, element.id)}
+            onSendToBack={() => sendToBack(slide.id, element.id)}
           />
         ))}
       </div>

@@ -53,6 +53,16 @@ jest.mock('@/hooks/chat/use-usage-analytics', () => ({
     },
     topSessions: [],
     recommendations: ['Usage patterns look healthy. Keep up the good work!'],
+    performanceMetrics: {
+      avgLatency: 0,
+      p95Latency: 0,
+      avgTimeToFirstToken: 0,
+      errorRate: 0,
+      successRate: 1,
+      avgTokensPerSecond: 0,
+      totalErrors: 0,
+      totalSuccesses: 0,
+    },
     recordCount: 10,
     isLoading: false,
     refresh: jest.fn(),
@@ -71,6 +81,14 @@ jest.mock('@/hooks/chat/use-usage-analytics', () => ({
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}));
+
+// Mock useCurrencyFormat
+jest.mock('@/hooks/ui/use-currency-format', () => ({
+  useCurrencyFormat: () => ({
+    formatCost: (value: number) => `$${value.toFixed(3)}`,
+    currency: 'USD',
+  }),
 }));
 
 describe('UsageAnalyticsCard', () => {

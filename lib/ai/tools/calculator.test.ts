@@ -13,7 +13,7 @@ import {
 describe('executeCalculator', () => {
   describe('basic operations', () => {
     it('evaluates addition', async () => {
-      const input: CalculatorInput = { expression: '2 + 3', precision: 10 };
+      const input = { expression: '2 + 3', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -21,7 +21,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates subtraction', async () => {
-      const input: CalculatorInput = { expression: '10 - 4', precision: 10 };
+      const input = { expression: '10 - 4', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -29,7 +29,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates multiplication', async () => {
-      const input: CalculatorInput = { expression: '7 * 8', precision: 10 };
+      const input = { expression: '7 * 8', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -37,7 +37,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates division', async () => {
-      const input: CalculatorInput = { expression: '20 / 4', precision: 10 };
+      const input = { expression: '20 / 4', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -45,7 +45,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates modulo', async () => {
-      const input: CalculatorInput = { expression: '17 % 5', precision: 10 };
+      const input = { expression: '17 % 5', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -53,7 +53,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates exponentiation', async () => {
-      const input: CalculatorInput = { expression: '2 ^ 8', precision: 10 };
+      const input = { expression: '2 ^ 8', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -63,7 +63,7 @@ describe('executeCalculator', () => {
 
   describe('math functions', () => {
     it('evaluates sqrt', async () => {
-      const input: CalculatorInput = { expression: 'sqrt(16)', precision: 10 };
+      const input = { expression: 'sqrt(16)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -71,7 +71,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates abs', async () => {
-      const input: CalculatorInput = { expression: 'abs(-5)', precision: 10 };
+      const input = { expression: 'abs(-5)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -79,7 +79,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates floor', async () => {
-      const input: CalculatorInput = { expression: 'floor(3.7)', precision: 10 };
+      const input = { expression: 'floor(3.7)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -87,7 +87,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates ceil', async () => {
-      const input: CalculatorInput = { expression: 'ceil(3.2)', precision: 10 };
+      const input = { expression: 'ceil(3.2)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -95,7 +95,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates round', async () => {
-      const input: CalculatorInput = { expression: 'round(3.5)', precision: 10 };
+      const input = { expression: 'round(3.5)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -103,7 +103,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates sin', async () => {
-      const input: CalculatorInput = { expression: 'sin(0)', precision: 10 };
+      const input = { expression: 'sin(0)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -111,7 +111,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates cos', async () => {
-      const input: CalculatorInput = { expression: 'cos(0)', precision: 10 };
+      const input = { expression: 'cos(0)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -119,7 +119,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates tan', async () => {
-      const input: CalculatorInput = { expression: 'tan(0)', precision: 10 };
+      const input = { expression: 'tan(0)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -127,7 +127,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates log (base 10)', async () => {
-      const input: CalculatorInput = { expression: 'log(100)', precision: 10 };
+      const input = { expression: 'log(100)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -135,7 +135,7 @@ describe('executeCalculator', () => {
     });
 
     it('evaluates ln (natural log)', async () => {
-      const input: CalculatorInput = { expression: 'ln(1)', precision: 10 };
+      const input = { expression: 'ln(1)', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -145,7 +145,7 @@ describe('executeCalculator', () => {
 
   describe('constants', () => {
     it('uses pi constant', async () => {
-      const input: CalculatorInput = { expression: 'pi', precision: 5 };
+      const input = { expression: 'pi', precision: 5 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -153,7 +153,7 @@ describe('executeCalculator', () => {
     });
 
     it('uses e constant', async () => {
-      const input: CalculatorInput = { expression: 'e', precision: 5 };
+      const input = { expression: 'e', precision: 5 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -163,7 +163,7 @@ describe('executeCalculator', () => {
 
   describe('complex expressions', () => {
     it('handles parentheses', async () => {
-      const input: CalculatorInput = { expression: '(2 + 3) * 4', precision: 10 };
+      const input = { expression: '(2 + 3) * 4', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -171,7 +171,7 @@ describe('executeCalculator', () => {
     });
 
     it('handles nested functions', async () => {
-      const input: CalculatorInput = { expression: 'sqrt(abs(-16))', precision: 10 };
+      const input = { expression: 'sqrt(abs(-16))', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -179,7 +179,7 @@ describe('executeCalculator', () => {
     });
 
     it('handles mixed operations', async () => {
-      const input: CalculatorInput = { expression: '2 + 3 * 4 - 1', precision: 10 };
+      const input = { expression: '2 + 3 * 4 - 1', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -189,7 +189,7 @@ describe('executeCalculator', () => {
 
   describe('precision', () => {
     it('respects precision setting', async () => {
-      const input: CalculatorInput = { expression: '1/3', precision: 2 };
+      const input = { expression: '1/3', precision: 2 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(true);
@@ -197,7 +197,7 @@ describe('executeCalculator', () => {
     });
 
     it('handles high precision', async () => {
-      const input: CalculatorInput = { expression: '3.14159265359', precision: 10 };
+      const input = { expression: '3.14159265359', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       // Result should be processed
@@ -207,7 +207,7 @@ describe('executeCalculator', () => {
 
   describe('error handling', () => {
     it('handles invalid expressions', async () => {
-      const input: CalculatorInput = { expression: 'invalid', precision: 10 };
+      const input = { expression: 'invalid', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(false);
@@ -215,21 +215,21 @@ describe('executeCalculator', () => {
     });
 
     it('handles division by zero', async () => {
-      const input: CalculatorInput = { expression: '1/0', precision: 10 };
+      const input = { expression: '1/0', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.success).toBe(false);
     });
 
     it('returns original expression in result', async () => {
-      const input: CalculatorInput = { expression: '2 + 2', precision: 10 };
+      const input = { expression: '2 + 2', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.expression).toBe('2 + 2');
     });
 
     it('provides formatted result', async () => {
-      const input: CalculatorInput = { expression: '1000 + 234', precision: 10 };
+      const input = { expression: '1000 + 234', precision: 10 } as CalculatorInput;
       const result = await executeCalculator(input);
       
       expect(result.formattedResult).toBeDefined();
@@ -356,14 +356,113 @@ describe('convertUnit', () => {
   });
 });
 
+describe('executeCalculator - unit conversion mode', () => {
+  it('converts length units via mode=convert', async () => {
+    const result = await executeCalculator({
+      mode: 'convert',
+      value: 1,
+      fromUnit: 'km',
+      toUnit: 'm',
+      category: 'length',
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(true);
+    expect(result.mode).toBe('convert');
+    expect(result.result).toBe(1000);
+    expect(result.conversion).toBeDefined();
+    expect(result.conversion!.fromUnit).toBe('km');
+    expect(result.conversion!.toUnit).toBe('m');
+  });
+
+  it('converts temperature via mode=convert', async () => {
+    const result = await executeCalculator({
+      mode: 'convert',
+      value: 100,
+      fromUnit: 'c',
+      toUnit: 'f',
+      category: 'temperature',
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(true);
+    expect(result.result).toBe(212);
+    expect(result.formattedResult).toContain('212');
+  });
+
+  it('returns error when convert params missing', async () => {
+    const result = await executeCalculator({
+      mode: 'convert',
+      value: 1,
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(false);
+    expect(result.mode).toBe('convert');
+    expect(result.error).toContain('requires');
+  });
+
+  it('returns error for missing expression in calculate mode', async () => {
+    const result = await executeCalculator({
+      mode: 'calculate',
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(false);
+    expect(result.mode).toBe('calculate');
+    expect(result.error).toContain('Expression is required');
+  });
+
+  it('defaults to calculate mode', async () => {
+    const result = await executeCalculator({
+      expression: '5 + 5',
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(true);
+    expect(result.mode).toBe('calculate');
+    expect(result.result).toBe(10);
+  });
+
+  it('handles unknown unit in conversion', async () => {
+    const result = await executeCalculator({
+      mode: 'convert',
+      value: 1,
+      fromUnit: 'xyz',
+      toUnit: 'm',
+      category: 'length',
+      precision: 10,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Unknown unit');
+  });
+
+  it('formats conversion result string', async () => {
+    const result = await executeCalculator({
+      mode: 'convert',
+      value: 5,
+      fromUnit: 'km',
+      toUnit: 'mi',
+      category: 'length',
+      precision: 4,
+    } as CalculatorInput);
+
+    expect(result.success).toBe(true);
+    expect(result.formattedResult).toContain('km');
+    expect(result.formattedResult).toContain('mi');
+    expect(result.formattedResult).toContain('5');
+  });
+});
+
 describe('calculatorTool', () => {
   it('has correct name', () => {
     expect(calculatorTool.name).toBe('calculator');
   });
 
-  it('has description', () => {
+  it('has description mentioning unit conversion', () => {
     expect(calculatorTool.description).toBeDefined();
-    expect(calculatorTool.description.length).toBeGreaterThan(0);
+    expect(calculatorTool.description).toContain('unit conversion');
   });
 
   it('has parameters schema', () => {

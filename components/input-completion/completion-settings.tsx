@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, Trash2, RotateCcw } from 'lucide-react';
 import { useInputCompletion } from '@/hooks/input-completion';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
 import type {
   CompletionConfig,
   CompletionProvider,
@@ -324,6 +325,9 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
           </div>
 
+          {/* Unified Completion Settings */}
+          <UnifiedCompletionSection />
+
           {/* Statistics */}
           <div className="space-y-4">
             <h4 className="font-medium">Statistics</h4>
@@ -413,6 +417,72 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/** Unified completion settings section (partial accept, emoji, web AI) */
+function UnifiedCompletionSection() {
+  const store = useCompletionSettingsStore();
+
+  return (
+    <div className="space-y-4">
+      <h4 className="font-medium">Unified Completion</h4>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label>Partial Accept</Label>
+          <p className="text-xs text-muted-foreground">Ctrl+→ word-by-word, Ctrl+↓ line-by-line</p>
+        </div>
+        <Switch
+          checked={store.enablePartialAccept}
+          onCheckedChange={store.setEnablePartialAccept}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label>Emoji Completion</Label>
+          <p className="text-xs text-muted-foreground">Type : to search emojis</p>
+        </div>
+        <Switch
+          checked={store.emojiEnabled}
+          onCheckedChange={store.setEmojiEnabled}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label>Slash Commands</Label>
+          <p className="text-xs text-muted-foreground">Type / for quick commands</p>
+        </div>
+        <Switch
+          checked={store.slashCommandsEnabled}
+          onCheckedChange={store.setSlashCommandsEnabled}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label>@Mention</Label>
+          <p className="text-xs text-muted-foreground">Type @ to mention MCP tools</p>
+        </div>
+        <Switch
+          checked={store.mentionEnabled}
+          onCheckedChange={store.setMentionEnabled}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Max Suggestions: {store.maxSuggestions}</Label>
+        <Slider
+          value={[store.maxSuggestions]}
+          min={3}
+          max={20}
+          step={1}
+          onValueChange={([v]) => store.setMaxSuggestions(v)}
+        />
+      </div>
     </div>
   );
 }

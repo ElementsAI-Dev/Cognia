@@ -4,7 +4,7 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { LaTeXEquationDialog } from './latex-equation-dialog';
+import { LatexEquationDialog as LaTeXEquationDialog } from './latex-equation-dialog';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -55,6 +55,7 @@ describe('LaTeXEquationDialog', () => {
     open: true,
     onOpenChange: jest.fn(),
     onInsert: jest.fn(),
+    onGenerate: jest.fn(),
   };
 
   beforeEach(() => {

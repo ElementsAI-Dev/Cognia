@@ -12,6 +12,9 @@ export type DocumentType =
   | 'excel'
   | 'csv'
   | 'html'
+  | 'rtf'
+  | 'epub'
+  | 'presentation'
   | 'unknown';
 
 export interface DocumentMetadata {
@@ -94,6 +97,35 @@ export interface MarkdownParseResult {
   links: { text: string; url: string }[];
   codeBlocks: { language: string; code: string }[];
   images: { alt: string; url: string }[];
+  taskLists: TaskItem[];
+  mathBlocks: MathBlock[];
+  footnotes: Footnote[];
+  admonitions: Admonition[];
+}
+
+export interface TaskItem {
+  text: string;
+  checked: boolean;
+  line: number;
+}
+
+export interface MathBlock {
+  content: string;
+  displayMode: boolean;
+  line: number;
+}
+
+export interface Footnote {
+  id: string;
+  content: string;
+}
+
+export type AdmonitionType = 'note' | 'tip' | 'warning' | 'caution' | 'important' | 'info' | 'danger' | 'abstract';
+
+export interface Admonition {
+  type: AdmonitionType;
+  title?: string;
+  content: string;
 }
 
 // Code Parser Types
@@ -134,6 +166,8 @@ export interface PDFParseResult {
   pageCount: number;
   pages: PDFPage[];
   metadata: PDFMetadata;
+  outline?: PDFOutlineItem[];
+  annotations?: PDFAnnotation[];
 }
 
 export interface PDFPage {
@@ -154,12 +188,35 @@ export interface PDFMetadata {
   modificationDate?: Date;
 }
 
+export interface PDFParseOptions {
+  password?: string;
+  startPage?: number;
+  endPage?: number;
+  extractOutline?: boolean;
+  extractAnnotations?: boolean;
+}
+
+export interface PDFOutlineItem {
+  title: string;
+  pageNumber?: number;
+  children: PDFOutlineItem[];
+}
+
+export interface PDFAnnotation {
+  type: string;
+  content: string;
+  pageNumber: number;
+  rect?: { x: number; y: number; width: number; height: number };
+}
+
 // Office Parser Types
 export interface WordParseResult {
   text: string;
   html: string;
   messages: WordMessage[];
   images: WordImage[];
+  metadata?: WordMetadata;
+  headings?: WordHeading[];
 }
 
 export interface WordMessage {
@@ -172,10 +229,34 @@ export interface WordImage {
   base64: string;
 }
 
+export interface WordMetadata {
+  title?: string;
+  author?: string;
+  lastModifiedBy?: string;
+  created?: Date;
+  modified?: Date;
+  revision?: number;
+  description?: string;
+  subject?: string;
+  keywords?: string;
+}
+
+export interface WordHeading {
+  level: number;
+  text: string;
+}
+
+export interface WordParseOptions {
+  extractImages?: boolean;
+  styleMap?: string[];
+  extractMetadata?: boolean;
+}
+
 export interface ExcelParseResult {
   text: string;
   sheets: ExcelSheet[];
   sheetNames: string[];
+  sheetStats?: ExcelSheetStats[];
 }
 
 export interface ExcelSheet {
@@ -183,6 +264,23 @@ export interface ExcelSheet {
   data: (string | number | boolean | null)[][];
   rowCount: number;
   columnCount: number;
+  mergedCells?: string[];
+}
+
+export interface ExcelParseOptions {
+  cellDates?: boolean;
+  cellFormula?: boolean;
+  sheetFilter?: string[];
+  maxRows?: number;
+}
+
+export interface ExcelSheetStats {
+  name: string;
+  rowCount: number;
+  columnCount: number;
+  mergedCellCount: number;
+  emptyRate: number;
+  columnTypes: Record<number, 'string' | 'number' | 'date' | 'boolean' | 'mixed'>;
 }
 
 // CSV Parser Types
@@ -200,6 +298,31 @@ export interface CSVParseOptions {
   hasHeader?: boolean;
   skipEmptyLines?: boolean;
   trimValues?: boolean;
+  encoding?: string;
+}
+
+export type ColumnType = 'string' | 'number' | 'date' | 'boolean' | 'mixed' | 'empty';
+
+export interface ColumnTypeInfo {
+  columnIndex: number;
+  columnName: string;
+  inferredType: ColumnType;
+  sampleValues: string[];
+  nullCount: number;
+  uniqueCount: number;
+}
+
+export interface ColumnStats {
+  columnIndex: number;
+  columnName: string;
+  type: ColumnType;
+  count: number;
+  nullCount: number;
+  uniqueCount: number;
+  min?: number;
+  max?: number;
+  mean?: number;
+  median?: number;
 }
 
 // HTML Parser Types

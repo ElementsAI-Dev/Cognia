@@ -252,6 +252,8 @@ const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
 
 /**
  * Create a circuit breaker for an operation
+ * @deprecated Use `CircuitBreaker` from `@/lib/ai/infrastructure/circuit-breaker` instead,
+ * which provides a more complete implementation with state events, registry, and provider-specific configs.
  */
 export function createCircuitBreaker<T>(
   operation: () => Promise<T>,

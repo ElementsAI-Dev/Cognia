@@ -13,6 +13,7 @@ import type {
 } from '@/types/system/sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
 import { syncSandboxExecution } from '@/lib/context';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 interface UseSandboxState {
   isAvailable: boolean;
@@ -109,7 +110,13 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
+      getPluginEventHooks().dispatchCodeExecutionStart(request.language, request.code);
       const result = await sandboxService.execute(request);
+      if (result.status === 'completed') {
+        getPluginEventHooks().dispatchCodeExecutionComplete(request.language, result);
+      } else if (result.status === 'failed') {
+        getPluginEventHooks().dispatchCodeExecutionError(request.language, new Error(result.stderr || 'Execution failed'));
+      }
       // Sync execution output to context files for agent discovery
       syncSandboxExecution(
         result.id,
@@ -129,7 +136,13 @@ export function useSandbox(): UseSandboxState & UseSandboxActions {
       if (!state.isAvailable) {
         throw new Error('Sandbox is not available');
       }
+      getPluginEventHooks().dispatchCodeExecutionStart(language, code);
       const result = await sandboxService.quickExecute(language, code);
+      if (result.status === 'completed') {
+        getPluginEventHooks().dispatchCodeExecutionComplete(language, result);
+      } else if (result.status === 'failed') {
+        getPluginEventHooks().dispatchCodeExecutionError(language, new Error(result.stderr || 'Execution failed'));
+      }
       // Sync execution output to context files for agent discovery
       syncSandboxExecution(
         result.id,

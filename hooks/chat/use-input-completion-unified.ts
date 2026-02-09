@@ -3,12 +3,20 @@
  *
  * Combines @mention, /slash commands, :emoji, and AI ghost text completion
  * into a single unified system with proper conflict resolution.
+ *
+ * Enhanced features:
+ * - Web + Desktop AI ghost text completion
+ * - Partial accept: word-by-word (Ctrl+→) and line-by-line (Ctrl+↓)
+ * - Ctrl+Space manual trigger
+ * - Smart cancellation of in-flight requests
+ * - Proper native feedback (FullAccept/QuickDismiss)
  */
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useMention } from '@/hooks/ui/use-mention';
 import { isTauri } from '@/lib/utils';
 import * as nativeCompletion from '@/lib/native/input-completion';
+import { triggerWebCompletion, cancelWebCompletion, type ConversationMessage } from '@/lib/ai/completion/web-completion-provider';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
 import type {
   CompletionProviderType,
@@ -46,10 +54,14 @@ export interface UseInputCompletionUnifiedOptions {
   onMentionsChange?: (mentions: import('@/types/mcp').SelectedMention[]) => void;
   /** Max suggestions to show */
   maxSuggestions?: number;
-  /** Enable AI ghost text completion (desktop only) */
+  /** Enable AI ghost text completion */
   enableAiCompletion?: boolean;
-  /** Callback when AI ghost text is accepted */
+  /** Callback when AI ghost text is accepted (full or partial) */
   onAiCompletionAccept?: (text: string) => void;
+  /** Enable partial accept (Ctrl+→ word-by-word, Ctrl+↓ line-by-line) */
+  enablePartialAccept?: boolean;
+  /** Recent conversation messages for context-aware AI completion */
+  conversationContext?: ConversationMessage[];
 }
 
 export interface UseInputCompletionUnifiedReturn {
@@ -74,11 +86,20 @@ export interface UseInputCompletionUnifiedReturn {
   /** Get ghost text (if any) */
   getGhostText: () => string | null;
 
-  /** Accept ghost text */
+  /** Accept full ghost text (Tab) */
   acceptGhostText: () => void;
+
+  /** Accept ghost text partially by word (Ctrl+→) */
+  acceptGhostTextWord: () => string | null;
+
+  /** Accept ghost text partially by line (Ctrl+↓) */
+  acceptGhostTextLine: () => string | null;
 
   /** Dismiss ghost text */
   dismissGhostText: () => void;
+
+  /** Manually trigger AI ghost text for current text */
+  triggerAiCompletion: () => void;
 
   /** Get mention-related data for MentionPopover compatibility */
   mentionData: {
@@ -106,6 +127,8 @@ export function useInputCompletionUnified(
     maxSuggestions: maxSuggestionsOverride,
     enableAiCompletion: enableAiOverride,
     onAiCompletionAccept,
+    enablePartialAccept = true,
+    conversationContext,
   } = options;
 
   // Bridge with persistent completion settings store
@@ -140,7 +163,8 @@ export function useInputCompletionUnified(
   // State
   const [state, setState] = useState<UnifiedCompletionState>(INITIAL_STATE);
   const [currentText, setCurrentText] = useState('');
-  const [aiCompletionActive, setAiCompletionActive] = useState(false);
+  // Web mode is always active; desktop mode requires native init
+  const [aiCompletionActive, setAiCompletionActive] = useState(!isDesktop);
   const cursorPositionRef = useRef(0);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const aiDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -163,14 +187,14 @@ export function useInputCompletionUnified(
     () =>
       providers
         .filter((p) => {
-          // AI text completion requires desktop environment
+          // AI text completion works on both desktop and web now
           if (p.type === 'ai-text') {
-            return p.enabled && isDesktop && enableAiCompletion;
+            return p.enabled && enableAiCompletion;
           }
           return p.enabled;
         })
         .sort((a, b) => b.priority - a.priority),
-    [providers, isDesktop, enableAiCompletion]
+    [providers, enableAiCompletion]
   );
 
   // AI completion provider config
@@ -198,38 +222,46 @@ export function useInputCompletionUnified(
     onStateChange?.(state);
   }, [state, onStateChange]);
 
-  // Initialize native AI completion when in desktop mode
+  // Initialize AI completion (native on desktop, web provider on web)
   useEffect(() => {
-    if (!isDesktop || !aiProvider) return;
+    if (!aiProvider) return;
 
-    const initAiCompletion = async () => {
-      try {
-        const isRunning = await nativeCompletion.isInputCompletionRunning();
-        if (!isRunning) {
-          await nativeCompletion.startInputCompletion();
+    if (isDesktop) {
+      const initNativeCompletion = async () => {
+        try {
+          const isRunning = await nativeCompletion.isInputCompletionRunning();
+          if (!isRunning) {
+            await nativeCompletion.startInputCompletion();
+          }
+          setAiCompletionActive(true);
+        } catch (error) {
+          console.error('Failed to initialize native AI completion:', error);
+          setAiCompletionActive(false);
         }
-        setAiCompletionActive(true);
-      } catch (error) {
-        console.error('Failed to initialize AI completion:', error);
-        setAiCompletionActive(false);
-      }
-    };
-
-    initAiCompletion();
+      };
+      initNativeCompletion();
+    } else {
+      // Web mode: already initialized as active via useState
+    }
 
     return () => {
-      // Don't stop on unmount - let the global service keep running
+      // Cancel web requests on unmount
+      if (!isDesktop) {
+        cancelWebCompletion();
+      }
     };
   }, [isDesktop, aiProvider]);
 
-  // Trigger AI ghost text completion
+  // Track ghost text timestamp for feedback
+  const ghostTextTimestampRef = useRef<number>(0);
+
+  // Trigger AI ghost text completion (works on both desktop and web)
   const triggerAiGhostText = useCallback(
     async (text: string) => {
-      if (!isDesktop || !aiCompletionActive || !aiProvider) return;
+      if (!aiCompletionActive || !aiProvider) return;
 
       const minLength = (aiProvider as { minContextLength?: number }).minContextLength ?? 5;
       if (text.length < minLength) {
-        // Clear ghost text if text is too short
         if (state.ghostText) {
           setState((prev) => ({ ...prev, ghostText: null }));
         }
@@ -244,19 +276,40 @@ export function useInputCompletionUnified(
       lastAiTriggerRef.current = text;
 
       try {
-        const result = await nativeCompletion.triggerCompletion(text);
-        if (result && result.suggestions.length > 0) {
-          const suggestion = result.suggestions[0];
+        let suggestionText: string | null = null;
+
+        if (isDesktop) {
+          // Native Tauri completion
+          const result = await nativeCompletion.triggerCompletion(text);
+          if (result && result.suggestions.length > 0) {
+            suggestionText = result.suggestions[0].text;
+          }
+        } else {
+          // Web completion provider with conversation context
+          const result = await triggerWebCompletion(text, {
+            provider: (settingsStore.aiCompletionProvider as 'openai' | 'groq' | 'ollama' | 'custom') || 'ollama',
+            maxTokens: settingsStore.aiCompletionMaxTokens || 64,
+            conversationContext,
+          });
+          if (result && result.suggestions.length > 0) {
+            suggestionText = result.suggestions[0].text;
+          }
+        }
+
+        if (suggestionText) {
+          ghostTextTimestampRef.current = Date.now();
           setState((prev) => ({
             ...prev,
-            ghostText: suggestion.text,
+            ghostText: suggestionText,
           }));
         }
       } catch (error) {
-        console.error('AI completion error:', error);
+        if ((error as Error).name !== 'AbortError') {
+          console.error('AI completion error:', error);
+        }
       }
     },
-    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText]
+    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, conversationContext]
   );
 
   // Detect trigger and update state
@@ -433,20 +486,215 @@ export function useInputCompletionUnified(
     [handleMentionChange, detectTrigger, getCompletionItems, state.isOpen, aiProvider, aiCompletionActive, triggerAiGhostText]
   );
 
+  // Manually trigger completion
+  const triggerCompletion = useCallback(
+    (type?: CompletionProviderType) => {
+      const providerType = type || 'mention';
+      const provider = enabledProviders.find((p) => p.type === providerType);
+
+      if (!provider) return;
+
+      const items = getCompletionItems(providerType, '');
+
+      setState({
+        isOpen: items.length > 0,
+        activeProvider: providerType,
+        trigger: provider.triggerChar || null,
+        query: '',
+        triggerPosition: cursorPositionRef.current,
+        items,
+        selectedIndex: 0,
+        ghostText: null,
+      });
+    },
+    [enabledProviders, getCompletionItems]
+  );
+
+  // Ghost text functions
+  const getGhostText = useCallback(() => state.ghostText, [state.ghostText]);
+
+  // Accept full ghost text (Tab)
+  const acceptGhostText = useCallback(async () => {
+    if (!state.ghostText) return;
+
+    const accepted = state.ghostText;
+    const newText = currentText + accepted;
+    setCurrentText(newText);
+
+    // Submit feedback to native system
+    if (isDesktop && aiCompletionActive) {
+      try {
+        await nativeCompletion.acceptSuggestion();
+        const timeToAccept = ghostTextTimestampRef.current > 0
+          ? Date.now() - ghostTextTimestampRef.current
+          : 0;
+        nativeCompletion.submitCompletionFeedback({
+          type: 'FullAccept',
+          suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+          time_to_accept_ms: timeToAccept,
+        }).catch(() => { /* best-effort */ });
+      } catch (error) {
+        console.error('Failed to accept suggestion:', error);
+      }
+    } else {
+      cancelWebCompletion();
+    }
+
+    onAiCompletionAccept?.(accepted);
+    ghostTextTimestampRef.current = 0;
+    setState((prev) => ({ ...prev, ghostText: null }));
+    lastAiTriggerRef.current = '';
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+
+  // Accept ghost text word-by-word (Ctrl+→)
+  const acceptGhostTextWord = useCallback((): string | null => {
+    if (!state.ghostText) return null;
+
+    // Find the next word boundary in ghost text
+    const ghost = state.ghostText;
+    const wordMatch = ghost.match(/^(\S+\s?|\s+)/);
+    if (!wordMatch) return null;
+
+    const acceptedPart = wordMatch[0];
+    const remaining = ghost.slice(acceptedPart.length);
+    const newText = currentText + acceptedPart;
+    setCurrentText(newText);
+
+    // Submit partial accept feedback
+    if (isDesktop && aiCompletionActive) {
+      nativeCompletion.submitCompletionFeedback({
+        type: 'PartialAccept',
+        suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+        original_length: ghost.length,
+        accepted_length: acceptedPart.length,
+      }).catch(() => { /* best-effort */ });
+    }
+
+    onAiCompletionAccept?.(acceptedPart);
+
+    if (remaining) {
+      setState((prev) => ({ ...prev, ghostText: remaining }));
+    } else {
+      ghostTextTimestampRef.current = 0;
+      setState((prev) => ({ ...prev, ghostText: null }));
+      lastAiTriggerRef.current = '';
+    }
+
+    return acceptedPart;
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+
+  // Accept ghost text line-by-line (Ctrl+↓)
+  const acceptGhostTextLine = useCallback((): string | null => {
+    if (!state.ghostText) return null;
+
+    const ghost = state.ghostText;
+    const newlineIndex = ghost.indexOf('\n');
+
+    let acceptedPart: string;
+    let remaining: string;
+
+    if (newlineIndex === -1) {
+      // No newline, accept everything
+      acceptedPart = ghost;
+      remaining = '';
+    } else {
+      // Accept up to and including the newline
+      acceptedPart = ghost.slice(0, newlineIndex + 1);
+      remaining = ghost.slice(newlineIndex + 1);
+    }
+
+    const newText = currentText + acceptedPart;
+    setCurrentText(newText);
+
+    if (isDesktop && aiCompletionActive) {
+      nativeCompletion.submitCompletionFeedback({
+        type: 'PartialAccept',
+        suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+        original_length: ghost.length,
+        accepted_length: acceptedPart.length,
+      }).catch(() => { /* best-effort */ });
+    }
+
+    onAiCompletionAccept?.(acceptedPart);
+
+    if (remaining) {
+      setState((prev) => ({ ...prev, ghostText: remaining }));
+    } else {
+      ghostTextTimestampRef.current = 0;
+      setState((prev) => ({ ...prev, ghostText: null }));
+      lastAiTriggerRef.current = '';
+    }
+
+    return acceptedPart;
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+
+  // Dismiss ghost text (Escape)
+  const dismissGhostText = useCallback(async () => {
+    if (!state.ghostText) return;
+
+    if (isDesktop && aiCompletionActive) {
+      try {
+        await nativeCompletion.dismissSuggestion();
+        const timeToDismiss = ghostTextTimestampRef.current > 0
+          ? Date.now() - ghostTextTimestampRef.current
+          : 0;
+        nativeCompletion.submitCompletionFeedback({
+          type: 'QuickDismiss',
+          suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+          time_to_dismiss_ms: timeToDismiss,
+        }).catch(() => { /* best-effort */ });
+      } catch (error) {
+        console.error('Failed to dismiss suggestion:', error);
+      }
+    } else {
+      cancelWebCompletion();
+    }
+
+    ghostTextTimestampRef.current = 0;
+    setState((prev) => ({ ...prev, ghostText: null }));
+    lastAiTriggerRef.current = '';
+  }, [state.ghostText, isDesktop, aiCompletionActive]);
+
+  // Manually trigger AI completion (for Ctrl+Space)
+  const triggerAiCompletionManual = useCallback(() => {
+    lastAiTriggerRef.current = '';
+    triggerAiGhostText(currentText);
+  }, [currentText, triggerAiGhostText]);
+
   // Handle keyboard events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent): boolean => {
+      // Ctrl+Space: manual trigger AI ghost text
+      if (e.key === ' ' && (e.ctrlKey || e.metaKey) && !state.isOpen) {
+        e.preventDefault();
+        // Force trigger AI completion regardless of debounce
+        lastAiTriggerRef.current = '';
+        triggerAiGhostText(currentText);
+        return true;
+      }
+
       // Ghost text handling
       if (state.ghostText) {
         if (e.key === 'Tab') {
           e.preventDefault();
-          // Accept ghost text - to be implemented with AI completion
-          setState((prev) => ({ ...prev, ghostText: null }));
+          acceptGhostText();
           return true;
         }
         if (e.key === 'Escape') {
           e.preventDefault();
-          setState((prev) => ({ ...prev, ghostText: null }));
+          dismissGhostText();
+          return true;
+        }
+        // Partial accept: Ctrl+→ for word-by-word
+        if (enablePartialAccept && e.key === 'ArrowRight' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          acceptGhostTextWord();
+          return true;
+        }
+        // Partial accept: Ctrl+↓ for line-by-line
+        if (enablePartialAccept && e.key === 'ArrowDown' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          acceptGhostTextLine();
           return true;
         }
       }
@@ -488,73 +736,8 @@ export function useInputCompletionUnified(
           return false;
       }
     },
-    [state, selectItem, closeCompletion]
+    [state, currentText, selectItem, closeCompletion, enablePartialAccept, triggerAiGhostText, acceptGhostText, dismissGhostText, acceptGhostTextWord, acceptGhostTextLine]
   );
-
-  // Manually trigger completion
-  const triggerCompletion = useCallback(
-    (type?: CompletionProviderType) => {
-      const providerType = type || 'mention';
-      const provider = enabledProviders.find((p) => p.type === providerType);
-
-      if (!provider) return;
-
-      const items = getCompletionItems(providerType, '');
-
-      setState({
-        isOpen: items.length > 0,
-        activeProvider: providerType,
-        trigger: provider.triggerChar || null,
-        query: '',
-        triggerPosition: cursorPositionRef.current,
-        items,
-        selectedIndex: 0,
-        ghostText: null,
-      });
-    },
-    [enabledProviders, getCompletionItems]
-  );
-
-  // Ghost text functions
-  const getGhostText = useCallback(() => state.ghostText, [state.ghostText]);
-
-  const acceptGhostText = useCallback(async () => {
-    if (state.ghostText) {
-      const newText = currentText + state.ghostText;
-      setCurrentText(newText);
-      
-      // Notify native completion system
-      if (isDesktop && aiCompletionActive) {
-        try {
-          await nativeCompletion.acceptSuggestion();
-        } catch (error) {
-          console.error('Failed to accept suggestion:', error);
-        }
-      }
-      
-      // Callback
-      onAiCompletionAccept?.(state.ghostText);
-      
-      setState((prev) => ({ ...prev, ghostText: null }));
-      lastAiTriggerRef.current = ''; // Reset to allow new suggestions
-    }
-  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
-
-  const dismissGhostText = useCallback(async () => {
-    if (state.ghostText) {
-      // Notify native completion system
-      if (isDesktop && aiCompletionActive) {
-        try {
-          await nativeCompletion.dismissSuggestion();
-        } catch (error) {
-          console.error('Failed to dismiss suggestion:', error);
-        }
-      }
-      
-      setState((prev) => ({ ...prev, ghostText: null }));
-      lastAiTriggerRef.current = ''; // Reset to allow new suggestions
-    }
-  }, [state.ghostText, isDesktop, aiCompletionActive]);
 
   return {
     state,
@@ -565,7 +748,10 @@ export function useInputCompletionUnified(
     triggerCompletion,
     getGhostText,
     acceptGhostText,
+    acceptGhostTextWord,
+    acceptGhostTextLine,
     dismissGhostText,
+    triggerAiCompletion: triggerAiCompletionManual,
     mentionData: {
       mentionState,
       groupedMentions,

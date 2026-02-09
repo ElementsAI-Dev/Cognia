@@ -18,6 +18,20 @@ Object.defineProperty(window, '__TAURI_INTERNALS__', {
   writable: true,
 });
 
+// Mock plugin event hooks
+const mockDispatchMCPServerConnect = jest.fn();
+const mockDispatchMCPServerDisconnect = jest.fn();
+const mockDispatchMCPToolCall = jest.fn();
+const mockDispatchMCPToolResult = jest.fn();
+jest.mock('@/lib/plugin', () => ({
+  getPluginEventHooks: () => ({
+    dispatchMCPServerConnect: mockDispatchMCPServerConnect,
+    dispatchMCPServerDisconnect: mockDispatchMCPServerDisconnect,
+    dispatchMCPToolCall: mockDispatchMCPToolCall,
+    dispatchMCPToolResult: mockDispatchMCPToolResult,
+  }),
+}));
+
 // Mock Tauri APIs
 jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(),
@@ -823,6 +837,69 @@ describe('useMcpStore', () => {
         requestId: 'req-789',
         result,
       });
+    });
+  });
+
+  // =========================================================================
+  // Plugin Hook Dispatches
+  // =========================================================================
+
+  describe('plugin hook dispatches', () => {
+    it('should dispatch onMCPServerConnect after successful connect', async () => {
+      useMcpStore.setState({
+        servers: [createMockServerState('server-1', 'Test Server')],
+      });
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await act(async () => {
+        await useMcpStore.getState().connectServer('server-1');
+      });
+
+      expect(mockDispatchMCPServerConnect).toHaveBeenCalledWith('server-1', 'Test Server');
+    });
+
+    it('should not dispatch onMCPServerConnect on connect failure', async () => {
+      mockInvoke.mockRejectedValueOnce(new Error('Connection refused'));
+
+      await expect(
+        useMcpStore.getState().connectServer('server-1')
+      ).rejects.toThrow();
+
+      expect(mockDispatchMCPServerConnect).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch onMCPServerDisconnect after successful disconnect', async () => {
+      mockInvoke.mockResolvedValueOnce(undefined);
+
+      await act(async () => {
+        await useMcpStore.getState().disconnectServer('server-1');
+      });
+
+      expect(mockDispatchMCPServerDisconnect).toHaveBeenCalledWith('server-1');
+    });
+
+    it('should dispatch onMCPToolCall before tool execution', async () => {
+      const mockResult = {
+        content: [{ type: 'text', text: 'result' }],
+        isError: false,
+      };
+      mockInvoke.mockResolvedValueOnce(mockResult);
+
+      await useMcpStore.getState().callTool('server-1', 'read_file', { path: '/tmp/test' });
+
+      expect(mockDispatchMCPToolCall).toHaveBeenCalledWith('server-1', 'read_file', { path: '/tmp/test' });
+    });
+
+    it('should dispatch onMCPToolResult after tool execution', async () => {
+      const mockResult = {
+        content: [{ type: 'text', text: 'file content' }],
+        isError: false,
+      };
+      mockInvoke.mockResolvedValueOnce(mockResult);
+
+      await useMcpStore.getState().callTool('server-1', 'read_file', { path: '/tmp/test' });
+
+      expect(mockDispatchMCPToolResult).toHaveBeenCalledWith('server-1', 'read_file', mockResult);
     });
   });
 });

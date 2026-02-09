@@ -65,7 +65,7 @@ export interface CompletionSuggestion {
 }
 
 /** Result of a completion request */
-export interface CompletionResult {
+export interface InputCompletionResult {
   /** List of completion suggestions */
   suggestions: CompletionSuggestion[];
   /** Request latency in milliseconds */

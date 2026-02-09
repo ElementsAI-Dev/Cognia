@@ -36,9 +36,18 @@ import {
   type SpeechProvider,
   type TTSProvider,
   OPENAI_TTS_VOICES,
+  OPENAI_TTS_MODELS,
   GEMINI_TTS_VOICES,
   EDGE_TTS_VOICES,
+  ELEVENLABS_TTS_VOICES,
+  ELEVENLABS_TTS_MODELS,
+  LMNT_TTS_VOICES,
+  HUME_TTS_VOICES,
+  CARTESIA_TTS_VOICES,
+  CARTESIA_TTS_MODELS,
+  DEEPGRAM_TTS_VOICES,
 } from '@/types/media/speech';
+import { Input } from '@/components/ui/input';
 import { useTTS } from '@/hooks';
 
 export function SpeechSettings() {
@@ -61,6 +70,11 @@ export function SpeechSettings() {
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const hasOpenAIKey = !!providerSettings.openai?.apiKey;
   const hasGoogleKey = !!providerSettings.google?.apiKey;
+  const hasElevenLabsKey = !!providerSettings.elevenlabs?.apiKey;
+  const hasLMNTKey = !!providerSettings.lmnt?.apiKey;
+  const hasHumeKey = !!providerSettings.hume?.apiKey;
+  const hasCartesiaKey = !!providerSettings.cartesia?.apiKey;
+  const hasDeepgramKey = !!providerSettings.deepgram?.apiKey;
   
   // TTS hook for testing
   const { speak: testSpeak, stop: testStop, isPlaying: isTestPlaying, isLoading: isTestLoading } = useTTS();
@@ -347,6 +361,61 @@ export function SpeechSettings() {
                     <span>{t('providers.edgeTts')} ({t('free')})</span>
                   </span>
                 </SelectItem>
+                <SelectItem value="elevenlabs" disabled={!hasElevenLabsKey}>
+                  <span className="flex items-center gap-2">
+                    <span>🎙️</span>
+                    <span>ElevenLabs</span>
+                    {!hasElevenLabsKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="lmnt" disabled={!hasLMNTKey}>
+                  <span className="flex items-center gap-2">
+                    <span>⚡</span>
+                    <span>LMNT</span>
+                    {!hasLMNTKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="hume" disabled={!hasHumeKey}>
+                  <span className="flex items-center gap-2">
+                    <span>💬</span>
+                    <span>Hume AI</span>
+                    {!hasHumeKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="cartesia" disabled={!hasCartesiaKey}>
+                  <span className="flex items-center gap-2">
+                    <span>🌊</span>
+                    <span>Cartesia Sonic</span>
+                    {!hasCartesiaKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
+                <SelectItem value="deepgram" disabled={!hasDeepgramKey}>
+                  <span className="flex items-center gap-2">
+                    <span>🎤</span>
+                    <span>Deepgram Aura</span>
+                    {!hasDeepgramKey && (
+                      <Badge variant="outline" className="text-[10px] ml-1">
+                        {t('needsApiKey')}
+                      </Badge>
+                    )}
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
@@ -354,6 +423,11 @@ export function SpeechSettings() {
               {speechSettings.ttsProvider === 'openai' && t('openaiTtsDesc')}
               {speechSettings.ttsProvider === 'gemini' && t('geminiTtsDesc')}
               {speechSettings.ttsProvider === 'edge' && t('edgeTtsDesc')}
+              {speechSettings.ttsProvider === 'elevenlabs' && 'Industry-leading AI voice synthesis with 29 languages'}
+              {speechSettings.ttsProvider === 'lmnt' && 'Ultra-low latency voice synthesis'}
+              {speechSettings.ttsProvider === 'hume' && 'Emotionally expressive voice synthesis'}
+              {speechSettings.ttsProvider === 'cartesia' && 'Ultra-low latency streaming TTS with 42 languages'}
+              {speechSettings.ttsProvider === 'deepgram' && 'Enterprise-grade low-latency TTS'}
             </p>
           </div>
 
@@ -438,8 +512,14 @@ export function SpeechSettings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tts-1">{t('models.tts1')} ({t('standard')})</SelectItem>
-                    <SelectItem value="tts-1-hd">{t('models.tts1Hd')} ({t('highQuality')})</SelectItem>
+                    {OPENAI_TTS_MODELS.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{model.name}</span>
+                          <span className="text-xs text-muted-foreground">({model.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -456,6 +536,21 @@ export function SpeechSettings() {
                   disabled={!speechSettings.ttsEnabled}
                 />
               </div>
+              {speechSettings.openaiTtsModel === 'gpt-4o-mini-tts' && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Voice Instructions</Label>
+                  <Input
+                    value={speechSettings.openaiTtsInstructions}
+                    onChange={(e) => setSpeechSettings({ openaiTtsInstructions: e.target.value })}
+                    placeholder="e.g., Speak in a cheerful, warm tone with a British accent"
+                    disabled={!speechSettings.ttsEnabled}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Control the voice style, tone, accent, and emotion (gpt-4o-mini-tts only)
+                  </p>
+                </div>
+              )}
             </>
           )}
 
@@ -517,6 +612,245 @@ export function SpeechSettings() {
                       </SelectItem>
                     ))
                   )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* ElevenLabs Settings */}
+          {speechSettings.ttsProvider === 'elevenlabs' && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('voice')}</Label>
+                <Select
+                  value={speechSettings.elevenlabsTtsVoice}
+                  onValueChange={(v) => setSpeechSettings({ elevenlabsTtsVoice: v as typeof speechSettings.elevenlabsTtsVoice })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELEVENLABS_TTS_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('model')}</Label>
+                <Select
+                  value={speechSettings.elevenlabsTtsModel}
+                  onValueChange={(v) => setSpeechSettings({ elevenlabsTtsModel: v as typeof speechSettings.elevenlabsTtsModel })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ELEVENLABS_TTS_MODELS.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{model.name}</span>
+                          <span className="text-xs text-muted-foreground">({model.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Stability: {speechSettings.elevenlabsTtsStability.toFixed(2)}</Label>
+                <Slider
+                  value={[speechSettings.elevenlabsTtsStability * 100]}
+                  onValueChange={([v]) => setSpeechSettings({ elevenlabsTtsStability: v / 100 })}
+                  min={0}
+                  max={100}
+                  step={5}
+                  disabled={!speechSettings.ttsEnabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Similarity Boost: {speechSettings.elevenlabsTtsSimilarityBoost.toFixed(2)}</Label>
+                <Slider
+                  value={[speechSettings.elevenlabsTtsSimilarityBoost * 100]}
+                  onValueChange={([v]) => setSpeechSettings({ elevenlabsTtsSimilarityBoost: v / 100 })}
+                  min={0}
+                  max={100}
+                  step={5}
+                  disabled={!speechSettings.ttsEnabled}
+                />
+              </div>
+            </>
+          )}
+
+          {/* LMNT Settings */}
+          {speechSettings.ttsProvider === 'lmnt' && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('voice')}</Label>
+                <Select
+                  value={speechSettings.lmntTtsVoice}
+                  onValueChange={(v) => setSpeechSettings({ lmntTtsVoice: v as typeof speechSettings.lmntTtsVoice })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LMNT_TTS_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('speed')}: {speechSettings.lmntTtsSpeed.toFixed(1)}x</Label>
+                <Slider
+                  value={[speechSettings.lmntTtsSpeed * 10]}
+                  onValueChange={([v]) => setSpeechSettings({ lmntTtsSpeed: v / 10 })}
+                  min={5}
+                  max={20}
+                  step={1}
+                  disabled={!speechSettings.ttsEnabled}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Hume Settings */}
+          {speechSettings.ttsProvider === 'hume' && (
+            <div className="space-y-2">
+              <Label className="text-sm">{t('voice')}</Label>
+              <Select
+                value={speechSettings.humeTtsVoice}
+                onValueChange={(v) => setSpeechSettings({ humeTtsVoice: v as typeof speechSettings.humeTtsVoice })}
+                disabled={!speechSettings.ttsEnabled}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HUME_TTS_VOICES.map((voice) => (
+                    <SelectItem key={voice.id} value={voice.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{voice.name}</span>
+                        <span className="text-xs text-muted-foreground">({voice.description})</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Cartesia Settings */}
+          {speechSettings.ttsProvider === 'cartesia' && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('voice')}</Label>
+                <Select
+                  value={speechSettings.cartesiaTtsVoice}
+                  onValueChange={(v) => setSpeechSettings({ cartesiaTtsVoice: v as typeof speechSettings.cartesiaTtsVoice })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARTESIA_TTS_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{voice.name}</span>
+                          <span className="text-xs text-muted-foreground">({voice.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t('model')}</Label>
+                <Select
+                  value={speechSettings.cartesiaTtsModel}
+                  onValueChange={(v) => setSpeechSettings({ cartesiaTtsModel: v as typeof speechSettings.cartesiaTtsModel })}
+                  disabled={!speechSettings.ttsEnabled}
+                >
+                  <SelectTrigger className="w-full sm:w-[300px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CARTESIA_TTS_MODELS.map((model) => (
+                      <SelectItem key={model.id} value={model.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{model.name}</span>
+                          <span className="text-xs text-muted-foreground">({model.description})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Language</Label>
+                <Input
+                  value={speechSettings.cartesiaTtsLanguage}
+                  onChange={(e) => setSpeechSettings({ cartesiaTtsLanguage: e.target.value })}
+                  placeholder="en"
+                  disabled={!speechSettings.ttsEnabled}
+                  className="w-full sm:w-[300px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Language code (e.g., en, zh, ja, ko, fr, de, es)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Emotion</Label>
+                <Input
+                  value={speechSettings.cartesiaTtsEmotion}
+                  onChange={(e) => setSpeechSettings({ cartesiaTtsEmotion: e.target.value })}
+                  placeholder="e.g., positivity:high, curiosity:high"
+                  disabled={!speechSettings.ttsEnabled}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Emotion controls (optional)
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Deepgram Settings */}
+          {speechSettings.ttsProvider === 'deepgram' && (
+            <div className="space-y-2">
+              <Label className="text-sm">{t('voice')}</Label>
+              <Select
+                value={speechSettings.deepgramTtsVoice}
+                onValueChange={(v) => setSpeechSettings({ deepgramTtsVoice: v as typeof speechSettings.deepgramTtsVoice })}
+                disabled={!speechSettings.ttsEnabled}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEEPGRAM_TTS_VOICES.map((voice) => (
+                    <SelectItem key={voice.id} value={voice.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{voice.name}</span>
+                        <span className="text-xs text-muted-foreground">({voice.description})</span>
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

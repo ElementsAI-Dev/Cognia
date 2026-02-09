@@ -1,11 +1,11 @@
 /**
  * TTS Types - Type definitions for Text-to-Speech functionality
  * Supports multiple providers: Browser (Web Speech API), OpenAI, Gemini, Edge-TTS,
- * ElevenLabs, LMNT, and Hume
+ * ElevenLabs, LMNT, Hume, Cartesia, and Deepgram
  */
 
 // TTS Provider types
-export type TTSProvider = 'system' | 'openai' | 'gemini' | 'edge' | 'elevenlabs' | 'lmnt' | 'hume';
+export type TTSProvider = 'system' | 'openai' | 'gemini' | 'edge' | 'elevenlabs' | 'lmnt' | 'hume' | 'cartesia' | 'deepgram';
 
 // TTS Provider display info
 export interface TTSProviderInfo {
@@ -81,22 +81,48 @@ export const TTS_PROVIDERS: Record<TTSProvider, TTSProviderInfo> = {
     supportsStreaming: true,
     maxTextLength: 5000,
   },
+  cartesia: {
+    id: 'cartesia',
+    name: 'Cartesia Sonic',
+    description: 'Ultra-low latency streaming TTS with 42 languages',
+    requiresApiKey: true,
+    apiKeyProvider: 'cartesia',
+    supportsStreaming: true,
+    maxTextLength: 10000,
+  },
+  deepgram: {
+    id: 'deepgram',
+    name: 'Deepgram Aura',
+    description: 'Enterprise-grade low-latency TTS',
+    requiresApiKey: true,
+    apiKeyProvider: 'deepgram',
+    supportsStreaming: true,
+    maxTextLength: 10000,
+  },
 };
 
 // OpenAI TTS voices
 export const OPENAI_TTS_VOICES = [
   { id: 'alloy', name: 'Alloy', description: 'Neutral and balanced' },
+  { id: 'ash', name: 'Ash', description: 'Soft and conversational' },
+  { id: 'ballad', name: 'Ballad', description: 'Warm and storytelling' },
+  { id: 'coral', name: 'Coral', description: 'Clear and engaging' },
   { id: 'echo', name: 'Echo', description: 'Warm and engaging' },
   { id: 'fable', name: 'Fable', description: 'Expressive and dynamic' },
   { id: 'onyx', name: 'Onyx', description: 'Deep and authoritative' },
   { id: 'nova', name: 'Nova', description: 'Friendly and upbeat' },
+  { id: 'sage', name: 'Sage', description: 'Wise and measured' },
   { id: 'shimmer', name: 'Shimmer', description: 'Clear and pleasant' },
+  { id: 'verse', name: 'Verse', description: 'Versatile and expressive' },
+  { id: 'marin', name: 'Marin', description: 'Natural and friendly' },
+  { id: 'cedar', name: 'Cedar', description: 'Calm and grounded' },
 ] as const;
 
 export type OpenAITTSVoice = (typeof OPENAI_TTS_VOICES)[number]['id'];
 
 // OpenAI TTS models
 export const OPENAI_TTS_MODELS = [
+  { id: 'gpt-4o-mini-tts', name: 'GPT-4o Mini TTS', description: 'Best quality, supports instructions' },
   { id: 'tts-1', name: 'TTS-1', description: 'Standard quality, faster' },
   { id: 'tts-1-hd', name: 'TTS-1 HD', description: 'High definition audio' },
 ] as const;
@@ -221,6 +247,46 @@ export const HUME_TTS_VOICES = [
 
 export type HumeTTSVoice = (typeof HUME_TTS_VOICES)[number]['id'];
 
+// Cartesia TTS voices
+export const CARTESIA_TTS_VOICES = [
+  { id: 'a0e99841-438c-4a64-b679-ae501e7d6091', name: 'Barbershop Man', description: 'Warm male narrator' },
+  { id: '79a125e8-cd45-4c13-8a67-188112f4dd22', name: 'British Lady', description: 'Elegant British female' },
+  { id: '87748186-23bb-4571-8b7b-0e4be7e5fe10', name: 'Calm Lady', description: 'Soothing female' },
+  { id: '41534e16-2966-4c6b-9670-111411def906', name: 'Confident Man', description: 'Confident male' },
+  { id: 'c8f42367-f4d3-4127-91fc-6a005efeb11f', name: 'Friendly Sidekick', description: 'Friendly conversational' },
+  { id: '63ff761f-c1e8-414b-b969-d1833d1c870c', name: 'Gentle Lady', description: 'Soft and gentle female' },
+  { id: 'bf991597-6c13-47e4-8a8c-f35d0f7e2579', name: 'Laidback Woman', description: 'Relaxed female' },
+  { id: 'ee7ea9f8-c0c1-498c-9f62-dc2627e1e3ef', name: 'Newsman', description: 'Professional news anchor' },
+  { id: 'b7d50908-b89b-4ec4-b2c7-1c72b5ebb5fb', name: 'Reading Lady', description: 'Clear reading voice' },
+  { id: '421b3369-f63f-4b03-8980-37a44df1d4e8', name: 'Reflective Woman', description: 'Thoughtful female' },
+] as const;
+
+export type CartesiaTTSVoice = (typeof CARTESIA_TTS_VOICES)[number]['id'];
+
+// Cartesia TTS models
+export const CARTESIA_TTS_MODELS = [
+  { id: 'sonic-3', name: 'Sonic 3', description: 'Latest, highest quality' },
+  { id: 'sonic-turbo', name: 'Sonic Turbo', description: 'Ultra-low latency (40ms)' },
+] as const;
+
+export type CartesiaTTSModel = (typeof CARTESIA_TTS_MODELS)[number]['id'];
+
+// Deepgram TTS voices
+export const DEEPGRAM_TTS_VOICES = [
+  { id: 'aura-2-thalia-en', name: 'Thalia', description: 'Warm female', language: 'en' },
+  { id: 'aura-2-andromeda-en', name: 'Andromeda', description: 'Bright female', language: 'en' },
+  { id: 'aura-2-arcas-en', name: 'Arcas', description: 'Confident male', language: 'en' },
+  { id: 'aura-2-luna-en', name: 'Luna', description: 'Soft female', language: 'en' },
+  { id: 'aura-2-helios-en', name: 'Helios', description: 'Professional male', language: 'en' },
+  { id: 'aura-2-athena-en', name: 'Athena', description: 'Clear female', language: 'en' },
+  { id: 'aura-2-orion-en', name: 'Orion', description: 'Deep male', language: 'en' },
+  { id: 'aura-2-stella-en', name: 'Stella', description: 'Friendly female', language: 'en' },
+  { id: 'aura-2-zeus-en', name: 'Zeus', description: 'Authoritative male', language: 'en' },
+  { id: 'aura-2-asteria-en', name: 'Asteria', description: 'Natural female', language: 'en' },
+] as const;
+
+export type DeepgramTTSVoice = (typeof DEEPGRAM_TTS_VOICES)[number]['id'];
+
 // TTS Settings interface (extends existing speech settings)
 export interface TTSSettings {
   // Provider configuration
@@ -233,6 +299,7 @@ export interface TTSSettings {
   openaiVoice: OpenAITTSVoice;
   openaiModel: OpenAITTSModel;
   openaiSpeed: number; // 0.25 - 4.0
+  openaiInstructions: string; // Voice style instructions (gpt-4o-mini-tts only)
 
   // Gemini TTS settings
   geminiVoice: GeminiTTSVoice;
@@ -255,6 +322,16 @@ export interface TTSSettings {
   // Hume TTS settings
   humeVoice: HumeTTSVoice;
 
+  // Cartesia TTS settings
+  cartesiaVoice: CartesiaTTSVoice;
+  cartesiaModel: CartesiaTTSModel;
+  cartesiaLanguage: string;
+  cartesiaSpeed: number; // -1.0 to 1.0 (normal = 0)
+  cartesiaEmotion: string; // e.g., 'positivity:high', 'curiosity:high'
+
+  // Deepgram TTS settings
+  deepgramVoice: DeepgramTTSVoice;
+
   // Common settings
   ttsEnabled: boolean;
   ttsRate: number; // 0.1 - 10
@@ -273,8 +350,9 @@ export const DEFAULT_TTS_SETTINGS: TTSSettings = {
 
   // OpenAI
   openaiVoice: 'alloy',
-  openaiModel: 'tts-1',
+  openaiModel: 'gpt-4o-mini-tts',
   openaiSpeed: 1.0,
+  openaiInstructions: '',
 
   // Gemini
   geminiVoice: 'Kore',
@@ -296,6 +374,16 @@ export const DEFAULT_TTS_SETTINGS: TTSSettings = {
 
   // Hume
   humeVoice: 'kora',
+
+  // Cartesia
+  cartesiaVoice: 'a0e99841-438c-4a64-b679-ae501e7d6091',
+  cartesiaModel: 'sonic-3',
+  cartesiaLanguage: 'en',
+  cartesiaSpeed: 0,
+  cartesiaEmotion: '',
+
+  // Deepgram
+  deepgramVoice: 'aura-2-asteria-en',
 
   // Common
   ttsEnabled: false,

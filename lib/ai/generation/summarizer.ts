@@ -1033,6 +1033,61 @@ export async function analyzeConversation(
 }
 
 /**
+ * Generate AI-powered compression summary for context management
+ * Uses buildContextCompressionPrompt to create a structured, compressed representation
+ * Falls back to simple summary on failure
+ */
+export async function generateAICompressionSummary(
+  messages: UIMessage[],
+  config: {
+    provider: ProviderName;
+    model: string;
+    apiKey: string;
+    baseURL?: string;
+  },
+  targetTokens?: number
+): Promise<string> {
+  if (messages.length === 0) return '';
+
+  try {
+    const { buildContextCompressionPrompt } = await import('../prompts/summary-prompts');
+
+    const prompt = buildContextCompressionPrompt({
+      messages,
+      targetTokens: targetTokens ?? 2000,
+      preserveRecent: 0, // All messages passed are already the "older" ones
+    });
+
+    const modelInstance = getProviderModel(
+      config.provider,
+      config.model,
+      config.apiKey,
+      config.baseURL
+    );
+
+    const result = await generateText({
+      model: modelInstance,
+      prompt,
+      temperature: 0.2,
+      maxOutputTokens: targetTokens ?? 2000,
+    });
+
+    const summary = result.text.trim();
+    if (summary.length > 0) {
+      return summary;
+    }
+
+    // Fallback if AI returns empty
+    const { generateSimpleSummary } = await import('../embedding/compression');
+    return generateSimpleSummary(messages);
+  } catch {
+    // Fallback to simple summary on any error
+    const { generateSimpleSummary } = await import('../embedding/compression');
+    return generateSimpleSummary(messages);
+  }
+}
+
+/**
  * Get summary template by name
  */
 export function getSummaryTemplate(templateName: keyof typeof SUMMARY_TEMPLATES) {

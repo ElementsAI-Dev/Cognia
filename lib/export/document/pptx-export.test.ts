@@ -19,8 +19,18 @@ jest.mock('pptxgenjs', () => {
       addText: jest.fn(),
       addImage: jest.fn(),
       addShape: jest.fn(),
+      addChart: jest.fn(),
+      addTable: jest.fn(),
       addNotes: jest.fn(),
     }),
+    charts: {
+      BAR: 'bar',
+      LINE: 'line',
+      PIE: 'pie',
+      DOUGHNUT: 'doughnut',
+      AREA: 'area',
+      SCATTER: 'scatter',
+    },
     write: jest.fn().mockResolvedValue(new Blob(['mock pptx content'], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })),
   }));
 });
@@ -303,6 +313,153 @@ describe('pptx-export', () => {
             type: 'code' as const,
             content: 'const x = 1;',
             position: { x: 10, y: 10, width: 80, height: 20 },
+          }],
+        }],
+      };
+
+      const result = await exportToPPTX(presentation);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle base64 image elements', async () => {
+      const presentation = {
+        ...mockPresentation,
+        slides: [{
+          ...mockSlides[0],
+          elements: [{
+            id: 'img-b64',
+            type: 'image' as const,
+            content: 'data:image/png;base64,iVBORw0KGgo=',
+            position: { x: 10, y: 10, width: 40, height: 30 },
+          }],
+        }],
+      };
+
+      const result = await exportToPPTX(presentation);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle shape elements with different shape types', async () => {
+      const shapeTypes = ['rectangle', 'circle', 'ellipse', 'rounded'];
+      for (const shape of shapeTypes) {
+        const presentation = {
+          ...mockPresentation,
+          slides: [{
+            ...mockSlides[0],
+            elements: [{
+              id: `shape-${shape}`,
+              type: 'shape' as const,
+              content: '',
+              metadata: { shape },
+              position: { x: 10, y: 10, width: 20, height: 20 },
+            }],
+          }],
+        };
+
+        const result = await exportToPPTX(presentation);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should handle chart elements with various types', async () => {
+      const chartTypes = ['bar', 'line', 'pie', 'doughnut', 'area', 'scatter', 'horizontal-bar'];
+      for (const chartType of chartTypes) {
+        const presentation = {
+          ...mockPresentation,
+          slides: [{
+            ...mockSlides[0],
+            elements: [{
+              id: `chart-${chartType}`,
+              type: 'chart' as const,
+              content: '',
+              metadata: {
+                chartType,
+                chartData: {
+                  labels: ['A', 'B', 'C'],
+                  datasets: [{ label: 'Series 1', data: [10, 20, 30] }],
+                },
+              },
+              position: { x: 10, y: 10, width: 60, height: 40 },
+            }],
+          }],
+        };
+
+        const result = await exportToPPTX(presentation);
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should handle table elements with data', async () => {
+      const presentation = {
+        ...mockPresentation,
+        slides: [{
+          ...mockSlides[0],
+          elements: [{
+            id: 'table-1',
+            type: 'table' as const,
+            content: '',
+            metadata: {
+              tableData: [
+                ['Header 1', 'Header 2', 'Header 3'],
+                ['Cell 1', 'Cell 2', 'Cell 3'],
+                ['Cell 4', 'Cell 5', 'Cell 6'],
+              ],
+            },
+            position: { x: 5, y: 20, width: 90, height: 50 },
+          }],
+        }],
+      };
+
+      const result = await exportToPPTX(presentation);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle table elements without data (fallback to text)', async () => {
+      const presentation = {
+        ...mockPresentation,
+        slides: [{
+          ...mockSlides[0],
+          elements: [{
+            id: 'table-empty',
+            type: 'table' as const,
+            content: 'Table placeholder',
+            position: { x: 5, y: 20, width: 90, height: 50 },
+          }],
+        }],
+      };
+
+      const result = await exportToPPTX(presentation);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle video elements (placeholder)', async () => {
+      const presentation = {
+        ...mockPresentation,
+        slides: [{
+          ...mockSlides[0],
+          elements: [{
+            id: 'video-1',
+            type: 'video' as const,
+            content: 'https://example.com/video.mp4',
+            position: { x: 10, y: 10, width: 60, height: 40 },
+          }],
+        }],
+      };
+
+      const result = await exportToPPTX(presentation);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle icon elements', async () => {
+      const presentation = {
+        ...mockPresentation,
+        slides: [{
+          ...mockSlides[0],
+          elements: [{
+            id: 'icon-1',
+            type: 'icon' as const,
+            content: '★',
+            position: { x: 10, y: 10, width: 10, height: 10 },
           }],
         }],
       };

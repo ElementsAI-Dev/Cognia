@@ -1,28 +1,46 @@
 {
   "id": "cognia-notification-tools",
   "name": "Notification Tools",
-  "version": "1.0.0",
-  "description": "Notifications and reminders for AI agents",
+  "version": "1.1.0",
+  "description": "Notifications, toasts, and persistent reminders for AI agents",
   "author": { "name": "Cognia Team", "email": "team@cognia.dev" },
   "license": "MIT",
   "type": "frontend",
   "main": "dist/index.js",
   "icon": "bell",
-  "keywords": ["notification", "reminder", "alert"],
-  "capabilities": ["tools"],
+  "keywords": ["notification", "reminder", "alert", "toast"],
+  "capabilities": ["tools", "commands"],
   "permissions": [],
   "activationEvents": [
     "onAgentTool:notify",
-    "onAgentTool:remind"
+    "onAgentTool:toast",
+    "onAgentTool:remind",
+    "onAgentTool:list_reminders",
+    "onAgentTool:cancel_reminder",
+    "onCommand:notification-tools.*"
   ],
   "tools": [
     { "name": "notify", "description": "Send a notification to the user" },
-    { "name": "remind", "description": "Set a reminder for later" }
+    { "name": "toast", "description": "Show a lightweight toast notification" },
+    { "name": "remind", "description": "Set a persistent reminder" },
+    { "name": "list_reminders", "description": "List all active reminders" },
+    { "name": "cancel_reminder", "description": "Cancel a pending reminder" }
+  ],
+  "commands": [
+    { "id": "notification-tools.list-reminders", "name": "List Reminders", "description": "Show active reminders", "icon": "bell" },
+    { "id": "notification-tools.clear-all", "name": "Clear All Reminders", "description": "Clear all reminders", "icon": "bell-off" }
   ],
   "configSchema": {
     "type": "object",
     "properties": {
-      "maxReminders": { "type": "number", "default": 100 }
+      "maxReminders": {
+        "type": "number",
+        "title": "Max Reminders",
+        "description": "Maximum number of active reminders",
+        "default": 100,
+        "minimum": 1,
+        "maximum": 1000
+      }
     }
   },
   "defaultConfig": { "maxReminders": 100 }

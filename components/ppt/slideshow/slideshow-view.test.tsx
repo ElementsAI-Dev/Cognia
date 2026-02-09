@@ -65,7 +65,7 @@ jest.mock('./slideshow-controls', () => ({
     isOpen ? <div data-testid="keyboard-help" onClick={onClose}>Keyboard Help</div> : null,
 }));
 
-jest.mock('./slide-content', () => ({
+jest.mock('../rendering', () => ({
   SlideContent: ({ slide }: { slide: { title?: string; subtitle?: string; bullets?: string[] } }) => (
     <div data-testid="slide-content">
       {slide.title && <h1>{slide.title}</h1>}
@@ -390,8 +390,8 @@ describe('SlideshowView', () => {
     // Press N to toggle notes
     fireEvent.keyDown(window, { key: 'n' });
 
-    // Notes panel should be visible with speaker notes
-    expect(screen.getByText('演讲者备注')).toBeInTheDocument();
+    // Notes panel should be visible with speaker notes (key returned by mock)
+    expect(screen.getByText('speakerNotes')).toBeInTheDocument();
   });
 
   it('shows keyboard help modal with H key', () => {
@@ -443,5 +443,134 @@ describe('SlideshowView', () => {
 
     // The timer should be displayed in the controls
     expect(screen.getByTestId('slideshow-controls')).toBeInTheDocument();
+  });
+
+  describe('Pointer and Drawing Tools', () => {
+    it('toggles laser pointer mode with L key', () => {
+      render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Press L to enable laser mode
+      fireEvent.keyDown(window, { key: 'l' });
+
+      // Laser indicator should appear
+      expect(screen.getByText(/Laser|laserPointer/)).toBeInTheDocument();
+    });
+
+    it('toggles drawing mode with D key', () => {
+      render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Press D to enable draw mode
+      fireEvent.keyDown(window, { key: 'd' });
+
+      // Draw mode indicator should appear
+      expect(screen.getByText(/Draw|drawMode/)).toBeInTheDocument();
+    });
+
+    it('exits laser mode when L is pressed again', () => {
+      render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Toggle on then off
+      fireEvent.keyDown(window, { key: 'l' });
+      fireEvent.keyDown(window, { key: 'l' });
+
+      // Indicator should be gone
+      expect(screen.queryByText(/Laser|laserPointer/)).not.toBeInTheDocument();
+    });
+
+    it('does not navigate when in draw mode and slide is clicked', () => {
+      render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Enter draw mode
+      fireEvent.keyDown(window, { key: 'd' });
+
+      // Click on slide content area should not navigate
+      const slideArea = screen.getByText('First Slide').closest('div');
+      if (slideArea) {
+        fireEvent.click(slideArea);
+      }
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      // Should not have navigated
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it('uses cursor-none class when laser mode is active', () => {
+      const { container } = render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Enable laser mode
+      fireEvent.keyDown(window, { key: 'l' });
+
+      // Should have cursor-none class on the slide area
+      const cursorNone = container.querySelector('.cursor-none');
+      expect(cursorNone).toBeInTheDocument();
+    });
+
+    it('uses cursor-crosshair class when draw mode is active', () => {
+      const { container } = render(
+        <SlideshowView
+          presentation={mockPresentation}
+          currentIndex={0}
+          onPrev={mockOnPrev}
+          onNext={mockOnNext}
+          onExit={mockOnExit}
+          onGoToSlide={mockOnGoToSlide}
+        />
+      );
+
+      // Enable draw mode
+      fireEvent.keyDown(window, { key: 'd' });
+
+      // Should have cursor-crosshair class on the slide area
+      const crosshair = container.querySelector('.cursor-crosshair');
+      expect(crosshair).toBeInTheDocument();
+    });
   });
 });

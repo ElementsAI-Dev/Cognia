@@ -142,8 +142,20 @@ export class RAGCollectionManager {
    * Save collections to persistent storage
    */
   private async saveToStorage(): Promise<void> {
-    // Configs are saved as part of collection metadata
-    // This is called periodically for any pending updates
+    if (!this.storage) return;
+
+    for (const [name, config] of this.collections.entries()) {
+      const stats = this.stats.get(name);
+      const now = Date.now();
+      await this.storage.saveCollectionConfig({
+        name,
+        documentCount: stats?.documentCount ?? 0,
+        totalChunks: stats?.chunkCount ?? 0,
+        createdAt: stats?.createdAt ?? now,
+        updatedAt: now,
+        config: config as unknown as Record<string, unknown>,
+      });
+    }
   }
 
   /**

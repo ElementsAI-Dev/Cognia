@@ -30,7 +30,7 @@ function createTestSubAgent(
     retryCount: 0,
     progress: 0,
     createdAt: new Date(),
-  } as SubAgent;
+  } as unknown as SubAgent;
 }
 
 describe('topologicalSort', () => {

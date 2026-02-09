@@ -54,6 +54,7 @@ import { ReasoningPart, SourcesPart } from '@/components/chat/message-parts';
 import { A2UIMessageRenderer, hasA2UIContent } from '@/components/a2ui';
 import { FlowNodeThumbnailStrip } from './flow-node-thumbnail-strip';
 import { FlowNodeTags } from './flow-node-tags';
+import { MarkdownRenderer } from '@/components/chat/utils/markdown-renderer';
 import type { FlowChatNodeData, NodeAction, FlowNodeTag } from '@/types/chat/flow-chat';
 import type { MessagePart, ToolInvocationPart } from '@/types/core/message';
 
@@ -104,6 +105,7 @@ function FlowChatNodeComponent({
     isBookmarked,
     rating,
     notes,
+    isHighlighted,
   } = data;
   const providerDisplay = provider ? `${provider}` : '';
   const content = message.content || '';
@@ -193,6 +195,7 @@ function FlowChatNodeComponent({
         'min-w-[280px] max-w-[420px]',
         roleColor,
         selected && 'ring-2 ring-primary ring-offset-2',
+        isHighlighted && 'ring-2 ring-yellow-400 ring-offset-1 shadow-lg shadow-yellow-200/30 dark:shadow-yellow-800/20',
         isStreaming && 'animate-pulse',
         isBranchPoint && 'border-dashed border-orange-400'
       )}
@@ -469,14 +472,22 @@ function FlowChatNodeComponent({
         {/* Main text content */}
         <div
           className={cn(
-            'text-sm whitespace-pre-wrap break-words',
+            'text-sm break-words',
             isCollapsed && 'line-clamp-2'
           )}
         >
           {hasA2UI && !isExpanded ? (
             <span className="text-muted-foreground italic text-xs">[A2UI Content - Click expand to view]</span>
+          ) : role === 'assistant' && isExpanded && displayContent.length > 0 ? (
+            <MarkdownRenderer
+              content={displayContent}
+              className="text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+              enableMermaid={false}
+              enableVegaLite={false}
+              enableSandpack={false}
+            />
           ) : (
-            displayContent
+            <div className="whitespace-pre-wrap">{displayContent}</div>
           )}
         </div>
 

@@ -280,6 +280,8 @@ export interface AcpCapabilities {
   multiTurn?: boolean;
   /** Agent supports context sharing */
   contextSharing?: boolean;
+  /** Agent supports thinking/chain-of-thought */
+  thinking?: boolean;
   /** Supported permission modes */
   permissionModes?: AcpPermissionMode[];
   /** Maximum context tokens */
@@ -686,7 +688,7 @@ export interface AcpToolInfo {
  */
 export interface AcpPermissionRequest {
   id: string;
-  sessionId: string;
+  sessionId?: string;
   toolInfo: AcpToolInfo;
   reason?: string;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
@@ -899,7 +901,7 @@ export interface ExternalAgentSession {
   /** Session status */
   status: ExternalAgentSessionStatus;
   /** Permission mode for this session */
-  permissionMode: AcpPermissionMode;
+  permissionMode?: AcpPermissionMode;
   /** Discovered capabilities */
   capabilities?: AcpCapabilities;
   /** Available tools in this session */
@@ -908,7 +910,7 @@ export interface ExternalAgentSession {
   /** Context passed to agent */
   context?: ExternalAgentContext;
   /** Conversation history */
-  messages: ExternalAgentMessage[];
+  messages?: ExternalAgentMessage[];
 
   /** Token usage in this session */
   tokenUsage?: ExternalAgentTokenUsage;
@@ -1122,7 +1124,7 @@ export type ExternalAgentEventType =
  */
 export interface ExternalAgentEventBase {
   type: ExternalAgentEventType;
-  sessionId: string;
+  sessionId?: string;
   timestamp: Date;
 }
 
@@ -1149,8 +1151,8 @@ export interface ExternalAgentSessionEndEvent extends ExternalAgentEventBase {
  */
 export interface ExternalAgentMessageStartEvent extends ExternalAgentEventBase {
   type: 'message_start';
-  messageId: string;
-  role: ExternalAgentMessageRole;
+  messageId?: string;
+  role?: ExternalAgentMessageRole;
 }
 
 /**
@@ -1158,7 +1160,7 @@ export interface ExternalAgentMessageStartEvent extends ExternalAgentEventBase {
  */
 export interface ExternalAgentMessageDeltaEvent extends ExternalAgentEventBase {
   type: 'message_delta';
-  messageId: string;
+  messageId?: string;
   delta: {
     type: 'text' | 'thinking';
     text: string;
@@ -1170,7 +1172,7 @@ export interface ExternalAgentMessageDeltaEvent extends ExternalAgentEventBase {
  */
 export interface ExternalAgentMessageEndEvent extends ExternalAgentEventBase {
   type: 'message_end';
-  messageId: string;
+  messageId?: string;
   tokenUsage?: ExternalAgentTokenUsage;
 }
 
@@ -1618,7 +1620,7 @@ export function serializeExternalAgentSession(session: ExternalAgentSession): st
     createdAt: session.createdAt.toISOString(),
     lastActivityAt: session.lastActivityAt.toISOString(),
     expiresAt: session.expiresAt?.toISOString(),
-    messages: session.messages.map((m) => ({
+    messages: (session.messages ?? []).map((m) => ({
       ...m,
       timestamp: m.timestamp.toISOString(),
     })),

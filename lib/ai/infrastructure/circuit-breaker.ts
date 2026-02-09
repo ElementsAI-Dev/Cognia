@@ -71,6 +71,8 @@ export const PROVIDER_CIRCUIT_CONFIGS: Record<string, Partial<CircuitBreakerConf
 /**
  * Circuit Breaker implementation
  */
+export type CircuitStateChangeListener = (providerId: string, from: CircuitState, to: CircuitState) => void;
+
 export class CircuitBreaker {
   private state: CircuitState = 'closed';
   private failures: number[] = [];
@@ -79,6 +81,7 @@ export class CircuitBreaker {
   private stats: CircuitBreakerStats;
   private config: CircuitBreakerConfig;
   private providerId: string;
+  private stateChangeListeners: CircuitStateChangeListener[] = [];
 
   constructor(providerId: string, config?: Partial<CircuitBreakerConfig>) {
     this.providerId = providerId;
@@ -269,11 +272,22 @@ export class CircuitBreaker {
   }
 
   /**
+   * Subscribe to state changes on this circuit breaker
+   */
+  onStateChange(listener: CircuitStateChangeListener): () => void {
+    this.stateChangeListeners.push(listener);
+    return () => {
+      this.stateChangeListeners = this.stateChangeListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /**
    * Transition to a new state
    */
   private transitionTo(newState: CircuitState): void {
     if (this.state !== newState) {
-      log.info(`CircuitBreaker ${this.providerId} state transition`, { providerId: this.providerId, from: this.state, to: newState });
+      const previousState = this.state;
+      log.info(`CircuitBreaker ${this.providerId} state transition`, { providerId: this.providerId, from: previousState, to: newState });
       this.state = newState;
       this.lastStateChange = Date.now();
       this.stats.lastStateChange = this.lastStateChange;
@@ -284,6 +298,15 @@ export class CircuitBreaker {
       } else if (newState === 'half_open') {
         this.consecutiveSuccesses = 0;
       }
+
+      // Notify listeners
+      this.stateChangeListeners.forEach((listener) => {
+        try {
+          listener(this.providerId, previousState, newState);
+        } catch (error) {
+          log.error('CircuitBreaker state change listener error', error as Error);
+        }
+      });
     }
   }
 
@@ -308,6 +331,7 @@ export class CircuitBreaker {
  */
 class CircuitBreakerRegistry {
   private breakers = new Map<string, CircuitBreaker>();
+  private globalListeners: CircuitStateChangeListener[] = [];
 
   /**
    * Get or create a circuit breaker for a provider
@@ -316,6 +340,16 @@ class CircuitBreakerRegistry {
     let breaker = this.breakers.get(providerId);
     if (!breaker) {
       breaker = new CircuitBreaker(providerId, config);
+      // Forward state changes to global listeners
+      breaker.onStateChange((pid, from, to) => {
+        this.globalListeners.forEach((listener) => {
+          try {
+            listener(pid, from, to);
+          } catch (error) {
+            log.error('CircuitBreakerRegistry global listener error', error as Error);
+          }
+        });
+      });
       this.breakers.set(providerId, breaker);
     }
     return breaker;
@@ -379,6 +413,16 @@ class CircuitBreakerRegistry {
    */
   remove(providerId: string): void {
     this.breakers.delete(providerId);
+  }
+
+  /**
+   * Subscribe to state changes across all circuit breakers
+   */
+  subscribe(listener: CircuitStateChangeListener): () => void {
+    this.globalListeners.push(listener);
+    return () => {
+      this.globalListeners = this.globalListeners.filter((l) => l !== listener);
+    };
   }
 }
 

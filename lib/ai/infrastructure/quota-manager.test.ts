@@ -383,6 +383,28 @@ describe('calculateRequestCost', () => {
     const cost = calculateRequestCost('google', 'gemini-2.0-flash-exp', 1000000, 500000);
     expect(cost).toBe(0);
   });
+
+  it('should calculate cost for CNY-only models via USD conversion', () => {
+    // qwen-max is only in MODEL_PRICING_CNY: input=20, output=60 per 1M tokens
+    const cost = calculateRequestCost('alibaba', 'qwen-max', 1000000, 1000000);
+    expect(cost).toBeGreaterThan(0);
+  });
+
+  it('should calculate cost for glm-4-plus (CNY-only)', () => {
+    const cost = calculateRequestCost('zhipu', 'glm-4-plus', 1000000, 500000);
+    expect(cost).toBeGreaterThan(0);
+  });
+
+  it('should calculate cost for moonshot-v1-8k (CNY-only)', () => {
+    const cost = calculateRequestCost('moonshot', 'moonshot-v1-8k', 1000000, 500000);
+    expect(cost).toBeGreaterThan(0);
+  });
+
+  it('should return 0 for free CNY models', () => {
+    // hunyuan-mt-7b has input=0, output=0 in CNY pricing
+    const cost = calculateRequestCost('tencent', 'hunyuan-mt-7b', 1000000, 500000);
+    expect(cost).toBe(0);
+  });
 });
 
 describe('DEFAULT_QUOTA_LIMITS', () => {

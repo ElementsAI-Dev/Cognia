@@ -13,26 +13,38 @@ import type { UIMessage } from '@/types/core/message';
 import type { ConversationBranch } from '@/types/core/session';
 import type { FlowChatCanvasState, FlowChatNode, FlowChatEdge } from '@/types/chat/flow-chat';
 
-// Mock dagre library
-jest.mock('@dagrejs/dagre', () => {
-  const mockGraph = {
-    setGraph: jest.fn(),
-    setDefaultEdgeLabel: jest.fn(),
-    setNode: jest.fn(),
-    setEdge: jest.fn(),
-    nodes: jest.fn().mockReturnValue(['msg1', 'msg2']),
-    node: jest.fn().mockImplementation((id: string) => ({
-      x: id === 'msg1' ? 200 : 200,
-      y: id === 'msg1' ? 75 : 275,
-    })),
-  };
-  return {
-    graphlib: {
-      Graph: jest.fn().mockReturnValue(mockGraph),
-    },
-    layout: jest.fn(),
-  };
-});
+// Mock dagre-d3-es graphlib
+const mockGraphInstance = {
+  setGraph: jest.fn(),
+  setDefaultEdgeLabel: jest.fn(),
+  setNode: jest.fn(),
+  setEdge: jest.fn(),
+  nodes: jest.fn().mockReturnValue([]),
+  node: jest.fn().mockReturnValue({ x: 200, y: 200 }),
+};
+
+jest.mock('dagre-d3-es/src/graphlib/index.js', () => ({
+  Graph: jest.fn().mockImplementation(() => {
+    // Track added nodes so nodes() returns them
+    const nodeMap = new Map<string, unknown>();
+    return {
+      ...mockGraphInstance,
+      setNode: jest.fn((id: string, data: unknown) => { nodeMap.set(id, data); }),
+      setEdge: jest.fn(),
+      setGraph: jest.fn(),
+      setDefaultEdgeLabel: jest.fn(),
+      nodes: jest.fn(() => Array.from(nodeMap.keys())),
+      node: jest.fn((id: string) => {
+        const index = Array.from(nodeMap.keys()).indexOf(id);
+        return { x: 200, y: 75 + index * 200 };
+      }),
+    };
+  }),
+}));
+
+jest.mock('dagre-d3-es/src/dagre/index.js', () => ({
+  layout: jest.fn(),
+}));
 
 // Mock messages
 const createMockMessage = (
@@ -69,6 +81,8 @@ const createMockCanvasState = (
   comparisonNodeIds: [],
   showThumbnails: true,
   showNodeStats: true,
+  nodeNotes: {},
+  nodeRatings: {},
   ...overrides,
 });
 
@@ -244,6 +258,123 @@ describe('flow-layout', () => {
       // Nodes should have positions calculated with custom options
       expect(result.nodes[0].position).toBeDefined();
       expect(result.nodes[1].position).toBeDefined();
+    });
+
+    it('should enrich nodes with bookmark status', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+        createMockMessage('msg2', 'assistant'),
+      ];
+      const canvasState = createMockCanvasState({
+        bookmarkedNodeIds: ['msg1'],
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      expect(result.nodes[0].data.isBookmarked).toBe(true);
+      expect(result.nodes[1].data.isBookmarked).toBe(false);
+    });
+
+    it('should enrich nodes with resolved tags from tag definitions', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+        createMockMessage('msg2', 'assistant'),
+      ];
+      const canvasState = createMockCanvasState({
+        tagDefinitions: [
+          { id: 'tag-1', label: 'Important', color: '#ff0000' },
+          { id: 'tag-2', label: 'Question', color: '#00ff00' },
+        ],
+        nodeTags: {
+          msg1: ['tag-1', 'tag-2'],
+          msg2: ['tag-1'],
+        },
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      expect(result.nodes[0].data.tags).toHaveLength(2);
+      expect(result.nodes[0].data.tags?.[0]?.label).toBe('Important');
+      expect(result.nodes[0].data.tags?.[1]?.label).toBe('Question');
+      expect(result.nodes[1].data.tags).toHaveLength(1);
+      expect(result.nodes[1].data.tags?.[0]?.label).toBe('Important');
+    });
+
+    it('should enrich nodes with notes from canvas state', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+        createMockMessage('msg2', 'assistant'),
+      ];
+      const canvasState = createMockCanvasState({
+        nodeNotes: {
+          msg1: 'This is a user note',
+        },
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      expect(result.nodes[0].data.notes).toBe('This is a user note');
+      expect(result.nodes[1].data.notes).toBeUndefined();
+    });
+
+    it('should enrich nodes with ratings from canvas state', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+        createMockMessage('msg2', 'assistant'),
+      ];
+      const canvasState = createMockCanvasState({
+        nodeRatings: {
+          msg2: 4,
+        },
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      expect(result.nodes[0].data.rating).toBeUndefined();
+      expect(result.nodes[1].data.rating).toBe(4);
+    });
+
+    it('should mark nodes as highlighted when in search results', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+        createMockMessage('msg2', 'assistant'),
+        createMockMessage('msg3', 'user'),
+      ];
+      const canvasState = createMockCanvasState({
+        searchState: {
+          query: 'test',
+          highlightedNodeIds: ['msg1', 'msg3'],
+        },
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      expect(result.nodes[0].data.isHighlighted).toBe(true);
+      expect(result.nodes[1].data.isHighlighted).toBe(false);
+      expect(result.nodes[2].data.isHighlighted).toBe(true);
+    });
+
+    it('should not highlight nodes when search state is absent', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+      ];
+      const result = messagesToFlowNodes(messages, [], createMockCanvasState());
+
+      expect(result.nodes[0].data.isHighlighted).toBe(false);
+    });
+
+    it('should handle tags for non-existent tag definitions gracefully', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('msg1', 'user'),
+      ];
+      const canvasState = createMockCanvasState({
+        tagDefinitions: [
+          { id: 'tag-1', label: 'Important', color: '#ff0000' },
+        ],
+        nodeTags: {
+          msg1: ['tag-1', 'nonexistent-tag'],
+        },
+      });
+      const result = messagesToFlowNodes(messages, [], canvasState);
+
+      // Only the existing tag should be resolved
+      expect(result.nodes[0].data.tags).toHaveLength(1);
+      expect(result.nodes[0].data.tags?.[0]?.id).toBe('tag-1');
     });
   });
 

@@ -252,9 +252,21 @@ export async function executeWebSearch(
       responseTime: response.responseTime,
     };
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    // Provide actionable error messages for common failure modes
+    let userFriendlyError = errMsg;
+    if (errMsg.includes('API key') || errMsg.includes('apiKey') || errMsg.includes('Unauthorized') || errMsg.includes('401')) {
+      userFriendlyError = `Search provider authentication failed. Please check the API key configuration for the '${input.provider || 'default'}' provider.`;
+    } else if (errMsg.includes('429') || errMsg.includes('rate limit') || errMsg.includes('Too Many Requests')) {
+      userFriendlyError = `Search rate limit exceeded. Please wait a moment before searching again, or try a different search provider.`;
+    } else if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED')) {
+      userFriendlyError = `Search request timed out or the provider is unreachable. Try again or use a different search provider.`;
+    } else if (errMsg.includes('provider') && errMsg.includes('required')) {
+      userFriendlyError = `No search provider configured. Please set up a search provider (Tavily, Perplexity, Exa, etc.) in Settings > Search.`;
+    }
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Search failed',
+      error: userFriendlyError,
     };
   }
 }

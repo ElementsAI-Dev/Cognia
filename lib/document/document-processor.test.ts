@@ -10,6 +10,10 @@ import {
   getFileExtension,
   isTextFile,
   estimateTokenCount,
+  validateFile,
+  detectEncoding,
+  compareDocuments,
+  isBinaryType,
 } from './document-processor';
 
 jest.mock('@/lib/ai/embedding/chunking', () => ({
@@ -498,9 +502,175 @@ describe('estimateTokenCount', () => {
     expect(estimateTokenCount('')).toBe(0);
   });
 
-  it('uses roughly 4 characters per token', () => {
+  it('estimates more tokens for CJK text', () => {
+    // 10 CJK characters should produce more tokens than 10 English chars
+    const cjk = '这是一个测试文本内容啊';
+    const english = 'ABCDEFGHIJ';
+    const cjkTokens = estimateTokenCount(cjk);
+    const englishTokens = estimateTokenCount(english);
+    expect(cjkTokens).toBeGreaterThan(englishTokens);
+  });
+
+  it('handles mixed CJK and English text', () => {
+    const mixed = 'Hello 你好 World 世界';
+    const result = estimateTokenCount(mixed);
+    expect(result).toBeGreaterThan(0);
+  });
+
+  it('uses roughly 4 characters per token for pure English', () => {
     const content = 'A'.repeat(100);
     const result = estimateTokenCount(content);
     expect(result).toBeCloseTo(25, 0);
+  });
+});
+
+describe('validateFile', () => {
+  it('accepts valid file', () => {
+    const result = validateFile('document.pdf', 1024);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects file exceeding max size', () => {
+    const result = validateFile('large.pdf', 100 * 1024 * 1024); // 100MB
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('exceeds');
+  });
+
+  it('warns when file size is close to max', () => {
+    const result = validateFile('big.pdf', 45 * 1024 * 1024); // 45MB (90% of 50MB)
+    expect(result.valid).toBe(true);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('warns for empty file', () => {
+    const result = validateFile('empty.txt', 0);
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toContain('File is empty');
+  });
+
+  it('warns for unknown file type', () => {
+    const result = validateFile('file.xyz', 100);
+    expect(result.valid).toBe(true);
+    expect(result.warnings[0]).toContain('Unrecognized');
+  });
+
+  it('rejects disallowed file types', () => {
+    const result = validateFile('file.pdf', 100, {
+      allowedTypes: ['markdown', 'text'],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('not allowed');
+  });
+
+  it('accepts allowed file types', () => {
+    const result = validateFile('readme.md', 100, {
+      allowedTypes: ['markdown', 'text'],
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('respects custom maxFileSize', () => {
+    const result = validateFile('small.txt', 2000, {
+      maxFileSize: 1000,
+    });
+    expect(result.valid).toBe(false);
+  });
+});
+
+describe('detectEncoding', () => {
+  it('detects UTF-8 BOM', () => {
+    const buffer = new Uint8Array([0xEF, 0xBB, 0xBF, 0x41]).buffer;
+    expect(detectEncoding(buffer)).toBe('utf-8');
+  });
+
+  it('detects UTF-16 LE BOM', () => {
+    const buffer = new Uint8Array([0xFF, 0xFE, 0x41, 0x00]).buffer;
+    expect(detectEncoding(buffer)).toBe('utf-16le');
+  });
+
+  it('detects UTF-16 BE BOM', () => {
+    const buffer = new Uint8Array([0xFE, 0xFF, 0x00, 0x41]).buffer;
+    expect(detectEncoding(buffer)).toBe('utf-16be');
+  });
+
+  it('defaults to utf-8 for no BOM', () => {
+    const buffer = new Uint8Array([0x41, 0x42, 0x43]).buffer;
+    expect(detectEncoding(buffer)).toBe('utf-8');
+  });
+});
+
+describe('compareDocuments', () => {
+  const makeDoc = (content: string) => ({
+    id: 'test',
+    filename: 'test.txt',
+    type: 'text' as const,
+    content,
+    embeddableContent: content,
+    metadata: { size: content.length, lineCount: content.split('\n').length, wordCount: 0 },
+  });
+
+  it('detects identical documents', () => {
+    const doc = makeDoc('Hello world');
+    const diff = compareDocuments(doc, doc);
+    expect(diff.similarity).toBe(1.0);
+    expect(diff.added).toHaveLength(0);
+    expect(diff.removed).toHaveLength(0);
+  });
+
+  it('detects added lines', () => {
+    const docA = makeDoc('Line 1\nLine 2');
+    const docB = makeDoc('Line 1\nLine 2\nLine 3');
+    const diff = compareDocuments(docA, docB);
+    expect(diff.added).toContain('Line 3');
+  });
+
+  it('detects removed lines', () => {
+    const docA = makeDoc('Line 1\nLine 2\nLine 3');
+    const docB = makeDoc('Line 1\nLine 2');
+    const diff = compareDocuments(docA, docB);
+    expect(diff.removed).toContain('Line 3');
+  });
+
+  it('computes similarity between 0 and 1', () => {
+    const docA = makeDoc('Alpha\nBeta\nGamma');
+    const docB = makeDoc('Alpha\nDelta\nGamma');
+    const diff = compareDocuments(docA, docB);
+    expect(diff.similarity).toBeGreaterThan(0);
+    expect(diff.similarity).toBeLessThan(1);
+  });
+});
+
+describe('isBinaryType', () => {
+  it('returns true for binary types', () => {
+    expect(isBinaryType('pdf')).toBe(true);
+    expect(isBinaryType('word')).toBe(true);
+    expect(isBinaryType('excel')).toBe(true);
+    expect(isBinaryType('presentation')).toBe(true);
+    expect(isBinaryType('epub')).toBe(true);
+  });
+
+  it('returns false for text types', () => {
+    expect(isBinaryType('markdown')).toBe(false);
+    expect(isBinaryType('code')).toBe(false);
+    expect(isBinaryType('text')).toBe(false);
+    expect(isBinaryType('json')).toBe(false);
+    expect(isBinaryType('csv')).toBe(false);
+    expect(isBinaryType('html')).toBe(false);
+  });
+});
+
+describe('new document type detection', () => {
+  it('detects presentation files', () => {
+    expect(detectDocumentType('slides.pptx')).toBe('presentation');
+    expect(detectDocumentType('deck.ppt')).toBe('presentation');
+  });
+
+  it('detects RTF files', () => {
+    expect(detectDocumentType('document.rtf')).toBe('rtf');
+  });
+
+  it('detects EPUB files', () => {
+    expect(detectDocumentType('book.epub')).toBe('epub');
   });
 });

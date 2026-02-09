@@ -5,16 +5,12 @@
 import { findBlockEnd, type ExtractedSymbol } from './symbol-provider';
 
 // Mock Monaco model
-function createMockModel(lines: string[]): {
-  getLineCount: () => number;
-  getLineContent: (lineNumber: number) => string;
-  uri: string;
-} {
+function createMockModel(lines: string[]) {
   return {
     getLineCount: () => lines.length,
     getLineContent: (lineNumber: number) => lines[lineNumber - 1] || '',
     uri: 'file:///test.tsx',
-  };
+  } as unknown as import('monaco-editor').editor.ITextModel;
 }
 
 describe('symbol-provider', () => {

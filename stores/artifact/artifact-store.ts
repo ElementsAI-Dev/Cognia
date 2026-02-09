@@ -678,8 +678,14 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
 
       // Panel actions
-      openPanel: (view = 'artifact') => set({ panelOpen: true, panelView: view }),
-      closePanel: () => set({ panelOpen: false }),
+      openPanel: (view = 'artifact') => {
+        set({ panelOpen: true, panelView: view });
+        getPluginEventHooks().dispatchPanelOpen(view);
+      },
+      closePanel: () => {
+        set({ panelOpen: false });
+        getPluginEventHooks().dispatchPanelClose('artifact');
+      },
       setPanelView: (view) => set({ panelView: view }),
 
       // Batch operations

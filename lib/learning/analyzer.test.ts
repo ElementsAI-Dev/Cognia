@@ -45,7 +45,7 @@ function createMockSession(overrides: Partial<LearningSession> = {}): LearningSe
     consecutiveCorrect: 0,
     consecutiveIncorrect: 0,
     ...overrides,
-  };
+  } as unknown as LearningSession;
 }
 
 // Helper to create a mock sub-question

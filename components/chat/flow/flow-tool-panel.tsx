@@ -6,7 +6,7 @@
  * Similar to Flowith's tool capabilities
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Wrench,
@@ -112,6 +112,13 @@ export function FlowToolPanel({
       setIsLoading(false);
     }
   }, [getAllTools, servers]);
+
+  // Auto-load tools on mount and when servers change
+  useEffect(() => {
+    if (servers.length > 0 && tools.length === 0) {
+      loadTools();
+    }
+  }, [servers, tools.length, loadTools]);
 
   // Filter tools by search query
   const filteredTools = useMemo(() => {

@@ -17,12 +17,27 @@ import { loggers } from '@/lib/logger';
 const log = loggers.ai;
 
 /**
+ * Cache statistics
+ */
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  sets: number;
+  deletes: number;
+  size: number;
+  hitRate: number;
+}
+
+/**
  * Cache store interface
  */
 export interface CacheStore {
   get: <T>(key: string) => Promise<T | null>;
   set: <T>(key: string, value: T, ttlSeconds?: number) => Promise<void>;
   delete: (key: string) => Promise<void>;
+  clear?: () => Promise<void>;
+  getStats?: () => CacheStats;
+  keys?: () => Promise<string[]>;
 }
 
 /**
@@ -34,6 +49,7 @@ export function createInMemoryCacheStore(options?: {
 }): CacheStore {
   const { maxSize = 100, defaultTTL = 3600 } = options || {};
   const cache = new Map<string, { value: unknown; expiry: number }>();
+  const stats = { hits: 0, misses: 0, sets: 0, deletes: 0 };
 
   const cleanup = () => {
     const now = Date.now();
@@ -48,16 +64,22 @@ export function createInMemoryCacheStore(options?: {
     async get<T>(key: string): Promise<T | null> {
       cleanup();
       const entry = cache.get(key);
-      if (!entry) return null;
-      if (entry.expiry && Date.now() > entry.expiry) {
-        cache.delete(key);
+      if (!entry) {
+        stats.misses++;
         return null;
       }
+      if (entry.expiry && Date.now() > entry.expiry) {
+        cache.delete(key);
+        stats.misses++;
+        return null;
+      }
+      stats.hits++;
       return entry.value as T;
     },
 
     async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
       cleanup();
+      stats.sets++;
       
       // Evict oldest entries if cache is full
       if (cache.size >= maxSize) {
@@ -74,6 +96,26 @@ export function createInMemoryCacheStore(options?: {
 
     async delete(key: string): Promise<void> {
       cache.delete(key);
+      stats.deletes++;
+    },
+
+    async clear(): Promise<void> {
+      cache.clear();
+    },
+
+    getStats(): CacheStats {
+      cleanup();
+      const total = stats.hits + stats.misses;
+      return {
+        ...stats,
+        size: cache.size,
+        hitRate: total > 0 ? stats.hits / total : 0,
+      };
+    },
+
+    async keys(): Promise<string[]> {
+      cleanup();
+      return Array.from(cache.keys());
     },
   };
 }
@@ -188,25 +230,76 @@ export function createIndexedDBCacheStore(options?: {
         // Ignore delete errors
       }
     },
+
+    async clear(): Promise<void> {
+      try {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(storeName, 'readwrite');
+          const idbStore = transaction.objectStore(storeName);
+          const request = idbStore.clear();
+          
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve();
+        });
+      } catch {
+        // Ignore clear errors
+      }
+    },
   };
 }
 
 /**
- * Generate a cache key from request parameters
+ * Generate a cache key from request parameters using FNV-1a hash
+ * FNV-1a provides better distribution and fewer collisions than simple DJB2
  */
 export function generateCacheKey(params: Record<string, unknown>): string {
   // Create a stable hash from the parameters
   const sortedParams = JSON.stringify(params, Object.keys(params).sort());
   
-  // Simple hash function
-  let hash = 0;
+  // FNV-1a hash (32-bit) - better distribution than simple hash
+  let hash = 0x811c9dc5; // FNV offset basis
   for (let i = 0; i < sortedParams.length; i++) {
-    const char = sortedParams.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash ^= sortedParams.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193); // FNV prime
   }
   
-  return `ai-cache-${Math.abs(hash).toString(36)}`;
+  // Convert to unsigned 32-bit and use hex for compact representation
+  return `ai-cache-${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * Invalidate cache entries matching a pattern
+ */
+export async function invalidateCacheByPattern(
+  store: CacheStore,
+  pattern: string | RegExp
+): Promise<number> {
+  if (!store.keys) {
+    log.warn('Cache store does not support keys() - cannot invalidate by pattern');
+    return 0;
+  }
+
+  const allKeys = await store.keys();
+  const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+  let invalidated = 0;
+
+  for (const key of allKeys) {
+    if (regex.test(key)) {
+      await store.delete(key);
+      invalidated++;
+    }
+  }
+
+  return invalidated;
+}
+
+/**
+ * Get cache statistics from a cache store
+ */
+export function getCacheStats(store: CacheStore): CacheStats | null {
+  if (!store.getStats) return null;
+  return store.getStats();
 }
 
 /**

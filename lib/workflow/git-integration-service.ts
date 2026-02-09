@@ -432,6 +432,27 @@ export class GitIntegrationService {
   }
 
   /**
+   * Stage files (alias for stageFilesInRepo)
+   */
+  async stageFiles(path: string, files: string[]): Promise<void> {
+    return this.stageFilesInRepo(path, files);
+  }
+
+  /**
+   * Get branches (alias for getRepoBranches)
+   */
+  async getBranches(path: string): Promise<GitBranchInfo[]> {
+    return this.getRepoBranches(path);
+  }
+
+  /**
+   * Get diff (alias for getRepoDiff)
+   */
+  async getDiff(path: string, file?: string): Promise<GitDiffInfo[] | GitDiffInfo | null> {
+    return this.getRepoDiff(path, file);
+  }
+
+  /**
    * Update config
    */
   updateConfig(config: Partial<GitIntegrationConfig>): void {

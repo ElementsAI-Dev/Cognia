@@ -1,8 +1,8 @@
 {
   "id": "cognia-git-tools",
   "name": "Git Tools",
-  "version": "1.0.0",
-  "description": "Git version control operations for AI agents - status, diff, commit, branch management",
+  "version": "1.1.0",
+  "description": "Git version control operations for AI agents - status, diff, commit, branch, tag, remote management",
   "author": {
     "name": "Cognia Team",
     "email": "team@cognia.dev"
@@ -16,10 +16,13 @@
     "version-control",
     "commit",
     "branch",
-    "diff"
+    "diff",
+    "tag",
+    "remote"
   ],
   "capabilities": [
-    "tools"
+    "tools",
+    "commands"
   ],
   "permissions": [
     "shell:execute",
@@ -32,38 +35,28 @@
     "onAgentTool:git_branch",
     "onAgentTool:git_commit",
     "onAgentTool:git_stash",
-    "onAgentTool:git_blame"
+    "onAgentTool:git_blame",
+    "onAgentTool:git_add",
+    "onAgentTool:git_remote",
+    "onAgentTool:git_tag",
+    "onCommand:git-tools.*"
   ],
   "tools": [
-    {
-      "name": "git_status",
-      "description": "Get repository status (staged, modified, untracked files)"
-    },
-    {
-      "name": "git_diff",
-      "description": "Show changes between commits, working tree, etc."
-    },
-    {
-      "name": "git_log",
-      "description": "View commit history"
-    },
-    {
-      "name": "git_branch",
-      "description": "List, create, or switch branches"
-    },
-    {
-      "name": "git_commit",
-      "description": "Create a new commit",
-      "requiresApproval": true
-    },
-    {
-      "name": "git_stash",
-      "description": "Stash or restore changes"
-    },
-    {
-      "name": "git_blame",
-      "description": "Show line-by-line authorship"
-    }
+    { "name": "git_status", "description": "Get repository status (staged, modified, untracked files)" },
+    { "name": "git_diff", "description": "Show changes between commits, working tree, etc." },
+    { "name": "git_log", "description": "View commit history" },
+    { "name": "git_branch", "description": "List, create, or switch branches" },
+    { "name": "git_commit", "description": "Create a new commit", "requiresApproval": true },
+    { "name": "git_stash", "description": "Stash or restore changes" },
+    { "name": "git_blame", "description": "Show line-by-line authorship" },
+    { "name": "git_add", "description": "Stage files for commit", "requiresApproval": true },
+    { "name": "git_remote", "description": "Manage remote repositories" },
+    { "name": "git_tag", "description": "List, create, or delete tags" }
+  ],
+  "commands": [
+    { "id": "git-tools.status", "name": "Git Status", "description": "Show repository status", "icon": "git-branch" },
+    { "id": "git-tools.recent-commits", "name": "Recent Commits", "description": "Show last 10 commits", "icon": "git-commit" },
+    { "id": "git-tools.current-branch", "name": "Current Branch", "description": "Show current branch name", "icon": "git-branch" }
   ],
   "configSchema": {
     "type": "object",

@@ -31,6 +31,8 @@ export interface ContextFileMetadata {
   category: ContextCategory;
   /** Original source (tool name, session id, etc.) */
   source: string;
+  /** File name for display and filtering */
+  filename?: string;
   /** Creation timestamp */
   createdAt: Date;
   /** Last accessed timestamp */

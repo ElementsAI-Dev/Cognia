@@ -31,6 +31,7 @@ import {
   type ChunkingOptions,
   type ChunkingResult,
 } from '@/lib/ai/embedding/chunking';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 export interface UseRAGOptions {
   collectionName?: string;
@@ -227,6 +228,13 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         const config = buildRAGConfig();
         const context = await retrieveContext(collectionName, query, config);
         setLastContext(context);
+        if (context.documents?.length) {
+          getPluginEventHooks().dispatchRAGContextRetrieved('', context.documents.map((d: { id?: string; content: string; score?: number }) => ({
+            id: d.id || '',
+            content: d.content,
+            score: d.score || 0,
+          })));
+        }
         return context;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Retrieval failed';
@@ -255,6 +263,13 @@ export function useRAG(options: UseRAGOptions = {}): UseRAGReturn {
         const config = buildRAGConfig(overrides);
         const context = await retrieveContext(collectionName, query, config);
         setLastContext(context);
+        if (context.documents?.length) {
+          getPluginEventHooks().dispatchRAGContextRetrieved('', context.documents.map((d: { id?: string; content: string; score?: number }) => ({
+            id: d.id || '',
+            content: d.content,
+            score: d.score || 0,
+          })));
+        }
         return context;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Retrieval failed';

@@ -6,6 +6,7 @@
 
 import type { KnowledgeFile, Project } from '@/types';
 import type { RAGDocument } from '@/lib/ai/rag';
+import type { EmbeddingProvider } from '@/lib/vector/embedding';
 import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
 import { projectRepository } from '@/lib/db/repositories/project-repository';
 import { loggers } from '@/lib/logger';
@@ -474,6 +475,123 @@ export async function getProjectKnowledgeStats(projectId: string): Promise<{
     totalSize: stats.totalSize,
     byType: stats.byType,
   };
+}
+
+// ============================================================================
+// Advanced RAG Pipeline Integration
+// ============================================================================
+
+/**
+ * Search knowledge base using the advanced RAG pipeline
+ * with hybrid search, reranking, query expansion, and contextual retrieval.
+ * Falls back to keyword search if pipeline setup fails.
+ */
+export async function searchKnowledgeBaseAdvanced(
+  files: KnowledgeFile[],
+  query: string,
+  config: {
+    embeddingProvider: EmbeddingProvider;
+    embeddingModel: string;
+    embeddingApiKey: string;
+    enableHybridSearch?: boolean;
+    enableReranking?: boolean;
+    enableQueryExpansion?: boolean;
+    topK?: number;
+    similarityThreshold?: number;
+  }
+): Promise<{
+  context: string;
+  filesUsed: KnowledgeFile[];
+  method: 'pipeline' | 'keyword';
+  searchMetadata?: {
+    hybridSearchUsed: boolean;
+    queryExpansionUsed: boolean;
+    rerankingUsed: boolean;
+    totalResults: number;
+  };
+}> {
+  const { topK = 5, similarityThreshold = 0.3 } = config;
+
+  try {
+    const { createRAGPipeline } = await import('@/lib/ai/rag');
+
+    const pipeline = createRAGPipeline({
+      embeddingConfig: {
+        provider: config.embeddingProvider,
+        model: config.embeddingModel,
+      },
+      embeddingApiKey: config.embeddingApiKey,
+      hybridSearch: {
+        enabled: config.enableHybridSearch ?? true,
+      },
+      reranking: {
+        enabled: config.enableReranking ?? true,
+      },
+      queryExpansion: {
+        enabled: config.enableQueryExpansion ?? false,
+      },
+      topK,
+      similarityThreshold,
+    });
+
+    // Index all knowledge files into the pipeline
+    const collectionName = 'knowledge-search';
+    for (const file of files) {
+      if (file.content) {
+        await pipeline.indexDocument(file.content, {
+          collectionName,
+          documentId: file.id,
+          documentTitle: file.name,
+          metadata: {
+            type: file.type,
+            name: file.name,
+            size: file.size,
+          },
+        });
+      }
+    }
+
+    // Retrieve relevant context
+    const result = await pipeline.retrieve(collectionName, query);
+
+    if (result.documents.length === 0) {
+      // Fallback to keyword search
+      const keywordFiles = getRelevantKnowledge(files, query, topK);
+      return {
+        context: buildKnowledgeContext(keywordFiles, { maxLength: 6000, includeMetadata: true }),
+        filesUsed: keywordFiles,
+        method: 'keyword',
+      };
+    }
+
+    // Map result documents back to KnowledgeFile references
+    const usedFileIds = new Set<string>();
+    for (const doc of result.documents) {
+      const docId = doc.metadata?.documentId as string;
+      if (docId) usedFileIds.add(docId);
+    }
+    const filesUsed = files.filter((f) => usedFileIds.has(f.id));
+
+    return {
+      context: result.formattedContext,
+      filesUsed,
+      method: 'pipeline',
+      searchMetadata: {
+        hybridSearchUsed: result.searchMetadata.hybridSearchUsed,
+        queryExpansionUsed: result.searchMetadata.queryExpansionUsed,
+        rerankingUsed: result.searchMetadata.rerankingUsed,
+        totalResults: result.documents.length,
+      },
+    };
+  } catch (error) {
+    log.warn('Advanced RAG pipeline search failed, falling back to keyword search', { error });
+    const keywordFiles = getRelevantKnowledge(files, query, topK);
+    return {
+      context: buildKnowledgeContext(keywordFiles, { maxLength: 6000, includeMetadata: true }),
+      filesUsed: keywordFiles,
+      method: 'keyword',
+    };
+  }
 }
 
 // ============================================================================

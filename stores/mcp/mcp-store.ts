@@ -29,6 +29,7 @@ import { getToolCacheManager } from '@/lib/mcp/tool-cache';
 import { syncMcpServer, clearMcpServerTools } from '@/lib/context/mcp-tools-sync';
 import { mcpServerRepository } from '@/lib/db/repositories/mcp-server-repository';
 import { loggers } from '@/lib/logger';
+import { getPluginEventHooks } from '@/lib/plugin';
 
 const log = loggers.store;
 
@@ -321,6 +322,8 @@ export const useMcpStore = create<McpState>((set, get) => ({
   connectServer: async (id) => {
     try {
       await invoke('mcp_connect_server', { id });
+      const server = get().servers.find(s => s.id === id);
+      getPluginEventHooks().dispatchMCPServerConnect(id, server?.config?.name || id);
     } catch (error) {
       set({ error: String(error) });
       throw error;
@@ -330,6 +333,7 @@ export const useMcpStore = create<McpState>((set, get) => ({
   disconnectServer: async (id) => {
     try {
       await invoke('mcp_disconnect_server', { id });
+      getPluginEventHooks().dispatchMCPServerDisconnect(id);
     } catch (error) {
       set({ error: String(error) });
       throw error;
@@ -337,11 +341,14 @@ export const useMcpStore = create<McpState>((set, get) => ({
   },
 
   callTool: async (serverId, toolName, args) => {
-    return invoke<ToolCallResult>('mcp_call_tool', {
+    getPluginEventHooks().dispatchMCPToolCall(serverId, toolName, args);
+    const result = await invoke<ToolCallResult>('mcp_call_tool', {
       serverId,
       toolName,
       arguments: args,
     });
+    getPluginEventHooks().dispatchMCPToolResult(serverId, toolName, result);
+    return result;
   },
 
   readResource: async (serverId, uri) => {

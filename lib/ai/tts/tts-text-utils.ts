@@ -269,7 +269,13 @@ export function preprocessTextForProvider(
     case 'elevenlabs':
     case 'lmnt':
     case 'hume':
+    case 'deepgram':
       // These providers handle text well
+      break;
+
+    case 'cartesia':
+      // Cartesia supports SSML-like tags for emotion, remove raw angle brackets from content
+      processed = processed.replace(/[<>]/g, '');
       break;
   }
 

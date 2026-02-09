@@ -85,7 +85,12 @@
     "scheduler": "Scheduler",
     "speedPass": "SpeedPass",
     "academic": "Academic",
-    "sandbox": "Sandbox"
+    "sandbox": "Sandbox",
+    "dailyLimit": "Daily Limit",
+    "inputTokens": "Input",
+    "outputTokens": "Output",
+    "cost": "Cost",
+    "viewFullReport": "View Full Report"
   },
   "mobileNav": {
     "home": "Home",

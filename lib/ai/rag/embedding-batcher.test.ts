@@ -36,7 +36,7 @@ describe('EmbeddingBatcher', () => {
     mockGenerateEmbeddings.mockResolvedValue({
       embeddings: [[0.1, 0.2, 0.3]],
       model: 'text-embedding-3-small',
-      usage: { promptTokens: 10, totalTokens: 10 },
+      provider: 'openai',
     });
   });
 
@@ -94,7 +94,7 @@ describe('EmbeddingBatcher', () => {
       mockGenerateEmbeddings.mockResolvedValue({
         embeddings: [[0.1], [0.2]],
         model: 'text-embedding-3-small',
-        usage: { promptTokens: 20, totalTokens: 20 },
+        provider: 'openai',
       });
 
       const batcher = new EmbeddingBatcher(mockEmbeddingConfig, mockApiKey, {
@@ -122,7 +122,7 @@ describe('EmbeddingBatcher', () => {
       mockGenerateEmbeddings.mockResolvedValue({
         embeddings: [[0.1], [0.2], [0.3]],
         model: 'text-embedding-3-small',
-        usage: { promptTokens: 30, totalTokens: 30 },
+        provider: 'openai',
       });
 
       const batcher = new EmbeddingBatcher(mockEmbeddingConfig, mockApiKey, { enabled: false });
@@ -229,10 +229,10 @@ describe('batchGenerateEmbeddings', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGenerateEmbeddings.mockImplementation(async (texts) => ({
+    mockGenerateEmbeddings.mockImplementation(async (texts: string[]) => ({
       embeddings: texts.map(() => [0.1, 0.2, 0.3]),
       model: 'text-embedding-3-small',
-      usage: { promptTokens: texts.length * 10, totalTokens: texts.length * 10 },
+      provider: 'openai' as const,
     }));
   });
 

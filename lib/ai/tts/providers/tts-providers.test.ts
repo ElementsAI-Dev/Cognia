@@ -7,6 +7,8 @@ import { generateGeminiTTS } from './gemini-tts';
 import { generateElevenLabsTTS } from './elevenlabs-tts';
 import { generateLMNTTTS } from './lmnt-tts';
 import { generateHumeTTS } from './hume-tts';
+import { generateCartesiaTTS } from './cartesia-tts';
+import { generateDeepgramTTS } from './deepgram-tts';
 
 // Mock proxy-fetch
 jest.mock('@/lib/network/proxy-fetch', () => ({
@@ -325,6 +327,160 @@ describe('TTS Providers', () => {
 
       const callBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
       expect(callBody.acting_instructions).toBe('Speak with enthusiasm');
+    });
+  });
+
+  describe('OpenAI TTS - Instructions', () => {
+    it('should include instructions for gpt-4o-mini-tts model', async () => {
+      mockProxyFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateOpenAITTS('Hello world', {
+        apiKey: 'test-key',
+        model: 'gpt-4o-mini-tts',
+        instructions: 'Speak warmly',
+      });
+
+      const callBody = JSON.parse(mockProxyFetch.mock.calls[0][1].body);
+      expect(callBody.instructions).toBe('Speak warmly');
+      expect(callBody.model).toBe('gpt-4o-mini-tts');
+    });
+
+    it('should not include instructions for tts-1 model', async () => {
+      mockProxyFetch.mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateOpenAITTS('Hello world', {
+        apiKey: 'test-key',
+        model: 'tts-1',
+        instructions: 'Speak warmly',
+      });
+
+      const callBody = JSON.parse(mockProxyFetch.mock.calls[0][1].body);
+      expect(callBody.instructions).toBeUndefined();
+    });
+  });
+
+  describe('Cartesia TTS', () => {
+    it('should return error when API key is missing', async () => {
+      const result = await generateCartesiaTTS('Hello world', {
+        apiKey: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('API');
+    });
+
+    it('should return error when text is too long', async () => {
+      const longText = 'a'.repeat(11000);
+      
+      const result = await generateCartesiaTTS(longText, {
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should make API request with correct parameters', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      });
+
+      await generateCartesiaTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'a0e99841-438c-4a64-b679-ae501e7d6091',
+        model: 'sonic-3',
+        language: 'en',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('cartesia.ai'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'X-API-Key': 'test-key',
+          }),
+        })
+      );
+    });
+
+    it('should handle API errors', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+      });
+
+      const result = await generateCartesiaTTS('Hello world', {
+        apiKey: 'invalid-key',
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('Deepgram TTS', () => {
+    it('should return error when API key is missing', async () => {
+      const result = await generateDeepgramTTS('Hello world', {
+        apiKey: '',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('API');
+    });
+
+    it('should return error when text is too long', async () => {
+      const longText = 'a'.repeat(11000);
+      
+      const result = await generateDeepgramTTS(longText, {
+        apiKey: 'test-key',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should make API request with correct parameters', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+        headers: new Headers({ 'content-type': 'audio/mpeg' }),
+      });
+
+      await generateDeepgramTTS('Hello world', {
+        apiKey: 'test-key',
+        voice: 'aura-2-asteria-en',
+      });
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('deepgram.com'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': 'Token test-key',
+          }),
+        })
+      );
+    });
+
+    it('should handle API errors', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({ err_msg: 'Forbidden' }),
+      });
+
+      const result = await generateDeepgramTTS('Hello world', {
+        apiKey: 'invalid-key',
+      });
+
+      expect(result.success).toBe(false);
     });
   });
 });

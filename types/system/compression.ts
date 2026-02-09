@@ -14,8 +14,9 @@
  * - sliding-window: Keep only the most recent N messages
  * - selective: Keep important messages (system, key exchanges) and summarize others
  * - hybrid: Combination of sliding window for recent + summary for older
+ * - recursive: Chunk-based recursive summarization for very long conversations
  */
-export type CompressionStrategy = 'summary' | 'sliding-window' | 'selective' | 'hybrid';
+export type CompressionStrategy = 'summary' | 'sliding-window' | 'selective' | 'hybrid' | 'recursive';
 
 /**
  * Trigger modes for automatic compression
@@ -63,6 +64,20 @@ export interface CompressionSettings {
   showCompressionNotification: boolean;
   /** Allow user to undo/restore compressed messages */
   enableUndo: boolean;
+  /** Minimum importance score (0-1) to keep a message during selective compression */
+  importanceThreshold: number;
+  /** Use AI-powered summarization when provider is available */
+  useAISummarization: boolean;
+  /** Preserve tool call metadata (name, args, status) when compressing tool results */
+  preserveToolCallMetadata: boolean;
+  /** Maximum tokens for individual tool call results before truncation */
+  maxToolResultTokens: number;
+  /** Number of messages per chunk for recursive compression */
+  recursiveChunkSize: number;
+  /** Retained threshold percentage (0-100) — the "drain line" after compression (dual-threshold) */
+  retainedThreshold: number;
+  /** Enable prefix stability mode to preserve KV cache across turns */
+  prefixStabilityMode: boolean;
 }
 
 /**
@@ -168,6 +183,79 @@ export interface ContextState {
 }
 
 /**
+ * Importance signal types detected in messages
+ */
+export type ImportanceSignal =
+  | 'code'
+  | 'decision'
+  | 'error'
+  | 'tool-call'
+  | 'question'
+  | 'system'
+  | 'recency'
+  | 'artifact'
+  | 'url'
+  | 'structured-data';
+
+/**
+ * Importance score for a message with contributing signals
+ */
+export interface MessageImportanceScore {
+  /** Overall importance score (0-1) */
+  score: number;
+  /** Signals that contributed to the score */
+  signals: ImportanceSignal[];
+}
+
+/**
+ * AI configuration for compression summarization
+ */
+export interface CompressionAIConfig {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+}
+
+/**
+ * Provider cache capability profile for KV cache / prefix caching awareness
+ * Used to optimize compression behavior based on inference framework capabilities
+ */
+export type ProviderCacheType = 'auto' | 'manual' | 'none';
+
+export interface ProviderCacheProfile {
+  /** Whether the provider supports prefix caching (KV cache reuse) */
+  supportsPrefixCache: boolean;
+  /** Cache type: auto (OpenAI), manual (Anthropic cache_control), none */
+  cacheType: ProviderCacheType;
+  /** Discount ratio for cached tokens (0-1, e.g. 0.5 = 50% off for OpenAI, 0.9 = 90% off for Anthropic) */
+  cachedTokenDiscount: number;
+  /** Whether explicit cache_control breakpoints are required (Anthropic) */
+  requiresCacheControl: boolean;
+  /** How important prefix stability is for this provider */
+  prefixStabilityImportance: 'critical' | 'high' | 'low';
+}
+
+/**
+ * Frozen compression summary persisted per session
+ * Once generated, a frozen summary is reused across turns to maintain prefix stability
+ */
+export interface FrozenCompressionSummary {
+  /** The frozen summary text */
+  summaryText: string;
+  /** When this summary was frozen */
+  frozenAt: Date;
+  /** IDs of messages that were summarized into this frozen summary */
+  summarizedMessageIds: string[];
+  /** Original token count of the summarized messages */
+  originalTokenCount: number;
+  /** Token count of the summary itself */
+  summaryTokenCount: number;
+  /** Version number, incremented each time the summary is re-frozen */
+  version: number;
+}
+
+/**
  * Default compression settings
  */
 export const DEFAULT_COMPRESSION_SETTINGS: CompressionSettings = {
@@ -184,4 +272,11 @@ export const DEFAULT_COMPRESSION_SETTINGS: CompressionSettings = {
   },
   showCompressionNotification: true,
   enableUndo: true,
+  importanceThreshold: 0.4,
+  useAISummarization: true,
+  preserveToolCallMetadata: true,
+  maxToolResultTokens: 500,
+  recursiveChunkSize: 20,
+  retainedThreshold: 40, // Compress down to 40% — creates 30% buffer zone with 70% trigger
+  prefixStabilityMode: true, // Enable by default for cache-friendly compression
 };

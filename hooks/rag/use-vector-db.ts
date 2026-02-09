@@ -8,6 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useVectorStore } from '@/stores';
 import { useSettingsStore } from '@/stores';
+import { getPluginEventHooks } from '@/lib/plugin';
 import {
   createVectorStore,
   type IVectorStore,
@@ -336,6 +337,8 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
           },
         ]);
 
+        getPluginEventHooks().dispatchDocumentsIndexed(collectionName, 1);
+
         return docId;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to add document');
@@ -372,6 +375,8 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
             metadata: d.metadata,
           }))
         );
+
+        getPluginEventHooks().dispatchDocumentsIndexed(collectionName, docs.length);
 
         return docs.map((d) => d.id);
       } catch (err) {
@@ -411,7 +416,9 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         if (!store) throw new Error('Vector store not available');
         await store.createCollection(collectionName);
         const opts: SearchOptions = { topK };
-        return await store.searchDocuments(collectionName, query, opts);
+        const results = await store.searchDocuments(collectionName, query, opts);
+        getPluginEventHooks().dispatchVectorSearch(collectionName, query, results.length);
+        return results;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Search failed');
         throw err;

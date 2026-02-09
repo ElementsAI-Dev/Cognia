@@ -145,6 +145,8 @@ export interface FlowChatNodeData {
   rating?: number;
   /** User notes/annotations */
   notes?: string;
+  /** Whether this node is highlighted by search results */
+  isHighlighted?: boolean;
 }
 
 /**
@@ -278,6 +280,10 @@ export interface FlowChatCanvasState {
   showThumbnails: boolean;
   /** Show node statistics */
   showNodeStats: boolean;
+  /** Per-node notes/annotations */
+  nodeNotes: Record<string, string>;
+  /** Per-node quality ratings (1-5) */
+  nodeRatings: Record<string, number>;
 }
 
 /**
@@ -302,6 +308,8 @@ export const DEFAULT_FLOW_CANVAS_STATE: FlowChatCanvasState = {
   comparisonNodeIds: [],
   showThumbnails: true,
   showNodeStats: true,
+  nodeNotes: {},
+  nodeRatings: {},
 };
 
 /**

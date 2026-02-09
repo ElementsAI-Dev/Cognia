@@ -158,10 +158,10 @@ describe('FlowChatCanvas', () => {
     });
   });
 
-  it('shows tool panel when Ctrl+T is pressed', () => {
+  it('shows tool panel when Ctrl+Shift+T is pressed', () => {
     render(<FlowChatCanvas {...defaultProps} />, { wrapper });
 
-    fireEvent.keyDown(window, { key: 't', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'T', ctrlKey: true, shiftKey: true });
 
     expect(screen.getByTestId('flow-tool-panel')).toBeInTheDocument();
   });

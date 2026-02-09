@@ -380,12 +380,14 @@
     "startRecording": "Start Recording",
     "config": {
       "title": "Recording Settings",
+      "description": "Configure recording format, quality, audio, and more.",
       "format": "Video Format",
       "codec": "Video Codec",
       "frameRate": "Frame Rate",
       "quality": "Quality",
       "bitrate": "Bitrate",
       "bitrateAuto": "Auto",
+      "videoSection": "Video",
       "audio": "Audio",
       "captureSystemAudio": "Capture System Audio",
       "captureMicrophone": "Capture Microphone",
@@ -398,7 +400,29 @@
       "maxDuration": "Maximum Duration",
       "maxDurationUnlimited": "Unlimited",
       "saveDirectory": "Save Directory",
-      "selectDirectory": "Select Directory"
+      "selectDirectory": "Select Directory",
+      "defaultDirectory": "Default",
+      "systemInfo": "System Info",
+      "hwAcceleration": "GPU Acceleration",
+      "noHwAcceleration": "No GPU acceleration detected",
+      "path": "Path",
+      "encoders": "Encoders",
+      "storage": "Storage",
+      "storageUsed": "Used",
+      "recordings": "Recordings",
+      "screenshots": "Screenshots",
+      "storageExceeded": "Storage limit exceeded",
+      "cleanup": "Cleanup Old Files",
+      "reset": "Reset",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "presets": {
+      "title": "Quick Presets",
+      "meeting": "Meeting",
+      "tutorial": "Tutorial",
+      "gaming": "Gaming",
+      "presentation": "Presentation"
     }
   },
   "ffmpegStatus": {
@@ -421,7 +445,10 @@
     "readyDescription": "FFmpeg is installed and ready for screen recording.",
     "requiredDescription": "FFmpeg is required for screen recording. Please install FFmpeg to use this feature.",
     "installGuide": "Installation Guide",
-    "copyToClipboard": "Copy to clipboard"
+    "copyToClipboard": "Copy to clipboard",
+    "version": "Version",
+    "versionWarning": "update recommended",
+    "hwAcceleration": "GPU Acceleration"
   },
   "recordingHistory": {
     "title": "Recording History",

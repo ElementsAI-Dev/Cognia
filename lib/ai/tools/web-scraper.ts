@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import type { ScrapedPage } from '@/lib/search/providers/playwright-scraper';
 
 export interface ScraperApiResponse {
   success: boolean;
@@ -41,7 +42,106 @@ export interface BulkScraperApiResponse {
 }
 
 /**
- * Call scraper API route
+ * Execute scraper directly using playwright-scraper service (client-side compatible)
+ * Bypasses /api/scrape routes for static export / Tauri compatibility
+ */
+async function executeScraperDirect(
+  url: string,
+  options: {
+    usePlaywright?: boolean;
+    extractImages?: boolean;
+    extractLinks?: boolean;
+    extractMetadata?: boolean;
+    timeout?: number;
+    maxContentLength?: number;
+    waitForSelector?: string;
+  } = {}
+): Promise<ScraperApiResponse> {
+  const startTime = Date.now();
+  const { smartFetchContent, fetchPageContent } = await import('@/lib/search/providers/playwright-scraper');
+
+  let scraped: ScrapedPage;
+  if (options.usePlaywright) {
+    scraped = await smartFetchContent(url, {
+      timeout: options.timeout,
+      extractImages: options.extractImages,
+      extractLinks: options.extractLinks,
+      extractMetadata: options.extractMetadata,
+      maxContentLength: options.maxContentLength,
+      waitForSelector: options.waitForSelector,
+    });
+  } else {
+    scraped = await fetchPageContent(url, {
+      timeout: options.timeout,
+      maxLength: options.maxContentLength,
+    });
+  }
+
+  if (scraped.error) {
+    return {
+      success: false,
+      url,
+      error: scraped.error,
+      responseTime: Date.now() - startTime,
+      method: options.usePlaywright ? 'playwright' : 'http',
+    };
+  }
+
+  return {
+    success: true,
+    url: scraped.url,
+    title: scraped.title,
+    content: scraped.content,
+    markdown: scraped.markdown,
+    metadata: scraped.metadata ? {
+      description: scraped.metadata.description,
+      author: scraped.metadata.author,
+      publishedDate: scraped.metadata.publishedDate,
+      ogTitle: scraped.metadata.ogTitle,
+      ogDescription: scraped.metadata.ogDescription,
+      ogImage: scraped.metadata.ogImage,
+      language: scraped.metadata.language,
+    } : undefined,
+    images: scraped.images?.map((img) => ({ src: img.src, alt: img.alt })),
+    links: scraped.links,
+    responseTime: scraped.responseTime,
+    method: options.usePlaywright ? 'playwright' : 'http',
+  };
+}
+
+/**
+ * Execute bulk scraper directly (client-side compatible)
+ */
+async function executeBulkScraperDirect(
+  urls: string[],
+  options: {
+    usePlaywright?: boolean;
+    extractMetadata?: boolean;
+    timeout?: number;
+    maxContentLength?: number;
+  } = {}
+): Promise<BulkScraperApiResponse> {
+  const startTime = Date.now();
+  const results = await Promise.all(
+    urls.map((url) =>
+      executeScraperDirect(url, {
+        usePlaywright: options.usePlaywright,
+        extractMetadata: options.extractMetadata,
+        timeout: options.timeout,
+        maxContentLength: options.maxContentLength,
+      })
+    )
+  );
+
+  return {
+    success: true,
+    results,
+    totalTime: Date.now() - startTime,
+  };
+}
+
+/**
+ * Call scraper API route (fallback for dev server)
  */
 async function callScraperApi(
   url: string,
@@ -70,7 +170,7 @@ async function callScraperApi(
 }
 
 /**
- * Call bulk scraper API route
+ * Call bulk scraper API route (fallback for dev server)
  */
 async function callBulkScraperApi(
   urls: string[],
@@ -93,6 +193,55 @@ async function callBulkScraperApi(
   }
 
   return response.json();
+}
+
+/**
+ * Smart scraper executor: tries direct execution first, falls back to API route
+ */
+async function smartScraperExecute(
+  url: string,
+  options: {
+    usePlaywright?: boolean;
+    extractImages?: boolean;
+    extractLinks?: boolean;
+    extractMetadata?: boolean;
+    timeout?: number;
+    maxContentLength?: number;
+    waitForSelector?: string;
+  } = {}
+): Promise<ScraperApiResponse> {
+  try {
+    return await executeScraperDirect(url, options);
+  } catch (directError) {
+    try {
+      return await callScraperApi(url, options);
+    } catch {
+      throw directError;
+    }
+  }
+}
+
+/**
+ * Smart bulk scraper executor: tries direct first, falls back to API route
+ */
+async function smartBulkScraperExecute(
+  urls: string[],
+  options: {
+    usePlaywright?: boolean;
+    extractMetadata?: boolean;
+    timeout?: number;
+    maxContentLength?: number;
+  } = {}
+): Promise<BulkScraperApiResponse> {
+  try {
+    return await executeBulkScraperDirect(urls, options);
+  } catch (directError) {
+    try {
+      return await callBulkScraperApi(urls, options);
+    } catch {
+      throw directError;
+    }
+  }
 }
 
 export const webScraperInputSchema = z.object({
@@ -198,7 +347,7 @@ export interface BulkWebScraperResult {
  */
 export async function executeWebScraper(input: WebScraperInput): Promise<WebScraperResult> {
   try {
-    const response = await callScraperApi(input.url, {
+    const response = await smartScraperExecute(input.url, {
       usePlaywright: input.usePlaywright,
       extractImages: input.extractImages,
       extractLinks: input.extractLinks,
@@ -244,7 +393,7 @@ export async function executeBulkWebScraper(
   input: BulkWebScraperInput
 ): Promise<BulkWebScraperResult> {
   try {
-    const response = await callBulkScraperApi(input.urls, {
+    const response = await smartBulkScraperExecute(input.urls, {
       usePlaywright: input.usePlaywright,
       extractMetadata: input.extractMetadata,
       timeout: input.timeout,
@@ -351,30 +500,95 @@ export async function executeSearchAndScrape(
   searchConfig?: { apiKey?: string; provider?: string }
 ): Promise<SearchAndScrapeResult> {
   try {
-    const response = await fetch('/api/search-and-scrape', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: input.query,
-        maxResults: input.maxResults,
-        scrapeContent: input.scrapeContent,
-        usePlaywright: input.usePlaywright,
-        ...searchConfig,
-      }),
-    });
+    // Try direct execution first (works in static export / Tauri)
+    return await executeSearchAndScrapeDirect(input, searchConfig);
+  } catch {
+    // Fall back to API route (works in dev server)
+    try {
+      const response = await fetch('/api/search-and-scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: input.query,
+          maxResults: input.maxResults,
+          scrapeContent: input.scrapeContent,
+          usePlaywright: input.usePlaywright,
+          ...searchConfig,
+        }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Search and scrape failed' }));
-      throw new Error(error.error || 'Search and scrape failed');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Search and scrape failed' }));
+        throw new Error(error.error || 'Search and scrape failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Search and scrape failed',
+      };
+    }
+  }
+}
+
+/**
+ * Direct search and scrape execution (client-side compatible)
+ * Searches using web search, then scrapes each result page
+ */
+async function executeSearchAndScrapeDirect(
+  input: SearchAndScrapeInput,
+  searchConfig?: { apiKey?: string; provider?: string }
+): Promise<SearchAndScrapeResult> {
+  const startTime = Date.now();
+  const { search } = await import('@/lib/search/search-service');
+  const { fetchPageContent } = await import('@/lib/search/providers/playwright-scraper');
+
+  const searchResult = await search(input.query, {
+    maxResults: input.maxResults,
+    provider: searchConfig?.provider as Parameters<typeof search>[1]['provider'],
+    providerSettings: searchConfig?.apiKey ? {
+      tavily: { enabled: true, apiKey: searchConfig.apiKey },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any : undefined,
+  });
+
+  const results: SearchAndScrapeResult['results'] = [];
+
+  for (const sr of searchResult.results) {
+    let fullContent: string | undefined;
+    let scrapedSuccessfully = false;
+
+    if (input.scrapeContent) {
+      try {
+        const scraped = await fetchPageContent(sr.url, {
+          timeout: 10000,
+          maxLength: 30000,
+        });
+        if (!scraped.error && scraped.content) {
+          fullContent = scraped.content;
+          scrapedSuccessfully = true;
+        }
+      } catch {
+        // Scrape failed, continue without content
+      }
     }
 
-    return response.json();
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Search and scrape failed',
-    };
+    results.push({
+      title: sr.title,
+      url: sr.url,
+      snippet: sr.content,
+      fullContent,
+      scrapedSuccessfully,
+    });
   }
+
+  return {
+    success: true,
+    query: input.query,
+    results,
+    responseTime: Date.now() - startTime,
+  };
 }
 
 /**

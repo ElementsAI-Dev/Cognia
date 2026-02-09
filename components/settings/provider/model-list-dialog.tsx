@@ -28,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSettingsStore } from '@/stores';
+import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { Model } from '@/types/provider';
@@ -256,6 +258,10 @@ interface ModelListItemProps {
 }
 
 function ModelListItem({ model, selected, onToggle, onSettings }: ModelListItemProps) {
+  const language = useSettingsStore((s) => s.language);
+  const currency = getCurrencyForLocale(language);
+  const currencyConfig = CURRENCIES[currency];
+
   const formatContextLength = (length: number) => {
     if (length >= 1000000) {
       return `${(length / 1000000).toFixed(1)}M`;
@@ -265,7 +271,8 @@ function ModelListItem({ model, selected, onToggle, onSettings }: ModelListItemP
 
   const formatPrice = (price?: number) => {
     if (!price) return null;
-    return `$${price.toFixed(2)}`;
+    const converted = price * currencyConfig.rateFromUSD;
+    return `${currencyConfig.symbol}${converted.toFixed(currencyConfig.decimals)}`;
   };
 
   return (

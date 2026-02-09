@@ -24,6 +24,8 @@ import { generateEdgeTTS } from './providers/edge-tts';
 import { generateElevenLabsTTS, generateElevenLabsTTSViaApi } from './providers/elevenlabs-tts';
 import { generateLMNTTTS, generateLMNTTTSViaApi } from './providers/lmnt-tts';
 import { generateHumeTTS, generateHumeTTSViaApi } from './providers/hume-tts';
+import { generateCartesiaTTS, generateCartesiaTTSViaApi } from './providers/cartesia-tts';
+import { generateDeepgramTTS, generateDeepgramTTSViaApi } from './providers/deepgram-tts';
 
 export interface TTSApiKeys {
   openai?: string;
@@ -31,6 +33,8 @@ export interface TTSApiKeys {
   elevenlabs?: string;
   lmnt?: string;
   hume?: string;
+  cartesia?: string;
+  deepgram?: string;
 }
 
 export interface TTSServiceOptions {
@@ -129,6 +133,10 @@ export class TTSService {
           return this.speakWithLMNT(text);
         case 'hume':
           return this.speakWithHume(text);
+        case 'cartesia':
+          return this.speakWithCartesia(text);
+        case 'deepgram':
+          return this.speakWithDeepgram(text);
         default:
           throw getTTSError('not-supported', `Unknown provider: ${provider}`);
       }
@@ -184,6 +192,7 @@ export class TTSService {
         voice: this.settings.openaiVoice,
         model: this.settings.openaiModel,
         speed: this.settings.openaiSpeed,
+        instructions: this.settings.openaiInstructions,
       });
     } else {
       // Use API route if no key provided (server-side key)
@@ -191,6 +200,7 @@ export class TTSService {
         voice: this.settings.openaiVoice,
         model: this.settings.openaiModel,
         speed: this.settings.openaiSpeed,
+        instructions: this.settings.openaiInstructions,
       });
     }
 
@@ -327,6 +337,68 @@ export class TTSService {
     } else {
       response = await generateHumeTTSViaApi(text, {
         voice: this.settings.humeVoice,
+      });
+    }
+
+    if (!response.success || !response.audioData) {
+      this.setState('error');
+      const error = getTTSError('api-error', response.error);
+      this.onError?.(error);
+      throw error;
+    }
+
+    return this.playAudioData(response.audioData, response.mimeType || 'audio/mpeg');
+  }
+
+  /**
+   * Speak using Cartesia TTS
+   */
+  private async speakWithCartesia(text: string): Promise<TTSServiceController> {
+    let response: TTSResponse;
+
+    if (this.apiKeys.cartesia) {
+      response = await generateCartesiaTTS(text, {
+        apiKey: this.apiKeys.cartesia,
+        voice: this.settings.cartesiaVoice,
+        model: this.settings.cartesiaModel,
+        language: this.settings.cartesiaLanguage,
+        speed: this.settings.cartesiaSpeed,
+        emotion: this.settings.cartesiaEmotion,
+      });
+    } else {
+      response = await generateCartesiaTTSViaApi(text, {
+        voice: this.settings.cartesiaVoice,
+        model: this.settings.cartesiaModel,
+        language: this.settings.cartesiaLanguage,
+        speed: this.settings.cartesiaSpeed,
+        emotion: this.settings.cartesiaEmotion,
+      });
+    }
+
+    if (!response.success || !response.audioData) {
+      this.setState('error');
+      const error = getTTSError('api-error', response.error);
+      this.onError?.(error);
+      throw error;
+    }
+
+    return this.playAudioData(response.audioData, response.mimeType || 'audio/mpeg');
+  }
+
+  /**
+   * Speak using Deepgram TTS
+   */
+  private async speakWithDeepgram(text: string): Promise<TTSServiceController> {
+    let response: TTSResponse;
+
+    if (this.apiKeys.deepgram) {
+      response = await generateDeepgramTTS(text, {
+        apiKey: this.apiKeys.deepgram,
+        voice: this.settings.deepgramVoice,
+      });
+    } else {
+      response = await generateDeepgramTTSViaApi(text, {
+        voice: this.settings.deepgramVoice,
       });
     }
 
@@ -488,12 +560,14 @@ export async function generateTTSAudio(
           voice: settings.openaiVoice,
           model: settings.openaiModel,
           speed: settings.openaiSpeed,
+          instructions: settings.openaiInstructions,
         });
       }
       return generateOpenAITTSViaApi(text, {
         voice: settings.openaiVoice,
         model: settings.openaiModel,
         speed: settings.openaiSpeed,
+        instructions: settings.openaiInstructions,
       });
     
     case 'gemini':
@@ -555,6 +629,36 @@ export async function generateTTSAudio(
         voice: settings.humeVoice,
       });
     
+    case 'cartesia':
+      if (apiKeys?.cartesia) {
+        return generateCartesiaTTS(text, {
+          apiKey: apiKeys.cartesia,
+          voice: settings.cartesiaVoice,
+          model: settings.cartesiaModel,
+          language: settings.cartesiaLanguage,
+          speed: settings.cartesiaSpeed,
+          emotion: settings.cartesiaEmotion,
+        });
+      }
+      return generateCartesiaTTSViaApi(text, {
+        voice: settings.cartesiaVoice,
+        model: settings.cartesiaModel,
+        language: settings.cartesiaLanguage,
+        speed: settings.cartesiaSpeed,
+        emotion: settings.cartesiaEmotion,
+      });
+    
+    case 'deepgram':
+      if (apiKeys?.deepgram) {
+        return generateDeepgramTTS(text, {
+          apiKey: apiKeys.deepgram,
+          voice: settings.deepgramVoice,
+        });
+      }
+      return generateDeepgramTTSViaApi(text, {
+        voice: settings.deepgramVoice,
+      });
+    
     default:
       return {
         success: false,
@@ -591,6 +695,10 @@ export function isTTSProviderAvailable(
       return !!apiKeys?.lmnt;
     case 'hume':
       return !!apiKeys?.hume;
+    case 'cartesia':
+      return !!apiKeys?.cartesia;
+    case 'deepgram':
+      return !!apiKeys?.deepgram;
     default:
       return false;
   }
@@ -630,6 +738,14 @@ export function getAvailableTTSProviders(
   
   if (apiKeys?.hume) {
     providers.push('hume');
+  }
+  
+  if (apiKeys?.cartesia) {
+    providers.push('cartesia');
+  }
+  
+  if (apiKeys?.deepgram) {
+    providers.push('deepgram');
   }
   
   return providers;

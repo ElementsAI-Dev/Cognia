@@ -25,9 +25,13 @@ import {
   documentSummarizeInputSchema, 
   documentChunkInputSchema, 
   documentAnalyzeInputSchema,
+  documentExtractTablesInputSchema,
+  documentReadFileInputSchema,
   executeDocumentSummarize,
   executeDocumentChunk,
-  executeDocumentAnalyze 
+  executeDocumentAnalyze,
+  executeDocumentExtractTables,
+  executeDocumentReadFile,
 } from './document-tool';
 import {
   fileReadInputSchema,
@@ -41,6 +45,12 @@ import {
   fileInfoInputSchema,
   fileSearchInputSchema,
   fileAppendInputSchema,
+  fileBinaryWriteInputSchema,
+  contentSearchInputSchema,
+  directoryDeleteInputSchema,
+  fileMoveInputSchema,
+  fileHashInputSchema,
+  fileDiffInputSchema,
   executeFileRead,
   executeFileWrite,
   executeFileList,
@@ -52,6 +62,12 @@ import {
   executeFileInfo,
   executeFileSearch,
   executeFileAppend,
+  executeBinaryWrite,
+  executeContentSearch,
+  executeDirectoryDelete,
+  executeFileMove,
+  executeFileHash,
+  executeFileDiff,
 } from './file-tool';
 import {
   videoGenerateInputSchema,
@@ -136,6 +152,10 @@ import {
 } from './learning-tools';
 import { registerArtifactTools } from './artifact-tool';
 import { registerMemoryTools } from './memory-tool';
+import {
+  shellExecuteInputSchema,
+  executeShellCommand,
+} from './shell-tool';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ToolFunction = (...args: any[]) => any;
@@ -296,7 +316,9 @@ function registerDefaultTools(registry: ToolRegistry): void {
   // Calculator tool
   registry.register({
     name: 'calculator',
-    description: 'Perform mathematical calculations. Supports basic operations (+, -, *, /, ^, %), and functions (sqrt, sin, cos, tan, log, ln, abs, floor, ceil, round).',
+    description: `Perform mathematical calculations and unit conversions.
+Calculate mode (default): +, -, *, /, ^, %. Functions: sqrt, cbrt, abs, floor, ceil, round, sign, trunc, exp, pow, sin, cos, tan, asin, acos, atan, atan2, log (base-10), log2, ln, min, max, hypot. Combinatorics: n! (factorial), P(n,r), C(n,r). Constants: pi, e, tau, inf.
+Convert mode: set mode="convert" with value, fromUnit, toUnit, category (length/weight/temperature/time/data/speed/area/volume/angle/pressure).`,
     parameters: calculatorInputSchema,
     requiresApproval: false,
     category: 'system',
@@ -349,6 +371,24 @@ function registerDefaultTools(registry: ToolRegistry): void {
     requiresApproval: false,
     category: 'file',
     create: () => executeDocumentAnalyze,
+  });
+
+  registry.register({
+    name: 'document_extract_tables',
+    description: 'Extract tables from document content. Supports Markdown and HTML table formats. Returns structured table data with headers and rows.',
+    parameters: documentExtractTablesInputSchema,
+    requiresApproval: false,
+    category: 'file',
+    create: () => executeDocumentExtractTables,
+  });
+
+  registry.register({
+    name: 'document_read_file',
+    description: 'Read a document file from the local file system and process it in one step. Supports text, code, markdown, PDF, Word, Excel, CSV, HTML. Returns structured content with type detection, metadata, summary, and optional table extraction.',
+    parameters: documentReadFileInputSchema,
+    requiresApproval: false,
+    category: 'file',
+    create: () => executeDocumentReadFile,
   });
 
   // File tools
@@ -449,6 +489,61 @@ function registerDefaultTools(registry: ToolRegistry): void {
     requiresApproval: true,
     category: 'file',
     create: () => executeFileAppend,
+  });
+
+  registry.register({
+    name: 'file_binary_write',
+    description: 'Write binary data to a file on the local file system. Use this to save images, audio, video, or other binary files. Data must be base64-encoded.',
+    parameters: fileBinaryWriteInputSchema,
+    requiresApproval: true,
+    category: 'file',
+    create: () => executeBinaryWrite,
+  });
+
+  registry.register({
+    name: 'content_search',
+    description: 'Search for text patterns within file contents (grep-like). Searches recursively through text files in a directory. Supports regex, case-sensitive matching, and file extension filtering.',
+    parameters: contentSearchInputSchema,
+    requiresApproval: false,
+    category: 'file',
+    create: () => executeContentSearch,
+  });
+
+  registry.register({
+    name: 'directory_delete',
+    description: 'Delete a directory from the local file system. Can delete recursively. System-critical directories are protected.',
+    parameters: directoryDeleteInputSchema,
+    requiresApproval: true,
+    category: 'file',
+    create: () => executeDirectoryDelete,
+  });
+
+  registry.register({
+    name: 'file_move',
+    description: 'Move a file or directory to a new location. Handles cross-partition moves automatically (copy + delete).',
+    parameters: fileMoveInputSchema,
+    requiresApproval: true,
+    category: 'file',
+    create: () => executeFileMove,
+  });
+
+  registry.register({
+    name: 'file_hash',
+    description: 'Compute a hash/checksum of a file. Supports sha256 (default), sha1, sha512, and md5 algorithms.',
+    parameters: fileHashInputSchema,
+    requiresApproval: false,
+    category: 'file',
+    create: () => executeFileHash,
+  });
+
+  // File diff tool
+  registry.register({
+    name: 'file_diff',
+    description: 'Compare two files and show differences in unified diff format. Shows added/removed lines with surrounding context. Useful for reviewing changes or comparing file versions.',
+    parameters: fileDiffInputSchema,
+    requiresApproval: false,
+    category: 'file',
+    create: () => executeFileDiff,
   });
 
   // Web scraper tools
@@ -700,6 +795,19 @@ Features: multiple sizes, quality options, style options, and batch generation.`
     requiresApproval: false,
     category: 'learning',
     create: () => (input: unknown) => executeDisplayConceptExplanation(input as DisplayConceptExplanationInput),
+  });
+
+  // Shell tools
+  registry.register({
+    name: 'shell_execute',
+    description: `Execute a shell command on the local system. Commands are validated against an allowlist for safety.
+Allowed: git, npm, node, python, grep, curl, docker, ls, cat, etc.
+Blocked: rm, del, format, shutdown, chmod, registry editing.
+Use file tools for file creation/deletion instead.`,
+    parameters: shellExecuteInputSchema,
+    requiresApproval: true,
+    category: 'system',
+    create: () => executeShellCommand,
   });
 
   // Artifact tools

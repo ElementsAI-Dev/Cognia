@@ -19,7 +19,8 @@
     "environment"
   ],
   "capabilities": [
-    "tools"
+    "tools",
+    "commands"
   ],
   "permissions": [
     "shell:execute",
@@ -30,7 +31,8 @@
     "onAgentTool:shell_script",
     "onAgentTool:env_get",
     "onAgentTool:env_list",
-    "onAgentTool:which"
+    "onAgentTool:which",
+    "onCommand:shell-tools.*"
   ],
   "tools": [
     {

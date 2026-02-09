@@ -7,6 +7,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
     "validate": "cognia-plugin validate --strict",
     "prepublishOnly": "npm run build && npm run validate"
   },

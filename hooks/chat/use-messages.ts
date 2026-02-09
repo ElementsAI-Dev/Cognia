@@ -7,6 +7,7 @@ import { messageRepository } from '@/lib/db';
 import type { UIMessage, MessageRole } from '@/types';
 import { nanoid } from 'nanoid';
 import { loggers } from '@/lib/logger';
+import { getPluginLifecycleHooks } from '@/lib/plugin';
 
 const log = loggers.chat;
 
@@ -254,11 +255,12 @@ export function useMessages({
     // Persist to database
     try {
       await messageRepository.delete(id);
+      getPluginLifecycleHooks().dispatchOnMessageDelete(id, sessionId || '');
     } catch (err) {
       log.error('Failed to delete message', err as Error);
       throw err;
     }
-  }, []);
+  }, [sessionId]);
 
   // Delete all messages after a specific message (for edit/retry)
   const deleteMessagesAfter = useCallback(
@@ -274,12 +276,15 @@ export function useMessages({
       // Delete from database
       try {
         await Promise.all(messagesToDelete.map((m) => messageRepository.delete(m.id)));
+        for (const m of messagesToDelete) {
+          getPluginLifecycleHooks().dispatchOnMessageDelete(m.id, sessionId || '');
+        }
       } catch (err) {
         log.error('Failed to delete messages', err as Error);
         throw err;
       }
     },
-    [messages]
+    [messages, sessionId]
   );
 
   // Clear all messages for the session

@@ -5,6 +5,14 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useMessages } from './use-messages';
 
+// Mock plugin lifecycle hooks
+const mockDispatchOnMessageDelete = jest.fn();
+jest.mock('@/lib/plugin', () => ({
+  getPluginLifecycleHooks: () => ({
+    dispatchOnMessageDelete: mockDispatchOnMessageDelete,
+  }),
+}));
+
 // Mock nanoid
 jest.mock('nanoid', () => ({
   nanoid: jest.fn(() => 'test-id-123'),
@@ -227,6 +235,24 @@ describe('useMessages', () => {
       expect(result.current.messages).toHaveLength(1);
       expect(result.current.messages[0].id).toBe('msg-2');
     });
+
+    it('should dispatch plugin hook on message delete', async () => {
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(mockMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(mockMessages.length);
+      mockDelete.mockResolvedValueOnce(undefined);
+
+      const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      await act(async () => {
+        await result.current.deleteMessage('msg-1');
+      });
+
+      expect(mockDispatchOnMessageDelete).toHaveBeenCalledWith('msg-1', 'session-1');
+    });
   });
 
   describe('deleteMessagesAfter', () => {
@@ -251,6 +277,29 @@ describe('useMessages', () => {
 
       expect(result.current.messages).toHaveLength(1);
       expect(result.current.messages[0].id).toBe('msg-1');
+    });
+
+    it('should dispatch plugin hook for each deleted message', async () => {
+      const threeMessages = [
+        ...mockMessages,
+        { id: 'msg-3', role: 'user' as const, content: 'Third', createdAt: new Date() },
+      ];
+      mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(threeMessages);
+      mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(threeMessages.length);
+      mockDelete.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      await act(async () => {
+        await result.current.deleteMessagesAfter('msg-1');
+      });
+
+      expect(mockDispatchOnMessageDelete).toHaveBeenCalledWith('msg-2', 'session-1');
+      expect(mockDispatchOnMessageDelete).toHaveBeenCalledWith('msg-3', 'session-1');
     });
   });
 

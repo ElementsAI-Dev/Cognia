@@ -295,6 +295,22 @@ export class PersistentRAGStorage {
   }
 
   /**
+   * Save or update collection config
+   */
+  async saveCollectionConfig(collection: StoredCollection): Promise<void> {
+    this.ensureInitialized();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(this.config.collectionsStore, 'readwrite');
+      const store = transaction.objectStore(this.config.collectionsStore);
+      store.put(collection);
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  /**
    * Update a document
    */
   async updateDocument(

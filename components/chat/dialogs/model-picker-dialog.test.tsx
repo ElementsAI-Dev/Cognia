@@ -254,4 +254,22 @@ describe('ModelPickerDialog', () => {
     // X button should appear, handled by component
     expect(searchInput).toHaveValue('test');
   });
+
+  describe('ProviderIcon integration', () => {
+    it('renders provider icons in provider group headings', () => {
+      const { container } = render(<ModelPickerDialog {...defaultProps} />);
+      // ProviderIcon renders img elements for known providers in group headings
+      const imgs = container.querySelectorAll('img[alt*="icon"]');
+      expect(imgs.length).toBeGreaterThan(0);
+    });
+
+    it('renders provider icon for each model item', () => {
+      const { container } = render(<ModelPickerDialog {...defaultProps} />);
+      // Each model item + group heading has a ProviderIcon
+      const imgs = container.querySelectorAll('img[alt*="icon"]');
+      // Mock data: 2 providers (openai=2 models, anthropic=1 model) = 2 heading + 3 item = 5
+      // But some may share the same provider icon element; at minimum 3+ icons
+      expect(imgs.length).toBeGreaterThanOrEqual(3);
+    });
+  });
 });

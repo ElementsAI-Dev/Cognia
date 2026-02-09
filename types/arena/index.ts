@@ -114,6 +114,14 @@ export interface ArenaContestant {
   startedAt?: Date;
   /** Completion time */
   completedAt?: Date;
+  /** Legacy: start time as timestamp */
+  startTime?: number;
+  /** Legacy: end time as timestamp */
+  endTime?: number;
+  /** Legacy: latency in ms */
+  latency?: number;
+  /** Legacy: token counts */
+  tokenCounts?: { input: number; output: number; total: number };
 }
 
 /**
@@ -172,8 +180,12 @@ export interface ArenaBattle {
   notes?: string;
   /** When the user started viewing this battle */
   viewingStartedAt?: Date;
+  /** Whether blind mode is active */
+  blindMode?: boolean;
   /** Battle creation time */
   createdAt: Date;
+  /** Battle update time */
+  updatedAt?: Date;
   /** Battle completion time */
   completedAt?: Date;
   /** Quality indicators for data validation */

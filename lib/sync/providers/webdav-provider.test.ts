@@ -43,7 +43,7 @@ describe('WebDAVProvider', () => {
 
   beforeEach(() => {
     mockFetch.mockClear();
-    provider = new WebDAVProvider(mockConfig);
+    provider = new WebDAVProvider(mockConfig, 'test-password');
   });
 
   describe('Constructor', () => {
@@ -305,7 +305,7 @@ describe('SimpleWebDAVClient', () => {
         username: 'user',
         remotePath: '/test/',
         useDigestAuth: false,
-      });
+      }, 'test-password');
 
       // Access internal client via test connection
       await provider.testConnection();

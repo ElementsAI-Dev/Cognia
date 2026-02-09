@@ -16,6 +16,9 @@ import {
   Shield,
   AlertTriangle,
   ChevronDown,
+  Terminal,
+  Cpu,
+  Box,
 } from 'lucide-react';
 import { SourceVerificationSettings } from './source-verification-settings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +41,9 @@ const TOOL_CATEGORY_ICONS: Record<string, ReactNode> = {
   rag: <Database className="h-4 w-4" />,
   calculator: <Calculator className="h-4 w-4" />,
   code: <Code className="h-4 w-4" />,
+  shell: <Terminal className="h-4 w-4" />,
+  process: <Cpu className="h-4 w-4" />,
+  environment: <Box className="h-4 w-4" />,
 };
 
 export function ToolSettings() {
@@ -56,6 +62,12 @@ export function ToolSettings() {
   const setEnableRAGSearch = useSettingsStore((state) => state.setEnableRAGSearch);
   const enableCalculator = useSettingsStore((state) => state.enableCalculator);
   const setEnableCalculator = useSettingsStore((state) => state.setEnableCalculator);
+  const enableProcessTools = useSettingsStore((state) => state.enableProcessTools);
+  const setEnableProcessTools = useSettingsStore((state) => state.setEnableProcessTools);
+  const enableEnvironmentTools = useSettingsStore((state) => state.enableEnvironmentTools);
+  const setEnableEnvironmentTools = useSettingsStore((state) => state.setEnableEnvironmentTools);
+  const enableShellTools = useSettingsStore((state) => state.enableShellTools);
+  const setEnableShellTools = useSettingsStore((state) => state.setEnableShellTools);
 
   // Map category IDs to their enabled state and setters
   const enabledStateMap: Record<
@@ -68,6 +80,9 @@ export function ToolSettings() {
     rag: { enabled: enableRAGSearch, setEnabled: setEnableRAGSearch },
     calculator: { enabled: enableCalculator, setEnabled: setEnableCalculator },
     code: { enabled: enableCodeExecution, setEnabled: setEnableCodeExecution },
+    shell: { enabled: enableShellTools, setEnabled: setEnableShellTools },
+    process: { enabled: enableProcessTools, setEnabled: setEnableProcessTools },
+    environment: { enabled: enableEnvironmentTools, setEnabled: setEnableEnvironmentTools },
   };
 
   // Build tool categories with runtime state from config

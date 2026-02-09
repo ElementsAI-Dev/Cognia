@@ -41,6 +41,7 @@ const mockSections: TutorialSection[] = [
     examples: [],
     recommendedExercises: [],
     commonMistakes: ['Common mistake 1'],
+    estimatedMinutes: 15,
   },
   {
     id: 'section-2',
@@ -60,6 +61,7 @@ const mockSections: TutorialSection[] = [
     examples: [],
     recommendedExercises: [],
     commonMistakes: [],
+    estimatedMinutes: 10,
   },
   {
     id: 'section-3',
@@ -79,6 +81,7 @@ const mockSections: TutorialSection[] = [
     examples: [],
     recommendedExercises: [],
     commonMistakes: [],
+    estimatedMinutes: 5,
   },
 ];
 
@@ -131,12 +134,15 @@ const mockQuestions: TextbookQuestion[] = [
     chapterId: 'ch-1',
     knowledgePointIds: ['kp-1'],
     content: 'Exam question 1',
-    type: 'single_choice',
+    questionType: 'choice',
+    questionNumber: '1',
     sourceType: 'exam',
     difficulty: 0.5,
     pageNumber: 50,
     extractionConfidence: 0.9,
     verified: true,
+    hasSolution: true,
+    learningValue: 'essential',
   },
   {
     id: 'q-2',
@@ -144,12 +150,15 @@ const mockQuestions: TextbookQuestion[] = [
     chapterId: 'ch-1',
     knowledgePointIds: ['kp-2'],
     content: 'Example question',
-    type: 'single_choice',
+    questionType: 'choice',
+    questionNumber: '2',
     sourceType: 'example',
     difficulty: 0.4,
     pageNumber: 55,
     extractionConfidence: 0.85,
     verified: true,
+    hasSolution: true,
+    learningValue: 'recommended',
   },
 ];
 

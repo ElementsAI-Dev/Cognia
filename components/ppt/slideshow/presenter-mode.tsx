@@ -7,13 +7,22 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   ChevronLeft,
   ChevronRight,
   X,
   Clock,
+  Timer,
   FileText,
   Monitor,
+  Settings2,
+  AlertTriangle,
 } from 'lucide-react';
 import { SlideContent } from '../rendering';
 import type { PresenterModeProps } from '../types';
@@ -33,6 +42,9 @@ export function PresenterMode({
   const t = useTranslations('pptEditor');
   const [elapsedTime, setElapsedTime] = useState(0);
   const [slideTime, setSlideTime] = useState(0);
+  const [timerMode, setTimerMode] = useState<'elapsed' | 'countdown'>('elapsed');
+  const [countdownMinutes, setCountdownMinutes] = useState(30);
+  const [countdownTotal, setCountdownTotal] = useState(30 * 60); // in seconds
   const startTimeRef = useRef<number>(0);
   const slideStartRef = useRef<number>(0);
 
@@ -91,10 +103,33 @@ export function PresenterMode({
   }, [onNext, onPrev, onExit]);
 
   const formatTime = useCallback((seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    const absSeconds = Math.abs(seconds);
+    const m = Math.floor(absSeconds / 60);
+    const s = absSeconds % 60;
+    const sign = seconds < 0 ? '-' : '';
+    return `${sign}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }, []);
+
+  // Countdown remaining time
+  const countdownRemaining = countdownTotal - elapsedTime;
+  const countdownPercent = countdownTotal > 0 ? Math.max(0, (countdownRemaining / countdownTotal) * 100) : 100;
+  const isOvertime = countdownRemaining < 0;
+  const isWarning = countdownRemaining >= 0 && countdownRemaining <= 120; // 2 min warning
+  const isUrgent = countdownRemaining >= 0 && countdownRemaining <= 60; // 1 min urgent
+
+  const handleSetCountdown = useCallback((minutes: number) => {
+    const mins = Math.max(1, Math.min(180, minutes));
+    setCountdownMinutes(mins);
+    setCountdownTotal(mins * 60);
+  }, []);
+
+  const handleStartCountdown = useCallback(() => {
+    setTimerMode('countdown');
+    setCountdownTotal(countdownMinutes * 60);
+    // Reset elapsed time to start fresh
+    startTimeRef.current = Date.now();
+    setElapsedTime(0);
+  }, [countdownMinutes]);
 
   if (!currentSlide) return null;
 
@@ -114,14 +149,108 @@ export function PresenterMode({
         <div className="flex items-center gap-4">
           {/* Timer */}
           <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-1.5 text-zinc-400">
-              <Clock className="h-3.5 w-3.5" />
-              <span className="font-mono">{formatTime(elapsedTime)}</span>
-            </div>
+            {timerMode === 'elapsed' ? (
+              <div className="flex items-center gap-1.5 text-zinc-400">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="font-mono">{formatTime(elapsedTime)}</span>
+              </div>
+            ) : (
+              <div className={cn(
+                'flex items-center gap-1.5 font-mono',
+                isOvertime && 'text-red-400 animate-pulse',
+                isUrgent && !isOvertime && 'text-red-400',
+                isWarning && !isUrgent && !isOvertime && 'text-amber-400',
+                !isWarning && !isOvertime && 'text-emerald-400'
+              )}>
+                {isOvertime ? <AlertTriangle className="h-3.5 w-3.5" /> : <Timer className="h-3.5 w-3.5" />}
+                <span>{formatTime(countdownRemaining)}</span>
+                {/* Progress bar */}
+                <div className="w-16 h-1.5 bg-zinc-700 rounded-full overflow-hidden ml-1">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all duration-1000',
+                      isOvertime && 'bg-red-500',
+                      isUrgent && !isOvertime && 'bg-red-400',
+                      isWarning && !isUrgent && !isOvertime && 'bg-amber-400',
+                      !isWarning && !isOvertime && 'bg-emerald-400'
+                    )}
+                    style={{ width: `${Math.max(0, countdownPercent)}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <Separator orientation="vertical" className="h-4 bg-zinc-700" />
             <div className="text-zinc-500 text-xs">
               {t('slideTime') || 'Slide'}: <span className="font-mono">{formatTime(slideTime)}</span>
             </div>
+            <Separator orientation="vertical" className="h-4 bg-zinc-700" />
+
+            {/* Timer settings */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-500 hover:text-zinc-300">
+                  <Settings2 className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-3" side="bottom" align="end">
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {t('timerSettings') || 'Timer'}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={timerMode === 'elapsed' ? 'default' : 'outline'}
+                      size="sm"
+                      className="flex-1 h-7 text-xs"
+                      onClick={() => setTimerMode('elapsed')}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      {t('elapsed') || 'Elapsed'}
+                    </Button>
+                    <Button
+                      variant={timerMode === 'countdown' ? 'default' : 'outline'}
+                      size="sm"
+                      className="flex-1 h-7 text-xs"
+                      onClick={() => setTimerMode('countdown')}
+                    >
+                      <Timer className="h-3 w-3 mr-1" />
+                      {t('countdown') || 'Countdown'}
+                    </Button>
+                  </div>
+                  {timerMode === 'countdown' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={180}
+                          value={countdownMinutes}
+                          onChange={(e) => setCountdownMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="h-7 text-xs w-16"
+                        />
+                        <span className="text-xs text-muted-foreground">{t('minutes') || 'min'}</span>
+                        <Button size="sm" className="h-7 text-xs ml-auto" onClick={handleStartCountdown}>
+                          {t('start') || 'Start'}
+                        </Button>
+                      </div>
+                      <div className="flex gap-1">
+                        {[5, 10, 15, 20, 30, 45, 60].map(m => (
+                          <Button
+                            key={m}
+                            variant="ghost"
+                            size="sm"
+                            className={cn('h-6 px-1.5 text-[10px]', countdownMinutes === m && 'bg-accent')}
+                            onClick={() => handleSetCountdown(m)}
+                          >
+                            {m}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button
             variant="ghost"

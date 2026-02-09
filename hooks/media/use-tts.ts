@@ -4,15 +4,25 @@
  * useTTS - Hook for multi-provider text-to-speech functionality
  *
  * Features:
- * - Multiple TTS providers (System, OpenAI, Gemini, Edge)
+ * - 9 TTS providers (System, OpenAI, Gemini, Edge, ElevenLabs, LMNT, Hume, Cartesia, Deepgram)
  * - Settings store integration
- * - Audio playback management
- * - Progress tracking
+ * - Direct API calls (no API route dependency for static export)
+ * - Audio playback management with progress tracking
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSettingsStore } from '@/stores';
-import type { TTSProvider } from '@/types/media/speech';
+import type { TTSProvider } from '@/types/media/tts';
+import type { TTSResponse } from '@/types/media/tts';
+import { TTS_PROVIDERS } from '@/types/media/tts';
+import { generateOpenAITTS } from '@/lib/ai/tts/providers/openai-tts';
+import { generateGeminiTTS } from '@/lib/ai/tts/providers/gemini-tts';
+import { generateEdgeTTS } from '@/lib/ai/tts/providers/edge-tts';
+import { generateElevenLabsTTS } from '@/lib/ai/tts/providers/elevenlabs-tts';
+import { generateLMNTTTS } from '@/lib/ai/tts/providers/lmnt-tts';
+import { generateHumeTTS } from '@/lib/ai/tts/providers/hume-tts';
+import { generateCartesiaTTS } from '@/lib/ai/tts/providers/cartesia-tts';
+import { generateDeepgramTTS } from '@/lib/ai/tts/providers/deepgram-tts';
 import { toast } from '@/components/ui/sonner';
 
 export type TTSPlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
@@ -186,130 +196,160 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
     [speechSettings, onStart, onEnd, onError]
   );
 
-  // Speak with API-based TTS (OpenAI, Gemini, Edge)
-  const speakWithAPI = useCallback(
-    async (text: string, provider: TTSProvider): Promise<void> => {
-      cleanup();
+  // Get API key for a provider from providerSettings
+  const getApiKey = useCallback(
+    (provider: TTSProvider): string => {
+      const providerInfo = TTS_PROVIDERS[provider];
+      if (!providerInfo.requiresApiKey) return '';
+      const keyProvider = providerInfo.apiKeyProvider || provider;
+      return providerSettings[keyProvider]?.apiKey || '';
+    },
+    [providerSettings]
+  );
 
-      abortControllerRef.current = new AbortController();
+  // Generate TTS audio using provider functions directly
+  const generateAudio = useCallback(
+    async (text: string, provider: TTSProvider): Promise<TTSResponse> => {
+      const apiKey = getApiKey(provider);
 
-      try {
-        let apiUrl: string;
-        let body: Record<string, unknown>;
+      switch (provider) {
+        case 'openai':
+          return generateOpenAITTS(text, {
+            apiKey,
+            voice: speechSettings.openaiTtsVoice,
+            model: speechSettings.openaiTtsModel,
+            speed: speechSettings.openaiTtsSpeed,
+            instructions: speechSettings.openaiTtsInstructions,
+          });
 
-        switch (provider) {
-          case 'openai':
-            apiUrl = '/api/tts/openai';
-            body = {
-              text,
-              voice: speechSettings.openaiTtsVoice,
-              model: speechSettings.openaiTtsModel,
-              speed: speechSettings.openaiTtsSpeed,
-            };
-            break;
+        case 'gemini':
+          return generateGeminiTTS(text, {
+            apiKey,
+            voice: speechSettings.geminiTtsVoice,
+          });
 
-          case 'gemini':
-            apiUrl = '/api/tts/gemini';
-            body = {
-              text,
-              voice: speechSettings.geminiTtsVoice,
-            };
-            break;
+        case 'edge':
+          return generateEdgeTTS(text, {
+            voice: speechSettings.edgeTtsVoice,
+            rate: speechSettings.edgeTtsRate,
+            pitch: speechSettings.edgeTtsPitch,
+          });
 
-          case 'edge':
-            apiUrl = '/api/tts/edge';
-            body = {
-              text,
-              voice: speechSettings.edgeTtsVoice,
-              rate: speechSettings.edgeTtsRate,
-              pitch: speechSettings.edgeTtsPitch,
-            };
-            break;
+        case 'elevenlabs':
+          return generateElevenLabsTTS(text, {
+            apiKey,
+            voice: speechSettings.elevenlabsTtsVoice,
+            model: speechSettings.elevenlabsTtsModel,
+            stability: speechSettings.elevenlabsTtsStability,
+            similarityBoost: speechSettings.elevenlabsTtsSimilarityBoost,
+          });
 
-          default:
-            throw new Error(`Unknown TTS provider: ${provider}`);
+        case 'lmnt':
+          return generateLMNTTTS(text, {
+            apiKey,
+            voice: speechSettings.lmntTtsVoice,
+            speed: speechSettings.lmntTtsSpeed,
+          });
+
+        case 'hume':
+          return generateHumeTTS(text, {
+            apiKey,
+            voice: speechSettings.humeTtsVoice,
+          });
+
+        case 'cartesia':
+          return generateCartesiaTTS(text, {
+            apiKey,
+            voice: speechSettings.cartesiaTtsVoice,
+            model: speechSettings.cartesiaTtsModel,
+            language: speechSettings.cartesiaTtsLanguage,
+            speed: speechSettings.cartesiaTtsSpeed,
+            emotion: speechSettings.cartesiaTtsEmotion,
+          });
+
+        case 'deepgram':
+          return generateDeepgramTTS(text, {
+            apiKey,
+            voice: speechSettings.deepgramTtsVoice,
+          });
+
+        default:
+          return {
+            success: false,
+            error: `Unknown TTS provider: ${provider}`,
+          };
+      }
+    },
+    [speechSettings, getApiKey]
+  );
+
+  // Play audio data from a TTSResponse
+  const playAudioResponse = useCallback(
+    (response: TTSResponse): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        if (!response.success || !response.audioData) {
+          reject(new Error(response.error || 'Failed to generate audio'));
+          return;
         }
 
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `TTS API error: ${response.status}`);
-        }
-
-        const audioBlob = await response.blob();
-        audioUrlRef.current = URL.createObjectURL(audioBlob);
+        // Create blob and URL
+        const blob =
+          response.audioData instanceof Blob
+            ? response.audioData
+            : new Blob([response.audioData], { type: response.mimeType || 'audio/mpeg' });
+        audioUrlRef.current = URL.createObjectURL(blob);
 
         // Create and configure audio element
         audioRef.current = new Audio(audioUrlRef.current);
         audioRef.current.volume = speechSettings.ttsVolume;
 
-        // Set up event handlers
-        await new Promise<void>((resolve, reject) => {
-          if (!audioRef.current) {
-            reject(new Error('Audio element not created'));
-            return;
-          }
+        audioRef.current.onplay = () => {
+          setPlaybackState('playing');
+          onStart?.();
+        };
 
-          audioRef.current.onplay = () => {
-            setPlaybackState('playing');
-            onStart?.();
-          };
-
-          audioRef.current.onended = () => {
-            setPlaybackState('stopped');
-            setProgress(0);
-            onEnd?.();
-            cleanup();
-            resolve();
-          };
-
-          audioRef.current.onerror = () => {
-            setPlaybackState('error');
-            const errorMsg = 'Audio playback error';
-            setError(errorMsg);
-            onError?.(errorMsg);
-            cleanup();
-            reject(new Error(errorMsg));
-          };
-
-          audioRef.current.ontimeupdate = () => {
-            if (audioRef.current && audioRef.current.duration) {
-              const currentProgress = audioRef.current.currentTime / audioRef.current.duration;
-              setProgress(currentProgress);
-              onProgress?.(currentProgress);
-            }
-          };
-
-          audioRef.current.onpause = () => {
-            if (audioRef.current && audioRef.current.currentTime < audioRef.current.duration) {
-              setPlaybackState('paused');
-            }
-          };
-
-          // Start playback
-          audioRef.current.play().catch(reject);
-        });
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
+        audioRef.current.onended = () => {
           setPlaybackState('stopped');
-          return;
-        }
-        throw err;
-      }
+          setProgress(0);
+          onEnd?.();
+          cleanup();
+          resolve();
+        };
+
+        audioRef.current.onerror = () => {
+          setPlaybackState('error');
+          const errorMsg = 'Audio playback error';
+          setError(errorMsg);
+          onError?.(errorMsg);
+          cleanup();
+          reject(new Error(errorMsg));
+        };
+
+        audioRef.current.ontimeupdate = () => {
+          if (audioRef.current && audioRef.current.duration) {
+            const currentProgress = audioRef.current.currentTime / audioRef.current.duration;
+            setProgress(currentProgress);
+            onProgress?.(currentProgress);
+          }
+        };
+
+        audioRef.current.onpause = () => {
+          if (audioRef.current && audioRef.current.currentTime < audioRef.current.duration) {
+            setPlaybackState('paused');
+          }
+        };
+
+        // Start playback
+        audioRef.current.play().catch(reject);
+      });
     },
-    [speechSettings, cleanup, onStart, onEnd, onError, onProgress]
+    [speechSettings.ttsVolume, cleanup, onStart, onEnd, onError, onProgress]
   );
 
   // Main speak function
   const speak = useCallback(
     async (text: string, overrideProvider?: TTSProvider): Promise<void> => {
-      const provider = overrideProvider ?? currentProvider;
+      const provider: TTSProvider = overrideProvider ?? currentProvider;
 
       // Stop any current playback
       stop();
@@ -322,7 +362,17 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
         if (provider === 'system') {
           await speakWithSystem(text);
         } else {
-          await speakWithAPI(text, provider);
+          // Check API key for providers that require one
+          const providerInfo = TTS_PROVIDERS[provider];
+          if (providerInfo.requiresApiKey) {
+            const apiKey = getApiKey(provider);
+            if (!apiKey) {
+              throw new Error(`API key required for ${providerInfo.name}. Please configure it in Settings > Providers.`);
+            }
+          }
+
+          const response = await generateAudio(text, provider);
+          await playAudioResponse(response);
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to generate speech';
@@ -332,7 +382,7 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
         throw err;
       }
     },
-    [currentProvider, stop, speakWithSystem, speakWithAPI]
+    [currentProvider, stop, speakWithSystem, getApiKey, generateAudio, playAudioResponse]
   );
 
   // Cleanup on unmount

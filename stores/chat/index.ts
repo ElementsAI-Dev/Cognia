@@ -29,6 +29,8 @@ export {
 
 export { useSummaryStore } from './summary-store';
 
+export { useCompressionHistoryStore } from './compression-history-store';
+
 export {
   useChatWidgetStore,
   selectChatWidgetMessages,

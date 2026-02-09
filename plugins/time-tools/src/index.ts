@@ -4,7 +4,7 @@
  * Provides time and timezone utilities for AI agents.
  */
 
-import { definePlugin, Schema, parameters } from '@cognia/plugin-sdk';
+import { definePlugin, defineCommand, Schema, parameters } from '@cognia/plugin-sdk';
 import type { PluginContext, PluginHooksAll, PluginToolContext } from '@cognia/plugin-sdk';
 
 // ============================================================================
@@ -438,8 +438,232 @@ function createTimeFormatTool(config: TimeToolsConfig) {
 }
 
 // ============================================================================
+// New Tools
+// ============================================================================
+
+interface TimerState {
+  id: string;
+  label: string;
+  startedAt: number;
+  durationSeconds?: number;
+  running: boolean;
+}
+
+const activeTimers: Map<string, TimerState> = new Map();
+const timerTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+function createTimeTimerTool(context: PluginContext) {
+  return {
+    name: 'time_timer',
+    description: 'Start, stop, or check a timer/stopwatch',
+    parametersSchema: parameters(
+      {
+        action: Schema.enum(['start', 'stop', 'check', 'list'], 'Timer action'),
+        label: Schema.string('Timer label (for start)'),
+        durationSeconds: Schema.number('Optional countdown duration in seconds'),
+        id: Schema.string('Timer ID (for stop/check)'),
+      },
+      []
+    ),
+    execute: async (
+      args: { action?: string; label?: string; durationSeconds?: number; id?: string },
+      _toolContext: PluginToolContext
+    ) => {
+      const action = args.action || 'list';
+
+      switch (action) {
+        case 'start': {
+          const id = `timer-${Date.now()}`;
+          const timer: TimerState = {
+            id,
+            label: args.label || 'Timer',
+            startedAt: Date.now(),
+            durationSeconds: args.durationSeconds,
+            running: true,
+          };
+          activeTimers.set(id, timer);
+
+          // If countdown, set up completion callback
+          if (args.durationSeconds && args.durationSeconds > 0) {
+            const timeout = setTimeout(() => {
+              timer.running = false;
+              context.ui.showNotification({
+                title: 'Timer Complete',
+                message: `"${timer.label}" finished after ${args.durationSeconds}s`,
+                type: 'success',
+              });
+              context.events.emit('time-tools:timer-complete', { id, label: timer.label });
+            }, args.durationSeconds * 1000);
+            timerTimeouts.set(id, timeout);
+          }
+
+          // Persist timers
+          await context.storage.set('activeTimers', Array.from(activeTimers.values()));
+
+          return {
+            success: true,
+            id,
+            label: timer.label,
+            startedAt: new Date(timer.startedAt).toISOString(),
+            durationSeconds: args.durationSeconds,
+          };
+        }
+
+        case 'stop': {
+          if (!args.id) return { success: false, error: 'Timer ID required for stop' };
+          const timer = activeTimers.get(args.id);
+          if (!timer) return { success: false, error: `Timer not found: ${args.id}` };
+
+          timer.running = false;
+          const elapsed = Math.round((Date.now() - timer.startedAt) / 1000);
+
+          // Clear countdown timeout if any
+          const timeout = timerTimeouts.get(args.id);
+          if (timeout) {
+            clearTimeout(timeout);
+            timerTimeouts.delete(args.id);
+          }
+
+          activeTimers.delete(args.id);
+          await context.storage.set('activeTimers', Array.from(activeTimers.values()));
+
+          return {
+            success: true,
+            id: args.id,
+            label: timer.label,
+            elapsedSeconds: elapsed,
+            elapsedFormatted: `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`,
+          };
+        }
+
+        case 'check': {
+          if (!args.id) return { success: false, error: 'Timer ID required for check' };
+          const timer = activeTimers.get(args.id);
+          if (!timer) return { success: false, error: `Timer not found: ${args.id}` };
+
+          const elapsed = Math.round((Date.now() - timer.startedAt) / 1000);
+          const remaining = timer.durationSeconds
+            ? Math.max(0, timer.durationSeconds - elapsed)
+            : undefined;
+
+          return {
+            success: true,
+            id: args.id,
+            label: timer.label,
+            running: timer.running,
+            elapsedSeconds: elapsed,
+            remainingSeconds: remaining,
+          };
+        }
+
+        case 'list': {
+          const timers = Array.from(activeTimers.values()).map((t) => {
+            const elapsed = Math.round((Date.now() - t.startedAt) / 1000);
+            return {
+              id: t.id,
+              label: t.label,
+              running: t.running,
+              elapsedSeconds: elapsed,
+              remainingSeconds: t.durationSeconds
+                ? Math.max(0, t.durationSeconds - elapsed)
+                : undefined,
+            };
+          });
+
+          return { success: true, timers, count: timers.length };
+        }
+
+        default:
+          return { success: false, error: `Unknown action: ${action}` };
+      }
+    },
+  };
+}
+
+function createTimeListTimezonesTool() {
+  return {
+    name: 'time_list_timezones',
+    description: 'List all supported timezone names and their UTC offsets',
+    parametersSchema: parameters(
+      {
+        filter: Schema.string('Filter timezones by name'),
+      },
+      []
+    ),
+    execute: async (args: { filter?: string }, _toolContext: PluginToolContext) => {
+      const allTimezones = Object.entries(TIMEZONE_OFFSETS).map(([name, offset]) => ({
+        name,
+        offset: `UTC${offset >= 0 ? '+' : ''}${offset}`,
+        offsetHours: offset,
+      }));
+
+      const filtered = args.filter
+        ? allTimezones.filter((tz) => tz.name.toLowerCase().includes(args.filter!.toLowerCase()))
+        : allTimezones;
+
+      return {
+        success: true,
+        timezones: filtered,
+        count: filtered.length,
+        totalAvailable: allTimezones.length,
+      };
+    },
+  };
+}
+
+// ============================================================================
+// Commands
+// ============================================================================
+
+function createTimeCommands(config: TimeToolsConfig, context: PluginContext) {
+  return [
+    defineCommand(
+      'time-tools.now',
+      'Current Time',
+      async () => {
+        const now = new Date();
+        const offset = getTimezoneOffset(config.defaultTimezone);
+        const localDate = applyTimezoneOffset(now, offset);
+        context.ui.showNotification({
+          title: 'Current Time',
+          message: `${formatDate(localDate, 'ISO')} (${config.defaultTimezone})`,
+          type: 'info',
+        });
+      },
+      { description: 'Show current time in default timezone', icon: 'clock' }
+    ),
+    defineCommand(
+      'time-tools.active-timers',
+      'Active Timers',
+      async () => {
+        const count = activeTimers.size;
+        if (count === 0) {
+          context.ui.showNotification({
+            title: 'Timers',
+            message: 'No active timers',
+            type: 'info',
+          });
+        } else {
+          const labels = Array.from(activeTimers.values())
+            .map((t) => `- ${t.label} (${Math.round((Date.now() - t.startedAt) / 1000)}s)`)
+            .join('\n');
+          context.ui.showNotification({
+            title: `Active Timers (${count})`,
+            message: labels,
+            type: 'info',
+          });
+        }
+      },
+      { description: 'Show active timers', icon: 'timer' }
+    ),
+  ];
+}
+
+// ============================================================================
 // Plugin Definition
 // ============================================================================
+
+const eventCleanups: Array<() => void> = [];
 
 export default definePlugin({
   activate(context: PluginContext): PluginHooksAll | void {
@@ -450,13 +674,27 @@ export default definePlugin({
       defaultFormat: (context.config.defaultFormat as string) || 'ISO',
     };
 
-    // Register all tools
+    // Restore persisted timers
+    context.storage.get<TimerState[]>('activeTimers').then((stored) => {
+      if (stored) {
+        for (const timer of stored) {
+          if (timer.running) {
+            activeTimers.set(timer.id, timer);
+          }
+        }
+        context.logger.info(`Restored ${activeTimers.size} timer(s) from storage`);
+      }
+    });
+
+    // Register all tools (existing + new)
     const tools = [
       createTimeNowTool(config),
       createTimeConvertTool(),
       createTimeParseTool(),
       createTimeDiffTool(),
       createTimeFormatTool(config),
+      createTimeTimerTool(context),
+      createTimeListTimezonesTool(),
     ];
 
     for (const tool of tools) {
@@ -474,18 +712,56 @@ export default definePlugin({
 
     context.logger.info(`Registered ${tools.length} time tools`);
 
+    // Register commands
+    const commands = createTimeCommands(config, context);
+    context.logger.info(`Registered ${commands.length} commands`);
+
+    // Event listener for timer cleanup
+    const unsub1 = context.events.on('time-tools:clear-timers', async () => {
+      for (const timeout of timerTimeouts.values()) {
+        clearTimeout(timeout);
+      }
+      timerTimeouts.clear();
+      activeTimers.clear();
+      await context.storage.delete('activeTimers');
+      context.logger.info('All timers cleared');
+    });
+    eventCleanups.push(unsub1);
+
     return {
       onEnable: async () => {
         context.logger.info('Time Tools plugin enabled');
       },
       onDisable: async () => {
-        context.logger.info('Time Tools plugin disabled');
+        // Save timer state
+        await context.storage.set('activeTimers', Array.from(activeTimers.values()));
+        context.logger.info('Time Tools plugin disabled — timers saved');
       },
       onConfigChange: (newConfig: Record<string, unknown>) => {
         config.defaultTimezone = (newConfig.defaultTimezone as string) || 'UTC';
         config.defaultFormat = (newConfig.defaultFormat as string) || 'ISO';
         context.logger.info('Time Tools config updated');
       },
+      onCommand: (commandId: string) => {
+        const command = commands.find((c) => c.id === commandId);
+        if (command) {
+          command.execute();
+          return true;
+        }
+        return false;
+      },
     };
+  },
+
+  deactivate() {
+    for (const timeout of timerTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    timerTimeouts.clear();
+    activeTimers.clear();
+    for (const cleanup of eventCleanups) {
+      cleanup();
+    }
+    eventCleanups.length = 0;
   },
 });

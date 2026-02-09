@@ -20,11 +20,14 @@ jest.mock('@/stores/project/project-store', () => ({
           id: `project-${Date.now()}`,
           name: options.name || 'New Project',
           description: options.description || '',
-          systemPrompt: options.systemPrompt,
+          customInstructions: options.systemPrompt,
           createdAt: new Date(),
           updatedAt: new Date(),
+          lastAccessedAt: new Date(),
           knowledgeBase: [],
           sessionIds: [],
+          sessionCount: 0,
+          messageCount: 0,
           tags: options.tags || [],
           isArchived: false,
         };
@@ -167,8 +170,11 @@ describe('Project API', () => {
         name: 'Test Project',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       };
       mockProjects.push(project);
@@ -188,8 +194,11 @@ describe('Project API', () => {
         name: 'Specific Project',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       };
       mockProjects.push(project);
@@ -230,8 +239,11 @@ describe('Project API', () => {
         name: 'Original Name',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       };
       mockProjects.push(project);
@@ -250,8 +262,11 @@ describe('Project API', () => {
         name: 'To Delete',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       });
 
@@ -284,9 +299,9 @@ describe('Project API', () => {
     beforeEach(() => {
       const now = new Date();
       mockProjects.push(
-        { id: 'p1', name: 'Project 1', createdAt: new Date(now.getTime() - 3000), updatedAt: now, knowledgeBase: [], sessionIds: [], tags: ['tag1'], isArchived: false },
-        { id: 'p2', name: 'Project 2', createdAt: new Date(now.getTime() - 2000), updatedAt: now, knowledgeBase: [], sessionIds: [], tags: ['tag2'], isArchived: true },
-        { id: 'p3', name: 'Project 3', createdAt: new Date(now.getTime() - 1000), updatedAt: now, knowledgeBase: [], sessionIds: [], tags: ['tag1', 'tag2'], isArchived: false },
+        { id: 'p1', name: 'Project 1', createdAt: new Date(now.getTime() - 3000), updatedAt: now, lastAccessedAt: now, knowledgeBase: [], sessionIds: [], sessionCount: 0, messageCount: 0, tags: ['tag1'], isArchived: false },
+        { id: 'p2', name: 'Project 2', createdAt: new Date(now.getTime() - 2000), updatedAt: now, lastAccessedAt: now, knowledgeBase: [], sessionIds: [], sessionCount: 0, messageCount: 0, tags: ['tag2'], isArchived: true },
+        { id: 'p3', name: 'Project 3', createdAt: new Date(now.getTime() - 1000), updatedAt: now, lastAccessedAt: now, knowledgeBase: [], sessionIds: [], sessionCount: 0, messageCount: 0, tags: ['tag1', 'tag2'], isArchived: false },
       );
     });
 
@@ -332,8 +347,11 @@ describe('Project API', () => {
         name: 'To Archive',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       });
 
@@ -349,8 +367,11 @@ describe('Project API', () => {
         name: 'To Unarchive',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: true,
       });
 
@@ -368,10 +389,13 @@ describe('Project API', () => {
         name: 'KB Project',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [
           { id: 'file-1', name: 'doc.md', content: 'Content 1', type: 'markdown', size: 100, createdAt: new Date(), updatedAt: new Date() },
         ],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       });
     });
@@ -438,8 +462,11 @@ describe('Project API', () => {
         name: 'Session Project',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: ['session-1'],
+        sessionCount: 0,
+        messageCount: 0,
         isArchived: false,
       });
     });
@@ -473,8 +500,11 @@ describe('Project API', () => {
         name: 'Tag Project',
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastAccessedAt: new Date(),
         knowledgeBase: [],
         sessionIds: [],
+        sessionCount: 0,
+        messageCount: 0,
         tags: ['existing-tag'],
         isArchived: false,
       });

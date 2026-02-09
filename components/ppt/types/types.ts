@@ -122,6 +122,9 @@ export interface SlideElementProps {
   onClick: (e: React.MouseEvent) => void;
   onUpdate: (updates: Partial<PPTSlideElement>) => void;
   onDelete: () => void;
+  onDuplicate?: () => void;
+  onBringToFront?: () => void;
+  onSendToBack?: () => void;
 }
 
 export interface ThemeMenuItemProps {

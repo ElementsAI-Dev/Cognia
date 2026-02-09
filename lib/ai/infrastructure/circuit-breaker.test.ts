@@ -331,6 +331,91 @@ describe('Utility functions', () => {
   });
 });
 
+describe('State change events', () => {
+  beforeEach(() => {
+    circuitBreakerRegistry.resetAll();
+  });
+
+  afterEach(() => {
+    circuitBreakerRegistry.resetAll();
+  });
+
+  describe('CircuitBreaker.onStateChange', () => {
+    it('should notify listener on state change', () => {
+      const breaker = new CircuitBreaker('event-test', { failureThreshold: 2, resetTimeout: 1000 });
+      const listener = jest.fn();
+      breaker.onStateChange(listener);
+
+      breaker.recordFailure();
+      breaker.recordFailure(); // triggers open
+
+      expect(listener).toHaveBeenCalledWith('event-test', 'closed', 'open');
+    });
+
+    it('should return unsubscribe function', () => {
+      const breaker = new CircuitBreaker('unsub-test', { failureThreshold: 1, resetTimeout: 1000 });
+      const listener = jest.fn();
+      const unsub = breaker.onStateChange(listener);
+
+      unsub();
+      breaker.recordFailure();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('should not call listener if state does not change', () => {
+      const breaker = new CircuitBreaker('no-change', { failureThreshold: 5, resetTimeout: 1000 });
+      const listener = jest.fn();
+      breaker.onStateChange(listener);
+
+      breaker.recordSuccess();
+      breaker.recordSuccess();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('CircuitBreakerRegistry.subscribe', () => {
+    it('should receive global state change events', () => {
+      const listener = jest.fn();
+      const unsub = circuitBreakerRegistry.subscribe(listener);
+
+      const breaker = circuitBreakerRegistry.get('global-test', { failureThreshold: 1 });
+      breaker.recordFailure();
+
+      expect(listener).toHaveBeenCalledWith('global-test', 'closed', 'open');
+      unsub();
+    });
+
+    it('should receive events from multiple breakers', () => {
+      const listener = jest.fn();
+      const unsub = circuitBreakerRegistry.subscribe(listener);
+
+      const b1 = circuitBreakerRegistry.get('multi-1', { failureThreshold: 1 });
+      const b2 = circuitBreakerRegistry.get('multi-2', { failureThreshold: 1 });
+
+      b1.recordFailure();
+      b2.recordFailure();
+
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener).toHaveBeenCalledWith('multi-1', 'closed', 'open');
+      expect(listener).toHaveBeenCalledWith('multi-2', 'closed', 'open');
+      unsub();
+    });
+
+    it('should stop receiving events after unsubscribe', () => {
+      const listener = jest.fn();
+      const unsub = circuitBreakerRegistry.subscribe(listener);
+      unsub();
+
+      const breaker = circuitBreakerRegistry.get('unsub-global', { failureThreshold: 1 });
+      breaker.recordFailure();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
+});
+
 describe('DEFAULT_CIRCUIT_CONFIG', () => {
   it('should have sensible defaults', () => {
     expect(DEFAULT_CIRCUIT_CONFIG.failureThreshold).toBeGreaterThan(0);

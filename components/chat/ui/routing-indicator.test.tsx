@@ -152,6 +152,28 @@ describe('Tier configurations', () => {
   });
 });
 
+describe('ProviderIcon in routing indicator', () => {
+  it('displays provider icon in the provider badge', () => {
+    const { container } = render(<RoutingIndicator selection={mockSelection} isVisible={true} />);
+    // ProviderIcon renders an img for known providers (via next/image mock)
+    const providerBadge = screen.getByText('openai').closest('[class*="gap"]');
+    expect(providerBadge).toBeInTheDocument();
+    // Should contain an img element from ProviderIcon
+    const img = container.querySelector('img[alt*="OpenAI"]');
+    expect(img).toBeInTheDocument();
+  });
+
+  it('renders provider icon for different providers', () => {
+    const selection: ModelSelection = {
+      ...mockSelection,
+      provider: 'anthropic' as never,
+    };
+    const { container } = render(<RoutingIndicator selection={selection} isVisible={true} />);
+    const img = container.querySelector('img[alt*="Anthropic"]');
+    expect(img).toBeInTheDocument();
+  });
+});
+
 describe('Classification badges', () => {
   it('shows reasoning badge when classification requires reasoning', () => {
     render(<RoutingIndicator selection={mockSelection} />);

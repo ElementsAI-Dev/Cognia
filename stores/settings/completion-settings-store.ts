@@ -28,6 +28,7 @@ export interface CompletionSettingsState extends CompletionSettings {
   setGhostTextOpacity: (opacity: number) => void;
   setAutoDismissDelay: (ms: number) => void;
   setMaxSuggestions: (max: number) => void;
+  setEnablePartialAccept: (enabled: boolean) => void;
   resetToDefaults: () => void;
   updateSettings: (settings: Partial<CompletionSettings>) => void;
 }
@@ -52,6 +53,7 @@ export const useCompletionSettingsStore = create<CompletionSettingsState>()(
       setGhostTextOpacity: (opacity) => set({ ghostTextOpacity: opacity }),
       setAutoDismissDelay: (ms) => set({ autoDismissDelay: ms }),
       setMaxSuggestions: (max) => set({ maxSuggestions: max }),
+      setEnablePartialAccept: (enabled) => set({ enablePartialAccept: enabled }),
       resetToDefaults: () => set(DEFAULT_COMPLETION_SETTINGS),
       updateSettings: (settings) => set(settings),
     }),
@@ -70,5 +72,6 @@ export const selectAICompletionEnabled = (state: CompletionSettingsState) => sta
 export const selectAICompletionProvider = (state: CompletionSettingsState) => state.aiCompletionProvider;
 export const selectMaxSuggestions = (state: CompletionSettingsState) => state.maxSuggestions;
 export const selectGhostTextOpacity = (state: CompletionSettingsState) => state.ghostTextOpacity;
+export const selectEnablePartialAccept = (state: CompletionSettingsState) => state.enablePartialAccept;
 
 export default useCompletionSettingsStore;

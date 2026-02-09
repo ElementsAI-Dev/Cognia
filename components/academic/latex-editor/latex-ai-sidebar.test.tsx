@@ -4,7 +4,7 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { LaTeXAISidebar } from './latex-ai-sidebar';
+import { LatexAISidebar as LaTeXAISidebar } from './latex-ai-sidebar';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

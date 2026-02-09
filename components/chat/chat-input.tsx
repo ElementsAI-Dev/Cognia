@@ -17,24 +17,26 @@ import { useTranslations } from 'next-intl';
 import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap, FileText, History } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
-// TooltipProvider is now at app level in providers.tsx
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore } from '@/stores';
+import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore, useChatStore } from '@/stores';
 import {
   RecentFilesPopover,
   MentionPopover,
   ToolHistoryPanel,
   SlashCommandPopover,
+  EmojiPopover,
 } from './popovers';
 import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
+import type { EmojiData } from '@/types/chat/input-completion';
 import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
-import { useMention, useSpeech } from '@/hooks';
-import { cn, isTauri } from '@/lib/utils';
+import { useSpeech } from '@/hooks';
+import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
+import { cn } from '@/lib/utils';
 import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
 import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
+import { CompletionOverlay } from '@/components/input-completion/completion-overlay';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
-import * as nativeCompletion from '@/lib/native/input-completion';
 import { getLanguageFlag } from '@/types/media/speech';
 import { nanoid } from 'nanoid';
 import { AttachmentsPreview } from './chat-input/attachments-preview';
@@ -193,6 +195,7 @@ interface ChatInputProps {
   onThinkingChange?: (enabled: boolean) => void;
   onStreamingChange?: (enabled: boolean) => void;
   modelName?: string;
+  providerId?: string;
   modeName?: string;
   // Model selection (controlled by parent)
   onModelClick?: () => void;
@@ -231,6 +234,7 @@ export function ChatInput({
   onThinkingChange,
   onStreamingChange,
   modelName = 'GPT-4o',
+  providerId,
   modeName: _modeName,
   onModelClick,
   onModeClick: _onModeClick,
@@ -256,30 +260,43 @@ export function ChatInput({
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
-  // AI Ghost text completion (desktop only)
-  const isDesktop = useMemo(() => isTauri(), []);
-  const aiCompletionEnabled = useCompletionSettingsStore((s) => s.aiCompletionEnabled);
+  // Completion settings
   const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
-  const aiDebounceMs = useCompletionSettingsStore((s) => s.aiCompletionDebounce);
-  const [ghostText, setGhostText] = useState<string | null>(null);
-  const ghostDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const lastGhostTriggerRef = useRef<string>('');
+
+  // Get recent messages for context-aware AI completion
+  const chatMessages = useChatStore((s) => s.messages);
+  const conversationContext = useMemo(() => {
+    return chatMessages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(-5)
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: typeof m.content === 'string' ? m.content : '',
+      }));
+  }, [chatMessages]);
+
+  // Unified completion system (handles @mention, /slash, :emoji, AI ghost text)
+  const {
+    state: completionState,
+    handleInputChange: handleCompletionChange,
+    handleKeyDown: handleCompletionKeyDown,
+    selectItem: selectCompletionItem,
+    closeCompletion,
+    acceptGhostText: acceptGhostTextFn,
+    dismissGhostText: dismissGhostTextFn,
+    mentionData: { mentionState, groupedMentions, isMcpAvailable },
+    parseToolCalls,
+  } = useInputCompletionUnified({
+    onMentionsChange,
+    onAiCompletionAccept: (text) => {
+      // When ghost text is accepted, update the controlled value
+      onChange(value + text);
+    },
+    conversationContext,
+  });
 
   // Mention popover positioning
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-
-  // MCP Mention system
-  const {
-    mentionState,
-    groupedMentions,
-    handleTextChange,
-    selectMention,
-    closeMention,
-    parseToolCalls,
-    isMcpAvailable,
-  } = useMention({
-    onMentionsChange,
-  });
 
   // Memoize recent files to avoid unnecessary re-renders
   const recentFiles = useMemo(
@@ -292,25 +309,29 @@ export function ChatInput({
 
   const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 
-  // Slash command state
-  const [slashCommandState, setSlashCommandState] = useState<{
-    isOpen: boolean;
-    query: string;
-    triggerPosition: number;
-  }>({ isOpen: false, query: '', triggerPosition: 0 });
+  // Slash command state (derived from unified completion)
+  const slashCommandState = useMemo(() => ({
+    isOpen: completionState.isOpen && completionState.activeProvider === 'slash',
+    query: completionState.activeProvider === 'slash' ? completionState.query : '',
+    triggerPosition: completionState.triggerPosition,
+  }), [completionState.isOpen, completionState.activeProvider, completionState.query, completionState.triggerPosition]);
   const [slashAnchorRect, setSlashAnchorRect] = useState<DOMRect | null>(null);
+
+  // Emoji popover state (derived from unified completion)
+  const emojiState = useMemo(() => ({
+    isOpen: completionState.isOpen && completionState.activeProvider === 'emoji',
+    query: completionState.activeProvider === 'emoji' ? completionState.query : '',
+    selectedIndex: completionState.activeProvider === 'emoji' ? completionState.selectedIndex : 0,
+  }), [completionState.isOpen, completionState.activeProvider, completionState.query, completionState.selectedIndex]);
+  const _emojiAnchorRect = null; // EmojiPopover uses Radix positioning
+
+  // Ghost text from unified completion
+  const ghostText = completionState.ghostText;
 
   useEffect(() => {
     initializePromptTemplates();
   }, [initializePromptTemplates]);
 
-  // Cleanup ghost text debounce timer on unmount
-  useEffect(() => {
-    const timer = ghostDebounceRef;
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
 
   // Attachments state
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -362,100 +383,25 @@ export function ChatInput({
   const isProcessing = isLoading || isStreaming;
   const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
 
-  // Trigger AI ghost text completion with debounce
-  const triggerGhostText = useCallback(
-    (text: string) => {
-      if (!isDesktop || !aiCompletionEnabled) return;
-      if (text.length < 5) {
-        setGhostText(null);
-        return;
-      }
-      if (lastGhostTriggerRef.current === text) return;
-      lastGhostTriggerRef.current = text;
-
-      if (ghostDebounceRef.current) clearTimeout(ghostDebounceRef.current);
-      ghostDebounceRef.current = setTimeout(async () => {
-        try {
-          const result = await nativeCompletion.triggerCompletion(text);
-          if (result && result.suggestions.length > 0) {
-            setGhostText(result.suggestions[0].text);
-          }
-        } catch {
-          // Ghost text is best-effort
-        }
-      }, aiDebounceMs);
-    },
-    [isDesktop, aiCompletionEnabled, aiDebounceMs]
-  );
-
-  const acceptGhostTextFn = useCallback(async () => {
-    if (!ghostText) return;
-    const newValue = value + ghostText;
-    onChange(newValue);
-    setGhostText(null);
-    lastGhostTriggerRef.current = '';
-    if (isDesktop) {
-      nativeCompletion.acceptSuggestion().catch(() => {});
-    }
-  }, [ghostText, value, onChange, isDesktop]);
-
-  const dismissGhostTextFn = useCallback(() => {
-    if (!ghostText) return;
-    setGhostText(null);
-    lastGhostTriggerRef.current = '';
-    if (isDesktop) {
-      nativeCompletion.dismissSuggestion().catch(() => {});
-    }
-  }, [ghostText, isDesktop]);
-
-  // Handle input change with mention and slash command detection
+  // Handle input change - delegates to unified completion system
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
-      // Dismiss ghost text when user types
-      if (ghostText) {
-        setGhostText(null);
-        lastGhostTriggerRef.current = '';
-      }
       const textarea = textareaRef.current;
       if (textarea) {
         const pos = textarea.selectionStart || 0;
-        handleTextChange(newValue, pos);
+        handleCompletionChange(newValue, pos);
 
-        // Detect slash command trigger
-        const textBeforeCursor = newValue.slice(0, pos);
-        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
-
-        if (lastSlashIndex !== -1) {
-          const charBefore = lastSlashIndex > 0 ? newValue[lastSlashIndex - 1] : ' ';
-          // Only trigger if / is at start or after whitespace
-          if (charBefore === ' ' || charBefore === '\n' || lastSlashIndex === 0) {
-            const query = textBeforeCursor.slice(lastSlashIndex + 1);
-            // Only open if no space in query (command not completed)
-            if (!query.includes(' ')) {
-              const rect = getCaretCoordinates(textarea);
-              setSlashAnchorRect(rect);
-              setSlashCommandState({
-                isOpen: true,
-                query,
-                triggerPosition: lastSlashIndex,
-              });
-              return;
-            }
+        // Update anchor rects for popovers based on active provider
+        if (completionState.isOpen) {
+          const rect = getCaretCoordinates(textarea);
+          if (completionState.activeProvider === 'slash') {
+            setSlashAnchorRect(rect);
           }
-        }
-        // Close slash command popover if no valid trigger
-        if (slashCommandState.isOpen) {
-          setSlashCommandState((prev) => ({ ...prev, isOpen: false }));
-        }
-
-        // Trigger AI ghost text if no popover is active
-        if (!mentionState.isOpen && !slashCommandState.isOpen) {
-          triggerGhostText(newValue);
         }
       }
     },
-    [onChange, handleTextChange, slashCommandState.isOpen, mentionState.isOpen, ghostText, triggerGhostText]
+    [onChange, handleCompletionChange, completionState.isOpen, completionState.activeProvider]
   );
 
   const handleTemplateSelect = useCallback(
@@ -475,30 +421,34 @@ export function ChatInput({
     const textarea = textareaRef.current;
     if (textarea) {
       const pos = textarea.selectionStart || 0;
-      handleTextChange(value, pos);
+      handleCompletionChange(value, pos);
 
       if (mentionState.isOpen) {
         const rect = getCaretCoordinates(textarea);
         setAnchorRect(rect);
       }
     }
-  }, [value, handleTextChange, mentionState.isOpen]);
+  }, [value, handleCompletionChange, mentionState.isOpen]);
 
   // Handle mention selection from popover
   const handleMentionSelect = useCallback(
     (item: MentionItem) => {
-      const { newText, newCursorPosition } = selectMention(item);
-      onChange(newText);
-
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+      // Find the mention completion item and select it through the unified system
+      const mentionIdx = completionState.items.findIndex(
+        (ci) => ci.type === 'mention' && ci.label === item.label
+      );
+      if (mentionIdx >= 0) {
+        selectCompletionItem(mentionIdx);
+      }
+      // Also update controlled value directly for cursor positioning
+      const textarea = textareaRef.current;
+      if (textarea) {
+        requestAnimationFrame(() => {
           textarea.focus();
-        }
-      });
+        });
+      }
     },
-    [selectMention, onChange]
+    [completionState.items, selectCompletionItem]
   );
 
   // Handle slash command selection from popover
@@ -512,7 +462,7 @@ export function ChatInput({
       const newCursorPosition = beforeTrigger.length + commandText.length;
 
       onChange(newText);
-      setSlashCommandState({ isOpen: false, query: '', triggerPosition: 0 });
+      closeCompletion();
 
       requestAnimationFrame(() => {
         const textarea = textareaRef.current;
@@ -522,13 +472,42 @@ export function ChatInput({
         }
       });
     },
-    [value, onChange, slashCommandState]
+    [value, onChange, slashCommandState, closeCompletion]
+  );
+
+  // Handle emoji selection from popover
+  const handleEmojiSelect = useCallback(
+    (emoji: EmojiData) => {
+      const { triggerPosition } = completionState;
+      const query = completionState.query;
+      const beforeTrigger = value.slice(0, triggerPosition);
+      const afterQuery = value.slice(triggerPosition + 1 + query.length);
+      const newText = `${beforeTrigger}${emoji.emoji}${afterQuery}`;
+      const newCursorPosition = beforeTrigger.length + emoji.emoji.length;
+
+      onChange(newText);
+      closeCompletion();
+
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+          textarea.focus();
+        }
+      });
+    },
+    [value, onChange, completionState, closeCompletion]
   );
 
   // Close slash command popover
   const closeSlashCommand = useCallback(() => {
-    setSlashCommandState({ isOpen: false, query: '', triggerPosition: 0 });
-  }, []);
+    closeCompletion();
+  }, [closeCompletion]);
+
+  // Close emoji popover
+  const closeEmojiPopover = useCallback(() => {
+    closeCompletion();
+  }, [closeCompletion]);
 
   // Track selection changes for mention popover positioning
   useEffect(() => {
@@ -800,12 +779,21 @@ export function ChatInput({
     // If mention popover is open, let it handle navigation keys
     if (mentionState.isOpen) {
       if (['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
-        // These are handled by MentionPopover
         return;
       }
     }
 
-    if (e.key === 'Enter' && !e.shiftKey && sendOnEnter && !mentionState.isOpen) {
+    // Delegate to unified completion keyboard handler
+    const handled = handleCompletionKeyDown(e.nativeEvent);
+    if (handled) {
+      // If ghost text was accepted, sync the value
+      if (e.key === 'Tab' && ghostText) {
+        onChange(value + ghostText);
+      }
+      return;
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey && sendOnEnter && !mentionState.isOpen && !completionState.isOpen) {
       e.preventDefault();
       handleSubmit();
     }
@@ -877,7 +865,7 @@ export function ChatInput({
           {/* Mention Popover */}
           <MentionPopover
             open={mentionState.isOpen}
-            onClose={closeMention}
+            onClose={closeCompletion}
             onSelect={handleMentionSelect}
             groupedMentions={groupedMentions}
             query={mentionState.query}
@@ -892,6 +880,16 @@ export function ChatInput({
             onSelect={handleSlashCommandSelect}
             query={slashCommandState.query}
             anchorRect={slashAnchorRect}
+          />
+
+          {/* Emoji Popover */}
+          <EmojiPopover
+            open={emojiState.isOpen}
+            onClose={closeEmojiPopover}
+            onSelect={handleEmojiSelect}
+            query={emojiState.query}
+            selectedIndex={emojiState.selectedIndex}
+            onSelectedIndexChange={() => {}}
           />
           {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
           {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
@@ -1126,6 +1124,21 @@ export function ChatInput({
                 opacity={ghostTextOpacity}
               />
             )}
+            {/* Multi-suggestion completion overlay (shown when multiple AI suggestions available) */}
+            <CompletionOverlay
+              visible={!!ghostText}
+              suggestions={ghostText ? [{
+                id: `ghost-${Date.now()}`,
+                text: ghostText,
+                display_text: ghostText,
+                confidence: 0.8,
+                completion_type: ghostText.includes('\n') ? 'Block' : 'Line',
+              }] : []}
+              onDismiss={dismissGhostTextFn}
+              ghostTextOpacity={ghostTextOpacity}
+              showAcceptHint={true}
+              className="absolute left-0 right-0 -bottom-10 z-10"
+            />
             {/* Character counter */}
             {value.length > 0 && (
               <span
@@ -1208,6 +1221,7 @@ export function ChatInput({
         ) && (
           <BottomToolbar
             modelName={modelName}
+            providerId={providerId}
             webSearchEnabled={webSearchEnabled}
             thinkingEnabled={thinkingEnabled}
             streamingEnabled={streamingEnabled}

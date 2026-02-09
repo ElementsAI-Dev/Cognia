@@ -32,7 +32,7 @@ describe('SkillSyncInitializer', () => {
     const syncFromNative = jest.fn();
     const syncToNative = jest.fn();
     mockUseSkillSyncAvailable.mockReturnValue(false);
-    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as ReturnType<typeof useSkillSync>);
+    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as unknown as ReturnType<typeof useSkillSync>);
 
     render(<SkillSyncInitializer />);
 
@@ -44,7 +44,7 @@ describe('SkillSyncInitializer', () => {
     const syncFromNative = jest.fn().mockResolvedValue(undefined);
     const syncToNative = jest.fn().mockResolvedValue(undefined);
     mockUseSkillSyncAvailable.mockReturnValue(true);
-    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as ReturnType<typeof useSkillSync>);
+    mockUseSkillSync.mockReturnValue({ syncFromNative, syncToNative } as unknown as ReturnType<typeof useSkillSync>);
 
     render(<SkillSyncInitializer />);
 

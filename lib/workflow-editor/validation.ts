@@ -1393,7 +1393,7 @@ const DEFAULT_STEP_TIMEOUTS: Record<string, number> = {
  * Returns warnings for missing or excessive timeouts
  */
 export function validateStepTimeouts(
-  nodes: { id: string; type: string; data: WorkflowNodeData }[]
+  nodes: { id: string; type: string; data: WorkflowNodeData | Record<string, unknown> }[]
 ): WorkflowStructureWarning[] {
   const warnings: WorkflowStructureWarning[] = [];
   const MAX_TIMEOUT = 600000; // 10 minutes max
@@ -1448,7 +1448,7 @@ export function validateStepTimeouts(
  * Returns warnings for potential resource issues
  */
 export function validateResourceLimits(
-  nodes: { id: string; type: string; data: WorkflowNodeData }[],
+  nodes: { id: string; type: string; data: WorkflowNodeData | Record<string, unknown> }[],
   edges: { id: string; source: string; target: string }[]
 ): WorkflowStructureWarning[] {
   const warnings: WorkflowStructureWarning[] = [];

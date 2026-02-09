@@ -25,10 +25,20 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { useUsageStore } from '@/stores';
-import { formatTokens, formatCost, type UsageRecord } from '@/types/system/usage';
+import { formatTokens, type UsageRecord } from '@/types/system/usage';
+import { useCurrencyFormat } from '@/hooks/ui/use-currency-format';
 import { UsageAnalyticsCard } from '@/components/chat/utils/usage-analytics-card';
 import { QuotaSettings } from './quota-settings';
-import { downloadRecordsAsCSV, downloadRecordsAsJSON } from '@/lib/ai/usage-export';
+import {
+  downloadRecordsAsCSV,
+  downloadRecordsAsJSON,
+  downloadTimeSeriesAsCSV,
+  exportSummaryToJSON,
+  downloadFile,
+} from '@/lib/ai/usage-export';
+import { generateUsageTimeSeries } from '@/lib/ai/usage-analytics';
+import { useUsageStore as useUsageStoreSelectors } from '@/stores/system/usage-store';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +49,7 @@ import {
 export function UsageSettings() {
   const t = useTranslations('usageSettings');
   const tCommon = useTranslations('common');
+  const { formatCost } = useCurrencyFormat();
 
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -87,44 +98,39 @@ export function UsageSettings() {
     return Array.from(providerMap.values()).sort((a, b) => b.tokens - a.tokens);
   }, [records]);
 
+  const getPerformanceMetrics = useUsageStoreSelectors((state) => state.getPerformanceMetrics);
+
+  const dailyTimeSeries = useMemo(
+    () => generateUsageTimeSeries(records, 'week', 'day'),
+    [records]
+  );
+
   const dailyUsage = useMemo(() => {
+    // Fill in missing days for the chart
     const days = 7;
     const now = new Date();
     const startDate = new Date(now);
     startDate.setDate(startDate.getDate() - days);
-
-    const dailyMap = new Map<
-      string,
-      { date: string; tokens: number; cost: number; requests: number }
-    >();
-
-    // Initialize all days
+    const dailyMap = new Map<string, { date: string; tokens: number; cost: number; requests: number }>();
     for (let i = 0; i <= days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
-      dailyMap.set(dateStr, {
-        date: dateStr,
-        tokens: 0,
-        cost: 0,
-        requests: 0,
-      });
+      dailyMap.set(dateStr, { date: dateStr, tokens: 0, cost: 0, requests: 0 });
     }
-
-    // Aggregate records
-    for (const record of records) {
-      const date = record.createdAt instanceof Date ? record.createdAt : new Date(record.createdAt);
-      const dateStr = date.toISOString().split('T')[0];
+    for (const point of dailyTimeSeries) {
+      const dateStr = point.date.slice(0, 10);
       const existing = dailyMap.get(dateStr);
       if (existing) {
-        existing.tokens += record.tokens.total;
-        existing.cost += record.cost;
-        existing.requests += 1;
+        existing.tokens = point.tokens;
+        existing.cost = point.cost;
+        existing.requests = point.requests;
       }
     }
-
     return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [records]);
+  }, [dailyTimeSeries]);
+
+  const perfMetrics = useMemo(() => getPerformanceMetrics(), [getPerformanceMetrics]);
 
   const filteredRecords = useMemo(() => {
     if (!searchQuery.trim()) return [...records].reverse();
@@ -426,6 +432,25 @@ export function UsageSettings() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => downloadRecordsAsCSV(records)}>
               {t('exportCsv') || 'Export as CSV'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => downloadTimeSeriesAsCSV(dailyTimeSeries)}>
+              {t('exportTimeSeries') || 'Export Time Series (CSV)'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              const summary = exportSummaryToJSON({
+                totalRequests: totalUsage.requests,
+                totalTokens: totalUsage.tokens,
+                totalCost: totalUsage.cost,
+                averageLatency: perfMetrics.avgLatency,
+                errorRate: perfMetrics.errorRate,
+                timeRange: records.length > 0
+                  ? `${new Date(records[0].createdAt).toISOString()} - ${new Date(records[records.length - 1].createdAt).toISOString()}`
+                  : 'N/A',
+                exportedAt: new Date().toISOString(),
+              });
+              downloadFile(summary, `usage-summary-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+            }}>
+              {t('exportSummary') || 'Export Summary (JSON)'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

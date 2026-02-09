@@ -67,7 +67,7 @@ interface FlowKeyboardShortcutsProps {
 
 const SHORTCUTS: ShortcutDefinition[] = [
   { key: 'f', modifiers: ['ctrl'], description: 'Search nodes', action: 'search', icon: <Search className="h-3.5 w-3.5" /> },
-  { key: 'l', modifiers: ['ctrl'], description: 'Auto layout', action: 'layout', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
+  { key: 'l', modifiers: ['ctrl', 'shift'], description: 'Auto layout', action: 'layout', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
   { key: '0', modifiers: ['ctrl'], description: 'Fit view', action: 'fitView', icon: <Maximize2 className="h-3.5 w-3.5" /> },
   { key: '+', modifiers: ['ctrl'], description: 'Zoom in', action: 'zoomIn', icon: <ZoomIn className="h-3.5 w-3.5" /> },
   { key: '-', modifiers: ['ctrl'], description: 'Zoom out', action: 'zoomOut', icon: <ZoomOut className="h-3.5 w-3.5" /> },
@@ -75,7 +75,7 @@ const SHORTCUTS: ShortcutDefinition[] = [
   { key: 'b', description: 'Create branch from selected', action: 'branch', icon: <GitBranch className="h-3.5 w-3.5" /> },
   { key: 'e', description: 'Expand/collapse selected node', action: 'collapse', icon: <ChevronUp className="h-3.5 w-3.5" /> },
   { key: 'Delete', description: 'Delete selected node', action: 'delete', icon: <Trash2 className="h-3.5 w-3.5" /> },
-  { key: 'Escape', description: 'Clear selection', action: 'clearSelection' },
+  { key: 'Escape', description: 'Clear selection / Close panels', action: 'clearSelection' },
   { key: '?', modifiers: ['shift'], description: 'Show keyboard shortcuts', action: 'showHelp', icon: <Keyboard className="h-3.5 w-3.5" /> },
 ];
 

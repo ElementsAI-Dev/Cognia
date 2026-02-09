@@ -20,6 +20,7 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
       id: 'contestant-1',
       provider: 'openai',
       model: 'gpt-4o',
+      displayName: 'GPT-4o',
       response: 'This is the winning response.',
       status: 'completed',
       startTime: Date.now() - 5000,
@@ -31,6 +32,7 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
       id: 'contestant-2',
       provider: 'anthropic',
       model: 'claude-3-opus',
+      displayName: 'Claude 3 Opus',
       response: 'This is the losing response.',
       status: 'completed',
       startTime: Date.now() - 5000,
@@ -44,6 +46,7 @@ function createMockBattle(overrides?: Partial<ArenaBattle>): ArenaBattle {
     id: 'battle-1',
     sessionId: 'session-1',
     prompt: 'What is the meaning of life?',
+    mode: 'normal',
     contestants,
     createdAt: new Date(Date.now() - 10000),
     completedAt: new Date(),
@@ -229,11 +232,11 @@ describe('RLHF Export', () => {
     it('should filter by date range', () => {
       const oldBattle = createMockBattle({
         id: 'old-battle',
-        createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
       });
       const recentBattle = createMockBattle({
         id: 'recent-battle',
-        createdAt: Date.now() - 1000,
+        createdAt: new Date(Date.now() - 1000),
       });
 
       const battles = [oldBattle, recentBattle];
@@ -251,7 +254,7 @@ describe('RLHF Export', () => {
     });
   });
 
-  describe('getExportStatistics', () => {
+  describe('_getExportStats', () => {
     it('should return correct statistics', () => {
       const battles = [
         createMockBattle(),
@@ -259,7 +262,7 @@ describe('RLHF Export', () => {
         createMockBattle({ id: 'battle-3', isTie: true, winnerId: undefined }),
       ];
 
-      const stats = getExportStatistics(battles);
+      const stats = _getExportStats(battles);
 
       expect(stats.totalBattles).toBe(3);
       expect(stats.completedBattles).toBe(2);
@@ -268,7 +271,7 @@ describe('RLHF Export', () => {
     });
 
     it('should handle empty battles array', () => {
-      const stats = getExportStatistics([]);
+      const stats = _getExportStats([]);
 
       expect(stats.totalBattles).toBe(0);
       expect(stats.completedBattles).toBe(0);
@@ -282,7 +285,7 @@ describe('RLHF Export', () => {
         createMockBattle({ id: 'battle-2' }),
       ];
 
-      const stats = getExportStatistics(battles);
+      const stats = _getExportStats(battles);
 
       expect(stats.uniqueModels).toBeGreaterThan(0);
     });

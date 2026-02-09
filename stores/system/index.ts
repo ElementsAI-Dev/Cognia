@@ -10,7 +10,12 @@ export {
   type ModalType,
 } from './ui-store';
 
-export { useUsageStore } from './usage-store';
+export {
+  useUsageStore,
+  type ModelUsage,
+  type PerformanceMetrics,
+  type QuotaLimits,
+} from './usage-store';
 
 export { useRecentFilesStore, selectRecentFiles, type RecentFile } from './recent-files-store';
 

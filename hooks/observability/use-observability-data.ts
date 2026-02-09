@@ -5,8 +5,9 @@
  * for the observability dashboard.
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { useUsageStore } from '@/stores';
+import { useUsageStore as useUsageStoreSelectors } from '@/stores/system/usage-store';
 import {
   calculateUsageStatistics,
   getModelUsageBreakdown,
@@ -85,7 +86,18 @@ export interface ObservabilityData {
  */
 export function useObservabilityData(timeRange: TimeRange = '24h'): ObservabilityData {
   const records = useUsageStore((state) => state.records);
+  const autoCleanup = useUsageStoreSelectors((state) => state.autoCleanup);
+  const getPerformanceMetrics = useUsageStoreSelectors((state) => state.getPerformanceMetrics);
   const period = timeRangeToPeriod(timeRange);
+
+  // Run auto-cleanup once on mount
+  const cleanupRan = useRef(false);
+  useEffect(() => {
+    if (!cleanupRan.current) {
+      cleanupRan.current = true;
+      autoCleanup();
+    }
+  }, [autoCleanup]);
 
   // Filter records by time range
   const filteredRecords = useMemo(() => {
@@ -151,15 +163,13 @@ export function useObservabilityData(timeRange: TimeRange = '24h'): Observabilit
       requestsByModel[m.model] = m.requests;
     }
 
-    // Calculate real latency from records with latency data
+    // Use store performance metrics for latency and error rate
+    const perfMetrics = getPerformanceMetrics();
+
+    // Calculate latency percentiles from filtered records for detailed breakdown
     const recordsWithLatency = filteredRecords.filter(r => r.latency !== undefined && r.latency > 0);
     const latencies = recordsWithLatency.map(r => r.latency!).sort((a, b) => a - b);
-    
-    const avgLatency = latencies.length > 0 
-      ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
-      : 0;
 
-    // Calculate real latency percentiles
     const getPercentile = (arr: number[], p: number): number => {
       if (arr.length === 0) return 0;
       const index = Math.ceil((p / 100) * arr.length) - 1;
@@ -170,18 +180,12 @@ export function useObservabilityData(timeRange: TimeRange = '24h'): Observabilit
     const p90 = getPercentile(latencies, 90);
     const p99 = getPercentile(latencies, 99);
 
-    // Calculate real error rate
-    const errorRecords = filteredRecords.filter(r => r.status === 'error' || r.status === 'timeout');
-    const errorRate = filteredRecords.length > 0 
-      ? (errorRecords.length / filteredRecords.length) * 100
-      : 0;
-
     return {
       totalRequests: statistics.totalRequests,
       totalTokens: statistics.totalTokens,
       totalCost: statistics.totalCost,
-      averageLatency: avgLatency,
-      errorRate,
+      averageLatency: perfMetrics.avgLatency,
+      errorRate: perfMetrics.errorRate * 100,
       requestsByProvider,
       requestsByModel,
       tokensByProvider,
@@ -192,7 +196,7 @@ export function useObservabilityData(timeRange: TimeRange = '24h'): Observabilit
         p99,
       },
     };
-  }, [statistics, providerBreakdown, modelBreakdown, filteredRecords]);
+  }, [statistics, providerBreakdown, modelBreakdown, filteredRecords, getPerformanceMetrics]);
 
   return {
     statistics,

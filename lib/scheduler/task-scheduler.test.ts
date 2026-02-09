@@ -12,6 +12,18 @@ import {
 } from './task-scheduler';
 import type { ScheduledTask, CreateScheduledTaskInput } from '@/types/scheduler';
 
+// Mock plugin lifecycle hooks
+const mockDispatchOnScheduledTaskStart = jest.fn();
+const mockDispatchOnScheduledTaskComplete = jest.fn();
+const mockDispatchOnScheduledTaskError = jest.fn();
+jest.mock('@/lib/plugin', () => ({
+  getPluginLifecycleHooks: () => ({
+    dispatchOnScheduledTaskStart: mockDispatchOnScheduledTaskStart,
+    dispatchOnScheduledTaskComplete: mockDispatchOnScheduledTaskComplete,
+    dispatchOnScheduledTaskError: mockDispatchOnScheduledTaskError,
+  }),
+}));
+
 // Mock dependencies
 jest.mock('./scheduler-db', () => ({
   schedulerDb: {
@@ -371,6 +383,123 @@ describe('TaskScheduler', () => {
         await jest.runAllTimersAsync();
         
         expect(executor).toHaveBeenCalled();
+      });
+    });
+
+    describe('plugin hook dispatches', () => {
+      it('should dispatch onScheduledTaskStart when task begins execution', async () => {
+        const executor = jest.fn().mockResolvedValue({ success: true });
+        registerTaskExecutor('test', executor);
+
+        const task: ScheduledTask = {
+          id: 'task-hook-1',
+          name: 'Hook Test',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 0, retryDelay: 1000, timeout: 30000, allowConcurrent: true, runMissedOnStartup: true },
+          notification: { onStart: false, onComplete: false, onError: false },
+          status: 'active',
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockSchedulerDb.getTask.mockResolvedValueOnce(task);
+
+        await scheduler.runTaskNow('task-hook-1');
+
+        expect(mockDispatchOnScheduledTaskStart).toHaveBeenCalledWith(
+          'task-hook-1',
+          expect.any(String)
+        );
+      });
+
+      it('should dispatch onScheduledTaskComplete on successful execution', async () => {
+        const executor = jest.fn().mockResolvedValue({ success: true, output: { result: 'done' } });
+        registerTaskExecutor('test', executor);
+
+        const task: ScheduledTask = {
+          id: 'task-hook-2',
+          name: 'Hook Complete',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 0, retryDelay: 1000, timeout: 30000, allowConcurrent: true, runMissedOnStartup: true },
+          notification: { onStart: false, onComplete: false, onError: false },
+          status: 'active',
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockSchedulerDb.getTask.mockResolvedValueOnce(task);
+
+        await scheduler.runTaskNow('task-hook-2');
+
+        expect(mockDispatchOnScheduledTaskComplete).toHaveBeenCalledWith(
+          'task-hook-2',
+          expect.any(String),
+          expect.objectContaining({ success: true })
+        );
+      });
+
+      it('should dispatch onScheduledTaskError on failed execution', async () => {
+        const executor = jest.fn().mockResolvedValue({ success: false, error: 'Task failed' });
+        registerTaskExecutor('test', executor);
+
+        const task: ScheduledTask = {
+          id: 'task-hook-3',
+          name: 'Hook Error',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 0, retryDelay: 1000, timeout: 30000, allowConcurrent: true, runMissedOnStartup: true },
+          notification: { onStart: false, onComplete: false, onError: false },
+          status: 'active',
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockSchedulerDb.getTask.mockResolvedValueOnce(task);
+
+        await scheduler.runTaskNow('task-hook-3');
+
+        expect(mockDispatchOnScheduledTaskError).toHaveBeenCalledWith(
+          'task-hook-3',
+          expect.any(String),
+          expect.any(Error)
+        );
+      });
+
+      it('should dispatch onScheduledTaskError when executor throws', async () => {
+        const executor = jest.fn().mockRejectedValue(new Error('Executor crash'));
+        registerTaskExecutor('test', executor);
+
+        const task: ScheduledTask = {
+          id: 'task-hook-4',
+          name: 'Hook Crash',
+          type: 'test',
+          trigger: { type: 'interval', intervalMs: 60000 },
+          config: { maxRetries: 0, retryDelay: 1000, timeout: 30000, allowConcurrent: true, runMissedOnStartup: true },
+          notification: { onStart: false, onComplete: false, onError: false },
+          status: 'active',
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        mockSchedulerDb.getTask.mockResolvedValueOnce(task);
+
+        await scheduler.runTaskNow('task-hook-4');
+
+        expect(mockDispatchOnScheduledTaskError).toHaveBeenCalledWith(
+          'task-hook-4',
+          expect.any(String),
+          expect.any(Error)
+        );
       });
     });
   });

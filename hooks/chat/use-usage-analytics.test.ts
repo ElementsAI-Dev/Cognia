@@ -36,6 +36,17 @@ jest.mock('@/stores/system/usage-store', () => ({
           createdAt: new Date(),
         },
       ],
+      autoCleanup: jest.fn(),
+      getPerformanceMetrics: jest.fn(() => ({
+        avgLatency: 0,
+        p95Latency: 0,
+        avgTimeToFirstToken: 0,
+        errorRate: 0,
+        successRate: 1,
+        avgTokensPerSecond: 0,
+        totalErrors: 0,
+        totalSuccesses: 0,
+      })),
     };
     return selector(mockState);
   }),

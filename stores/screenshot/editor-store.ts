@@ -378,3 +378,14 @@ export const selectCanRedo = (state: EditorStore) => state.redoStack.length > 0;
 export const selectIsEditing = (state: EditorStore) =>
   state.mode === 'editing' || state.mode === 'annotating';
 export const selectHasSelection = (state: EditorStore) => state.selection !== null;
+export const selectAnnotationCount = (state: EditorStore) => state.annotations.length;
+export const selectHasAnnotations = (state: EditorStore) => state.annotations.length > 0;
+export const selectCurrentAnnotation = (state: EditorStore) =>
+  state.selectedAnnotationId
+    ? state.annotations.find((a) => a.id === state.selectedAnnotationId) ?? null
+    : null;
+export const selectAnnotationsByType = (type: Annotation['type']) => (state: EditorStore) =>
+  state.annotations.filter((a) => a.type === type);
+export const selectUndoStackDepth = (state: EditorStore) => state.undoStack.length;
+export const selectRedoStackDepth = (state: EditorStore) => state.redoStack.length;
+export const selectIsAnnotating = (state: EditorStore) => state.mode === 'annotating';

@@ -156,7 +156,7 @@ describe('LoggerProvider', () => {
   });
 
   describe('log management', () => {
-    it('retrieves logs', () => {
+    it('retrieves logs', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       act(() => {
@@ -164,12 +164,12 @@ describe('LoggerProvider', () => {
         result.current.warn('Test log 2');
       });
 
-      const logs = result.current.getLogs();
+      const logs = await result.current.getLogs();
 
       expect(logs.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('filters logs by level', () => {
+    it('filters logs by level', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       act(() => {
@@ -178,13 +178,13 @@ describe('LoggerProvider', () => {
         result.current.error('Error log');
       });
 
-      const errorLogs = result.current.getLogs({ level: 'error' });
-      const allLogs = result.current.getLogs();
+      const errorLogs = await result.current.getLogs({ level: 'error' });
+      const allLogs = await result.current.getLogs();
 
       expect(errorLogs.length).toBeLessThanOrEqual(allLogs.length);
     });
 
-    it('filters logs by date', () => {
+    it('filters logs by date', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       const pastDate = new Date(Date.now() - 10000);
@@ -193,12 +193,12 @@ describe('LoggerProvider', () => {
         result.current.info('Recent log');
       });
 
-      const recentLogs = result.current.getLogs({ since: pastDate });
+      const recentLogs = await result.current.getLogs({ since: pastDate });
 
       expect(recentLogs.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('limits number of logs', () => {
+    it('limits number of logs', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       act(() => {
@@ -207,12 +207,12 @@ describe('LoggerProvider', () => {
         }
       });
 
-      const limitedLogs = result.current.getLogs({ limit: 3 });
+      const limitedLogs = await result.current.getLogs({ limit: 3 });
 
       expect(limitedLogs.length).toBeLessThanOrEqual(3);
     });
 
-    it('clears logs', () => {
+    it('clears logs', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       act(() => {
@@ -223,18 +223,18 @@ describe('LoggerProvider', () => {
         result.current.clearLogs();
       });
 
-      const logs = result.current.getLogs();
+      const logs = await result.current.getLogs();
       expect(logs.length).toBe(0);
     });
 
-    it('exports logs as JSON', () => {
+    it('exports logs as JSON', async () => {
       const { result } = renderHook(() => useLogger(), { wrapper });
 
       act(() => {
         result.current.info('Test log');
       });
 
-      const exported = result.current.exportLogs('json');
+      const exported = await result.current.exportLogs('json');
 
       expect(() => JSON.parse(exported)).not.toThrow();
     });

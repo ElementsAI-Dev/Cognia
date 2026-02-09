@@ -261,25 +261,28 @@ export function buildContextCompressionPrompt(params: {
   const olderMessages = messages.slice(0, -preserveRecent);
   const conversationText = formatConversationForPrompt(olderMessages, true, true);
 
-  return `You are an expert at compressing conversation context while preserving essential information.
+  return `You are an expert at compressing conversation context while preserving essential information for AI assistants. Your goal is to create an "anchored summary" that enables the AI to continue the conversation seamlessly without losing critical context.
 
 ## Task
-Compress the following conversation into a concise summary that:
-1. Preserves all critical information, decisions, and context
-2. Maintains any code snippets or technical details that are referenced later
-3. Keeps track of any ongoing tasks or unresolved questions
+Compress the following conversation into a structured anchored summary that:
+1. Preserves the user's intent and all critical context needed to continue the task
+2. Maintains an actionable trail of artifacts (file paths, function names, identifiers)
+3. Tracks ongoing tasks, unresolved questions, and active state
 4. Fits within approximately ${targetTokens} tokens
+5. Prioritizes information that would be costly to re-discover (breadcrumbs)
 
 ## Conversation to Compress
 ${conversationText}
 
-## Output Format
+## Output Format — Anchored Summary
 Create a structured summary with these sections:
-1. **Context**: Essential background information
-2. **Key Decisions**: Any decisions made
-3. **Technical Details**: Important code or configurations (if any)
-4. **Open Items**: Unresolved questions or ongoing tasks
-5. **Summary**: Brief overview of what was discussed
+
+1. **Session Intent**: The user's root goal for this conversation (1-2 sentences)
+2. **High-Level Play-By-Play**: Chronological sequence of major actions taken (bullet list, max 10 items)
+3. **Key Decisions**: Decisions made and their rationale (bullet list)
+4. **Artifact Trail (Breadcrumbs)**: File paths, function/class names, API endpoints, config keys, or any identifiers that were discussed or modified — these are expensive to re-discover after compression
+5. **Active State**: Current task in progress, any pending operations, variables/state that the next turn needs
+6. **Open Items**: Unresolved questions, known issues, or follow-up tasks
 
 ## Compressed Context:`;
 }

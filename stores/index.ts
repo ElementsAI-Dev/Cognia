@@ -108,6 +108,7 @@ export {
   installPipPackage,
   checkCommandExists,
   useMcpMarketplaceStore,
+  type ActiveToolCall,
 } from './mcp';
 
 // Prompt templates

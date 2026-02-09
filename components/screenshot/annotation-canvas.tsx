@@ -311,12 +311,6 @@ export function AnnotationCanvas({
   const [dragStart, setDragStart] = useState<Point | null>(null);
   const [dragAnnotationStart, setDragAnnotationStart] = useState<{ x: number; y: number } | null>(null);
 
-  // Resizing state
-  const [_isResizing, _setIsResizing] = useState(false);
-  const [_resizeHandle, _setResizeHandle] = useState<ResizeHandle | null>(null);
-  const [_resizeStart, _setResizeStart] = useState<Point | null>(null);
-  const [_initialAnnotation, _setInitialAnnotation] = useState<Annotation | null>(null);
-
   // Text input state
   const [textInputPosition, setTextInputPosition] = useState<Point | null>(null);
 
@@ -734,10 +728,94 @@ export function AnnotationCanvas({
   const handleResizeStart = useCallback(
     (handle: ResizeHandle, e: React.MouseEvent) => {
       e.stopPropagation();
-      // TODO: Implement resize logic in Phase 2.3
-      console.log('Resize started:', handle);
+      if (!selectedAnnotationId || !selectedAnnotation) return;
+
+      const startPos = { x: e.clientX, y: e.clientY };
+      const initialBounds = getAnnotationBounds(selectedAnnotation);
+      const canvas = canvasRef.current;
+      if (!canvas || !initialBounds) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = width / rect.width;
+      const scaleY = height / rect.height;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const dx = (moveEvent.clientX - startPos.x) * scaleX;
+        const dy = (moveEvent.clientY - startPos.y) * scaleY;
+
+        let newX = initialBounds.x;
+        let newY = initialBounds.y;
+        let newW = initialBounds.width;
+        let newH = initialBounds.height;
+
+        // Apply resize based on handle direction
+        if (handle.includes('w')) { newX += dx; newW -= dx; }
+        if (handle.includes('e')) { newW += dx; }
+        if (handle.includes('n')) { newY += dy; newH -= dy; }
+        if (handle.includes('s')) { newH += dy; }
+
+        // Enforce minimum size
+        if (newW < 4) { newW = 4; if (handle.includes('w')) newX = initialBounds.x + initialBounds.width - 4; }
+        if (newH < 4) { newH = 4; if (handle.includes('n')) newY = initialBounds.y + initialBounds.height - 4; }
+
+        // Build updates based on annotation type
+        let updates: Partial<Annotation> = {};
+        switch (selectedAnnotation.type) {
+          case 'rectangle':
+          case 'blur':
+          case 'highlight':
+            updates = { x: newX, y: newY, width: newW, height: newH };
+            break;
+          case 'ellipse':
+            updates = { cx: newX + newW / 2, cy: newY + newH / 2, rx: newW / 2, ry: newH / 2 };
+            break;
+          case 'arrow': {
+            // Map bounding box back to arrow endpoints proportionally
+            const origBounds = initialBounds;
+            const sxRatio = origBounds.width > 0 ? (selectedAnnotation.startX - origBounds.x) / origBounds.width : 0;
+            const syRatio = origBounds.height > 0 ? (selectedAnnotation.startY - origBounds.y) / origBounds.height : 0;
+            const exRatio = origBounds.width > 0 ? (selectedAnnotation.endX - origBounds.x) / origBounds.width : 1;
+            const eyRatio = origBounds.height > 0 ? (selectedAnnotation.endY - origBounds.y) / origBounds.height : 1;
+            updates = {
+              startX: newX + sxRatio * newW,
+              startY: newY + syRatio * newH,
+              endX: newX + exRatio * newW,
+              endY: newY + eyRatio * newH,
+            };
+            break;
+          }
+          case 'text':
+            updates = { x: newX, y: newY + newH };
+            break;
+          case 'marker':
+            updates = { x: newX + newW / 2, y: newY + newH / 2, size: Math.max(newW, newH) };
+            break;
+          case 'freehand': {
+            // Scale all freehand points proportionally
+            const origFBounds = initialBounds;
+            if (origFBounds.width > 0 && origFBounds.height > 0) {
+              const scaledPoints = selectedAnnotation.points.map(([px, py]) => {
+                const relX = (px - origFBounds.x) / origFBounds.width;
+                const relY = (py - origFBounds.y) / origFBounds.height;
+                return [newX + relX * newW, newY + relY * newH] as [number, number];
+              });
+              updates = { points: scaledPoints };
+            }
+            break;
+          }
+        }
+        onAnnotationUpdate(selectedAnnotationId, updates);
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
     },
-    []
+    [selectedAnnotationId, selectedAnnotation, width, height, onAnnotationUpdate]
   );
 
   return (

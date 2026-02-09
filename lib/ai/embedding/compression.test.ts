@@ -8,12 +8,6 @@ import { DEFAULT_COMPRESSION_SETTINGS } from '@/types/system/compression';
 
 // Extended UIMessage type for compression-specific properties
 interface ExtendedUIMessage extends UIMessage {
-  compressionState?: {
-    isSummary?: boolean;
-    summarizedMessageIds?: string[];
-    originalMessageCount?: number;
-    strategyUsed?: string;
-  };
   toolInvocations?: unknown[];
 }
 
@@ -45,7 +39,18 @@ import {
   filterMessagesForContext,
   createCompressionHistoryEntry,
   getEffectiveCompressionSettings,
+  scoreMessageImportance,
+  compressToolCallResults,
+  compressArtifactContent,
+  preProcessForCompression,
+  applyRecursiveCompression,
+  getCompressionTargetPercent,
+  isFrozenSummaryValid,
+  createSummaryMessageFromFrozen,
+  createFrozenSummary,
+  getProviderCacheInfo,
 } from './compression';
+import type { FrozenCompressionSummary } from '@/types/system/compression';
 import { calculateTokenBreakdown } from '@/hooks/chat/use-token-count';
 
 // Helper function to create mock messages
@@ -1561,6 +1566,653 @@ describe('compression utilities', () => {
         expect(entry.compressedMessages[0].role).toBe('user');
         expect(entry.compressedMessages[0].content).toBe('Hello');
       });
+    });
+  });
+
+  describe('scoreMessageImportance', () => {
+    it('should score system messages highly', () => {
+      const msg = createMockMessage('sys', 'system', 'You are a helpful assistant');
+      const score = scoreMessageImportance(msg, 0, 5);
+
+      expect(score.score).toBeGreaterThanOrEqual(0.5);
+      expect(score.signals).toContain('system');
+    });
+
+    it('should detect code blocks', () => {
+      const msg = createMockMessage('1', 'assistant', 'Here is code:\n```javascript\nconsole.log("hello");\n```');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('code');
+      expect(score.score).toBeGreaterThanOrEqual(0.3);
+    });
+
+    it('should detect URLs', () => {
+      const msg = createMockMessage('1', 'assistant', 'Check out https://example.com for more info');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('url');
+    });
+
+    it('should detect error patterns', () => {
+      const msg = createMockMessage('1', 'user', 'I got a TypeError: Cannot read property of undefined');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('error');
+      expect(score.score).toBeGreaterThanOrEqual(0.25);
+    });
+
+    it('should detect decision patterns', () => {
+      const msg = createMockMessage('1', 'assistant', "Let's use React for the frontend and decided to go with TypeScript");
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('decision');
+    });
+
+    it('should detect questions', () => {
+      const msg = createMockMessage('1', 'user', 'What is the best approach for this?');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('question');
+    });
+
+    it('should detect structured data', () => {
+      const msg = createMockMessage('1', 'assistant', 'The config is: { "name": "test", "version": "1.0" }');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('structured-data');
+    });
+
+    it('should detect artifact references', () => {
+      const msg = createMockMessage('1', 'assistant', 'Here is an artifact for the component');
+      const score = scoreMessageImportance(msg, 1, 5);
+
+      expect(score.signals).toContain('artifact');
+    });
+
+    it('should apply recency bonus to newer messages', () => {
+      // Use non-zero, non-first index for old message to isolate recency effect
+      const oldMsg = createMockMessage('1', 'assistant', 'Old plain message with enough length');
+      const newMsg = createMockMessage('2', 'assistant', 'New plain message with enough length');
+
+      const oldScore = scoreMessageImportance(oldMsg, 1, 10);
+      const newScore = scoreMessageImportance(newMsg, 8, 10);
+
+      // Index 1: position=1/9=0.111, bonus=0.3*0.012=0.004
+      // Index 8: position=8/9=0.889, bonus=0.3*0.790=0.237
+      expect(newScore.score).toBeGreaterThan(oldScore.score);
+    });
+
+    it('should boost first user message', () => {
+      const firstUser = createMockMessage('1', 'user', 'Plain message with enough content here');
+      const laterUser = createMockMessage('2', 'user', 'Plain message with enough content here');
+
+      const firstScore = scoreMessageImportance(firstUser, 0, 5);
+      const laterScore = scoreMessageImportance(laterUser, 2, 5);
+
+      expect(firstScore.score).toBeGreaterThan(laterScore.score);
+    });
+
+    it('should clamp score between 0 and 1', () => {
+      // Message with many signals should still be clamped to 1
+      const msg = createMockMessage('1', 'system', 'Error: TypeError at https://example.com ```code``` { "data": true } decided artifact');
+      const score = scoreMessageImportance(msg, 0, 1);
+
+      expect(score.score).toBeLessThanOrEqual(1);
+      expect(score.score).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should detect tool invocations from parts', () => {
+      const msg = createMockMessage('1', 'assistant', 'Using tool', {
+        parts: [
+          { type: 'tool-invocation', toolName: 'web_search', args: { query: 'test' }, state: 'result', toolCallId: 't1', result: 'found' },
+        ],
+      } as unknown as Partial<UIMessage>);
+
+      const score = scoreMessageImportance(msg, 1, 5);
+      expect(score.signals).toContain('tool-call');
+    });
+
+    it('should handle empty content', () => {
+      const msg = createMockMessage('1', 'user', '');
+      const score = scoreMessageImportance(msg, 0, 1);
+
+      expect(score.score).toBeGreaterThanOrEqual(0);
+      expect(score.score).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('compressToolCallResults', () => {
+    it('should not modify messages without tool parts', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'Hello'),
+        createMockMessage('2', 'assistant', 'Hi there!'),
+      ];
+
+      const result = compressToolCallResults(messages, 500);
+      expect(result).toEqual(messages);
+    });
+
+    it('should not modify small tool results', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', 'Result', {
+          parts: [
+            { type: 'tool-invocation', toolName: 'search', args: { q: 'test' }, state: 'result', toolCallId: 't1', result: 'Short result' },
+          ],
+        } as unknown as Partial<UIMessage>),
+      ];
+
+      const result = compressToolCallResults(messages, 500);
+      // Short result should not be truncated
+      const resultPart = result[0].parts?.[0];
+      expect(resultPart).toBeDefined();
+      if (resultPart && resultPart.type === 'tool-invocation') {
+        expect(resultPart.result).toBe('Short result');
+      }
+    });
+
+    it('should truncate large tool results', () => {
+      const largeResult = 'x'.repeat(5000);
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', 'Result', {
+          parts: [
+            { type: 'tool-invocation', toolName: 'read_file', args: { path: '/test.ts' }, state: 'result', toolCallId: 't1', result: largeResult },
+          ],
+        } as unknown as Partial<UIMessage>),
+      ];
+
+      const result = compressToolCallResults(messages, 100);
+      const resultPart = result[0].parts?.[0];
+      expect(resultPart).toBeDefined();
+      if (resultPart && resultPart.type === 'tool-invocation') {
+        const resultStr = String(resultPart.result);
+        expect(resultStr.length).toBeLessThan(largeResult.length);
+        expect(resultStr).toContain('Truncated');
+        expect(resultStr).toContain('read_file');
+      }
+    });
+
+    it('should preserve non-tool parts unchanged', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', 'Result', {
+          parts: [
+            { type: 'text', text: 'Some text' },
+            { type: 'tool-invocation', toolName: 'search', args: {}, state: 'result', toolCallId: 't1', result: 'x'.repeat(5000) },
+          ],
+        } as unknown as Partial<UIMessage>),
+      ];
+
+      const result = compressToolCallResults(messages, 100);
+      const textPart = result[0].parts?.[0];
+      expect(textPart).toBeDefined();
+      if (textPart) {
+        expect(textPart.type).toBe('text');
+      }
+    });
+
+    it('should handle messages without parts', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'Hello'),
+      ];
+
+      const result = compressToolCallResults(messages, 100);
+      expect(result[0]).toEqual(messages[0]);
+    });
+  });
+
+  describe('compressArtifactContent', () => {
+    it('should not modify messages without code blocks or artifacts', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'Hello world'),
+      ];
+
+      const result = compressArtifactContent(messages);
+      expect(result[0].content).toBe('Hello world');
+    });
+
+    it('should not modify short code blocks', () => {
+      const shortCode = '```typescript\nconst x = 1;\n```';
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', shortCode),
+      ];
+
+      const result = compressArtifactContent(messages);
+      expect(result[0].content).toBe(shortCode);
+    });
+
+    it('should compress long code blocks', () => {
+      const lines = Array.from({ length: 30 }, (_, i) => `const line${i} = ${i};`).join('\n');
+      const codeBlock = `\`\`\`typescript\n${lines}\n\`\`\``;
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', `Here is code:\n${codeBlock}`),
+      ];
+
+      const result = compressArtifactContent(messages);
+      expect(result[0].content).toContain('more lines');
+      expect(result[0].content.length).toBeLessThan(messages[0].content.length);
+    });
+
+    it('should compress long artifact tags', () => {
+      const longBody = 'x'.repeat(1000);
+      const content = `<artifact type="code" title="test">${longBody}</artifact>`;
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', content),
+      ];
+
+      const result = compressArtifactContent(messages);
+      expect(result[0].content).toContain('Truncated');
+      expect(result[0].content.length).toBeLessThan(content.length);
+    });
+
+    it('should not compress short artifact tags', () => {
+      const content = '<artifact type="code" title="test">short content</artifact>';
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', content),
+      ];
+
+      const result = compressArtifactContent(messages);
+      expect(result[0].content).toBe(content);
+    });
+  });
+
+  describe('preProcessForCompression', () => {
+    it('should apply both tool and artifact compression', () => {
+      const lines = Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\n');
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', `Code:\n\`\`\`ts\n${lines}\n\`\`\``),
+        createMockMessage('2', 'assistant', 'Tool result', {
+          parts: [
+            { type: 'tool-invocation', toolName: 'search', args: {}, state: 'result', toolCallId: 't1', result: 'x'.repeat(5000) },
+          ],
+        } as unknown as Partial<UIMessage>),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveToolCallMetadata: true,
+        maxToolResultTokens: 100,
+      };
+
+      const result = preProcessForCompression(messages, settings);
+
+      // Code block should be compressed
+      expect(result[0].content).toContain('more lines');
+      // Tool result should be truncated
+      const toolPart = result[1].parts?.[0];
+      if (toolPart && toolPart.type === 'tool-invocation') {
+        expect(String(toolPart.result)).toContain('Truncated');
+      }
+    });
+
+    it('should respect preserveToolCallMetadata setting', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'Hello'),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveToolCallMetadata: false,
+      };
+
+      // Should still work without errors
+      const result = preProcessForCompression(messages, settings);
+      expect(result.length).toBe(1);
+    });
+  });
+
+  describe('applyRecursiveCompression', () => {
+    it('should return all messages when fewer than preserveRecentMessages', async () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'Hello'),
+        createMockMessage('2', 'assistant', 'Hi'),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveRecentMessages: 10,
+        recursiveChunkSize: 5,
+      };
+
+      const result = await applyRecursiveCompression(messages, settings);
+
+      expect(result.compressedIds).toEqual([]);
+      expect(result.filteredMessages.length).toBe(2);
+    });
+
+    it('should chunk and summarize older messages', async () => {
+      const messages: UIMessage[] = [
+        createMockMessage('sys', 'system', 'System prompt'),
+        ...Array.from({ length: 15 }, (_, i) =>
+          createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `This is message number ${i + 1} with enough content`)
+        ),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveRecentMessages: 4,
+        preserveSystemMessages: true,
+        recursiveChunkSize: 5,
+      };
+
+      const result = await applyRecursiveCompression(messages, settings);
+
+      // Should have system message + summary + 4 recent
+      expect(result.compressedIds.length).toBeGreaterThan(0);
+      expect(result.summaryText.length).toBeGreaterThan(0);
+      // Recent messages should be preserved
+      expect(result.filteredMessages.some(m => m.id === '15')).toBe(true);
+      // System message should be preserved
+      expect(result.filteredMessages.some(m => m.role === 'system')).toBe(true);
+    });
+
+    it('should use custom summary generator', async () => {
+      const messages: UIMessage[] = [
+        ...Array.from({ length: 12 }, (_, i) =>
+          createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `Message ${i + 1} content here`)
+        ),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveRecentMessages: 2,
+        recursiveChunkSize: 5,
+      };
+
+      const customGen = jest.fn().mockResolvedValue('Custom chunk summary');
+      const result = await applyRecursiveCompression(messages, settings, customGen);
+
+      expect(customGen).toHaveBeenCalled();
+      expect(result.summaryText).toBeDefined();
+    });
+
+    it('should fallback to simple summary when generator fails', async () => {
+      const messages: UIMessage[] = [
+        ...Array.from({ length: 12 }, (_, i) =>
+          createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `Message ${i + 1} content text`)
+        ),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveRecentMessages: 2,
+        recursiveChunkSize: 5,
+      };
+
+      const failingGen = jest.fn().mockRejectedValue(new Error('AI failed'));
+      const result = await applyRecursiveCompression(messages, settings, failingGen);
+
+      expect(result.summaryText).toContain('Conversation Summary');
+    });
+
+    it('should preserve system messages', async () => {
+      const messages: UIMessage[] = [
+        createMockMessage('sys', 'system', 'Important system prompt'),
+        ...Array.from({ length: 12 }, (_, i) =>
+          createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `Message ${i + 1} content`)
+        ),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        preserveRecentMessages: 2,
+        preserveSystemMessages: true,
+        recursiveChunkSize: 5,
+      };
+
+      const result = await applyRecursiveCompression(messages, settings);
+
+      expect(result.filteredMessages[0].role).toBe('system');
+      expect(result.filteredMessages[0].id).toBe('sys');
+    });
+  });
+
+  describe('compressMessages with recursive strategy', () => {
+    it('should use recursive strategy', async () => {
+      const messages: UIMessage[] = [
+        createMockMessage('sys', 'system', 'System'),
+        ...Array.from({ length: 15 }, (_, i) =>
+          createMockMessage(`${i + 1}`, i % 2 === 0 ? 'user' : 'assistant', `Message ${i + 1} with content`)
+        ),
+      ];
+
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        strategy: 'recursive',
+        preserveRecentMessages: 2,
+        recursiveChunkSize: 5,
+      };
+
+      const result = await compressMessages(messages, settings);
+
+      expect(result.success).toBe(true);
+      expect(result.compressedMessageIds.length).toBeGreaterThan(0);
+      expect(result.summaryText).toBeDefined();
+    });
+  });
+
+  describe('enhanced generateSimpleSummary', () => {
+    it('should extract decisions from messages', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', "Let's use TypeScript for this project instead of JavaScript"),
+        createMockMessage('2', 'assistant', 'Good choice! TypeScript provides better type safety and developer experience.'),
+      ];
+
+      const summary = generateSimpleSummary(messages);
+      expect(summary).toContain('Key Decisions');
+    });
+
+    it('should extract code block languages', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', 'Here is the code:\n```python\nprint("hello")\n```\nAnd also:\n```typescript\nconsole.log("hi");\n```'),
+      ];
+
+      const summary = generateSimpleSummary(messages);
+      expect(summary).toContain('Languages');
+      expect(summary).toContain('python');
+      expect(summary).toContain('typescript');
+    });
+
+    it('should extract tool call summaries from parts', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'assistant', 'Using web search tool', {
+          parts: [
+            { type: 'tool-invocation', toolName: 'web_search', args: { query: 'test' }, state: 'result', toolCallId: 't1', result: 'found' },
+          ],
+        } as unknown as Partial<UIMessage>),
+      ];
+
+      const summary = generateSimpleSummary(messages);
+      expect(summary).toContain('Tool Usage');
+      expect(summary).toContain('web_search');
+    });
+
+    it('should include conversation flow for important messages', () => {
+      const messages: UIMessage[] = [
+        createMockMessage('1', 'user', 'What is the best way to handle errors in TypeScript applications?'),
+        createMockMessage('2', 'assistant', 'The best approach is to use try-catch blocks with custom error types for type-safe error handling.'),
+      ];
+
+      const summary = generateSimpleSummary(messages);
+      expect(summary).toContain('Conversation Flow');
+      expect(summary).toContain('Conversation Summary');
+    });
+  });
+
+  describe('DEFAULT_COMPRESSION_SETTINGS new fields', () => {
+    it('should have importanceThreshold defaulting to 0.4', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.importanceThreshold).toBe(0.4);
+    });
+
+    it('should have useAISummarization defaulting to true', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.useAISummarization).toBe(true);
+    });
+
+    it('should have preserveToolCallMetadata defaulting to true', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.preserveToolCallMetadata).toBe(true);
+    });
+
+    it('should have maxToolResultTokens defaulting to 500', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.maxToolResultTokens).toBe(500);
+    });
+
+    it('should have recursiveChunkSize defaulting to 20', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.recursiveChunkSize).toBe(20);
+    });
+
+    it('should have retainedThreshold defaulting to 40', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.retainedThreshold).toBe(40);
+    });
+
+    it('should have prefixStabilityMode defaulting to true', () => {
+      expect(DEFAULT_COMPRESSION_SETTINGS.prefixStabilityMode).toBe(true);
+    });
+  });
+
+  describe('getCompressionTargetPercent', () => {
+    it('should return retainedThreshold when prefixStabilityMode is enabled', () => {
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        prefixStabilityMode: true,
+        retainedThreshold: 40,
+      };
+      expect(getCompressionTargetPercent(settings)).toBe(40);
+    });
+
+    it('should return tokenThreshold - 10 when prefixStabilityMode is disabled', () => {
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        prefixStabilityMode: false,
+        tokenThreshold: 70,
+      };
+      expect(getCompressionTargetPercent(settings)).toBe(60);
+    });
+
+    it('should not go below 10', () => {
+      const settings: CompressionSettings = {
+        ...DEFAULT_COMPRESSION_SETTINGS,
+        prefixStabilityMode: false,
+        tokenThreshold: 15,
+      };
+      expect(getCompressionTargetPercent(settings)).toBe(10);
+    });
+  });
+
+  describe('isFrozenSummaryValid', () => {
+    const baseFrozen: FrozenCompressionSummary = {
+      summaryText: 'Test summary',
+      frozenAt: new Date(),
+      summarizedMessageIds: ['msg-1', 'msg-2', 'msg-3'],
+      originalTokenCount: 1000,
+      summaryTokenCount: 100,
+      version: 1,
+    };
+
+    it('should return true when frozen summary covers all messages to summarize', () => {
+      const messages = [
+        createMockMessage('msg-1', 'user', 'Hello'),
+        createMockMessage('msg-2', 'assistant', 'Hi there'),
+        createMockMessage('msg-3', 'user', 'How are you?'),
+      ];
+      expect(isFrozenSummaryValid(baseFrozen, messages)).toBe(true);
+    });
+
+    it('should return false when a message in frozen summary no longer exists', () => {
+      const messages = [
+        createMockMessage('msg-1', 'user', 'Hello'),
+        createMockMessage('msg-4', 'assistant', 'Different message'),
+      ];
+      expect(isFrozenSummaryValid(baseFrozen, messages)).toBe(false);
+    });
+
+    it('should return false when there are new messages beyond frozen coverage', () => {
+      const messages = [
+        createMockMessage('msg-1', 'user', 'Hello'),
+        createMockMessage('msg-2', 'assistant', 'Hi'),
+        createMockMessage('msg-3', 'user', 'How are you?'),
+        createMockMessage('msg-4', 'user', 'New message'),
+      ];
+      expect(isFrozenSummaryValid(baseFrozen, messages)).toBe(false);
+    });
+
+    it('should return false for empty frozen summary', () => {
+      const emptyFrozen: FrozenCompressionSummary = {
+        ...baseFrozen,
+        summaryText: '',
+      };
+      expect(isFrozenSummaryValid(emptyFrozen, [])).toBe(false);
+    });
+
+    it('should return false for frozen summary with no IDs', () => {
+      const noIdsFrozen: FrozenCompressionSummary = {
+        ...baseFrozen,
+        summarizedMessageIds: [],
+      };
+      expect(isFrozenSummaryValid(noIdsFrozen, [])).toBe(false);
+    });
+  });
+
+  describe('createSummaryMessageFromFrozen', () => {
+    it('should create a UIMessage with frozen summary content', () => {
+      const frozen: FrozenCompressionSummary = {
+        summaryText: 'Frozen summary text',
+        frozenAt: new Date('2025-01-01'),
+        summarizedMessageIds: ['a', 'b'],
+        originalTokenCount: 500,
+        summaryTokenCount: 50,
+        version: 3,
+      };
+
+      const msg = createSummaryMessageFromFrozen(frozen);
+      expect(msg.id).toBe('frozen-summary-v3');
+      expect(msg.role).toBe('system');
+      expect(msg.content).toBe('Frozen summary text');
+      expect(msg.compressionState?.isSummary).toBe(true);
+      expect(msg.compressionState?.originalMessageCount).toBe(2);
+      expect(msg.compressionState?.originalTokenCount).toBe(500);
+    });
+  });
+
+  describe('createFrozenSummary', () => {
+    it('should create a frozen summary from messages', () => {
+      const messages = [
+        createMockMessage('m1', 'user', 'Hello world'),
+        createMockMessage('m2', 'assistant', 'Hi there, how can I help?'),
+      ];
+
+      const frozen = createFrozenSummary('Summary text', messages);
+      expect(frozen.summaryText).toBe('Summary text');
+      expect(frozen.summarizedMessageIds).toEqual(['m1', 'm2']);
+      expect(frozen.version).toBe(1);
+      expect(frozen.summaryTokenCount).toBeGreaterThan(0);
+      expect(frozen.originalTokenCount).toBeGreaterThan(0);
+    });
+
+    it('should increment version from previous', () => {
+      const messages = [createMockMessage('m1', 'user', 'Hello')];
+      const frozen = createFrozenSummary('Summary', messages, 5);
+      expect(frozen.version).toBe(6);
+    });
+
+    it('should start at version 1 when no previous', () => {
+      const messages = [createMockMessage('m1', 'user', 'Hello')];
+      const frozen = createFrozenSummary('Summary', messages);
+      expect(frozen.version).toBe(1);
+    });
+  });
+
+  describe('getProviderCacheInfo', () => {
+    it('should return cache profile for known providers', () => {
+      const openaiProfile = getProviderCacheInfo('openai');
+      expect(openaiProfile.supportsPrefixCache).toBe(true);
+      expect(openaiProfile.cacheType).toBe('auto');
+
+      const vllmProfile = getProviderCacheInfo('vllm');
+      expect(vllmProfile.prefixStabilityImportance).toBe('critical');
+    });
+
+    it('should return default profile for unknown provider string', () => {
+      const unknownProfile = getProviderCacheInfo('unknown-provider');
+      expect(unknownProfile.supportsPrefixCache).toBe(false);
+      expect(unknownProfile.cacheType).toBe('none');
     });
   });
 });

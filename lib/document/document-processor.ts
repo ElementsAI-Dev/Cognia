@@ -1,5 +1,6 @@
 /**
  * Document Processor - Unified document processing for various file types
+ * Enhanced with file validation, encoding detection, CJK token estimation, document comparison
  */
 
 import { parseMarkdown, extractEmbeddableContent as extractMarkdownContent } from './parsers/markdown-parser';
@@ -22,6 +23,9 @@ export type DocumentType =
   | 'excel'
   | 'csv'
   | 'html'
+  | 'rtf'
+  | 'epub'
+  | 'presentation'
   | 'unknown';
 
 export interface ProcessedDocument {
@@ -51,6 +55,25 @@ export interface ProcessingOptions {
   extractEmbeddable?: boolean;
   generateChunks?: boolean;
   chunkingOptions?: Partial<ChunkingOptions>;
+  maxFileSize?: number;
+}
+
+export interface ValidationOptions {
+  maxFileSize?: number;
+  allowedTypes?: DocumentType[];
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface DocumentDiff {
+  added: string[];
+  removed: string[];
+  modified: { line: number; before: string; after: string }[];
+  similarity: number;
 }
 
 const DEFAULT_PROCESSING_OPTIONS: ProcessingOptions = {
@@ -76,6 +99,7 @@ export function detectDocumentType(filename: string): DocumentType {
   const wordExts = ['docx', 'doc'];
   const excelExts = ['xlsx', 'xls'];
   const csvExts = ['csv', 'tsv'];
+  const presentationExts = ['pptx', 'ppt'];
 
   if (markdownExts.includes(ext)) return 'markdown';
   if (codeExts.includes(ext)) return 'code';
@@ -84,8 +108,11 @@ export function detectDocumentType(filename: string): DocumentType {
   if (wordExts.includes(ext)) return 'word';
   if (excelExts.includes(ext)) return 'excel';
   if (csvExts.includes(ext)) return 'csv';
+  if (presentationExts.includes(ext)) return 'presentation';
   if (ext === 'json') return 'json';
   if (ext === 'txt') return 'text';
+  if (ext === 'rtf') return 'rtf';
+  if (ext === 'epub') return 'epub';
 
   return 'unknown';
 }
@@ -438,10 +465,197 @@ export function isTextFile(filename: string): boolean {
 }
 
 /**
- * Estimate token count for content (rough approximation)
+ * Estimate token count for content (CJK-aware approximation)
+ * CJK characters typically map to 1-2 tokens each
+ * English text averages ~4 characters per token
+ * Code tends to have more tokens per character (~3 chars/token)
  */
 export function estimateTokenCount(content: string): number {
-  // Rough estimate: 1 token ≈ 4 characters for English
-  // Adjust for code which tends to have more tokens per character
-  return Math.ceil(content.length / 4);
+  if (!content) return 0;
+
+  // Count CJK characters (Chinese, Japanese, Korean)
+  // CJK Unified Ideographs: U+4E00-U+9FFF
+  // CJK Extension A: U+3400-U+4DBF
+  // Hiragana: U+3040-U+309F, Katakana: U+30A0-U+30FF
+  // Hangul Syllables: U+AC00-U+D7AF
+  // Fullwidth forms: U+FF00-U+FFEF
+  const cjkRegex = /[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\uFF00-\uFFEF]/g;
+  const cjkMatches = content.match(cjkRegex);
+  const cjkCount = cjkMatches ? cjkMatches.length : 0;
+
+  // Non-CJK character count
+  const nonCjkLength = content.length - cjkCount;
+
+  // CJK: ~1.5 tokens per character on average
+  // Non-CJK: ~4 characters per token (0.25 tokens/char)
+  const cjkTokens = cjkCount * 1.5;
+  const nonCjkTokens = nonCjkLength / 4;
+
+  return Math.ceil(cjkTokens + nonCjkTokens);
+}
+
+/**
+ * Validate a file before processing
+ */
+export function validateFile(
+  filename: string,
+  size: number,
+  options: ValidationOptions = {}
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const maxSize = options.maxFileSize ?? 50 * 1024 * 1024; // 50MB default
+
+  // Check file size
+  if (size > maxSize) {
+    errors.push(`File size (${formatFileSize(size)}) exceeds maximum allowed size (${formatFileSize(maxSize)})`);
+  } else if (size > maxSize * 0.8) {
+    warnings.push(`File size (${formatFileSize(size)}) is close to the maximum allowed size (${formatFileSize(maxSize)})`);
+  }
+
+  if (size === 0) {
+    warnings.push('File is empty');
+  }
+
+  // Check file type
+  const type = detectDocumentType(filename);
+  if (type === 'unknown') {
+    warnings.push(`Unrecognized file type for '${filename}', will be processed as plain text`);
+  }
+
+  if (options.allowedTypes && options.allowedTypes.length > 0) {
+    if (!options.allowedTypes.includes(type)) {
+      errors.push(`File type '${type}' is not allowed. Allowed types: ${options.allowedTypes.join(', ')}`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Format file size for display
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/**
+ * Detect BOM encoding from ArrayBuffer
+ * Returns encoding name or 'utf-8' as default
+ */
+export function detectEncoding(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+
+  // UTF-8 BOM: EF BB BF
+  if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+    return 'utf-8';
+  }
+
+  // UTF-16 LE BOM: FF FE
+  if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+    return 'utf-16le';
+  }
+
+  // UTF-16 BE BOM: FE FF
+  if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+    return 'utf-16be';
+  }
+
+  // UTF-32 LE BOM: FF FE 00 00
+  if (bytes.length >= 4 && bytes[0] === 0xFF && bytes[1] === 0xFE && bytes[2] === 0x00 && bytes[3] === 0x00) {
+    return 'utf-32le';
+  }
+
+  // Default to UTF-8
+  return 'utf-8';
+}
+
+/**
+ * Compare two processed documents and return differences
+ */
+export function compareDocuments(
+  docA: ProcessedDocument,
+  docB: ProcessedDocument
+): DocumentDiff {
+  const linesA = docA.content.split('\n');
+  const linesB = docB.content.split('\n');
+
+  const added: string[] = [];
+  const removed: string[] = [];
+  const modified: { line: number; before: string; after: string }[] = [];
+
+  // Simple line-by-line diff
+  const setA = new Set(linesA.map((l) => l.trim()).filter((l) => l.length > 0));
+  const setB = new Set(linesB.map((l) => l.trim()).filter((l) => l.length > 0));
+
+  // Lines in B but not in A (added)
+  for (const line of setB) {
+    if (!setA.has(line)) {
+      added.push(line);
+    }
+  }
+
+  // Lines in A but not in B (removed)
+  for (const line of setA) {
+    if (!setB.has(line)) {
+      removed.push(line);
+    }
+  }
+
+  // Line-by-line comparison for modifications
+  const maxLines = Math.min(linesA.length, linesB.length);
+  for (let i = 0; i < maxLines; i++) {
+    const lineA = linesA[i].trim();
+    const lineB = linesB[i].trim();
+    if (lineA !== lineB && lineA.length > 0 && lineB.length > 0) {
+      // Check if it's a modification (similar but not identical)
+      const similarity = computeLineSimilarity(lineA, lineB);
+      if (similarity > 0.3 && similarity < 1.0) {
+        modified.push({ line: i + 1, before: lineA, after: lineB });
+      }
+    }
+  }
+
+  // Compute overall similarity using Jaccard coefficient on non-empty lines
+  const intersection = [...setA].filter((line) => setB.has(line)).length;
+  const union = new Set([...setA, ...setB]).size;
+  const similarity = union > 0 ? intersection / union : 1.0;
+
+  return { added, removed, modified, similarity };
+}
+
+/**
+ * Compute similarity between two strings (0-1) using bigram overlap
+ */
+function computeLineSimilarity(a: string, b: string): number {
+  if (a === b) return 1.0;
+  if (a.length === 0 || b.length === 0) return 0;
+
+  const bigramsA = new Set<string>();
+  const bigramsB = new Set<string>();
+
+  for (let i = 0; i < a.length - 1; i++) bigramsA.add(a.substring(i, i + 2));
+  for (let i = 0; i < b.length - 1; i++) bigramsB.add(b.substring(i, i + 2));
+
+  let intersection = 0;
+  for (const bg of bigramsA) {
+    if (bigramsB.has(bg)) intersection++;
+  }
+
+  const union = bigramsA.size + bigramsB.size - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+/**
+ * Check if a document type is a binary format requiring async processing
+ */
+export function isBinaryType(type: DocumentType): boolean {
+  return ['pdf', 'word', 'excel', 'presentation', 'epub'].includes(type);
 }

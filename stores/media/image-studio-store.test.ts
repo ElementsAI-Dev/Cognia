@@ -585,7 +585,7 @@ describe('useImageStudioStore', () => {
           visible: true,
           opacity: 1,
           locked: false,
-        });
+        } as unknown as Parameters<typeof result.current.addLayer>[0]);
       });
 
       expect(result.current.layers).toHaveLength(1);
@@ -604,7 +604,7 @@ describe('useImageStudioStore', () => {
           visible: true,
           opacity: 1,
           locked: false,
-        });
+        } as unknown as Parameters<typeof result.current.addLayer>[0]);
       });
 
       act(() => {
@@ -625,7 +625,7 @@ describe('useImageStudioStore', () => {
           visible: true,
           opacity: 1,
           locked: false,
-        });
+        } as unknown as Parameters<typeof result.current.addLayer>[0]);
       });
 
       act(() => {

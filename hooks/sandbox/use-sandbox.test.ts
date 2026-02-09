@@ -28,6 +28,18 @@ jest.mock('@/lib/context', () => ({
   syncSandboxExecution: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock plugin event hooks
+const mockDispatchCodeExecutionStart = jest.fn();
+const mockDispatchCodeExecutionComplete = jest.fn();
+const mockDispatchCodeExecutionError = jest.fn();
+jest.mock('@/lib/plugin', () => ({
+  getPluginEventHooks: () => ({
+    dispatchCodeExecutionStart: mockDispatchCodeExecutionStart,
+    dispatchCodeExecutionComplete: mockDispatchCodeExecutionComplete,
+    dispatchCodeExecutionError: mockDispatchCodeExecutionError,
+  }),
+}));
+
 import { useSandbox, useQuickCodeExecution } from './use-sandbox';
 import { sandboxService } from '@/lib/native/sandbox';
 import type { SandboxExecutionResult, SandboxStatus } from '@/types/system/sandbox';
@@ -355,5 +367,94 @@ describe('useQuickCodeExecution Hook', () => {
 
     expect(result.current.result).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('Plugin hook dispatches', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const setupAvailableSandbox = () => {
+    mockSandboxService.isAvailable.mockResolvedValue(true);
+    mockSandboxService.getStatus.mockResolvedValue({
+      available_runtimes: [],
+      supported_languages: [],
+      config: {} as SandboxStatus['config'],
+    });
+    mockSandboxService.getLanguages.mockResolvedValue([]);
+    mockSandboxService.getRuntimes.mockResolvedValue(['docker']);
+  };
+
+  it('should dispatch onCodeExecutionStart before execute', async () => {
+    setupAvailableSandbox();
+    const mockResult: SandboxExecutionResult = {
+      id: 'test-id', status: 'completed', stdout: 'ok', stderr: '',
+      exit_code: 0, execution_time_ms: 50, memory_used_bytes: null,
+      error: null, runtime: 'docker', language: 'python',
+    };
+    mockSandboxService.execute.mockResolvedValue(mockResult);
+
+    const { result } = renderHook(() => useSandbox());
+    await waitFor(() => { expect(result.current.isAvailable).toBe(true); });
+
+    await result.current.execute({ language: 'python', code: 'print(1)' });
+
+    expect(mockDispatchCodeExecutionStart).toHaveBeenCalledWith('python', 'print(1)');
+  });
+
+  it('should dispatch onCodeExecutionComplete after successful execute', async () => {
+    setupAvailableSandbox();
+    const mockResult: SandboxExecutionResult = {
+      id: 'test-id', status: 'completed', stdout: 'ok', stderr: '',
+      exit_code: 0, execution_time_ms: 50, memory_used_bytes: null,
+      error: null, runtime: 'docker', language: 'python',
+    };
+    mockSandboxService.execute.mockResolvedValue(mockResult);
+
+    const { result } = renderHook(() => useSandbox());
+    await waitFor(() => { expect(result.current.isAvailable).toBe(true); });
+
+    await result.current.execute({ language: 'python', code: 'print(1)' });
+
+    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith('python', mockResult);
+  });
+
+  it('should dispatch onCodeExecutionError after failed execute', async () => {
+    setupAvailableSandbox();
+    const mockResult: SandboxExecutionResult = {
+      id: 'test-id', status: 'failed', stdout: '', stderr: 'SyntaxError',
+      exit_code: 1, execution_time_ms: 10, memory_used_bytes: null,
+      error: null, runtime: 'docker', language: 'python',
+    };
+    mockSandboxService.execute.mockResolvedValue(mockResult);
+
+    const { result } = renderHook(() => useSandbox());
+    await waitFor(() => { expect(result.current.isAvailable).toBe(true); });
+
+    await result.current.execute({ language: 'python', code: 'invalid' });
+
+    expect(mockDispatchCodeExecutionError).toHaveBeenCalledWith(
+      'python',
+      expect.objectContaining({ message: 'SyntaxError' })
+    );
+  });
+
+  it('should dispatch hooks for quickExecute', async () => {
+    setupAvailableSandbox();
+    const mockResult: SandboxExecutionResult = {
+      id: 'test-id', status: 'completed', stdout: 'hello', stderr: '',
+      exit_code: 0, execution_time_ms: 50, memory_used_bytes: null,
+      error: null, runtime: 'docker', language: 'javascript',
+    };
+    mockSandboxService.quickExecute.mockResolvedValue(mockResult);
+
+    const { result } = renderHook(() => useSandbox());
+    await waitFor(() => { expect(result.current.isAvailable).toBe(true); });
+
+    await result.current.quickExecute('javascript', 'console.log("hello")');
+
+    expect(mockDispatchCodeExecutionStart).toHaveBeenCalledWith('javascript', 'console.log("hello")');
+    expect(mockDispatchCodeExecutionComplete).toHaveBeenCalledWith('javascript', mockResult);
   });
 });

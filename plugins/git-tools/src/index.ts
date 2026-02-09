@@ -4,7 +4,7 @@
  * Git version control operations for AI agents.
  */
 
-import { definePlugin, Schema, parameters } from '@cognia/plugin-sdk';
+import { definePlugin, defineCommand, Schema, parameters } from '@cognia/plugin-sdk';
 import type { PluginContext, PluginHooksAll, PluginToolContext } from '@cognia/plugin-sdk';
 
 // ============================================================================
@@ -599,8 +599,242 @@ function createGitBlameTool(context: PluginContext) {
 }
 
 // ============================================================================
+// New Tools
+// ============================================================================
+
+function createGitAddTool(context: PluginContext) {
+  return {
+    name: 'git_add',
+    description: 'Stage files for commit',
+    parametersSchema: parameters(
+      {
+        path: Schema.string('Repository path'),
+        files: Schema.array(Schema.string('Files to stage (use "." for all)')),
+      },
+      ['files']
+    ),
+    execute: async (
+      args: { path?: string; files: string[] },
+      _toolContext: PluginToolContext
+    ) => {
+      const gitArgs = ['add', ...args.files];
+      const result = await runGitCommand(context, gitArgs, args.path);
+
+      context.events.emit('git-tools:add', {
+        files: args.files,
+        success: result.success,
+      });
+
+      return {
+        success: result.success,
+        files: args.files,
+        message: result.success ? 'Files staged successfully' : result.stderr,
+      };
+    },
+  };
+}
+
+function createGitRemoteTool(context: PluginContext) {
+  return {
+    name: 'git_remote',
+    description: 'Manage remote repositories',
+    parametersSchema: parameters(
+      {
+        path: Schema.string('Repository path'),
+        action: Schema.enum(['list', 'add', 'remove', 'get-url'], 'Remote action'),
+        name: Schema.string('Remote name'),
+        url: Schema.string('Remote URL (for add)'),
+      },
+      []
+    ),
+    execute: async (
+      args: { path?: string; action?: string; name?: string; url?: string },
+      _toolContext: PluginToolContext
+    ) => {
+      const action = args.action || 'list';
+
+      if (action === 'list') {
+        const result = await runGitCommand(context, ['remote', '-v'], args.path);
+        if (!result.success) {
+          return { success: false, error: result.stderr };
+        }
+
+        const remotes = result.stdout
+          .split('\n')
+          .filter((line) => line.trim())
+          .reduce<Record<string, { fetch?: string; push?: string }>>((acc, line) => {
+            const match = line.match(/^(\S+)\s+(\S+)\s+\((\w+)\)$/);
+            if (match) {
+              const [, remoteName, remoteUrl, type] = match;
+              if (!acc[remoteName]) acc[remoteName] = {};
+              acc[remoteName][type as 'fetch' | 'push'] = remoteUrl;
+            }
+            return acc;
+          }, {});
+
+        // Cache remote info
+        await context.storage.set('remotes', { remotes, timestamp: Date.now() });
+
+        return { success: true, remotes };
+      }
+
+      if (!args.name) {
+        return { success: false, error: `Remote name required for action: ${action}` };
+      }
+
+      let gitArgs: string[];
+      switch (action) {
+        case 'add':
+          if (!args.url) return { success: false, error: 'URL required for add' };
+          gitArgs = ['remote', 'add', args.name, args.url];
+          break;
+        case 'remove':
+          gitArgs = ['remote', 'remove', args.name];
+          break;
+        case 'get-url':
+          gitArgs = ['remote', 'get-url', args.name];
+          break;
+        default:
+          return { success: false, error: `Unknown action: ${action}` };
+      }
+
+      const result = await runGitCommand(context, gitArgs, args.path);
+
+      return {
+        success: result.success,
+        action,
+        name: args.name,
+        message: result.success ? result.stdout.trim() : result.stderr,
+      };
+    },
+  };
+}
+
+function createGitTagTool(context: PluginContext) {
+  return {
+    name: 'git_tag',
+    description: 'List, create, or delete tags',
+    parametersSchema: parameters(
+      {
+        path: Schema.string('Repository path'),
+        action: Schema.enum(['list', 'create', 'delete'], 'Tag action'),
+        name: Schema.string('Tag name (for create/delete)'),
+        message: Schema.string('Tag message (for annotated tags)'),
+        commit: Schema.string('Commit to tag (default: HEAD)'),
+      },
+      []
+    ),
+    execute: async (
+      args: { path?: string; action?: string; name?: string; message?: string; commit?: string },
+      _toolContext: PluginToolContext
+    ) => {
+      const action = args.action || 'list';
+
+      if (action === 'list') {
+        const result = await runGitCommand(context, ['tag', '-l', '--sort=-creatordate'], args.path);
+        if (!result.success) {
+          return { success: false, error: result.stderr };
+        }
+
+        const tags = result.stdout.split('\n').filter((t) => t.trim());
+        return { success: true, tags, count: tags.length };
+      }
+
+      if (!args.name) {
+        return { success: false, error: `Tag name required for action: ${action}` };
+      }
+
+      let gitArgs: string[];
+      switch (action) {
+        case 'create':
+          gitArgs = ['tag'];
+          if (args.message) {
+            gitArgs.push('-a', args.name, '-m', `"${args.message}"`);
+          } else {
+            gitArgs.push(args.name);
+          }
+          if (args.commit) {
+            gitArgs.push(args.commit);
+          }
+          break;
+        case 'delete':
+          gitArgs = ['tag', '-d', args.name];
+          break;
+        default:
+          return { success: false, error: `Unknown action: ${action}` };
+      }
+
+      const result = await runGitCommand(context, gitArgs, args.path);
+
+      context.events.emit('git-tools:tag', {
+        action,
+        name: args.name,
+        success: result.success,
+      });
+
+      return {
+        success: result.success,
+        action,
+        tag: args.name,
+        message: result.success ? result.stdout.trim() : result.stderr,
+      };
+    },
+  };
+}
+
+// ============================================================================
+// Commands
+// ============================================================================
+
+function createGitCommands(context: PluginContext) {
+  return [
+    defineCommand(
+      'git-tools.status',
+      'Git Status',
+      async () => {
+        const result = await runGitCommand(context, ['status', '--short', '-b']);
+        context.ui.showNotification({
+          title: 'Git Status',
+          message: result.success ? result.stdout || 'Clean working directory' : `Error: ${result.stderr}`,
+          type: result.success ? 'info' : 'error',
+        });
+      },
+      { description: 'Show git repository status', icon: 'git-branch' }
+    ),
+    defineCommand(
+      'git-tools.recent-commits',
+      'Recent Commits',
+      async () => {
+        const result = await runGitCommand(context, ['log', '--oneline', '-10']);
+        context.ui.showNotification({
+          title: 'Recent Commits',
+          message: result.success ? result.stdout || 'No commits yet' : `Error: ${result.stderr}`,
+          type: result.success ? 'info' : 'error',
+        });
+      },
+      { description: 'Show last 10 commits', icon: 'git-commit' }
+    ),
+    defineCommand(
+      'git-tools.current-branch',
+      'Current Branch',
+      async () => {
+        const result = await runGitCommand(context, ['branch', '--show-current']);
+        context.ui.showNotification({
+          title: 'Current Branch',
+          message: result.success ? result.stdout.trim() || 'Detached HEAD' : `Error: ${result.stderr}`,
+          type: 'info',
+        });
+      },
+      { description: 'Show current branch name', icon: 'git-branch' }
+    ),
+  ];
+}
+
+// ============================================================================
 // Plugin Definition
 // ============================================================================
+
+const eventCleanups: Array<() => void> = [];
 
 export default definePlugin({
   activate(context: PluginContext): PluginHooksAll | void {
@@ -619,7 +853,12 @@ export default definePlugin({
       createGitCommitTool(context),
       createGitStashTool(context),
       createGitBlameTool(context),
+      createGitAddTool(context),
+      createGitRemoteTool(context),
+      createGitTagTool(context),
     ];
+
+    const mutatingTools = ['git_commit', 'git_add'];
 
     for (const tool of tools) {
       context.agent.registerTool({
@@ -629,7 +868,7 @@ export default definePlugin({
           name: tool.name,
           description: tool.description,
           parametersSchema: tool.parametersSchema,
-          requiresApproval: tool.name === 'git_commit',
+          requiresApproval: mutatingTools.includes(tool.name),
         },
         execute: tool.execute,
       });
@@ -637,13 +876,45 @@ export default definePlugin({
 
     context.logger.info(`Registered ${tools.length} git tools`);
 
+    // Register commands
+    const commands = createGitCommands(context);
+    context.logger.info(`Registered ${commands.length} commands`);
+
+    // Event listeners
+    const unsub1 = context.events.on('git-tools:refresh-status', async () => {
+      context.logger.info('Refreshing git status');
+      const result = await runGitCommand(context, ['status', '--porcelain', '-b']);
+      if (result.success) {
+        const parsed = parseStatus(result.stdout);
+        await context.storage.set('lastStatus', { ...parsed, timestamp: Date.now() });
+        context.events.emit('git-tools:status-updated', parsed);
+      }
+    });
+    eventCleanups.push(unsub1);
+
     return {
       onEnable: async () => context.logger.info('Git Tools enabled'),
       onDisable: async () => context.logger.info('Git Tools disabled'),
       onConfigChange: (newConfig: Record<string, unknown>) => {
         config.maxLogEntries = (newConfig.maxLogEntries as number) || 50;
         config.maxDiffSize = (newConfig.maxDiffSize as number) || 102400;
+        context.logger.info('Git Tools config updated');
+      },
+      onCommand: (commandId: string) => {
+        const command = commands.find((c) => c.id === commandId);
+        if (command) {
+          command.execute();
+          return true;
+        }
+        return false;
       },
     };
+  },
+
+  deactivate() {
+    for (const cleanup of eventCleanups) {
+      cleanup();
+    }
+    eventCleanups.length = 0;
   },
 });

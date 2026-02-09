@@ -63,6 +63,16 @@ export function generateCacheKey(
     ...(provider === 'hume' && {
       voice: settings.humeVoice,
     }),
+    ...(provider === 'cartesia' && {
+      voice: settings.cartesiaVoice,
+      model: settings.cartesiaModel,
+      language: settings.cartesiaLanguage,
+      speed: settings.cartesiaSpeed,
+      emotion: settings.cartesiaEmotion,
+    }),
+    ...(provider === 'deepgram' && {
+      voice: settings.deepgramVoice,
+    }),
   };
 
   // Create hash from parameters

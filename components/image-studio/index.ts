@@ -24,7 +24,7 @@ export { ImageCropper } from './tools/image-cropper';
 export type { ImageCropperProps } from './tools/image-cropper';
 
 export { DrawingTools } from './tools/drawing-tools';
-export type { DrawingToolsProps, DrawingShape, ShapeType } from './tools/drawing-tools';
+export type { DrawingToolsProps, DrawingToolType } from './tools/drawing-tools';
 
 export { TextOverlay } from './tools/text-overlay';
 export type { TextOverlayProps, TextLayer } from './tools/text-overlay';
@@ -36,7 +36,6 @@ export type { ImageAdjustmentsProps } from './adjustments/image-adjustments';
 export { FiltersGallery } from './adjustments/filters-gallery';
 export type {
   FiltersGalleryProps,
-  FilterPreset as GalleryFilterPreset,
 } from './adjustments/filters-gallery';
 
 // AI - AI-powered features (upscaler, background remover)

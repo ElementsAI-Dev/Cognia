@@ -11,8 +11,10 @@ import { useTranslations } from 'next-intl';
 import {
   AlertCircle,
   CheckCircle2,
+  Cpu,
   Download,
   ExternalLink,
+  Info,
   Loader2,
   RefreshCw,
   Terminal,
@@ -242,11 +244,27 @@ export function FFmpegStatus({
     return 'windows';
   });
 
-  const { ffmpegAvailable, isInitialized, checkFfmpeg } = useScreenRecordingStore();
+  const {
+    ffmpegAvailable,
+    ffmpegInfo,
+    ffmpegVersionOk,
+    hardwareAcceleration,
+    ffmpegInstallGuide,
+    isInitialized,
+    checkFfmpeg,
+    refreshFFmpegInfo,
+    refreshHardwareAcceleration,
+    refreshFFmpegInstallGuide,
+  } = useScreenRecordingStore();
 
   const handleCheckAgain = async () => {
     setIsChecking(true);
-    await checkFfmpeg();
+    const available = await checkFfmpeg();
+    if (available) {
+      await Promise.all([refreshFFmpegInfo(), refreshHardwareAcceleration()]);
+    } else {
+      await refreshFFmpegInstallGuide();
+    }
     setIsChecking(false);
   };
 
@@ -266,6 +284,15 @@ export function FFmpegStatus({
     return null;
   }
 
+  const hwAccelLabels = hardwareAcceleration
+    ? [
+        hardwareAcceleration.nvidia && 'NVIDIA',
+        hardwareAcceleration.intel_qsv && 'Intel QSV',
+        hardwareAcceleration.amd_amf && 'AMD AMF',
+        hardwareAcceleration.vaapi && 'VAAPI',
+      ].filter(Boolean)
+    : [];
+
   // Compact mode - just show a badge
   if (compact) {
     return (
@@ -277,8 +304,18 @@ export function FFmpegStatus({
             <AlertCircle className="h-4 w-4 text-destructive" />
           )}
           <span className="text-xs text-muted-foreground">
-            {ffmpegAvailable ? t('available') : t('notAvailable')}
+            {ffmpegAvailable
+              ? ffmpegInfo?.version
+                ? `FFmpeg ${ffmpegInfo.version}`
+                : t('available')
+              : t('notAvailable')}
           </span>
+          {ffmpegAvailable && hwAccelLabels.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Cpu className="h-3 w-3" />
+              {hwAccelLabels.join(', ')}
+            </span>
+          )}
           {!ffmpegAvailable && (
             <Button
               variant="ghost"
@@ -319,14 +356,58 @@ export function FFmpegStatus({
         </AlertTitle>
         <AlertDescription className="mt-2">
           {ffmpegAvailable ? (
-            <p className="text-sm text-muted-foreground">
-              {t('readyDescription')}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {t('readyDescription')}
+              </p>
+              {ffmpegInfo && (
+                <div className="space-y-1.5 text-xs text-muted-foreground">
+                  {ffmpegInfo.version && (
+                    <div className="flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5" />
+                      <span>
+                        {t('version')}: {ffmpegInfo.version}
+                        {!ffmpegVersionOk && (
+                          <span className="ml-1 text-amber-500">({t('versionWarning')})</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {ffmpegInfo.path && (
+                    <div className="flex items-center gap-1.5">
+                      <Terminal className="h-3.5 w-3.5" />
+                      <span className="font-mono truncate max-w-xs" title={ffmpegInfo.path}>
+                        {ffmpegInfo.path}
+                      </span>
+                    </div>
+                  )}
+                  {hwAccelLabels.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <Cpu className="h-3.5 w-3.5" />
+                      <span>{t('hwAcceleration')}: {hwAccelLabels.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
               <p className="text-sm">
                 {t('requiredDescription')}
               </p>
+              {ffmpegInstallGuide?.quick_install && (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md font-mono text-sm">
+                  <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <code className="flex-1 truncate">{ffmpegInstallGuide.quick_install}</code>
+                  <CopyButton
+                    content={ffmpegInstallGuide.quick_install}
+                    iconOnly
+                    tooltip={t('copyToClipboard')}
+                    showToast={false}
+                    saveToHistory={false}
+                  />
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"

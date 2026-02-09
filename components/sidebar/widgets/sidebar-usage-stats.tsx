@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useUsageStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { normalizeTokenUsage } from '@/types/system/usage';
+import { useCurrencyFormat } from '@/hooks/ui/use-currency-format';
 
 interface SidebarUsageStatsProps {
   className?: string;
@@ -58,10 +59,7 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
     return tokens.toString();
   };
 
-  const formatCost = (cost: number) => {
-    if (cost < 0.01) return '< $0.01';
-    return `$${cost.toFixed(2)}`;
-  };
+  const { formatCost } = useCurrencyFormat();
 
   // Calculate usage percentage using configured limit or default 1M tokens
   const configuredLimit = quotaLimits['default']?.maxTokensPerDay;
@@ -148,11 +146,11 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
       */}
 
       <CollapsibleContent>
-        <div className="px-3 pb-3 pt-0 space-y-3">
+          <div className="px-3 pb-3 pt-0 space-y-3">
           {/* Progress */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Daily Limit</span>
+              <span>{t('dailyLimit') || 'Daily Limit'}</span>
               <span>{Math.round(usagePercent)}%</span>
             </div>
             <Progress value={usagePercent} className="h-1.5" />
@@ -161,25 +159,25 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
           {/* Detailed Stats Grid */}
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div className="space-y-0.5 p-2 rounded bg-muted/30">
-              <span className="text-muted-foreground block">Input</span>
+              <span className="text-muted-foreground block">{t('inputTokens') || 'Input'}</span>
               <span className="font-medium font-mono text-foreground">
                 {formatTokens(usageDetails.prompt)}
               </span>
             </div>
             <div className="space-y-0.5 p-2 rounded bg-muted/30">
-              <span className="text-muted-foreground block">Output</span>
+              <span className="text-muted-foreground block">{t('outputTokens') || 'Output'}</span>
               <span className="font-medium font-mono text-foreground">
                 {formatTokens(usageDetails.completion)}
               </span>
             </div>
             <div className="space-y-0.5 p-2 rounded bg-muted/30">
-              <span className="text-muted-foreground block">Cost</span>
+              <span className="text-muted-foreground block">{t('cost') || 'Cost'}</span>
               <span className="font-medium font-mono text-foreground">
                 {formatCost(todayUsage.cost)}
               </span>
             </div>
             <div className="space-y-0.5 p-2 rounded bg-muted/30">
-              <span className="text-muted-foreground block">Requests</span>
+              <span className="text-muted-foreground block">{t('requests') || 'Requests'}</span>
               <span className="font-medium font-mono text-foreground">{todayUsage.requests}</span>
             </div>
           </div>
@@ -188,7 +186,7 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
             href="/settings?tab=data"
             className="block w-full py-1.5 text-center text-[10px] font-medium text-primary hover:text-primary/80 transition-colors bg-primary/5 rounded hover:bg-primary/10"
           >
-            View Full Report
+            {t('viewFullReport') || 'View Full Report'}
           </Link>
         </div>
       </CollapsibleContent>

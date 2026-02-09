@@ -14,6 +14,8 @@ export * from './providers/edge-tts';
 export * from './providers/elevenlabs-tts';
 export * from './providers/lmnt-tts';
 export * from './providers/hume-tts';
+export * from './providers/cartesia-tts';
+export * from './providers/deepgram-tts';
 
 // Caching
 export * from './tts-cache';

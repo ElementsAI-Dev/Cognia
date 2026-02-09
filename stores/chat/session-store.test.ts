@@ -5,12 +5,36 @@
 import { act } from '@testing-library/react';
 import { useSessionStore, selectSessions, selectActiveSessionId } from './session-store';
 
+// Mock plugin lifecycle hooks
+const mockDispatchOnSessionCreate = jest.fn();
+const mockDispatchOnSessionDelete = jest.fn();
+const mockDispatchOnSessionSwitch = jest.fn();
+const mockDispatchOnSessionRename = jest.fn();
+const mockDispatchOnSessionClear = jest.fn();
+const mockDispatchOnChatModeSwitch = jest.fn();
+const mockDispatchOnModelSwitch = jest.fn();
+const mockDispatchOnSystemPromptChange = jest.fn();
+
+jest.mock('@/lib/plugin', () => ({
+  getPluginLifecycleHooks: () => ({
+    dispatchOnSessionCreate: mockDispatchOnSessionCreate,
+    dispatchOnSessionDelete: mockDispatchOnSessionDelete,
+    dispatchOnSessionSwitch: mockDispatchOnSessionSwitch,
+    dispatchOnSessionRename: mockDispatchOnSessionRename,
+    dispatchOnSessionClear: mockDispatchOnSessionClear,
+    dispatchOnChatModeSwitch: mockDispatchOnChatModeSwitch,
+    dispatchOnModelSwitch: mockDispatchOnModelSwitch,
+    dispatchOnSystemPromptChange: mockDispatchOnSystemPromptChange,
+  }),
+}));
+
 describe('useSessionStore', () => {
   beforeEach(() => {
     useSessionStore.setState({
       sessions: [],
       activeSessionId: null,
     });
+    jest.clearAllMocks();
   });
 
   describe('mode switching', () => {
@@ -774,6 +798,162 @@ describe('useSessionStore', () => {
 
       expect(useSessionStore.getState().getInputDraft(session1!.id)).toBe('');
       expect(useSessionStore.getState().getInputDraft(session2!.id)).toBe('Draft for session 2');
+    });
+  });
+
+  describe('plugin hook dispatches', () => {
+    it('should dispatch onSessionCreate when creating a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      expect(mockDispatchOnSessionCreate).toHaveBeenCalledWith(session!.id);
+    });
+
+    it('should dispatch onSessionDelete when deleting a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Test' });
+      });
+
+      act(() => {
+        useSessionStore.getState().deleteSession(session!.id);
+      });
+
+      expect(mockDispatchOnSessionDelete).toHaveBeenCalledWith(session!.id);
+    });
+
+    it('should dispatch onSessionSwitch when switching active session', () => {
+      let session1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session1 = useSessionStore.getState().createSession({ title: 'First' });
+        useSessionStore.getState().createSession({ title: 'Second' });
+      });
+
+      mockDispatchOnSessionSwitch.mockClear();
+      act(() => {
+        useSessionStore.getState().setActiveSession(session1!.id);
+      });
+
+      expect(mockDispatchOnSessionSwitch).toHaveBeenCalledWith(session1!.id);
+    });
+
+    it('should dispatch onSessionRename when title changes via updateSession', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Original' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { title: 'Renamed' });
+      });
+
+      expect(mockDispatchOnSessionRename).toHaveBeenCalledWith(session!.id, 'Original', 'Renamed');
+    });
+
+    it('should NOT dispatch onSessionRename when title stays the same', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'Same' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { title: 'Same' });
+      });
+
+      expect(mockDispatchOnSessionRename).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch onSessionClear for each session when deleteAllSessions is called', () => {
+      act(() => {
+        useSessionStore.getState().createSession({ title: 'S1' });
+        useSessionStore.getState().createSession({ title: 'S2' });
+      });
+
+      act(() => {
+        useSessionStore.getState().deleteAllSessions();
+      });
+
+      expect(mockDispatchOnSessionClear).toHaveBeenCalledTimes(2);
+    });
+
+    it('should dispatch onChatModeSwitch when mode changes', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ mode: 'chat' });
+      });
+
+      act(() => {
+        useSessionStore.getState().switchMode(session!.id, 'agent');
+      });
+
+      expect(mockDispatchOnChatModeSwitch).toHaveBeenCalledWith(session!.id, 'agent', 'chat');
+    });
+
+    it('should NOT dispatch onChatModeSwitch when mode is the same', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ mode: 'chat' });
+      });
+
+      act(() => {
+        useSessionStore.getState().switchMode(session!.id, 'chat');
+      });
+
+      expect(mockDispatchOnChatModeSwitch).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch onModelSwitch when provider or model changes via updateSession', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ provider: 'openai', model: 'gpt-4o' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { provider: 'anthropic', model: 'claude-3' });
+      });
+
+      expect(mockDispatchOnModelSwitch).toHaveBeenCalledWith('anthropic', 'claude-3', 'openai', 'gpt-4o');
+    });
+
+    it('should NOT dispatch onModelSwitch when provider and model stay the same', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ provider: 'openai', model: 'gpt-4o' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { title: 'New Title' });
+      });
+
+      expect(mockDispatchOnModelSwitch).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch onSystemPromptChange when systemPrompt changes', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ systemPrompt: 'Old prompt' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { systemPrompt: 'New prompt' });
+      });
+
+      expect(mockDispatchOnSystemPromptChange).toHaveBeenCalledWith(session!.id, 'New prompt', 'Old prompt');
+    });
+
+    it('should NOT dispatch onSystemPromptChange when prompt stays the same', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ systemPrompt: 'Same prompt' });
+      });
+
+      act(() => {
+        useSessionStore.getState().updateSession(session!.id, { title: 'New Title' });
+      });
+
+      expect(mockDispatchOnSystemPromptChange).not.toHaveBeenCalled();
     });
   });
 });

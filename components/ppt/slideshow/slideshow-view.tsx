@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ThumbnailNavigator } from './thumbnail-navigator';
@@ -28,7 +28,14 @@ export function SlideshowView({
   const [isPlaying, setIsPlaying] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionPhase, setTransitionPhase] = useState<'idle' | 'exit' | 'enter'>('idle');
+  const [slideDirection, setSlideDirection] = useState<'next' | 'prev'>('next');
+  const [pointerMode, setPointerMode] = useState<'none' | 'laser' | 'draw'>('none');
+  const [laserPos, setLaserPos] = useState<{ x: number; y: number } | null>(null);
+  const [drawingStrokes, setDrawingStrokes] = useState<Array<{ x: number; y: number }[]>>([]);
+  const currentStrokeRef = useRef<{ x: number; y: number }[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,13 +55,34 @@ export function SlideshowView({
     });
   }, [updateSlideshowSettings]);
 
+  const isTransitioning = transitionPhase !== 'idle';
+
+  // Clear drawings when navigating
+  const clearDrawings = useCallback(() => {
+    setDrawingStrokes([]);
+    currentStrokeRef.current = [];
+  }, []);
+
   // Handle slide navigation with transitions
   const navigateWithTransition = useCallback((direction: 'prev' | 'next' | number) => {
     if (isTransitioning) return;
+
+    // Clear annotations on slide change
+    clearDrawings();
+
+    // Determine navigation direction for directional transitions
+    const navDir = typeof direction === 'number'
+      ? (direction > currentIndex ? 'next' : 'prev')
+      : direction;
+    setSlideDirection(navDir);
     
     if (settings.enableTransitions) {
-      setIsTransitioning(true);
+      // Phase 1: Exit animation
+      setTransitionPhase('exit');
+      const halfDuration = Math.max(settings.transitionDuration / 2, 100);
+
       setTimeout(() => {
+        // Navigate to new slide
         if (typeof direction === 'number') {
           onGoToSlide?.(direction);
         } else if (direction === 'prev') {
@@ -62,8 +90,13 @@ export function SlideshowView({
         } else {
           onNext();
         }
-        setTimeout(() => setIsTransitioning(false), 50);
-      }, settings.transitionDuration / 2);
+        // Phase 2: Enter animation
+        setTransitionPhase('enter');
+
+        setTimeout(() => {
+          setTransitionPhase('idle');
+        }, halfDuration);
+      }, halfDuration);
     } else {
       if (typeof direction === 'number') {
         onGoToSlide?.(direction);
@@ -73,7 +106,7 @@ export function SlideshowView({
         onNext();
       }
     }
-  }, [isTransitioning, settings.enableTransitions, settings.transitionDuration, onPrev, onNext, onGoToSlide]);
+  }, [isTransitioning, currentIndex, settings.enableTransitions, settings.transitionDuration, onPrev, onNext, onGoToSlide, clearDrawings]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -162,6 +195,26 @@ export function SlideshowView({
           e.preventDefault();
           setShowKeyboardHelp(prev => !prev);
           break;
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          setPointerMode(prev => prev === 'laser' ? 'none' : 'laser');
+          setLaserPos(null);
+          break;
+        case 'd':
+        case 'D':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setPointerMode(prev => prev === 'draw' ? 'none' : 'draw');
+          }
+          break;
+        case 'c':
+        case 'C':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setDrawingStrokes([]);
+          }
+          break;
       }
     };
 
@@ -204,28 +257,113 @@ export function SlideshowView({
     }
   }, [currentIndex, totalSlides, navigateWithTransition]);
 
-  // Transition styles
-  const getTransitionStyle = () => {
+  // Transition styles - supports exit and enter phases with direction
+  const getTransitionStyle = (): React.CSSProperties => {
     if (!settings.enableTransitions) return {};
-    
-    const baseStyle = {
-      transition: `all ${settings.transitionDuration}ms ease-in-out`,
-    };
 
-    if (isTransitioning) {
+    const halfDuration = Math.max(settings.transitionDuration / 2, 100);
+    const base: React.CSSProperties = {
+      transition: `all ${halfDuration}ms cubic-bezier(0.4,0,0.2,1)`,
+    };
+    const isNext = slideDirection === 'next';
+
+    if (transitionPhase === 'exit') {
       switch (settings.transitionType) {
         case 'fade':
-          return { ...baseStyle, opacity: 0 };
+          return { ...base, opacity: 0 };
         case 'slide':
-          return { ...baseStyle, transform: 'translateX(-100%)', opacity: 0 };
+          return { ...base, transform: `translateX(${isNext ? '-8%' : '8%'})`, opacity: 0 };
         case 'zoom':
-          return { ...baseStyle, transform: 'scale(0.9)', opacity: 0 };
+          return { ...base, transform: 'scale(0.85)', opacity: 0 };
         default:
-          return baseStyle;
+          return { ...base, opacity: 0 };
       }
     }
-    return { ...baseStyle, opacity: 1, transform: 'translateX(0) scale(1)' };
+
+    if (transitionPhase === 'enter') {
+      switch (settings.transitionType) {
+        case 'fade':
+          return { ...base, opacity: 1 };
+        case 'slide':
+          return { ...base, transform: 'translateX(0)', opacity: 1 };
+        case 'zoom':
+          return { ...base, transform: 'scale(1)', opacity: 1 };
+        default:
+          return { ...base, opacity: 1 };
+      }
+    }
+
+    // Idle
+    return { opacity: 1, transform: 'translateX(0) scale(1)' };
   };
+
+  // Redraw canvas when strokes change
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
+    canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+    ctx.strokeStyle = '#EF4444';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (const stroke of drawingStrokes) {
+      if (stroke.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(stroke[0].x, stroke[0].y);
+      for (let i = 1; i < stroke.length; i++) {
+        ctx.lineTo(stroke[i].x, stroke[i].y);
+      }
+      ctx.stroke();
+    }
+  }, [drawingStrokes]);
+
+  // Pointer handlers for laser and drawing
+  const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerMode === 'laser') {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setLaserPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    }
+    if (pointerMode === 'draw' && isDrawingRef.current) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      currentStrokeRef.current = [...currentStrokeRef.current, pt];
+      setDrawingStrokes(prev => [...prev.slice(0, -1), [...currentStrokeRef.current]]);
+    }
+  }, [pointerMode]);
+
+  const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerMode === 'draw') {
+      e.preventDefault();
+      isDrawingRef.current = true;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      currentStrokeRef.current = [pt];
+      setDrawingStrokes(prev => [...prev, [pt]]);
+    }
+  }, [pointerMode]);
+
+  const handlePointerUp = useCallback(() => {
+    if (pointerMode === 'draw') {
+      isDrawingRef.current = false;
+      currentStrokeRef.current = [];
+    }
+  }, [pointerMode]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (pointerMode === 'laser') setLaserPos(null);
+    if (pointerMode === 'draw') {
+      isDrawingRef.current = false;
+      currentStrokeRef.current = [];
+    }
+  }, [pointerMode]);
 
   if (!slide) return null;
 
@@ -254,16 +392,23 @@ export function SlideshowView({
       {/* Main slide content */}
       <div
         className={cn(
-          'flex-1 flex flex-col justify-center items-center p-8 cursor-pointer',
+          'flex-1 flex flex-col justify-center items-center p-8 relative',
           settings.showThumbnails && 'ml-32',
-          settings.showNotes && 'mr-80'
+          settings.showNotes && 'mr-80',
+          pointerMode === 'laser' && 'cursor-none',
+          pointerMode === 'draw' && 'cursor-crosshair',
+          pointerMode === 'none' && 'cursor-pointer'
         )}
         style={{
           backgroundColor: slide.backgroundColor || theme.backgroundColor,
           color: theme.textColor,
           ...getTransitionStyle(),
         }}
-        onClick={handleSlideClick}
+        onClick={pointerMode === 'none' ? handleSlideClick : undefined}
+        onPointerMove={handlePointerMove}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
       >
         <div className="max-w-5xl w-full">
           <SlideContent
@@ -273,6 +418,46 @@ export function SlideshowView({
             className="p-0"
           />
         </div>
+
+        {/* Drawing annotation canvas */}
+        {(pointerMode === 'draw' || drawingStrokes.length > 0) && (
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none z-30"
+          />
+        )}
+
+        {/* Laser pointer dot */}
+        {pointerMode === 'laser' && laserPos && (
+          <div
+            className="absolute z-30 pointer-events-none"
+            style={{
+              left: laserPos.x - 8,
+              top: laserPos.y - 8,
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #EF4444 0%, #EF444480 50%, transparent 70%)',
+              boxShadow: '0 0 12px 4px #EF444460',
+            }}
+          />
+        )}
+
+        {/* Pointer mode indicator */}
+        {pointerMode !== 'none' && (
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-2 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs">
+            <div className={cn('w-2 h-2 rounded-full', pointerMode === 'laser' ? 'bg-red-500' : 'bg-yellow-400')} />
+            {pointerMode === 'laser' ? t('laserPointer') || 'Laser (L)' : t('drawMode') || 'Draw (D)'}
+            {pointerMode === 'draw' && drawingStrokes.length > 0 && (
+              <button
+                className="ml-1 text-white/70 hover:text-white underline"
+                onClick={(e) => { e.stopPropagation(); setDrawingStrokes([]); }}
+              >
+                {t('clear') || 'Clear (C)'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Speaker notes panel */}

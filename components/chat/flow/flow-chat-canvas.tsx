@@ -104,9 +104,9 @@ function FlowChatCanvasInner({
   onFollowUp,
   onRegenerate,
   onCreateBranch,
-  onParallelGenerate: _onParallelGenerate,
+  onParallelGenerate,
   onDeleteNode,
-  onAddReference: _onAddReference,
+  onAddReference,
   className,
   initialNodes,
   initialEdges,
@@ -138,8 +138,15 @@ function FlowChatCanvasInner({
   // Keyboard shortcuts help dialog
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
+  // Rating & Notes state
+  const [ratingNodeId, setRatingNodeId] = useState<string | null>(null);
+  const [notesNodeId, setNotesNodeId] = useState<string | null>(null);
+  const [notesContent, setNotesContent] = useState('');
+  const [_editingNodeId, _setEditingNodeId] = useState<string | null>(null);
+  const [_editingContent, _setEditingContent] = useState('');
+
   // Handle parallel generation from node action
-  const _handleParallelGenerate = useCallback(
+  const handleParallelGenerate = useCallback(
     (messageId: string) => {
       const message = messages.find((m) => m.id === messageId);
       if (message?.content) {
@@ -199,9 +206,11 @@ function FlowChatCanvasInner({
 
       // Handle specific actions
       switch (action) {
-        case 'follow-up':
-          onFollowUp?.(messageId, '');
+        case 'follow-up': {
+          const msg = messages.find((m) => m.id === messageId);
+          onFollowUp?.(messageId, msg?.content || '');
           break;
+        }
         case 'regenerate':
           onRegenerate?.(messageId);
           break;
@@ -253,14 +262,98 @@ function FlowChatCanvasInner({
           if (selectedNodes.length > 0) {
             const sourceNodeId = selectedNodes[0];
             const referenceEdge = createReferenceEdge(sourceNodeId, nodeId);
-            // Add the reference edge to edges
             onEdgesChange([{ type: 'add', item: referenceEdge as FlowChatEdgeType }]);
+          }
+          // Also notify parent for input area integration
+          const refMsg = messages.find((m) => m.id === messageId);
+          if (refMsg) {
+            onAddReference?.({
+              nodeId,
+              messageId,
+              previewText: (refMsg.content || '').slice(0, 200),
+              startIndex: 0,
+              endIndex: 0,
+            });
+          }
+          break;
+        }
+        case 'parallel': {
+          handleParallelGenerate(messageId);
+          break;
+        }
+        case 'rate': {
+          setRatingNodeId(nodeId);
+          break;
+        }
+        case 'add-note': {
+          const existingNotes = canvasState.nodeNotes?.[nodeId] || '';
+          setNotesContent(existingNotes);
+          setNotesNodeId(nodeId);
+          break;
+        }
+        case 'edit': {
+          const editMsg = messages.find((m) => m.id === messageId);
+          if (editMsg?.content) {
+            _setEditingContent(editMsg.content);
+            _setEditingNodeId(nodeId);
+          }
+          break;
+        }
+        case 'add-tag': {
+          const tagId = data?.tagId as string;
+          if (tagId) {
+            const currentTags = canvasState.nodeTags[nodeId] || [];
+            if (!currentTags.includes(tagId)) {
+              onCanvasStateChange?.({
+                nodeTags: {
+                  ...canvasState.nodeTags,
+                  [nodeId]: [...currentTags, tagId],
+                },
+              });
+            }
+          }
+          break;
+        }
+        case 'remove-tag': {
+          const removeTagId = data?.tagId as string;
+          if (removeTagId) {
+            const currentNodeTags = canvasState.nodeTags[nodeId] || [];
+            onCanvasStateChange?.({
+              nodeTags: {
+                ...canvasState.nodeTags,
+                [nodeId]: currentNodeTags.filter((id) => id !== removeTagId),
+              },
+            });
+          }
+          break;
+        }
+        case 'add-to-group': {
+          const groupId = data?.groupId as string;
+          if (groupId) {
+            const groups = canvasState.nodeGroups.map((g) =>
+              g.id === groupId && !g.nodeIds.includes(nodeId)
+                ? { ...g, nodeIds: [...g.nodeIds, nodeId] }
+                : g
+            );
+            onCanvasStateChange?.({ nodeGroups: groups });
+          }
+          break;
+        }
+        case 'remove-from-group': {
+          const rmGroupId = data?.groupId as string;
+          if (rmGroupId) {
+            const updatedGroups = canvasState.nodeGroups.map((g) =>
+              g.id === rmGroupId
+                ? { ...g, nodeIds: g.nodeIds.filter((id) => id !== nodeId) }
+                : g
+            );
+            onCanvasStateChange?.({ nodeGroups: updatedGroups });
           }
           break;
         }
       }
     },
-    [onNodeAction, onFollowUp, onRegenerate, onCreateBranch, onDeleteNode, onCanvasStateChange, onEdgesChange, canvasState.collapsedNodeIds, canvasState.bookmarkedNodeIds, canvasState.selectedNodeIds, messages, nodes, showComparison]
+    [onNodeAction, onFollowUp, onRegenerate, onCreateBranch, onDeleteNode, onCanvasStateChange, onEdgesChange, onAddReference, handleParallelGenerate, canvasState, messages, nodes, showComparison]
   );
 
   // Handle node changes (position, selection)
@@ -348,13 +441,13 @@ function FlowChatCanvasInner({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + T: Toggle tool panel
-      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+      // Ctrl/Cmd + Shift + T: Toggle tool panel (avoid browser new-tab conflict)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
         e.preventDefault();
         setShowToolPanel((prev) => !prev);
       }
-      // Ctrl/Cmd + L: Auto layout
-      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+      // Ctrl/Cmd + Shift + L: Auto layout (avoid browser address-bar conflict)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
         e.preventDefault();
         handleAutoLayoutRef.current();
       }
@@ -549,12 +642,12 @@ function FlowChatCanvasInner({
         {showToolPanel && (
           <div className="absolute right-0 top-0 bottom-0 w-72 bg-background border-l shadow-lg z-10">
             <FlowToolPanel
-              onToolExecute={(result) => {
-                console.log('Tool executed:', result);
+              onToolExecute={() => {
+                // Tool execution handled internally by FlowToolPanel
               }}
               onInsertResult={(content) => {
-                // Could insert result as a new message or reference
-                console.log('Insert result:', content);
+                // Insert tool result into the chat input via follow-up
+                onFollowUp?.('', `Tool result:\n${content}`);
               }}
             />
           </div>
@@ -565,12 +658,42 @@ function FlowChatCanvasInner({
           prompt={parallelPrompt}
           open={showParallelGeneration}
           onOpenChange={setShowParallelGeneration}
-          onGenerationStart={(models) => {
-            console.log('Starting parallel generation with models:', models);
+          onGenerationStart={() => {
+            // Generation started — UI shows progress internally
+          }}
+          onModelResult={(result) => {
+            // Notify parent about parallel generation results for message creation
+            if (result.content) {
+              onParallelGenerate?.({
+                sourceMessageId: parallelPrompt,
+                models: [{ provider: result.provider || '', model: result.model }],
+                customPrompts: { [result.model]: result.content },
+              });
+            }
           }}
           onGenerationComplete={(results) => {
-            // Handle parallel generation results
-            console.log('Parallel generation completed:', results);
+            // Add all results to comparison view for side-by-side evaluation
+            for (const result of results) {
+              if (result.content) {
+                setComparisonNodes((prev) => [
+                  ...prev,
+                  {
+                    messageId: `parallel-${result.model}-${Date.now()}`,
+                    message: {
+                      id: `parallel-${result.model}-${Date.now()}`,
+                      role: 'assistant' as const,
+                      content: result.content || '',
+                      createdAt: new Date(),
+                    } as typeof messages[0],
+                    model: result.model,
+                    provider: result.provider,
+                  },
+                ]);
+              }
+            }
+            if (results.length > 1) {
+              setShowComparison(true);
+            }
           }}
         />
 
@@ -620,7 +743,8 @@ function FlowChatCanvasInner({
             );
           }}
           onSelectPreferred={(messageId) => {
-            console.log('Preferred response:', messageId);
+            // Save preferred response to canvas state
+            onCanvasStateChange?.({ comparisonNodeIds: [messageId] });
           }}
         />
 
@@ -645,6 +769,79 @@ function FlowChatCanvasInner({
           showHelp={showShortcutsHelp}
           onShowHelpChange={setShowShortcutsHelp}
         />
+        {/* Rating Popover */}
+        {ratingNodeId && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-background border rounded-lg shadow-xl p-4 space-y-3">
+            <p className="text-sm font-medium">{t('rateResponse')}</p>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => {
+                    onCanvasStateChange?.({
+                      nodeRatings: {
+                        ...canvasState.nodeRatings,
+                        [ratingNodeId]: star,
+                      },
+                    });
+                    setRatingNodeId(null);
+                  }}
+                  className={cn(
+                    'text-2xl cursor-pointer hover:scale-125 transition-transform',
+                    star <= (canvasState.nodeRatings[ratingNodeId] || 0)
+                      ? 'text-yellow-400'
+                      : 'text-muted-foreground/30'
+                  )}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setRatingNodeId(null)}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              {t('cancel')}
+            </button>
+          </div>
+        )}
+
+        {/* Notes Dialog */}
+        {notesNodeId && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-background border rounded-lg shadow-xl p-4 space-y-3 w-80">
+            <p className="text-sm font-medium">{t('addNote')}</p>
+            <textarea
+              value={notesContent}
+              onChange={(e) => setNotesContent(e.target.value)}
+              className="w-full h-24 text-sm border rounded-md p-2 bg-muted/30 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={t('addNote')}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setNotesNodeId(null); setNotesContent(''); }}
+                className="text-xs px-3 py-1.5 text-muted-foreground hover:bg-muted rounded"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  onCanvasStateChange?.({
+                    nodeNotes: {
+                      ...canvasState.nodeNotes,
+                      [notesNodeId]: notesContent,
+                    },
+                  });
+                  setNotesNodeId(null);
+                  setNotesContent('');
+                }}
+                className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+              >
+                {t('done')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

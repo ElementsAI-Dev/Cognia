@@ -47,7 +47,7 @@ export interface FileBlameStats {
 /**
  * Parse a stored trace record JSON string.
  */
-function parseRecord(json: string): AgentTraceRecord | null {
+function _parseRecord(json: string): AgentTraceRecord | null {
   try {
     return JSON.parse(json) as AgentTraceRecord;
   } catch {
@@ -74,17 +74,14 @@ export async function getFileBlame(filePath: string, totalLines: number): Promis
 
   // Sort by timestamp ascending so later traces overwrite earlier ones
   dbTraces.sort((a, b) => {
-    const ta = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
-    const tb = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+    const ta = new Date(a.timestamp).getTime();
+    const tb = new Date(b.timestamp).getTime();
     return ta - tb;
   });
 
-  for (const dbTrace of dbTraces) {
-    const record = parseRecord(dbTrace.record);
-    if (!record) continue;
-
+  for (const record of dbTraces) {
     const meta = record.metadata as Record<string, unknown> | undefined;
-    const sessionId = dbTrace.sessionId || (meta?.sessionId as string | undefined);
+    const sessionId = meta?.sessionId as string | undefined;
     const toolName = meta?.toolName as string | undefined;
 
     for (const file of record.files) {

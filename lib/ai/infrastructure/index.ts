@@ -25,6 +25,7 @@ export {
   DEFAULT_CIRCUIT_CONFIG,
   PROVIDER_CIRCUIT_CONFIGS,
   type CircuitState,
+  type CircuitStateChangeListener,
   type CircuitBreakerConfig,
   type CircuitBreakerStats,
   type CircuitBreakerResult,
@@ -95,10 +96,15 @@ export {
 export {
   createCacheMiddleware,
   createSimpleCacheMiddleware,
+  createInMemoryCacheStore,
   createIndexedDBCacheStore,
   generateCacheKey,
+  invalidateCacheByPattern,
+  getCacheStats,
   getDefaultCacheStore,
   setDefaultCacheStore,
+  type CacheStats,
+  type CacheStore,
   type CacheMiddlewareOptions,
 } from './cache-middleware';
 
@@ -108,6 +114,7 @@ export {
   toExperimentalTelemetry,
   createInMemoryTelemetryCollector,
   createConsoleTelemetryCollector,
+  createTelemetryMiddleware,
   calculateMetrics,
   getDefaultTelemetryCollector,
   setDefaultTelemetryCollector,

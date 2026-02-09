@@ -63,8 +63,8 @@ describe('Notification Center API', () => {
         title: 'With Actions',
         message: 'Has actions',
         actions: [
-          { id: 'action-1', label: 'Action 1' },
-          { id: 'action-2', label: 'Action 2' },
+          { label: 'Action 1', action: 'action-1' },
+          { label: 'Action 2', action: 'action-2' },
         ],
       });
 

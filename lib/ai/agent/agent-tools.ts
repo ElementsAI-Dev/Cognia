@@ -26,7 +26,11 @@ import {
   type SearchAndScrapeInput,
 } from '../tools';
 import type { RAGConfig } from '../rag';
+import type { RAGSearchConfig } from '../tools/rag-search';
 import type { Skill } from '@/types/system/skill';
+import { shellToolSystemPrompt as shellToolSystemPromptText } from '../tools/shell-tool';
+import { fileToolSystemPrompt, fileToolPromptSnippet } from '../tools/file-tool';
+import { documentToolSystemPrompt, documentToolPromptSnippet } from '../tools/document-tool';
 import {
   createSkillTools,
   buildSkillSystemPrompt,
@@ -34,6 +38,7 @@ import {
 } from '@/lib/skills';
 import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import { createMcpToolsFromStore } from '../tools/mcp-tools';
+import { applyMiddlewareToTools } from '../tools/tool-middleware';
 import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnvironmentToolsPromptSnippet } from '../tools/environment-tools';
 import { getJupyterTools, getJupyterToolsSystemPrompt } from '../tools/jupyter-tools';
 import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from '../tools/process-tools';
@@ -60,6 +65,8 @@ export interface AgentToolsConfig {
   enableEnvironmentTools?: boolean;
   enableJupyterTools?: boolean;
   enableProcessTools?: boolean;
+  /** Enable shell command execution tools (shell_execute) */
+  enableShellTools?: boolean;
   /** Enable video generation tools (video_generate, video_status) */
   enableVideoGeneration?: boolean;
   /** Enable video analysis tools (video_subtitles, video_analyze, subtitle_parse) */
@@ -274,7 +281,12 @@ export function createRAGSearchTool(ragConfig?: RAGConfig, options?: Omit<RAGSea
         ...input,
         collectionName: input.collectionName || defaultCollectionName,
       };
-      return executeRAGSearch(searchInput, ragConfig);
+      const searchConfig: RAGSearchConfig = {
+        embeddingProvider: ragConfig.chromaConfig.embeddingConfig.provider,
+        embeddingModel: ragConfig.chromaConfig.embeddingConfig.model,
+        embeddingApiKey: ragConfig.chromaConfig.apiKey,
+      };
+      return executeRAGSearch(searchInput, searchConfig);
     },
     requiresApproval: false,
   };
@@ -360,23 +372,103 @@ export function createDesignerTool(): AgentTool {
 
 /**
  * Create code execution tool for agent
+ * Uses Tauri sandbox for desktop (supports multiple languages),
+ * enhanced Function constructor with console capture + timeout for web.
  */
 export function createCodeExecutionTool(): AgentTool {
   return {
     name: 'execute_code',
-    description: 'Execute JavaScript code in a sandboxed environment. Use for calculations, data processing, or generating outputs.',
+    description: `Execute code in a sandboxed environment. Use for calculations, data processing, or generating outputs.
+In desktop mode: supports JavaScript, Python, and other languages via the sandbox runtime.
+In web mode: supports JavaScript only with console output capture and timeout protection.`,
     parameters: z.object({
-      code: z.string().describe('JavaScript code to execute'),
-      language: z.enum(['javascript', 'typescript']).optional().describe('Programming language'),
+      code: z.string().describe('The code to execute'),
+      language: z.enum(['javascript', 'typescript', 'python', 'ruby', 'go', 'rust', 'java', 'c', 'cpp'])
+        .optional()
+        .default('javascript')
+        .describe('Programming language (desktop supports all; web supports javascript only)'),
+      timeout: z.number().min(1000).max(60000).optional().default(10000)
+        .describe('Execution timeout in milliseconds (default: 10000)'),
     }),
     execute: async (args) => {
+      const code = args.code as string;
+      const language = (args.language as string) || 'javascript';
+      const timeout = (args.timeout as number) || 10000;
+
+      // Try Tauri sandbox first (desktop environment, supports multiple languages)
       try {
-        // Safe evaluation using Function constructor
-        const fn = new Function(`"use strict"; return (${args.code});`);
-        const result = fn();
+        const { isTauri } = await import('@/lib/utils');
+        if (isTauri()) {
+          const { quickExecute } = await import('@/lib/native/sandbox');
+          const result = await Promise.race([
+            quickExecute(language, code),
+            new Promise<never>((_, reject) => {
+              const id = setTimeout(() => reject(new Error(`Execution timed out after ${timeout}ms`)), timeout);
+              if (typeof id === 'object' && 'unref' in id) (id as NodeJS.Timeout).unref();
+            }),
+          ]);
+          return {
+            success: result.exit_code === 0,
+            stdout: result.stdout || '',
+            stderr: result.stderr || '',
+            exitCode: result.exit_code,
+            language,
+            executionTime: result.execution_time_ms,
+          };
+        }
+      } catch {
+        // Not in Tauri or sandbox unavailable, fall through to web execution
+      }
+
+      // Web fallback: JavaScript only with console capture and timeout
+      if (language !== 'javascript' && language !== 'typescript') {
+        return {
+          success: false,
+          error: `Language '${language}' is only supported in the desktop app. Web mode supports JavaScript only.`,
+        };
+      }
+
+      try {
+        const logs: string[] = [];
+        const errors: string[] = [];
+
+        // Capture console output
+        const mockConsole = {
+          log: (...a: unknown[]) => logs.push(a.map(v => typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)).join(' ')),
+          error: (...a: unknown[]) => errors.push(a.map(v => typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)).join(' ')),
+          warn: (...a: unknown[]) => logs.push('[warn] ' + a.map(v => String(v)).join(' ')),
+          info: (...a: unknown[]) => logs.push(a.map(v => String(v)).join(' ')),
+        };
+
+        // Execute with timeout protection
+        const execPromise = new Promise<unknown>((resolve, reject) => {
+          try {
+            const fn = new Function('console', `"use strict";\n${code}`);
+            const result = fn(mockConsole);
+            resolve(result);
+          } catch (e) {
+            reject(e);
+          }
+        });
+
+        const result = await Promise.race([
+          execPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Execution timed out after ${timeout}ms`)), timeout)
+          ),
+        ]);
+
+        const stdout = logs.join('\n');
+        const resultStr = result !== undefined
+          ? (typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result))
+          : '';
+
         return {
           success: true,
-          result: typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result),
+          result: resultStr || undefined,
+          stdout: stdout || undefined,
+          stderr: errors.length > 0 ? errors.join('\n') : undefined,
+          language: 'javascript',
         };
       } catch (error) {
         return {
@@ -485,8 +577,17 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
   if (config.enableWebScraper !== false) {
     tools.web_scraper = createWebScraperTool();
     tools.bulk_web_scraper = createBulkWebScraperTool();
-    if (config.tavilyApiKey) {
-      tools.search_and_scrape = createSearchAndScrapeTool({ apiKey: config.tavilyApiKey });
+    // search_and_scrape works with any configured search provider, not just Tavily
+    const hasSearchConfig = config.tavilyApiKey || (config.searchProviders && Object.values(config.searchProviders).some(p => p.enabled && p.apiKey));
+    if (hasSearchConfig) {
+      const searchConfig: { apiKey?: string; provider?: string } = {};
+      if (config.tavilyApiKey) {
+        searchConfig.apiKey = config.tavilyApiKey;
+      }
+      if (config.defaultSearchProvider) {
+        searchConfig.provider = config.defaultSearchProvider;
+      }
+      tools.search_and_scrape = createSearchAndScrapeTool(searchConfig);
     }
   }
 
@@ -520,6 +621,12 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
         'file_info',
         'file_search',
         'file_append',
+        'file_binary_write',
+        'content_search',
+        'directory_delete',
+        'file_move',
+        'file_hash',
+        'file_diff',
       ],
       registryConfig
     );
@@ -529,7 +636,7 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
   // Document tools from registry
   if (config.enableDocumentTools) {
     const docTools = getToolsFromRegistry(
-      ['document_summarize', 'document_chunk', 'document_analyze'],
+      ['document_summarize', 'document_chunk', 'document_analyze', 'document_extract_tables', 'document_read_file'],
       registryConfig
     );
     Object.assign(tools, docTools);
@@ -578,6 +685,15 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
       enableTerminate: true,
     });
     Object.assign(tools, processTools);
+  }
+
+  // Shell tools - command execution (desktop only)
+  if (config.enableShellTools) {
+    const shellToolsDefs = getToolsFromRegistry(
+      ['shell_execute'],
+      registryConfig
+    );
+    Object.assign(tools, shellToolsDefs);
   }
 
   // Video generation tools from registry
@@ -683,6 +799,9 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, config.customTools);
   }
 
+  // Apply middleware (cache + retry + rate limiting) to all built-in tools
+  applyMiddlewareToTools(tools);
+
   return tools;
 }
 
@@ -770,6 +889,11 @@ export function buildAgentSystemPrompt(config: {
   enableJupyterTools?: boolean;
   enableProcessTools?: boolean;
   processToolsDetailed?: boolean;
+  enableShellTools?: boolean;
+  enableFileTools?: boolean;
+  fileToolsDetailed?: boolean;
+  enableDocumentTools?: boolean;
+  documentToolsDetailed?: boolean;
 }): string {
   const parts: string[] = [];
 
@@ -799,6 +923,21 @@ export function buildAgentSystemPrompt(config: {
   // Process tools prompt
   if (config.enableProcessTools) {
     parts.push(buildProcessToolsSystemPrompt(config.processToolsDetailed));
+  }
+
+  // Shell tools prompt
+  if (config.enableShellTools) {
+    parts.push(shellToolSystemPromptText);
+  }
+
+  // File tools prompt
+  if (config.enableFileTools) {
+    parts.push(config.fileToolsDetailed ? fileToolSystemPrompt : fileToolPromptSnippet);
+  }
+
+  // Document tools prompt
+  if (config.enableDocumentTools) {
+    parts.push(config.documentToolsDetailed ? documentToolSystemPrompt : documentToolPromptSnippet);
   }
 
   return parts.join('\n\n');

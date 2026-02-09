@@ -12,22 +12,26 @@ export interface UseSelectionReceiverOptions {
   onTextReceived?: (text: string, action?: string) => void;
   onTranslateRequest?: (text: string) => void;
   onExplainRequest?: (text: string) => void;
+  onScreenshotReceived?: (imageBase64: string) => void;
   autoFocus?: boolean;
 }
 
 export interface UseSelectionReceiverReturn {
   pendingText: string | null;
   pendingAction: string | null;
+  pendingScreenshot: string | null;
   clearPending: () => void;
+  clearPendingScreenshot: () => void;
   formatPrompt: (text: string, action?: string) => string;
 }
 
 export function useSelectionReceiver(
   options: UseSelectionReceiverOptions = {}
 ): UseSelectionReceiverReturn {
-  const { onTextReceived, onTranslateRequest, onExplainRequest, autoFocus = true } = options;
+  const { onTextReceived, onTranslateRequest, onExplainRequest, onScreenshotReceived, autoFocus = true } = options;
   const [pendingText, setPendingText] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [pendingScreenshot, setPendingScreenshot] = useState<string | null>(null);
 
   // Format text based on action
   const formatPrompt = useCallback((text: string, action?: string): string => {
@@ -45,6 +49,11 @@ export function useSelectionReceiver(
   const clearPending = useCallback(() => {
     setPendingText(null);
     setPendingAction(null);
+  }, []);
+
+  // Clear pending screenshot
+  const clearPendingScreenshot = useCallback(() => {
+    setPendingScreenshot(null);
   }, []);
 
   // Handle received text
@@ -70,6 +79,7 @@ export function useSelectionReceiver(
     let unlistenSendToChat: (() => void) | undefined;
     let unlistenTranslate: (() => void) | undefined;
     let unlistenExplain: (() => void) | undefined;
+    let unlistenScreenshot: (() => void) | undefined;
 
     const setupListeners = async () => {
       const { listen } = await import('@tauri-apps/api/event');
@@ -96,6 +106,18 @@ export function useSelectionReceiver(
           }
         }
       );
+
+      // Listen for screenshot-to-chat events
+      unlistenScreenshot = await listen<{ imageBase64: string }>(
+        'screenshot-send-to-chat',
+        async (event) => {
+          setPendingScreenshot(event.payload.imageBase64);
+          if (autoFocus) {
+            await focusMainWindow();
+          }
+          onScreenshotReceived?.(event.payload.imageBase64);
+        }
+      );
     };
 
     setupListeners();
@@ -104,13 +126,16 @@ export function useSelectionReceiver(
       unlistenSendToChat?.();
       unlistenTranslate?.();
       unlistenExplain?.();
+      unlistenScreenshot?.();
     };
-  }, [handleTextReceived, onTranslateRequest, onExplainRequest]);
+  }, [handleTextReceived, onTranslateRequest, onExplainRequest, onScreenshotReceived, autoFocus]);
 
   return {
     pendingText,
     pendingAction,
+    pendingScreenshot,
     clearPending,
+    clearPendingScreenshot,
     formatPrompt,
   };
 }

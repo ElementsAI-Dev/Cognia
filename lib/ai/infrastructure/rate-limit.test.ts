@@ -11,6 +11,9 @@ import {
   withRateLimit,
   RateLimitError,
   PROVIDER_RATE_LIMITS,
+  recordRetryAfter,
+  isProviderRetryBlocked,
+  parseRetryAfterHeader,
 } from './rate-limit';
 
 describe('Rate Limiting', () => {
@@ -185,6 +188,66 @@ describe('Rate Limiting', () => {
         expect(error).toBeInstanceOf(RateLimitError);
         expect((error as RateLimitError).result.retryAfter).toBeDefined();
       }
+    });
+  });
+
+  describe('Retry-After support', () => {
+    describe('recordRetryAfter', () => {
+      it('should block provider for specified duration', () => {
+        recordRetryAfter('retry-test', 30);
+        const status = isProviderRetryBlocked('retry-test');
+
+        expect(status.blocked).toBe(true);
+        expect(status.retryAfterSeconds).toBeLessThanOrEqual(30);
+        expect(status.retryAfterSeconds).toBeGreaterThan(0);
+      });
+
+      it('should unblock provider after duration expires', async () => {
+        recordRetryAfter('expire-test', 0.1); // 100ms
+        
+        expect(isProviderRetryBlocked('expire-test').blocked).toBe(true);
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        expect(isProviderRetryBlocked('expire-test').blocked).toBe(false);
+      });
+    });
+
+    describe('isProviderRetryBlocked', () => {
+      it('should return not blocked for unknown providers', () => {
+        const status = isProviderRetryBlocked('unknown-provider');
+        expect(status.blocked).toBe(false);
+        expect(status.retryAfterSeconds).toBeUndefined();
+      });
+    });
+
+    describe('parseRetryAfterHeader', () => {
+      it('should parse numeric seconds', () => {
+        expect(parseRetryAfterHeader('120')).toBe(120);
+        expect(parseRetryAfterHeader('0')).toBe(0);
+        expect(parseRetryAfterHeader('30')).toBe(30);
+      });
+
+      it('should parse HTTP-date format', () => {
+        const futureDate = new Date(Date.now() + 60000);
+        const result = parseRetryAfterHeader(futureDate.toUTCString());
+        
+        expect(result).not.toBeNull();
+        expect(result!).toBeGreaterThan(0);
+        expect(result!).toBeLessThanOrEqual(61);
+      });
+
+      it('should return null for invalid values', () => {
+        expect(parseRetryAfterHeader('invalid')).toBeNull();
+        expect(parseRetryAfterHeader('')).toBeNull();
+      });
+
+      it('should return 0 for past dates', () => {
+        const pastDate = new Date(Date.now() - 60000);
+        const result = parseRetryAfterHeader(pastDate.toUTCString());
+        
+        expect(result).toBe(0);
+      });
     });
   });
 });

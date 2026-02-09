@@ -11,9 +11,11 @@ import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { Brain, Globe, Radio, Settings2, Presentation, Workflow, Wand2, Swords } from 'lucide-react';
 import { usePresetStore, useSessionStore } from '@/stores';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
 interface BottomToolbarProps {
   modelName: string;
+  providerId?: string;
   webSearchEnabled: boolean;
   thinkingEnabled: boolean;
   streamingEnabled?: boolean;
@@ -66,6 +68,7 @@ function PresetQuickPromptsWrapper({
 
 export function BottomToolbar({
   modelName,
+  providerId,
   webSearchEnabled,
   thinkingEnabled,
   streamingEnabled,
@@ -119,7 +122,7 @@ export function BottomToolbar({
                 className="h-6 sm:h-7 gap-1 sm:gap-1.5 px-1.5 sm:px-2 text-[10px] sm:text-xs font-normal text-muted-foreground hover:text-foreground"
                 onClick={onModelClick}
               >
-                <span className="font-medium">⚡</span>
+                <ProviderIcon providerId={providerId} size={14} className="shrink-0" />
                 <span className="max-w-15 sm:max-w-25 truncate">{modelName}</span>
               </Button>
             </TooltipTrigger>

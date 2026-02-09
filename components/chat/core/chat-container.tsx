@@ -38,6 +38,7 @@ import {
 import { Loader } from '@/components/ai-elements/loader';
 import { ErrorMessage } from '../message';
 import { ChatHeader } from './chat-header';
+import { PluginExtensionPoint } from '@/components/plugin/extension';
 import { ChatInput, type Attachment } from '../chat-input';
 import { QuickReplyBar } from '../ui/quick-reply-bar';
 import { WorkflowIndicator, type WorkflowStatus } from '../ui/workflow-indicator';
@@ -153,11 +154,12 @@ import {
   isVideoModel,
 } from '@/lib/ai';
 import { RoutingIndicator } from '../ui/routing-indicator';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
 import type { ChatMode, UIMessage, ChatViewMode } from '@/types';
-import { getPluginEventHooks } from '@/lib/plugin';
+import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { toast } from 'sonner';
 import { useSummary } from '@/hooks/chat';
 import { FlowChatCanvas } from '../flow';
@@ -196,6 +198,8 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const getFlowCanvasState = useSessionStore((state) => state.getFlowCanvasState);
   const updateFlowCanvasState = useSessionStore((state) => state.updateFlowCanvasState);
   const getBranches = useSessionStore((state) => state.getBranches);
+
+  const setSelectedNodes = useSessionStore((state) => state.setSelectedNodes);
 
   const viewMode: ChatViewMode = activeSessionId ? getViewMode(activeSessionId) : 'list';
   const flowCanvasState = activeSessionId ? getFlowCanvasState(activeSessionId) : undefined;
@@ -279,6 +283,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+
+  // Derive streaming message ID for flow canvas
+  const streamingMessageId = useMemo(() => {
+    if (!isStreaming || messages.length === 0) return undefined;
+    const lastMsg = messages[messages.length - 1];
+    return lastMsg.role === 'assistant' ? lastMsg.id : undefined;
+  }, [isStreaming, messages]);
 
   // New feature states
   const [showPromptOptimizer, setShowPromptOptimizer] = useState(false);
@@ -1383,6 +1394,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           })),
         });
 
+        // ========== Message Send Hook ==========
+        getPluginLifecycleHooks().dispatchOnMessageSend({
+          id: userMessage.id,
+          role: 'user',
+          content: messageContent,
+        });
+
         // Create streaming assistant message
         const assistantMessage = createStreamingMessage('assistant');
 
@@ -1811,6 +1829,13 @@ Be thorough in your thinking but concise in your final answer.`;
             ...(searchSources && searchSources.length > 0 ? { sources: searchSources } : {}),
           });
 
+          // ========== Message Receive Hook ==========
+          getPluginLifecycleHooks().dispatchOnMessageReceive({
+            id: assistantMessage.id,
+            role: 'assistant',
+            content: finalContent,
+          });
+
           // Add any additional messages from plugins
           if (postReceiveResult.additionalMessages?.length) {
             for (const msg of postReceiveResult.additionalMessages) {
@@ -1937,6 +1962,17 @@ Be thorough in your thinking but concise in your final answer.`;
       if (!editContent.trim()) return;
 
       try {
+        // ========== Message Edit Hook ==========
+        const originalMessage = messages.find((m) => m.id === messageId);
+        if (originalMessage) {
+          getPluginLifecycleHooks().dispatchOnMessageEdit(
+            messageId,
+            originalMessage.content,
+            editContent,
+            activeSessionId || ''
+          );
+        }
+
         // Delete all messages after this one
         await deleteMessagesAfter(messageId);
 
@@ -1959,7 +1995,7 @@ Be thorough in your thinking but concise in your final answer.`;
         setError(err instanceof Error ? err.message : 'Failed to edit message');
       }
     },
-    [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage]
+    [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage, activeSessionId]
   );
 
   // Translate message content
@@ -2069,6 +2105,9 @@ Be thorough in your thinking but concise in your final answer.`;
 
       if (!userMessage) return;
 
+      // ========== Chat Regenerate Hook ==========
+      getPluginLifecycleHooks().dispatchOnChatRegenerate(messageId, activeSessionId || '');
+
       try {
         // Delete from this message onwards
         await deleteMessagesAfter(userMessage.id);
@@ -2080,7 +2119,7 @@ Be thorough in your thinking but concise in your final answer.`;
         setError(err instanceof Error ? err.message : 'Failed to retry');
       }
     },
-    [messages, deleteMessagesAfter, handleSendMessage]
+    [messages, deleteMessagesAfter, handleSendMessage, activeSessionId]
   );
 
   const isEmpty = messages.length === 0 && isInitialized;
@@ -2155,22 +2194,39 @@ Be thorough in your thinking but concise in your final answer.`;
             canvasState={flowCanvasState}
             isLoading={isLoading}
             isStreaming={isStreaming}
+            streamingMessageId={streamingMessageId}
             onCanvasStateChange={(updates) => updateFlowCanvasState(activeSessionId, updates)}
+            onNodeSelect={(nodeIds) => {
+              setSelectedNodes(activeSessionId, nodeIds);
+            }}
             onFollowUp={(messageId, content) => {
-              // Set up for follow-up from specific message
-              setInputValue(content);
+              // Pre-fill input with referenced message content for follow-up
+              if (content) {
+                setInputValue(content);
+              } else {
+                const msg = messages.find((m) => m.id === messageId);
+                if (msg?.content) {
+                  setInputValue(`> ${msg.content.slice(0, 200)}${msg.content.length > 200 ? '...' : ''}\n\n`);
+                }
+              }
             }}
             onRegenerate={(messageId) => {
               handleRetry(messageId);
             }}
             onCreateBranch={(messageId) => {
-              // Branch creation is handled by the store
               const createBranch = useSessionStore.getState().createBranch;
               createBranch(activeSessionId, messageId);
             }}
             onDeleteNode={(messageId, deleteSubsequent) => {
               if (deleteSubsequent) {
                 deleteMessagesAfter(messageId);
+              }
+            }}
+            onAddReference={(reference) => {
+              // Insert referenced content into input area
+              const refMsg = messages.find((m) => m.id === reference.messageId);
+              if (refMsg?.content) {
+                setInputValue((prev) => prev + `\n> [ref: ${refMsg.role}] ${refMsg.content.slice(0, 300)}\n\n`);
               }
             }}
           />
@@ -2358,6 +2414,7 @@ Be thorough in your thinking but concise in your final answer.`;
         />
       )}
 
+      <PluginExtensionPoint point="chat.input.above" />
       <ChatInput
         value={inputValue}
         onChange={setInputValue}
@@ -2385,6 +2442,7 @@ Be thorough in your thinking but concise in your final answer.`;
           }
         }}
         modelName={currentModel}
+        providerId={currentProvider}
         modeName={currentMode === 'chat' ? 'Chat' : currentMode === 'agent' ? 'Agent' : 'Research'}
         onModeClick={() => {
           // Cycle through modes: chat -> agent -> research -> chat
@@ -2409,6 +2467,8 @@ Be thorough in your thinking but concise in your final answer.`;
         onOpenArena={() => setShowArenaDialog(true)}
         hasActivePreset={!!activePreset}
       />
+      <PluginExtensionPoint point="chat.input.below" />
+      <PluginExtensionPoint point="chat.footer" />
 
       {/* Prompt Optimizer Dialog */}
       <PromptOptimizerDialog
@@ -2941,6 +3001,15 @@ function ChatMessageItem({
         id={`message-${message.id}`}
         from={message.role as 'system' | 'user' | 'assistant'}
       >
+        {/* Provider icon label for assistant messages */}
+        {message.role === 'assistant' && message.provider && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <ProviderIcon providerId={message.provider} size={16} className="shrink-0" />
+            <span className="text-xs text-muted-foreground">
+              {message.model || message.provider}
+            </span>
+          </div>
+        )}
         <MessageContent>
           {isEditing ? (
             <div className="flex flex-col gap-2">

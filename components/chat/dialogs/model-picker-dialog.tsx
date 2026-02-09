@@ -16,7 +16,6 @@ import {
   Check,
   Eye,
   Wrench,
-  Clock,
   X,
 } from 'lucide-react';
 import {
@@ -43,6 +42,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores';
 import { PROVIDERS, type ProviderConfig } from '@/types/provider';
+import { getCurrencyForLocale, CURRENCIES } from '@/types/system/usage';
 import { useProviderContext } from '@/components/providers/ai/provider-context';
 import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
@@ -342,7 +342,7 @@ export function ModelPickerDialog({
                         onSelect={() => handleSelect(recent.provider, recent.model)}
                         className={cn('flex items-center gap-2 cursor-pointer max-sm:py-3 max-sm:px-3', isSelected && 'bg-accent')}
                       >
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0 max-sm:h-4 max-sm:w-4" />
+                        <ProviderIcon providerId={recent.provider} size={16} className="shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-medium text-sm truncate">{model.name}</span>
@@ -379,17 +379,22 @@ export function ModelPickerDialog({
                       onSelect={() => handleSelect(providerId, model.id)}
                       className={cn('flex items-center gap-2 cursor-pointer max-sm:py-3 max-sm:px-3', isSelected && 'bg-accent')}
                     >
+                      <ProviderIcon providerId={providerId} size={14} className="shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium text-sm max-sm:text-base">{model.name}</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground max-sm:text-sm">
                           <span>{(model.contextLength / 1000).toFixed(0)}K context</span>
-                          {model.pricing && model.pricing.promptPer1M > 0 && (
-                            <span>• ${model.pricing.promptPer1M}/1M</span>
-                          )}
+                          {model.pricing && model.pricing.promptPer1M > 0 && (() => {
+                            const lang = useSettingsStore.getState().language;
+                            const cur = getCurrencyForLocale(lang);
+                            const cfg = CURRENCIES[cur];
+                            const converted = model.pricing!.promptPer1M * cfg.rateFromUSD;
+                            return <span>• {cfg.symbol}{converted.toFixed(cfg.decimals)}/1M</span>;
+                          })()}
                           {model.pricing && model.pricing.promptPer1M === 0 && (
-                            <span className="text-green-600">• Free</span>
+                            <span className="text-green-600">• {CURRENCIES[getCurrencyForLocale(useSettingsStore.getState().language)].freeLabel}</span>
                           )}
                         </div>
                       </div>

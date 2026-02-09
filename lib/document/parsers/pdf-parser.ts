@@ -1,6 +1,7 @@
 /**
  * PDF Parser - Extract text content from PDF files
  * Uses pdf.js (pdfjs-dist) for parsing
+ * Enhanced with layout-aware extraction, password support, outline & annotation extraction
  */
 
 export interface PDFParseResult {
@@ -8,6 +9,8 @@ export interface PDFParseResult {
   pageCount: number;
   pages: PDFPage[];
   metadata: PDFMetadata;
+  outline?: PDFOutlineItem[];
+  annotations?: PDFAnnotation[];
 }
 
 export interface PDFPage {
@@ -28,10 +31,34 @@ export interface PDFMetadata {
   modificationDate?: Date;
 }
 
+export interface PDFParseOptions {
+  password?: string;
+  startPage?: number;
+  endPage?: number;
+  extractOutline?: boolean;
+  extractAnnotations?: boolean;
+}
+
+export interface PDFOutlineItem {
+  title: string;
+  pageNumber?: number;
+  children: PDFOutlineItem[];
+}
+
+export interface PDFAnnotation {
+  type: string;
+  content: string;
+  pageNumber: number;
+  rect?: { x: number; y: number; width: number; height: number };
+}
+
 /**
  * Parse PDF from ArrayBuffer
  */
-export async function parsePDF(data: ArrayBuffer): Promise<PDFParseResult> {
+export async function parsePDF(
+  data: ArrayBuffer,
+  options: PDFParseOptions = {}
+): Promise<PDFParseResult> {
   // Dynamic import to avoid SSR issues
   const pdfjsLib = await import('pdfjs-dist');
   
@@ -41,28 +68,28 @@ export async function parsePDF(data: ArrayBuffer): Promise<PDFParseResult> {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
   }
 
-  const loadingTask = pdfjsLib.getDocument({ data });
+  const docParams: Record<string, unknown> = { data };
+  if (options.password) {
+    docParams.password = options.password;
+  }
+
+  const loadingTask = pdfjsLib.getDocument(docParams);
   const pdf = await loadingTask.promise;
+
+  const startPage = Math.max(1, options.startPage ?? 1);
+  const endPage = Math.min(pdf.numPages, options.endPage ?? pdf.numPages);
 
   const pages: PDFPage[] = [];
   const textParts: string[] = [];
+  const allAnnotations: PDFAnnotation[] = [];
 
-  // Extract text from each page
-  for (let i = 1; i <= pdf.numPages; i++) {
+  // Extract text from each page with layout-aware paragraph detection
+  for (let i = startPage; i <= endPage; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const viewport = page.getViewport({ scale: 1.0 });
 
-    const pageText = textContent.items
-      .map((item) => {
-        if ('str' in item) {
-          return item.str;
-        }
-        return '';
-      })
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const pageText = extractTextWithLayout(textContent, viewport.height);
 
     pages.push({
       pageNumber: i,
@@ -72,6 +99,12 @@ export async function parsePDF(data: ArrayBuffer): Promise<PDFParseResult> {
     });
 
     textParts.push(pageText);
+
+    // Extract annotations if requested
+    if (options.extractAnnotations) {
+      const pageAnnotations = await extractPageAnnotations(page, i);
+      allAnnotations.push(...pageAnnotations);
+    }
   }
 
   // Extract metadata
@@ -89,12 +122,189 @@ export async function parsePDF(data: ArrayBuffer): Promise<PDFParseResult> {
     modificationDate: info?.ModDate ? parseDate(info.ModDate as string) : undefined,
   };
 
-  return {
+  // Extract outline/bookmarks if requested
+  let outline: PDFOutlineItem[] | undefined;
+  if (options.extractOutline) {
+    outline = await extractOutline(pdf);
+  }
+
+  const result: PDFParseResult = {
     text: textParts.join('\n\n'),
     pageCount: pdf.numPages,
     pages,
     metadata,
   };
+
+  if (outline && outline.length > 0) {
+    result.outline = outline;
+  }
+  if (allAnnotations.length > 0) {
+    result.annotations = allAnnotations;
+  }
+
+  return result;
+}
+
+/**
+ * Extract text with layout awareness - detects paragraphs via Y coordinate gaps
+ */
+function extractTextWithLayout(
+  textContent: { items: unknown[] },
+  _pageHeight: number
+): string {
+  const items = textContent.items.filter(
+    (item): item is { str: string; transform: number[]; height: number } =>
+      typeof item === 'object' && item !== null && 'str' in item && 'transform' in item
+  );
+
+  if (items.length === 0) return '';
+
+  // Sort items by Y position (descending, since PDF Y origin is bottom-left),
+  // then by X position (ascending) for items on the same line
+  const sorted = [...items].sort((a, b) => {
+    const yA = a.transform[5];
+    const yB = b.transform[5];
+    const yDiff = yB - yA; // descending Y (top of page first)
+    if (Math.abs(yDiff) < 2) {
+      // Same line - sort by X
+      return a.transform[4] - b.transform[4];
+    }
+    return yDiff;
+  });
+
+  const lines: string[] = [];
+  let currentLine: string[] = [];
+  let lastY = sorted[0].transform[5];
+  let lastFontSize = sorted[0].height || 12;
+
+  for (const item of sorted) {
+    if (!item.str.trim() && currentLine.length === 0) continue;
+
+    const y = item.transform[5];
+    const yDiff = Math.abs(lastY - y);
+    const lineThreshold = (lastFontSize || 12) * 0.5;
+    const paragraphThreshold = (lastFontSize || 12) * 1.8;
+
+    if (yDiff > lineThreshold && currentLine.length > 0) {
+      // Flush current line
+      lines.push(currentLine.join(' ').trim());
+      currentLine = [];
+
+      // If gap is large enough, insert empty line for paragraph break
+      if (yDiff > paragraphThreshold) {
+        lines.push('');
+      }
+    }
+
+    if (item.str.trim()) {
+      currentLine.push(item.str);
+    }
+
+    lastY = y;
+    if (item.height > 0) {
+      lastFontSize = item.height;
+    }
+  }
+
+  // Flush remaining line
+  if (currentLine.length > 0) {
+    lines.push(currentLine.join(' ').trim());
+  }
+
+  // Clean up: collapse multiple blank lines and trim
+  return lines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Extract outline/bookmarks from PDF document
+ */
+async function extractOutline(
+  pdf: { getOutline: () => Promise<unknown[] | null> }
+): Promise<PDFOutlineItem[]> {
+  try {
+    const rawOutline = await pdf.getOutline();
+    if (!rawOutline || rawOutline.length === 0) return [];
+
+    return convertOutlineItems(rawOutline);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Recursively convert raw PDF outline items to PDFOutlineItem format
+ */
+function convertOutlineItems(items: unknown[]): PDFOutlineItem[] {
+  return items
+    .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+    .map((item) => {
+      const dest = item.dest;
+      let pageNumber: number | undefined;
+
+      // dest can be a string ref or array; for arrays, first element is the page ref
+      if (Array.isArray(dest) && dest.length > 0 && typeof dest[0] === 'object' && dest[0] !== null) {
+        const pageRef = dest[0] as { num?: number };
+        if (typeof pageRef.num === 'number') {
+          pageNumber = pageRef.num + 1; // 0-indexed to 1-indexed
+        }
+      }
+
+      const children = Array.isArray(item.items) ? convertOutlineItems(item.items) : [];
+
+      return {
+        title: String(item.title || ''),
+        pageNumber,
+        children,
+      };
+    })
+    .filter((item) => item.title.length > 0);
+}
+
+/**
+ * Extract annotations from a PDF page
+ */
+async function extractPageAnnotations(
+  page: { getAnnotations: () => Promise<unknown[]> },
+  pageNumber: number
+): Promise<PDFAnnotation[]> {
+  try {
+    const rawAnnotations = await page.getAnnotations();
+    if (!rawAnnotations || rawAnnotations.length === 0) return [];
+
+    return rawAnnotations
+      .filter((ann): ann is Record<string, unknown> => typeof ann === 'object' && ann !== null)
+      .filter((ann) => {
+        const subtype = String(ann.subtype || '');
+        // Only extract content-bearing annotations
+        return ['Text', 'FreeText', 'Highlight', 'Underline', 'StrikeOut', 'Stamp', 'Popup'].includes(subtype);
+      })
+      .map((ann) => {
+        const rect = Array.isArray(ann.rect) && ann.rect.length === 4
+          ? {
+              x: Number(ann.rect[0]),
+              y: Number(ann.rect[1]),
+              width: Number(ann.rect[2]) - Number(ann.rect[0]),
+              height: Number(ann.rect[3]) - Number(ann.rect[1]),
+            }
+          : undefined;
+
+        const contentsObj = ann.contentsObj as Record<string, unknown> | undefined;
+        const content = String(ann.contents || contentsObj?.str || '');
+
+        return {
+          type: String(ann.subtype || 'Unknown'),
+          content,
+          pageNumber,
+          rect,
+        };
+      })
+      .filter((ann) => ann.content.length > 0);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -122,21 +332,27 @@ function parseDate(dateStr: string): Date | undefined {
 /**
  * Parse PDF from File object
  */
-export async function parsePDFFile(file: File): Promise<PDFParseResult> {
+export async function parsePDFFile(
+  file: File,
+  options: PDFParseOptions = {}
+): Promise<PDFParseResult> {
   const buffer = await file.arrayBuffer();
-  return parsePDF(buffer);
+  return parsePDF(buffer, options);
 }
 
 /**
  * Parse PDF from base64 string
  */
-export async function parsePDFBase64(base64: string): Promise<PDFParseResult> {
+export async function parsePDFBase64(
+  base64: string,
+  options: PDFParseOptions = {}
+): Promise<PDFParseResult> {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  return parsePDF(bytes.buffer);
+  return parsePDF(bytes.buffer, options);
 }
 
 /**
@@ -153,7 +369,41 @@ export function extractPDFEmbeddableContent(result: PDFParseResult): string {
     parts.push(`Author: ${result.metadata.author}`);
   }
 
+  // Include outline as table of contents if available
+  if (result.outline && result.outline.length > 0) {
+    parts.push('Table of Contents:');
+    parts.push(formatOutlineForEmbedding(result.outline, 0));
+  }
+
   parts.push(result.text);
 
+  // Include annotation contents if available
+  if (result.annotations && result.annotations.length > 0) {
+    const annotationTexts = result.annotations
+      .filter((a) => a.content.trim().length > 0)
+      .map((a) => `[${a.type} on page ${a.pageNumber}]: ${a.content}`);
+    if (annotationTexts.length > 0) {
+      parts.push('Annotations:');
+      parts.push(annotationTexts.join('\n'));
+    }
+  }
+
   return parts.join('\n\n');
+}
+
+/**
+ * Format outline items for embedding content
+ */
+function formatOutlineForEmbedding(items: PDFOutlineItem[], depth: number): string {
+  return items
+    .map((item) => {
+      const indent = '  '.repeat(depth);
+      const pageInfo = item.pageNumber ? ` (p.${item.pageNumber})` : '';
+      const line = `${indent}- ${item.title}${pageInfo}`;
+      if (item.children.length > 0) {
+        return line + '\n' + formatOutlineForEmbedding(item.children, depth + 1);
+      }
+      return line;
+    })
+    .join('\n');
 }

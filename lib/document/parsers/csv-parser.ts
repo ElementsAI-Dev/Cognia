@@ -1,6 +1,6 @@
 /**
  * CSV Parser - Parse CSV and TSV files
- * Supports various delimiters and encodings
+ * Enhanced with type inference, column statistics, and multi-line quoted field support
  */
 
 export interface CSVParseResult {
@@ -10,6 +10,30 @@ export interface CSVParseResult {
   rowCount: number;
   columnCount: number;
   delimiter: string;
+}
+
+export type ColumnType = 'string' | 'number' | 'date' | 'boolean' | 'mixed' | 'empty';
+
+export interface ColumnTypeInfo {
+  columnIndex: number;
+  columnName: string;
+  inferredType: ColumnType;
+  sampleValues: string[];
+  nullCount: number;
+  uniqueCount: number;
+}
+
+export interface ColumnStats {
+  columnIndex: number;
+  columnName: string;
+  type: ColumnType;
+  count: number;
+  nullCount: number;
+  uniqueCount: number;
+  min?: number;
+  max?: number;
+  mean?: number;
+  median?: number;
 }
 
 export interface CSVParseOptions {
@@ -65,18 +89,13 @@ export function parseCSV(
   // Auto-detect delimiter if not specified
   const delimiter = opts.delimiter || detectDelimiter(content);
 
-  const lines = content.split(/\r?\n/);
-  const data: string[][] = [];
-
-  for (const line of lines) {
-    // Skip empty lines if configured
-    if (opts.skipEmptyLines && line.trim() === '') {
-      continue;
-    }
-
-    const row = parseLine(line, delimiter, opts.trimValues ?? true);
-    data.push(row);
-  }
+  // Use multi-line aware parser
+  const data = parseLines(
+    content,
+    delimiter,
+    opts.trimValues ?? true,
+    opts.skipEmptyLines ?? true
+  );
 
   // Extract headers
   const headers = opts.hasHeader && data.length > 0 ? data[0] : [];
@@ -99,17 +118,24 @@ export function parseCSV(
 }
 
 /**
- * Parse a single CSV line, handling quoted values
+ * Parse CSV content handling multi-line quoted fields
+ * Returns array of rows where each row is an array of cell values
  */
-function parseLine(line: string, delimiter: string, trim: boolean): string[] {
-  const result: string[] = [];
+function parseLines(
+  content: string,
+  delimiter: string,
+  trim: boolean,
+  skipEmpty: boolean
+): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
   let current = '';
   let inQuotes = false;
   let i = 0;
 
-  while (i < line.length) {
-    const char = line[i];
-    const nextChar = line[i + 1];
+  while (i < content.length) {
+    const char = content[i];
+    const nextChar = content[i + 1];
 
     if (inQuotes) {
       if (char === '"') {
@@ -125,6 +151,7 @@ function parseLine(line: string, delimiter: string, trim: boolean): string[] {
           continue;
         }
       } else {
+        // Inside quotes, include everything (including newlines)
         current += char;
         i++;
         continue;
@@ -138,8 +165,31 @@ function parseLine(line: string, delimiter: string, trim: boolean): string[] {
     }
 
     if (char === delimiter) {
-      result.push(trim ? current.trim() : current);
+      currentRow.push(trim ? current.trim() : current);
       current = '';
+      i++;
+      continue;
+    }
+
+    // Handle line breaks (not inside quotes)
+    if (char === '\r' && nextChar === '\n') {
+      currentRow.push(trim ? current.trim() : current);
+      current = '';
+      if (!skipEmpty || currentRow.some((c) => c !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      i += 2;
+      continue;
+    }
+
+    if (char === '\n' || char === '\r') {
+      currentRow.push(trim ? current.trim() : current);
+      current = '';
+      if (!skipEmpty || currentRow.some((c) => c !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
       i++;
       continue;
     }
@@ -148,10 +198,13 @@ function parseLine(line: string, delimiter: string, trim: boolean): string[] {
     i++;
   }
 
-  // Add last value
-  result.push(trim ? current.trim() : current);
+  // Flush remaining
+  currentRow.push(trim ? current.trim() : current);
+  if (!skipEmpty || currentRow.some((c) => c !== '')) {
+    rows.push(currentRow);
+  }
 
-  return result;
+  return rows;
 }
 
 /**
@@ -245,10 +298,23 @@ export function csvToJSON(result: CSVParseResult): Record<string, string>[] {
 }
 
 /**
- * Extract embeddable content from CSV
+ * Extract embeddable content from CSV with stats summary
  */
 export function extractCSVEmbeddableContent(result: CSVParseResult): string {
-  return result.text;
+  const parts: string[] = [];
+
+  // Add column type summary if headers present
+  if (result.headers.length > 0) {
+    const types = inferColumnTypes(result);
+    const typeSummary = types
+      .map((t) => `${t.columnName} (${t.inferredType})`)
+      .join(', ');
+    parts.push(`Columns: ${typeSummary}`);
+  }
+
+  parts.push(result.text);
+
+  return parts.join('\n\n');
 }
 
 /**
@@ -286,6 +352,116 @@ export function getCSVStats(result: CSVParseResult): {
         stats.numericColumns.push(header);
       }
     });
+  }
+
+  return stats;
+}
+
+/**
+ * Infer column types from CSV data
+ */
+export function inferColumnTypes(result: CSVParseResult): ColumnTypeInfo[] {
+  const columnCount = result.headers.length || result.columnCount;
+  const types: ColumnTypeInfo[] = [];
+
+  for (let col = 0; col < columnCount; col++) {
+    const colName = result.headers[col] || `col${col + 1}`;
+    const values = result.data.map((row) => row[col] ?? '').filter((v) => v !== '');
+    const nullCount = result.data.length - values.length;
+    const uniqueValues = new Set(values);
+
+    if (values.length === 0) {
+      types.push({
+        columnIndex: col,
+        columnName: colName,
+        inferredType: 'empty',
+        sampleValues: [],
+        nullCount,
+        uniqueCount: 0,
+      });
+      continue;
+    }
+
+    // Count type matches
+    let numericCount = 0;
+    let booleanCount = 0;
+    let dateCount = 0;
+
+    for (const v of values) {
+      if (!isNaN(Number(v)) && v.trim() !== '') numericCount++;
+      if (['true', 'false', 'yes', 'no', '0', '1'].includes(v.toLowerCase())) booleanCount++;
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(v) && !isNaN(Date.parse(v))) dateCount++;
+    }
+
+    const threshold = values.length * 0.8;
+    let inferredType: ColumnType;
+
+    if (numericCount >= threshold) {
+      inferredType = 'number';
+    } else if (dateCount >= threshold) {
+      inferredType = 'date';
+    } else if (booleanCount >= threshold) {
+      inferredType = 'boolean';
+    } else if (numericCount > 0 || dateCount > 0 || booleanCount > 0) {
+      inferredType = 'mixed';
+    } else {
+      inferredType = 'string';
+    }
+
+    types.push({
+      columnIndex: col,
+      columnName: colName,
+      inferredType,
+      sampleValues: values.slice(0, 5),
+      nullCount,
+      uniqueCount: uniqueValues.size,
+    });
+  }
+
+  return types;
+}
+
+/**
+ * Get detailed column statistics including min/max/mean/median for numeric columns
+ */
+export function getColumnStats(result: CSVParseResult): ColumnStats[] {
+  const typeInfos = inferColumnTypes(result);
+  const stats: ColumnStats[] = [];
+
+  for (const typeInfo of typeInfos) {
+    const values = result.data.map((row) => row[typeInfo.columnIndex] ?? '');
+    const nonEmpty = values.filter((v) => v !== '');
+
+    const stat: ColumnStats = {
+      columnIndex: typeInfo.columnIndex,
+      columnName: typeInfo.columnName,
+      type: typeInfo.inferredType,
+      count: nonEmpty.length,
+      nullCount: typeInfo.nullCount,
+      uniqueCount: typeInfo.uniqueCount,
+    };
+
+    // Compute numeric stats for number columns
+    if (typeInfo.inferredType === 'number') {
+      const nums = nonEmpty
+        .map((v) => Number(v))
+        .filter((n) => !isNaN(n));
+
+      if (nums.length > 0) {
+        nums.sort((a, b) => a - b);
+        stat.min = nums[0];
+        stat.max = nums[nums.length - 1];
+        stat.mean = nums.reduce((sum, n) => sum + n, 0) / nums.length;
+
+        // Median
+        const mid = Math.floor(nums.length / 2);
+        stat.median = nums.length % 2 === 0
+          ? (nums[mid - 1] + nums[mid]) / 2
+          : nums[mid];
+      }
+    }
+
+    stats.push(stat);
   }
 
   return stats;

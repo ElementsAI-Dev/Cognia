@@ -9,6 +9,10 @@ import { persist } from 'zustand/middleware';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
 import * as screenshotApi from '@/lib/native/screenshot';
+import {
+  generateScreenshotFilename,
+  getScreenshotPath,
+} from '@/lib/native/screen-recording';
 import type {
   ScreenshotResult as NativeScreenshotResult,
   ScreenshotHistoryEntry as NativeHistoryEntry,
@@ -16,6 +20,7 @@ import type {
   SnapConfig as NativeSnapConfig,
   WindowInfo as NativeWindowInfo,
   WinOcrResult as NativeWinOcrResult,
+  DetailedOcrResult as NativeDetailedOcrResult,
 } from '@/lib/native/screenshot';
 
 const log = loggers.store;
@@ -147,10 +152,26 @@ interface ScreenshotActions {
   // File operations
   saveToFile: (imageBase64: string, path: string) => Promise<string>;
   openScreenshotFolder: (filePath: string) => Promise<void>;
+  generateFilename: (mode: string, format: string, customName?: string) => Promise<string | null>;
+  getFilePath: (filename: string) => Promise<string | null>;
 
   // System
   refreshMonitors: () => Promise<void>;
   setSelectedMonitor: (index: number | null) => void;
+
+  // Advanced history
+  getScreenshotById: (id: string) => Promise<ScreenshotHistoryEntry | null>;
+  searchHistoryByLabel: (label: string) => Promise<ScreenshotHistoryEntry[]>;
+  getAllHistory: () => Promise<ScreenshotHistoryEntry[]>;
+  getPinnedHistory: () => Promise<ScreenshotHistoryEntry[]>;
+  getHistoryStats: () => Promise<{ count: number; isEmpty: boolean } | null>;
+  batchDeleteScreenshots: (ids: string[]) => Promise<void>;
+
+  // Advanced OCR
+  extractTextDetailed: (imageBase64: string) => Promise<NativeDetailedOcrResult | null>;
+
+  // Color picker
+  getPixelColor: (x: number, y: number) => Promise<string | null>;
 
   // Utilities
   clearError: () => void;
@@ -618,6 +639,111 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         } catch (error) {
           log.error('Failed to open folder', error as Error);
           set({ error: error instanceof Error ? error.message : 'Failed to open folder' });
+        }
+      },
+
+      generateFilename: async (mode, format, customName) => {
+        if (!isTauri()) return null;
+        try {
+          return await generateScreenshotFilename(mode, format, customName);
+        } catch (error) {
+          log.warn('Failed to generate screenshot filename', { error: String(error) });
+          return null;
+        }
+      },
+
+      getFilePath: async (filename) => {
+        if (!isTauri()) return null;
+        try {
+          return await getScreenshotPath(filename);
+        } catch (error) {
+          log.warn('Failed to get screenshot path', { error: String(error) });
+          return null;
+        }
+      },
+
+      getScreenshotById: async (id) => {
+        if (!isTauri()) return null;
+        try {
+          const entry = await screenshotApi.getScreenshotById(id);
+          return entry ? transformHistoryEntry(entry) : null;
+        } catch (error) {
+          log.error('Failed to get screenshot by id', error as Error);
+          return null;
+        }
+      },
+
+      searchHistoryByLabel: async (label) => {
+        if (!isTauri()) return [];
+        try {
+          const results = await screenshotApi.searchHistoryByLabel(label);
+          return results.map(transformHistoryEntry);
+        } catch (error) {
+          log.error('Failed to search by label', error as Error);
+          return [];
+        }
+      },
+
+      getAllHistory: async () => {
+        if (!isTauri()) return [];
+        try {
+          const history = await screenshotApi.getAllHistory();
+          return history.map(transformHistoryEntry);
+        } catch (error) {
+          log.error('Failed to get all history', error as Error);
+          return [];
+        }
+      },
+
+      getPinnedHistory: async () => {
+        if (!isTauri()) return [];
+        try {
+          const history = await screenshotApi.getPinnedHistory();
+          return history.map(transformHistoryEntry);
+        } catch (error) {
+          log.error('Failed to get pinned history', error as Error);
+          return [];
+        }
+      },
+
+      getHistoryStats: async () => {
+        if (!isTauri()) return null;
+        try {
+          const [count, isEmpty] = await screenshotApi.getHistoryStats();
+          return { count, isEmpty };
+        } catch (error) {
+          log.error('Failed to get history stats', error as Error);
+          return null;
+        }
+      },
+
+      batchDeleteScreenshots: async (ids) => {
+        if (!isTauri()) return;
+        try {
+          await Promise.all(ids.map((id) => screenshotApi.deleteScreenshot(id)));
+          await get().refreshHistory();
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : 'Failed to batch delete' });
+        }
+      },
+
+      extractTextDetailed: async (imageBase64) => {
+        if (!isTauri()) return null;
+        try {
+          return await screenshotApi.extractTextDetailed(imageBase64);
+        } catch (error) {
+          log.error('Detailed OCR failed', error as Error);
+          return null;
+        }
+      },
+
+      getPixelColor: async (x, y) => {
+        if (!isTauri()) return null;
+        try {
+          return await screenshotApi.getPixelColor(x, y);
+        } catch (error) {
+          log.error('Failed to get pixel color', error as Error);
+          return null;
         }
       },
 

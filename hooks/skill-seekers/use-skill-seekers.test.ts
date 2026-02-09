@@ -24,9 +24,9 @@ jest.mock('@tauri-apps/api/core', () => ({
 
 // Mock Tauri event listen
 const mockUnlisten = jest.fn(() => Promise.resolve());
-const mockListen = jest.fn(() => Promise.resolve(mockUnlisten));
+const mockListen = jest.fn((_event: string, _handler: (...cbArgs: unknown[]) => void) => Promise.resolve(mockUnlisten));
 jest.mock('@tauri-apps/api/event', () => ({
-  listen: (...args: unknown[]) => mockListen(...args),
+  listen: (event: string, handler: (...cbArgs: unknown[]) => void) => mockListen(event, handler),
 }));
 
 // Mock skill-seekers native API
@@ -875,8 +875,8 @@ describe('useSkillSeekers', () => {
 
       let logCallback: ((event: import('@/lib/native/skill-seekers').LogEvent) => void) | undefined;
 
-      skillSeekersApi.onLog.mockImplementation((callback) => {
-        logCallback = callback as (event: import('@/lib/native/skill-seekers').LogEvent) => void;
+      skillSeekersApi.onLog.mockImplementation((callback: (event: import('@/lib/native/skill-seekers').LogEvent) => void) => {
+        logCallback = callback;
         return Promise.resolve(mockUnlisten);
       });
 
@@ -920,8 +920,8 @@ describe('useSkillSeekers', () => {
 
       let progressCallback: ((event: import('@/lib/native/skill-seekers').ProgressEvent) => void) | undefined;
 
-      skillSeekersApi.onProgress.mockImplementation((callback) => {
-        progressCallback = callback as (event: import('@/lib/native/skill-seekers').ProgressEvent) => void;
+      skillSeekersApi.onProgress.mockImplementation((callback: (event: import('@/lib/native/skill-seekers').ProgressEvent) => void) => {
+        progressCallback = callback;
         return Promise.resolve(mockUnlisten);
       });
 
@@ -955,8 +955,8 @@ describe('useSkillSeekers', () => {
 
       let completedCallback: ((event: import('@/lib/native/skill-seekers').JobCompletedEvent) => void) | undefined;
 
-      skillSeekersApi.onJobCompleted.mockImplementation((callback) => {
-        completedCallback = callback as (event: import('@/lib/native/skill-seekers').JobCompletedEvent) => void;
+      skillSeekersApi.onJobCompleted.mockImplementation((callback: (event: import('@/lib/native/skill-seekers').JobCompletedEvent) => void) => {
+        completedCallback = callback;
         return Promise.resolve(mockUnlisten);
       });
 
@@ -984,7 +984,7 @@ describe('useSkillSeekers', () => {
 
       let logCallback: ((event: import('@/lib/native/skill-seekers').LogEvent) => void) | undefined;
 
-      skillSeekersApi.onLog.mockImplementation((callback) => {
+      skillSeekersApi.onLog.mockImplementation((callback: (event: import('@/lib/native/skill-seekers').LogEvent) => void) => {
         logCallback = callback as (event: import('@/lib/native/skill-seekers').LogEvent) => void;
         return Promise.resolve(mockUnlisten);
       });
@@ -1013,7 +1013,7 @@ describe('useSkillSeekers', () => {
 
       let logCallback: ((event: import('@/lib/native/skill-seekers').LogEvent) => void) | undefined;
 
-      skillSeekersApi.onLog.mockImplementation((callback) => {
+      skillSeekersApi.onLog.mockImplementation((callback: (event: import('@/lib/native/skill-seekers').LogEvent) => void) => {
         logCallback = callback as (event: import('@/lib/native/skill-seekers').LogEvent) => void;
         return Promise.resolve(mockUnlisten);
       });

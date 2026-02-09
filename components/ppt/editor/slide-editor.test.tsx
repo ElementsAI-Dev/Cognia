@@ -19,11 +19,17 @@ const mockStore = {
   addElement: jest.fn(),
   updateElement: jest.fn(),
   deleteElement: jest.fn(),
+  duplicateElement: jest.fn(),
+  bringToFront: jest.fn(),
+  sendToBack: jest.fn(),
   selection: { elementIds: [] as string[] },
   selectElement: jest.fn(),
+  addToSelection: jest.fn(),
   clearSelection: jest.fn(),
   startEditing: jest.fn(),
   stopEditing: jest.fn(),
+  showGrid: false,
+  showGuides: false,
 };
 
 jest.mock('@/stores/tools/ppt-editor-store', () => ({

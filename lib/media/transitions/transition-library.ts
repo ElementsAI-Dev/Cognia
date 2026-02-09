@@ -51,6 +51,7 @@ export interface TransitionDefinition {
   parameters: TransitionParameter[];
   shader?: string;
   thumbnail?: string;
+  isBuiltIn?: boolean;
 }
 
 /**
@@ -756,13 +757,13 @@ export class TransitionLibrary {
   /**
    * Validate transition instance
    */
-  public validateInstance(instance: TransitionInstance): string[] {
+  public validateInstance(instance: TransitionInstance): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     const definition = this.getById(instance.transitionId);
 
     if (!definition) {
       errors.push(`Transition not found: ${instance.transitionId}`);
-      return errors;
+      return { valid: false, errors };
     }
 
     if (instance.duration < definition.minDuration) {
@@ -777,7 +778,7 @@ export class TransitionLibrary {
       errors.push(`Transition ${definition.name} does not support direction`);
     }
 
-    return errors;
+    return { valid: errors.length === 0, errors };
   }
 }
 

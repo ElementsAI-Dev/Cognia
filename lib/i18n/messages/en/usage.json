@@ -19,7 +19,9 @@
     "clearAll": "Clear All",
     "requests": "req",
     "records": "rec",
-    "searchPlaceholder": "Search provider or model..."
+    "searchPlaceholder": "Search provider or model...",
+    "exportTimeSeries": "Export Time Series (CSV)",
+    "exportSummary": "Export Summary (JSON)"
   },
   "usage": {
     "today": "Today",
@@ -52,6 +54,16 @@
     "maxRequestsPerDay": "Max Requests Per Day",
     "maxTokensPerDay": "Max Tokens Per Day",
     "maxCostPerDay": "Max Cost Per Day ($)",
-    "maxCostPerMonth": "Max Cost Per Month ($)"
+    "maxCostPerMonth": "Max Cost Per Month ($)",
+    "performanceMetrics": "Performance",
+    "avgLatency": "Avg Latency",
+    "ttft": "Time to First Token",
+    "speed": "Speed",
+    "errorRate": "Error Rate",
+    "dailyLimit": "Daily Limit",
+    "inputTokens": "Input",
+    "outputTokens": "Output",
+    "cost": "Cost",
+    "viewFullReport": "View Full Report"
   }
 }

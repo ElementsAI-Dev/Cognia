@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import { getPluginLifecycleHooks } from '@/lib/plugin';
+import type { FrozenCompressionSummary } from '@/types/system/compression';
 import type {
   Session,
   CreateSessionInput,
@@ -154,6 +155,10 @@ interface SessionState {
   setInputDraft: (sessionId: string, draft: string) => void;
   getInputDraft: (sessionId: string) => string;
   clearInputDraft: (sessionId: string) => void;
+
+  // Frozen compression summary management (prefix stability)
+  setFrozenSummary: (sessionId: string, summary: FrozenCompressionSummary | undefined) => void;
+  getFrozenSummary: (sessionId: string) => FrozenCompressionSummary | undefined;
 }
 
 const DEFAULT_PROVIDER: ProviderName = 'openai';
@@ -292,11 +297,43 @@ export const useSessionStore = create<SessionState>()(
         }),
 
       updateSession: (id, updates) =>
-        set((state) => ({
-          sessions: state.sessions.map((s) =>
-            s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
-          ),
-        })),
+        set((state) => {
+          const existing = state.sessions.find((s) => s.id === id);
+
+          // Dispatch rename hook if title changed
+          if (existing && updates.title && updates.title !== existing.title) {
+            getPluginLifecycleHooks().dispatchOnSessionRename(id, existing.title, updates.title);
+          }
+
+          // Dispatch model switch hook if provider or model changed
+          if (existing && (updates.provider || updates.model)) {
+            const newProvider = updates.provider || existing.provider;
+            const newModel = updates.model || existing.model;
+            if (newProvider !== existing.provider || newModel !== existing.model) {
+              getPluginLifecycleHooks().dispatchOnModelSwitch(
+                newProvider,
+                newModel,
+                existing.provider,
+                existing.model
+              );
+            }
+          }
+
+          // Dispatch system prompt change hook if systemPrompt changed
+          if (existing && 'systemPrompt' in updates && updates.systemPrompt !== existing.systemPrompt) {
+            getPluginLifecycleHooks().dispatchOnSystemPromptChange(
+              id,
+              updates.systemPrompt || '',
+              existing.systemPrompt
+            );
+          }
+
+          return {
+            sessions: state.sessions.map((s) =>
+              s.id === id ? { ...s, ...updates, updatedAt: new Date() } : s
+            ),
+          };
+        }),
 
       setActiveSession: (id) =>
         set((state) => {
@@ -335,7 +372,13 @@ export const useSessionStore = create<SessionState>()(
           ),
         })),
 
-      deleteAllSessions: () => set({ sessions: [], activeSessionId: null }),
+      deleteAllSessions: () => {
+        const { sessions } = get();
+        for (const session of sessions) {
+          getPluginLifecycleHooks().dispatchOnSessionClear(session.id);
+        }
+        set({ sessions: [], activeSessionId: null });
+      },
 
       switchMode: (sessionId: string, mode: ChatMode) => {
         set((state) => {
@@ -343,6 +386,9 @@ export const useSessionStore = create<SessionState>()(
           if (!targetSession || targetSession.mode === mode) {
             return state;
           }
+
+          // Dispatch chat mode switch hook
+          getPluginLifecycleHooks().dispatchOnChatModeSwitch(sessionId, mode, targetSession.mode);
 
           const historyEntry: ModeHistoryEntry = { mode, timestamp: new Date(), sessionId };
           return {
@@ -1116,6 +1162,19 @@ export const useSessionStore = create<SessionState>()(
           const { [sessionId]: _, ...rest } = state.inputDrafts;
           return { inputDrafts: rest };
         }),
+
+      // Frozen compression summary management (prefix stability)
+      setFrozenSummary: (sessionId, summary) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, frozenSummary: summary, updatedAt: new Date() } : s
+          ),
+        })),
+
+      getFrozenSummary: (sessionId) => {
+        const session = get().sessions.find((s) => s.id === sessionId);
+        return session?.frozenSummary;
+      },
     }),
     {
       name: 'cognia-sessions',

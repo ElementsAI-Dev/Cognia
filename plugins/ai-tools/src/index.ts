@@ -19,6 +19,7 @@ import { parseConfig, type AIToolsConfig } from './types';
 
 // Plugin state
 let currentConfig: AIToolsConfig;
+const eventCleanups: Array<() => void> = [];
 
 export default definePlugin({
   activate(context: PluginContext): PluginHooksAll | void {
@@ -68,8 +69,8 @@ export default definePlugin({
     const commands = createCommands(context);
     context.logger.info(`Registered ${commands.length} commands`);
 
-    // Event listeners for commands
-    context.events.on('ai-tools:scrape-pricing', async (params) => {
+    // Event listeners for commands (store unsubscribe functions for cleanup)
+    eventCleanups.push(context.events.on('ai-tools:scrape-pricing', async (params) => {
       context.logger.info('Executing scrape-pricing via event', params);
       try {
         const result = await pricingTool.execute(params as Parameters<typeof pricingTool.execute>[0]);
@@ -77,9 +78,9 @@ export default definePlugin({
       } catch (error) {
         context.logger.error('Pricing scrape failed:', error);
       }
-    });
+    }));
 
-    context.events.on('ai-tools:check-status', async (params) => {
+    eventCleanups.push(context.events.on('ai-tools:check-status', async (params) => {
       context.logger.info('Executing check-status via event', params);
       try {
         const result = await statusTool.execute(params as Parameters<typeof statusTool.execute>[0]);
@@ -87,9 +88,9 @@ export default definePlugin({
       } catch (error) {
         context.logger.error('Status check failed:', error);
       }
-    });
+    }));
 
-    context.events.on('ai-tools:view-rankings', async (params) => {
+    eventCleanups.push(context.events.on('ai-tools:view-rankings', async (params) => {
       context.logger.info('Executing view-rankings via event', params);
       try {
         const result = await rankingsTool.execute(params as Parameters<typeof rankingsTool.execute>[0]);
@@ -97,9 +98,9 @@ export default definePlugin({
       } catch (error) {
         context.logger.error('Rankings fetch failed:', error);
       }
-    });
+    }));
 
-    context.events.on('ai-tools:view-leaderboard', async (params) => {
+    eventCleanups.push(context.events.on('ai-tools:view-leaderboard', async (params) => {
       context.logger.info('Executing view-leaderboard via event', params);
       try {
         const result = await lmarenaTool.execute(params as Parameters<typeof lmarenaTool.execute>[0]);
@@ -107,9 +108,9 @@ export default definePlugin({
       } catch (error) {
         context.logger.error('Leaderboard fetch failed:', error);
       }
-    });
+    }));
 
-    context.events.on('ai-tools:clear-cache', async () => {
+    eventCleanups.push(context.events.on('ai-tools:clear-cache', async () => {
       context.logger.info('Clearing AI Tools cache');
       try {
         await clearCache(context);
@@ -117,7 +118,7 @@ export default definePlugin({
       } catch (error) {
         context.logger.error('Failed to clear cache:', error);
       }
-    });
+    }));
 
     // Return hooks
     return {
@@ -147,7 +148,10 @@ export default definePlugin({
   },
 
   deactivate() {
-    // Cleanup if needed
+    for (const cleanup of eventCleanups) {
+      cleanup();
+    }
+    eventCleanups.length = 0;
   },
 });
 

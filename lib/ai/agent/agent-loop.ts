@@ -11,6 +11,7 @@
 
 import { executeAgent, type AgentTool } from './agent-executor';
 import type { ProviderName } from '../core/client';
+import { getPluginLifecycleHooks } from '@/lib/plugin';
 import { 
   classifyTaskRuleBased, 
   classifyTaskHybrid,
@@ -96,6 +97,14 @@ export interface AgentLoopConfig {
   dynamicRouting?: DynamicRoutingConfig;
   /** Called when model is dynamically selected */
   onModelSelected?: (selection: { tier: ModelTier; provider: ProviderName; model: string; reason: string }) => void;
+  /** Maximum tokens for accumulated agent context (default 80000) */
+  maxContextTokens?: number;
+  /** Trigger compression at N% of context budget (default 70) */
+  compressionThresholdPercent?: number;
+  /** Enable automatic compression between agent steps (default true) */
+  enableInterStepCompression?: boolean;
+  /** Called when agent context is compressed */
+  onContextCompressed?: (tokensSaved: number) => void;
 }
 
 export interface AgentLoopResult {
@@ -128,6 +137,113 @@ Task: `;
 const SUMMARY_PROMPT = `Summarize the following task results into a coherent response:
 
 `;
+
+/**
+ * Estimate token count for a string (rough: ~4 chars per token)
+ */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Compress accumulated agent task results when context budget is exceeded
+ * Keeps the most recent 2 results uncompressed, summarizes older ones.
+ *
+ * Prefix stability: If a previous frozen summary exists (from an earlier compression),
+ * it is reused and only new tasks beyond it are summarized incrementally.
+ * This avoids regenerating the summary each step, keeping the prefix stable
+ * for KV cache reuse in local inference engines (vLLM, SGLang, ollama).
+ */
+function compressAgentContext(
+  results: string[],
+  maxTokens: number,
+  thresholdPercent: number = 70,
+  previousFrozenSummary?: string,
+  previousFrozenCount?: number
+): { compressed: string[]; tokensSaved: number; frozenSummary?: string; frozenCount?: number } {
+  if (results.length <= 2) {
+    return { compressed: results, tokensSaved: 0 };
+  }
+
+  const totalTokens = results.reduce((sum, r) => sum + estimateTokens(r), 0);
+  const threshold = (maxTokens * thresholdPercent) / 100;
+
+  if (totalTokens <= threshold) {
+    return { compressed: results, tokensSaved: 0 };
+  }
+
+  // Keep last 2 results uncompressed
+  const toCompress = results.slice(0, -2);
+  const toKeep = results.slice(-2);
+
+  // Prefix stability: reuse previous frozen summary if it covers a subset of toCompress
+  let summaryText: string;
+  let frozenCount: number;
+
+  if (previousFrozenSummary && previousFrozenCount && previousFrozenCount <= toCompress.length) {
+    // Reuse frozen summary for already-compressed tasks, only summarize new ones
+    const newToCompress = toCompress.slice(previousFrozenCount);
+
+    if (newToCompress.length === 0) {
+      // Frozen summary still covers everything
+      summaryText = previousFrozenSummary;
+      frozenCount = previousFrozenCount;
+    } else {
+      // Incrementally add new task summaries to the frozen summary
+      const newSummaryParts = newToCompress.map((result, i) => {
+        const taskIndex = previousFrozenCount + i + 1;
+        return summarizeTaskResult(result, taskIndex);
+      });
+
+      summaryText = `${previousFrozenSummary}\n${newSummaryParts.join('\n')}`;
+      frozenCount = toCompress.length;
+    }
+  } else {
+    // No frozen summary or it's invalid — generate from scratch
+    const summaryParts = toCompress.map((result, i) => summarizeTaskResult(result, i + 1));
+    summaryText = `[Compressed: ${toCompress.length} earlier task results]\n${summaryParts.join('\n')}`;
+    frozenCount = toCompress.length;
+  }
+
+  const compressed = [summaryText, ...toKeep];
+
+  const newTokens = compressed.reduce((sum, r) => sum + estimateTokens(r), 0);
+  const tokensSaved = totalTokens - newTokens;
+
+  return {
+    compressed,
+    tokensSaved: Math.max(0, tokensSaved),
+    frozenSummary: summaryText,
+    frozenCount,
+  };
+}
+
+/**
+ * Summarize a single task result into a compact line
+ */
+function summarizeTaskResult(result: string, taskIndex: number): string {
+  const lines = result.split('\n');
+  const keyLines = lines.filter(line => {
+    const l = line.trim().toLowerCase();
+    return (
+      l.startsWith('task ') ||
+      l.startsWith('result:') ||
+      l.startsWith('error:') ||
+      l.startsWith('success:') ||
+      l.startsWith('output:') ||
+      l.includes('completed') ||
+      l.includes('failed')
+    );
+  });
+
+  if (keyLines.length > 0) {
+    return `[Task ${taskIndex} Summary] ${keyLines.slice(0, 3).join(' | ')}`;
+  }
+
+  // Fallback: first 100 chars
+  const preview = result.substring(0, 100).replace(/\n/g, ' ');
+  return `[Task ${taskIndex} Summary] ${preview}${result.length > 100 ? '...' : ''}`;
+}
 
 /**
  * Parse planning response into tasks
@@ -279,17 +395,15 @@ export async function executeAgentLoop(
     // Langfuse workflow tracking
     if (langfuseModule?.isLangfuseEnabled()) {
       const { LangfuseUtils } = langfuseModule;
-      const workflowTracker = LangfuseUtils.trackWorkflowExecution(
-        `agent-loop-${Date.now()}`,
-        { task, provider, model, planningEnabled, maxStepsPerTask, maxTotalSteps }
-      );
+      const sessionId = `agent-loop-${Date.now()}`;
       endWorkflowTracking = (result: AgentLoopResult) => {
-        workflowTracker.end(result.success, {
-          duration: result.duration,
-          totalSteps: result.totalSteps,
-          taskCount: result.tasks.length,
-          error: result.error,
-        });
+        LangfuseUtils.trackWorkflowExecution(
+          sessionId,
+          undefined,
+          'agent-loop',
+          result.tasks.map((t, i) => ({ id: `task-${i}`, type: 'agent-task', status: t.status, duration: result.duration })),
+          { task, provider, model, planningEnabled, maxStepsPerTask, maxTotalSteps, totalSteps: result.totalSteps, error: result.error }
+        );
       };
     }
 
@@ -298,10 +412,10 @@ export async function executeAgentLoop(
       const { OpenTelemetryUtils } = tracingModule;
       OpenTelemetryUtils.trackWorkflowExecution(
         `agent-loop`,
-        { task: task.slice(0, 200), provider, model },
         async () => {
           // No-op: actual execution happens below; this just creates the span context
-        }
+        },
+        { attributes: { task: task.slice(0, 200), provider, model } }
       );
     }
   } catch {
@@ -374,8 +488,17 @@ export async function executeAgentLoop(
       });
     }
 
+    // ========== Agent Plan Create Hook ==========
+    getPluginLifecycleHooks().dispatchOnAgentPlanCreate(
+      `agent-loop-${Date.now()}`,
+      tasks.map((t) => ({ id: t.id, description: t.description }))
+    );
+
     // Step 2: Execute each subtask
     const results: string[] = [];
+    // Frozen summary state for prefix-stable inter-step compression
+    let agentFrozenSummary: string | undefined;
+    let agentFrozenCount: number | undefined;
 
     for (let i = 0; i < tasks.length; i++) {
       // Check cancellation before each task
@@ -438,6 +561,35 @@ export async function executeAgentLoop(
       }
 
       onTaskComplete?.(currentTask);
+
+      // ========== Agent Plan Step Complete Hook ==========
+      getPluginLifecycleHooks().dispatchOnAgentPlanStepComplete(
+        `agent-loop-${Date.now()}`,
+        currentTask.id,
+        currentTask.result || currentTask.error || '',
+        currentTask.status === 'completed'
+      );
+
+      // Inter-step context compression: compress accumulated results if budget exceeded
+      // Tracks frozen summary across iterations for prefix stability (KV cache reuse)
+      const enableCompression = config.enableInterStepCompression ?? true;
+      const maxCtxTokens = config.maxContextTokens ?? 80000;
+      const compressionPct = config.compressionThresholdPercent ?? 70;
+
+      if (enableCompression && results.length > 2) {
+        const { compressed, tokensSaved, frozenSummary: newFrozen, frozenCount: newFrozenCount } =
+          compressAgentContext(results, maxCtxTokens, compressionPct, agentFrozenSummary, agentFrozenCount);
+        if (tokensSaved > 0) {
+          results.length = 0;
+          results.push(...compressed);
+          // Persist frozen summary for next iteration
+          if (newFrozen) {
+            agentFrozenSummary = newFrozen;
+            agentFrozenCount = newFrozenCount;
+          }
+          config.onContextCompressed?.(tokensSaved);
+        }
+      }
     }
 
     // Step 3: Summarize results

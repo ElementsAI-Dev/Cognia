@@ -4,6 +4,7 @@
 
 import type { TokenUsage } from '../system/usage';
 import type { SourceVerification } from '../search/search';
+import type { MessageCompressionState } from '../system/compression';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
@@ -200,6 +201,9 @@ export interface UIMessage {
   // Translation
   translatedContent?: string;
   translatedTo?: string;
+
+  // Compression state
+  compressionState?: MessageCompressionState;
 
   // Error state
   error?: string;

@@ -23,6 +23,9 @@ export type {
   AnnotatedScreenshotResult,
   SelectionValidationResult,
   SnapConfig,
+  DetailedOcrResult,
+  SelectionSnapResult,
+  ElementInfo,
 } from '@/lib/native/screenshot';
 
 import type {
@@ -30,6 +33,9 @@ import type {
   ScreenshotHistoryEntry,
   Annotation,
   SnapConfig,
+  DetailedOcrResult,
+  SelectionSnapResult,
+  ElementInfo,
 } from '@/lib/native/screenshot';
 
 export function useScreenshot() {
@@ -260,6 +266,79 @@ export function useScreenshot() {
     }
   }, []);
 
+  const getPixelColor = useCallback(async (x: number, y: number) => {
+    if (!isTauri()) return null;
+    try {
+      return await screenshotApi.getPixelColor(x, y);
+    } catch (err) {
+      log.error('Failed to get pixel color', err as Error);
+      return null;
+    }
+  }, []);
+
+  const extractTextDetailed = useCallback(async (imageBase64: string): Promise<DetailedOcrResult | null> => {
+    if (!isTauri()) return null;
+    try {
+      return await screenshotApi.extractTextDetailed(imageBase64);
+    } catch (err) {
+      log.error('Detailed OCR failed', err as Error);
+      return null;
+    }
+  }, []);
+
+  const getCurrentOcrLanguage = useCallback(async () => {
+    if (!isTauri()) return 'eng';
+    try {
+      return await screenshotApi.getCurrentOcrLanguage();
+    } catch (err) {
+      log.error('Failed to get current OCR language', err as Error);
+      return 'eng';
+    }
+  }, []);
+
+  const calculateSelectionSnap = useCallback(
+    async (selectionX: number, selectionY: number, selectionWidth: number, selectionHeight: number): Promise<SelectionSnapResult | null> => {
+      if (!isTauri()) return null;
+      try {
+        return await screenshotApi.calculateSelectionSnap(selectionX, selectionY, selectionWidth, selectionHeight);
+      } catch (err) {
+        log.error('Failed to calculate selection snap', err as Error);
+        return null;
+      }
+    },
+    []
+  );
+
+  const getWindowAtPoint = useCallback(async (x: number, y: number) => {
+    if (!isTauri()) return null;
+    try {
+      return await screenshotApi.getWindowAtPoint(x, y);
+    } catch (err) {
+      log.error('Failed to get window at point', err as Error);
+      return null;
+    }
+  }, []);
+
+  const getChildElements = useCallback(async (hwnd: number, maxDepth?: number): Promise<ElementInfo[]> => {
+    if (!isTauri()) return [];
+    try {
+      return await screenshotApi.getChildElements(hwnd, maxDepth);
+    } catch (err) {
+      log.error('Failed to get child elements', err as Error);
+      return [];
+    }
+  }, []);
+
+  const isOcrLanguageAvailable = useCallback(async (language: string) => {
+    if (!isTauri()) return false;
+    try {
+      return await screenshotApi.isOcrLanguageAvailable(language);
+    } catch (err) {
+      log.error('Failed to check OCR language', err as Error);
+      return false;
+    }
+  }, []);
+
   return {
     isCapturing,
     lastScreenshot,
@@ -281,6 +360,13 @@ export function useScreenshot() {
     getSnapConfig,
     setSnapConfig,
     setOcrLanguage,
+    getPixelColor,
+    extractTextDetailed,
+    getCurrentOcrLanguage,
+    calculateSelectionSnap,
+    getWindowAtPoint,
+    getChildElements,
+    isOcrLanguageAvailable,
   };
 }
 

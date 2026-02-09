@@ -132,8 +132,8 @@ describe('snippets', () => {
     it('completion provider should return suggestions', () => {
       registerLanguageSnippets(mockMonaco, 'typescript');
 
-      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0];
-      const provider = providerCall[1];
+      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0] as unknown[];
+      const provider = providerCall[1] as { provideCompletionItems: (...args: unknown[]) => { suggestions: { label: string; kind: number }[] } };
 
       const mockModel = {
         getWordUntilPosition: jest.fn(() => ({ word: 'rfc', startColumn: 1, endColumn: 4 })),
@@ -148,7 +148,7 @@ describe('snippets', () => {
         (s: { label: string }) => s.label === 'rfc'
       );
       expect(rfcSnippet).toBeDefined();
-      expect(rfcSnippet.kind).toBe(27); // CompletionItemKind.Snippet
+      expect(rfcSnippet!.kind).toBe(27); // CompletionItemKind.Snippet
     });
   });
 
@@ -183,18 +183,18 @@ describe('snippets', () => {
     it('emmet provider should have trigger characters', () => {
       registerEmmetSupport(mockMonaco);
 
-      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0];
-      const provider = providerCall[1];
-      expect(provider.triggerCharacters).toContain('!');
-      expect(provider.triggerCharacters).toContain('>');
-      expect(provider.triggerCharacters).toContain(':');
+      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0] as unknown[];
+      const provider = providerCall[1] as Record<string, unknown>;
+      expect((provider.triggerCharacters as string[])).toContain('!');
+      expect((provider.triggerCharacters as string[])).toContain('>');
+      expect((provider.triggerCharacters as string[])).toContain(':');
     });
 
     it('emmet provider should return suggestions for known abbreviations', () => {
       registerEmmetSupport(mockMonaco);
 
-      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0];
-      const provider = providerCall[1];
+      const providerCall = mockRegisterCompletionItemProvider.mock.calls[0] as unknown[];
+      const provider = providerCall[1] as { provideCompletionItems: (...args: unknown[]) => { suggestions: { label: string }[] } };
 
       const mockModel = {
         getWordUntilPosition: jest.fn(() => ({ word: 'btn', startColumn: 1, endColumn: 4 })),

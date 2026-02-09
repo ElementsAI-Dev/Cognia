@@ -7,6 +7,8 @@ import {
   createCacheMiddleware,
   createSimpleCacheMiddleware,
   generateCacheKey,
+  invalidateCacheByPattern,
+  getCacheStats,
   type CacheStore,
 } from './cache-middleware';
 
@@ -182,6 +184,112 @@ describe('Cache Middleware', () => {
       const middleware = createSimpleCacheMiddleware({ maxSize: 50 });
       
       expect(middleware).toBeDefined();
+    });
+  });
+
+  describe('CacheStats', () => {
+    it('should track hits and misses', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('key1', 'value1');
+      await store.get('key1');    // hit
+      await store.get('key1');    // hit
+      await store.get('missing'); // miss
+
+      const stats = getCacheStats(store);
+      expect(stats).not.toBeNull();
+      expect(stats!.hits).toBe(2);
+      expect(stats!.misses).toBe(1);
+      expect(stats!.hitRate).toBeCloseTo(2 / 3);
+    });
+
+    it('should track sets and deletes', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('a', 1);
+      await store.set('b', 2);
+      await store.delete('a');
+
+      const stats = getCacheStats(store);
+      expect(stats!.sets).toBe(2);
+      expect(stats!.deletes).toBe(1);
+      expect(stats!.size).toBe(1);
+    });
+
+    it('should return null for stores without getStats', () => {
+      const basicStore: CacheStore = {
+        get: async () => null,
+        set: async () => {},
+        delete: async () => {},
+      };
+      expect(getCacheStats(basicStore)).toBeNull();
+    });
+  });
+
+  describe('Cache clear', () => {
+    it('should clear all entries', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('a', 1);
+      await store.set('b', 2);
+      await store.set('c', 3);
+      await store.clear!();
+
+      expect(await store.get('a')).toBeNull();
+      expect(await store.get('b')).toBeNull();
+      expect(await store.get('c')).toBeNull();
+    });
+  });
+
+  describe('Cache keys', () => {
+    it('should list all keys', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('x', 1);
+      await store.set('y', 2);
+
+      const keys = await store.keys!();
+      expect(keys).toContain('x');
+      expect(keys).toContain('y');
+      expect(keys.length).toBe(2);
+    });
+  });
+
+  describe('invalidateCacheByPattern', () => {
+    it('should invalidate matching keys', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('ai-cache-abc', 'val1');
+      await store.set('ai-cache-def', 'val2');
+      await store.set('other-key', 'val3');
+
+      const count = await invalidateCacheByPattern(store, /^ai-cache-/);
+
+      expect(count).toBe(2);
+      expect(await store.get('ai-cache-abc')).toBeNull();
+      expect(await store.get('ai-cache-def')).toBeNull();
+      expect(await store.get('other-key')).toBe('val3');
+    });
+
+    it('should accept string patterns', async () => {
+      const store = createInMemoryCacheStore();
+
+      await store.set('prefix-1', 'a');
+      await store.set('prefix-2', 'b');
+      await store.set('no-match', 'c');
+
+      const count = await invalidateCacheByPattern(store, '^prefix-');
+      expect(count).toBe(2);
+    });
+
+    it('should return 0 for stores without keys()', async () => {
+      const basicStore: CacheStore = {
+        get: async () => null,
+        set: async () => {},
+        delete: async () => {},
+      };
+      const count = await invalidateCacheByPattern(basicStore, /test/);
+      expect(count).toBe(0);
     });
   });
 });

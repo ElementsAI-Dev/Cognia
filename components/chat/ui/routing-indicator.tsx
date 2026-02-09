@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { ModelSelection, TaskClassification, ModelTier } from '@/types/provider/auto-router';
 import type { ProviderName } from '@/types/provider';
 
@@ -199,7 +200,8 @@ export function RoutingIndicator({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-medium">Auto-routed to {tier.label}</span>
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 gap-1">
+                  <ProviderIcon providerId={selection.provider} size={10} className="shrink-0" />
                   {selection.provider}
                 </Badge>
               </div>

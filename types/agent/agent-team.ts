@@ -210,6 +210,8 @@ export interface AgentTeammate {
   lastActiveAt?: Date;
   /** Error message if failed */
   error?: string;
+  /** Specialization area */
+  specialization?: string;
 }
 
 // ============================================================================

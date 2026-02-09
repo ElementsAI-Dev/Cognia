@@ -101,7 +101,18 @@ describe('FlowKeyboardShortcuts', () => {
     expect(onOpenSearch).toHaveBeenCalled();
   });
 
-  it('calls onAutoLayout when Ctrl+L is pressed', () => {
+  it('calls onAutoLayout when Ctrl+Shift+L is pressed', () => {
+    const onAutoLayout = jest.fn();
+    render(
+      <FlowKeyboardShortcuts {...defaultProps} onAutoLayout={onAutoLayout} />,
+      { wrapper }
+    );
+
+    fireEvent.keyDown(window, { key: 'L', ctrlKey: true, shiftKey: true });
+    expect(onAutoLayout).toHaveBeenCalled();
+  });
+
+  it('does not call onAutoLayout when Ctrl+L (without shift) is pressed', () => {
     const onAutoLayout = jest.fn();
     render(
       <FlowKeyboardShortcuts {...defaultProps} onAutoLayout={onAutoLayout} />,
@@ -109,7 +120,7 @@ describe('FlowKeyboardShortcuts', () => {
     );
 
     fireEvent.keyDown(window, { key: 'l', ctrlKey: true });
-    expect(onAutoLayout).toHaveBeenCalled();
+    expect(onAutoLayout).not.toHaveBeenCalled();
   });
 
   it('calls onFitView when Ctrl+0 is pressed', () => {

@@ -51,7 +51,7 @@ const defaultDetailReturn = {
   children: mockChildren,
   childrenLoading: false,
   refreshChildren: jest.fn(),
-};
+} as unknown as ReturnType<typeof useProcessDetail>;
 
 const defaultProps = {
   pid: 1234,
@@ -64,7 +64,7 @@ describe('ProcessDetailPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseProcessDetail.mockReturnValue(defaultDetailReturn);
-    mockUseProcessStore.mockImplementation((selector: (state: unknown) => unknown) =>
+    (mockUseProcessStore as unknown as jest.Mock).mockImplementation((selector: (state: { trackedProcesses: Map<number, unknown> }) => unknown) =>
       selector({ trackedProcesses: new Map() })
     );
   });
@@ -216,7 +216,7 @@ describe('ProcessDetailPanel', () => {
       }],
     ]);
 
-    mockUseProcessStore.mockImplementation((selector: (state: unknown) => unknown) =>
+    (mockUseProcessStore as unknown as jest.Mock).mockImplementation((selector: (state: { trackedProcesses: Map<number, unknown> }) => unknown) =>
       selector({ trackedProcesses })
     );
 

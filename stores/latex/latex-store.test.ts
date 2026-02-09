@@ -124,7 +124,7 @@ describe('useLatexStore', () => {
         useLatexStore.setState({ currentDocumentId: null });
       });
 
-      let loaded: ReturnType<typeof useLatexStore.getState.loadDocument>;
+      let loaded: ReturnType<ReturnType<typeof useLatexStore.getState>['loadDocument']> = null;
 
       act(() => {
         loaded = useLatexStore.getState().loadDocument(docId!);
@@ -136,7 +136,7 @@ describe('useLatexStore', () => {
     });
 
     it('should return null for non-existent document', () => {
-      let result: ReturnType<typeof useLatexStore.getState.loadDocument>;
+      let result: ReturnType<ReturnType<typeof useLatexStore.getState>['loadDocument']> = null;
 
       act(() => {
         result = useLatexStore.getState().loadDocument('non-existent');
@@ -186,7 +186,7 @@ describe('useLatexStore', () => {
 
     it('should duplicate a document', () => {
       let originalId: string;
-      let duplicated: ReturnType<typeof useLatexStore.getState.duplicateDocument>;
+      let duplicated: ReturnType<ReturnType<typeof useLatexStore.getState>['duplicateDocument']> = null;
 
       act(() => {
         const original = useLatexStore.getState().createDocument('Original', 'content');
@@ -263,11 +263,11 @@ describe('useLatexStore', () => {
         versionId = useLatexStore.getState().createVersion('First version');
       });
 
-      expect(versionId).toBe('version-1');
+      expect(versionId!).toBe('version-1');
     });
 
     it('should return null when creating version without service', () => {
-      let versionId: string | null;
+      let versionId: string | null = null;
 
       act(() => {
         useLatexStore.setState({ versionControlService: null });
@@ -306,16 +306,17 @@ describe('useLatexStore', () => {
     const mockPaper: Paper = {
       id: 'paper-1',
       title: 'Test Paper',
-      authors: ['Author One'],
+      authors: [{ name: 'Author One' }],
       year: 2024,
       abstract: 'Abstract',
-      providerId: 'test-provider',
+      providerId: 'semantic-scholar',
       externalId: 'ext-1',
       urls: [],
       metadata: {},
-      citations: 0,
-      source: 'test',
-      addedAt: new Date(),
+      citationCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      fetchedAt: new Date(),
     };
 
     it('should add a citation', () => {

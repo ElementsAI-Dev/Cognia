@@ -21,7 +21,7 @@ export async function notifyTaskEvent(
   execution: TaskExecution,
   eventType: TaskEventType
 ): Promise<void> {
-  const channels = task.notification.channels;
+  const channels = task.notification.channels ?? [];
   
   if (channels.includes('none') || channels.length === 0) {
     return;

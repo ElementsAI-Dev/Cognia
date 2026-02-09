@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   CompletionConfig,
   CompletionFeedback,
-  CompletionResult,
+  InputCompletionResult,
   CompletionStatus,
   CompletionSuggestion,
   CompletionStats,
@@ -79,7 +79,7 @@ export async function getCompletionConfig(): Promise<CompletionConfig> {
 /**
  * Manually trigger completion for given text
  */
-export async function triggerCompletion(text: string): Promise<CompletionResult> {
+export async function triggerCompletion(text: string): Promise<InputCompletionResult> {
   return invoke('input_completion_trigger', { text });
 }
 
@@ -114,7 +114,7 @@ export async function clearCompletionCache(): Promise<void> {
 /**
  * Test provider connection
  */
-export async function testProviderConnection(): Promise<CompletionResult> {
+export async function testProviderConnection(): Promise<InputCompletionResult> {
   return invoke('input_completion_test_connection');
 }
 

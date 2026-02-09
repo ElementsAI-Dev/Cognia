@@ -45,16 +45,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, formatDuration } from '@/lib/utils';
 import {
   useScreenRecordingStore,
   useIsRecording,
   type RecordingMode,
 } from '@/stores/media';
-import { formatDuration, type RecordingRegion } from '@/lib/native/screen-recording';
+import type { RecordingRegion } from '@/lib/native/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 import { RegionSelector } from './region-selector';
 import { FFmpegStatus } from './ffmpeg-status';
+import { RecordingSettingsPanel } from './recording-settings-panel';
 
 interface RecordingControlsProps {
   compact?: boolean;
@@ -71,6 +72,7 @@ export function RecordingControls({
   const [showModeMenu, setShowModeMenu] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [showRegionSelector, setShowRegionSelector] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
   const {
     status,
@@ -348,7 +350,10 @@ export function RecordingControls({
             {showSettings && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex items-center gap-2">
+                <DropdownMenuItem
+                  className="flex items-center gap-2"
+                  onSelect={() => setShowSettingsPanel(true)}
+                >
                   <Settings className="h-4 w-4" />
                   <span>{t('settings')}</span>
                 </DropdownMenuItem>
@@ -392,6 +397,14 @@ export function RecordingControls({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <RecordingSettingsPanel
+          open={showSettingsPanel}
+          onOpenChange={setShowSettingsPanel}
+        />
+      )}
     </>
   );
 }

@@ -53,7 +53,7 @@ export interface OpenAIComparisonFormat {
 /**
  * Export format options
  */
-export type ExportFormat = 'rlhf' | 'dpo' | 'hh-rlhf' | 'openai' | 'jsonl';
+export type ExportFormat = 'rlhf' | 'dpo' | 'hh-rlhf' | 'openai' | 'openai-comparison' | 'jsonl';
 
 /**
  * Export options
@@ -64,6 +64,7 @@ export interface ExportOptions {
   includeTies?: boolean;
   minResponseLength?: number;
   filterCategory?: string;
+  dateRange?: { start: number; end: number };
 }
 
 /**
@@ -292,6 +293,10 @@ export function exportPreferences(
 export function getExportStats(battles: ArenaBattle[]): {
   totalBattles: number;
   validPairs: number;
+  completedBattles: number;
+  tiedBattles: number;
+  exportablePairs: number;
+  uniqueModels: number;
   byCategory: Record<string, number>;
   avgPromptLength: number;
   avgResponseLength: number;
@@ -299,11 +304,20 @@ export function getExportStats(battles: ArenaBattle[]): {
   const validBattles = battles.filter(
     (b) => b.winnerId && !b.isTie && b.contestants.every((c) => c.response.length > 0)
   );
+  const tiedBattles = battles.filter((b) => b.isTie);
+  const completedBattles = battles.filter((b) => b.winnerId);
 
+  const modelSet = new Set<string>();
   const byCategory: Record<string, number> = {};
   let totalPromptLength = 0;
   let totalResponseLength = 0;
   let responseCount = 0;
+
+  for (const battle of battles) {
+    for (const c of battle.contestants) {
+      modelSet.add(`${c.provider}:${c.model}`);
+    }
+  }
 
   for (const battle of validBattles) {
     const category = battle.taskClassification?.category || 'unknown';
@@ -319,6 +333,10 @@ export function getExportStats(battles: ArenaBattle[]): {
   return {
     totalBattles: battles.length,
     validPairs: validBattles.length,
+    completedBattles: completedBattles.length,
+    tiedBattles: tiedBattles.length,
+    exportablePairs: validBattles.length,
+    uniqueModels: modelSet.size,
     byCategory,
     avgPromptLength: validBattles.length > 0 ? totalPromptLength / validBattles.length : 0,
     avgResponseLength: responseCount > 0 ? totalResponseLength / responseCount : 0,
@@ -338,6 +356,7 @@ export function downloadExport(
     dpo: 'application/json',
     'hh-rlhf': 'application/json',
     openai: 'application/json',
+    'openai-comparison': 'application/json',
     jsonl: 'application/jsonl',
   };
 
@@ -346,6 +365,7 @@ export function downloadExport(
     dpo: 'json',
     'hh-rlhf': 'json',
     openai: 'json',
+    'openai-comparison': 'json',
     jsonl: 'jsonl',
   };
 

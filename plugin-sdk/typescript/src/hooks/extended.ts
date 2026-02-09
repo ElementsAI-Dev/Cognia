@@ -152,6 +152,22 @@ export interface PluginHooksAll extends PluginHooks {
   /** Called when a context menu is about to be shown */
   onContextMenuShow?: (context: { type: string; target?: unknown }) => { items?: unknown[] } | void;
 
+  // External Agent hooks
+  /** Called when an external agent connects */
+  onExternalAgentConnect?: (agentId: string, agentName: string) => void;
+  /** Called when an external agent disconnects */
+  onExternalAgentDisconnect?: (agentId: string) => void;
+  /** Called when an external agent starts execution */
+  onExternalAgentExecutionStart?: (agentId: string, sessionId: string, prompt: string) => void;
+  /** Called when an external agent completes execution */
+  onExternalAgentExecutionComplete?: (agentId: string, sessionId: string, success: boolean, response?: string) => void;
+  /** Called when an external agent requests permission */
+  onExternalAgentPermissionRequest?: (agentId: string, sessionId: string, toolName: string, reason?: string) => void;
+  /** Called when an external agent calls a tool */
+  onExternalAgentToolCall?: (agentId: string, sessionId: string, toolName: string, args: Record<string, unknown>) => void;
+  /** Called when an external agent encounters an error */
+  onExternalAgentError?: (agentId: string, error: string) => void;
+
   // Scheduler hooks (extended)
   /** Called when a scheduled task is created */
   onScheduledTaskCreate?: (task: {

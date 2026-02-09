@@ -10,7 +10,8 @@ export { ImageCropper } from './image-cropper';
 export type { ImageCropperProps } from './image-cropper';
 
 export { DrawingTools } from './drawing-tools';
-export type { DrawingToolsProps, DrawingShape, ShapeType } from './drawing-tools';
+export type { DrawingToolsProps, DrawingToolType } from './drawing-tools';
+export type { DrawingShapeConfig as DrawingShape, DrawingShapeType as ShapeType } from '@/types';
 
 export { TextOverlay } from './text-overlay';
 export type { TextOverlayProps, TextLayer } from './text-overlay';

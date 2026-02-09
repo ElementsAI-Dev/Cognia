@@ -64,17 +64,17 @@ function createTestFilter(type: 'grayscale' | 'blur' | 'sharpen' = 'grayscale', 
 }
 
 // Helper to create valid VideoExportOptions
-function createTestExportOptions(format: 'mp4' | 'webm' = 'mp4'): Record<string, unknown> {
+function createTestExportOptions(format: 'mp4' | 'webm' = 'mp4') {
   return {
     format,
-    codec: 'h264',
+    codec: 'h264' as const,
     resolution: { width: 1920, height: 1080 },
     frameRate: 30,
-    bitrateMode: 'vbr',
+    bitrateMode: 'vbr' as const,
     bitrate: 8000000,
-    audioCodec: 'aac',
+    audioCodec: 'aac' as const,
     audioBitrate: 320000,
-    audioChannels: 2,
+    audioChannels: 2 as const,
     audioSampleRate: 48000,
     twoPass: false,
     hardwareAcceleration: true,

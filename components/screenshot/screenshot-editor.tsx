@@ -25,6 +25,8 @@ interface ScreenshotEditorProps {
   region?: SelectionRegion;
   onConfirm: (imageData: string, annotations: Annotation[]) => void;
   onCancel: () => void;
+  onSendToChat?: (imageData: string) => void;
+  onExtractText?: (imageData: string) => void;
   className?: string;
 }
 
@@ -33,6 +35,8 @@ export function ScreenshotEditor({
   region,
   onConfirm,
   onCancel,
+  onSendToChat,
+  onExtractText,
   className,
 }: ScreenshotEditorProps) {
   const t = useTranslations('screenshot.editor');
@@ -115,6 +119,16 @@ export function ScreenshotEditor({
     link.download = `screenshot-${Date.now()}.png`;
     link.click();
   }, [getFinalImageData]);
+
+  const handleSendToChat = useCallback(() => {
+    const finalData = getFinalImageData();
+    onSendToChat?.(finalData);
+  }, [onSendToChat, getFinalImageData]);
+
+  const handleExtractText = useCallback(() => {
+    const finalData = getFinalImageData();
+    onExtractText?.(finalData);
+  }, [onExtractText, getFinalImageData]);
 
   // Callback to receive the export function from AnnotationCanvas
   const handleCanvasReady = useCallback((exportFn: () => string | null) => {
@@ -290,6 +304,8 @@ export function ScreenshotEditor({
           onCopy={handleCopy}
           onSave={handleSave}
           onToggleMagnifier={() => setShowMagnifier((prev) => !prev)}
+          onSendToChat={onSendToChat ? handleSendToChat : undefined}
+          onExtractText={onExtractText ? handleExtractText : undefined}
         />
       </div>
 

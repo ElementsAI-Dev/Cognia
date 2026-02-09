@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useInputCompletion } from '@/hooks/input-completion';
 import type { CompletionSuggestion } from '@/types/input-completion';
 
 export interface CompletionOverlayProps {
@@ -21,43 +20,42 @@ export interface CompletionOverlayProps {
   onIndexChange?: (index: number) => void;
   /** Custom class name */
   className?: string;
+  /** Ghost text opacity (0-1) */
+  ghostTextOpacity?: number;
+  /** Font size in px */
+  fontSize?: number;
+  /** Show accept/dismiss hint bar */
+  showAcceptHint?: boolean;
+  /** Auto-dismiss delay in ms (0 = disabled) */
+  autoDismissMs?: number;
 }
 
 export function CompletionOverlay({
   position,
   visible: visibleProp,
   suggestions: suggestionsProp,
-  onAccept,
+  onAccept: _onAccept,
   onDismiss,
   onIndexChange,
   className,
+  ghostTextOpacity = 0.5,
+  fontSize = 13,
+  showAcceptHint = true,
+  autoDismissMs = 0,
 }: CompletionOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [internalVisible, setInternalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const { currentSuggestion, config, accept, dismiss } = useInputCompletion({
-    onSuggestion: () => setInternalVisible(true),
-    onAccept: (suggestion) => {
-      setInternalVisible(false);
-      onAccept?.(suggestion);
-    },
-    onDismiss: () => {
-      setInternalVisible(false);
-      onDismiss?.();
-    },
-  });
-
-  // Use prop suggestions or wrap current suggestion
-  const suggestions = suggestionsProp ?? (currentSuggestion ? [currentSuggestion] : []);
+  // Use prop suggestions directly (driven by unified completion system)
+  const suggestions = suggestionsProp ?? [];
   const hasMultipleSuggestions = suggestions.length > 1;
 
-  // Clamp selectedIndex to valid range to prevent out-of-bounds access
+  // Clamp selectedIndex to valid range
   const clampedIndex = suggestions.length > 0 ? Math.min(selectedIndex, suggestions.length - 1) : 0;
-  const activeSuggestion = suggestions[clampedIndex] ?? currentSuggestion;
+  const activeSuggestion = suggestions[clampedIndex];
 
-  const visible = visibleProp ?? internalVisible;
-  const showOverlay = visible && activeSuggestion && config.ui.show_inline_preview;
+  const visible = visibleProp ?? false;
+  const showOverlay = visible && activeSuggestion;
 
   // Navigate to next suggestion
   const navigateNext = useCallback(() => {
@@ -75,18 +73,13 @@ export function CompletionOverlay({
     onIndexChange?.(newIndex);
   }, [hasMultipleSuggestions, selectedIndex, suggestions.length, onIndexChange]);
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts for multi-suggestion navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!showOverlay) return;
 
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        accept();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        dismiss();
-      } else if (e.key === ']' && e.altKey) {
+      // Only handle Alt+[/] navigation; Tab/Escape are handled by unified hook
+      if (e.key === ']' && e.altKey) {
         e.preventDefault();
         navigateNext();
       } else if (e.key === '[' && e.altKey) {
@@ -94,7 +87,7 @@ export function CompletionOverlay({
         navigatePrev();
       }
     },
-    [showOverlay, accept, dismiss, navigateNext, navigatePrev]
+    [showOverlay, navigateNext, navigatePrev]
   );
 
   useEffect(() => {
@@ -104,14 +97,14 @@ export function CompletionOverlay({
 
   // Auto-dismiss timer
   useEffect(() => {
-    if (!showOverlay || config.ui.auto_dismiss_ms === 0) return;
+    if (!showOverlay || autoDismissMs === 0) return;
 
     const timer = setTimeout(() => {
-      dismiss();
-    }, config.ui.auto_dismiss_ms);
+      onDismiss?.();
+    }, autoDismissMs);
 
     return () => clearTimeout(timer);
-  }, [showOverlay, config.ui.auto_dismiss_ms, dismiss]);
+  }, [showOverlay, autoDismissMs, onDismiss]);
 
   if (!showOverlay || !activeSuggestion) {
     return null;
@@ -147,8 +140,8 @@ export function CompletionOverlay({
         <div
           className="font-mono text-sm whitespace-pre-wrap break-words overflow-hidden"
           style={{
-            fontSize: config.ui.font_size,
-            opacity: config.ui.ghost_text_opacity,
+            fontSize,
+            opacity: ghostTextOpacity,
             color: 'var(--muted-foreground)',
             maxHeight: '200px',
             lineHeight: 1.5,
@@ -181,7 +174,7 @@ export function CompletionOverlay({
         )}
 
         {/* Accept hint */}
-        {config.ui.show_accept_hint && (
+        {showAcceptHint && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground/70">
             <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">Tab</kbd>
             <span>to accept</span>

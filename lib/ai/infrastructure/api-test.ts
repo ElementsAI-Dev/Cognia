@@ -236,13 +236,37 @@ export async function testDeepSeekConnection(
     return invoke<ApiTestResult>('test_deepseek_connection', { apiKey });
   }
 
-  return {
-    success: apiKey.length > 10,
-    message: apiKey.length > 10
-      ? 'API key format valid. Full test requires desktop app.'
-      : 'Invalid API key format',
-    latency_ms: 0,
-  };
+  // DeepSeek uses OpenAI-compatible API
+  try {
+    const start = Date.now();
+    const response = await proxyFetch('https://api.deepseek.com/models', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok) {
+      const data = await response.json();
+      const modelCount = data.data?.length || 0;
+      return {
+        success: true,
+        message: `Connected successfully. ${modelCount} models available.`,
+        latency_ms: latency,
+        model_info: `${modelCount} models`,
+      };
+    }
+    return {
+      success: false,
+      message: `API error: ${response.status}`,
+      latency_ms: latency,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Connection failed',
+    };
+  }
 }
 
 /**
@@ -255,13 +279,37 @@ export async function testGroqConnection(
     return invoke<ApiTestResult>('test_groq_connection', { apiKey });
   }
 
-  return {
-    success: apiKey.length > 10,
-    message: apiKey.length > 10
-      ? 'API key format valid. Full test requires desktop app.'
-      : 'Invalid API key format',
-    latency_ms: 0,
-  };
+  // Groq uses OpenAI-compatible API
+  try {
+    const start = Date.now();
+    const response = await proxyFetch('https://api.groq.com/openai/v1/models', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok) {
+      const data = await response.json();
+      const modelCount = data.data?.length || 0;
+      return {
+        success: true,
+        message: `Connected successfully. ${modelCount} models available.`,
+        latency_ms: latency,
+        model_info: `${modelCount} models`,
+      };
+    }
+    return {
+      success: false,
+      message: `API error: ${response.status}`,
+      latency_ms: latency,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Connection failed',
+    };
+  }
 }
 
 /**
@@ -274,13 +322,37 @@ export async function testMistralConnection(
     return invoke<ApiTestResult>('test_mistral_connection', { apiKey });
   }
 
-  return {
-    success: apiKey.length > 10,
-    message: apiKey.length > 10
-      ? 'API key format valid. Full test requires desktop app.'
-      : 'Invalid API key format',
-    latency_ms: 0,
-  };
+  // Mistral uses OpenAI-compatible API
+  try {
+    const start = Date.now();
+    const response = await proxyFetch('https://api.mistral.ai/v1/models', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok) {
+      const data = await response.json();
+      const modelCount = data.data?.length || 0;
+      return {
+        success: true,
+        message: `Connected successfully. ${modelCount} models available.`,
+        latency_ms: latency,
+        model_info: `${modelCount} models`,
+      };
+    }
+    return {
+      success: false,
+      message: `API error: ${response.status}`,
+      latency_ms: latency,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Connection failed',
+    };
+  }
 }
 
 /**
@@ -427,19 +499,8 @@ export async function testProviderConnection(
   apiKey: string,
   baseUrl?: string
 ): Promise<ApiTestResult> {
-  // Default base URLs for local providers
-  const localProviderDefaults: Record<string, { url: string; name: string }> = {
-    ollama: { url: 'http://localhost:11434', name: 'Ollama' },
-    lmstudio: { url: 'http://localhost:1234', name: 'LM Studio' },
-    llamacpp: { url: 'http://localhost:8080', name: 'llama.cpp' },
-    llamafile: { url: 'http://localhost:8080', name: 'llamafile' },
-    vllm: { url: 'http://localhost:8000', name: 'vLLM' },
-    localai: { url: 'http://localhost:8080', name: 'LocalAI' },
-    jan: { url: 'http://localhost:1337', name: 'Jan' },
-    textgenwebui: { url: 'http://localhost:5000', name: 'Text Gen WebUI' },
-    koboldcpp: { url: 'http://localhost:5001', name: 'KoboldCpp' },
-    tabbyapi: { url: 'http://localhost:5000', name: 'TabbyAPI' },
-  };
+  // Use centralized local provider configs
+  const localProviderDefaults = LOCAL_PROVIDER_TEST_CONFIGS;
 
   switch (providerId) {
     case 'openai':

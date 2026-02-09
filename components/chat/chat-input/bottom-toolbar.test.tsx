@@ -78,6 +78,14 @@ jest.mock('@/components/presets/preset-quick-switcher', () => ({
   PresetQuickSwitcher: () => <div data-testid="preset-quick-switcher" />,
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ src, alt, width, height, className }: { src: string; alt: string; width: number; height: number; className?: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} width={width} height={height} className={className} data-testid="provider-icon-img" />
+  ),
+}));
+
 describe('BottomToolbar', () => {
   const defaultProps = {
     modelName: 'GPT-4o',
@@ -280,6 +288,27 @@ describe('BottomToolbar', () => {
     it('hides thinking toggle when hideThinkingToggle is true', () => {
       render(<BottomToolbar {...defaultProps} hideThinkingToggle={true} />);
       expect(screen.queryByText('Think')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('providerId prop', () => {
+    it('renders ProviderIcon when providerId is given', () => {
+      render(<BottomToolbar {...defaultProps} providerId="openai" onModelClick={jest.fn()} />);
+      const icon = screen.getByTestId('provider-icon-img');
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveAttribute('src', '/icons/providers/openai.svg');
+    });
+
+    it('renders ProviderIcon for anthropic provider', () => {
+      render(<BottomToolbar {...defaultProps} providerId="anthropic" onModelClick={jest.fn()} />);
+      const icon = screen.getByTestId('provider-icon-img');
+      expect(icon).toHaveAttribute('src', '/icons/providers/anthropic.svg');
+    });
+
+    it('renders fallback when no providerId is given', () => {
+      const { container } = render(<BottomToolbar {...defaultProps} onModelClick={jest.fn()} />);
+      // Without providerId, ProviderIcon renders a fallback SVG
+      expect(container.querySelector('svg')).toBeInTheDocument();
     });
   });
 });

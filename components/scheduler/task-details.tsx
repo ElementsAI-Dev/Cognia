@@ -425,7 +425,7 @@ export function TaskDetails({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Channels</span>
                 <div className="flex gap-1">
-                  {task.notification.channels.map((ch) => (
+                  {(task.notification.channels ?? []).map((ch) => (
                     <Badge key={ch} variant="outline" className="text-xs">
                       {ch}
                     </Badge>

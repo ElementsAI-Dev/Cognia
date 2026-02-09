@@ -51,18 +51,18 @@ export interface ImageAdjustmentsProps {
 const DEFAULT_ADJUSTMENTS: ImageAdjustments = DEFAULT_IMAGE_ADJUSTMENTS;
 
 const FILTER_PRESETS: FilterPreset[] = [
-  { name: 'None', adjustments: {} },
-  { name: 'Vivid', adjustments: { saturation: 30, contrast: 15 } },
-  { name: 'Warm', adjustments: { hue: 15, saturation: 10, brightness: 5 } },
-  { name: 'Cool', adjustments: { hue: -20, saturation: -10, brightness: -5 } },
-  { name: 'B&W', adjustments: { saturation: -100 } },
-  { name: 'Sepia', adjustments: { saturation: -50, hue: 30, brightness: 10 } },
-  { name: 'High Contrast', adjustments: { contrast: 50, brightness: -10 } },
-  { name: 'Soft', adjustments: { contrast: -20, blur: 1, saturation: -15 } },
-  { name: 'Dramatic', adjustments: { contrast: 40, saturation: 20, brightness: -15 } },
-  { name: 'Faded', adjustments: { contrast: -30, saturation: -30, brightness: 20 } },
-  { name: 'Sharp', adjustments: { sharpen: 50, contrast: 10 } },
-  { name: 'Muted', adjustments: { saturation: -40, contrast: -10 } },
+  { id: 'none', name: 'None', adjustments: {} },
+  { id: 'vivid', name: 'Vivid', adjustments: { saturation: 30, contrast: 15 } },
+  { id: 'warm', name: 'Warm', adjustments: { hue: 15, saturation: 10, brightness: 5 } },
+  { id: 'cool', name: 'Cool', adjustments: { hue: -20, saturation: -10, brightness: -5 } },
+  { id: 'bw', name: 'B&W', adjustments: { saturation: -100 } },
+  { id: 'sepia', name: 'Sepia', adjustments: { saturation: -50, hue: 30, brightness: 10 } },
+  { id: 'high-contrast', name: 'High Contrast', adjustments: { contrast: 50, brightness: -10 } },
+  { id: 'soft', name: 'Soft', adjustments: { contrast: -20, blur: 1, saturation: -15 } },
+  { id: 'dramatic', name: 'Dramatic', adjustments: { contrast: 40, saturation: 20, brightness: -15 } },
+  { id: 'faded', name: 'Faded', adjustments: { contrast: -30, saturation: -30, brightness: 20 } },
+  { id: 'sharp', name: 'Sharp', adjustments: { sharpen: 50, contrast: 10 } },
+  { id: 'muted', name: 'Muted', adjustments: { saturation: -40, contrast: -10 } },
 ];
 
 interface AdjustmentControlProps {

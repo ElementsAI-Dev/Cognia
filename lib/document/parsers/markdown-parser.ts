@@ -1,5 +1,6 @@
 /**
  * Markdown Parser - Extract content and structure from Markdown files
+ * Enhanced with task lists, math blocks, footnotes, and admonitions
  */
 
 import { loggers } from '@/lib/logger';
@@ -22,6 +23,35 @@ export interface MarkdownParseResult {
   links: { text: string; url: string }[];
   codeBlocks: { language: string; code: string }[];
   images: { alt: string; url: string }[];
+  taskLists: TaskItem[];
+  mathBlocks: MathBlock[];
+  footnotes: Footnote[];
+  admonitions: Admonition[];
+}
+
+export interface TaskItem {
+  text: string;
+  checked: boolean;
+  line: number;
+}
+
+export interface MathBlock {
+  content: string;
+  displayMode: boolean;
+  line: number;
+}
+
+export interface Footnote {
+  id: string;
+  content: string;
+}
+
+export type AdmonitionType = 'note' | 'tip' | 'warning' | 'caution' | 'important' | 'info' | 'danger' | 'abstract';
+
+export interface Admonition {
+  type: AdmonitionType;
+  title?: string;
+  content: string;
 }
 
 type YamlParser = ((source: string) => unknown) | null | undefined;
@@ -267,6 +297,10 @@ export function parseMarkdown(content: string): MarkdownParseResult {
   const codeBlocks = extractCodeBlocks(body);
   const images = extractImages(body);
   const title = extractTitle(body, frontmatter);
+  const taskLists = extractTaskLists(body);
+  const mathBlocks = extractMathBlocks(body);
+  const footnotes = extractFootnotes(body);
+  const admonitions = extractAdmonitions(body);
 
   return {
     title,
@@ -276,7 +310,169 @@ export function parseMarkdown(content: string): MarkdownParseResult {
     links,
     codeBlocks,
     images,
+    taskLists,
+    mathBlocks,
+    footnotes,
+    admonitions,
   };
+}
+
+/**
+ * Extract task list items (- [ ] and - [x]) from markdown
+ */
+export function extractTaskLists(content: string): TaskItem[] {
+  const taskItems: TaskItem[] = [];
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(/^\s*[-*+]\s+\[([ xX])\]\s+(.+)$/);
+    if (match) {
+      taskItems.push({
+        text: match[2].trim(),
+        checked: match[1].toLowerCase() === 'x',
+        line: i + 1,
+      });
+    }
+  }
+
+  return taskItems;
+}
+
+/**
+ * Extract math/LaTeX blocks from markdown
+ * Supports both inline ($...$) and display ($$...$$) math
+ */
+export function extractMathBlocks(content: string): MathBlock[] {
+  const mathBlocks: MathBlock[] = [];
+  const lines = content.split('\n');
+
+  // Extract display math blocks ($$...$$)
+  const displayRegex = /\$\$([\s\S]*?)\$\$/g;
+  let match;
+  while ((match = displayRegex.exec(content)) !== null) {
+    const lineNumber = content.substring(0, match.index).split('\n').length;
+    const mathContent = match[1].trim();
+    if (mathContent) {
+      mathBlocks.push({
+        content: mathContent,
+        displayMode: true,
+        line: lineNumber,
+      });
+    }
+  }
+
+  // Extract inline math ($...$) — avoid matching $$
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Skip lines that are part of display math or code blocks
+    if (line.trim().startsWith('$$') || line.trim().startsWith('```')) continue;
+
+    const inlineRegex = /(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)/g;
+    let inlineMatch;
+    while ((inlineMatch = inlineRegex.exec(line)) !== null) {
+      const mathContent = inlineMatch[1].trim();
+      // Skip currency-like patterns (e.g., $10, $1.50)
+      if (/^\d/.test(mathContent)) continue;
+      if (mathContent) {
+        mathBlocks.push({
+          content: mathContent,
+          displayMode: false,
+          line: i + 1,
+        });
+      }
+    }
+  }
+
+  return mathBlocks;
+}
+
+/**
+ * Extract footnotes from markdown ([^id]: content)
+ */
+export function extractFootnotes(content: string): Footnote[] {
+  const footnotes: Footnote[] = [];
+  const footnoteRegex = /^\[\^([^\]]+)\]:\s*(.+)$/gm;
+  let match;
+
+  while ((match = footnoteRegex.exec(content)) !== null) {
+    footnotes.push({
+      id: match[1],
+      content: match[2].trim(),
+    });
+  }
+
+  return footnotes;
+}
+
+/**
+ * Extract admonitions/callouts from markdown
+ * Supports GitHub-style: > [!NOTE], > [!TIP], > [!WARNING], etc.
+ * Also supports common variants: > **Note:**, > **Warning:**, etc.
+ */
+export function extractAdmonitions(content: string): Admonition[] {
+  const admonitions: Admonition[] = [];
+  const lines = content.split('\n');
+  const validTypes: AdmonitionType[] = ['note', 'tip', 'warning', 'caution', 'important', 'info', 'danger', 'abstract'];
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // GitHub-style: > [!NOTE] or > [!TIP] Title
+    const ghMatch = line.match(/^>\s*\[!([A-Z]+)\]\s*(.*)$/i);
+    if (ghMatch) {
+      const typeStr = ghMatch[1].toLowerCase();
+      if (validTypes.includes(typeStr as AdmonitionType)) {
+        const title = ghMatch[2].trim() || undefined;
+        const contentLines: string[] = [];
+
+        // Collect continuation lines
+        let j = i + 1;
+        while (j < lines.length && lines[j].match(/^>\s?/)) {
+          contentLines.push(lines[j].replace(/^>\s?/, ''));
+          j++;
+        }
+
+        admonitions.push({
+          type: typeStr as AdmonitionType,
+          title,
+          content: contentLines.join('\n').trim(),
+        });
+
+        i = j;
+        continue;
+      }
+    }
+
+    // Common variant: > **Note:** or > **Warning:**
+    const boldMatch = line.match(/^>\s*\*\*([A-Za-z]+):?\*\*\s*(.*)$/i);
+    if (boldMatch) {
+      const typeStr = boldMatch[1].toLowerCase();
+      if (validTypes.includes(typeStr as AdmonitionType)) {
+        const firstLine = boldMatch[2].trim();
+        const contentLines: string[] = [];
+        if (firstLine) contentLines.push(firstLine);
+
+        let j = i + 1;
+        while (j < lines.length && lines[j].match(/^>\s?/)) {
+          contentLines.push(lines[j].replace(/^>\s?/, ''));
+          j++;
+        }
+
+        admonitions.push({
+          type: typeStr as AdmonitionType,
+          content: contentLines.join('\n').trim(),
+        });
+
+        i = j;
+        continue;
+      }
+    }
+
+    i++;
+  }
+
+  return admonitions;
 }
 
 /**

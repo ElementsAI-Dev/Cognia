@@ -3,8 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { RecordingSidebar } from './recording-sidebar';
 import type { RecordingHistoryEntry } from '@/lib/native/screen-recording';
 
-// Mock the formatDuration function
-jest.mock('@/lib/native/screen-recording', () => ({
+// Mock the formatDuration function (now imported from lib/utils)
+jest.mock('@/lib/utils', () => ({
+  ...jest.requireActual('@/lib/utils'),
   formatDuration: jest.fn((ms: number) => `${Math.floor(ms / 1000)}s`),
 }));
 

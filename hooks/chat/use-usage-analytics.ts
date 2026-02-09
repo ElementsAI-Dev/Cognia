@@ -6,8 +6,8 @@
  * A hook for accessing and analyzing usage data with real-time updates
  */
 
-import { useMemo, useCallback } from 'react';
-import { useUsageStore } from '@/stores/system/usage-store';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
+import { useUsageStore, type PerformanceMetrics } from '@/stores/system/usage-store';
 import {
   calculateUsageStatistics,
   getModelUsageBreakdown,
@@ -46,6 +46,7 @@ export interface UseUsageAnalyticsReturn {
   };
   topSessions: Array<{ sessionId: string; tokens: number; cost: number; requests: number }>;
   recommendations: string[];
+  performanceMetrics: PerformanceMetrics;
   recordCount: number;
   isLoading: boolean;
   refresh: () => void;
@@ -58,6 +59,17 @@ export function useUsageAnalytics(options: UseUsageAnalyticsOptions = {}): UseUs
   const { period = 'week', sessionId, providerId } = options;
 
   const records = useUsageStore((state) => state.records);
+  const autoCleanup = useUsageStore((state) => state.autoCleanup);
+  const getPerformanceMetrics = useUsageStore((state) => state.getPerformanceMetrics);
+
+  // Run auto-cleanup once on mount to remove stale records
+  const cleanupRan = useRef(false);
+  useEffect(() => {
+    if (!cleanupRan.current) {
+      cleanupRan.current = true;
+      autoCleanup();
+    }
+  }, [autoCleanup]);
 
   const filteredRecords = useMemo(() => {
     let filtered = filterRecordsByPeriod(records, period);
@@ -98,10 +110,15 @@ export function useUsageAnalytics(options: UseUsageAnalyticsOptions = {}): UseUs
     [filteredRecords]
   );
 
+  const performanceMetrics = useMemo(
+    () => getPerformanceMetrics(providerId),
+    [getPerformanceMetrics, providerId]
+  );
+
   const refresh = useCallback(() => {
-    // Force re-render by triggering state update
-    // The store will handle any necessary refresh logic
-  }, []);
+    // Trigger auto-cleanup which updates the store and causes re-render
+    autoCleanup();
+  }, [autoCleanup]);
 
   return {
     statistics,
@@ -112,6 +129,7 @@ export function useUsageAnalytics(options: UseUsageAnalyticsOptions = {}): UseUs
     dailySummary,
     topSessions,
     recommendations,
+    performanceMetrics,
     recordCount: filteredRecords.length,
     isLoading: false,
     refresh,

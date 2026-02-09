@@ -66,6 +66,10 @@ const taskTypeIcons: Record<ScheduledTaskType, React.ReactNode> = {
   backup: <Archive className="h-4 w-4" />,
   custom: <Cog className="h-4 w-4" />,
   plugin: <Cog className="h-4 w-4" />,
+  script: <Cog className="h-4 w-4" />,
+  test: <Cog className="h-4 w-4" />,
+  chat: <Bot className="h-4 w-4" />,
+  'ai-generation': <Bot className="h-4 w-4" />,
 };
 
 const statusConfig: Record<ScheduledTaskStatus, { label: string; color: string; icon: React.ReactNode }> = {

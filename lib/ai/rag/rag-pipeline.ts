@@ -71,6 +71,67 @@ import {
   type CitationStyle,
   type FormattedCitation,
 } from './citation-formatter';
+import {
+  gradeRetrievedDocuments,
+  isRetrievalSufficient,
+} from './retrieval-grader';
+import {
+  rewriteQuery,
+} from './query-expansion';
+import {
+  sanitizeQuery,
+  validateRetrievalInput,
+} from './rag-guardrails';
+
+/**
+ * Extract enriched metadata from a chunk's content.
+ * Lightweight heuristic analysis — no LLM calls.
+ */
+function extractChunkMetadata(content: string): Record<string, unknown> {
+  const meta: Record<string, unknown> = {};
+
+  // Detect code blocks
+  const hasCode = /```[\s\S]*?```|^\s{4,}\S/m.test(content);
+  meta.hasCode = hasCode;
+
+  // Detect code language (from fenced blocks)
+  if (hasCode) {
+    const langMatch = content.match(/```(\w+)/);
+    if (langMatch) meta.codeLanguage = langMatch[1];
+  }
+
+  // Detect tables (markdown pipe tables)
+  meta.hasTable = /\|.+\|/.test(content) && /\|-+\|/.test(content);
+
+  // Detect lists
+  meta.hasList = /^[\s]*[-*•]\s/m.test(content) || /^[\s]*\d+\.\s/m.test(content);
+
+  // Extract nearest heading
+  const headingMatch = content.match(/^#{1,6}\s+(.+)$/m);
+  if (headingMatch) meta.nearestHeading = headingMatch[1].trim();
+
+  // Estimate reading level (simple: average words per sentence)
+  const sentences = content.split(/[.!?。！？]+/).filter((s) => s.trim().length > 5);
+  if (sentences.length > 0) {
+    const totalWords = sentences.reduce((sum, s) => sum + s.trim().split(/\s+/).length, 0);
+    const avgWordsPerSentence = totalWords / sentences.length;
+    meta.readingComplexity = avgWordsPerSentence > 25 ? 'complex' : avgWordsPerSentence > 15 ? 'moderate' : 'simple';
+  }
+
+  return meta;
+}
+
+/**
+ * Compute a simple content fingerprint (FNV-1a hash) for deduplication and incremental indexing.
+ */
+function computeContentFingerprint(content: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < content.length; i++) {
+    hash ^= content.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
+}
 
 export interface RAGPipelineConfig {
   // Embedding configuration
@@ -144,6 +205,33 @@ export interface RAGPipelineConfig {
   citations?: {
     enabled?: boolean;
     style?: CitationStyle;
+  };
+
+  // Corrective RAG (retrieval grading)
+  correctiveRAG?: {
+    enabled?: boolean;
+    relevanceThreshold?: number;
+    useLLM?: boolean;
+    fallbackStrategy?: 'none' | 'relax_threshold' | 'keep_best';
+  };
+
+  // Iterative retrieval (multi-hop)
+  iterativeRetrieval?: {
+    enabled?: boolean;
+    maxIterations?: number;
+    sufficiencyThreshold?: number;
+  };
+
+  // Parent-child chunking
+  parentChildChunking?: {
+    enabled?: boolean;
+    parentChunkSize?: number;
+  };
+
+  // Document deduplication
+  deduplication?: {
+    enabled?: boolean;
+    mode?: 'skip' | 'upsert';
   };
 }
 
@@ -252,6 +340,25 @@ export class RAGPipeline {
         enabled: config.citations?.enabled ?? false,
         style: config.citations?.style ?? 'simple',
       },
+      correctiveRAG: {
+        enabled: config.correctiveRAG?.enabled ?? false,
+        relevanceThreshold: config.correctiveRAG?.relevanceThreshold ?? 0.4,
+        useLLM: config.correctiveRAG?.useLLM ?? false,
+        fallbackStrategy: config.correctiveRAG?.fallbackStrategy ?? 'keep_best',
+      },
+      iterativeRetrieval: {
+        enabled: config.iterativeRetrieval?.enabled ?? false,
+        maxIterations: config.iterativeRetrieval?.maxIterations ?? 2,
+        sufficiencyThreshold: config.iterativeRetrieval?.sufficiencyThreshold ?? 0.5,
+      },
+      parentChildChunking: {
+        enabled: config.parentChildChunking?.enabled ?? false,
+        parentChunkSize: config.parentChildChunking?.parentChunkSize ?? 2000,
+      },
+      deduplication: {
+        enabled: config.deduplication?.enabled ?? false,
+        mode: config.deduplication?.mode ?? 'skip',
+      },
     };
 
     // Initialize hybrid search engine
@@ -298,6 +405,29 @@ export class RAGPipeline {
     const { collectionName, documentId, documentTitle, metadata, useContextualRetrieval, onProgress } = options;
 
     try {
+      // Document deduplication check
+      if (this.config.deduplication.enabled) {
+        const fingerprint = computeContentFingerprint(content);
+        const existing = this.collections.get(collectionName) || [];
+        const duplicate = existing.find(
+          (doc) => doc.metadata?.contentFingerprint === fingerprint
+        );
+        if (duplicate) {
+          if (this.config.deduplication.mode === 'skip') {
+            log.debug(`Dedup: skipping duplicate document (fingerprint=${fingerprint})`);
+            return { chunksCreated: 0, success: true };
+          }
+          // upsert mode: remove old documents with same fingerprint, then re-index
+          const docsToRemove = existing
+            .filter((d) => d.metadata?.contentFingerprint === fingerprint)
+            .map((d) => d.id);
+          if (docsToRemove.length > 0) {
+            this.deleteDocuments(collectionName, docsToRemove);
+            log.debug(`Dedup: upsert mode — removed ${docsToRemove.length} old chunks before re-indexing`);
+          }
+        }
+      }
+
       onProgress?.({ stage: 'chunking', current: 0, total: 1 });
 
       // Chunk the document
@@ -359,6 +489,20 @@ export class RAGPipeline {
 
       onProgress?.({ stage: 'embedding', current: processedChunks.length, total: processedChunks.length });
 
+      // Build parent-child mapping if enabled
+      const parentChunks = new Map<string, string>(); // childId -> parentContent
+      if (this.config.parentChildChunking.enabled) {
+        const parentSize = this.config.parentChildChunking.parentChunkSize ?? 2000;
+        // Create parent chunks by grouping adjacent child chunks
+        for (let i = 0; i < processedChunks.length; i++) {
+          const chunk = processedChunks[i];
+          const start = chunk.startOffset ?? 0;
+          const parentStart = Math.max(0, start - Math.floor(parentSize / 4));
+          const parentEnd = Math.min(content.length, parentStart + parentSize);
+          parentChunks.set(chunk.id, content.slice(parentStart, parentEnd));
+        }
+      }
+
       // Store in collection
       const documents: IndexedDocument[] = processedChunks.map((chunk, i) => ({
         id: chunk.id,
@@ -377,6 +521,9 @@ export class RAGPipeline {
           startOffset: chunk.startOffset,
           endOffset: chunk.endOffset,
           ...chunk.metadata,
+          ...extractChunkMetadata(chunk.content),
+          ...(parentChunks.has(chunk.id) ? { parentContent: parentChunks.get(chunk.id) } : {}),
+          ...(this.config.deduplication.enabled ? { contentFingerprint: computeContentFingerprint(content) } : {}),
         },
       }));
 
@@ -429,6 +576,18 @@ export class RAGPipeline {
     };
 
     try {
+      // Guardrails: validate and sanitize input
+      const validation = validateRetrievalInput(query, collectionName);
+      if (!validation.valid) {
+        log.warn('RAG retrieval input validation failed', { errors: validation.errors });
+        return this.emptyContext(query, searchMetadata);
+      }
+      const sanitized = sanitizeQuery(query);
+      if (sanitized.injectionDetected) {
+        log.warn('Potential injection in RAG query detected and stripped');
+      }
+      query = sanitized.query;
+
       // Check cache first
       if (this.config.cache.enabled) {
         const cached = await this.queryCache.get(query, collectionName);
@@ -514,6 +673,18 @@ export class RAGPipeline {
         searchMetadata.rerankingUsed = true;
       }
 
+      // Apply Corrective RAG grading if enabled
+      if (this.config.correctiveRAG.enabled && mergedResults.length > 0) {
+        const gradingResult = await gradeRetrievedDocuments(query, mergedResults, {
+          relevanceThreshold: this.config.correctiveRAG.relevanceThreshold,
+          useLLM: this.config.correctiveRAG.useLLM,
+          model: this.config.correctiveRAG.useLLM ? this.config.model : undefined,
+          fallbackStrategy: this.config.correctiveRAG.fallbackStrategy,
+        });
+        mergedResults = gradingResult.relevantDocuments;
+        log.debug(`CRAG: ${gradingResult.stats.totalFiltered} chunks filtered, ${gradingResult.stats.totalRelevant} kept (avg grade: ${gradingResult.stats.averageGrade.toFixed(2)})`);
+      }
+
       // Filter by similarity threshold
       const filteredResults = mergedResults.filter(
         r => r.rerankScore >= this.config.similarityThreshold
@@ -568,6 +739,69 @@ export class RAGPipeline {
       log.error('Enhanced RAG retrieval error', error as Error);
       return this.emptyContext(query, searchMetadata);
     }
+  }
+
+  /**
+   * Iterative/Multi-Hop Retrieval
+   * Performs multiple retrieval passes, refining the query if initial results are insufficient.
+   */
+  async retrieveIterative(
+    collectionName: string,
+    query: string,
+    options?: { maxIterations?: number; sufficiencyThreshold?: number }
+  ): Promise<RAGPipelineContext> {
+    const maxIterations = options?.maxIterations ?? this.config.iterativeRetrieval.maxIterations ?? 2;
+    const sufficiencyThreshold = options?.sufficiencyThreshold ?? this.config.iterativeRetrieval.sufficiencyThreshold ?? 0.5;
+
+    // First pass — normal retrieve
+    let result = await this.retrieve(collectionName, query);
+
+    if (result.documents.length === 0) return result;
+
+    // Check sufficiency
+    for (let iteration = 1; iteration < maxIterations; iteration++) {
+      const sufficient = isRetrievalSufficient(query, result.documents, {
+        threshold: sufficiencyThreshold,
+        minRelevant: 2,
+      });
+
+      if (sufficient) break;
+
+      // Refine query
+      let refinedQuery: string;
+      if (this.config.model) {
+        refinedQuery = await rewriteQuery(query, this.config.model);
+      } else {
+        // Lightweight fallback: append context from first pass
+        const topTerms = result.documents
+          .slice(0, 2)
+          .map((d) => d.content.split(/\s+/).slice(0, 5).join(' '))
+          .join(' ');
+        refinedQuery = `${query} ${topTerms}`.trim();
+      }
+
+      log.debug(`Iterative retrieval: pass ${iteration + 1} with refined query: "${refinedQuery.slice(0, 100)}..."`);
+
+      const nextResult = await this.retrieve(collectionName, refinedQuery);
+
+      // Merge results from both passes, deduplicate by id
+      const seenIds = new Set(result.documents.map((d) => d.id));
+      const newDocs = nextResult.documents.filter((d) => !seenIds.has(d.id));
+      result = {
+        ...result,
+        documents: [...result.documents, ...newDocs].slice(0, this.config.topK),
+        formattedContext: this.formatContext(
+          [...result.documents, ...newDocs].slice(0, this.config.topK)
+        ),
+        totalTokensEstimate: Math.ceil(
+          [...result.documents, ...newDocs]
+            .slice(0, this.config.topK)
+            .reduce((sum, d) => sum + d.content.length, 0) / 4
+        ),
+      };
+    }
+
+    return result;
   }
 
   /**

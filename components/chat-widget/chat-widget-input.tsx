@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useRef, useEffect } from 'react';
+import { forwardRef, useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Send, Square, Mic, MicOff } from 'lucide-react';
 import { useSpeech } from '@/hooks/media/use-speech';
+import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
 
 interface ChatWidgetInputProps {
   value: string;
@@ -40,6 +43,30 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
   ) {
     const t = useTranslations('chatWidget.input');
     const formRef = useRef<HTMLFormElement>(null);
+    const internalRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = (ref && 'current' in ref ? ref : internalRef) as React.RefObject<HTMLTextAreaElement>;
+    const [textareaMounted, setTextareaMounted] = useState(false);
+
+    // Track when textarea is mounted for ghost text rendering
+    useEffect(() => {
+      setTextareaMounted(!!textareaRef.current);
+    }, [textareaRef]);
+
+    // AI ghost text completion
+    const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
+    const {
+      state: completionState,
+      handleInputChange: handleCompletionChange,
+      handleKeyDown: handleCompletionKeyDown,
+      acceptGhostText,
+      dismissGhostText,
+    } = useInputCompletionUnified({
+      onAiCompletionAccept: (text) => {
+        onChange(value + text);
+      },
+    });
+
+    const ghostText = completionState.ghostText;
 
     // Voice input using existing useSpeech hook
     const { isListening, startListening, stopListening, sttSupported, interimTranscript } =
@@ -59,18 +86,40 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
       }
     }, [isListening, startListening, stopListening]);
 
-    // Auto-resize textarea
+    // Auto-resize textarea with completion integration
     const handleInput = useCallback(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const textarea = e.target;
         onChange(textarea.value);
+
+        // Notify unified completion system
+        const pos = textarea.selectionStart || 0;
+        handleCompletionChange(textarea.value, pos);
 
         // Reset height to auto to get the correct scrollHeight
         textarea.style.height = 'auto';
         // Set the height to scrollHeight, with a max of 120px
         textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
       },
-      [onChange]
+      [onChange, handleCompletionChange]
+    );
+
+    // Enhanced key handler with completion support
+    const handleKeyDownWithCompletion = useCallback(
+      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Delegate to unified completion keyboard handler first
+        const handled = handleCompletionKeyDown(e.nativeEvent);
+        if (handled) {
+          // If ghost text was accepted via Tab, sync the value
+          if (e.key === 'Tab' && ghostText) {
+            onChange(value + ghostText);
+          }
+          return;
+        }
+        // Fall through to parent handler
+        onKeyDown(e);
+      },
+      [handleCompletionKeyDown, ghostText, value, onChange, onKeyDown]
     );
 
     // Reset height when value is cleared
@@ -91,7 +140,7 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
             ref={ref}
             value={value}
             onChange={handleInput}
-            onKeyDown={onKeyDown}
+            onKeyDown={handleKeyDownWithCompletion}
             placeholder={placeholderProp || t('placeholder')}
             disabled={disabled}
             className={cn(
@@ -103,6 +152,16 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
             )}
             rows={1}
           />
+          {/* AI Ghost text overlay */}
+          {ghostText && textareaMounted && (
+            <GhostTextOverlay
+              text={ghostText}
+              textareaRef={textareaRef}
+              onAccept={acceptGhostText}
+              onDismiss={dismissGhostText}
+              opacity={ghostTextOpacity}
+            />
+          )}
           {/* Character counter */}
           {value.length > 0 && (
             <span

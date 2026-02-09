@@ -52,7 +52,7 @@ const workerInstances: MockWorker[] = [];
 // Mock Worker constructor
 const originalWorker = global.Worker;
 beforeAll(() => {
-  (global as unknown as { Worker: typeof MockWorker }).Worker = jest.fn().mockImplementation(() => {
+  (global as unknown as { Worker: unknown }).Worker = jest.fn().mockImplementation(() => {
     const worker = new MockWorker();
     workerInstances.push(worker);
     return worker;
@@ -293,7 +293,7 @@ describe('useWorkerProcessor', () => {
       });
 
       const imageData = createTestImageData();
-      const options = { strength: 50, method: 'bilateral' as const, preserveDetail: true };
+      const options = { strength: 50, method: 'bilateral' as const, preserveDetail: 50 };
 
       let processedData: ImageData | undefined;
       await act(async () => {
@@ -313,7 +313,7 @@ describe('useWorkerProcessor', () => {
       });
 
       const imageData = createTestImageData();
-      const options = { amount: 50, radius: 1, threshold: 0, method: 'unsharp' as const };
+      const options = { amount: 50, radius: 1, threshold: 0, method: 'unsharp-mask' as const };
 
       let processedData: ImageData | undefined;
       await act(async () => {

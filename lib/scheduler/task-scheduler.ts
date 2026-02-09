@@ -19,6 +19,7 @@ import { schedulerDb } from './scheduler-db';
 import { notifyTaskEvent } from './notification-integration';
 import { emitSchedulerEvent } from './event-integration';
 import { loggers } from '@/lib/logger';
+import { getPluginLifecycleHooks } from '@/lib/plugin';
 
 // Logger
 const log = loggers.app;
@@ -443,6 +444,11 @@ class TaskSchedulerImpl {
       await notifyTaskEvent(task, execution, 'start');
     }
 
+    // Dispatch plugin hook for task start
+    try {
+      getPluginLifecycleHooks().dispatchOnScheduledTaskStart(task.id, executionId);
+    } catch { /* plugin system may not be initialized */ }
+
     log.info(`Executing task: ${task.name} (execution: ${executionId})`);
 
     try {
@@ -496,6 +502,15 @@ class TaskSchedulerImpl {
         ).catch((err) => log.error('Failed to emit post-execution event:', err));
       }
 
+      // Dispatch plugin hooks for completion/failure
+      try {
+        if (result.success) {
+          getPluginLifecycleHooks().dispatchOnScheduledTaskComplete(task.id, executionId, { success: true, output: result.output });
+        } else {
+          getPluginLifecycleHooks().dispatchOnScheduledTaskError(task.id, executionId, new Error(result.error || 'Unknown error'));
+        }
+      } catch { /* plugin system may not be initialized */ }
+
       log.info(`Task ${task.name} ${result.success ? 'completed' : 'failed'} in ${execution.duration}ms`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -507,6 +522,11 @@ class TaskSchedulerImpl {
       execution.logs.push(this.createLog('error', `Execution error: ${errorMessage}`));
 
       log.error(`Task ${task.name} failed with error:`, error);
+
+      // Dispatch plugin hook for error
+      try {
+        getPluginLifecycleHooks().dispatchOnScheduledTaskError(task.id, executionId, new Error(errorMessage));
+      } catch { /* plugin system may not be initialized */ }
 
       // Notify error
       if (task.notification.onError) {

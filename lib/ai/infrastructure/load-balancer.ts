@@ -10,6 +10,7 @@
  */
 
 import { getCircuitState, isProviderAvailable } from './circuit-breaker';
+import { MODEL_PRICING } from '@/types/system/usage';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -314,7 +315,7 @@ export class ProviderLoadBalancer {
   }
 
   /**
-   * Adaptive selection - combines multiple factors
+   * Adaptive selection - combines multiple factors including cost awareness
    */
   private selectAdaptive(candidates: string[]): string {
     // Score each candidate based on multiple factors
@@ -346,6 +347,10 @@ export class ProviderLoadBalancer {
       }
       // open state gets 0 points
 
+      // Factor 5: Cost awareness (0-20 points, cheaper is better)
+      const costScore = this.calculateProviderCostScore(id);
+      score += costScore;
+
       return { id, score };
     });
 
@@ -356,6 +361,42 @@ export class ProviderLoadBalancer {
     const topCandidates = scores.filter((s) => s.score >= scores[0].score * 0.9);
     const randomIndex = Math.floor(Math.random() * topCandidates.length);
     return topCandidates[randomIndex].id;
+  }
+
+  /**
+   * Calculate a cost score for a provider (0-20 points, cheaper providers score higher)
+   * Uses average pricing across known models for each provider
+   */
+  private calculateProviderCostScore(providerId: string): number {
+    // Estimate average cost per provider based on MODEL_PRICING
+    const providerPrefixes: Record<string, string[]> = {
+      openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1'],
+      anthropic: ['claude-3-opus', 'claude-sonnet-4', 'claude-3-5-sonnet', 'claude-3-haiku'],
+      google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0'],
+      deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+      groq: ['llama-3.3', 'llama-3.1', 'mixtral'],
+      mistral: ['mistral-large', 'mistral-small', 'codestral'],
+      ollama: ['llama3', 'mistral', 'mixtral', 'qwen'],
+    };
+
+    const prefixes = providerPrefixes[providerId];
+    if (!prefixes) return 10; // Unknown provider gets middle score
+
+    let totalCost = 0;
+    let modelCount = 0;
+
+    for (const [modelId, pricing] of Object.entries(MODEL_PRICING)) {
+      if (prefixes.some((p) => modelId.startsWith(p))) {
+        totalCost += pricing.input + pricing.output;
+        modelCount++;
+      }
+    }
+
+    if (modelCount === 0) return 10;
+
+    const avgCost = totalCost / modelCount;
+    // Scale: $0 = 20 points, $50+ = 0 points
+    return Math.max(0, Math.min(20, 20 - (avgCost / 50) * 20));
   }
 
   /**

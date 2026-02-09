@@ -6,14 +6,20 @@ import {
   executeDocumentSummarize,
   executeDocumentChunk,
   executeDocumentAnalyze,
+  executeDocumentReadFile,
+  executeDocumentExtractTables,
   documentTools,
-  documentReadInputSchema,
+  documentReadFileInputSchema,
   documentSummarizeInputSchema,
   documentChunkInputSchema,
   documentAnalyzeInputSchema,
+  documentExtractTablesInputSchema,
+  documentToolSystemPrompt,
+  documentToolPromptSnippet,
   type DocumentSummarizeInput,
   type DocumentChunkInput,
   type DocumentAnalyzeInput,
+  type DocumentReadFileInput,
 } from './document-tool';
 
 // Mock dependencies
@@ -31,6 +37,13 @@ jest.mock('@/lib/document/document-processor', () => ({
       characterCount: content.length,
     },
   })),
+  processDocumentAsync: jest.fn(async (id, filename, content) => ({
+    id,
+    type: 'document',
+    content,
+    embeddableContent: content,
+    metadata: { wordCount: 0 },
+  })),
   extractSummary: jest.fn((content, maxLength) => {
     return content.slice(0, maxLength || 200);
   }),
@@ -38,6 +51,23 @@ jest.mock('@/lib/document/document-processor', () => ({
     const ext = filename.split('.').pop()?.toLowerCase();
     return ['txt', 'md', 'json', 'ts', 'js'].includes(ext || '');
   }),
+  detectDocumentType: jest.fn((filename) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const typeMap: Record<string, string> = {
+      txt: 'text', md: 'markdown', json: 'json', ts: 'code', js: 'code',
+      pdf: 'pdf', docx: 'word', xlsx: 'excel', csv: 'csv', html: 'html', exe: 'unknown',
+    };
+    return typeMap[ext || ''] || 'unknown';
+  }),
+  isBinaryType: jest.fn((type) => {
+    return ['pdf', 'word', 'excel'].includes(type);
+  }),
+}));
+
+jest.mock('@/lib/file/file-operations', () => ({
+  readTextFile: jest.fn(),
+  readBinaryFile: jest.fn(),
+  isInTauri: jest.fn(() => false),
 }));
 
 jest.mock('@/lib/ai/embedding/chunking', () => ({
@@ -244,17 +274,59 @@ describe('executeDocumentAnalyze', () => {
 });
 
 describe('Schema validation', () => {
-  describe('documentReadInputSchema', () => {
+  describe('documentReadFileInputSchema', () => {
     it('validates valid input', () => {
-      const result = documentReadInputSchema.safeParse({
-        documentId: 'doc-123',
+      const result = documentReadFileInputSchema.safeParse({
+        path: '/path/to/doc.txt',
       });
 
       expect(result.success).toBe(true);
     });
 
-    it('rejects missing documentId', () => {
-      const result = documentReadInputSchema.safeParse({});
+    it('rejects missing path', () => {
+      const result = documentReadFileInputSchema.safeParse({});
+
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts optional extractTables and maxSummaryLength', () => {
+      const result = documentReadFileInputSchema.safeParse({
+        path: '/file.md',
+        extractTables: true,
+        maxSummaryLength: 500,
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.extractTables).toBe(true);
+        expect(result.data.maxSummaryLength).toBe(500);
+      }
+    });
+
+    it('uses default values', () => {
+      const result = documentReadFileInputSchema.safeParse({
+        path: '/file.md',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.extractTables).toBe(false);
+        expect(result.data.maxSummaryLength).toBe(300);
+      }
+    });
+  });
+
+  describe('documentExtractTablesInputSchema', () => {
+    it('validates valid input', () => {
+      const result = documentExtractTablesInputSchema.safeParse({
+        content: '| a | b |\n|---|---|\n| 1 | 2 |',
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects missing content', () => {
+      const result = documentExtractTablesInputSchema.safeParse({});
 
       expect(result.success).toBe(false);
     });
@@ -400,5 +472,63 @@ describe('documentTools', () => {
     expect(documentTools.document_summarize.requiresApproval).toBe(false);
     expect(documentTools.document_chunk.requiresApproval).toBe(false);
     expect(documentTools.document_analyze.requiresApproval).toBe(false);
+    expect(documentTools.document_extract_tables.requiresApproval).toBe(false);
+    expect(documentTools.document_read_file.requiresApproval).toBe(false);
+  });
+
+  it('exports document_extract_tables tool', () => {
+    expect(documentTools.document_extract_tables).toBeDefined();
+    expect(documentTools.document_extract_tables.name).toBe('document_extract_tables');
+    expect(documentTools.document_extract_tables.execute).toBe(executeDocumentExtractTables);
+    expect(documentTools.document_extract_tables.category).toBe('file');
+  });
+
+  it('exports document_read_file tool', () => {
+    expect(documentTools.document_read_file).toBeDefined();
+    expect(documentTools.document_read_file.name).toBe('document_read_file');
+    expect(documentTools.document_read_file.execute).toBe(executeDocumentReadFile);
+    expect(documentTools.document_read_file.category).toBe('file');
+  });
+});
+
+describe('executeDocumentReadFile', () => {
+  it('returns error outside Tauri', async () => {
+    const input: DocumentReadFileInput = { path: '/path/to/file.txt', extractTables: false, maxSummaryLength: 300 };
+    const result = await executeDocumentReadFile(input);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('desktop app');
+  });
+});
+
+describe('executeDocumentExtractTables', () => {
+  it('extracts tables from markdown content', async () => {
+    const input = { content: '| Header1 | Header2 |\n|---------|--------|\n| val1 | val2 |' };
+    const result = await executeDocumentExtractTables(input);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+  });
+
+  it('handles content with no tables', async () => {
+    const input = { content: 'Just some plain text without tables.' };
+    const result = await executeDocumentExtractTables(input);
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('System prompts', () => {
+  it('documentToolSystemPrompt is a non-empty string', () => {
+    expect(typeof documentToolSystemPrompt).toBe('string');
+    expect(documentToolSystemPrompt.length).toBeGreaterThan(100);
+    expect(documentToolSystemPrompt).toContain('document_read_file');
+    expect(documentToolSystemPrompt).toContain('document_summarize');
+  });
+
+  it('documentToolPromptSnippet is a concise string', () => {
+    expect(typeof documentToolPromptSnippet).toBe('string');
+    expect(documentToolPromptSnippet.length).toBeGreaterThan(20);
+    expect(documentToolPromptSnippet.length).toBeLessThan(500);
   });
 });

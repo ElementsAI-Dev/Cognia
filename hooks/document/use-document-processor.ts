@@ -3,6 +3,7 @@
 /**
  * useDocumentProcessor - Hook for processing documents through the unified pipeline
  * Bridges lib/document → React components with state management and progress tracking
+ * Enhanced with file validation, concurrent batch processing
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -13,9 +14,13 @@ import {
   extractSummary,
   isTextFile,
   estimateTokenCount,
+  validateFile,
+  isBinaryType,
   type ProcessedDocument,
   type ProcessingOptions,
   type DocumentType,
+  type ValidationResult,
+  type ValidationOptions,
 } from '@/lib/document/document-processor';
 import { extractTables, type TableExtractionResult } from '@/lib/document/table-extractor';
 import { useDocumentStore } from '@/stores/document';
@@ -49,13 +54,11 @@ export interface ProcessBatchOptions extends ProcessFileOptions {
   continueOnError?: boolean;
   /** Progress callback */
   onProgress?: (completed: number, total: number, currentFile: string) => void;
+  /** Max concurrent file processing (default: 1 = sequential) */
+  concurrency?: number;
 }
 
-const BINARY_EXTENSIONS = ['pdf', 'docx', 'doc', 'xlsx', 'xls'];
-
-function isBinaryType(type: DocumentType): boolean {
-  return ['pdf', 'word', 'excel'].includes(type);
-}
+const BINARY_EXTENSIONS = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'];
 
 export function useDocumentProcessor() {
   const [state, setState] = useState<DocumentProcessingState>({
@@ -196,14 +199,55 @@ export function useDocumentProcessor() {
   );
 
   /**
-   * Process multiple files in batch
+   * Process a single file internal helper (no state management)
+   */
+  const processFileInternal = useCallback(
+    async (
+      file: File,
+      index: number,
+      options: ProcessFileOptions = {}
+    ): Promise<ProcessedDocument> => {
+      const id = `doc-${Date.now()}-${index}`;
+      const docType = detectDocumentType(file.name);
+      let data: string | ArrayBuffer;
+
+      if (isBinaryType(docType)) {
+        data = await file.arrayBuffer();
+      } else {
+        data = await file.text();
+      }
+
+      const processed = await processDocumentAsync(id, file.name, data, {
+        extractEmbeddable: options.extractEmbeddable ?? true,
+        generateChunks: options.generateChunks,
+        chunkingOptions: options.chunkingOptions,
+      });
+
+      if (options.storeResult) {
+        addDocument({
+          filename: processed.filename,
+          type: processed.type,
+          content: processed.content,
+          embeddableContent: processed.embeddableContent,
+          metadata: processed.metadata,
+          projectId: options.projectId,
+        });
+      }
+
+      return processed;
+    },
+    [addDocument]
+  );
+
+  /**
+   * Process multiple files in batch with optional concurrency
    */
   const processFiles = useCallback(
     async (
       files: File[],
       options: ProcessBatchOptions = {}
     ): Promise<ProcessedDocument[]> => {
-      const { continueOnError = true, onProgress } = options;
+      const { continueOnError = true, onProgress, concurrency = 1 } = options;
       abortRef.current = false;
 
       setState({
@@ -217,63 +261,81 @@ export function useDocumentProcessor() {
       });
 
       const results: ProcessedDocument[] = [];
+      let completedCount = 0;
 
-      for (let i = 0; i < files.length; i++) {
-        if (abortRef.current) break;
+      if (concurrency > 1) {
+        // Concurrent processing with semaphore
+        const processBatch = async (batch: File[], startIndex: number): Promise<void> => {
+          const promises = batch.map(async (file, batchIdx) => {
+            if (abortRef.current) return;
+            const globalIdx = startIndex + batchIdx;
 
-        const file = files[i];
-        setState((prev) => ({
-          ...prev,
-          currentFile: file.name,
-          progress: Math.round((i / files.length) * 100),
-        }));
-        onProgress?.(i, files.length, file.name);
-
-        try {
-          const id = `doc-${Date.now()}-${i}`;
-          const docType = detectDocumentType(file.name);
-          let data: string | ArrayBuffer;
-
-          if (isBinaryType(docType)) {
-            data = await file.arrayBuffer();
-          } else {
-            data = await file.text();
-          }
-
-          const processed = await processDocumentAsync(id, file.name, data, {
-            extractEmbeddable: options.extractEmbeddable ?? true,
-            generateChunks: options.generateChunks,
-            chunkingOptions: options.chunkingOptions,
+            try {
+              const processed = await processFileInternal(file, globalIdx, options);
+              results.push(processed);
+            } catch (error) {
+              console.error(`Failed to process ${file.name}:`, error);
+              if (!continueOnError) {
+                abortRef.current = true;
+                setState((prev) => ({
+                  ...prev,
+                  isProcessing: false,
+                  error: `Failed to process ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                }));
+              }
+            } finally {
+              completedCount++;
+              setState((prev) => ({
+                ...prev,
+                completedFiles: completedCount,
+                progress: Math.round((completedCount / files.length) * 100),
+                currentFile: file.name,
+              }));
+              onProgress?.(completedCount, files.length, file.name);
+            }
           });
 
-          if (options.storeResult) {
-            addDocument({
-              filename: processed.filename,
-              type: processed.type,
-              content: processed.content,
-              embeddableContent: processed.embeddableContent,
-              metadata: processed.metadata,
-              projectId: options.projectId,
-            });
-          }
+          await Promise.all(promises);
+        };
 
-          results.push(processed);
-        } catch (error) {
-          console.error(`Failed to process ${file.name}:`, error);
-          if (!continueOnError) {
-            setState((prev) => ({
-              ...prev,
-              isProcessing: false,
-              error: `Failed to process ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            }));
-            break;
-          }
+        // Process in chunks of `concurrency` size
+        for (let i = 0; i < files.length && !abortRef.current; i += concurrency) {
+          const batch = files.slice(i, i + concurrency);
+          await processBatch(batch, i);
         }
+      } else {
+        // Sequential processing (original behavior)
+        for (let i = 0; i < files.length; i++) {
+          if (abortRef.current) break;
 
-        setState((prev) => ({
-          ...prev,
-          completedFiles: i + 1,
-        }));
+          const file = files[i];
+          setState((prev) => ({
+            ...prev,
+            currentFile: file.name,
+            progress: Math.round((i / files.length) * 100),
+          }));
+          onProgress?.(i, files.length, file.name);
+
+          try {
+            const processed = await processFileInternal(file, i, options);
+            results.push(processed);
+          } catch (error) {
+            console.error(`Failed to process ${file.name}:`, error);
+            if (!continueOnError) {
+              setState((prev) => ({
+                ...prev,
+                isProcessing: false,
+                error: `Failed to process ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              }));
+              break;
+            }
+          }
+
+          setState((prev) => ({
+            ...prev,
+            completedFiles: i + 1,
+          }));
+        }
       }
 
       onProgress?.(files.length, files.length, '');
@@ -287,7 +349,7 @@ export function useDocumentProcessor() {
 
       return results;
     },
-    [addDocument]
+    [processFileInternal]
   );
 
   /**
@@ -354,6 +416,38 @@ export function useDocumentProcessor() {
     return estimateTokenCount(content);
   }, []);
 
+  /**
+   * Validate a file before processing (size, type checks)
+   */
+  const validate = useCallback(
+    (file: File, options?: ValidationOptions): ValidationResult => {
+      return validateFile(file.name, file.size, options);
+    },
+    []
+  );
+
+  /**
+   * Validate multiple files and return only valid ones
+   */
+  const filterValidFiles = useCallback(
+    (files: File[], options?: ValidationOptions): { valid: File[]; invalid: { file: File; errors: string[] }[] } => {
+      const valid: File[] = [];
+      const invalid: { file: File; errors: string[] }[] = [];
+
+      for (const file of files) {
+        const result = validateFile(file.name, file.size, options);
+        if (result.valid) {
+          valid.push(file);
+        } else {
+          invalid.push({ file, errors: result.errors });
+        }
+      }
+
+      return { valid, invalid };
+    },
+    []
+  );
+
   return {
     // State
     ...state,
@@ -364,6 +458,10 @@ export function useDocumentProcessor() {
     processFiles,
     abort,
     reset,
+
+    // Validation
+    validate,
+    filterValidFiles,
 
     // Utilities
     extractDocumentTables,

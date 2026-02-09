@@ -16,12 +16,14 @@ import {
   openFileDialog,
   saveFileDialog,
   isInTauri,
+  getFileHash,
   FileErrorCode,
   type FileInfo,
   type DirectoryContents,
   type FileReadResult,
   type FileWriteResult,
   type FileOperationOptions,
+  type HashAlgorithm,
 } from './file-operations';
 
 // Helper to simulate Tauri environment
@@ -455,5 +457,27 @@ describe('writeBinaryFile', () => {
     expect(result).toHaveProperty('success');
     expect(result).toHaveProperty('path');
     expect(result.path).toBe('/test.bin');
+  });
+});
+
+// ==================== MD5 Hash Tests ====================
+
+describe('getFileHash - MD5 implementation', () => {
+  it('is exported and callable', () => {
+    expect(typeof getFileHash).toBe('function');
+  });
+
+  it('returns error outside Tauri for non-web algorithms', async () => {
+    setTauriEnvironment(false);
+    const result = await getFileHash('/test.txt', 'sha256');
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('HashAlgorithm type', () => {
+  it('supports md5, sha1, sha256, sha512', () => {
+    const algorithms: import('./file-operations').HashAlgorithm[] = ['md5', 'sha1', 'sha256', 'sha512'];
+    expect(algorithms).toHaveLength(4);
+    expect(algorithms).toContain('md5');
   });
 });

@@ -21,6 +21,9 @@ import type {
   StorageStats,
   StorageConfig,
   CleanupResult,
+  FFmpegInfo,
+  HardwareAcceleration,
+  FFmpegInstallGuide,
 } from '@/lib/native/screen-recording';
 import {
   getRecordingStatus,
@@ -54,6 +57,12 @@ import {
   isStorageExceeded,
   getStorageUsagePercent,
   cleanupStorage,
+  getFFmpegInfo,
+  checkHardwareAcceleration,
+  checkFFmpegVersion,
+  getFFmpegInstallGuide,
+  generateRecordingFilename,
+  getRecordingPath,
 } from '@/lib/native/screen-recording';
 import type { RecordingStats } from '@/lib/native/screen-recording';
 import {
@@ -78,6 +87,10 @@ interface ScreenRecordingState {
   monitors: MonitorInfo[];
   audioDevices: AudioDevices;
   ffmpegAvailable: boolean;
+  ffmpegInfo: FFmpegInfo | null;
+  ffmpegVersionOk: boolean;
+  hardwareAcceleration: HardwareAcceleration | null;
+  ffmpegInstallGuide: FFmpegInstallGuide | null;
 
   // History
   history: RecordingHistoryEntry[];
@@ -138,6 +151,13 @@ interface ScreenRecordingActions {
   refreshMonitors: () => Promise<void>;
   refreshAudioDevices: () => Promise<void>;
   checkFfmpeg: () => Promise<boolean>;
+  refreshFFmpegInfo: () => Promise<void>;
+  refreshHardwareAcceleration: () => Promise<void>;
+  refreshFFmpegInstallGuide: () => Promise<void>;
+
+  // Filename generation
+  generateFilename: (mode: string, format: string, customName?: string) => Promise<string | null>;
+  getFilePath: (filename: string) => Promise<string | null>;
 
   // History
   refreshHistory: () => Promise<void>;
@@ -176,6 +196,10 @@ const initialState: ScreenRecordingState = {
   monitors: [],
   audioDevices: { system_audio_available: false, microphones: [] },
   ffmpegAvailable: false,
+  ffmpegInfo: null,
+  ffmpegVersionOk: false,
+  hardwareAcceleration: null,
+  ffmpegInstallGuide: null,
   history: [],
   storageStats: null,
   storageConfig: null,
@@ -244,6 +268,16 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isInitialized: true,
             isLoading: false,
           });
+
+          // Fetch FFmpeg details in background when available
+          if (ffmpegAvailable) {
+            Promise.all([
+              get().refreshFFmpegInfo(),
+              get().refreshHardwareAcceleration(),
+            ]).catch(() => {});
+          } else {
+            get().refreshFFmpegInstallGuide().catch(() => {});
+          }
 
           // Setup event listeners for real-time updates
           await get().setupEventListeners();
@@ -550,10 +584,64 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           const available = await checkFFmpeg();
           set({ ffmpegAvailable: available });
+          if (available) {
+            const versionOk = await checkFFmpegVersion().catch(() => false);
+            set({ ffmpegVersionOk: versionOk });
+          }
           return available;
         } catch {
           set({ ffmpegAvailable: false });
           return false;
+        }
+      },
+
+      refreshFFmpegInfo: async () => {
+        if (!isTauri()) return;
+        try {
+          const info = await getFFmpegInfo();
+          set({ ffmpegInfo: info });
+        } catch (error) {
+          log.warn('Failed to get FFmpeg info', { error: String(error) });
+        }
+      },
+
+      refreshHardwareAcceleration: async () => {
+        if (!isTauri()) return;
+        try {
+          const hwAccel = await checkHardwareAcceleration();
+          set({ hardwareAcceleration: hwAccel });
+        } catch (error) {
+          log.warn('Failed to check hardware acceleration', { error: String(error) });
+        }
+      },
+
+      refreshFFmpegInstallGuide: async () => {
+        if (!isTauri()) return;
+        try {
+          const guide = await getFFmpegInstallGuide();
+          set({ ffmpegInstallGuide: guide });
+        } catch (error) {
+          log.warn('Failed to get FFmpeg install guide', { error: String(error) });
+        }
+      },
+
+      generateFilename: async (mode, format, customName) => {
+        if (!isTauri()) return null;
+        try {
+          return await generateRecordingFilename(mode, format, customName);
+        } catch (error) {
+          log.warn('Failed to generate filename', { error: String(error) });
+          return null;
+        }
+      },
+
+      getFilePath: async (filename) => {
+        if (!isTauri()) return null;
+        try {
+          return await getRecordingPath(filename);
+        } catch (error) {
+          log.warn('Failed to get file path', { error: String(error) });
+          return null;
         }
       },
 

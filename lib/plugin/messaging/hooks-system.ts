@@ -827,6 +827,199 @@ export class PluginLifecycleHooks {
   }
 
   // ===========================================================================
+  // Hook Dispatchers - Message Lifecycle
+  // ===========================================================================
+
+  dispatchOnMessageDelete(messageId: string, sessionId: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onMessageDelete) {
+        try {
+          registered.hooks.onMessageDelete(messageId, sessionId);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onMessageDelete:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnMessageEdit(messageId: string, oldContent: string, newContent: string, sessionId: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onMessageEdit) {
+        try {
+          registered.hooks.onMessageEdit(messageId, oldContent, newContent, sessionId);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onMessageEdit:`, error);
+        }
+      }
+    }
+  }
+
+  // ===========================================================================
+  // Hook Dispatchers - Session Lifecycle (Extended)
+  // ===========================================================================
+
+  dispatchOnSessionRename(sessionId: string, oldTitle: string, newTitle: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onSessionRename) {
+        try {
+          registered.hooks.onSessionRename(sessionId, oldTitle, newTitle);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onSessionRename:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnSessionClear(sessionId: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onSessionClear) {
+        try {
+          registered.hooks.onSessionClear(sessionId);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onSessionClear:`, error);
+        }
+      }
+    }
+  }
+
+  // ===========================================================================
+  // Hook Dispatchers - Chat Flow
+  // ===========================================================================
+
+  dispatchOnChatRegenerate(messageId: string, sessionId: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onChatRegenerate) {
+        try {
+          registered.hooks.onChatRegenerate(messageId, sessionId);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onChatRegenerate:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnModelSwitch(provider: string, model: string, previousProvider?: string, previousModel?: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onModelSwitch) {
+        try {
+          registered.hooks.onModelSwitch(provider, model, previousProvider, previousModel);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onModelSwitch:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnChatModeSwitch(sessionId: string, newMode: string, previousMode: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onChatModeSwitch) {
+        try {
+          registered.hooks.onChatModeSwitch(sessionId, newMode, previousMode);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onChatModeSwitch:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnSystemPromptChange(sessionId: string, newPrompt: string, previousPrompt?: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onSystemPromptChange) {
+        try {
+          registered.hooks.onSystemPromptChange(sessionId, newPrompt, previousPrompt);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onSystemPromptChange:`, error);
+        }
+      }
+    }
+  }
+
+  // ===========================================================================
+  // Hook Dispatchers - Agent Plan
+  // ===========================================================================
+
+  dispatchOnAgentPlanCreate(agentId: string, tasks: { id: string; description: string }[]): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onAgentPlanCreate) {
+        try {
+          registered.hooks.onAgentPlanCreate(agentId, tasks);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentPlanCreate:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnAgentPlanStepComplete(agentId: string, taskId: string, result: string, success: boolean): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onAgentPlanStepComplete) {
+        try {
+          registered.hooks.onAgentPlanStepComplete(agentId, taskId, result, success);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onAgentPlanStepComplete:`, error);
+        }
+      }
+    }
+  }
+
+  // ===========================================================================
+  // Hook Dispatchers - Scheduler
+  // ===========================================================================
+
+  dispatchOnScheduledTaskStart(taskId: string, executionId: string): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onScheduledTaskStart) {
+        try {
+          registered.hooks.onScheduledTaskStart(taskId, executionId);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onScheduledTaskStart:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnScheduledTaskComplete(
+    taskId: string,
+    executionId: string,
+    result: { success: boolean; output?: Record<string, unknown>; error?: string }
+  ): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onScheduledTaskComplete) {
+        try {
+          registered.hooks.onScheduledTaskComplete(taskId, executionId, result);
+        } catch (error) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onScheduledTaskComplete:`, error);
+        }
+      }
+    }
+  }
+
+  dispatchOnScheduledTaskError(taskId: string, executionId: string, error: Error): void {
+    for (const pluginId of this.hookExecutionOrder) {
+      const registered = this.registeredHooks.get(pluginId);
+      if (registered?.hooks.onScheduledTaskError) {
+        try {
+          registered.hooks.onScheduledTaskError(taskId, executionId, error);
+        } catch (error: unknown) {
+          loggers.hooks.error(`Error in plugin ${pluginId} onScheduledTaskError:`, error);
+        }
+      }
+    }
+  }
+
+  // ===========================================================================
   // Hook Dispatchers - Command
   // ===========================================================================
 
@@ -923,12 +1116,16 @@ export class PluginEventHooks {
       .map(p => p.id);
   }
 
+  /** Default timeout for hook execution in milliseconds */
+  private static readonly HOOK_TIMEOUT_MS = 10_000;
+
   /**
-   * Execute a hook on all plugins
+   * Execute a hook on all plugins with timeout protection
    */
   private async executeHook<T>(
     hookName: keyof PluginHooksAll,
-    executor: (hooks: PluginHooksAll, pluginId: string) => T | Promise<T>
+    executor: (hooks: PluginHooksAll, pluginId: string) => T | Promise<T>,
+    timeoutMs: number = PluginEventHooks.HOOK_TIMEOUT_MS
   ): Promise<HookSandboxExecutionResult<T>[]> {
     const store = usePluginStore.getState();
     const pluginIds = this.getPluginsByPriority(hookName);
@@ -940,7 +1137,11 @@ export class PluginEventHooks {
 
       const startTime = performance.now();
       try {
-        const result = await executor(plugin.hooks as PluginHooksAll, pluginId);
+        const hookPromise = Promise.resolve(executor(plugin.hooks as PluginHooksAll, pluginId));
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Hook ${hookName} timed out after ${timeoutMs}ms for plugin ${pluginId}`)), timeoutMs)
+        );
+        const result = await Promise.race([hookPromise, timeoutPromise]);
         results.push({
           success: true,
           result,
@@ -1537,6 +1738,56 @@ export class PluginEventHooks {
     this.executeHook('onExternalAgentError', (hooks) =>
       (hooks as PluginHooksAll & { onExternalAgentError?: (agentId: string, error: string) => void })
         .onExternalAgentError?.(agentId, error)
+    );
+  }
+
+  // =============================================================================
+  // Code Execution / Sandbox Hooks
+  // =============================================================================
+
+  dispatchCodeExecutionStart(language: string, code: string, sandboxId?: string) {
+    this.executeHook('onCodeExecutionStart', (hooks) =>
+      hooks.onCodeExecutionStart?.(language, code, sandboxId)
+    );
+  }
+
+  dispatchCodeExecutionComplete(language: string, result: unknown, sandboxId?: string) {
+    this.executeHook('onCodeExecutionComplete', (hooks) =>
+      hooks.onCodeExecutionComplete?.(language, result, sandboxId)
+    );
+  }
+
+  dispatchCodeExecutionError(language: string, error: Error, sandboxId?: string) {
+    this.executeHook('onCodeExecutionError', (hooks) =>
+      hooks.onCodeExecutionError?.(language, error, sandboxId)
+    );
+  }
+
+  // =============================================================================
+  // MCP Server Hooks
+  // =============================================================================
+
+  dispatchMCPServerConnect(serverId: string, serverName: string) {
+    this.executeHook('onMCPServerConnect', (hooks) =>
+      hooks.onMCPServerConnect?.(serverId, serverName)
+    );
+  }
+
+  dispatchMCPServerDisconnect(serverId: string) {
+    this.executeHook('onMCPServerDisconnect', (hooks) =>
+      hooks.onMCPServerDisconnect?.(serverId)
+    );
+  }
+
+  dispatchMCPToolCall(serverId: string, toolName: string, args: Record<string, unknown>) {
+    this.executeHook('onMCPToolCall', (hooks) =>
+      hooks.onMCPToolCall?.(serverId, toolName, args)
+    );
+  }
+
+  dispatchMCPToolResult(serverId: string, toolName: string, result: unknown) {
+    this.executeHook('onMCPToolResult', (hooks) =>
+      hooks.onMCPToolResult?.(serverId, toolName, result)
     );
   }
 }

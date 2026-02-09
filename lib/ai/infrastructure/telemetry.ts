@@ -379,3 +379,170 @@ export function getDefaultTelemetryCollector(): TelemetryCollector {
 export function setDefaultTelemetryCollector(collector: TelemetryCollector): void {
   defaultCollector = collector;
 }
+
+/**
+ * Create a Language Model Middleware that bridges AI SDK telemetry
+ * with the infrastructure's telemetry collector and quota manager.
+ *
+ * This middleware:
+ * - Records every generate/stream call as a telemetry span
+ * - Optionally records usage to the quota manager for cost tracking
+ * - Captures latency, token counts, and errors
+ */
+export function createTelemetryMiddleware(options?: {
+  /** Telemetry collector to use (defaults to global collector) */
+  collector?: TelemetryCollector;
+  /** Provider ID for quota tracking */
+  providerId?: string;
+  /** Callback to record usage to quota manager */
+  onUsage?: (record: {
+    providerId: string;
+    modelId: string;
+    inputTokens: number;
+    outputTokens: number;
+    latencyMs: number;
+    success: boolean;
+  }) => void;
+}): {
+  wrapGenerate: (params: {
+    doGenerate: () => Promise<Record<string, unknown>>;
+    params: Record<string, unknown>;
+  }) => Promise<Record<string, unknown>>;
+  wrapStream: (params: {
+    doStream: () => Promise<{ stream: ReadableStream }>;
+    params: Record<string, unknown>;
+  }) => Promise<{ stream: ReadableStream }>;
+} {
+  const collector = options?.collector || getDefaultTelemetryCollector();
+  const providerId = options?.providerId || 'unknown';
+
+  return {
+    wrapGenerate: async ({ doGenerate, params }) => {
+      const modelId = (params as Record<string, unknown>).modelId as string || 'unknown';
+      const span = collector.startSpan('ai.generateText', {
+        'ai.provider': providerId,
+        'ai.model': modelId,
+      });
+
+      const startTime = Date.now();
+
+      try {
+        const result = await doGenerate();
+        const latencyMs = Date.now() - startTime;
+
+        // Extract token usage if available
+        const usage = result.usage as { promptTokens?: number; completionTokens?: number } | undefined;
+        const inputTokens = usage?.promptTokens || 0;
+        const outputTokens = usage?.completionTokens || 0;
+
+        span.setAttribute('ai.usage.inputTokens', inputTokens);
+        span.setAttribute('ai.usage.outputTokens', outputTokens);
+        span.setAttribute('ai.latencyMs', latencyMs);
+        span.end();
+
+        // Report usage
+        options?.onUsage?.({
+          providerId,
+          modelId,
+          inputTokens,
+          outputTokens,
+          latencyMs,
+          success: true,
+        });
+
+        return result;
+      } catch (error) {
+        const latencyMs = Date.now() - startTime;
+        span.setAttribute('ai.latencyMs', latencyMs);
+        span.endWithError(error instanceof Error ? error : new Error(String(error)));
+
+        options?.onUsage?.({
+          providerId,
+          modelId: modelId,
+          inputTokens: 0,
+          outputTokens: 0,
+          latencyMs,
+          success: false,
+        });
+
+        throw error;
+      }
+    },
+
+    wrapStream: async ({ doStream, params }) => {
+      const modelId = (params as Record<string, unknown>).modelId as string || 'unknown';
+      const span = collector.startSpan('ai.streamText', {
+        'ai.provider': providerId,
+        'ai.model': modelId,
+      });
+
+      const startTime = Date.now();
+      let firstChunkTime: number | null = null;
+
+      try {
+        const result = await doStream();
+        const { stream, ...rest } = result;
+
+        let inputTokens = 0;
+        let outputTokens = 0;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformStream = new TransformStream<any, any>({
+          transform(chunk, controller) {
+            if (!firstChunkTime) {
+              firstChunkTime = Date.now();
+              span.setAttribute('ai.response.msToFirstChunk', firstChunkTime - startTime);
+            }
+
+            // Try to extract usage from finish chunks
+            if (chunk && typeof chunk === 'object' && chunk.type === 'finish') {
+              const usage = chunk.usage as { promptTokens?: number; completionTokens?: number } | undefined;
+              if (usage) {
+                inputTokens = usage.promptTokens || 0;
+                outputTokens = usage.completionTokens || 0;
+              }
+            }
+
+            controller.enqueue(chunk);
+          },
+          flush() {
+            const latencyMs = Date.now() - startTime;
+            span.setAttribute('ai.usage.inputTokens', inputTokens);
+            span.setAttribute('ai.usage.outputTokens', outputTokens);
+            span.setAttribute('ai.latencyMs', latencyMs);
+            span.end();
+
+            options?.onUsage?.({
+              providerId,
+              modelId,
+              inputTokens,
+              outputTokens,
+              latencyMs,
+              success: true,
+            });
+          },
+        });
+
+        return {
+          ...rest,
+          stream: stream.pipeThrough(transformStream),
+        };
+      } catch (error) {
+        const latencyMs = Date.now() - startTime;
+        span.setAttribute('ai.latencyMs', latencyMs);
+        span.endWithError(error instanceof Error ? error : new Error(String(error)));
+
+        options?.onUsage?.({
+          providerId,
+          modelId,
+          inputTokens: 0,
+          outputTokens: 0,
+          latencyMs,
+          success: false,
+        });
+
+        throw error;
+      }
+    },
+  };
+}

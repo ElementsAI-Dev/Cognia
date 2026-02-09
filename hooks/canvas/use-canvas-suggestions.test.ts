@@ -131,7 +131,7 @@ describe('useCanvasSuggestions', () => {
       });
 
       expect(suggestions).toHaveLength(2);
-      expect(suggestions[0]).toMatchObject({
+      expect(suggestions![0]).toMatchObject({
         id: 'test-suggestion-id-123',
         type: 'improve',
         range: {
@@ -313,7 +313,7 @@ describe('useCanvasSuggestions', () => {
     });
 
     it('should not add to store when no active canvas', async () => {
-      jest.requireMock('@/stores').useArtifactStore.mockImplementation((selector) => {
+      jest.requireMock('@/stores').useArtifactStore.mockImplementation((selector: (state: Record<string, unknown>) => unknown) => {
         const state = {
           addSuggestion: mockAddSuggestion,
           activeCanvasId: null,
@@ -330,7 +330,7 @@ describe('useCanvasSuggestions', () => {
       expect(mockAddSuggestion).not.toHaveBeenCalled();
       
       // Reset the mock after this test
-      jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector) => {
+      jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector: (state: Record<string, unknown>) => unknown) => {
         if (typeof _selector === 'function') {
           return _selector({
             addSuggestion: mockAddSuggestion,
@@ -570,7 +570,7 @@ describe('useCanvasSuggestions', () => {
   describe('suggestion parsing edge cases', () => {
     beforeEach(() => {
       // Reset store mock to ensure activeCanvasId is set
-      jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector) => {
+      jest.requireMock('@/stores').useArtifactStore.mockImplementation((_selector: (state: Record<string, unknown>) => unknown) => {
         if (typeof _selector === 'function') {
           return _selector({
             addSuggestion: mockAddSuggestion,

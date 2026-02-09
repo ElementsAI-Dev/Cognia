@@ -1,8 +1,8 @@
 {
   "id": "cognia-time-tools",
   "name": "Time Tools",
-  "version": "1.0.0",
-  "description": "Time and timezone utilities for AI agents - get current time, convert timezones, parse dates, calculate differences",
+  "version": "1.1.0",
+  "description": "Time, timezone, and timer utilities for AI agents",
   "author": {
     "name": "Cognia Team",
     "email": "team@cognia.dev"
@@ -15,11 +15,13 @@
     "time",
     "timezone",
     "date",
-    "calendar",
-    "utility"
+    "convert",
+    "format",
+    "timer"
   ],
   "capabilities": [
-    "tools"
+    "tools",
+    "commands"
   ],
   "permissions": [],
   "activationEvents": [
@@ -27,7 +29,10 @@
     "onAgentTool:time_convert",
     "onAgentTool:time_parse",
     "onAgentTool:time_diff",
-    "onAgentTool:time_format"
+    "onAgentTool:time_format",
+    "onAgentTool:time_timer",
+    "onAgentTool:time_list_timezones",
+    "onCommand:time-tools.*"
   ],
   "tools": [
     {
@@ -49,7 +54,19 @@
     {
       "name": "time_format",
       "description": "Format a timestamp according to a pattern"
+    },
+    {
+      "name": "time_timer",
+      "description": "Start, stop, or check a timer/stopwatch"
+    },
+    {
+      "name": "time_list_timezones",
+      "description": "List all supported timezones with offsets"
     }
+  ],
+  "commands": [
+    { "id": "time-tools.now", "name": "Current Time", "description": "Show current time", "icon": "clock" },
+    { "id": "time-tools.active-timers", "name": "Active Timers", "description": "Show active timers", "icon": "timer" }
   ],
   "configSchema": {
     "type": "object",

@@ -4,7 +4,7 @@
 
 import type { UIMessage } from './message';
 import type { ProviderName } from '../provider/provider';
-import type { SessionCompressionOverrides } from '../system/compression';
+import type { SessionCompressionOverrides, FrozenCompressionSummary } from '../system/compression';
 import type { ChatViewMode, FlowChatCanvasState, MultiModelConfig } from '../chat';
 
 export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
@@ -127,6 +127,9 @@ export interface Session {
 
   // Compression overrides (per-session settings)
   compressionOverrides?: SessionCompressionOverrides;
+
+  // Frozen compression summary for prefix-stable KV cache reuse
+  frozenSummary?: FrozenCompressionSummary;
 
   // Carried context from previous session (when switching modes)
   carriedContext?: {

@@ -261,6 +261,19 @@ describe('MultiModelSelector', () => {
       expect(screen.getByText('Add Model')).toBeInTheDocument();
     });
 
+    it('should render ProviderIcon for each selected model', () => {
+      const models: ArenaModelConfig[] = [
+        { id: '1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', columnIndex: 0 },
+        { id: '2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', columnIndex: 1 },
+      ];
+      const { container } = render(
+        <MultiModelSelector models={models} onModelsChange={mockOnModelsChange} />
+      );
+      // ProviderIcon renders img for known providers
+      const imgs = container.querySelectorAll('img[alt*="icon"]');
+      expect(imgs.length).toBe(2);
+    });
+
     it('should recalculate column indices when removing middle model', () => {
       const models: ArenaModelConfig[] = [
         { id: '1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', columnIndex: 0 },

@@ -327,23 +327,6 @@ export async function getRecordingStats(): Promise<RecordingStats> {
 // ============== Utility Functions ==============
 
 /**
- * Format duration in milliseconds to human-readable string
- */
-export function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  const s = seconds % 60;
-  const m = minutes % 60;
-
-  if (hours > 0) {
-    return `${hours}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-/**
  * Format file size to human-readable string
  */
 export function formatFileSize(bytes: number): string {

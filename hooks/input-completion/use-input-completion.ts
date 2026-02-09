@@ -8,7 +8,7 @@ import { useInputCompletionStore } from '@/stores/input-completion';
 import * as api from '@/lib/native/input-completion';
 import type {
   CompletionConfig,
-  CompletionResult,
+  InputCompletionResult,
   CompletionSuggestion,
   InputCompletionEvent,
 } from '@/types/input-completion';
@@ -150,7 +150,7 @@ export function useInputCompletion(options: UseInputCompletionOptions = {}) {
 
   // Manually trigger completion
   const trigger = useCallback(
-    async (text: string): Promise<CompletionResult | null> => {
+    async (text: string): Promise<InputCompletionResult | null> => {
       try {
         setIsLoading(true);
         incrementRequests();

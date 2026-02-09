@@ -18,6 +18,9 @@ import {
   Clock,
   Lightbulb,
   ChevronDown,
+  Activity,
+  AlertTriangle,
+  Gauge,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,7 +32,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useUsageAnalytics, useUsageSummary } from '@/hooks/chat/use-usage-analytics';
-import { formatCost, formatTokens } from '@/lib/ai/usage-analytics';
+import { formatTokens } from '@/lib/ai/usage-analytics';
+import { useCurrencyFormat } from '@/hooks/ui/use-currency-format';
 import type { AnalyticsPeriod } from '@/lib/ai/usage-analytics';
 
 export interface UsageAnalyticsCardProps {
@@ -56,6 +60,7 @@ const TrendIcon = ({ trend }: { trend: 'increasing' | 'decreasing' | 'stable' })
  */
 export function UsageSummaryBadge({ className }: { className?: string }) {
   const { totalTokens, totalCost, trend } = useUsageSummary();
+  const { formatCost } = useCurrencyFormat();
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -86,6 +91,7 @@ function ModelUsageItem({
   cost: number;
   percentage: number;
 }) {
+  const { formatCost } = useCurrencyFormat();
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
@@ -162,6 +168,7 @@ function DailyComparison({
   yesterday: { totalTokens: number; totalCost: number };
 }) {
   const t = useTranslations('usage');
+  const { formatCost } = useCurrencyFormat();
   
   const tokenChange = yesterday.totalTokens > 0
     ? ((today.totalTokens - yesterday.totalTokens) / yesterday.totalTokens) * 100
@@ -224,6 +231,7 @@ export function UsageAnalyticsCard({
   className,
 }: UsageAnalyticsCardProps) {
   const t = useTranslations('usage');
+  const { formatCost } = useCurrencyFormat();
   
   const {
     statistics,
@@ -232,6 +240,7 @@ export function UsageAnalyticsCard({
     efficiency,
     dailySummary,
     recommendations,
+    performanceMetrics,
   } = useUsageAnalytics({ period });
 
   const periodLabel = useMemo(() => {
@@ -334,6 +343,61 @@ export function UsageAnalyticsCard({
           </div>
         </div>
 
+        {/* Performance Metrics */}
+        {performanceMetrics && (performanceMetrics.avgLatency > 0 || performanceMetrics.totalErrors > 0) && (
+          <div className="pt-2 border-t">
+            <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
+              <Activity className="h-4 w-4" />
+              {t('performanceMetrics') || 'Performance'}
+            </h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {performanceMetrics.avgLatency > 0 && (
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t('avgLatency') || 'Avg Latency'}</p>
+                    <p className="font-medium">
+                      {performanceMetrics.avgLatency < 1000
+                        ? `${Math.round(performanceMetrics.avgLatency)}ms`
+                        : `${(performanceMetrics.avgLatency / 1000).toFixed(1)}s`}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {performanceMetrics.avgTimeToFirstToken > 0 && (
+                <div className="flex items-center gap-2">
+                  <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t('ttft') || 'TTFT'}</p>
+                    <p className="font-medium">{Math.round(performanceMetrics.avgTimeToFirstToken)}ms</p>
+                  </div>
+                </div>
+              )}
+              {performanceMetrics.avgTokensPerSecond > 0 && (
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t('speed') || 'Speed'}</p>
+                    <p className="font-medium">{performanceMetrics.avgTokensPerSecond.toFixed(1)} tok/s</p>
+                  </div>
+                </div>
+              )}
+              {performanceMetrics.totalErrors > 0 && (
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t('errorRate') || 'Error Rate'}</p>
+                    <p className={cn('font-medium', performanceMetrics.errorRate > 0.1 ? 'text-destructive' : 'text-muted-foreground')}>
+                      {(performanceMetrics.errorRate * 100).toFixed(1)}%
+                      <span className="text-xs text-muted-foreground ml-1">({performanceMetrics.totalErrors})</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Recommendations */}
         {showRecommendations && recommendations.length > 0 && (
           <div className="pt-2 border-t space-y-2">
@@ -358,6 +422,7 @@ export function UsageAnalyticsCard({
  */
 export function UsageStatsMini({ className }: { className?: string }) {
   const { todayTokens, todayCost, trend, percentChange } = useUsageSummary();
+  const { formatCost } = useCurrencyFormat();
 
   return (
     <div className={cn('flex items-center justify-between text-sm', className)}>
