@@ -28,5 +28,5 @@
     ".next\\dev/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "plugin-sdk", "plugins"]
+  "exclude": ["node_modules", "plugin-sdk", "plugins", "src-tauri"]
 }

@@ -15,6 +15,26 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }));
 
+// Mock Tabs with stateful tab switching
+jest.mock('@/components/ui/tabs', () => {
+  const TabsContext = React.createContext<{ active: string; setActive: (v: string) => void }>({ active: 'info', setActive: () => {} });
+  return {
+    Tabs: ({ children, defaultValue }: { children: React.ReactNode; defaultValue?: string; className?: string }) => {
+      const [active, setActive] = React.useState(defaultValue || 'info');
+      return <TabsContext.Provider value={{ active, setActive }}><div data-testid="tabs">{children}</div></TabsContext.Provider>;
+    },
+    TabsList: ({ children }: { children: React.ReactNode; className?: string }) => <div>{children}</div>,
+    TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => {
+      const { setActive } = React.useContext(TabsContext);
+      return <button onClick={() => setActive(value)} data-value={value}>{children}</button>;
+    },
+    TabsContent: ({ children, value }: { children: React.ReactNode; value: string; className?: string }) => {
+      const { active } = React.useContext(TabsContext);
+      return active === value ? <div data-testid={`tab-${value}`}>{children}</div> : null;
+    },
+  };
+});
+
 const createMockApp = (overrides: Partial<A2UIAppInstance> = {}): A2UIAppInstance => ({
   id: 'test-app-1',
   templateId: 'template-1',

@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use reqwest_eventsource::{Event, EventSource, RequestBuilderExt};
+use reqwest_eventsource::{Event, RequestBuilderExt};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex as TokioMutex};
@@ -180,6 +180,7 @@ impl SseTransport {
         log::debug!("Setting custom message URL: {}", url);
         self.message_url = Some(url);
     }
+
 }
 
 #[async_trait]
@@ -277,13 +278,14 @@ impl Transport for SseTransport {
     }
 
     fn is_connected(&self) -> bool {
-        let is_connected = self.connected.load(Ordering::SeqCst);
+        let connected = self.connected.load(Ordering::SeqCst);
+        let channel_open = !self.event_tx_holder.is_closed();
+        let status = connected && channel_open;
         log::trace!(
-            "SSE transport connection status for {}: {}",
-            self.base_url,
-            is_connected
+            "SSE transport connection status: {} (connected={}, channel_open={})",
+            status, connected, channel_open
         );
-        is_connected
+        status
     }
 }
 

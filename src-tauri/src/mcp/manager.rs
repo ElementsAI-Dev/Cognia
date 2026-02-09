@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 use tauri::{AppHandle, Emitter};
 
 use crate::mcp::client::McpClient;
-use crate::mcp::config::McpConfigManager;
+use crate::mcp::config::{McpConfig, McpConfigManager};
 use crate::mcp::error::{McpError, McpResult};
 use crate::mcp::protocol::jsonrpc::{methods, JsonRpcNotification};
 use crate::mcp::protocol::sampling::SamplingProgressParams;
@@ -178,13 +178,28 @@ impl McpManager {
                 })?;
 
                 log::trace!("Using SSE transport: url='{}', proxy={:?}", url, proxy_url);
-                McpClient::connect_sse_with_options(
-                    url,
-                    config.message_url.as_deref(),
-                    proxy_url,
-                    notification_tx,
-                )
-                .await
+                match (proxy_url, config.message_url.as_deref()) {
+                    (Some(_), _) => {
+                        McpClient::connect_sse_with_options(
+                            url,
+                            config.message_url.as_deref(),
+                            proxy_url,
+                            notification_tx,
+                        )
+                        .await
+                    }
+                    (None, Some(msg_url)) => {
+                        McpClient::connect_sse_with_message_url(
+                            url,
+                            Some(msg_url),
+                            notification_tx,
+                        )
+                        .await
+                    }
+                    (None, None) => {
+                        McpClient::connect_sse(url, notification_tx).await
+                    }
+                }
             }
         }
     }
@@ -479,6 +494,17 @@ impl McpManager {
             return Err(McpError::ProtocolError("Server is disabled".to_string()));
         }
 
+        // Check if already connected
+        {
+            let servers = self.servers.read().await;
+            if let Some(instance) = servers.get(id) {
+                if matches!(instance.state.status, McpServerStatus::Connected) {
+                    log::warn!("Server '{}' is already connected", id);
+                    return Err(McpError::AlreadyConnected);
+                }
+            }
+        }
+
         // Update status to connecting
         log::debug!("Setting server '{}' status to Connecting", id);
         {
@@ -522,12 +548,16 @@ impl McpManager {
         let init_result = match client.initialize(ClientInfo::default()).await {
             Ok(r) => r,
             Err(e) => {
-                log::error!("Failed to initialize connection to server '{}': {}", id, e);
+                let init_err = McpError::InitializationFailed(format!(
+                    "Server '{}': {}",
+                    id, e
+                ));
+                log::error!("{}", init_err);
                 client.close().await.ok();
-                Self::handle_connection_error(&self.servers, id, &e).await;
+                Self::handle_connection_error(&self.servers, id, &init_err).await;
                 self.emit_server_update(id).await;
                 self.schedule_reconnection(id.to_string()).await;
-                return Err(e);
+                return Err(init_err);
             }
         };
 
@@ -670,6 +700,17 @@ impl McpManager {
             log::error!("Tool call failed: server '{}' not connected", server_id);
             McpError::NotConnected
         })?;
+
+        // Verify server supports tools capability
+        if let Some(caps) = &instance.state.capabilities {
+            if caps.tools.is_none() {
+                log::warn!(
+                    "Server '{}' does not advertise tools capability",
+                    server_id
+                );
+                return Err(McpError::UnsupportedCapability("tools".to_string()));
+            }
+        }
 
         let result = client.call_tool(tool_name, arguments).await;
         let ended_at = chrono::Utc::now().timestamp_millis();
@@ -896,7 +937,11 @@ impl McpManager {
         })?;
 
         let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
-        client.respond_to_sampling(request_id, result).await
+        let sampling_result: crate::mcp::types::SamplingResult =
+            serde_json::from_value(result).map_err(|e| {
+                McpError::ProtocolError(format!("Invalid sampling result: {}", e))
+            })?;
+        client.respond_to_sampling(request_id, sampling_result).await
     }
 
     /// Set roots for a connected server and notify it
@@ -1539,6 +1584,72 @@ impl McpManager {
     async fn emit_servers_changed(&self) {
         let servers = self.get_all_servers().await;
         let _ = self.app_handle.emit(events::SERVERS_CHANGED, &servers);
+    }
+
+    /// Get server capabilities from a connected server
+    pub async fn get_server_capabilities(&self, id: &str) -> McpResult<Option<ServerCapabilities>> {
+        let servers = self.servers.read().await;
+        let instance = servers
+            .get(id)
+            .ok_or_else(|| McpError::ServerNotFound(id.to_string()))?;
+        if let Some(client) = &instance.client {
+            Ok(client.get_capabilities().await)
+        } else {
+            Err(McpError::NotConnected)
+        }
+    }
+
+    /// Get server info from a connected server
+    pub async fn get_server_info(&self, id: &str) -> McpResult<Option<ServerInfo>> {
+        let servers = self.servers.read().await;
+        let instance = servers
+            .get(id)
+            .ok_or_else(|| McpError::ServerNotFound(id.to_string()))?;
+        if let Some(client) = &instance.client {
+            Ok(client.get_server_info().await)
+        } else {
+            Err(McpError::NotConnected)
+        }
+    }
+
+    /// Check if a specific server is connected
+    pub async fn is_server_connected(&self, id: &str) -> bool {
+        let servers = self.servers.read().await;
+        servers
+            .get(id)
+            .and_then(|instance| instance.client.as_ref())
+            .map(|client| client.is_connected())
+            .unwrap_or(false)
+    }
+
+    /// Set server enabled status and persist
+    pub async fn set_server_enabled(&self, id: &str, enabled: bool) -> McpResult<bool> {
+        let result = self.config_manager.set_server_enabled(id, enabled);
+        if result {
+            self.config_manager.save().await?;
+            self.emit_server_update(id).await;
+        }
+        Ok(result)
+    }
+
+    /// Set server auto-start status and persist
+    pub async fn set_server_auto_start(&self, id: &str, auto_start: bool) -> McpResult<bool> {
+        let result = self.config_manager.set_server_auto_start(id, auto_start);
+        if result {
+            self.config_manager.save().await?;
+            self.emit_server_update(id).await;
+        }
+        Ok(result)
+    }
+
+    /// Get the configuration file path
+    pub fn get_config_path(&self) -> String {
+        self.config_manager.config_path().to_string_lossy().to_string()
+    }
+
+    /// Get a copy of the full MCP configuration
+    pub fn get_full_config(&self) -> McpConfig {
+        self.config_manager.get_config()
     }
 
     /// Shutdown the MCP manager - disconnect all servers and cleanup resources

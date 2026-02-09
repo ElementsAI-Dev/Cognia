@@ -1,0 +1,109 @@
+site_name: Cognia Documentation
+site_description: AI-native chat and creation application with multi-provider support
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: development/getting-started.md
+      - Project Structure: development/project-structure.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Tech Stack: architecture/tech-stack.md
+      - Data Flow: architecture/data-flow.md
+      - MCP Architecture: architecture/mcp-architecture.md
+  - Features:
+      - AI Integration: features/ai-integration.md
+      - Chat: features/chat-features.md
+      - Agent System: features/agent-guide.md
+      - Agent Integration: features/agent-integration.md
+      - Artifacts: features/artifacts-system.md
+      - Arena: features/arena.md
+      - Academic Mode: features/academic-mode.md
+      - LaTeX Editor: features/latex-editor.md
+      - Canvas Editor: features/canvas-editor.md
+      - Workflow Editor: features/workflow-editor.md
+      - Designer: features/designer.md
+      - Sandbox: features/sandbox.md
+      - Notebook: features/notebook.md
+      - Video Studio: features/video-studio.md
+      - PPT Editor: features/ppt-editor.md
+      - Screenshot Editor: features/screenshot-editor.md
+      - Screen Recording: features/screen-recording.md
+      - Scheduler: features/scheduler.md
+      - SpeedPass Learning: features/speedpass.md
+      - A2UI System: features/a2ui-system.md
+      - Export System: features/export-system.md
+      - Git Integration: features/git-integration.md
+      - Observability: features/observability.md
+      - Projects: features/projects-management.md
+      - MCP Guide: features/mcp-guide.md
+      - Configuration: features/configuration.md
+      - Advanced Features: features/advanced-features.md
+      - Native Tools:
+          - Overview: features/native-tools.md
+          - Selection: features/native-selection.md
+          - Awareness: features/native-awareness.md
+          - Context & Screenshot: features/native-context-screenshot.md
+          - Selection Toolbar: features/selection-toolbar-enhancements.md
+          - Input Completion: features/input-completion.md
+      - Provider Infrastructure: features/provider-infrastructure.md
+      - Plugin Development: features/plugin-development.md
+      - Scheduler Plugins: features/scheduler-plugin-integration.md
+      - Intent Detection: features/intent-detection.md
+      - Image Studio: features/image-studio-components.md
+  - API Reference:
+      - Overview: api/overview.md
+      - Routes: api/routes.md
+      - Hooks: api/hooks.md
+      - Stores: api/stores.md
+      - Components: api/components.md
+      - Utilities: api/utilities.md
+  - Development:
+      - Getting Started: development/getting-started.md
+      - Coding Standards: development/coding-standards.md
+      - Testing: development/testing.md
+      - Building: development/building.md
+      - Contributing: development/contributing.md
+  - Reference:
+      - AI API Comparison: reference/ai-api-comparison.md

@@ -11,13 +11,101 @@
  * - Export operations
  */
 
-import type {
-  VideoWorkerMessage,
-  VideoWorkerResponse,
-  VideoWorkerPayload,
-  VideoFilter,
-  VideoMetadata,
-} from './worker-types';
+// Inline type definitions to make this worker file self-contained
+// (Web Workers are copied as standalone files during build)
+
+type VideoFilterType =
+  | 'brightness'
+  | 'contrast'
+  | 'saturation'
+  | 'hue'
+  | 'blur'
+  | 'sharpen'
+  | 'grayscale'
+  | 'sepia'
+  | 'invert'
+  | 'custom';
+
+type VideoOperationType =
+  | 'decode'
+  | 'encode'
+  | 'transform'
+  | 'filter'
+  | 'export'
+  | 'extractFrame'
+  | 'generateThumbnail'
+  | 'analyze';
+
+type VideoWorkerResponseType = 'success' | 'error' | 'progress';
+
+interface VideoFilter {
+  type: VideoFilterType;
+  value: number;
+  options?: Record<string, unknown>;
+}
+
+interface VideoTransform {
+  type: 'scale' | 'crop' | 'rotate' | 'flip' | 'mirror';
+  params: { width?: number; height?: number; x?: number; y?: number; angle?: number; direction?: 'horizontal' | 'vertical' };
+}
+
+interface VideoOperation {
+  type: VideoOperationType;
+  filter?: VideoFilter;
+  transform?: VideoTransform;
+  options?: Record<string, unknown>;
+}
+
+interface VideoExportOptions {
+  format: 'mp4' | 'webm' | 'mov' | 'avi' | 'mkv';
+  codec: string;
+  resolution?: { width: number; height: number };
+  frameRate?: number;
+  bitrate?: number;
+}
+
+interface VideoMetadata {
+  width: number;
+  height: number;
+  duration: number;
+  frameRate: number;
+  codec: string;
+  bitrate: number;
+  audioCodec?: string;
+  audioBitrate?: number;
+  audioChannels?: number;
+  audioSampleRate?: number;
+  hasAudio: boolean;
+  fileSize: number;
+  mimeType: string;
+}
+
+interface VideoWorkerPayload {
+  videoData?: ArrayBuffer;
+  frameData?: ImageData;
+  operations?: VideoOperation[];
+  filter?: VideoFilter;
+  exportOptions?: VideoExportOptions;
+  timestamp?: number;
+  frameNumber?: number;
+  quality?: number;
+}
+
+interface VideoWorkerMessage {
+  id: string;
+  type: VideoOperationType;
+  payload: VideoWorkerPayload;
+  transferables?: Transferable[];
+}
+
+interface VideoWorkerResponse {
+  id: string;
+  type: VideoWorkerResponseType;
+  data?: ArrayBuffer | ImageData | VideoMetadata | Blob;
+  progress?: number;
+  error?: string;
+  metadata?: VideoMetadata;
+}
 
 // Worker context
 const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;

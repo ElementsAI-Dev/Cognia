@@ -351,6 +351,7 @@ pnpm test lib/ai/infrastructure/
 ## Best Practices
 
 1. **Always check availability** before making requests:
+
    ```typescript
    if (!isProviderAvailable(provider)) {
      // Handle unavailability
@@ -358,6 +359,7 @@ pnpm test lib/ai/infrastructure/
    ```
 
 2. **Record both success and failure**:
+
    ```typescript
    try {
      const result = await callAI();
@@ -369,6 +371,7 @@ pnpm test lib/ai/infrastructure/
    ```
 
 3. **Use withFailover for critical operations**:
+
    ```typescript
    const result = await withFailover(
      ['primary', 'secondary', 'tertiary'],
@@ -377,6 +380,7 @@ pnpm test lib/ai/infrastructure/
    ```
 
 4. **Monitor quota usage** to avoid unexpected costs:
+
    ```typescript
    const status = getProviderQuotaStatus('openai');
    if (status.remaining.costThisMonth < 10) {

@@ -9,13 +9,18 @@ use tokio::sync::{mpsc, oneshot, Mutex as TokioMutex};
 
 use crate::mcp::error::{McpError, McpResult};
 use crate::mcp::protocol::jsonrpc::{
-    methods, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION,
+    error_codes, methods, JsonRpcError as RpcError, JsonRpcMessage, JsonRpcNotification,
+    JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION,
 };
-use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsListResponse};
+use crate::mcp::protocol::sampling::{
+    SamplingCreateMessageRequest, SamplingCreateMessageResponse,
+};
+use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsGetResponse, PromptsListResponse};
 use crate::mcp::protocol::resources::{
-    ResourceTemplate, ResourcesListResponse, ResourcesReadParams, ResourcesTemplatesListResponse,
+    ResourceTemplate, ResourcesListResponse, ResourcesReadParams, ResourcesReadResponse,
+    ResourcesTemplatesListResponse,
 };
-use crate::mcp::protocol::tools::{ToolsCallParams, ToolsListResponse};
+use crate::mcp::protocol::tools::{ToolsCallParams, ToolsCallResponse, ToolsListResponse};
 use crate::mcp::transport::sse::SseTransport;
 use crate::mcp::transport::stdio::StdioTransport;
 use crate::mcp::transport::Transport;
@@ -95,11 +100,13 @@ impl McpClient {
         notification_tx: mpsc::Sender<JsonRpcNotification>,
     ) -> McpResult<Self> {
         log::debug!("Creating SSE MCP client: url='{}'", url);
-        if let Some(proxy) = proxy_url {
-            log::debug!("Using proxy: {}", proxy);
-        }
 
-        let mut transport = SseTransport::connect_with_proxy(url, proxy_url).await?;
+        let mut transport = if let Some(proxy) = proxy_url {
+            log::debug!("Using proxy: {}", proxy);
+            SseTransport::connect_with_proxy(url, Some(proxy)).await?
+        } else {
+            SseTransport::connect(url).await?
+        };
 
         if let Some(msg_url) = message_url {
             log::debug!("Setting custom message URL: {}", msg_url);
@@ -152,82 +159,143 @@ impl McpClient {
                             continue;
                         }
 
-                        // Try to parse as response first
-                        if let Ok(response) = serde_json::from_str::<JsonRpcResponse>(&message) {
-                            if let Some(id) = match &response.id {
-                                crate::mcp::protocol::jsonrpc::RequestId::Number(n) => Some(*n),
-                                crate::mcp::protocol::jsonrpc::RequestId::String(_) => None,
-                            } {
-                                let mut pending = pending_requests.lock().await;
-                                if let Some(request) = pending.remove(&id) {
-                                    let result = if let Some(error) = response.error {
-                                        Err(McpError::from(error))
-                                    } else {
-                                        Ok(response.result.unwrap_or(serde_json::Value::Null))
-                                    };
-                                    let _ = request.response_tx.send(result);
+                        let parsed = match JsonRpcMessage::parse(&message) {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                let _err = McpError::InvalidMessageFormat(e.to_string());
+                                let rpc_err = RpcError::parse_error();
+                                log::warn!(
+                                    "Invalid message format (JSON-RPC error code {}): {} (error: {})",
+                                    rpc_err.code,
+                                    if message.len() > 200 { &message[..200] } else { &message },
+                                    e
+                                );
+                                continue;
+                            }
+                        };
+
+                        log::trace!(
+                            "Parsed JSON-RPC message: request={}, notification={}, response={}",
+                            parsed.is_request(),
+                            parsed.is_notification(),
+                            parsed.is_response()
+                        );
+
+                        match parsed {
+                            JsonRpcMessage::Response(response) => {
+                                if let Some(id) = match &response.id {
+                                    crate::mcp::protocol::jsonrpc::RequestId::Number(n) => Some(*n),
+                                    crate::mcp::protocol::jsonrpc::RequestId::String(_) => None,
+                                } {
+                                    let mut pending = pending_requests.lock().await;
+                                    if let Some(request) = pending.remove(&id) {
+                                        let result = if let Some(error) = response.error {
+                                            Err(McpError::from(error))
+                                        } else if let Some(value) = response.result {
+                                            Ok(value)
+                                        } else {
+                                            Err(McpError::EmptyResponse)
+                                        };
+                                        let _ = request.response_tx.send(result);
+                                    }
+                                } else {
+                                    log::warn!(
+                                        "Received response with non-numeric ID, cannot match to pending request ({})",
+                                        RpcError::invalid_request().message
+                                    );
                                 }
                             }
-                            continue;
-                        }
+                            JsonRpcMessage::Request(request) => {
+                                log::debug!("Received server→client request: {}", request.method);
+                                match request.method.as_str() {
+                                    methods::ROOTS_LIST => {
+                                        let current_roots = roots.lock().await.clone();
+                                        match serde_json::to_value(&current_roots) {
+                                            Ok(roots_val) => {
+                                                let response = JsonRpcResponse::success(
+                                                    request.id,
+                                                    serde_json::json!({ "roots": roots_val }),
+                                                );
+                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                    if let Err(e) = transport.send(&resp_msg).await {
+                                                        log::error!("Failed to send roots/list response: {}", e);
+                                                    }
+                                                }
+                                            }
+                                            Err(e) => {
+                                                log::error!("Failed to serialize roots: {}", e);
+                                                let response = JsonRpcResponse::error(
+                                                    request.id,
+                                                    RpcError::internal_error(format!("Serialization failed: {}", e)),
+                                                );
+                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                    let _ = transport.send(&resp_msg).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    methods::SAMPLING_CREATE_MESSAGE => {
+                                        match &request.params {
+                                            None => {
+                                                log::warn!("Sampling request missing parameters");
+                                                let response = JsonRpcResponse::error(
+                                                    request.id,
+                                                    RpcError::invalid_params("Missing sampling parameters"),
+                                                );
+                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                    let _ = transport.send(&resp_msg).await;
+                                                }
+                                            }
+                                            Some(params) => {
+                                                // Validate params structure
+                                                if let Err(parse_err) = serde_json::from_value::<SamplingCreateMessageRequest>(params.clone()) {
+                                                    log::warn!("Invalid sampling request parameters: {}", parse_err);
+                                                    let response = JsonRpcResponse::error(
+                                                        request.id,
+                                                        RpcError::with_data(
+                                                            error_codes::INVALID_PARAMS,
+                                                            "Invalid sampling request parameters",
+                                                            serde_json::json!({ "parse_error": parse_err.to_string() }),
+                                                        ),
+                                                    );
+                                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                        let _ = transport.send(&resp_msg).await;
+                                                    }
+                                                } else {
+                                                    let req_id_str = match &request.id {
+                                                        crate::mcp::protocol::jsonrpc::RequestId::Number(n) => n.to_string(),
+                                                        crate::mcp::protocol::jsonrpc::RequestId::String(s) => s.clone(),
+                                                    };
+                                                    log::info!("Received sampling/createMessage request: id={}", req_id_str);
+                                                    pending_sampling.lock().await.insert(req_id_str.clone(), request.id.clone());
 
-                        // Try to parse as incoming request (server → client)
-                        if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(&message) {
-                            log::debug!("Received server→client request: {}", request.method);
-                            match request.method.as_str() {
-                                methods::ROOTS_LIST => {
-                                    let current_roots = roots.lock().await.clone();
-                                    let response = JsonRpcResponse::success(
-                                        request.id,
-                                        serde_json::json!({ "roots": current_roots }),
-                                    );
-                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
-                                        if let Err(e) = transport.send(&resp_msg).await {
-                                            log::error!("Failed to send roots/list response: {}", e);
+                                                    let sampling_notification = JsonRpcNotification {
+                                                        jsonrpc: crate::mcp::protocol::jsonrpc::JSONRPC_VERSION.to_string(),
+                                                        method: methods::SAMPLING_CREATE_MESSAGE.to_string(),
+                                                        params: request.params,
+                                                    };
+                                                    let _ = notification_tx.send(sampling_notification).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        log::warn!("Unhandled server→client request: {}", request.method);
+                                        let response = JsonRpcResponse::error(
+                                            request.id,
+                                            RpcError::method_not_found(&request.method),
+                                        );
+                                        if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                            let _ = transport.send(&resp_msg).await;
                                         }
                                     }
                                 }
-                                methods::SAMPLING_CREATE_MESSAGE => {
-                                    // Store the request ID for later response
-                                    let req_id_str = match &request.id {
-                                        crate::mcp::protocol::jsonrpc::RequestId::Number(n) => n.to_string(),
-                                        crate::mcp::protocol::jsonrpc::RequestId::String(s) => s.clone(),
-                                    };
-                                    log::info!("Received sampling/createMessage request: id={}", req_id_str);
-                                    pending_sampling.lock().await.insert(req_id_str.clone(), request.id.clone());
-
-                                    // Forward as a notification so the manager can emit to frontend
-                                    let sampling_notification = JsonRpcNotification {
-                                        jsonrpc: crate::mcp::protocol::jsonrpc::JSONRPC_VERSION.to_string(),
-                                        method: methods::SAMPLING_CREATE_MESSAGE.to_string(),
-                                        params: request.params,
-                                    };
-                                    let _ = notification_tx.send(sampling_notification).await;
-                                }
-                                _ => {
-                                    log::warn!("Unhandled server→client request: {}", request.method);
-                                    let response = JsonRpcResponse::error(
-                                        request.id,
-                                        crate::mcp::protocol::jsonrpc::JsonRpcError::method_not_found(&request.method),
-                                    );
-                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
-                                        let _ = transport.send(&resp_msg).await;
-                                    }
-                                }
                             }
-                            continue;
+                            JsonRpcMessage::Notification(notification) => {
+                                log::debug!("Received notification: {}", notification.method);
+                                let _ = notification_tx.send(notification).await;
+                            }
                         }
-
-                        // Try to parse as notification
-                        if let Ok(notification) =
-                            serde_json::from_str::<JsonRpcNotification>(&message)
-                        {
-                            log::debug!("Received notification: {}", notification.method);
-                            let _ = notification_tx.send(notification).await;
-                            continue;
-                        }
-
-                        log::warn!("Unknown message format: {}", message);
                     }
                     Err(e) => {
                         log::error!("Error receiving message: {}", e);
@@ -409,7 +477,7 @@ impl McpClient {
         let result = self
             .send_request(methods::TOOLS_CALL, Some(serde_json::to_value(params)?))
             .await?;
-        let response: ToolCallResult = serde_json::from_value(result)?;
+        let response: ToolsCallResponse = serde_json::from_value(result)?;
         let elapsed = start.elapsed();
 
         if response.is_error {
@@ -451,7 +519,7 @@ impl McpClient {
         let result = self
             .send_request(methods::RESOURCES_READ, Some(serde_json::to_value(params)?))
             .await?;
-        let response: ResourceContent = serde_json::from_value(result)?;
+        let response: ResourcesReadResponse = serde_json::from_value(result)?;
         let elapsed = start.elapsed();
         log::debug!(
             "Resource '{}' read successfully in {:?}, {} content items",
@@ -564,7 +632,7 @@ impl McpClient {
         let result = self
             .send_request(methods::PROMPTS_GET, Some(serde_json::to_value(params)?))
             .await?;
-        let response: PromptContent = serde_json::from_value(result)?;
+        let response: PromptsGetResponse = serde_json::from_value(result)?;
         let elapsed = start.elapsed();
         log::debug!(
             "Prompt '{}' retrieved in {:?}, {} messages",
@@ -612,7 +680,7 @@ impl McpClient {
     pub async fn respond_to_sampling(
         &self,
         request_id_str: &str,
-        result: serde_json::Value,
+        result: SamplingCreateMessageResponse,
     ) -> McpResult<()> {
         let request_id = {
             let mut pending = self.pending_sampling_requests.lock().await;
@@ -626,7 +694,8 @@ impl McpClient {
         };
 
         log::info!("Sending sampling response for request: {}", request_id_str);
-        let response = JsonRpcResponse::success(request_id, result);
+        let result_value = serde_json::to_value(&result)?;
+        let response = JsonRpcResponse::success(request_id, result_value);
         let message = serde_json::to_string(&response)?;
         self.transport.send(&message).await?;
         log::debug!("Sampling response sent successfully");

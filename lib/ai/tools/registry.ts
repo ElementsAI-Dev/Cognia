@@ -7,8 +7,7 @@
 
 import { z } from 'zod';
 import { calculatorInputSchema, executeCalculator } from './calculator';
-import { ragSearchInputSchema, executeRAGSearch, type RAGSearchInput } from './rag-search';
-import type { RAGConfig } from '../rag';
+import { ragSearchInputSchema, executeRAGSearch, type RAGSearchInput, type RAGSearchConfig } from './rag-search';
 import { webSearchInputSchema, executeWebSearch } from './web-search';
 import {
   webScraperInputSchema,
@@ -332,7 +331,7 @@ Convert mode: set mode="convert" with value, fromUnit, toUnit, category (length/
     parameters: ragSearchInputSchema,
     requiresApproval: false,
     category: 'search',
-    create: (config) => (input: unknown) => executeRAGSearch(input as RAGSearchInput, config as unknown as RAGConfig),
+    create: (config) => (input: unknown) => executeRAGSearch(input as RAGSearchInput, config as unknown as RAGSearchConfig),
   });
 
   // Web search tool

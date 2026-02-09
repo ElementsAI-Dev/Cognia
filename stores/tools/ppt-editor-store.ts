@@ -955,7 +955,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
           const { useSettingsStore } = await import('@/stores');
 
           const settingsState = useSettingsStore.getState();
-          const provider = settingsState.defaultProvider as string;
+          const provider = settingsState.defaultProvider as import('@/types').ProviderName;
           const providerSettings = settingsState.providerSettings[provider];
           const apiKey = providerSettings?.apiKey || '';
           const baseURL = providerSettings?.baseURL;

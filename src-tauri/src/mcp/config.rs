@@ -124,7 +124,7 @@ impl McpConfigManager {
             self.config_path
         );
 
-        for (id, server_config) in &config.mcp_servers {
+        for (id, server_config) in config.servers() {
             log::debug!(
                 "  Server '{}': name='{}', type={:?}, enabled={}, auto_start={}",
                 id,
@@ -217,7 +217,8 @@ impl McpConfigManager {
 
     /// Get all server configurations
     pub fn get_all_servers(&self) -> HashMap<String, McpServerConfig> {
-        self.config.read().mcp_servers.clone()
+        let config = self.config.read();
+        config.servers().map(|(k, v)| (k.clone(), v.clone())).collect()
     }
 
     /// Get servers marked for auto-start
@@ -238,7 +239,7 @@ impl McpConfigManager {
 
     /// Check if a server exists
     pub fn has_server(&self, id: &str) -> bool {
-        self.config.read().mcp_servers.contains_key(id)
+        self.config.read().server_ids().any(|s| s == id)
     }
 
     /// Update a server's enabled status

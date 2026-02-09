@@ -50,12 +50,14 @@ The system supports two types of mode transitions:
 ### Learning Intent
 
 **Chinese Keywords:**
+
 - 教我、学习、理解、解释、讲解
 - 帮我理解、弄懂、搞清楚
 - 教程、入门、基础、原理、概念
 - flashcard、闪卡、测验、quiz
 
 **English Keywords:**
+
 - teach me, learn, understand, explain
 - tutorial, beginner, introduction, basics
 - help me understand, walk me through
@@ -64,12 +66,14 @@ The system supports two types of mode transitions:
 ### Research Intent
 
 **Chinese Keywords:**
+
 - 论文、文献、研究、学术、期刊
 - arXiv、引用、参考文献、文献综述
 - 找论文、搜索文献、查找研究
 - 科研、实验、数据分析
 
 **English Keywords:**
+
 - paper, research, academic, journal
 - arXiv, citation, references, literature review
 - find papers, search research
@@ -78,11 +82,13 @@ The system supports two types of mode transitions:
 ### Agent Intent
 
 **Chinese Keywords:**
+
 - 帮我做PPT、创建演示文稿
 - 帮我写文件、生成代码
 - 执行、运行、自动化
 
 **English Keywords:**
+
 - create presentation, make PPT
 - write file, generate code
 - execute, automate, batch
@@ -90,11 +96,13 @@ The system supports two types of mode transitions:
 ### Chat Intent (for returning to general mode)
 
 **Chinese Keywords:**
+
 - 你好、嗨、聊聊、闲聊
 - 今天、天气、心情
 - 谢谢、再见
 
 **English Keywords:**
+
 - hi, hello, hey
 - let's chat, casual
 - thanks, bye
@@ -200,6 +208,7 @@ pnpm jest lib/ai/tools/intent-detection.test.ts
 ```
 
 Test categories:
+
 - Learning intent detection (Chinese/English)
 - Research intent detection (Chinese/English)
 - Agent intent detection

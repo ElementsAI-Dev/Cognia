@@ -675,6 +675,14 @@ pub fn run() {
             commands::providers::mcp::mcp_cancel_request,
             commands::providers::mcp::mcp_subscribe_resource,
             commands::providers::mcp::mcp_unsubscribe_resource,
+            commands::providers::mcp::mcp_get_server_capabilities,
+            commands::providers::mcp::mcp_get_server_info,
+            commands::providers::mcp::mcp_is_server_connected,
+            commands::providers::mcp::mcp_set_server_enabled,
+            commands::providers::mcp::mcp_set_server_auto_start,
+            commands::providers::mcp::mcp_get_config_path,
+            commands::providers::mcp::mcp_get_full_config,
+            commands::providers::mcp::mcp_shutdown,
             // API testing commands
             commands::providers::api::test_openai_connection,
             commands::providers::api::test_anthropic_connection,
@@ -1944,9 +1952,18 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
         log::debug!("Screen recording stop requested");
     }
 
-    // 4. Shutdown MCP manager - use synchronous approach since McpManager doesn't implement Clone
-    // The shutdown is best-effort during cleanup
-    log::debug!("MCP manager cleanup skipped (non-blocking)");
+    // 4. Shutdown MCP manager
+    if app.try_state::<McpManager>().is_some() {
+        let app_clone = app.clone();
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                if let Some(mgr) = app_clone.try_state::<McpManager>() {
+                    mgr.shutdown().await;
+                }
+            });
+        }
+        log::debug!("MCP manager shutdown requested");
+    }
 
     // 5. Explicitly destroy auxiliary windows FIRST to avoid lingering Win32 classes
     destroy_aux_windows(app);

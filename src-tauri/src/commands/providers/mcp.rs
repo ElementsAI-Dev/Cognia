@@ -363,6 +363,90 @@ pub async fn mcp_set_log_level(
         .map_err(|e| (&e).into())
 }
 
+/// Get server capabilities
+#[tauri::command]
+pub async fn mcp_get_server_capabilities(
+    manager: State<'_, McpManager>,
+    server_id: String,
+) -> Result<Option<crate::mcp::types::ServerCapabilities>, McpErrorInfo> {
+    manager
+        .get_server_capabilities(&server_id)
+        .await
+        .map_err(|e| e.to_info())
+}
+
+/// Get server info
+#[tauri::command]
+pub async fn mcp_get_server_info(
+    manager: State<'_, McpManager>,
+    server_id: String,
+) -> Result<Option<crate::mcp::types::ServerInfo>, McpErrorInfo> {
+    manager
+        .get_server_info(&server_id)
+        .await
+        .map_err(|e| e.to_info())
+}
+
+/// Check if a server is connected
+#[tauri::command]
+pub async fn mcp_is_server_connected(
+    manager: State<'_, McpManager>,
+    server_id: String,
+) -> Result<bool, McpErrorInfo> {
+    Ok(manager.is_server_connected(&server_id).await)
+}
+
+/// Set server enabled status
+#[tauri::command]
+pub async fn mcp_set_server_enabled(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    enabled: bool,
+) -> Result<bool, McpErrorInfo> {
+    manager
+        .set_server_enabled(&server_id, enabled)
+        .await
+        .map_err(|e| e.to_info())
+}
+
+/// Set server auto-start status
+#[tauri::command]
+pub async fn mcp_set_server_auto_start(
+    manager: State<'_, McpManager>,
+    server_id: String,
+    auto_start: bool,
+) -> Result<bool, McpErrorInfo> {
+    manager
+        .set_server_auto_start(&server_id, auto_start)
+        .await
+        .map_err(|e| e.to_info())
+}
+
+/// Get MCP configuration file path
+#[tauri::command]
+pub async fn mcp_get_config_path(
+    manager: State<'_, McpManager>,
+) -> Result<String, McpErrorInfo> {
+    Ok(manager.get_config_path())
+}
+
+/// Get full MCP configuration
+#[tauri::command]
+pub async fn mcp_get_full_config(
+    manager: State<'_, McpManager>,
+) -> Result<crate::mcp::config::McpConfig, McpErrorInfo> {
+    Ok(manager.get_full_config())
+}
+
+/// Shutdown MCP manager gracefully
+#[tauri::command]
+pub async fn mcp_shutdown(
+    manager: State<'_, McpManager>,
+) -> Result<(), McpErrorInfo> {
+    manager.shutdown().await;
+    Ok(())
+}
+
 /// Subscribe to resource updates
 #[tauri::command]
 pub async fn mcp_subscribe_resource(

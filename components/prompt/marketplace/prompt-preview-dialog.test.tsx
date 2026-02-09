@@ -96,7 +96,7 @@ jest.mock('@/components/ui/separator', () => ({
 }));
 
 jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange, value }: { children: React.ReactNode; onValueChange?: (v: string) => void; value?: string }) => (
+  Select: ({ children, onValueChange: _onValueChange, value }: { children: React.ReactNode; onValueChange?: (v: string) => void; value?: string }) => (
     <div data-testid="select" data-value={value}>{children}</div>
   ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

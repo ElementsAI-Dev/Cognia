@@ -8,10 +8,10 @@ import TutorialDetailClient from './tutorial-detail-client';
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  // Tutorials are created dynamically at runtime via Zustand store.
-  // With static export (output: "export"), dynamicParams must be false.
+  // Return a placeholder to satisfy static export build validation.
+  // Actual tutorials are created at runtime via Zustand store.
   // Client-side navigation via next/link and router.push still works.
-  return [];
+  return [{ id: '_placeholder' }];
 }
 
 export default function TutorialDetailPage() {

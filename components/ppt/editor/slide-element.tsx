@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { ChartElement } from '../elements/chart-element';
 import { ChartEditor } from '../elements/chart-editor';
-import type { ChartData } from '../elements/chart-element';
+import type { ChartData, ChartType } from '../elements/chart-element';
 import type { SlideElementProps } from '../types';
 
 type ResizeDirection = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
@@ -414,8 +414,8 @@ export function SlideElement({
                 onDoubleClick={() => isEditing && setShowChartEditor(true)}
               >
                 <ChartElement
-                  type={element.metadata?.chartType as string}
-                  data={element.metadata?.chartData as { labels: string[]; values: number[] }}
+                  type={element.metadata?.chartType as ChartType}
+                  data={element.metadata?.chartData as ChartData}
                   theme={theme}
                   className="w-full h-full"
                 />

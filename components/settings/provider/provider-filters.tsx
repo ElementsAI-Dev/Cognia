@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, LayoutGrid, TableIcon, Image, Wrench, Mic } from 'lucide-react';
+import { Search, LayoutGrid, TableIcon, Image as ImageIcon, Wrench, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -117,7 +117,7 @@ export const ProviderFilters = React.memo(function ProviderFilters({
                     className="h-8 w-8 p-0"
                     aria-label={tProviders('capabilityVision')}
                   >
-                    <Image className="h-4 w-4" />
+                    <ImageIcon className="h-4 w-4" />
                   </Toggle>
                 </TooltipTrigger>
                 <TooltipContent>{tProviders('capabilityVision')}</TooltipContent>

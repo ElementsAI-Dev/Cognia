@@ -437,8 +437,8 @@ describe('executor', () => {
 
         const resultPromise = executeWorkflow('test-workflow', 'session-1', {}, defaultConfig);
         
-        // Advance timers
-        jest.advanceTimersByTime(1000);
+        // Advance timers asynchronously (needed for await-based delays)
+        await jest.advanceTimersByTimeAsync(1000);
         
         const result = await resultPromise;
         expect(result.success).toBe(true);

@@ -5,16 +5,99 @@
  * Offloads heavy image processing operations to a separate thread
  */
 
-import type {
-  WorkerMessage,
-  WorkerResponse,
-  WorkerPayload,
-  LevelsOptions,
-  CurvesOptions,
-  HSLOptions,
-  HistogramData,
-  CurvePoint,
-} from './worker-types';
+// Inline type definitions to make this worker file self-contained
+// (Web Workers are copied as standalone files during build)
+
+interface ImageAdjustments {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  hue: number;
+  blur: number;
+  sharpen: number;
+}
+
+type WorkerMessageType =
+  | 'load'
+  | 'adjust'
+  | 'filter'
+  | 'transform'
+  | 'export'
+  | 'histogram'
+  | 'levels'
+  | 'curves'
+  | 'hsl'
+  | 'noise-reduction'
+  | 'sharpen'
+  | 'blur';
+
+type WorkerResponseType = 'success' | 'error' | 'progress';
+
+interface LevelsOptions {
+  inputBlack: number;
+  inputWhite: number;
+  inputGamma: number;
+  outputBlack: number;
+  outputWhite: number;
+  channel: 'rgb' | 'r' | 'g' | 'b';
+}
+
+interface CurvePoint {
+  x: number;
+  y: number;
+}
+
+interface CurvesOptions {
+  rgb: CurvePoint[];
+  red?: CurvePoint[];
+  green?: CurvePoint[];
+  blue?: CurvePoint[];
+}
+
+interface HSLOptions {
+  hue: number;
+  saturation: number;
+  lightness: number;
+  targetHue?: number;
+  hueRange?: number;
+}
+
+interface HistogramData {
+  red: number[];
+  green: number[];
+  blue: number[];
+  luminance: number[];
+}
+
+interface WorkerPayload {
+  imageData?: ImageData;
+  adjustments?: ImageAdjustments;
+  filter?: { id: string; name: string; params?: Record<string, unknown> };
+  transform?: { rotate?: number; flipHorizontal?: boolean; flipVertical?: boolean; scale?: number; cropRegion?: { x: number; y: number; width: number; height: number } };
+  exportOptions?: { format: 'png' | 'jpeg' | 'webp'; quality: number };
+  levels?: LevelsOptions;
+  curves?: CurvesOptions;
+  hsl?: HSLOptions;
+  noiseReduction?: { strength: number; method: 'median' | 'bilateral' | 'gaussian'; preserveDetail: number };
+  sharpen?: { amount: number; radius: number; threshold: number; method: 'unsharp-mask' | 'high-pass' | 'laplacian' };
+  blur?: { radius: number; method: 'gaussian' | 'box' | 'motion' | 'radial'; angle?: number; centerX?: number; centerY?: number };
+}
+
+interface WorkerMessage {
+  id: string;
+  type: WorkerMessageType;
+  payload: WorkerPayload;
+  transferables?: Transferable[];
+}
+
+interface WorkerResponse {
+  id: string;
+  type: WorkerResponseType;
+  data?: ImageData | Uint8ClampedArray | HistogramData;
+  error?: string;
+  progress?: number;
+  duration?: number;
+}
 
 const ctx: Worker = self as unknown as Worker;
 

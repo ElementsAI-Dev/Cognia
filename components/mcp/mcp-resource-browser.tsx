@@ -438,6 +438,7 @@ export function MCPResourceBrowser({
                           {t('blobContent')}
                         </Badge>
                         {item.mimeType?.startsWith('image/') ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={`data:${item.mimeType};base64,${item.blob}`}
                             alt={item.uri}

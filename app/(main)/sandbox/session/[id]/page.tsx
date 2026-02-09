@@ -8,10 +8,10 @@ import SessionDetailClient from './session-detail-client';
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  // Sessions are created dynamically at runtime via Tauri backend.
-  // With static export (output: "export"), dynamicParams must be false.
+  // Return a placeholder to satisfy static export build validation.
+  // Actual sessions are created at runtime via Tauri backend.
   // Client-side navigation via next/link and router.push still works.
-  return [];
+  return [{ id: '_placeholder' }];
 }
 
 export default function SessionDetailPage() {

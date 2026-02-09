@@ -106,7 +106,7 @@ export * from './rag';
 export {
   type RAGCacheConfig,
   type CacheEntry,
-  type CacheStats,
+  type CacheStats as RAGCacheStats,
   LRUCache,
   RAGQueryCache,
   createRAGQueryCache,
@@ -249,8 +249,8 @@ export {
 export {
   type EmbeddingCacheConfig,
   type EmbeddingCacheStats,
-  EmbeddingCache,
-  createEmbeddingCache,
+  EmbeddingCache as RAGEmbeddingCache,
+  createEmbeddingCache as createRAGEmbeddingCache,
   getGlobalEmbeddingCache,
   resetGlobalEmbeddingCache,
 } from './embedding-cache';

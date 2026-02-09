@@ -121,6 +121,54 @@ const PROVIDER_ICON_REGISTRY: Record<string, ProviderIconInfo> = {
     brandColor: '#7c3aed',
     hasLocalIcon: true,
   },
+  llamacpp: {
+    name: 'llama.cpp',
+    localIcon: '/icons/providers/llamacpp.svg',
+    brandColor: '#ff8236',
+    hasLocalIcon: true,
+  },
+  llamafile: {
+    name: 'llamafile',
+    localIcon: '/icons/providers/llamafile.svg',
+    brandColor: '#e66000',
+    hasLocalIcon: true,
+  },
+  localai: {
+    name: 'LocalAI',
+    localIcon: '/icons/providers/localai.svg',
+    brandColor: '#1e88e5',
+    hasLocalIcon: true,
+  },
+  jan: {
+    name: 'Jan',
+    localIcon: '/icons/providers/jan.svg',
+    brandColor: '#1a1a2e',
+    hasLocalIcon: true,
+  },
+  textgenwebui: {
+    name: 'Text Gen WebUI',
+    localIcon: '/icons/providers/textgenwebui.svg',
+    brandColor: '#4caf50',
+    hasLocalIcon: true,
+  },
+  koboldcpp: {
+    name: 'KoboldCpp',
+    localIcon: '/icons/providers/koboldcpp.svg',
+    brandColor: '#8b5cf6',
+    hasLocalIcon: true,
+  },
+  tabbyapi: {
+    name: 'TabbyAPI',
+    localIcon: '/icons/providers/tabbyapi.svg',
+    brandColor: '#f59e0b',
+    hasLocalIcon: true,
+  },
+  cliproxyapi: {
+    name: 'CLIProxyAPI',
+    localIcon: '/icons/providers/cliproxyapi.svg',
+    brandColor: '#3b82f6',
+    hasLocalIcon: true,
+  },
 };
 
 // CDN fallback base URL for providers without local icons

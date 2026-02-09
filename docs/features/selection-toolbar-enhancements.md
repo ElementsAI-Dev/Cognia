@@ -31,6 +31,7 @@ Real-time clipboard monitoring with intelligent content analysis:
 - **Suggested Actions**: Context-aware action suggestions based on content type
 
 **Components**:
+
 - `hooks/ui/use-clipboard-monitor.ts` - Clipboard monitoring hook
 - `components/selection-toolbar/clipboard-panel.tsx` - Clipboard history panel
 
@@ -44,6 +45,7 @@ Improved visual design and interaction patterns:
 - **Usage Tracking**: Tracks action usage for smart suggestions
 
 **Components**:
+
 - `components/selection-toolbar/shortcut-hints.tsx` - Keyboard shortcuts reference
 - `components/selection-toolbar/quick-actions.tsx` - Quick action grid with pinning
 

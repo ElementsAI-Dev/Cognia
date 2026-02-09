@@ -96,15 +96,15 @@ export {
 export {
   createCacheMiddleware,
   createSimpleCacheMiddleware,
-  createInMemoryCacheStore,
+  createInMemoryCacheStore as createInfraMemoryCacheStore,
   createIndexedDBCacheStore,
   generateCacheKey,
   invalidateCacheByPattern,
-  getCacheStats,
+  getCacheStats as getInfraCacheStats,
   getDefaultCacheStore,
   setDefaultCacheStore,
   type CacheStats,
-  type CacheStore,
+  type CacheStore as InfrastructureCacheStore,
   type CacheMiddlewareOptions,
 } from './cache-middleware';
 

@@ -16,83 +16,100 @@ This document provides a comprehensive overview of the Cognia project structure,
 ```
 d:\Project\Cognia/
 ├── app/                                    # Next.js App Router
-│   ├── (chat)/                             # Chat route group (shared layout)
-│   │   ├── layout.tsx                      # Chat layout
-│   │   └── page.tsx                        # Main chat interface
-│   ├── settings/                           # Settings pages
-│   │   └── page.tsx                        # Settings with tabs
-│   ├── projects/                           # Project management
-│   │   └── page.tsx                        # Projects list and details
-│   ├── designer/                           # Designer/Canvas pages
-│   ├── chat-widget/                        # Embeddable chat widget
+│   ├── (main)/                             # Main route group (shared layout)
+│   │   ├── (chat)/                         # Chat route group
+│   │   ├── academic/                       # Academic mode
+│   │   ├── arena/                          # Model comparison arena
+│   │   ├── canvas/                         # Canvas editor
+│   │   ├── designer/                       # Visual web page designer
+│   │   ├── git/                            # Git integration
+│   │   ├── latex/                          # LaTeX editor
+│   │   ├── notebook/                       # Jupyter notebook
+│   │   ├── observability/                  # System monitoring
+│   │   ├── ppt/                            # PPT editor
+│   │   ├── projects/                       # Project management
+│   │   ├── sandbox/                        # Code execution playground
+│   │   ├── scheduler/                      # Task scheduler
+│   │   ├── settings/                       # Settings pages
+│   │   ├── speedpass/                      # SpeedPass learning
+│   │   ├── video-studio/                   # Video studio
+│   │   └── workflows/                      # Workflow editor
+│   ├── (standalone-assistant-bubble)/      # Assistant bubble window
+│   ├── (standalone-chat-widget)/           # Embeddable chat widget
+│   ├── (standalone-recording-toolbar)/     # Recording toolbar window
 │   ├── api/                                # API routes (dev-time only)
-│   │   ├── chat-widget/                    # Widget API endpoints
-│   │   ├── enhance-builtin-prompt/         # Prompt enhancement
-│   │   ├── generate-preset/                # Preset generation
-│   │   └── ...                             # Other API routes
 │   ├── page.tsx                            # Landing page
 │   ├── layout.tsx                          # Root layout
 │   ├── providers.tsx                       # Client providers wrapper
 │   └── globals.css                         # Global styles & Tailwind config
 │
 ├── components/                             # React components (feature-based)
+│   ├── a2ui/                               # A2UI (AI-to-UI) components (100+)
+│   ├── academic/                           # Academic mode components (20+)
+│   ├── agent/                              # Agent mode components (65+)
 │   ├── ai-elements/                        # AI-specific component library (30+)
-│   ├── agent/                              # Agent mode components (19 items)
+│   ├── arena/                              # Arena model comparison (10+)
 │   ├── artifacts/                          # Artifacts system components
-│   ├── canvas/                             # Canvas editor components
-│   ├── chat/                               # Chat interface components (121 items)
-│   ├── chat-widget/                        # Embeddable chat widget (8 items)
-│   ├── designer/                           # Visual designer components (70 items)
-│   ├── export/                             # Export functionality components
-│   ├── image-studio/                       # Image editing studio (15 items)
-│   ├── jupyter/                            # Jupyter notebook integration (7 items)
+│   ├── canvas/                             # Canvas editor components (25)
+│   ├── chat/                               # Chat interface components (121+)
+│   ├── chat-widget/                        # Embeddable chat widget (8)
+│   ├── designer/                           # Visual designer components (96)
+│   ├── export/                             # Export functionality (16)
+│   ├── git/                                # Git integration components (27)
+│   ├── image-studio/                       # Image editing studio (15)
+│   ├── input-completion/                   # Input completion overlay
+│   ├── jupyter/                            # Jupyter notebook integration (7)
+│   ├── latex/                              # LaTeX export components
 │   ├── layout/                             # Layout components (header, sidebar)
-│   ├── learning/                           # Learning mode components (23 items)
-│   ├── native/                             # Native desktop features (18 items)
+│   ├── learning/                           # Learning mode components (23)
+│   ├── native/                             # Native desktop features (18)
+│   ├── observability/                      # Monitoring components (43)
+│   ├── ppt/                                # PPT editor components (61)
 │   ├── presets/                            # Preset system components
 │   ├── projects/                           # Project management components
 │   ├── providers/                          # Provider components
 │   ├── sandbox/                            # Code sandbox components
-│   ├── screen-recording/                   # Screen recording UI (5 items)
-│   ├── selection-toolbar/                  # Selection toolbar (11 items)
-│   ├── settings/                           # Settings page components (96 items)
+│   ├── scheduler/                          # Scheduler components
+│   ├── screenshot/                         # Screenshot editor (annotation)
+│   ├── screen-recording/                   # Screen recording UI (10)
+│   ├── selection-toolbar/                  # Selection toolbar (11)
+│   ├── settings/                           # Settings page components (96+)
 │   ├── sidebar/                            # Sidebar components
-│   ├── skills/                             # Skills system components (25 items)
-│   ├── ui/                                 # shadcn/ui base components (41 items)
-│   └── workflow/                            # Workflow components
-│       ├── editor/                         # Visual workflow editor (50 items)
+│   ├── skills/                             # Skills system components (25+)
+│   ├── speedpass/                          # SpeedPass learning components
+│   ├── ui/                                 # shadcn/ui base components (50+)
+│   ├── video-studio/                       # Video studio components (76)
+│   └── workflow/                           # Workflow components (130+)
+│       ├── editor/                         # Visual workflow editor
 │       └── marketplace/                    # Template marketplace
 │
 ├── hooks/                                  # Custom React hooks (organized by category)
-│   ├── ai/                                 # AI/Agent hooks (18 items)
-│   │   ├── use-agent.ts                    # Agent mode execution
-│   │   ├── use-background-agent.ts         # Background agent management
-│   │   ├── use-sub-agent.ts                # Sub-agent orchestration
-│   │   ├── use-skills.ts                   # Skills integration
-│   │   ├── use-structured-output.ts        # Zod-structured output
-│   │   ├── use-unified-tools.ts            # Unified tool system
-│   │   ├── use-plan-executor.ts            # Plan execution
-│   │   ├── use-ollama.ts                   # Ollama integration
-│   │   └── use-ai-registry.ts              # AI model registry
-│   ├── chat/                               # Chat hooks (11 items)
-│   │   ├── use-messages.ts                 # Message persistence
-│   │   ├── use-artifact-detection.ts       # Artifact detection
-│   │   └── ...
-│   ├── context/                            # Context/Awareness hooks (9 items)
-│   ├── designer/                           # Designer hooks (14 items)
-│   ├── media/                              # Media hooks (8 items)
-│   ├── native/                             # Native/Window hooks (14 items)
-│   ├── network/                            # Network/Proxy hooks (7 items)
-│   ├── rag/                                # RAG/Vector hooks (12 items)
-│   │   ├── use-rag.ts                      # RAG retrieval
-│   │   ├── use-vector-db.ts                # Vector database
-│   │   ├── use-memory.ts                   # Memory management
-│   │   ├── use-memory-provider.ts          # Memory provider
-│   │   └── use-rag-pipeline.ts             # RAG pipeline
-│   ├── sandbox/                            # Sandbox hooks (12 items)
-│   ├── ui/                                 # UI hooks (21 items)
-│   ├── utils/                              # Utility hooks (9 items)
-│   ├── use-chat-widget.ts                  # Chat widget hook
+│   ├── a2ui/                               # A2UI data model hooks
+│   ├── academic/                           # Academic mode hooks
+│   ├── agent/                              # Agent mode hooks (17+)
+│   ├── agent-trace/                        # Agent trace analytics hooks
+│   ├── ai/                                 # AI/Agent hooks (18+)
+│   ├── arena/                              # Arena battle hooks
+│   ├── canvas/                             # Canvas editor hooks
+│   ├── chat/                               # Chat hooks (11+)
+│   ├── context/                            # Context/Awareness hooks (9)
+│   ├── designer/                           # Designer hooks (27)
+│   ├── input-completion/                   # Input completion hooks
+│   ├── jupyter/                            # Jupyter hooks
+│   ├── latex/                              # LaTeX editor hooks
+│   ├── learning/                           # Learning/SpeedPass hooks
+│   ├── media/                              # Media hooks (8)
+│   ├── native/                             # Native/Window hooks (14)
+│   ├── network/                            # Network/Proxy hooks (7)
+│   ├── observability/                      # Observability hooks
+│   ├── ppt/                                # PPT editor hooks
+│   ├── rag/                                # RAG/Vector hooks (12)
+│   ├── sandbox/                            # Sandbox hooks (12)
+│   ├── scheduler/                          # Scheduler hooks
+│   ├── skill-seekers/                      # Skill seekers hooks
+│   ├── ui/                                 # UI hooks (21+)
+│   ├── utils/                              # Utility hooks (9)
+│   ├── video-studio/                       # Video studio hooks
 │   └── index.ts                            # Hook exports
 │
 ├── lib/                                    # Utility libraries
@@ -251,30 +268,34 @@ d:\Project\Cognia/
 ├── src-tauri/                              # Tauri desktop backend
 │   ├── src/
 │   │   ├── main.rs                         # Rust entry point
-│   │   ├── lib.rs                          # Library code
+│   │   ├── lib.rs                          # Library code, command registration
 │   │   ├── http.rs                         # HTTP utilities
-│   │   ├── awareness/                      # System awareness
+│   │   ├── assistant_bubble/               # Assistant bubble window
+│   │   ├── awareness/                      # System awareness monitoring
 │   │   ├── chat_widget/                    # Chat widget backend
 │   │   ├── commands/                       # Tauri commands
-│   │   │   ├── mod.rs
-│   │   │   └── vector.rs                   # Vector DB commands
-│   │   └── mcp/                            # MCP implementation
-│   │       ├── mod.rs
-│   │       ├── manager.rs                  # Server lifecycle
-│   │       ├── client.rs                   # MCP client
-│   │       ├── config.rs                   # Configuration
-│   │       ├── transport/                  # Transport layer
-│   │       └── protocol/                   # Protocol implementation
+│   │   ├── context/                        # Context detection
+│   │   ├── input_completion/               # Input completion (IME, keyboard)
+│   │   ├── jupyter/                        # Jupyter kernel management
+│   │   ├── mcp/                            # MCP implementation
+│   │   ├── process/                        # Process management
+│   │   ├── sandbox/                        # Code execution sandbox
+│   │   ├── screenshot/                     # Screenshot capture + OCR
+│   │   ├── screen_recording/               # Screen recording backend
+│   │   ├── selection/                      # Text selection + clipboard
+│   │   ├── skill/                          # Skill management
+│   │   └── skill_seekers/                  # Skill generation from sources
 │   ├── tauri.conf.json                     # Tauri configuration
 │   ├── Cargo.toml                          # Rust dependencies
 │   └── capabilities/                       # Permissions config
 │
 ├── docs/                                   # Documentation
-│   ├── README.md                           # Documentation index
+│   ├── index.md                            # Documentation index (mkdocs home)
 │   ├── api/                                # API reference (6 items)
 │   ├── architecture/                       # Architecture docs (4 items)
 │   ├── development/                        # Development guides (6 items)
-│   └── features/                           # Feature documentation (13 items)
+│   ├── features/                           # Feature documentation (30+ items)
+│   └── reference/                          # Reference materials
 │
 ├── public/                                 # Static assets
 │   └── icons/                              # Application icons
@@ -322,11 +343,27 @@ Contains all application pages and routing logic using Next.js 16 App Router.
 
 **Route Groups**:
 
-- `(chat)/` - Chat interface with shared layout
-- `settings/` - Settings pages (7 tabs)
-- `projects/` - Project management
-- `designer/` - Designer/Canvas workspace
-- `skills/` - Skills system pages
+- `(main)/` - Main application layout
+  - `(chat)/` - Chat interface
+  - `academic/` - Academic research mode
+  - `arena/` - Model comparison arena
+  - `canvas/` - Canvas editor
+  - `designer/` - Visual web page designer
+  - `git/` - Git integration
+  - `latex/` - LaTeX editor
+  - `notebook/` - Jupyter notebook
+  - `observability/` - System monitoring
+  - `ppt/` - PPT editor
+  - `projects/` - Project management
+  - `sandbox/` - Code execution
+  - `scheduler/` - Task scheduler
+  - `settings/` - Settings pages
+  - `speedpass/` - SpeedPass learning
+  - `video-studio/` - Video studio
+  - `workflows/` - Workflow editor
+- `(standalone-assistant-bubble)/` - Desktop assistant bubble
+- `(standalone-chat-widget)/` - Embeddable chat widget
+- `(standalone-recording-toolbar)/` - Recording toolbar
 
 **Convention**:
 
@@ -669,59 +706,33 @@ export const useExampleStore = create<ExampleState>()(
 
 **Store Categories** (organized by domain):
 
-- `agent/` - Agent stores (9 items)
-  - `agent-store.ts` - Agent execution tracking
-  - `background-agent-store.ts` - Background agents
-  - `sub-agent-store.ts` - Sub-agents
-  - `skill-store.ts` - Skills state
-
-- `chat/` - Chat stores (10 items)
-  - `chat-store.ts` - Chat state
-  - `session-store.ts` - Sessions, branches
-  - `quote-store.ts` - Text quotations
-  - `summary-store.ts` - Summaries
-  - `chat-widget-store.ts` - Widget state
-
-- `context/` - Context stores (5 items)
-  - `clipboard-context-store.ts` - Clipboard monitoring
-  - `selection-store.ts` - Selection state
-
-- `data/` - Data stores (5 items)
-  - `memory-store.ts` - Cross-session memory
-  - `vector-store.ts` - Vector DB state
-
-- `media/` - Media stores (7 items)
-  - `media-store.ts` - Images/videos
-  - `image-studio-store.ts` - Image editor
-  - `screen-recording-store.ts` - Screen recording
-
-- `settings/` - Settings stores (7 items)
-  - `settings-store.ts` - User settings
-  - `preset-store.ts` - Presets
-  - `custom-theme-store.ts` - Custom themes
-
-- `system/` - System stores (16 items)
-  - `ui-store.ts` - UI state
-  - `usage-store.ts` - Token/cost tracking
-  - `environment-store.ts` - Environment state
-  - `proxy-store.ts` - Proxy configuration
-  - `window-store.ts` - Window state
-
-- `tools/` - Tools stores (6 items)
-  - `jupyter-store.ts` - Jupyter sessions
-  - `ppt-editor-store.ts` - PPT editor
-  - `template-store.ts` - Templates
-
-- `workflow/` - Workflow stores (5 items)
-  - `workflow-store.ts` - Workflow execution
-  - `workflow-editor-store.ts` - Editor state
-
-- `mcp/` - MCP stores (5 items)
-- `project/` - Project stores (5 items)
-- `designer/` - Designer stores (5 items)
-- `learning/` - Learning stores
-- `document/` - Document stores
+- `a2ui/` - A2UI state
+- `academic/` - Academic mode state
+- `agent/` - Agent stores (12+ items)
+- `agent-trace/` - Agent trace analytics
+- `arena/` - Arena battle state
 - `artifact/` - Artifact stores
+- `canvas/` - Canvas editor (comments, keybindings, chunked docs)
+- `chat/` - Chat stores (10+ items)
+- `context/` - Context stores (clipboard, selection)
+- `data/` - Data stores (memory, vector)
+- `designer/` - Designer stores
+- `document/` - Document stores
+- `git/` - Git state
+- `input-completion/` - Input completion settings
+- `latex/` - LaTeX document history
+- `learning/` - Learning/SpeedPass stores
+- `mcp/` - MCP stores
+- `media/` - Media stores (media, image-studio, screen-recording)
+- `project/` - Project stores
+- `sandbox/` - Sandbox state
+- `scheduler/` - Scheduler state
+- `screenshot/` - Screenshot editor state
+- `settings/` - Settings stores (settings, presets, themes)
+- `skill-seekers/` - Skill seekers state
+- `system/` - System stores (ui, usage, environment, proxy, window)
+- `tools/` - Tools stores (jupyter, ppt-editor, templates)
+- `workflow/` - Workflow stores (workflow, workflow-editor)
 
 **Convention**:
 

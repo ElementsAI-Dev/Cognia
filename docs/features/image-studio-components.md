@@ -13,6 +13,7 @@ The Image Studio module provides a comprehensive set of components for image edi
 Add text annotations and watermarks to images with full styling control.
 
 **Features:**
+
 - Multiple text layers
 - Font family, size, weight, and style controls
 - Color and opacity settings
@@ -22,6 +23,7 @@ Add text annotations and watermarks to images with full styling control.
 - Real-time preview
 
 **Usage:**
+
 ```tsx
 import { TextOverlay } from '@/components/image-studio';
 
@@ -39,6 +41,7 @@ import { TextOverlay } from '@/components/image-studio';
 Annotate images with freehand drawing and shapes.
 
 **Features:**
+
 - Freehand brush drawing
 - Highlighter tool
 - Shape tools: Rectangle, Circle, Line, Arrow
@@ -49,6 +52,7 @@ Annotate images with freehand drawing and shapes.
 - Export to image
 
 **Usage:**
+
 ```tsx
 import { DrawingTools } from '@/components/image-studio';
 
@@ -66,6 +70,7 @@ import { DrawingTools } from '@/components/image-studio';
 Compare two images with multiple visualization modes.
 
 **Features:**
+
 - Horizontal slider comparison
 - Vertical slider comparison
 - Side-by-side view
@@ -75,6 +80,7 @@ Compare two images with multiple visualization modes.
 - Custom labels
 
 **Usage:**
+
 ```tsx
 import { ImageComparison } from '@/components/image-studio';
 
@@ -94,6 +100,7 @@ import { ImageComparison } from '@/components/image-studio';
 Apply preset filters with visual previews.
 
 **Features:**
+
 - 25+ filter presets organized by category
 - Categories: Basic, Vintage, Cinematic, Artistic, B&W
 - Thumbnail previews for each filter
@@ -102,6 +109,7 @@ Apply preset filters with visual previews.
 - Click to select and apply
 
 **Usage:**
+
 ```tsx
 import { FiltersGallery } from '@/components/image-studio';
 
@@ -123,6 +131,7 @@ import { FiltersGallery } from '@/components/image-studio';
 Manage image layers with full control.
 
 **Features:**
+
 - Layer list with thumbnails
 - Visibility toggle (show/hide)
 - Lock/unlock layers
@@ -134,6 +143,7 @@ Manage image layers with full control.
 - Add new layers (Image, Mask, Adjustment)
 
 **Usage:**
+
 ```tsx
 import { LayersPanel, type Layer } from '@/components/image-studio';
 
@@ -163,6 +173,7 @@ const [activeLayerId, setActiveLayerId] = useState('1');
 Visual undo/redo timeline.
 
 **Features:**
+
 - Timeline view of all operations
 - Visual icons for operation types
 - Timestamps with relative time display
@@ -172,6 +183,7 @@ Visual undo/redo timeline.
 - Current state indicator
 
 **Usage:**
+
 ```tsx
 import { HistoryPanel, type HistoryEntry } from '@/components/image-studio';
 
@@ -197,12 +209,14 @@ const [currentIndex, setCurrentIndex] = useState(-1);
 Main editor panel that integrates all editing modes.
 
 **Features:**
+
 - Tab-based mode switching
 - Integrated modes: Mask, Crop, Adjust, Filters, Text, Draw, Upscale, Remove BG
 - Unified save/cancel interface
 - Responsive layout
 
 **Usage:**
+
 ```tsx
 import { ImageEditorPanel, type EditorMode } from '@/components/image-studio';
 

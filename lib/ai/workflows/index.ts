@@ -7,7 +7,7 @@ export {
   getGlobalWorkflowRegistry,
   resetGlobalWorkflowRegistry,
   type WorkflowRegistry,
-  type ValidationResult,
+  type ValidationResult as WorkflowValidationResult,
 } from './registry';
 
 export {

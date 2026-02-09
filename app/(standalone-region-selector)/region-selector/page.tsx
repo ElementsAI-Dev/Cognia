@@ -1,8 +1,5 @@
 "use client";
 
-// Prevent static generation for this page (uses Tauri/browser APIs)
-export const dynamic = 'force-dynamic';
-
 /**
  * Region Selector Page
  * 

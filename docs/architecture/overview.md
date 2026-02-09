@@ -115,8 +115,13 @@ Cognia's architecture follows a layered approach with clear separation of concer
 |                   Integration / Native Layer                  |
 |  Rust Backend (src-tauri/src/)                               |
 |  - MCP server process management                             |
-|  - File system operations                                    |
-|  - Native OS integration                                     |
+|  - System awareness & context detection                      |
+|  - Selection, clipboard, screenshot, screen recording        |
+|  - Sandbox code execution (native/Docker/Podman)             |
+|  - Input completion (IME, keyboard monitoring)               |
+|  - Skill management & skill seekers                          |
+|  - Jupyter kernel management                                 |
+|  - Process management                                        |
 +---------------------------------------------------------------+
 ```
 
@@ -191,16 +196,27 @@ const result = await streamText({
 
 Components are organized by feature, not type:
 
-```
+```text
 components/
-├── chat/              # Chat interface components
+├── a2ui/              # AI-to-UI app generation
+├── academic/          # Academic research mode
+├── agent/             # Agent execution visualization
+├── ai-elements/       # AI-specific UI components
+├── arena/             # Model comparison arena
 ├── artifacts/         # Artifact viewer
 ├── canvas/            # Monaco editor panel
-├── agent/             # Agent execution visualization
-├── projects/          # Project management
+├── chat/              # Chat interface components
+├── designer/          # Visual web page designer
+├── git/               # Git integration
+├── observability/     # System monitoring
+├── ppt/               # Presentation editor
+├── sandbox/           # Code execution playground
+├── scheduler/         # Task scheduling
+├── screenshot/        # Screenshot annotation
 ├── settings/          # Settings pages
-├── presets/           # Preset management
-├── ai-elements/       # AI-specific UI components
+├── speedpass/         # SpeedPass learning
+├── video-studio/      # Video studio
+├── workflow/          # Workflow editor
 └── ui/                # Generic shadcn/ui components
 ```
 

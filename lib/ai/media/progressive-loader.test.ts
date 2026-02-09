@@ -120,18 +120,33 @@ describe('ProgressiveImageLoader', () => {
 
   describe('loadFromFile', () => {
     it('should handle File input', async () => {
-      const callbacks = {
-        onProgress: jest.fn(),
-        onPreviewReady: jest.fn(),
-        onFullReady: jest.fn(),
-      };
+      // Mock Image to fire onerror immediately (JSDOM Image never fires load/error events)
+      const OriginalImage = globalThis.Image;
+      globalThis.Image = class MockImage {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(_: string) {
+          // Simulate image load failure in test environment
+          setTimeout(() => this.onerror?.(), 0);
+        }
+      } as unknown as typeof Image;
 
-      const loaderWithCallbacks = new ProgressiveImageLoader(callbacks);
+      try {
+        const callbacks = {
+          onProgress: jest.fn(),
+          onPreviewReady: jest.fn(),
+          onFullReady: jest.fn(),
+        };
 
-      const blob = new Blob(['fake-image-data'], { type: 'image/png' });
-      const file = new File([blob], 'test.png', { type: 'image/png' });
+        const loaderWithCallbacks = new ProgressiveImageLoader(callbacks);
 
-      await expect(loaderWithCallbacks.loadFromFile(file)).rejects.toThrow();
+        const blob = new Blob(['fake-image-data'], { type: 'image/png' });
+        const file = new File([blob], 'test.png', { type: 'image/png' });
+
+        await expect(loaderWithCallbacks.loadFromFile(file)).rejects.toThrow();
+      } finally {
+        globalThis.Image = OriginalImage;
+      }
     });
   });
 

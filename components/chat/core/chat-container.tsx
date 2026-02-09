@@ -2895,10 +2895,10 @@ function ChatMessageItem({
     // Send quality score to Langfuse for 👍/👎 on assistant messages
     if (message.role === 'assistant' && (emoji === '👍' || emoji === '👎')) {
       try {
-        const { addScore, isLangfuseEnabled } = await import('@/lib/ai/observability/langfuse-client');
+        const { addScore, isLangfuseEnabled, createChatTrace } = await import('@/lib/ai/observability/langfuse-client');
         if (isLangfuseEnabled()) {
-          addScore({
-            traceId: sessionId,
+          const trace = createChatTrace({ sessionId });
+          addScore(trace, {
             name: 'user-feedback',
             value: emoji === '👍' ? 1 : 0,
             comment: `User reacted with ${emoji} to message ${message.id}`,

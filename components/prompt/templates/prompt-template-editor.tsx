@@ -81,17 +81,6 @@ export function PromptTemplateEditor({ template, categories, onCancel, onSubmit 
     });
   };
 
-  const handleTagKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const value = event.currentTarget.value.trim();
-      if (value && !tags.includes(value)) {
-        setTags([...tags, value]);
-      }
-      event.currentTarget.value = '';
-    }
-  };
-
   const updateVariable = (index: number, patch: Partial<TemplateVariable>) => {
     setVariables((prev) => prev.map((variable, i) => (i === index ? { ...variable, ...patch } : variable)));
   };

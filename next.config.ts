@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
     '@zilliz/milvus2-sdk-node',
     '@pinecone-database/pinecone',
     'monaco-editor',
+    'playwright',
+    'playwright-core',
+    '@tavily/core',
   ],
   // Turbopack config - alias Tauri plugins and Node.js-only packages to stubs for browser/SSR builds
   turbopack: {
@@ -32,6 +35,9 @@ const nextConfig: NextConfig = {
       '@zilliz/milvus2-sdk-node': './lib/stubs/milvus-stub.ts',
       '@pinecone-database/pinecone': './lib/stubs/pinecone-stub.ts',
       'monaco-editor': './lib/stubs/monaco-stub.ts',
+      'playwright': './lib/stubs/playwright-stub.ts',
+      'playwright-core': './lib/stubs/playwright-stub.ts',
+      '@tavily/core': './lib/stubs/tavily-stub.ts',
     },
   },
   // Webpack config for production builds (non-Turbopack)
@@ -43,6 +49,9 @@ const nextConfig: NextConfig = {
         '@zilliz/milvus2-sdk-node': require.resolve('./lib/stubs/milvus-stub.ts'),
         '@pinecone-database/pinecone': require.resolve('./lib/stubs/pinecone-stub.ts'),
         'monaco-editor': require.resolve('./lib/stubs/monaco-stub.ts'),
+        'playwright': require.resolve('./lib/stubs/playwright-stub.ts'),
+        'playwright-core': require.resolve('./lib/stubs/playwright-stub.ts'),
+        '@tavily/core': require.resolve('./lib/stubs/tavily-stub.ts'),
       };
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -50,6 +59,9 @@ const nextConfig: NextConfig = {
         net: false,
         tls: false,
         crypto: false,
+        child_process: false,
+        dns: false,
+        async_hooks: false,
       };
     }
     return config;

@@ -379,8 +379,8 @@ describe('TaskScheduler', () => {
 
         await scheduler.triggerEventTask('test-event');
         
-        // Give time for async execution
-        await jest.runAllTimersAsync();
+        // Give time for async execution (use advanceTimersByTimeAsync to avoid infinite loop with intervals)
+        await jest.advanceTimersByTimeAsync(100);
         
         expect(executor).toHaveBeenCalled();
       });

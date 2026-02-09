@@ -222,20 +222,29 @@ impl Transport for StdioTransport {
         log::debug!("Closing stdio transport");
         self.connected.store(false, Ordering::SeqCst);
 
-        let mut child = self.child.lock().await;
-        let pid = child.id();
+        let process_pid = self.pid().await;
+        let still_running = self.check_process().await;
+
+        if !still_running {
+            log::info!(
+                "MCP server process (PID: {:?}) already exited, skipping kill",
+                process_pid
+            );
+            return Ok(());
+        }
 
         // Try to kill the process gracefully
-        log::debug!("Terminating child process (PID: {:?})", pid);
+        let mut child = self.child.lock().await;
+        log::debug!("Terminating child process (PID: {:?})", process_pid);
         match child.kill().await {
             Ok(_) => {
                 log::info!(
                     "MCP server process terminated successfully (PID: {:?})",
-                    pid
+                    process_pid
                 );
             }
             Err(e) => {
-                log::warn!("Failed to kill MCP server process (PID: {:?}): {}", pid, e);
+                log::warn!("Failed to kill MCP server process (PID: {:?}): {}", process_pid, e);
             }
         }
 

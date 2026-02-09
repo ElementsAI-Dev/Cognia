@@ -825,23 +825,6 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         {/* Marketplace Tab */}
         <TabsContent value="marketplace" className="mt-0">
           <PluginMarketplace
-            onInstall={async (pluginId) => {
-              try {
-                const { PluginMarketplace: MarketplaceClient } = await import('@/lib/plugin');
-                const client = new MarketplaceClient();
-                const result = await client.installPlugin(pluginId);
-                if (result.success) {
-                  await scanPlugins();
-                  toast.success(t('marketplace.installSuccess'));
-                  setActiveTab('my-plugins');
-                } else {
-                  toast.error(result.error || t('marketplace.installFailed'));
-                }
-              } catch (error) {
-                toast.error(t('marketplace.installFailed'));
-                console.error('Failed to install plugin from marketplace:', error);
-              }
-            }}
             onViewDetails={(plugin) => {
               setSelectedMarketplacePlugin(plugin);
               setIsDetailModalOpen(true);

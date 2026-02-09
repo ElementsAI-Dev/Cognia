@@ -107,6 +107,12 @@ export interface UseLatexReturn {
   verifyEquation: typeof verifyEquation;
   expandEquation: typeof expandEquation;
   simplifyEquation: typeof simplifyEquation;
+
+  // Cache management
+  renderMathBatch: typeof renderMathBatch;
+  preloadMathCache: typeof preloadMathCache;
+  clearMathCache: typeof clearMathCache;
+  getMathCacheStats: typeof getMathCacheStats;
 }
 
 export function useLatex(options: UseLatexOptions = {}): UseLatexReturn {

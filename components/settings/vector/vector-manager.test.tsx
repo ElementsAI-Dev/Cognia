@@ -53,6 +53,47 @@ jest.mock('next-intl', () => ({
       metadata: 'Metadata',
       addFromFiles: 'Add from files',
       addFromFilesTooltip: 'Upload files, chunk them, and add into the active collection',
+      deleteCollectionTooltip: 'Delete this collection',
+      clearCollectionTooltip: 'Clear all documents',
+      truncateTooltip: 'Truncate collection',
+      deleteAllDocsTooltip: 'Delete all documents',
+      exportTooltip: 'Export collection',
+      importTooltip: 'Import collection',
+      confirmDeleteTitle: 'Delete Collection?',
+      confirmDeleteDesc: 'This will permanently delete the collection.',
+      confirmClearTitle: 'Clear Collection?',
+      confirmClearDesc: 'This will remove all documents.',
+      confirmTruncateTitle: 'Truncate Collection?',
+      confirmTruncateDesc: 'This will truncate the collection.',
+      confirmDeleteDocsTitle: 'Delete All Documents?',
+      confirmDeleteDocsDesc: 'This will remove all documents.',
+      scoreDesc: 'Score ↓',
+      scoreAsc: 'Score ↑',
+      sortByScore: 'Sort by score',
+      sortById: 'Sort by id',
+      sortByMetadataSize: 'Sort by metadata size',
+      showSummary: 'Show Summary',
+      hideSummary: 'Hide Summary',
+      toggleSummaryHint: 'Toggle metadata summary',
+      showMetadata: 'Show metadata',
+      hideMetadata: 'Hide metadata',
+      peek: 'Peek',
+      peekBtn: 'Peek',
+      total: 'total',
+      prev: 'Previous',
+      next: 'Next',
+      renameSuccess: 'Collection renamed',
+      renameFailed: 'Rename failed',
+      truncateSuccess: 'Collection truncated',
+      truncateFailed: 'Truncate failed',
+      deleteDocsSuccess: 'Deleted {count} documents',
+      deleteDocsFailed: 'Delete failed',
+      exportSuccess: 'Collection exported',
+      exportFailed: 'Export failed',
+      importSuccess: 'Imported {name}',
+      importFailed: 'Import failed',
+      searchFailed: 'Search failed',
+      invalidMetadataJson: 'Invalid document metadata JSON',
     };
     return translations[key] || key;
   },
@@ -175,6 +216,57 @@ jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children, ...props }: BaseProps) => <span {...props}>{children}</span>,
 }));
 
+// Mock Select component as native select
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => (
+    <div data-testid="select">{typeof children === 'function' ? null : children}
+      <select value={value} onChange={(e) => onValueChange?.(e.target.value)} data-testid="select-native">
+        {/* SelectItems will be rendered as options */}
+      </select>
+    </div>
+  ),
+  SelectTrigger: ({ children }: BaseProps) => <div data-testid="select-trigger">{children}</div>,
+  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
+  SelectContent: ({ children }: BaseProps) => <div data-testid="select-content">{children}</div>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`select-item-${value}`} data-value={value}>{children}</div>
+  ),
+}));
+
+// Mock AlertDialog components
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogTrigger: ({ children, asChild }: BaseProps & { asChild?: boolean }) => asChild ? <>{children}</> : <div>{children}</div>,
+  AlertDialogContent: ({ children }: BaseProps) => <div data-testid="alert-dialog-content">{children}</div>,
+  AlertDialogHeader: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogFooter: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogAction: ({ children, onClick }: ButtonProps) => <button onClick={onClick}>{children}</button>,
+  AlertDialogCancel: ({ children }: BaseProps) => <button>{children}</button>,
+}));
+
+// Mock Alert components
+jest.mock('@/components/ui/alert', () => ({
+  Alert: ({ children }: BaseProps) => <div data-testid="alert">{children}</div>,
+  AlertDescription: ({ children }: BaseProps) => <div>{children}</div>,
+}));
+
+// Mock Textarea
+jest.mock('@/components/ui/textarea', () => ({
+  Textarea: ({ value, onChange, placeholder, ...props }: InputProps & { rows?: number }) => (
+    <textarea value={value as string} onChange={onChange as unknown as React.ChangeEventHandler<HTMLTextAreaElement>} placeholder={placeholder} {...props} />
+  ),
+}));
+
+// Mock Tooltip components
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: BaseProps) => <div data-testid="tooltip">{children}</div>,
+  TooltipContent: ({ children }: BaseProps) => <span>{children}</span>,
+  TooltipTrigger: ({ children, asChild }: BaseProps & { asChild?: boolean }) => asChild ? <>{children}</> : <div>{children}</div>,
+  TooltipProvider: ({ children }: BaseProps) => <>{children}</>,
+}));
+
 const mockCollections: VectorCollectionInfo[] = [
   {
     name: 'collection1',
@@ -238,8 +330,8 @@ describe('VectorManager', () => {
       expect(mockListAllCollections).toHaveBeenCalled();
     });
 
-    // Check if collections are displayed in the select dropdown
-    expect(screen.getByDisplayValue('collection1 (5)')).toBeInTheDocument();
+    // Check if collections are rendered in the select items
+    expect(screen.getByTestId('select-item-collection1')).toBeInTheDocument();
   });
 
   it('creates a new collection', async () => {
@@ -296,6 +388,10 @@ describe('VectorManager', () => {
     const deleteButton = screen.getByText('Delete collection');
     await user.click(deleteButton);
 
+    // AlertDialog mock renders content always visible - click Confirm
+    const confirmButtons = screen.getAllByText('Confirm');
+    await user.click(confirmButtons[0]);
+
     await waitFor(() => {
       expect(mockDeleteCollection).toHaveBeenCalled();
       expect(mockListAllCollections).toHaveBeenCalled();
@@ -315,6 +411,10 @@ describe('VectorManager', () => {
 
     const clearButton = screen.getByText('Clear collection');
     await user.click(clearButton);
+
+    // AlertDialog mock renders content always visible - click Confirm
+    const confirmButtons = screen.getAllByText('Confirm');
+    await user.click(confirmButtons[1]);
 
     await waitFor(() => {
       expect(mockClearCollection).toHaveBeenCalled();
@@ -482,12 +582,12 @@ describe('VectorManager', () => {
       expect(screen.getByText('Test search result 1')).toBeInTheDocument();
     });
 
-    // Find and click the toggle button
-    const toggleButton = screen.getByText('Hide summary');
+    // Find and click the toggle button (i18n key returns capitalized text)
+    const toggleButton = screen.getByText('Hide Summary');
     await user.click(toggleButton);
 
     // Button text should change
-    expect(screen.getByText('Show summary')).toBeInTheDocument();
+    expect(screen.getByText('Show Summary')).toBeInTheDocument();
   });
 
   it('expands and collapses metadata for search results', async () => {
@@ -533,8 +633,8 @@ describe('VectorManager', () => {
     await user.clear(peekInput);
     await user.type(peekInput, '3');
 
-    // Click peek button
-    const peekButton = screen.getByText('Peek');
+    // Click peek button (use role to avoid matching Label which also has text 'Peek')
+    const peekButton = screen.getByRole('button', { name: 'Peek' });
     await user.click(peekButton);
 
     await waitFor(() => {
@@ -596,7 +696,7 @@ describe('VectorManager', () => {
     await user.click(searchButton);
 
     await waitFor(() => {
-      expect(screen.getByText('No results')).toBeInTheDocument();
+      expect(screen.getByText('No results found')).toBeInTheDocument();
     });
   });
 

@@ -1,8 +1,44 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { CodeBlock } from './code-block';
 import { ReactNode } from 'react';
+
+// Mock langfuse before importing CodeBlock (breaks import chain otherwise)
+jest.mock('langfuse', () => ({
+  Langfuse: jest.fn().mockImplementation(() => ({
+    trace: jest.fn(),
+    span: jest.fn(),
+    shutdown: jest.fn(),
+  })),
+}));
+
+// Mock the observability module to prevent langfuse import chain issue
+jest.mock('@/lib/ai/observability/langfuse-client', () => ({
+  getLangfuseClient: jest.fn(() => null),
+  createLangfuseTrace: jest.fn(),
+  shutdownLangfuse: jest.fn(),
+}));
+
+jest.mock('@/lib/ai/observability/chat-observability', () => ({
+  trackChatEvent: jest.fn(),
+  createChatTrace: jest.fn(),
+}));
+
+// Mock hooks/ui barrel to avoid pulling in use-selection-toolbar -> use-ai-chat -> langfuse
+jest.mock('@/hooks/ui', () => ({
+  useCopy: () => ({
+    copy: jest.fn().mockResolvedValue({ success: true }),
+    isCopying: false,
+  }),
+  useKeyboardShortcut: jest.fn(),
+  useMediaQuery: jest.fn(() => false),
+  useDebounce: jest.fn((v: unknown) => v),
+  useLocalStorage: jest.fn(() => [null, jest.fn()]),
+}));
+
+// Now import CodeBlock after mocks are set up
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { CodeBlock } = require('./code-block');
 
 // Wrapper with TooltipProvider
 const Wrapper = ({ children }: { children: ReactNode }) => (
@@ -18,6 +54,16 @@ jest.mock('@/hooks/ui/use-copy', () => ({
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue({ success: true }),
     isCopying: false,
+  }),
+}));
+
+// Mock sandbox hook to prevent act() warnings
+jest.mock('@/hooks/sandbox/use-sandbox', () => ({
+  useSandbox: () => ({
+    isAvailable: false,
+    isLoading: false,
+    status: null,
+    execute: jest.fn(),
   }),
 }));
 

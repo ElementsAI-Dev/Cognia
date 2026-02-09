@@ -404,7 +404,7 @@ export function createSpawnTeamFromTemplateTool(templates: AgentTeamTemplate[]):
       }
 
       try {
-        const { templateId, task, name } = args as {
+        const { templateId, task } = args as {
           templateId: string;
           task: string;
           name?: string;
@@ -415,7 +415,7 @@ export function createSpawnTeamFromTemplateTool(templates: AgentTeamTemplate[]):
           return { error: `Template not found: ${templateId}. Available: ${templates.map(t => t.id).join(', ')}` };
         }
 
-        const team = createTeamFromTemplate(template, task, name);
+        const team = createTeamFromTemplate(template, task);
         if (!team) {
           return { error: 'Failed to create team from template' };
         }

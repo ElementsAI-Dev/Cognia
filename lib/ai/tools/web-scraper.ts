@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import type { ScrapedPage } from '@/lib/search/providers/playwright-scraper';
+import type { SearchProviderType } from '@/types/search';
 
 export interface ScraperApiResponse {
   success: boolean;
@@ -546,7 +547,7 @@ async function executeSearchAndScrapeDirect(
 
   const searchResult = await search(input.query, {
     maxResults: input.maxResults,
-    provider: searchConfig?.provider as Parameters<typeof search>[1]['provider'],
+    provider: searchConfig?.provider as SearchProviderType | undefined,
     providerSettings: searchConfig?.apiKey ? {
       tavily: { enabled: true, apiKey: searchConfig.apiKey },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

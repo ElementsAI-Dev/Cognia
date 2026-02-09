@@ -366,12 +366,20 @@ function TraceGroup({
   logs,
   expandedIds,
   toggleExpanded,
+  searchQuery,
+  useRegex,
+  bookmarkedIds,
+  onToggleBookmark,
   t,
 }: {
   traceId: string;
   logs: StructuredLogEntry[];
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
+  searchQuery: string;
+  useRegex: boolean;
+  bookmarkedIds: Set<string>;
+  onToggleBookmark?: (id: string) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -403,6 +411,10 @@ function TraceGroup({
             log={log}
             isExpanded={expandedIds.has(log.id)}
             onToggle={() => toggleExpanded(log.id)}
+            searchQuery={searchQuery}
+            useRegex={useRegex}
+            isBookmarked={bookmarkedIds.has(log.id)}
+            onToggleBookmark={onToggleBookmark}
             t={t}
           />
         ))}
@@ -900,6 +912,10 @@ export function LogPanel({
                       logs={traceLogs}
                       expandedIds={expandedIds}
                       toggleExpanded={toggleExpanded}
+                      searchQuery={searchQuery}
+                      useRegex={useRegex}
+                      bookmarkedIds={bookmarkedIds}
+                      onToggleBookmark={toggleBookmark}
                       t={t}
                     />
                   ))}

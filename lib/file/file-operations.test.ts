@@ -23,7 +23,6 @@ import {
   type FileReadResult,
   type FileWriteResult,
   type FileOperationOptions,
-  type HashAlgorithm,
 } from './file-operations';
 
 // Helper to simulate Tauri environment

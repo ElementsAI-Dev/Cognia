@@ -218,7 +218,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     }
   };
 
-  const handleExtractText = async () => {
+  const handleExtractTextFromLast = async () => {
     if (lastScreenshot) {
       const text = await extractText(lastScreenshot.image_base64);
       if (text) {
@@ -367,7 +367,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={handleExtractText}
+                    onClick={handleExtractTextFromLast}
                   >
                     <FileText className="h-3.5 w-3.5" />
                   </Button>

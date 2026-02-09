@@ -6,7 +6,7 @@ const path = require('path');
 
 // Load English translations from split files
 // The split files are compiled via index.ts, so we load them dynamically
-let messages = {};
+let fileMessages = {};
 
 // Try to load from the compiled split files
 const loadSplitMessages = () => {
@@ -40,7 +40,10 @@ const loadSplitMessages = () => {
   return {};
 };
 
-messages = loadSplitMessages();
+fileMessages = loadSplitMessages();
+
+// React context to support NextIntlClientProvider passing messages
+const IntlContext = React.createContext(null);
 
 // Helper to get nested value from object
 const getNestedValue = (obj, keyPath) => {
@@ -63,15 +66,27 @@ const useFormatter = () => ({
 });
 
 // useTranslations returns a function that looks up translations
+// It reads from React context (provider messages) first, then falls back to file-based messages
 const useTranslations = (namespace) => {
+  // Try to read messages from NextIntlClientProvider context
+  let activeMessages = fileMessages;
+  try {
+    const contextMessages = React.useContext(IntlContext);
+    if (contextMessages && Object.keys(contextMessages).length > 0) {
+      activeMessages = contextMessages;
+    }
+  } catch {
+    // Outside React render — use file-based messages
+  }
+
   const t = (key, params) => {
     // Try to find the translation
     const fullKey = namespace ? `${namespace}.${key}` : key;
-    let value = getNestedValue(messages, fullKey);
+    let value = getNestedValue(activeMessages, fullKey);
     
     // If not found with namespace, try just the key
     if (!value) {
-      value = getNestedValue(messages, key);
+      value = getNestedValue(activeMessages, key);
     }
     
     // If still not found, return the key
@@ -92,19 +107,24 @@ const useTranslations = (namespace) => {
   // Add raw method for accessing nested keys
   t.raw = (key) => {
     const fullKey = namespace ? `${namespace}.${key}` : key;
-    return getNestedValue(messages, fullKey) || key;
+    return getNestedValue(activeMessages, fullKey) || key;
   };
   
   return t;
 };
 
 const useLocale = () => 'en';
-const useMessages = () => messages;
+const useMessages = () => fileMessages;
 const useNow = () => new Date();
 const useTimeZone = () => 'UTC';
 
-const NextIntlClientProvider = ({ children }) => React.createElement(React.Fragment, null, children);
-const IntlProvider = ({ children }) => React.createElement(React.Fragment, null, children);
+// NextIntlClientProvider passes messages to children via React context
+const NextIntlClientProvider = ({ children, messages: msgs }) => {
+  return React.createElement(IntlContext.Provider, { value: msgs || fileMessages }, children);
+};
+const IntlProvider = ({ children, messages: msgs }) => {
+  return React.createElement(IntlContext.Provider, { value: msgs || fileMessages }, children);
+};
 
 module.exports = {
   useFormatter,

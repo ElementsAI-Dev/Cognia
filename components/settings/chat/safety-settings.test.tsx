@@ -11,6 +11,22 @@ jest.mock('@/stores', () => ({
   useSettingsStore: jest.fn(),
 }));
 
+// Mock Select component (Radix UI doesn't render properly in jsdom)
+jest.mock('@/components/ui/select', () => ({
+  Select: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => (
+    <select value={value} onChange={(e) => onValueChange?.(e.target.value)} data-testid="select">{children}</select>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => <option value={value}>{children}</option>,
+}));
+
+// Mock getSeverityBadgeVariant
+jest.mock('@/lib/settings/chat', () => ({
+  getSeverityBadgeVariant: jest.fn(() => 'default'),
+}));
+
 describe('SafetySettings', () => {
   const mockSetSafetyModeEnabled = jest.fn();
   const mockSetSafetyMode = jest.fn();
@@ -259,6 +275,10 @@ describe('SafetySettings', () => {
     (useSettingsStore as unknown as jest.Mock).mockReturnValue(mockStore);
 
     render(<SafetySettings />);
+
+    // Expand the "Blocked Patterns" collapsible first
+    const blockedTrigger = screen.getByText('Blocked Patterns');
+    fireEvent.click(blockedTrigger);
     
     await waitFor(() => {
       const input = screen.getByPlaceholderText('Enter pattern to block...');
@@ -298,16 +318,17 @@ describe('SafetySettings', () => {
     (useSettingsStore as unknown as jest.Mock).mockReturnValue(mockStore);
 
     render(<SafetySettings />);
+
+    // Expand the "Allowed Patterns" collapsible first
+    const allowedTrigger = screen.getByText('Allowed Patterns (Whitelist)');
+    fireEvent.click(allowedTrigger);
     
-    await waitFor(() => {
-      const input = screen.getByPlaceholderText('Enter pattern to allow...');
-      fireEvent.change(input, { target: { value: 'safe-pattern' } });
-      
-      const addButton = screen.getAllByRole('button').find(
-        (el) => el.querySelector('svg') && el.parentElement?.parentElement?.querySelector('input')?.placeholder?.includes('allow')
-      );
-      if (addButton) fireEvent.click(addButton);
-    });
+    const input = await screen.findByPlaceholderText('Enter pattern to allow...');
+    fireEvent.change(input, { target: { value: 'safe-pattern' } });
+    
+    // Find the add button (Plus icon) next to the allowed pattern input
+    const addButton = input.closest('.flex')?.querySelector('button');
+    if (addButton) fireEvent.click(addButton);
     
     await waitFor(() => {
       expect(mockAddCustomAllowedPattern).toHaveBeenCalledWith('safe-pattern');
@@ -371,16 +392,15 @@ describe('SafetySettings', () => {
 
     render(<SafetySettings />);
     
-    await waitFor(() => {
-      const nameInput = screen.getByPlaceholderText('e.g., Block SQL Injection');
-      fireEvent.change(nameInput, { target: { value: 'Test Rule' } });
-      
-      const patternInput = screen.getByPlaceholderText('e.g., /\\b(SELECT|INSERT|UPDATE|DELETE)\\b/gi');
-      fireEvent.change(patternInput, { target: { value: 'test.*pattern' } });
-      
-      const addButton = screen.getByRole('button', { name: /Add Rule/i });
-      fireEvent.click(addButton);
-    });
+    const nameInput = await screen.findByPlaceholderText('e.g., Block SQL Injection');
+    fireEvent.change(nameInput, { target: { value: 'Test Rule' } });
+    
+    // Use id to find pattern input (placeholder has special regex chars)
+    const patternInput = document.getElementById('rule-pattern') as HTMLInputElement;
+    fireEvent.change(patternInput, { target: { value: 'test.*pattern' } });
+    
+    const addButton = screen.getByRole('button', { name: /Add Rule/i });
+    fireEvent.click(addButton);
     
     await waitFor(() => {
       expect(mockAddSafetyRule).toHaveBeenCalledWith(
@@ -491,10 +511,8 @@ describe('SafetySettings', () => {
 
     render(<SafetySettings />);
     
-    await waitFor(() => {
-      const input = screen.getByPlaceholderText('https://api.example.com/review');
-      fireEvent.change(input, { target: { value: 'https://test.api.com/review' } });
-    });
+    const input = await screen.findByPlaceholderText('https://api.example.com/moderate');
+    fireEvent.change(input, { target: { value: 'https://test.api.com/review' } });
     
     await waitFor(() => {
       expect(mockSetExternalReviewConfig).toHaveBeenCalledWith(
@@ -570,6 +588,10 @@ describe('SafetySettings', () => {
     (useSettingsStore as unknown as jest.Mock).mockReturnValue(mockStore);
 
     render(<SafetySettings />);
+
+    // Expand Blocked Patterns collapsible to see existing patterns
+    const blockedTrigger = screen.getByText('Blocked Patterns');
+    fireEvent.click(blockedTrigger);
     
     await waitFor(() => {
       expect(screen.getByText('pattern1')).toBeInTheDocument();
@@ -606,6 +628,10 @@ describe('SafetySettings', () => {
     (useSettingsStore as unknown as jest.Mock).mockReturnValue(mockStore);
 
     render(<SafetySettings />);
+
+    // Expand Allowed Patterns collapsible to see existing patterns
+    const allowedTrigger = screen.getByText('Allowed Patterns (Whitelist)');
+    fireEvent.click(allowedTrigger);
     
     await waitFor(() => {
       expect(screen.getByText('safe1')).toBeInTheDocument();
@@ -688,11 +714,19 @@ describe('SafetySettings', () => {
     (useSettingsStore as unknown as jest.Mock).mockReturnValue(mockStore);
 
     render(<SafetySettings />);
+
+    // Expand Blocked Patterns collapsible to see existing patterns and remove button
+    const blockedTrigger = screen.getByText('Blocked Patterns');
+    fireEvent.click(blockedTrigger);
     
     await waitFor(() => {
-      const removeButton = screen.getByRole('button', { name: '' });
-      fireEvent.click(removeButton);
+      expect(screen.getByText('pattern1')).toBeInTheDocument();
     });
+    
+    // Find the remove button (X icon) next to pattern1
+    const patternBadge = screen.getByText('pattern1');
+    const removeButton = patternBadge.parentElement?.querySelector('button');
+    if (removeButton) fireEvent.click(removeButton);
     
     await waitFor(() => {
       expect(mockRemoveCustomBlockedPattern).toHaveBeenCalledWith('pattern1');
