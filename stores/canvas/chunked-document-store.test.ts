@@ -126,6 +126,29 @@ describe('useChunkedDocumentStore', () => {
     });
   });
 
+  describe('no localStorage persistence', () => {
+    it('should not persist chunked documents to localStorage', () => {
+      const { result } = renderHook(() => useChunkedDocumentStore());
+      const persistDocId = `persist-test-${Date.now()}`;
+
+      act(() => {
+        result.current.addChunkedDocument(persistDocId, 'test content\nline 2\nline 3');
+      });
+
+      // Verify document exists in memory
+      expect(result.current.chunkedDocuments[persistDocId]).toBeDefined();
+
+      // Verify nothing was written to localStorage for this store
+      const stored = localStorage.getItem('cognia-chunked-documents');
+      expect(stored).toBeNull();
+
+      // Cleanup
+      act(() => {
+        result.current.removeChunkedDocument(persistDocId);
+      });
+    });
+  });
+
   describe('updateVisibleRange', () => {
     it('should update visible range for a document', () => {
       const { result } = renderHook(() => useChunkedDocumentStore());

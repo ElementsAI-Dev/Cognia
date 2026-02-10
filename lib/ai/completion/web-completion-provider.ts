@@ -7,6 +7,7 @@
  */
 
 import type { CompletionSuggestion, InputCompletionResult } from '@/types/input-completion';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 export interface WebCompletionConfig {
   provider: 'openai' | 'groq' | 'ollama' | 'custom';
@@ -109,7 +110,7 @@ async function requestOllamaCompletion(
   const endpoint = config.endpoint || 'http://localhost:11434';
   const prompt = buildPrompt(text, config.conversationContext);
 
-  const response = await fetch(`${endpoint}/api/generate`, {
+  const response = await proxyFetch(`${endpoint}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -154,7 +155,7 @@ async function requestOpenAICompatibleCompletion(
 
   const prompt = buildPrompt(text, config.conversationContext);
 
-  const response = await fetch(`${endpoint}/chat/completions`, {
+  const response = await proxyFetch(`${endpoint}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -205,7 +206,7 @@ async function requestCustomCompletion(
     headers['Authorization'] = `Bearer ${config.apiKey}`;
   }
 
-  const response = await fetch(config.endpoint, {
+  const response = await proxyFetch(config.endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify({

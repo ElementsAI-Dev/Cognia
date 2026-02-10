@@ -2,12 +2,25 @@
  * Sync Scheduler - Handles automatic sync scheduling
  */
 
-import type { SyncDirection } from '@/types/sync';
+import type { SyncDirection, BaseSyncConfig, SyncState } from '@/types/sync';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
 
 type SyncCallback = (success: boolean, error?: string) => void;
+
+/**
+ * Get the active provider's config from sync state
+ */
+function getActiveConfig(state: SyncState): BaseSyncConfig | null {
+  if (!state.activeProvider) return null;
+  switch (state.activeProvider) {
+    case 'webdav': return state.webdavConfig;
+    case 'github': return state.githubConfig;
+    case 'googledrive': return state.googleDriveConfig;
+    default: return null;
+  }
+}
 
 /**
  * Sync Scheduler class
@@ -28,34 +41,43 @@ class SyncSchedulerImpl {
 
     // Subscribe to store changes
     useSyncStore.subscribe((newState, prevState) => {
-      // Check if auto-sync settings changed
-      const config = newState.activeProvider === 'webdav' 
-        ? newState.webdavConfig 
-        : newState.githubConfig;
-      
-      const prevConfig = prevState.activeProvider === 'webdav'
-        ? prevState.webdavConfig
-        : prevState.githubConfig;
+      const config = getActiveConfig(newState);
+      const prevConfig = getActiveConfig(prevState);
 
       if (
-        config.autoSync !== prevConfig.autoSync ||
-        config.syncInterval !== prevConfig.syncInterval ||
+        config?.autoSync !== prevConfig?.autoSync ||
+        config?.syncInterval !== prevConfig?.syncInterval ||
         newState.activeProvider !== prevState.activeProvider
       ) {
         this.updateSchedule();
       }
     });
 
+    // Listen for online/offline events
+    if (typeof window !== 'undefined') {
+      window.addEventListener('offline', () => {
+        log.info('SyncScheduler: Network offline, pausing auto-sync');
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+          this.intervalId = null;
+        }
+      });
+
+      window.addEventListener('online', () => {
+        log.info('SyncScheduler: Network online, resuming auto-sync');
+        this.updateSchedule();
+        // Trigger a sync when coming back online
+        this.runSync('bidirectional');
+      });
+    }
+
     // Initial setup
     this.updateSchedule();
     this.isInitialized = true;
 
     // Run startup sync if enabled
-    const config = state.activeProvider === 'webdav' 
-      ? state.webdavConfig 
-      : state.githubConfig;
-    
-    if (config.enabled && config.syncOnStartup) {
+    const config = getActiveConfig(state);
+    if (config?.enabled && config.syncOnStartup) {
       this.runSync('download');
     }
   }
@@ -75,11 +97,9 @@ class SyncSchedulerImpl {
     
     if (!state.activeProvider) return;
 
-    const config = state.activeProvider === 'webdav' 
-      ? state.webdavConfig 
-      : state.githubConfig;
+    const config = getActiveConfig(state);
 
-    if (!config.enabled || !config.autoSync || config.syncInterval <= 0) {
+    if (!config || !config.enabled || !config.autoSync || config.syncInterval <= 0) {
       return;
     }
 
@@ -154,11 +174,9 @@ class SyncSchedulerImpl {
 
     if (!state.activeProvider) return;
 
-    const config = state.activeProvider === 'webdav' 
-      ? state.webdavConfig 
-      : state.githubConfig;
+    const config = getActiveConfig(state);
 
-    if (config.enabled && config.syncOnExit) {
+    if (config?.enabled && config.syncOnExit) {
       await this.runSync('upload');
     }
   }

@@ -8,6 +8,9 @@ import {
   useKnowledgeSearch,
   useKnowledgeStats,
   useBuildContext,
+  useAdvancedKnowledgeSearch,
+  useVectorKnowledgeSearch,
+  useBuildContextFromDB,
   formatKnowledgeForDisplay,
 } from './use-project-context';
 
@@ -50,7 +53,26 @@ jest.mock('@/lib/document/knowledge-rag', () => ({
     totalSize: knowledgeBase.reduce((sum: number, f: { size: number }) => sum + f.size, 0),
     estimatedTokens: 100,
   })),
+  searchKnowledgeBaseAdvanced: jest.fn(async (_files, _query, _config) => ({
+    context: 'Advanced search context',
+    filesUsed: [{ id: '1', name: 'doc1.md', type: 'markdown', content: 'Test', size: 100 }],
+    method: 'pipeline' as const,
+    searchMetadata: {
+      hybridSearchUsed: true,
+      queryExpansionUsed: false,
+      rerankingUsed: true,
+      totalResults: 1,
+    },
+  })),
+  searchKnowledgeBaseVector: jest.fn(async (files) => files.slice(0, 1)),
+  buildProjectContextFromDB: jest.fn(async (_projectId, _query, _options) => ({
+    systemPrompt: 'DB system prompt',
+    knowledgeContext: 'DB knowledge context',
+    filesUsed: ['doc1.md'],
+  })),
 }));
+
+jest.mock('@/lib/vector/embedding', () => ({}));
 
 describe('useProjectContext', () => {
   it('should return null for undefined projectId', () => {
@@ -210,5 +232,103 @@ describe('formatKnowledgeForDisplay', () => {
   it('should handle empty array', () => {
     const formatted = formatKnowledgeForDisplay([]);
     expect(formatted).toEqual([]);
+  });
+});
+
+describe('useAdvancedKnowledgeSearch', () => {
+  it('should return searchAdvanced function and state', () => {
+    const { result } = renderHook(() => useAdvancedKnowledgeSearch('test-project'));
+
+    expect(typeof result.current.searchAdvanced).toBe('function');
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.searchError).toBeNull();
+  });
+
+  it('should return null for undefined projectId', async () => {
+    const { result } = renderHook(() => useAdvancedKnowledgeSearch(undefined));
+
+    const searchResult = await result.current.searchAdvanced('query', {
+      embeddingProvider: 'openai' as never,
+      embeddingModel: 'text-embedding-3-small',
+      embeddingApiKey: 'test-key',
+    });
+
+    expect(searchResult).toBeNull();
+  });
+
+  it('should return null for non-existent project', async () => {
+    const { result } = renderHook(() => useAdvancedKnowledgeSearch('non-existent'));
+
+    const searchResult = await result.current.searchAdvanced('query', {
+      embeddingProvider: 'openai' as never,
+      embeddingModel: 'text-embedding-3-small',
+      embeddingApiKey: 'test-key',
+    });
+
+    expect(searchResult).toBeNull();
+  });
+});
+
+describe('useVectorKnowledgeSearch', () => {
+  it('should return searchByVector function and state', () => {
+    const { result } = renderHook(() => useVectorKnowledgeSearch('test-project'));
+
+    expect(typeof result.current.searchByVector).toBe('function');
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('should return empty array for undefined projectId', async () => {
+    const { result } = renderHook(() => useVectorKnowledgeSearch(undefined));
+
+    const searchResult = await result.current.searchByVector('query', {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      apiKey: 'test-key',
+    });
+
+    expect(searchResult).toEqual([]);
+  });
+
+  it('should return empty array for non-existent project', async () => {
+    const { result } = renderHook(() => useVectorKnowledgeSearch('non-existent'));
+
+    const searchResult = await result.current.searchByVector('query', {
+      provider: 'openai',
+      model: 'text-embedding-3-small',
+      apiKey: 'test-key',
+    });
+
+    expect(searchResult).toEqual([]);
+  });
+});
+
+describe('useBuildContextFromDB', () => {
+  it('should return buildContext function and state', () => {
+    const { result } = renderHook(() => useBuildContextFromDB());
+
+    expect(typeof result.current.buildContext).toBe('function');
+    expect(result.current.isBuilding).toBe(false);
+  });
+
+  it('should build context from DB', async () => {
+    const { result } = renderHook(() => useBuildContextFromDB());
+
+    const context = await result.current.buildContext('test-project', 'query');
+
+    expect(context).not.toBeNull();
+    expect(context?.systemPrompt).toBe('DB system prompt');
+    expect(context?.hasKnowledge).toBe(true);
+    expect(context?.stats.totalFiles).toBe(1);
+  });
+
+  it('should respect options', async () => {
+    const { result } = renderHook(() => useBuildContextFromDB());
+
+    const context = await result.current.buildContext('test-project', 'query', {
+      maxContextLength: 3000,
+      useRelevanceFiltering: false,
+    });
+
+    expect(context).not.toBeNull();
   });
 });

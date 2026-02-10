@@ -22,12 +22,40 @@ import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
 
+/** Current sync data schema version */
+const SYNC_DATA_VERSION = '1.1';
+
+/**
+ * Migrate sync data from older versions to the current version
+ */
+function migrateSyncData(data: SyncData): SyncData {
+  const version = data.version || '1.0';
+
+  if (version === SYNC_DATA_VERSION) {
+    return data;
+  }
+
+  // v1.0 → v1.1: Add maxBackups and syncDataTypes fields
+  if (version === '1.0') {
+    log.info(`Migrating sync data from v${version} to v${SYNC_DATA_VERSION}`);
+    return {
+      ...data,
+      version: SYNC_DATA_VERSION,
+    };
+  }
+
+  // Unknown version - return as-is with a warning
+  log.warn(`Unknown sync data version: ${version}`);
+  return data;
+}
+
 /**
  * Sync Manager class - singleton
  */
 class SyncManager {
   private provider: SyncProvider | null = null;
   private isSyncing = false;
+  private abortController: AbortController | null = null;
 
   /**
    * Initialize with WebDAV provider
@@ -51,12 +79,46 @@ class SyncManager {
 
   /**
    * Initialize with Google Drive provider
+   * Automatically refreshes expired OAuth tokens
    */
   async initGoogleDrive(accessToken: string): Promise<void> {
     const { useSyncStore } = await import('@/stores/sync');
     const config = useSyncStore.getState().googleDriveConfig;
     
-    this.provider = new GoogleDriveProvider(config, accessToken);
+    let token = accessToken;
+
+    // Check if token is expired and try to refresh
+    try {
+      const {
+        isGoogleTokenExpired,
+        getGoogleRefreshToken,
+        updateGoogleAccessToken,
+      } = await import('./credential-storage');
+      const { refreshGoogleToken, calculateTokenExpiry } = await import(
+        './providers/google-oauth'
+      );
+
+      const expired = await isGoogleTokenExpired();
+      if (expired) {
+        const refreshToken = await getGoogleRefreshToken();
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+        if (refreshToken && clientId) {
+          log.info('Google access token expired, refreshing...');
+          const tokens = await refreshGoogleToken(refreshToken, clientId);
+          token = tokens.access_token;
+          const expiresAt = calculateTokenExpiry(tokens.expires_in);
+          await updateGoogleAccessToken(token, expiresAt);
+          log.info('Google access token refreshed successfully');
+        } else {
+          log.warn('Cannot refresh Google token: missing refresh token or client ID');
+        }
+      }
+    } catch (error) {
+      log.error('Failed to refresh Google token, using existing token', error as Error);
+    }
+
+    this.provider = new GoogleDriveProvider(config, token);
   }
 
   /**
@@ -104,7 +166,19 @@ class SyncManager {
       };
     }
 
+    // Check network connectivity
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+        direction,
+        itemsSynced: 0,
+        error: 'No network connection',
+      };
+    }
+
     this.isSyncing = true;
+    this.abortController = new AbortController();
 
     try {
       switch (direction) {
@@ -123,8 +197,33 @@ class SyncManager {
             error: 'Invalid sync direction',
           };
       }
+    } catch (error) {
+      if (this.abortController?.signal.aborted) {
+        return this.createErrorResult(direction, 'Sync cancelled');
+      }
+      throw error;
     } finally {
       this.isSyncing = false;
+      this.abortController = null;
+    }
+  }
+
+  /**
+   * Cancel ongoing sync operation
+   */
+  cancelSync(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      log.info('Sync cancelled by user');
+    }
+  }
+
+  /**
+   * Check if sync was cancelled
+   */
+  private checkCancelled(): void {
+    if (this.abortController?.signal.aborted) {
+      throw new DOMException('Sync cancelled', 'AbortError');
     }
   }
 
@@ -147,6 +246,7 @@ class SyncManager {
 
     // Get local data
     const localData = await this.getLocalData();
+    this.checkCancelled();
 
     onProgress?.({
       phase: 'uploading',
@@ -156,7 +256,49 @@ class SyncManager {
     });
 
     // Upload to remote
-    return await this.provider.upload(localData, onProgress);
+    const result = await this.provider.upload(localData, onProgress);
+
+    // Cleanup old backups after successful upload
+    if (result.success) {
+      this.cleanupOldBackups().catch((err) => {
+        log.error('Failed to cleanup old backups', err as Error);
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Remove old backups exceeding maxBackups limit
+   */
+  private async cleanupOldBackups(): Promise<void> {
+    if (!this.provider) return;
+
+    const { useSyncStore } = await import('@/stores/sync');
+    const state = useSyncStore.getState();
+    const config =
+      state.activeProvider === 'webdav'
+        ? state.webdavConfig
+        : state.activeProvider === 'github'
+          ? state.githubConfig
+          : state.googleDriveConfig;
+
+    const maxBackups = config.maxBackups;
+    if (!maxBackups || maxBackups <= 0) return;
+
+    try {
+      const backups = await this.provider.listBackups();
+      if (backups.length <= maxBackups) return;
+
+      // Backups are sorted newest-first by listBackups
+      const toDelete = backups.slice(maxBackups);
+      for (const backup of toDelete) {
+        await this.provider.deleteBackup(backup.id);
+        log.info(`Deleted old backup: ${backup.filename}`);
+      }
+    } catch (error) {
+      log.error('Backup cleanup failed', error as Error);
+    }
   }
 
   /**
@@ -177,11 +319,15 @@ class SyncManager {
     });
 
     // Download remote data
-    const remoteData = await this.provider.download(onProgress);
+    let remoteData = await this.provider.download(onProgress);
+    this.checkCancelled();
 
     if (!remoteData) {
       return this.createErrorResult('download', 'No remote data found');
     }
+
+    // Migrate older data formats
+    remoteData = migrateSyncData(remoteData);
 
     onProgress?.({
       phase: 'merging',
@@ -190,8 +336,24 @@ class SyncManager {
       message: 'Importing data...',
     });
 
+    // Verify data integrity
+    if (remoteData.checksum) {
+      const actualChecksum = generateChecksum(JSON.stringify(remoteData.data));
+      if (actualChecksum !== remoteData.checksum) {
+        log.error('Checksum mismatch on downloaded data', {
+          expected: remoteData.checksum,
+          actual: actualChecksum,
+        });
+        return this.createErrorResult(
+          'download',
+          'Data integrity check failed: checksum mismatch'
+        );
+      }
+    }
+
     // Import remote data
     try {
+      this.checkCancelled();
       await this.importRemoteData(remoteData);
 
       onProgress?.({
@@ -240,9 +402,11 @@ class SyncManager {
 
     // Get remote metadata
     const remoteMetadata = await this.provider.getRemoteMetadata();
+    this.checkCancelled();
 
     // Get local data
     const localData = await this.getLocalData();
+    this.checkCancelled();
 
     // If no remote data, just upload
     if (!remoteMetadata) {
@@ -323,32 +487,44 @@ class SyncManager {
    */
   private async getLocalData(): Promise<SyncData> {
     const { useSyncStore } = await import('@/stores/sync');
-    const { deviceId, deviceName } = useSyncStore.getState();
+    const state = useSyncStore.getState();
+    const { deviceId, deviceName } = state;
+
+    // Determine which data types to sync
+    const activeConfig =
+      state.activeProvider === 'webdav'
+        ? state.webdavConfig
+        : state.activeProvider === 'github'
+          ? state.githubConfig
+          : state.googleDriveConfig;
+    const syncTypes = activeConfig.syncDataTypes;
+    const shouldSync = (type: string) =>
+      syncTypes.length === 0 || syncTypes.includes(type as never);
 
     // Use existing export functionality
     const backup = await createFullBackup({
-      includeSessions: true,
-      includeSettings: true,
-      includeArtifacts: true,
-      includeIndexedDB: true,
+      includeSessions: shouldSync('sessions'),
+      includeSettings: shouldSync('settings'),
+      includeArtifacts: shouldSync('artifacts'),
+      includeIndexedDB: shouldSync('messages') || shouldSync('folders') || shouldSync('projects'),
       includeChecksum: false, // We'll generate our own
     });
 
-    const dataContent: SyncDataContent = {
-      settings: backup.settings,
-      sessions: backup.sessions,
-      artifacts: backup.artifacts,
-    };
+    const dataContent: SyncDataContent = {};
+
+    if (shouldSync('settings')) dataContent.settings = backup.settings;
+    if (shouldSync('sessions')) dataContent.sessions = backup.sessions;
+    if (shouldSync('artifacts')) dataContent.artifacts = backup.artifacts;
 
     // Add IndexedDB data if available
     if (backup.indexedDB) {
-      dataContent.messages = backup.indexedDB.messages;
-      dataContent.folders = backup.indexedDB.sessions;
-      dataContent.projects = backup.indexedDB.projects;
+      if (shouldSync('messages')) dataContent.messages = backup.indexedDB.messages;
+      if (shouldSync('folders')) dataContent.folders = backup.indexedDB.sessions;
+      if (shouldSync('projects')) dataContent.projects = backup.indexedDB.projects;
     }
 
     const syncData: SyncData = {
-      version: '1.0',
+      version: SYNC_DATA_VERSION,
       syncedAt: new Date().toISOString(),
       deviceId,
       deviceName,
@@ -406,10 +582,34 @@ class SyncManager {
    * Restore from a specific backup
    */
   async restoreBackup(backupId: string): Promise<boolean> {
-    // This would need to download the specific backup file
-    // For now, return false as it requires more implementation
-    log.debug(`Restore backup: ${backupId}`);
-    return false;
+    if (!this.provider) {
+      return false;
+    }
+
+    try {
+      log.info(`Restoring backup: ${backupId}`);
+      const backupData = await this.provider.downloadBackup(backupId);
+      if (!backupData) {
+        log.error('Failed to download backup data');
+        return false;
+      }
+
+      // Verify data integrity if checksum is available
+      if (backupData.checksum) {
+        const actualChecksum = generateChecksum(JSON.stringify(backupData.data));
+        if (actualChecksum !== backupData.checksum) {
+          log.error('Backup data integrity check failed');
+          return false;
+        }
+      }
+
+      await this.importRemoteData(backupData);
+      log.info(`Backup ${backupId} restored successfully`);
+      return true;
+    } catch (error) {
+      log.error('Failed to restore backup', error as Error);
+      return false;
+    }
   }
 
   /**

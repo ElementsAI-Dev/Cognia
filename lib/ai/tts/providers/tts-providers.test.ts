@@ -173,7 +173,7 @@ describe('TTS Providers', () => {
     });
 
     it('should make API request with correct parameters', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -184,7 +184,7 @@ describe('TTS Providers', () => {
         model: 'eleven_multilingual_v2',
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockProxyFetch).toHaveBeenCalledWith(
         expect.stringContaining('elevenlabs.io'),
         expect.objectContaining({
           method: 'POST',
@@ -196,7 +196,7 @@ describe('TTS Providers', () => {
     });
 
     it('should handle API errors', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: false,
         status: 401,
         json: () => Promise.resolve({ detail: { message: 'Unauthorized' } }),
@@ -232,7 +232,7 @@ describe('TTS Providers', () => {
     });
 
     it('should make API request with correct parameters', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -243,7 +243,7 @@ describe('TTS Providers', () => {
         speed: 1.2,
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockProxyFetch).toHaveBeenCalledWith(
         expect.stringContaining('lmnt.com'),
         expect.objectContaining({
           method: 'POST',
@@ -255,7 +255,7 @@ describe('TTS Providers', () => {
     });
 
     it('should clamp speed to valid range', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -265,7 +265,7 @@ describe('TTS Providers', () => {
         speed: 10, // Should be clamped to 2.0
       });
 
-      const callBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      const callBody = JSON.parse(mockProxyFetch.mock.calls[0][1].body);
       expect(callBody.speed).toBeLessThanOrEqual(2.0);
     });
   });
@@ -292,7 +292,7 @@ describe('TTS Providers', () => {
     });
 
     it('should make API request with correct parameters', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -302,7 +302,7 @@ describe('TTS Providers', () => {
         voice: 'kora',
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockProxyFetch).toHaveBeenCalledWith(
         expect.stringContaining('hume.ai'),
         expect.objectContaining({
           method: 'POST',
@@ -314,7 +314,7 @@ describe('TTS Providers', () => {
     });
 
     it('should include acting instructions when provided', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -325,7 +325,7 @@ describe('TTS Providers', () => {
         actingInstructions: 'Speak with enthusiasm',
       });
 
-      const callBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      const callBody = JSON.parse(mockProxyFetch.mock.calls[0][1].body);
       expect(callBody.acting_instructions).toBe('Speak with enthusiasm');
     });
   });
@@ -387,7 +387,7 @@ describe('TTS Providers', () => {
     });
 
     it('should make API request with correct parameters', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
       });
@@ -399,7 +399,7 @@ describe('TTS Providers', () => {
         language: 'en',
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockProxyFetch).toHaveBeenCalledWith(
         expect.stringContaining('cartesia.ai'),
         expect.objectContaining({
           method: 'POST',
@@ -411,7 +411,7 @@ describe('TTS Providers', () => {
     });
 
     it('should handle API errors', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: false,
         status: 401,
         json: () => Promise.resolve({ error: 'Unauthorized' }),
@@ -447,7 +447,7 @@ describe('TTS Providers', () => {
     });
 
     it('should make API request with correct parameters', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: true,
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
         headers: new Headers({ 'content-type': 'audio/mpeg' }),
@@ -458,7 +458,7 @@ describe('TTS Providers', () => {
         voice: 'aura-2-asteria-en',
       });
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockProxyFetch).toHaveBeenCalledWith(
         expect.stringContaining('deepgram.com'),
         expect.objectContaining({
           method: 'POST',
@@ -470,7 +470,7 @@ describe('TTS Providers', () => {
     });
 
     it('should handle API errors', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
+      mockProxyFetch.mockResolvedValue({
         ok: false,
         status: 403,
         json: () => Promise.resolve({ err_msg: 'Forbidden' }),

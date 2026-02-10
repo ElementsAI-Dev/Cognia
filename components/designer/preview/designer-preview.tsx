@@ -18,7 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
@@ -27,6 +27,7 @@ import { getInsertionPoint, findElementByPattern } from '@/lib/designer/elements
 import type { ViewportSize } from '@/types/designer';
 import { PreviewToolbar } from './preview-toolbar';
 import { PreviewConsole } from './preview-console';
+import { PreviewLoading } from './preview-loading';
 
 interface DesignerPreviewProps {
   className?: string;
@@ -688,24 +689,25 @@ export function DesignerPreview({
           {/* Loading overlay */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <PreviewLoading status="rendering" />
             </div>
           )}
 
           {/* Error state */}
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10 p-4">
-              <AlertCircle className="h-8 w-8 text-destructive mb-2" />
-              <p className="text-sm text-destructive text-center">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t('retry')}
-              </Button>
+            <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+              <div className="flex flex-col items-center">
+                <PreviewLoading status="error" errorMessage={error} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t('retry')}
+                </Button>
+              </div>
             </div>
           )}
 

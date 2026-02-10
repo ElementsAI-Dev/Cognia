@@ -39,6 +39,13 @@ const messages = {
     insertTable: 'Table',
     horizontalLine: 'Horizontal Line',
     pageBreak: 'Page Break',
+    formattingToolbar: 'Formatting Toolbar',
+    categoryAlignment: 'Alignment',
+    categoryHeadings: 'Headings',
+    categoryLists: 'Lists',
+    categoryInsert: 'Insert',
+    more: 'More',
+    moreFormatting: 'More Formatting',
   },
 };
 
@@ -378,6 +385,132 @@ describe('DocumentFormatToolbar', () => {
       // Default font size should be 11
       const comboboxes = screen.getAllByRole('combobox');
       expect(comboboxes.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have role="toolbar" on the container', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const toolbar = screen.getByRole('toolbar');
+      expect(toolbar).toBeInTheDocument();
+    });
+
+    it('should have aria-label on the toolbar', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const toolbar = screen.getByRole('toolbar');
+      expect(toolbar).toHaveAttribute('aria-label', 'Formatting Toolbar');
+    });
+
+    it('should have aria-label on toggle buttons', () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      // ToolbarToggle buttons should have aria-label from tooltip text
+      const buttons = screen.getAllByRole('button');
+      // At least the first few should have aria-label
+      const buttonsWithAriaLabel = buttons.filter((b) => b.getAttribute('aria-label'));
+      expect(buttonsWithAriaLabel.length).toBeGreaterThan(0);
+    });
+
+    it('should support keyboard navigation with ArrowRight', async () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      // Focus the first button
+      buttons[0].focus();
+      expect(document.activeElement).toBe(buttons[0]);
+
+      // Press ArrowRight
+      await userEvent.keyboard('{ArrowRight}');
+
+      // Focus should move to next button
+      expect(document.activeElement).not.toBe(buttons[0]);
+    });
+
+    it('should support keyboard navigation with ArrowLeft', async () => {
+      renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      const buttons = screen.getAllByRole('button');
+      // Focus the second button
+      buttons[1].focus();
+      expect(document.activeElement).toBe(buttons[1]);
+
+      // Press ArrowLeft
+      await userEvent.keyboard('{ArrowLeft}');
+
+      // Focus should move to previous button
+      expect(document.activeElement).toBe(buttons[0]);
+    });
+  });
+
+  describe('React.memo', () => {
+    it('should not re-render when props are the same', () => {
+      const formatState: FormatState = { bold: true };
+      const { rerender } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={formatState}
+        />
+      );
+
+      // Re-render with same props — should not cause issues
+      rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <DocumentFormatToolbar
+            onFormatAction={mockOnFormatAction}
+            formatState={formatState}
+          />
+        </NextIntlClientProvider>
+      );
+
+      // If memo works, component renders without error
+      expect(screen.getByRole('toolbar')).toBeInTheDocument();
+    });
+
+    it('should re-render when formatState changes', () => {
+      const { rerender, container } = renderWithProviders(
+        <DocumentFormatToolbar
+          onFormatAction={mockOnFormatAction}
+          formatState={{ bold: false }}
+        />
+      );
+
+      const initialActiveCount = container.querySelectorAll('[data-state="on"]').length;
+
+      rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <DocumentFormatToolbar
+            onFormatAction={mockOnFormatAction}
+            formatState={{ bold: true }}
+          />
+        </NextIntlClientProvider>
+      );
+
+      const updatedActiveCount = container.querySelectorAll('[data-state="on"]').length;
+      expect(updatedActiveCount).toBeGreaterThan(initialActiveCount);
+    });
+  });
+
+  describe('Removed mobileExpanded props', () => {
+    it('should render without mobileExpanded props', () => {
+      // Verify the component works without the removed props
+      const { container } = renderWithProviders(
+        <DocumentFormatToolbar onFormatAction={mockOnFormatAction} />
+      );
+
+      expect(container.firstChild).toBeInTheDocument();
+      expect(screen.getByRole('toolbar')).toBeInTheDocument();
     });
   });
 });

@@ -5,6 +5,7 @@
 
 import type { TTSResponse, CartesiaTTSVoice, CartesiaTTSModel } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -89,7 +90,7 @@ export async function generateCartesiaTTS(
       body.transcript = `<emotion name="${emotion}">${text}</emotion>`;
     }
 
-    const response = await fetch(`${CARTESIA_API_BASE}/tts/bytes`, {
+    const response = await proxyFetch(`${CARTESIA_API_BASE}/tts/bytes`, {
       method: 'POST',
       headers: {
         'Cartesia-Version': CARTESIA_API_VERSION,
@@ -222,7 +223,7 @@ export async function streamCartesiaTTS(
       body.speed = speed > 0 ? 'fastest' : 'slowest';
     }
 
-    const response = await fetch(`${CARTESIA_API_BASE}/tts/bytes`, {
+    const response = await proxyFetch(`${CARTESIA_API_BASE}/tts/bytes`, {
       method: 'POST',
       headers: {
         'Cartesia-Version': CARTESIA_API_VERSION,

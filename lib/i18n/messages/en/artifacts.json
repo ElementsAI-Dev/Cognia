@@ -39,6 +39,7 @@
     "search": "Search artifacts...",
     "filterByType": "Filter by type",
     "allTypes": "All Types",
+    "batchSelect": "Toggle batch selection",
     "batchDelete": "Delete Selected",
     "batchDeleteConfirm": "Delete {count} artifacts?",
     "versionHistory": "Version History",

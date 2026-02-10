@@ -7,21 +7,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -54,6 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Project } from '@/types';
 import { cn } from '@/lib/utils';
+import { ProjectIcon, formatRelativeDate } from '@/lib/project/utils';
 
 interface ProjectCardProps {
   project: Project;
@@ -65,24 +51,6 @@ interface ProjectCardProps {
   onArchive?: (projectId: string) => void;
   onUnarchive?: (projectId: string) => void;
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
-};
 
 export function ProjectCard({
   project,
@@ -96,19 +64,6 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const t = useTranslations('projects');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const IconComponent = iconMap[project.icon || 'Folder'] || Folder;
-
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) return t('today');
-    if (days === 1) return t('yesterday');
-    if (days < 7) return t('daysAgo', { days });
-    return date.toLocaleDateString();
-  };
 
   return (
     <>
@@ -126,7 +81,8 @@ export function ProjectCard({
                 className="flex h-10 w-10 items-center justify-center rounded-lg"
                 style={{ backgroundColor: `${project.color}20` }}
               >
-                <IconComponent
+                <ProjectIcon
+                  iconName={project.icon}
                   className="h-5 w-5"
                   style={{ color: project.color }}
                 />
@@ -252,7 +208,7 @@ export function ProjectCard({
               )}
             </div>
             <span className="text-xs text-muted-foreground">
-              {formatDate(project.lastAccessedAt)}
+              {formatRelativeDate(project.lastAccessedAt, t)}
             </span>
           </div>
         </CardContent>

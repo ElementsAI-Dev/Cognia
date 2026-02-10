@@ -31,3 +31,13 @@ export {
 export { useProviderManager } from './use-provider-manager';
 export { useChatObservability } from './use-chat-observability';
 export { useAgentObservability } from './use-agent-observability';
+export {
+  useTransformers,
+  type UseTransformersOptions,
+  type UseTransformersReturn,
+} from './use-transformers';
+export {
+  useTransformersEmbedding,
+  type UseTransformersEmbeddingOptions,
+  type UseTransformersEmbeddingReturn,
+} from './use-transformers-embedding';

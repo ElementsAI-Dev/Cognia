@@ -13,6 +13,7 @@ import type {
   TokenCountOptions,
 } from '@/types/system/tokenizer';
 import { estimateTokensFast } from './base-tokenizer';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -168,7 +169,7 @@ export class GeminiTokenizer implements Tokenizer {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -213,7 +214,7 @@ export class GeminiTokenizer implements Tokenizer {
         };
       }
 
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

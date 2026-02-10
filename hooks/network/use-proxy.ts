@@ -194,8 +194,6 @@ export function useProxy(): UseProxyReturn {
   );
 
   const applyProxy = useCallback(async () => {
-    // In Tauri, we would set environment variables or configure the HTTP client
-    // For now, this just updates the status
     let currentProxy: string | null = null;
 
     if (config.enabled && config.mode !== 'off') {
@@ -210,6 +208,9 @@ export function useProxy(): UseProxyReturn {
         }
       }
     }
+
+    // Sync proxy configuration to the Rust backend
+    await proxyService.setBackendProxy(currentProxy);
 
     setStatus({
       currentProxy,

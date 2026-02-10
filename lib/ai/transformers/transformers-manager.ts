@@ -15,6 +15,7 @@ import type {
   TransformersInferenceResult,
   TransformersEmbeddingResult,
   TransformersBatchEmbeddingResult,
+  PipelineTensorOutput,
 } from '@/types/transformers';
 
 type ProgressCallback = (progress: ModelDownloadProgress) => void;
@@ -361,16 +362,14 @@ export class TransformersManager {
  * We perform mean pooling across the token dimension.
  */
 function extractEmbedding(output: unknown): number[] {
-  // Handle Tensor-like objects with .data and .dims
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const out = output as any;
+  const out = output as PipelineTensorOutput | number[] | number[][] | number[][][];
 
   // If it has a tolist() method (Tensor), use it
-  if (out && typeof out.tolist === 'function') {
-    const list = out.tolist();
+  if (out && typeof (out as PipelineTensorOutput).tolist === 'function') {
+    const list = (out as PipelineTensorOutput).tolist!();
     // Result shape is [1, seq_len, hidden_dim] — mean pool over seq_len
     if (Array.isArray(list) && Array.isArray(list[0]) && Array.isArray(list[0][0])) {
-      return meanPool(list[0]);
+      return meanPool(list[0] as number[][]);
     }
     if (Array.isArray(list) && Array.isArray(list[0]) && typeof list[0][0] === 'number') {
       return list[0] as number[];
@@ -379,9 +378,10 @@ function extractEmbedding(output: unknown): number[] {
   }
 
   // If it's a typed array with dims metadata
-  if (out && out.data && out.dims) {
-    const data = Array.from(out.data as Float32Array);
-    const dims = out.dims as number[];
+  const tensor = out as PipelineTensorOutput;
+  if (tensor && tensor.data && tensor.dims) {
+    const data = Array.from(tensor.data as Float32Array);
+    const dims = tensor.dims;
 
     if (dims.length === 3) {
       // [batch=1, seq_len, hidden_dim]
@@ -403,7 +403,7 @@ function extractEmbedding(output: unknown): number[] {
   // Nested arrays fallback
   if (Array.isArray(out)) {
     if (Array.isArray(out[0]) && Array.isArray(out[0][0])) {
-      return meanPool(out[0]);
+      return meanPool(out[0] as number[][]);
     }
     if (Array.isArray(out[0]) && typeof out[0][0] === 'number') {
       return out[0] as number[];

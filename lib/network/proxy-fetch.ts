@@ -171,6 +171,19 @@ export function getProxyConfig(): {
   }
 }
 
+/** Hosts that should bypass proxy (match Rust http.rs bypass list) */
+const BYPASS_HOSTS = ['localhost', '127.0.0.1', '::1', '0.0.0.0'];
+
+/**
+ * Check if a URL should bypass proxy
+ */
+export function shouldBypassProxy(url: string): boolean {
+  const lower = url.toLowerCase();
+  return BYPASS_HOSTS.some(
+    (host) => lower.includes(`://${host}:`) || lower.includes(`://${host}/`) || lower.endsWith(`://${host}`)
+  );
+}
+
 /**
  * Create a fetch function with proxy support
  * 
@@ -184,8 +197,13 @@ export function createProxyFetch(customProxyUrl?: string) {
   ): Promise<Response> => {
     const { skipProxy, timeout, ...fetchInit } = init || {};
 
+    const urlStr = typeof input === 'string' ? input : input.toString();
+
+    // Bypass proxy for localhost/local addresses
+    const bypass = skipProxy || shouldBypassProxy(urlStr);
+
     // Get proxy URL
-    const proxyUrl = skipProxy ? null : (customProxyUrl || getCurrentProxyUrl());
+    const proxyUrl = bypass ? null : (customProxyUrl || getCurrentProxyUrl());
 
     // In browser environment, we can't directly use proxy
     // The browser will use system proxy settings

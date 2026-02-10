@@ -14,11 +14,13 @@ import {
   SandpackConsole,
   useSandpack,
 } from '@codesandbox/sandpack-react';
+import { Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import { useSettingsStore } from '@/stores';
 import type { FrameworkType } from '@/lib/designer';
-import { SandboxErrorBoundary, useErrorBoundaryReset } from './sandbox-error-boundary';
+import { SandboxErrorBoundary, useErrorBoundaryReset, useConsoleErrorInterceptor } from './sandbox-error-boundary';
 import { SandboxFileExplorer } from './sandbox-file-explorer';
 
 export type { FrameworkType };
@@ -35,7 +37,7 @@ export interface ReactSandboxProps {
   onAIEdit?: () => void;
 }
 
-// Default App.tsx template
+// Default templates per framework
 const DEFAULT_APP_CODE = `export default function App() {
   return (
     <div className="p-4">
@@ -44,6 +46,31 @@ const DEFAULT_APP_CODE = `export default function App() {
     </div>
   );
 }`;
+
+const DEFAULT_VUE_CODE = `<template>
+  <div class="p-4">
+    <h1 class="text-2xl font-bold">Hello World</h1>
+    <p class="text-gray-600 mt-2">Start editing to see changes.</p>
+  </div>
+</template>
+
+<script setup>
+</script>`;
+
+const DEFAULT_HTML_CODE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"><\/script>
+</head>
+<body>
+  <div class="p-4">
+    <h1 class="text-2xl font-bold">Hello World</h1>
+    <p class="text-gray-600 mt-2">Start editing to see changes.</p>
+  </div>
+</body>
+</html>`;
 
 // Tailwind CSS setup
 const TAILWIND_CONFIG = `module.exports = {
@@ -59,22 +86,36 @@ const INDEX_CSS = `@tailwind base;
 @tailwind utilities;
 `;
 
+// Map framework to Sandpack template and main file path
+function getFrameworkConfig(framework: FrameworkType) {
+  switch (framework) {
+    case 'vue':
+      return { template: 'vue' as const, mainFile: '/src/App.vue', defaultCode: DEFAULT_VUE_CODE };
+    case 'html':
+      return { template: 'vanilla' as const, mainFile: '/index.html', defaultCode: DEFAULT_HTML_CODE };
+    case 'react':
+    default:
+      return { template: 'react-ts' as const, mainFile: '/App.tsx', defaultCode: DEFAULT_APP_CODE };
+  }
+}
+
 // Internal component to sync code with store
-function SandboxSync({ onCodeChange }: { onCodeChange?: (code: string) => void }) {
+function SandboxSync({ onCodeChange, framework = 'react' }: { onCodeChange?: (code: string) => void; framework?: FrameworkType }) {
   const { sandpack } = useSandpack();
   const setCode = useDesignerStore((state) => state.setCode);
   const lastCodeRef = useRef<string | null>(null);
+  const { mainFile } = getFrameworkConfig(framework);
 
   // Sync changes to store
   const handleChange = useCallback(() => {
     const files = sandpack.files;
-    const appFile = files['/App.tsx'] || files['/App.jsx'];
+    const appFile = files[mainFile] || files['/App.tsx'] || files['/App.jsx'];
     if (appFile && appFile.code !== lastCodeRef.current) {
       lastCodeRef.current = appFile.code;
       setCode(appFile.code, false);
       onCodeChange?.(appFile.code);
     }
-  }, [sandpack.files, setCode, onCodeChange]);
+  }, [sandpack.files, setCode, onCodeChange, mainFile]);
 
   // Listen for file changes
   useEffect(() => {
@@ -92,50 +133,93 @@ export function ReactSandbox({
   onCodeChange,
   showFileExplorer = false,
   showConsole = false,
-  framework: _framework,
-  onAIEdit: _onAIEdit,
+  framework = 'react',
+  onAIEdit,
 }: ReactSandboxProps) {
   const storeCode = useDesignerStore((state) => state.code);
+  const addPreviewError = useDesignerStore((state) => state.addPreviewError);
   const code = propCode ?? storeCode;
   const theme = useSettingsStore((state) => state.theme);
   const { resetKey, reset } = useErrorBoundaryReset();
+  const { errors: interceptedErrors } = useConsoleErrorInterceptor();
 
-  // Build files object for Sandpack
-  const files = useMemo(() => ({
-    '/App.tsx': {
-      code: code || DEFAULT_APP_CODE,
-      active: true,
-    },
-    '/index.css': {
-      code: INDEX_CSS,
-    },
-    '/tailwind.config.js': {
-      code: TAILWIND_CONFIG,
-      hidden: true,
-    },
-  }), [code]);
+  // Forward intercepted console errors to designer store
+  const lastErrorCountRef = useRef(0);
+  useEffect(() => {
+    if (interceptedErrors.length > lastErrorCountRef.current) {
+      const newErrors = interceptedErrors.slice(lastErrorCountRef.current);
+      for (const err of newErrors) {
+        addPreviewError(err);
+      }
+    }
+    lastErrorCountRef.current = interceptedErrors.length;
+  }, [interceptedErrors, addPreviewError]);
+
+  const fwConfig = getFrameworkConfig(framework);
+
+  // Build files object for Sandpack based on framework
+  const files = useMemo(() => {
+    if (framework === 'vue') {
+      return {
+        '/src/App.vue': {
+          code: code || fwConfig.defaultCode,
+          active: true,
+        },
+      };
+    }
+    if (framework === 'html') {
+      return {
+        '/index.html': {
+          code: code || fwConfig.defaultCode,
+          active: true,
+        },
+      };
+    }
+    // React (default)
+    return {
+      '/App.tsx': {
+        code: code || fwConfig.defaultCode,
+        active: true,
+      },
+      '/index.css': {
+        code: INDEX_CSS,
+      },
+      '/tailwind.config.js': {
+        code: TAILWIND_CONFIG,
+        hidden: true,
+      },
+    };
+  }, [code, framework, fwConfig.defaultCode]);
+
+  // Dependencies vary by framework
+  const customSetup = useMemo(() => {
+    if (framework === 'react') {
+      return {
+        dependencies: {
+          'tailwindcss': 'latest',
+          'autoprefixer': 'latest',
+          'postcss': 'latest',
+        },
+      };
+    }
+    return undefined;
+  }, [framework]);
 
   return (
-    <div className={cn('h-full flex flex-col min-h-0', className)}>
+    <div className={cn('h-full flex flex-col min-h-0 relative', className)}>
       <SandboxErrorBoundary key={resetKey} onReset={reset} className="h-full flex-1 min-h-0">
         <SandpackProvider
-          template="react-ts"
+          template={fwConfig.template}
           theme={theme === 'dark' ? 'dark' : 'light'}
           files={files}
-          customSetup={{
-            dependencies: {
-              'tailwindcss': 'latest',
-              'autoprefixer': 'latest',
-              'postcss': 'latest',
-            },
-          }}
+          customSetup={customSetup}
           options={{
-            externalResources: ['https://cdn.tailwindcss.com'],
+            externalResources: framework === 'react' ? ['https://cdn.tailwindcss.com'] : [],
             recompileMode: 'delayed',
             recompileDelay: 300,
           }}
         >
-          <SandboxSync onCodeChange={onCodeChange} />
+          <SandboxSync onCodeChange={onCodeChange} framework={framework} />
           <SandpackLayout className="h-full flex-1 min-h-0">
             <SandboxContent
               showEditor={showEditor}
@@ -146,6 +230,19 @@ export function ReactSandbox({
           </SandpackLayout>
         </SandpackProvider>
       </SandboxErrorBoundary>
+
+      {/* Floating AI edit button */}
+      {onAIEdit && (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="absolute bottom-3 right-3 z-10 gap-1.5 shadow-md"
+          onClick={onAIEdit}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          AI Edit
+        </Button>
+      )}
     </div>
   );
 }

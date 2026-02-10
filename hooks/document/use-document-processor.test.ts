@@ -59,6 +59,21 @@ jest.mock('@/lib/document/document-processor', () => ({
       chunks: [],
     };
   }),
+  processDocuments: jest.fn((docs: Array<{ id: string; filename: string; content: string }>, _options?: unknown) =>
+    docs.map((d) => ({
+      id: d.id,
+      filename: d.filename,
+      type: 'text',
+      content: d.content,
+      embeddableContent: d.content,
+      metadata: {
+        size: d.content.length,
+        lineCount: d.content.split('\n').length,
+        wordCount: d.content.split(/\s+/).length,
+      },
+      chunks: [],
+    }))
+  ),
   detectDocumentType: jest.fn((filename: string) => {
     if (filename.endsWith('.md')) return 'markdown';
     if (filename.endsWith('.pdf')) return 'pdf';
@@ -75,6 +90,26 @@ jest.mock('@/lib/document/document-processor', () => ({
     return !['pdf', 'docx', 'xlsx'].includes(ext);
   }),
   estimateTokenCount: jest.fn((content: string) => Math.ceil(content.length / 4)),
+  validateFile: jest.fn((_filename: string, size: number, options?: { maxSize?: number }) => {
+    const maxSize = options?.maxSize || 50 * 1024 * 1024;
+    if (size > maxSize) {
+      return { valid: false, errors: ['File too large'] };
+    }
+    return { valid: true, errors: [] };
+  }),
+  isBinaryType: jest.fn((type: string) => ['pdf', 'word', 'excel'].includes(type)),
+  compareDocuments: jest.fn(
+    (docA: { content: string; metadata: { size: number } }, docB: { content: string; metadata: { size: number } }) => ({
+      added: docB.content.length > docA.content.length ? docB.content.length - docA.content.length : 0,
+      removed: docA.content.length > docB.content.length ? docA.content.length - docB.content.length : 0,
+      unchanged: Math.min(docA.content.length, docB.content.length),
+      similarity: docA.content === docB.content ? 1 : 0.5,
+      metadataChanges: {
+        size: { from: docA.metadata.size, to: docB.metadata.size },
+      },
+    })
+  ),
+  detectEncoding: jest.fn((_buffer: ArrayBuffer) => 'utf-8'),
 }));
 
 // Mock table extractor
@@ -344,6 +379,130 @@ describe('useDocumentProcessor', () => {
       expect(result.current.currentFile).toBeNull();
       expect(result.current.error).toBeNull();
       expect(result.current.results).toEqual([]);
+    });
+  });
+
+  describe('compare', () => {
+    it('should compare two documents and return diff', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const docA = {
+        id: '1',
+        filename: 'a.txt',
+        type: 'text' as const,
+        content: 'Hello',
+        embeddableContent: 'Hello',
+        metadata: { size: 5, lineCount: 1, wordCount: 1 },
+        chunks: [],
+      };
+
+      const docB = {
+        id: '2',
+        filename: 'b.txt',
+        type: 'text' as const,
+        content: 'Hello World',
+        embeddableContent: 'Hello World',
+        metadata: { size: 11, lineCount: 1, wordCount: 2 },
+        chunks: [],
+      };
+
+      const diff = result.current.compare(docA, docB);
+      expect(diff).toBeDefined();
+      expect(diff.similarity).toBeDefined();
+      expect(typeof diff.added).toBe('number');
+      expect(typeof diff.removed).toBe('number');
+    });
+
+    it('should return similarity of 1 for identical documents', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const doc = {
+        id: '1',
+        filename: 'same.txt',
+        type: 'text' as const,
+        content: 'Same content',
+        embeddableContent: 'Same content',
+        metadata: { size: 12, lineCount: 1, wordCount: 2 },
+        chunks: [],
+      };
+
+      const diff = result.current.compare(doc, doc);
+      expect(diff.similarity).toBe(1);
+    });
+  });
+
+  describe('detectFileEncoding', () => {
+    it('should detect encoding from ArrayBuffer', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const buffer = new ArrayBuffer(10);
+      const encoding = result.current.detectFileEncoding(buffer);
+      expect(encoding).toBe('utf-8');
+    });
+  });
+
+  describe('processTextDocuments', () => {
+    it('should process multiple text documents synchronously', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const docs = [
+        { id: 'doc-1', filename: 'a.txt', content: 'Content A' },
+        { id: 'doc-2', filename: 'b.txt', content: 'Content B' },
+        { id: 'doc-3', filename: 'c.md', content: '# Heading' },
+      ];
+
+      const processed = result.current.processTextDocuments(docs);
+      expect(processed).toHaveLength(3);
+      expect(processed[0].filename).toBe('a.txt');
+      expect(processed[1].filename).toBe('b.txt');
+      expect(processed[2].filename).toBe('c.md');
+    });
+
+    it('should return empty array for empty input', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const processed = result.current.processTextDocuments([]);
+      expect(processed).toEqual([]);
+    });
+  });
+
+  describe('validate', () => {
+    it('should validate a valid file', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const file = new File(['Hello'], 'test.txt', { type: 'text/plain' });
+      const validation = result.current.validate(file);
+      expect(validation.valid).toBe(true);
+      expect(validation.errors).toEqual([]);
+    });
+
+    it('should reject oversized files', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      // Create a mock File with large size
+      const file = new File(['x'], 'large.txt', { type: 'text/plain' });
+      Object.defineProperty(file, 'size', { value: 100 * 1024 * 1024 }); // 100MB
+
+      const validation = result.current.validate(file);
+      expect(validation.valid).toBe(false);
+      expect(validation.errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('filterValidFiles', () => {
+    it('should separate valid and invalid files', () => {
+      const { result } = renderHook(() => useDocumentProcessor());
+
+      const validFile = new File(['ok'], 'good.txt', { type: 'text/plain' });
+      const invalidFile = new File(['x'], 'big.txt', { type: 'text/plain' });
+      Object.defineProperty(invalidFile, 'size', { value: 100 * 1024 * 1024 });
+
+      const { valid, invalid } = result.current.filterValidFiles([validFile, invalidFile]);
+      expect(valid).toHaveLength(1);
+      expect(valid[0].name).toBe('good.txt');
+      expect(invalid).toHaveLength(1);
+      expect(invalid[0].file.name).toBe('big.txt');
+      expect(invalid[0].errors.length).toBeGreaterThan(0);
     });
   });
 });

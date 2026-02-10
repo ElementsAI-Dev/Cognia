@@ -15,6 +15,7 @@ import type {
   RemoteModelRating,
   LeaderboardPeriod,
 } from '@/types/arena';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 // ============================================
 // API Error Classes
@@ -115,7 +116,7 @@ export class LeaderboardApiClient {
     }
 
     try {
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         ...options,
         headers: { ...this.createHeaders(), ...options.headers },
         signal: controller.signal,

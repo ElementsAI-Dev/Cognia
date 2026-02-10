@@ -5,7 +5,8 @@
 import type { UIMessage, Session } from '@/types';
 import { exportToRichMarkdown, exportToRichJSON } from '../text/rich-markdown';
 import { exportToAnimatedHTML } from '../html/animated-html';
-import { exportToHTML, exportToPlainText } from '../index';
+import { exportToBeautifulHTML } from '../html/beautiful-html';
+import { exportToPlainText } from '../index';
 import JSZip from 'jszip';
 
 export type BatchExportFormat = 'markdown' | 'json' | 'html' | 'animated-html' | 'text' | 'mixed';
@@ -16,6 +17,7 @@ export interface BatchExportOptions {
   includeMetadata?: boolean;
   includeAttachments?: boolean;
   theme?: 'light' | 'dark' | 'system';
+  onProgress?: (current: number, total: number) => void;
 }
 
 export interface SessionWithMessages {
@@ -50,6 +52,8 @@ export async function exportSessionsToZip(
     }
 
     // Export each session
+    let processed = 0;
+    const total = sessions.length;
     for (const { session, messages } of sessions) {
       const safeTitle = sanitizeFilename(session.title);
       const folderName = `${safeTitle}-${session.id.slice(0, 8)}`;
@@ -62,6 +66,9 @@ export async function exportSessionsToZip(
         includeAttachments: options.includeAttachments ?? true,
       };
 
+      processed++;
+      options.onProgress?.(processed, total);
+
       switch (options.format) {
         case 'markdown':
           zip.file(`${folderName}/conversation.md`, exportToRichMarkdown(exportData));
@@ -72,7 +79,10 @@ export async function exportSessionsToZip(
           break;
 
         case 'html':
-          zip.file(`${folderName}/conversation.html`, exportToHTML(exportData));
+          zip.file(`${folderName}/conversation.html`, exportToBeautifulHTML({
+            ...exportData,
+            options: { theme: options.theme ?? 'system' },
+          }));
           break;
 
         case 'animated-html':

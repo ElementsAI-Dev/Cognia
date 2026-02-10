@@ -316,6 +316,89 @@ class MyClass {
     });
   });
 
+  describe('new regex patterns (refactoring additions)', () => {
+    it('should parse export default function', () => {
+      const code = `export default function main() {\n  return 1;\n}`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+
+      const found = symbols.find(s => s.name === 'main');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+
+    it('should parse export default class', () => {
+      const code = `export default class App {\n  render() {}\n}`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+
+      const found = symbols.find(s => s.name === 'App');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('class');
+    });
+
+    it('should parse const function expression', () => {
+      const code = `const handler = function processEvent() {\n  return true;\n}`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+
+      const found = symbols.find(s => s.name === 'handler');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+
+    it('should parse async arrow functions', () => {
+      const code = `const fetchData = async (url) => {\n  return await fetch(url);\n}`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+
+      const found = symbols.find(s => s.name === 'fetchData');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+
+    it('should parse TypeScript abstract class', () => {
+      const code = `export abstract class BaseService {\n  abstract process(): void;\n}`;
+      const symbols = parser.parseSymbols(code, 'typescript');
+
+      const found = symbols.find(s => s.name === 'BaseService');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('class');
+    });
+
+    it('should parse Python functions with decorators', () => {
+      const code = `@app.route('/api')\ndef handle_request():\n    return response`;
+      const symbols = parser.parseSymbols(code, 'python');
+
+      const found = symbols.find(s => s.name === 'handle_request');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+
+    it('should parse Python classes with decorators', () => {
+      const code = `@dataclass\nclass Config:\n    name: str\n    value: int`;
+      const symbols = parser.parseSymbols(code, 'python');
+
+      const found = symbols.find(s => s.name === 'Config');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('class');
+    });
+
+    it('should parse Python async def', () => {
+      const code = `async def fetch_data():\n    return await get_data()`;
+      const symbols = parser.parseSymbols(code, 'python');
+
+      const found = symbols.find(s => s.name === 'fetch_data');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+
+    it('should parse export default async function', () => {
+      const code = `export default async function loader() {\n  return data;\n}`;
+      const symbols = parser.parseSymbols(code, 'javascript');
+
+      const found = symbols.find(s => s.name === 'loader');
+      expect(found).toBeDefined();
+      expect(found?.kind).toBe('function');
+    });
+  });
+
   describe('singleton instance', () => {
     it('should export a singleton instance', () => {
       expect(symbolParser).toBeInstanceOf(SymbolParser);

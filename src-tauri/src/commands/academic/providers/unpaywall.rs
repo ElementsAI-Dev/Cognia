@@ -5,7 +5,7 @@
 
 use super::AcademicProvider;
 use crate::commands::academic::types::*;
-use crate::http::HTTP_CLIENT;
+use crate::http::create_proxy_client;
 use async_trait::async_trait;
 use serde::Deserialize;
 
@@ -190,7 +190,7 @@ impl AcademicProvider for UnpaywallProvider {
         // Test with a known DOI
         let url = format!("{}/10.1038/nature12373?email={}", UNPAYWALL_API_URL, email);
         
-        match HTTP_CLIENT.get(&url).send().await {
+        match create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?.get(&url).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(e) => Err(format!("Connection test failed: {}", e)),
         }
@@ -215,7 +215,7 @@ impl AcademicProvider for UnpaywallProvider {
         
         log::debug!("Unpaywall lookup URL: {}", url);
         
-        let response = HTTP_CLIENT
+        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
             .get(&url)
             .send()
             .await

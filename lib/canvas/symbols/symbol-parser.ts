@@ -266,8 +266,11 @@ export class SymbolParser {
   private getJavaScriptPatterns(): SymbolPattern[] {
     return [
       { regex: /(?:export\s+)?(?:async\s+)?function\s+(\w+)/g, kind: 'function', hasChildren: true },
+      { regex: /export\s+default\s+(?:async\s+)?function\s+(\w+)/g, kind: 'function', hasChildren: true },
       { regex: /(?:export\s+)?class\s+(\w+)/g, kind: 'class', hasChildren: true },
+      { regex: /export\s+default\s+class\s+(\w+)/g, kind: 'class', hasChildren: true },
       { regex: /(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/g, kind: 'function' },
+      { regex: /(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?function/g, kind: 'function' },
       { regex: /(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=/g, kind: 'variable' },
     ];
   }
@@ -278,13 +281,14 @@ export class SymbolParser {
       { regex: /(?:export\s+)?interface\s+(\w+)/g, kind: 'interface', hasChildren: true },
       { regex: /(?:export\s+)?type\s+(\w+)\s*=/g, kind: 'typeParameter' },
       { regex: /(?:export\s+)?enum\s+(\w+)/g, kind: 'enum', hasChildren: true },
+      { regex: /(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/g, kind: 'class', hasChildren: true },
     ];
   }
 
   private getPythonPatterns(): SymbolPattern[] {
     return [
-      { regex: /^(?:async\s+)?def\s+(\w+)/gm, kind: 'function', hasChildren: true },
-      { regex: /^class\s+(\w+)/gm, kind: 'class', hasChildren: true },
+      { regex: /^(?:@\w+(?:\([^)]*\))?[\s\S]*?)?(?:async\s+)?def\s+(\w+)/gm, kind: 'function', hasChildren: true },
+      { regex: /^(?:@\w+(?:\([^)]*\))?[\s\S]*?)?class\s+(\w+)/gm, kind: 'class', hasChildren: true },
       { regex: /^(\w+)\s*=/gm, kind: 'variable' },
     ];
   }

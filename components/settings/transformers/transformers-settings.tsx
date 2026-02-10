@@ -5,9 +5,9 @@
  * Configure browser-based ML model inference settings.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Cpu, HardDrive, Trash2, Download, Zap } from 'lucide-react';
+import { Brain, Cpu, HardDrive, Trash2, Download, Zap, Loader2, Play, Square, AlertCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -23,8 +23,27 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
-import { isWebGPUAvailable, isWebWorkerAvailable, RECOMMENDED_MODELS, TASK_DISPLAY_NAMES } from '@/lib/ai/transformers';
+import { isWebGPUAvailable, isWebWorkerAvailable, RECOMMENDED_MODELS } from '@/lib/ai/transformers';
 import type { TransformersDtype, TransformersTask } from '@/types/transformers';
+
+/**
+ * Map task ID to i18n key
+ */
+const TASK_I18N_KEYS: Record<string, string> = {
+  'feature-extraction': 'tasks.featureExtraction',
+  'text-classification': 'tasks.textClassification',
+  'translation': 'tasks.translation',
+  'summarization': 'tasks.summarization',
+  'text-generation': 'tasks.textGeneration',
+  'question-answering': 'tasks.questionAnswering',
+  'zero-shot-classification': 'tasks.zeroShotClassification',
+  'automatic-speech-recognition': 'tasks.automaticSpeechRecognition',
+  'image-classification': 'tasks.imageClassification',
+  'object-detection': 'tasks.objectDetection',
+  'fill-mask': 'tasks.fillMask',
+  'token-classification': 'tasks.tokenClassification',
+  'sentence-similarity': 'tasks.sentenceSimilarity',
+};
 
 export function TransformersSettings({ className }: { className?: string }) {
   const t = useTranslations('settings.transformers');
@@ -35,11 +54,13 @@ export function TransformersSettings({ className }: { className?: string }) {
     models,
     isWebGPUAvailable: webGPUAvailable,
     setWebGPUAvailable,
+    setModelStatus,
     removeModel,
     clearAllModels,
   } = useTransformersStore();
 
   const webWorkerAvailable = isWebWorkerAvailable();
+  const [loadingModelId, setLoadingModelId] = useState<string | null>(null);
 
   useEffect(() => {
     setWebGPUAvailable(isWebGPUAvailable());
@@ -47,6 +68,52 @@ export function TransformersSettings({ className }: { className?: string }) {
 
   const loadedModels = models.filter((m) => m.status === 'ready');
   const downloadingModels = models.filter((m) => m.status === 'downloading' || m.status === 'loading');
+
+  const getTaskLabel = useCallback((task: string): string => {
+    const key = TASK_I18N_KEYS[task];
+    return key ? t(key) : task;
+  }, [t]);
+
+  const getModelStatus = useCallback((modelId: string) => {
+    return models.find((m) => m.modelId === modelId);
+  }, [models]);
+
+  const handleLoadModel = useCallback(async (task: TransformersTask, modelId: string) => {
+    if (loadingModelId) return;
+    setLoadingModelId(modelId);
+    setModelStatus(modelId, task, 'downloading', 0);
+
+    try {
+      const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+      const manager = getTransformersManager();
+      const resolvedDevice = settings.preferWebGPU && isWebGPUAvailable() ? 'webgpu' : 'wasm';
+
+      await manager.loadModel(task, modelId, {
+        device: resolvedDevice,
+        dtype: settings.defaultDtype,
+        onProgress: (p) => {
+          setModelStatus(modelId, task, p.status === 'ready' ? 'ready' : 'downloading', p.progress);
+        },
+      });
+      setModelStatus(modelId, task, 'ready', 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setModelStatus(modelId, task, 'error', 0, message);
+    } finally {
+      setLoadingModelId(null);
+    }
+  }, [loadingModelId, settings.preferWebGPU, settings.defaultDtype, setModelStatus]);
+
+  const handleUnloadModel = useCallback(async (task: TransformersTask, modelId: string) => {
+    try {
+      const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+      const manager = getTransformersManager();
+      await manager.dispose(task, modelId);
+      removeModel(modelId);
+    } catch (err) {
+      console.error('Failed to unload model:', err);
+    }
+  }, [removeModel]);
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -216,7 +283,7 @@ export function TransformersSettings({ className }: { className?: string }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-mono truncate">{model.modelId}</p>
                         <p className="text-xs text-muted-foreground">
-                          {TASK_DISPLAY_NAMES[model.task] ?? model.task}
+                          {getTaskLabel(model.task)}
                           {model.loadedAt && (
                             <> · {t('loaded')} {new Date(model.loadedAt).toLocaleTimeString()}</>
                           )}
@@ -224,11 +291,12 @@ export function TransformersSettings({ className }: { className?: string }) {
                       </div>
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0"
-                        onClick={() => removeModel(model.modelId)}
+                        size="sm"
+                        className="h-7 shrink-0 text-xs text-destructive hover:text-destructive"
+                        onClick={() => handleUnloadModel(model.task, model.modelId)}
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Square className="h-3 w-3 mr-1" />
+                        {t('unloadModel')}
                       </Button>
                     </div>
                   ))}
@@ -253,32 +321,92 @@ export function TransformersSettings({ className }: { className?: string }) {
                     return (
                       <div key={task}>
                         <h4 className="text-sm font-medium mb-2">
-                          {TASK_DISPLAY_NAMES[task] ?? task}
+                          {getTaskLabel(task)}
                         </h4>
                         <div className="space-y-1.5">
-                          {taskModels.map((model) => (
-                            <div
-                              key={model.modelId}
-                              className="flex items-center justify-between p-2 rounded-md border text-sm"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium">{model.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {model.description}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0 ml-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {model.sizeInMB}MB
-                                </Badge>
-                                {model.dimensions && (
+                          {taskModels.map((model) => {
+                            const status = getModelStatus(model.modelId);
+                            const isReady = status?.status === 'ready';
+                            const isDownloading = status?.status === 'downloading' || status?.status === 'loading';
+                            const isError = status?.status === 'error';
+                            const isCurrentlyLoading = loadingModelId === model.modelId;
+
+                            return (
+                              <div
+                                key={model.modelId}
+                                className="flex items-center justify-between p-2 rounded-md border text-sm"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-medium">{model.name}</p>
+                                    {isReady && (
+                                      <Badge variant="default" className="text-[10px] h-4 px-1">
+                                        {t('modelReady')}
+                                      </Badge>
+                                    )}
+                                    {isError && (
+                                      <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                                        <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                        {t('modelError')}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {model.description}
+                                  </p>
+                                  {isError && status?.error && (
+                                    <p className="text-xs text-destructive mt-0.5 truncate">
+                                      {status.error}
+                                    </p>
+                                  )}
+                                  {isDownloading && (
+                                    <Progress value={status?.progress ?? 0} className="h-1 mt-1" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-2">
                                   <Badge variant="outline" className="text-xs">
-                                    {model.dimensions}d
+                                    {model.sizeInMB}MB
                                   </Badge>
-                                )}
+                                  {model.dimensions && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {model.dimensions}d
+                                    </Badge>
+                                  )}
+                                  {isReady ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => handleUnloadModel(task, model.modelId)}
+                                    >
+                                      <Square className="h-3 w-3 mr-1" />
+                                      {t('unloadModel')}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      disabled={isCurrentlyLoading || isDownloading}
+                                      onClick={() => handleLoadModel(task, model.modelId)}
+                                    >
+                                      {isCurrentlyLoading || isDownloading ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                          {t('modelLoading')}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Play className="h-3 w-3 mr-1" />
+                                          {t('loadModel')}
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );

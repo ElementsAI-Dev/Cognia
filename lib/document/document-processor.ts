@@ -5,51 +5,11 @@
 
 import { parseMarkdown, extractEmbeddableContent as extractMarkdownContent } from './parsers/markdown-parser';
 import { parseCode, extractCodeEmbeddableContent, detectLanguage } from './parsers/code-parser';
-import { chunkDocument, type ChunkingOptions, type DocumentChunk } from '@/lib/ai/embedding/chunking';
+import { chunkDocument, type ChunkingOptions } from '@/lib/ai/embedding/chunking';
 
-// Types imported statically, implementations loaded dynamically to reduce bundle size
-import type { PDFParseResult } from './parsers/pdf-parser';
-import type { WordParseResult, ExcelParseResult } from './parsers/office-parser';
-import type { CSVParseResult } from './parsers/csv-parser';
-import type { HTMLParseResult } from './parsers/html-parser';
-
-export type DocumentType = 
-  | 'markdown'
-  | 'code'
-  | 'text'
-  | 'json'
-  | 'pdf'
-  | 'word'
-  | 'excel'
-  | 'csv'
-  | 'html'
-  | 'rtf'
-  | 'epub'
-  | 'presentation'
-  | 'unknown';
-
-export interface ProcessedDocument {
-  id: string;
-  filename: string;
-  type: DocumentType;
-  content: string;
-  embeddableContent: string;
-  metadata: DocumentMetadata;
-  chunks?: DocumentChunk[];
-  parseResult?: PDFParseResult | WordParseResult | ExcelParseResult | CSVParseResult | HTMLParseResult;
-}
-
-export interface DocumentMetadata {
-  title?: string;
-  language?: string;
-  size: number;
-  lineCount: number;
-  wordCount: number;
-  createdAt?: Date;
-  modifiedAt?: Date;
-  tags?: string[];
-  [key: string]: unknown;
-}
+// Re-export canonical types from @/types/document for API compatibility
+export type { DocumentType, DocumentMetadata, ProcessedDocument } from '@/types/document';
+import type { DocumentType, DocumentMetadata, ProcessedDocument } from '@/types/document';
 
 export interface ProcessingOptions {
   extractEmbeddable?: boolean;

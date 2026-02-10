@@ -6,7 +6,7 @@
  * Fully responsive with mobile-optimized layouts
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText, RotateCcw, Ruler, Settings2, Check } from 'lucide-react';
 import {
@@ -84,6 +84,11 @@ export function PageLayoutDialog({
   const [localSettings, setLocalSettings] = useState<PageLayoutSettings>(settings);
   const [marginPreset, setMarginPreset] = useState<string>('normal');
   const isDesktop = useMediaQuery('(min-width: 640px)');
+
+  // Sync localSettings when external settings prop changes
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
 
   const handleSave = useCallback(() => {
     onSettingsChange(localSettings);

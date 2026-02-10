@@ -3,6 +3,7 @@
 //! Generic commands for interacting with OpenAI-compatible local inference servers
 //! (LM Studio, llama.cpp, vLLM, LocalAI, Jan, etc.)
 
+use crate::http::get_client_for_url;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
@@ -199,10 +200,7 @@ pub async fn local_provider_get_status(
     let url = normalize_base_url(&base_url.unwrap_or_else(|| provider_id.default_base_url()));
     let start_time = std::time::Instant::now();
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_client_for_url(&url).map_err(|e| e.to_string())?;
 
     // Try health endpoint
     let health_url = format!("{}{}", url, provider_id.health_endpoint());
@@ -281,7 +279,7 @@ pub async fn local_provider_list_models(
     base_url: Option<String>,
 ) -> Result<Vec<LocalModelInfo>, String> {
     let url = normalize_base_url(&base_url.unwrap_or_else(|| provider_id.default_base_url()));
-    let client = reqwest::Client::new();
+    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let models_url = format!("{}{}", url, provider_id.models_endpoint());
     let response = client
@@ -489,7 +487,7 @@ pub async fn local_provider_pull_model(
     match provider_id {
         LocalProviderId::Localai => {
             // LocalAI model installation
-            let client = reqwest::Client::new();
+            let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
             let response = client
                 .post(format!("{}/models/apply", url))
                 .json(&serde_json::json!({
@@ -521,7 +519,7 @@ pub async fn local_provider_pull_model(
         }
         LocalProviderId::Jan => {
             // Jan model download via API
-            let client = reqwest::Client::new();
+            let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
             let response = client
                 .post(format!("{}/v1/models/download", url))
                 .json(&serde_json::json!({
@@ -553,7 +551,7 @@ pub async fn local_provider_delete_model(
     model_name: String,
 ) -> Result<bool, String> {
     let url = normalize_base_url(&base_url.unwrap_or_else(|| provider_id.default_base_url()));
-    let client = reqwest::Client::new();
+    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     match provider_id {
         LocalProviderId::Localai => {

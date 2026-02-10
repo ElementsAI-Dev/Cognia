@@ -5,6 +5,7 @@
  */
 
 import type { PluginManifest } from '@/types/plugin';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '../core/logger';
 
 // =============================================================================
@@ -152,7 +153,7 @@ export class PluginMarketplace {
       if (options.limit) params.set('limit', String(options.limit));
       if (options.offset) params.set('offset', String(options.offset));
 
-      const response = await fetch(`${this.config.registryUrl}/plugins?${params}`);
+      const response = await proxyFetch(`${this.config.registryUrl}/plugins?${params}`);
       if (!response.ok) throw new Error('Failed to search plugins');
 
       const result: PluginSearchResult = await response.json();
@@ -174,7 +175,7 @@ export class PluginMarketplace {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.config.registryUrl}/plugins/${pluginId}`);
+      const response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}`);
       if (!response.ok) {
         if (response.status === 404) return null;
         throw new Error('Failed to get plugin');
@@ -198,7 +199,7 @@ export class PluginMarketplace {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.config.registryUrl}/plugins/${pluginId}/versions`);
+      const response = await proxyFetch(`${this.config.registryUrl}/plugins/${pluginId}/versions`);
       if (!response.ok) throw new Error('Failed to get versions');
 
       const versions: PluginVersionInfo[] = await response.json();
@@ -243,7 +244,7 @@ export class PluginMarketplace {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.config.registryUrl}/categories`);
+      const response = await proxyFetch(`${this.config.registryUrl}/categories`);
       if (!response.ok) throw new Error('Failed to get categories');
 
       const categories = await response.json();

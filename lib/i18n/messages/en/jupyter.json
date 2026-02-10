@@ -46,6 +46,19 @@
     "exportNotebook": "Download notebook",
     "clearOutputs": "Clear all outputs",
     "copyCell": "Copy cell",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "editCell": "Edit cell",
+    "cancelEdit": "Cancel edit",
+    "deleteCell": "Delete cell",
+    "enterCode": "# Enter code...",
+    "enterMarkdown": "Enter markdown...",
+    "saveHint": "Ctrl+Enter to save · Esc to cancel",
+    "cancel": "Cancel",
+    "save": "Save",
+    "batchSelect": "Toggle batch selection",
+    "cellCollapsed": "Cell collapsed",
+    "cellExpanded": "Cell expanded"
   }
 }

@@ -20,7 +20,7 @@ import { ImportExportDialog } from './import-export-dialog';
 import { ProjectTemplatesDialog } from './project-templates';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+
 import {
   Tooltip,
   TooltipContent,
@@ -48,7 +48,6 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   const projects = useProjectStore((state) => state.projects);
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
@@ -66,19 +65,15 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const stats = useMemo(() => {
     const totalProjects = projects.length;
     const totalSessions = sessions.filter(s => s.projectId).length;
-    const now = Date.now();
-    const recentProjects = projects.filter(p => {
-      const dayAgo = now - 24 * 60 * 60 * 1000;
-      return new Date(p.updatedAt).getTime() > dayAgo;
-    }).length;
-    
-    // Mark loading as complete once we have data
-    if (isLoading) {
-      setIsLoading(false);
-    }
+    const dayAgo = new Date();
+    dayAgo.setDate(dayAgo.getDate() - 1);
+    const dayAgoTime = dayAgo.getTime();
+    const recentProjects = projects.filter(p =>
+      new Date(p.updatedAt).getTime() > dayAgoTime
+    ).length;
     
     return { totalProjects, totalSessions, recentProjects };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recentProjects is approximate, ok to recalc on projects/sessions change
   }, [projects.length, sessions.length]);
 
   const filteredProjects = useMemo(() => {
@@ -242,27 +237,7 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
       </InputGroup>
 
       {/* Projects Grid */}
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : filteredProjects.length > 0 ? (
+      {filteredProjects.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <ProjectCard

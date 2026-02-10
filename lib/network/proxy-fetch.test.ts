@@ -11,6 +11,7 @@ import {
   getProxyEnvironmentVars,
   formatProxiedUrl,
   getProxyAuthHeaders,
+  shouldBypassProxy,
   proxyFetch,
   retryableProxyFetch,
 } from './proxy-fetch';
@@ -495,6 +496,109 @@ describe('getProxyAuthHeaders', () => {
 
     const headers = getProxyAuthHeaders();
     expect(headers).toEqual({});
+  });
+});
+
+describe('shouldBypassProxy', () => {
+  it('bypasses localhost with port', () => {
+    expect(shouldBypassProxy('http://localhost:11434/api/generate')).toBe(true);
+  });
+
+  it('bypasses localhost with path', () => {
+    expect(shouldBypassProxy('http://localhost/api/generate')).toBe(true);
+  });
+
+  it('bypasses 127.0.0.1 with port', () => {
+    expect(shouldBypassProxy('http://127.0.0.1:8080/test')).toBe(true);
+  });
+
+  it('bypasses 127.0.0.1 with path', () => {
+    expect(shouldBypassProxy('http://127.0.0.1/test')).toBe(true);
+  });
+
+  it('bypasses ::1 with port', () => {
+    expect(shouldBypassProxy('http://::1:3000/api')).toBe(true);
+  });
+
+  it('bypasses 0.0.0.0 with port', () => {
+    expect(shouldBypassProxy('http://0.0.0.0:8080/')).toBe(true);
+  });
+
+  it('is case-insensitive', () => {
+    expect(shouldBypassProxy('HTTP://LOCALHOST:3000/api')).toBe(true);
+  });
+
+  it('does not bypass external hosts', () => {
+    expect(shouldBypassProxy('https://api.openai.com/v1/chat')).toBe(false);
+  });
+
+  it('does not bypass external hosts with port', () => {
+    expect(shouldBypassProxy('https://api.example.com:443/test')).toBe(false);
+  });
+
+  it('does not bypass hosts containing localhost in domain', () => {
+    expect(shouldBypassProxy('https://notlocalhost.com/api')).toBe(false);
+  });
+
+  it('handles URL ending with host only', () => {
+    expect(shouldBypassProxy('http://localhost')).toBe(true);
+  });
+});
+
+describe('createProxyFetch bypass behavior', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockResolvedValue(new MockResponse('ok'));
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  });
+
+  it('bypasses proxy for localhost URL', async () => {
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'http://proxy:8080' },
+      },
+    });
+
+    const fetchFn = createProxyFetch();
+    await fetchFn('http://localhost:11434/api/generate');
+
+    // Should call regular fetch (not go through proxy)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:11434/api/generate',
+      {}
+    );
+  });
+
+  it('bypasses proxy for 127.0.0.1 URL', async () => {
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'http://proxy:8080' },
+      },
+    });
+
+    const fetchFn = createProxyFetch();
+    await fetchFn('http://127.0.0.1:8080/api');
+
+    expect(mockFetch).toHaveBeenCalled();
+  });
+
+  it('does not bypass proxy for external URL', async () => {
+    mockGetState.mockReturnValue({
+      config: {
+        enabled: true,
+        mode: 'manual',
+        manual: { url: 'http://proxy:8080' },
+      },
+    });
+
+    const fetchFn = createProxyFetch();
+    await fetchFn('https://api.openai.com/v1/chat');
+
+    expect(mockFetch).toHaveBeenCalled();
   });
 });
 

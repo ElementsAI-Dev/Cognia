@@ -337,7 +337,35 @@
       "noModelsLoaded": "No models loaded yet. Models are loaded on first use.",
       "availableModels": "Available Models",
       "availableModelsDesc": "Pre-configured ONNX models optimized for browser inference",
-      "loaded": "Loaded"
+      "loaded": "Loaded",
+      "loadModel": "Load",
+      "unloadModel": "Unload",
+      "modelLoading": "Loading...",
+      "modelError": "Error",
+      "modelReady": "Ready",
+      "modelIdle": "Not loaded",
+      "tasks": {
+        "featureExtraction": "Embeddings / Feature Extraction",
+        "textClassification": "Text Classification",
+        "translation": "Translation",
+        "summarization": "Summarization",
+        "textGeneration": "Text Generation",
+        "questionAnswering": "Question Answering",
+        "zeroShotClassification": "Zero-Shot Classification",
+        "automaticSpeechRecognition": "Speech Recognition",
+        "imageClassification": "Image Classification",
+        "objectDetection": "Object Detection",
+        "fillMask": "Fill Mask",
+        "tokenClassification": "Named Entity Recognition",
+        "sentenceSimilarity": "Sentence Similarity"
+      },
+      "errors": {
+        "notEnabledOrSupported": "Transformers.js is not enabled or not supported in this browser.",
+        "modelLoadFailed": "Failed to load model: {error}",
+        "inferenceFailed": "Inference failed: {error}",
+        "workerError": "Worker error occurred. Please try again.",
+        "disposeFailed": "Failed to unload model."
+      }
     }
   },
   "searchSettings": {

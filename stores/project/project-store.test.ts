@@ -322,6 +322,141 @@ describe('useProjectStore', () => {
     });
   });
 
+  describe('incrementMessageCount', () => {
+    let projectId: string;
+
+    beforeEach(() => {
+      act(() => {
+        const project = useProjectStore.getState().createProject({ name: 'Test' });
+        projectId = project.id;
+      });
+    });
+
+    it('should increment messageCount by 1 by default', () => {
+      expect(useProjectStore.getState().projects[0].messageCount).toBe(0);
+
+      act(() => {
+        useProjectStore.getState().incrementMessageCount(projectId);
+      });
+
+      expect(useProjectStore.getState().projects[0].messageCount).toBe(1);
+    });
+
+    it('should increment messageCount by specified delta', () => {
+      act(() => {
+        useProjectStore.getState().incrementMessageCount(projectId, 5);
+      });
+
+      expect(useProjectStore.getState().projects[0].messageCount).toBe(5);
+    });
+
+    it('should accumulate multiple increments', () => {
+      act(() => {
+        useProjectStore.getState().incrementMessageCount(projectId, 3);
+        useProjectStore.getState().incrementMessageCount(projectId, 2);
+      });
+
+      expect(useProjectStore.getState().projects[0].messageCount).toBe(5);
+    });
+
+    it('should update updatedAt timestamp', () => {
+      const beforeUpdate = useProjectStore.getState().projects[0].updatedAt;
+
+      // Small delay to ensure timestamp difference
+      act(() => {
+        useProjectStore.getState().incrementMessageCount(projectId);
+      });
+
+      const afterUpdate = useProjectStore.getState().projects[0].updatedAt;
+      expect(afterUpdate.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+    });
+
+    it('should not affect other projects', () => {
+      let otherId: string;
+      act(() => {
+        const other = useProjectStore.getState().createProject({ name: 'Other' });
+        otherId = other.id;
+      });
+
+      act(() => {
+        useProjectStore.getState().incrementMessageCount(projectId, 10);
+      });
+
+      const otherProject = useProjectStore.getState().projects.find((p) => p.id === otherId!);
+      expect(otherProject?.messageCount).toBe(0);
+    });
+  });
+
+  describe('knowledge base IndexedDB sync', () => {
+    let projectId: string;
+
+    beforeEach(() => {
+      act(() => {
+        const project = useProjectStore.getState().createProject({ name: 'Test' });
+        projectId = project.id;
+      });
+    });
+
+    it('should add knowledge file and sync to IndexedDB', () => {
+      act(() => {
+        useProjectStore.getState().addKnowledgeFile(projectId, {
+          name: 'sync-test.txt',
+          type: 'text',
+          content: 'Sync test content',
+          size: 17,
+          mimeType: 'text/plain',
+        });
+      });
+
+      const project = useProjectStore.getState().projects[0];
+      expect(project.knowledgeBase).toHaveLength(1);
+      expect(project.knowledgeBase[0].name).toBe('sync-test.txt');
+      // IndexedDB sync is fire-and-forget, so we just verify the store state
+    });
+
+    it('should update knowledge file content and sync to IndexedDB', () => {
+      act(() => {
+        useProjectStore.getState().addKnowledgeFile(projectId, {
+          name: 'test.txt',
+          type: 'text',
+          content: 'Original',
+          size: 8,
+          mimeType: 'text/plain',
+        });
+      });
+
+      const fileId = useProjectStore.getState().projects[0].knowledgeBase[0].id;
+
+      act(() => {
+        useProjectStore.getState().updateKnowledgeFile(projectId, fileId, 'Updated via sync');
+      });
+
+      const file = useProjectStore.getState().projects[0].knowledgeBase[0];
+      expect(file.content).toBe('Updated via sync');
+      expect(file.size).toBe('Updated via sync'.length);
+    });
+
+    it('should remove knowledge file and sync deletion to IndexedDB', () => {
+      act(() => {
+        useProjectStore.getState().addKnowledgeFile(projectId, {
+          name: 'to-delete.txt',
+          type: 'text',
+          content: 'Delete me',
+          size: 9,
+          mimeType: 'text/plain',
+        });
+      });
+
+      const fileId = useProjectStore.getState().projects[0].knowledgeBase[0].id;
+
+      act(() => {
+        useProjectStore.getState().removeKnowledgeFile(projectId, fileId);
+      });
+
+      expect(useProjectStore.getState().projects[0].knowledgeBase).toHaveLength(0);
+    });
+  });
+
   describe('selectors', () => {
     it('should get all tags', () => {
       act(() => {

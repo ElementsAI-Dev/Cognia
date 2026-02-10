@@ -11,6 +11,11 @@ import type {
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 // Mock credential storage
 jest.mock('../credential-storage', () => ({
   getWebDAVPassword: jest.fn().mockResolvedValue('test-password'),
@@ -33,6 +38,8 @@ describe('WebDAVProvider', () => {
     syncOnExit: false,
     conflictResolution: 'newest',
     syncDirection: 'bidirectional',
+    maxBackups: 10,
+    syncDataTypes: [],
     serverUrl: 'https://dav.example.com',
     username: 'testuser',
     remotePath: '/cognia-sync/',
@@ -42,7 +49,7 @@ describe('WebDAVProvider', () => {
   let provider: WebDAVProvider;
 
   beforeEach(() => {
-    mockFetch.mockClear();
+    mockFetch.mockReset();
     provider = new WebDAVProvider(mockConfig, 'test-password');
   });
 
@@ -66,12 +73,16 @@ describe('WebDAVProvider', () => {
     });
 
     it('should return error when connection fails', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      // Reject both PROPFIND (exists) and MKCOL (createDirectory) calls
+      mockFetch.mockRejectedValue(new Error('Network error'));
 
       const result = await provider.testConnection();
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+
+      // Reset to prevent leaking to other tests
+      mockFetch.mockReset();
     });
 
     it('should return error when server returns 401', async () => {
@@ -301,6 +312,8 @@ describe('SimpleWebDAVClient', () => {
         syncOnExit: false,
         conflictResolution: 'newest',
         syncDirection: 'bidirectional',
+        maxBackups: 10,
+        syncDataTypes: [],
         serverUrl: 'https://dav.example.com',
         username: 'user',
         remotePath: '/test/',

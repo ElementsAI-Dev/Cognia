@@ -337,7 +337,35 @@
       "noModelsLoaded": "尚未加载任何模型。模型会在首次使用时自动加载。",
       "availableModels": "可用模型",
       "availableModelsDesc": "预配置的 ONNX 模型，针对浏览器推理进行了优化",
-      "loaded": "已加载"
+      "loaded": "已加载",
+      "loadModel": "加载",
+      "unloadModel": "卸载",
+      "modelLoading": "加载中...",
+      "modelError": "错误",
+      "modelReady": "已就绪",
+      "modelIdle": "未加载",
+      "tasks": {
+        "featureExtraction": "嵌入 / 特征提取",
+        "textClassification": "文本分类",
+        "translation": "翻译",
+        "summarization": "文本摘要",
+        "textGeneration": "文本生成",
+        "questionAnswering": "问答",
+        "zeroShotClassification": "零样本分类",
+        "automaticSpeechRecognition": "语音识别",
+        "imageClassification": "图像分类",
+        "objectDetection": "目标检测",
+        "fillMask": "填充掩码",
+        "tokenClassification": "命名实体识别",
+        "sentenceSimilarity": "句子相似度"
+      },
+      "errors": {
+        "notEnabledOrSupported": "Transformers.js 未启用或此浏览器不支持。",
+        "modelLoadFailed": "模型加载失败：{error}",
+        "inferenceFailed": "推理失败：{error}",
+        "workerError": "Worker 出错，请重试。",
+        "disposeFailed": "卸载模型失败。"
+      }
     }
   },
   "searchSettings": {

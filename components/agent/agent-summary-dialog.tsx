@@ -27,6 +27,7 @@ import {
   RefreshCw,
   List,
   BarChart3,
+  Play,
 } from 'lucide-react';
 import { cn, formatDurationShort } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
@@ -58,6 +59,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AgentDemoPreview } from '@/components/export';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useCopy } from '@/hooks/ui';
 import { useSummary } from '@/hooks/chat';
@@ -604,6 +606,16 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            <AgentDemoPreview
+              agent={agent}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Play className="h-4 w-4 mr-1" />
+                  {t('interactiveDemo')}
+                </Button>
+              }
+            />
 
             <Button
               variant="outline"

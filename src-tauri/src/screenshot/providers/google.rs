@@ -243,9 +243,7 @@ impl OcrProvider for GoogleVisionProvider {
             return Err(OcrError::authentication_error("API key is required"));
         }
 
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout_secs))
-            .build()
+        let client = crate::http::create_proxy_client_with_timeout(self.timeout_secs)
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         // Encode image to base64

@@ -7,12 +7,28 @@ import { NextIntlClientProvider } from 'next-intl';
 import { JupyterRenderer } from './jupyter-renderer';
 
 // Mock modules with ESM imports that Jest can't handle
-jest.mock('react-vega', () => ({
-  VegaEmbed: () => null,
+jest.mock('@/components/chat/renderers/code-block', () => ({
+  CodeBlock: ({ code }: { code: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+    return React.createElement('pre', { 'data-testid': 'code-block' }, code);
+  },
 }));
 
-jest.mock('@/components/chat/renderers/vegalite-block', () => ({
-  VegaLiteBlock: () => null,
+jest.mock('@/components/chat/utils', () => ({
+  MarkdownRenderer: ({ content }: { content: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'markdown' }, content);
+  },
+}));
+
+jest.mock('@/components/chat/renderers/math-block', () => ({
+  MathBlock: ({ content }: { content: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require('react');
+    return React.createElement('span', { 'data-testid': 'math-block' }, content);
+  },
 }));
 
 // Mock sandbox hooks to avoid infinite loop issues

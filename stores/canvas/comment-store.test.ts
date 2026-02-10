@@ -258,6 +258,124 @@ describe('useCommentStore', () => {
     });
   });
 
+  describe('Date serialization', () => {
+    it('should store createdAt as Date objects', () => {
+      const { result } = renderHook(() => useCommentStore());
+
+      act(() => {
+        result.current.addComment('doc1', {
+          content: 'Date test',
+          documentId: 'doc1',
+          authorId: 'user1',
+          authorName: 'User 1',
+          range: createRange(1, 1),
+        });
+      });
+
+      const comments = result.current.getCommentsForDocument('doc1');
+      expect(comments[0].createdAt).toBeInstanceOf(Date);
+    });
+
+    it('should store updatedAt as Date after update', () => {
+      const { result } = renderHook(() => useCommentStore());
+
+      let commentId: string;
+      act(() => {
+        const comment = result.current.addComment('doc1', {
+          content: 'Original',
+          documentId: 'doc1',
+          authorId: 'user1',
+          authorName: 'User 1',
+          range: createRange(1, 1),
+        });
+        commentId = comment.id;
+      });
+
+      act(() => {
+        result.current.updateComment('doc1', commentId!, 'Updated');
+      });
+
+      const comments = result.current.getCommentsForDocument('doc1');
+      const updated = comments.find(c => c.id === commentId);
+      expect(updated?.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('should store resolvedAt as Date after resolve', () => {
+      const { result } = renderHook(() => useCommentStore());
+
+      let commentId: string;
+      act(() => {
+        const comment = result.current.addComment('doc1', {
+          content: 'Resolve test',
+          documentId: 'doc1',
+          authorId: 'user1',
+          authorName: 'User 1',
+          range: createRange(1, 1),
+        });
+        commentId = comment.id;
+      });
+
+      act(() => {
+        result.current.resolveComment('doc1', commentId!);
+      });
+
+      const comments = result.current.getCommentsForDocument('doc1');
+      const resolved = comments.find(c => c.id === commentId);
+      expect(resolved?.resolvedAt).toBeInstanceOf(Date);
+    });
+
+    it('should revive Date strings from localStorage via custom storage', () => {
+      // Simulate what the custom storage.getItem does
+      const isoDate = '2025-01-15T10:30:00.000Z';
+      const stored = JSON.stringify({
+        state: {
+          comments: {
+            doc1: [
+              {
+                id: 'c1',
+                content: 'Test',
+                createdAt: isoDate,
+                updatedAt: isoDate,
+                resolvedAt: isoDate,
+                reactions: [],
+              },
+            ],
+          },
+        },
+        version: 0,
+      });
+
+      // Set in localStorage
+      localStorage.setItem('cognia-canvas-comments', stored);
+
+      // Read it back using the custom storage logic
+      const raw = localStorage.getItem('cognia-canvas-comments');
+      expect(raw).toBeTruthy();
+
+      const parsed = JSON.parse(raw!);
+      if (parsed?.state?.comments) {
+        for (const docComments of Object.values(parsed.state.comments)) {
+          if (Array.isArray(docComments)) {
+            for (const comment of docComments as Record<string, unknown>[]) {
+              if (typeof comment.createdAt === 'string') comment.createdAt = new Date(comment.createdAt as string);
+              if (typeof comment.updatedAt === 'string') comment.updatedAt = new Date(comment.updatedAt as string);
+              if (typeof comment.resolvedAt === 'string') comment.resolvedAt = new Date(comment.resolvedAt as string);
+            }
+          }
+        }
+      }
+
+      const revived = parsed.state.comments.doc1[0];
+      expect(revived.createdAt).toBeInstanceOf(Date);
+      expect(revived.updatedAt).toBeInstanceOf(Date);
+      expect(revived.resolvedAt).toBeInstanceOf(Date);
+      expect((revived.createdAt as Date).toISOString()).toBe(isoDate);
+
+      // Cleanup
+      localStorage.removeItem('cognia-canvas-comments');
+    });
+  });
+
   describe('clearDocumentComments', () => {
     it('should clear all comments for a document', () => {
       const { result } = renderHook(() => useCommentStore());

@@ -209,6 +209,28 @@ export const useCommentStore = create<CommentState>()(
       partialize: (state) => ({
         comments: state.comments,
       }),
+      storage: {
+        getItem: (name) => {
+          const raw = localStorage.getItem(name);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          // Revive Date fields from ISO strings
+          if (parsed?.state?.comments) {
+            for (const docComments of Object.values(parsed.state.comments)) {
+              if (Array.isArray(docComments)) {
+                for (const comment of docComments as Record<string, unknown>[]) {
+                  if (typeof comment.createdAt === 'string') comment.createdAt = new Date(comment.createdAt);
+                  if (typeof comment.updatedAt === 'string') comment.updatedAt = new Date(comment.updatedAt);
+                  if (typeof comment.resolvedAt === 'string') comment.resolvedAt = new Date(comment.resolvedAt);
+                }
+              }
+            }
+          }
+          return parsed;
+        },
+        setItem: (name, value) => localStorage.setItem(name, JSON.stringify(value)),
+        removeItem: (name) => localStorage.removeItem(name),
+      },
     }
   )
 );

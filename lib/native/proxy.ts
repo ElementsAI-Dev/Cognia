@@ -214,6 +214,33 @@ export function buildProxyUrlFromDetected(proxy: DetectedProxy): string | null {
   return `http://127.0.0.1:${port}`;
 }
 
+/** Set the global proxy URL in the Rust backend.
+ * 
+ * This syncs the frontend proxy configuration to the backend,
+ * ensuring all Rust HTTP clients use the configured proxy.
+ * Pass null to disable the proxy.
+ */
+export async function setBackendProxy(proxyUrl: string | null): Promise<void> {
+  if (!isTauri()) return;
+  try {
+    await invoke('set_backend_proxy', { proxyUrl: proxyUrl || null });
+    log.info(`Backend proxy ${proxyUrl ? `set to: ${proxyUrl}` : 'disabled'}`);
+  } catch (error) {
+    log.error('Failed to set backend proxy:', error);
+  }
+}
+
+/** Get the current global proxy URL from the Rust backend. */
+export async function getBackendProxy(): Promise<string | null> {
+  if (!isTauri()) return null;
+  try {
+    return await invoke<string | null>('get_backend_proxy');
+  } catch (error) {
+    log.error('Failed to get backend proxy:', error);
+    return null;
+  }
+}
+
 /** Proxy service object for convenient access */
 export const proxyService = {
   isAvailable: isProxyAvailable,
@@ -224,6 +251,8 @@ export const proxyService = {
   checkPort,
   getClashInfo,
   buildUrl: buildProxyUrlFromDetected,
+  setBackendProxy,
+  getBackendProxy,
 };
 
 export default proxyService;

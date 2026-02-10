@@ -48,7 +48,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useArtifactStore, useSettingsStore, useSessionStore } from '@/stores';
+import { useArtifactStore, useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { VersionHistoryPanel } from './version-history-panel';
 import { CodeExecutionPanel } from './code-execution-panel';
@@ -64,25 +64,18 @@ import {
   useCanvasSuggestions,
   useChunkLoader,
   useCanvasMonacoSetup,
+  useCanvasActions,
 } from '@/hooks/canvas';
 import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
-import { isLargeDocument, getMonacoLanguage, calculateDocumentStats } from '@/lib/canvas/utils';
+import { isLargeDocument, getMonacoLanguage, calculateDocumentStats, getFileExtension } from '@/lib/canvas/utils';
 import { symbolParser } from '@/lib/canvas/symbols/symbol-parser';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { createEditorOptions } from '@/lib/monaco';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
 import { DocumentFormatToolbar, type FormatAction } from '@/components/document/document-format-toolbar';
-import {
-  executeCanvasAction,
-  executeCanvasActionStreaming,
-  applyCanvasActionResult,
-  generateDiffPreview,
-  type CanvasActionType,
-  type DiffLine,
-} from '@/lib/ai/generation/canvas-actions';
-import type { ProviderName } from '@/lib/ai/core/client';
+import type { CanvasActionType } from '@/lib/ai/generation/canvas-actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { V0Designer } from '@/components/designer';
@@ -183,31 +176,16 @@ function CanvasPanelContent() {
   const saveCanvasVersion = useArtifactStore((state) => state.saveCanvasVersion);
   const theme = useSettingsStore((state) => state.theme);
 
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-  const getActiveSession = useSessionStore((state) => state.getActiveSession);
-
   const activeDocument = activeCanvasId ? canvasDocuments[activeCanvasId] : null;
   const [localContent, setLocalContent] = useState('');
   const [selection, setSelection] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [actionResult, setActionResult] = useState<string | null>(null);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('english');
   const [copied, setCopied] = useState(false);
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
-
-  // Streaming AI action state
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
-
-  // Diff preview state
-  const [diffPreview, setDiffPreview] = useState<DiffLine[] | null>(null);
-  const [pendingContent, setPendingContent] = useState<string | null>(null);
 
   // Code execution hook
   const {
@@ -236,17 +214,49 @@ function CanvasPanelContent() {
     generateSuggestions,
   } = useCanvasSuggestions();
 
+  // AI actions hook - handles streaming, diff preview, action execution
+  const handleActionContentChange = useCallback(
+    (newContent: string) => {
+      setLocalContent(newContent);
+      if (activeCanvasId) {
+        updateCanvasDocument(activeCanvasId, { content: newContent });
+        setHasUnsavedChanges(true);
+      }
+    },
+    [activeCanvasId, updateCanvasDocument]
+  );
+
+  const {
+    isProcessing,
+    isStreaming,
+    streamingContent,
+    actionError,
+    actionResult,
+    diffPreview,
+    handleAction,
+    acceptDiffChanges,
+    rejectDiffChanges,
+    setActionError: _setActionError,
+    setActionResult,
+  } = useCanvasActions({
+    content: localContent,
+    language: activeDocument?.language || 'plaintext',
+    selection,
+    activeCanvasId,
+    onContentChange: handleActionContentChange,
+    onGenerateSuggestions: generateSuggestions,
+  });
+
   // Canvas Monaco setup - integrates snippets, symbols, themes, plugins
   const {
     symbols: documentSymbols,
     breadcrumb: symbolBreadcrumb,
-    currentSymbol: _currentSymbol,
     availableThemes,
     activeThemeId: canvasThemeId,
     setActiveTheme: setCanvasTheme,
     handleEditorMount: onCanvasEditorMount,
-    handleEditorWillUnmount: _onCanvasEditorUnmount,
     goToSymbol,
+    editorRef: canvasEditorRef,
   } = useCanvasMonacoSetup({
     documentId: activeCanvasId,
     language: activeDocument?.language || 'plaintext',
@@ -258,13 +268,8 @@ function CanvasPanelContent() {
 
   // Large file optimization
   const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
-  const { isLargeDocument: isLargeDoc, state: chunkState } = useChunkLoader(activeCanvasId);
+  const { isLargeDocument: _isLargeDoc } = useChunkLoader(activeCanvasId);
   const isLargeFile = activeDocument ? isLargeDocument(activeDocument.content || '') : false;
-
-  // Use chunk loader state for large documents
-  const _chunkLoaderInfo = isLargeDoc
-    ? { totalLines: chunkState.totalLines, isLoading: chunkState.isLoading }
-    : null;
 
   // Initialize chunked document for large files
   useEffect(() => {
@@ -337,23 +342,7 @@ function CanvasPanelContent() {
   const handleExport = useCallback(() => {
     if (!activeDocument) return;
 
-    const extensionMap: Record<string, string> = {
-      javascript: 'js',
-      typescript: 'ts',
-      python: 'py',
-      html: 'html',
-      css: 'css',
-      json: 'json',
-      markdown: 'md',
-      jsx: 'jsx',
-      tsx: 'tsx',
-      sql: 'sql',
-      bash: 'sh',
-      yaml: 'yaml',
-      xml: 'xml',
-    };
-
-    const ext = extensionMap[activeDocument.language] || 'txt';
+    const ext = getFileExtension(activeDocument.language);
     const filename = `${activeDocument.title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
     const blob = new Blob([localContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -374,6 +363,12 @@ function CanvasPanelContent() {
   const lastSavedContentRef = useRef<string>('');
 
   useEffect(() => {
+    // Clear pending auto-save from previous document to prevent stale saves
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+
     if (activeDocument) {
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
@@ -496,164 +491,6 @@ function CanvasPanelContent() {
     }
   }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
 
-  const handleAction = useCallback(
-    async (
-      action: {
-        type: CanvasActionType;
-        labelKey?: string;
-        label?: string;
-        icon?: string;
-        shortcut?: string;
-      },
-      translateTargetLang?: string
-    ) => {
-      if (!activeDocument) return;
-
-      setIsProcessing(true);
-      setActionError(null);
-      setActionResult(null);
-
-      // Get provider and model from session or defaults
-      const session = getActiveSession();
-      const provider = (session?.provider || defaultProvider || 'openai') as ProviderName;
-      const model = session?.model || providerSettings[provider]?.defaultModel || 'gpt-4o-mini';
-      const settings = providerSettings[provider];
-
-      if (!settings?.apiKey && provider !== 'ollama') {
-        setActionError(
-          `No API key configured for ${provider}. Please add your API key in Settings.`
-        );
-        setIsProcessing(false);
-        return;
-      }
-
-      const contentActions = ['fix', 'improve', 'simplify', 'expand', 'translate', 'format'];
-      const isContentAction = contentActions.includes(action.type);
-      const actionConfig = {
-        provider,
-        model,
-        apiKey: settings?.apiKey || '',
-        baseURL: settings?.baseURL,
-      };
-      const actionOptions = {
-        language: activeDocument.language,
-        selection: selection || undefined,
-        targetLanguage: translateTargetLang,
-      };
-
-      try {
-        if (isContentAction) {
-          // Use streaming for content-modifying actions
-          setIsStreaming(true);
-          setStreamingContent('');
-
-          await executeCanvasActionStreaming(
-            action.type as CanvasActionType,
-            localContent,
-            actionConfig,
-            {
-              onToken: (token) => {
-                setStreamingContent((prev) => prev + token);
-              },
-              onComplete: (fullText) => {
-                setIsStreaming(false);
-                // Generate diff preview
-                const newContent = applyCanvasActionResult(
-                  localContent,
-                  fullText,
-                  selection || undefined
-                );
-                const diff = generateDiffPreview(localContent, newContent);
-                setDiffPreview(diff);
-                setPendingContent(newContent);
-                setStreamingContent('');
-              },
-              onError: (error) => {
-                setIsStreaming(false);
-                setStreamingContent('');
-                setActionError(error);
-              },
-            },
-            actionOptions
-          );
-        } else {
-          // Use non-streaming for review/explain/run actions
-          const result = await executeCanvasAction(
-            action.type as CanvasActionType,
-            localContent,
-            actionConfig,
-            actionOptions
-          );
-
-          if (result.success && result.result) {
-            if (action.type === 'review') {
-              generateSuggestions(
-                {
-                  content: localContent,
-                  language: activeDocument.language,
-                  selection: selection || undefined,
-                },
-                { focusArea: 'all' }
-              );
-              setActionResult(result.result);
-            } else {
-              setActionResult(result.result);
-            }
-          } else if (!result.success) {
-            setActionError(result.error || 'Action failed');
-          }
-        }
-      } catch (err) {
-        setActionError(err instanceof Error ? err.message : 'An error occurred');
-        setIsStreaming(false);
-        setStreamingContent('');
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [
-      activeDocument,
-      getActiveSession,
-      defaultProvider,
-      providerSettings,
-      localContent,
-      selection,
-      generateSuggestions,
-    ]
-  );
-
-  // Accept pending diff changes
-  const acceptDiffChanges = useCallback(() => {
-    if (pendingContent !== null) {
-      setLocalContent(pendingContent);
-      if (activeCanvasId) {
-        updateCanvasDocument(activeCanvasId, { content: pendingContent });
-        setHasUnsavedChanges(true);
-      }
-      setDiffPreview(null);
-      setPendingContent(null);
-    }
-  }, [pendingContent, activeCanvasId, updateCanvasDocument]);
-
-  // Reject pending diff changes
-  const rejectDiffChanges = useCallback(() => {
-    setDiffPreview(null);
-    setPendingContent(null);
-  }, []);
-
-  // Listen for canvas-action custom events
-  useEffect(() => {
-    const handleCanvasAction = (e: Event) => {
-      const action = (e as CustomEvent).detail;
-      if (action && !isProcessing) {
-        handleAction(action);
-      }
-    };
-
-    window.addEventListener('canvas-action', handleCanvasAction);
-    return () => window.removeEventListener('canvas-action', handleCanvasAction);
-  }, [isProcessing, handleAction]);
-
   // Update handleTranslate ref after handleAction is defined
   useEffect(() => {
     handleTranslateRef.current = async () => {
@@ -662,11 +499,6 @@ function CanvasPanelContent() {
       await handleAction({ type: 'translate', labelKey: 'actionTranslate' }, targetLanguage);
     };
   }, [activeDocument, targetLanguage, handleAction]);
-
-  const getEditorTheme = () => {
-    // Use theme registry for editor theming
-    return monacoTheme;
-  };
 
   const getLanguage = () => {
     if (!activeDocument) return 'plaintext';
@@ -887,7 +719,6 @@ function CanvasPanelContent() {
             {activeDocument && activeDocument.type !== 'code' && (
               <DocumentFormatToolbar
                 onFormatAction={(action: FormatAction) => {
-                  // Insert markdown formatting at cursor position via editor content manipulation
                   const formatMap: Record<string, { prefix: string; suffix: string }> = {
                     bold: { prefix: '**', suffix: '**' },
                     italic: { prefix: '_', suffix: '_' },
@@ -905,24 +736,37 @@ function CanvasPanelContent() {
                   };
 
                   const format = formatMap[action];
-                  if (format && selection) {
-                    const newContent = localContent.replace(
-                      selection,
-                      `${format.prefix}${selection}${format.suffix}`
-                    );
-                    setLocalContent(newContent);
-                    if (activeCanvasId) {
-                      updateCanvasDocument(activeCanvasId, { content: newContent });
+                  if (!format) return;
+
+                  const editor = canvasEditorRef.current;
+                  if (editor) {
+                    const sel = editor.getSelection();
+                    const model = editor.getModel();
+                    if (sel && model) {
+                      const selectedText = model.getValueInRange(sel);
+                      const replacement = `${format.prefix}${selectedText}${format.suffix}`;
+                      editor.executeEdits('format-toolbar', [{
+                        range: sel,
+                        text: replacement,
+                      }]);
+                      setHasUnsavedChanges(true);
+                    } else {
+                      // No selection: insert at cursor position
+                      const pos = editor.getPosition();
+                      if (pos) {
+                        const text = `${format.prefix}${format.suffix}`;
+                        editor.executeEdits('format-toolbar', [{
+                          range: {
+                            startLineNumber: pos.lineNumber,
+                            startColumn: pos.column,
+                            endLineNumber: pos.lineNumber,
+                            endColumn: pos.column,
+                          },
+                          text,
+                        }]);
+                        setHasUnsavedChanges(true);
+                      }
                     }
-                    setHasUnsavedChanges(true);
-                  } else if (format && !selection) {
-                    // Insert at end if no selection
-                    const newContent = localContent + `\n${format.prefix}${format.suffix}`;
-                    setLocalContent(newContent);
-                    if (activeCanvasId) {
-                      updateCanvasDocument(activeCanvasId, { content: newContent });
-                    }
-                    setHasUnsavedChanges(true);
                   }
                 }}
                 disabled={isProcessing}
@@ -1083,7 +927,7 @@ function CanvasPanelContent() {
               <MonacoEditor
                 height="100%"
                 language={getLanguage()}
-                theme={getEditorTheme()}
+                theme={monacoTheme}
                 value={localContent}
                 onChange={handleEditorChange}
                 options={createEditorOptions('code', {

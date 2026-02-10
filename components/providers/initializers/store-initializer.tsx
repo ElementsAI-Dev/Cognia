@@ -8,7 +8,7 @@
  */
 
 import { useEffect } from 'react';
-import { initProjectActivitySubscriber } from '@/stores/project';
+import { initProjectActivitySubscriber, initSessionMessageCountSubscriber } from '@/stores/project';
 
 /**
  * Initialize all store-related subscriptions
@@ -18,8 +18,12 @@ export function StoreInitializer() {
     // Initialize project activity subscriber to auto-log activities
     const unsubscribe = initProjectActivitySubscriber();
 
+    // Initialize session messageCount tracking for projects
+    const unsubscribeMessageCount = initSessionMessageCountSubscriber();
+
     return () => {
       unsubscribe();
+      unsubscribeMessageCount?.();
     };
   }, []);
 

@@ -4,7 +4,7 @@
  * GitHubConfigForm - Configuration form for GitHub sync
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Github,
@@ -40,7 +40,8 @@ import {
   getGitHubToken,
   getSyncManager,
 } from '@/lib/sync';
-import type { ConflictResolution } from '@/types/sync';
+import type { ConflictResolution, SyncDataType } from '@/types/sync';
+import { SyncAdvancedSettings } from './sync-advanced-settings';
 
 interface GitHubConfigFormProps {
   onConnectionStatusChange?: (status: 'unknown' | 'success' | 'error') => void;
@@ -57,11 +58,11 @@ export function GitHubConfigForm({ onConnectionStatusChange }: GitHubConfigFormP
   const [hasToken, setHasToken] = useState(false);
 
   // Check for existing token on mount
-  useState(() => {
+  useEffect(() => {
     getGitHubToken().then((t) => {
       setHasToken(!!t);
     });
-  });
+  }, []);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -344,6 +345,14 @@ export function GitHubConfigForm({ onConnectionStatusChange }: GitHubConfigFormP
             />
           </div>
         </div>
+
+        {/* Advanced: Max Backups & Selective Sync */}
+        <SyncAdvancedSettings
+          maxBackups={githubConfig.maxBackups}
+          syncDataTypes={githubConfig.syncDataTypes as SyncDataType[]}
+          onMaxBackupsChange={(maxBackups) => setGitHubConfig({ maxBackups })}
+          onSyncDataTypesChange={(syncDataTypes) => setGitHubConfig({ syncDataTypes })}
+        />
 
         {/* Save Button */}
         <Button onClick={handleSave} disabled={isSaving} className="w-full">

@@ -13,6 +13,11 @@ import {
 global.fetch = jest.fn();
 const mockFetch = global.fetch as jest.Mock;
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 describe('PluginMarketplace', () => {
   let marketplace: PluginMarketplace;
 

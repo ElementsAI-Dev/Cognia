@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
@@ -44,6 +45,7 @@ import {
 import { CodeBlock } from '@/components/ai-elements/code-block';
 import { useArtifactStore, useSettingsStore, useNativeStore } from '@/stores';
 import { FileCode } from 'lucide-react';
+import { downloadFile } from '@/lib/utils/download';
 import { opener } from '@/lib/native';
 import { V0Designer } from '@/components/designer';
 import { Palette } from 'lucide-react';
@@ -70,12 +72,44 @@ function getShikiLanguage(lang?: string): BundledLanguage {
 export function ArtifactPanel() {
   const t = useTranslations('artifacts');
   const tCommon = useTranslations('common');
-  const panelOpen = useArtifactStore((state) => state.panelOpen);
-  const panelView = useArtifactStore((state) => state.panelView);
-  const closePanel = useArtifactStore((state) => state.closePanel);
-  const activeArtifactId = useArtifactStore((state) => state.activeArtifactId);
-  const artifacts = useArtifactStore((state) => state.artifacts);
-  const updateArtifact = useArtifactStore((state) => state.updateArtifact);
+  // Store state - using useShallow for optimized subscriptions
+  const {
+    panelOpen,
+    panelView,
+    activeArtifactId,
+    artifacts,
+  } = useArtifactStore(
+    useShallow((state) => ({
+      panelOpen: state.panelOpen,
+      panelView: state.panelView,
+      activeArtifactId: state.activeArtifactId,
+      artifacts: state.artifacts,
+    }))
+  );
+
+  // Store actions - using useShallow for stable references
+  const {
+    closePanel,
+    updateArtifact,
+    saveArtifactVersion,
+    restoreArtifactVersion,
+    getArtifactVersions,
+    createCanvasDocument,
+    setActiveCanvas,
+    openPanel,
+  } = useArtifactStore(
+    useShallow((state) => ({
+      closePanel: state.closePanel,
+      updateArtifact: state.updateArtifact,
+      saveArtifactVersion: state.saveArtifactVersion,
+      restoreArtifactVersion: state.restoreArtifactVersion,
+      getArtifactVersions: state.getArtifactVersions,
+      createCanvasDocument: state.createCanvasDocument,
+      setActiveCanvas: state.setActiveCanvas,
+      openPanel: state.openPanel,
+    }))
+  );
+
   const activeArtifact = activeArtifactId ? artifacts[activeArtifactId] : null;
 
   const theme = useSettingsStore((state) => state.theme);
@@ -88,17 +122,7 @@ export function ArtifactPanel() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
-  // Version history integration
-  const saveArtifactVersion = useArtifactStore((state) => state.saveArtifactVersion);
-  const restoreArtifactVersion = useArtifactStore((state) => state.restoreArtifactVersion);
-  const getArtifactVersions = useArtifactStore((state) => state.getArtifactVersions);
-
   const versions = activeArtifact ? getArtifactVersions(activeArtifact.id) : [];
-
-  // Canvas integration
-  const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
-  const setActiveCanvas = useArtifactStore((state) => state.setActiveCanvas);
-  const openPanel = useArtifactStore((state) => state.openPanel);
 
   // Open artifact in Canvas for detailed editing
   const handleOpenInCanvas = useCallback(() => {
@@ -175,17 +199,8 @@ export function ArtifactPanel() {
 
   const handleDownload = () => {
     if (activeArtifact) {
-      const blob = new Blob([activeArtifact.content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       const filename = `${activeArtifact.title}.${getExtension(activeArtifact)}`;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      // Track download path for reveal functionality (downloads folder)
+      downloadFile(activeArtifact.content, filename, 'text/plain');
       if (isDesktop) {
         setLastDownloadPath(filename);
       }
@@ -194,10 +209,21 @@ export function ArtifactPanel() {
 
   const handleRevealInExplorer = async () => {
     if (!isDesktop || !lastDownloadPath) return;
-    // Note: Browser downloads go to default downloads folder
-    // We can open the downloads folder but not select the specific file
-    // since we don't have the exact path from browser download API
-    await opener.openUrl('file:///');
+    try {
+      const { downloadDir } = await import('@tauri-apps/api/path');
+      const downloadsPath = await downloadDir();
+      const fullPath = `${downloadsPath}${lastDownloadPath}`;
+      await opener.revealInFileExplorer(fullPath);
+    } catch {
+      // Fallback: open downloads folder
+      try {
+        const { downloadDir } = await import('@tauri-apps/api/path');
+        const downloadsPath = await downloadDir();
+        await opener.openPath(downloadsPath);
+      } catch (err) {
+        console.error('Failed to reveal in explorer:', err);
+      }
+    }
   };
 
   const isPreviewable = activeArtifact ? canPreview(activeArtifact.type) : false;

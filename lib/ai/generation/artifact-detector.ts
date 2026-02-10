@@ -4,7 +4,7 @@
  */
 
 import type { ArtifactType, ArtifactLanguage } from '@/types';
-import { LANGUAGE_MAP, ALWAYS_CREATE_TYPES } from '@/lib/artifacts';
+import { LANGUAGE_MAP, ALWAYS_CREATE_TYPES, generateArtifactTitle } from '@/lib/artifacts';
 
 // Configuration for auto-detection
 export interface ArtifactDetectionConfig {
@@ -171,41 +171,9 @@ export function extractCodeBlocks(content: string): Array<{
 
 /**
  * Generate a title from content
+ * Delegates to centralized generateArtifactTitle from lib/artifacts
  */
-export function generateTitle(content: string, type: ArtifactType, language?: string): string {
-  // Try to extract function/component name
-  const functionMatch = content.match(/(?:function|const|class)\s+(\w+)/);
-  if (functionMatch) {
-    return functionMatch[1];
-  }
-
-  // Try to extract export name
-  const exportMatch = content.match(/export\s+(?:default\s+)?(?:function|const|class)\s+(\w+)/);
-  if (exportMatch) {
-    return exportMatch[1];
-  }
-
-  // Try to extract HTML title
-  const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
-  if (titleMatch) {
-    return titleMatch[1];
-  }
-
-  // Generate default title based on type
-  const typeNames: Record<ArtifactType, string> = {
-    code: language ? `${language.charAt(0).toUpperCase() + language.slice(1)} Code` : 'Code Snippet',
-    document: 'Document',
-    svg: 'SVG Graphic',
-    html: 'HTML Page',
-    react: 'React Component',
-    mermaid: 'Diagram',
-    chart: 'Chart',
-    math: 'Math Expression',
-    jupyter: 'Jupyter Notebook',
-  };
-
-  return typeNames[type] || 'Untitled';
-}
+export const generateTitle = generateArtifactTitle;
 
 /**
  * Count lines in content

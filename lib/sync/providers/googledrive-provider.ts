@@ -13,6 +13,7 @@ import type {
   BackupInfo,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -267,6 +268,20 @@ export class GoogleDriveProvider extends BaseSyncProvider {
   }
 
   /**
+   * Download a specific backup by file ID
+   */
+  async downloadBackup(id: string): Promise<SyncData | null> {
+    try {
+      const content = await this.downloadFile(id);
+      if (!content) return null;
+      return JSON.parse(content) as SyncData;
+    } catch (error) {
+      log.error('Failed to download Google Drive backup', error as Error);
+      return null;
+    }
+  }
+
+  /**
    * Delete a specific backup
    */
   async deleteBackup(id: string): Promise<boolean> {
@@ -312,7 +327,7 @@ export class GoogleDriveProvider extends BaseSyncProvider {
       headers['Content-Type'] = 'application/json';
     }
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       method,
       headers,
       body: body ? (isUpload ? (body as string) : JSON.stringify(body)) : undefined,
@@ -442,7 +457,7 @@ export class GoogleDriveProvider extends BaseSyncProvider {
       content +
       closeDelimiter;
 
-    const response = await fetch(
+    const response = await proxyFetch(
       `${UPLOAD_API}/files?uploadType=multipart&fields=id`,
       {
         method: 'POST',
@@ -475,7 +490,7 @@ export class GoogleDriveProvider extends BaseSyncProvider {
 
     if (existingFile) {
       // Update existing file
-      const response = await fetch(
+      const response = await proxyFetch(
         `${UPLOAD_API}/files/${existingFile.id}?uploadType=media`,
         {
           method: 'PATCH',
@@ -503,7 +518,7 @@ export class GoogleDriveProvider extends BaseSyncProvider {
    * Download file content
    */
   private async downloadFile(fileId: string): Promise<string> {
-    const response = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    const response = await proxyFetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
       },

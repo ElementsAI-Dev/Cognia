@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact, ArtifactType } from '@/types';
 import { ARTIFACT_TYPE_KEYS, PREVIEWABLE_TYPES } from '@/lib/artifacts';
-import { getArtifactTypeIcon, ARTIFACT_TYPE_ICONS } from './artifact-icons';
+import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactListProps {
   sessionId?: string;
@@ -67,32 +67,17 @@ export function ArtifactList({
   const sessionArtifacts = useMemo(() => {
     if (!currentSessionId) return [];
 
-    // Apply search if query exists
+    // All store methods (searchArtifacts, filterArtifactsByType, getSessionArtifacts)
+    // already return results sorted by date descending, so no additional sorting needed
     if (searchQuery.trim()) {
-      return searchArtifacts(searchQuery, currentSessionId)
-        .sort((a, b) => {
-          const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-          const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-          return dateB.getTime() - dateA.getTime();
-        });
+      return searchArtifacts(searchQuery, currentSessionId);
     }
 
-    // Apply type filter
     if (typeFilter !== 'all') {
-      return filterArtifactsByType(typeFilter as ArtifactType, currentSessionId)
-        .sort((a, b) => {
-          const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-          const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-          return dateB.getTime() - dateA.getTime();
-        });
+      return filterArtifactsByType(typeFilter as ArtifactType, currentSessionId);
     }
 
-    return getSessionArtifacts(currentSessionId)
-      .sort((a, b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-        return dateB.getTime() - dateA.getTime();
-      });
+    return getSessionArtifacts(currentSessionId);
   }, [currentSessionId, getSessionArtifacts, searchArtifacts, filterArtifactsByType, searchQuery, typeFilter]);
 
   const handleArtifactClick = (artifact: Artifact) => {
@@ -141,7 +126,7 @@ export function ArtifactList({
   return (
     <div className={className} style={{ maxHeight }}>
       {/* Search and Filter Bar */}
-      <div className="flex items-center gap-2 p-2 border-b">
+      <div className="flex items-center gap-2 p-2 border-b" role="search" aria-label={tArtifacts('search')}>
         <div className="relative flex-1">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -149,6 +134,7 @@ export function ArtifactList({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-8 pl-7 text-xs"
+            aria-label={tArtifacts('search')}
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -175,12 +161,13 @@ export function ArtifactList({
           }}
         >
           <CheckSquare className="h-3.5 w-3.5" />
+          <span className="sr-only">{tArtifacts('batchSelect')}</span>
         </Button>
       </div>
 
       {/* Batch Actions */}
       {batchMode && selectedIds.size > 0 && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-destructive/10 border-b">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-destructive/10 border-b" role="alert">
           <span className="text-xs text-destructive">
             {tArtifacts('batchDeleteConfirm', { count: selectedIds.size })}
           </span>
@@ -223,7 +210,7 @@ export function ArtifactList({
                     </Badge>
                     {PREVIEWABLE_TYPES.includes(artifact.type) && (
                       <Badge variant="secondary" className="shrink-0 text-[10px] px-1">
-                        {ARTIFACT_TYPE_ICONS[artifact.type] ? '👁' : '▶'}
+                        👁
                       </Badge>
                     )}
                   </div>

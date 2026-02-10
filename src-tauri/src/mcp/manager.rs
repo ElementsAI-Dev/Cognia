@@ -82,55 +82,27 @@ impl McpManager {
 
     // ==================== Helper Methods ====================
 
-    /// Get proxy URL from system configuration
-    /// Reads from environment variables or system proxy settings
+    /// Get proxy URL from app configuration or system environment.
+    ///
+    /// Priority:
+    /// 1. App's global proxy state (set via frontend proxy store)
+    /// 2. Environment variables (ALL_PROXY, HTTPS_PROXY, HTTP_PROXY)
     fn get_system_proxy_url() -> Option<String> {
-        // First, check environment variables (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
-        if let Ok(proxy) = std::env::var("ALL_PROXY") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from ALL_PROXY environment variable: {}", proxy);
-                return Some(proxy);
-            }
+        // First, check the app's global proxy configuration
+        if let Some(proxy) = crate::http::get_global_proxy() {
+            log::debug!("Using proxy from app global proxy state: {}", proxy);
+            return Some(proxy);
         }
 
-        if let Ok(proxy) = std::env::var("HTTPS_PROXY") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from HTTPS_PROXY environment variable: {}", proxy);
-                return Some(proxy);
+        // Fallback to environment variables (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
+        for var in &["ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "all_proxy", "https_proxy", "http_proxy"] {
+            if let Ok(proxy) = std::env::var(var) {
+                if !proxy.is_empty() {
+                    log::debug!("Using proxy from {} environment variable: {}", var, proxy);
+                    return Some(proxy);
+                }
             }
         }
-
-        if let Ok(proxy) = std::env::var("HTTP_PROXY") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from HTTP_PROXY environment variable: {}", proxy);
-                return Some(proxy);
-            }
-        }
-
-        // Check lowercase variants as well
-        if let Ok(proxy) = std::env::var("all_proxy") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from all_proxy environment variable: {}", proxy);
-                return Some(proxy);
-            }
-        }
-
-        if let Ok(proxy) = std::env::var("https_proxy") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from https_proxy environment variable: {}", proxy);
-                return Some(proxy);
-            }
-        }
-
-        if let Ok(proxy) = std::env::var("http_proxy") {
-            if !proxy.is_empty() {
-                log::debug!("Using proxy from http_proxy environment variable: {}", proxy);
-                return Some(proxy);
-            }
-        }
-
-        // TODO: In the future, integrate with the app's proxy store configuration
-        // For now, environment variables provide a good fallback
 
         None
     }

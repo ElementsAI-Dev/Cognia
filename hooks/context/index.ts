@@ -28,9 +28,14 @@ export {
   useKnowledgeSearch,
   useKnowledgeStats,
   useBuildContext,
+  useAdvancedKnowledgeSearch,
+  useVectorKnowledgeSearch,
+  useBuildContextFromDB,
   formatKnowledgeForDisplay,
   type ProjectContextResult,
   type UseProjectContextOptions,
+  type AdvancedSearchConfig,
+  type AdvancedSearchResult,
 } from './use-project-context';
 export {
   useClipboardContext,

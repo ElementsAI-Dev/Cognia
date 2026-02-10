@@ -17,7 +17,7 @@ import type {
   ModelDownloadProgress,
 } from '@/types/transformers';
 import { useTransformersStore } from '@/stores/ai/transformers-store';
-import { isWebGPUAvailable, isWebWorkerAvailable } from '@/lib/ai/transformers';
+import { isWebGPUAvailable, isWebWorkerAvailable, DEFAULT_TASK_MODELS } from '@/lib/ai/transformers';
 
 export interface UseTransformersOptions {
   task: TransformersTask;
@@ -55,7 +55,7 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
     useTransformersStore();
 
   // Resolve model ID from defaults if not provided
-  const modelId = initialModelId ?? getDefaultModelId(task);
+  const modelId = initialModelId ?? DEFAULT_TASK_MODELS[task] ?? `Xenova/${task}`;
   const modelReady = isModelReady(modelId);
 
   const isSupported = isWebWorkerAvailable();
@@ -186,28 +186,6 @@ export function useTransformers(options: UseTransformersOptions): UseTransformer
     error,
     isSupported,
   };
-}
-
-/**
- * Get default model ID for a task
- */
-function getDefaultModelId(task: TransformersTask): string {
-  const defaults: Partial<Record<TransformersTask, string>> = {
-    'feature-extraction': 'Xenova/all-MiniLM-L6-v2',
-    'text-classification': 'Xenova/distilbert-base-uncased-finetuned-sst-2-english',
-    'translation': 'Xenova/nllb-200-distilled-600M',
-    'summarization': 'Xenova/distilbart-cnn-6-6',
-    'text-generation': 'onnx-community/Qwen2.5-0.5B-Instruct',
-    'question-answering': 'Xenova/distilbert-base-cased-distilled-squad',
-    'zero-shot-classification': 'Xenova/mobilebert-uncased-mnli',
-    'automatic-speech-recognition': 'Xenova/whisper-tiny',
-    'image-classification': 'Xenova/vit-base-patch16-224',
-    'object-detection': 'Xenova/detr-resnet-50',
-    'fill-mask': 'Xenova/bert-base-uncased',
-    'token-classification': 'Xenova/bert-base-NER',
-  };
-
-  return defaults[task] ?? `Xenova/${task}`;
 }
 
 export default useTransformers;

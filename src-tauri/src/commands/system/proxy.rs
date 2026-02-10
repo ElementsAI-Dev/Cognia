@@ -665,6 +665,25 @@ pub async fn proxy_get_clash_info(api_port: u16) -> Result<serde_json::Value, St
     }))
 }
 
+/// Set the global proxy URL for the Rust backend.
+///
+/// This command is called by the frontend when proxy settings change,
+/// ensuring all Rust HTTP clients use the configured proxy.
+///
+/// Pass `null` or empty string to disable the proxy.
+#[tauri::command]
+pub fn set_backend_proxy(proxy_url: Option<String>) -> Result<(), String> {
+    let url = proxy_url.filter(|u| !u.is_empty());
+    crate::http::set_global_proxy(url);
+    Ok(())
+}
+
+/// Get the current global proxy URL from the Rust backend.
+#[tauri::command]
+pub fn get_backend_proxy() -> Option<String> {
+    crate::http::get_global_proxy()
+}
+
 /// HTTP request input for proxied requests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxiedRequestInput {

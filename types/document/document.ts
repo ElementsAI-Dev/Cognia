@@ -37,6 +37,7 @@ export interface ProcessedDocument {
   embeddableContent: string;
   metadata: DocumentMetadata;
   chunks?: DocumentChunk[];
+  parseResult?: PDFParseResult | WordParseResult | ExcelParseResult | CSVParseResult | HTMLParseResult;
 }
 
 export interface DocumentChunk {

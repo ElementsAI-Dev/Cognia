@@ -324,7 +324,7 @@ async function generateWithOpenAISDK(
 
   // Use the responses API for image generation
   // This is a workaround since AI SDK v5 doesn't have generateImage
-  const response = await fetch(`${baseURL || 'https://api.openai.com/v1'}/images/generations`, {
+  const response = await proxyFetch(`${baseURL || 'https://api.openai.com/v1'}/images/generations`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${config.apiKey}`,

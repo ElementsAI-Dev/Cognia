@@ -43,10 +43,7 @@ impl SkillService {
             SkillStore::default()
         };
 
-        let http_client = Client::builder()
-            .user_agent("cognia-skills")
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
+        let http_client = crate::http::create_proxy_client()
             .context("Failed to create HTTP client")?;
 
         Ok(Self {

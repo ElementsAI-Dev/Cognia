@@ -42,6 +42,7 @@ export interface ExportData {
 
 /**
  * Export conversation to Markdown format
+ * @deprecated Use exportToRichMarkdown from './text/rich-markdown' for enhanced output with message parts, attachments, and tokens
  */
 export function exportToMarkdown(data: ExportData): string {
   const { session, messages, exportedAt } = data;
@@ -75,6 +76,7 @@ export function exportToMarkdown(data: ExportData): string {
 
 /**
  * Export conversation to JSON format
+ * @deprecated Use exportToRichJSON from './text/rich-markdown' for enhanced output with message parts and attachments
  */
 export function exportToJSON(data: ExportData): string {
   return JSON.stringify(
@@ -109,6 +111,7 @@ export function exportToJSON(data: ExportData): string {
 
 /**
  * Export conversation to HTML format (standalone file)
+ * @deprecated Use exportToBeautifulHTML from './html/beautiful-html' for enhanced output with syntax highlighting and themes
  */
 export function exportToHTML(data: ExportData): string {
   const { session, messages, exportedAt } = data;
@@ -266,18 +269,18 @@ export function downloadFile(content: string, filename: string, mimeType: string
  */
 export function generateFilename(title: string, extension: string): string {
   const safeTitle = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^a-zA-Z0-9\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50);
 
   const timestamp = new Date().toISOString().slice(0, 10);
-  return `${safeTitle}-${timestamp}.${extension}`;
+  return `${safeTitle || 'export'}-${timestamp}.${extension}`;
 }
 
 /**
  * Export conversation to PDF format
  * Uses browser print functionality for PDF generation
+ * @deprecated Use exportToBeautifulPDF from './document/beautiful-pdf' for enhanced PDF with cover page and styling
  */
 export async function exportToPDF(data: ExportData): Promise<void> {
   const htmlContent = exportToHTML(data);
@@ -305,6 +308,7 @@ export async function exportToPDF(data: ExportData): Promise<void> {
 
 /**
  * Export conversation to plain text format
+ * @deprecated Use exportToRichMarkdown from './text/rich-markdown' for enhanced plain-text-like output
  */
 export function exportToPlainText(data: ExportData): string {
   const { session, messages, exportedAt } = data;

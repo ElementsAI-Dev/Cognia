@@ -56,9 +56,7 @@ struct CacheEntry {
 impl CompletionService {
     /// Create a new completion service
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
+        let client = crate::http::create_proxy_client_quick()
             .unwrap_or_default();
 
         Self {

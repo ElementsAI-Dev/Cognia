@@ -1119,6 +1119,8 @@ pub fn run() {
             commands::system::proxy::proxy_check_port,
             commands::system::proxy::proxy_get_clash_info,
             commands::system::proxy::proxy_http_request,
+            commands::system::proxy::set_backend_proxy,
+            commands::system::proxy::get_backend_proxy,
             // Screen recording commands
             commands::media::screen_recording::recording_get_status,
             commands::media::screen_recording::recording_get_duration,

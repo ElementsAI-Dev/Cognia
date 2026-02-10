@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import {
   History,
@@ -23,8 +24,6 @@ import {
   Palette,
   Eye,
   X,
-  Plus,
-  Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,6 +36,19 @@ import {
 import { cn } from '@/lib/utils';
 import { useDesignerStore } from '@/stores/designer';
 import type { DesignerHistoryEntry } from '@/types/designer';
+
+// Dynamically import MonacoDiffEditor to avoid SSR issues with Monaco
+const MonacoDiffEditor = dynamic(
+  () => import('../editor/monaco-diff-editor').then((mod) => ({ default: mod.MonacoDiffEditor })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center p-4">
+        <span className="text-xs text-muted-foreground">Loading diff editor...</span>
+      </div>
+    ),
+  }
+);
 
 interface VersionHistoryPanelProps {
   className?: string;
@@ -90,35 +102,6 @@ function formatTimestamp(date: Date, t: ReturnType<typeof useTranslations>): str
   });
 }
 
-// Simple diff calculation for display
-function calculateDiff(oldCode: string, newCode: string): { added: string[]; removed: string[]; unchanged: number } {
-  const oldLines = oldCode.split('\n');
-  const newLines = newCode.split('\n');
-  
-  const added: string[] = [];
-  const removed: string[] = [];
-  let unchanged = 0;
-  
-  // Simple line-by-line comparison
-  const maxLines = Math.max(oldLines.length, newLines.length);
-  for (let i = 0; i < maxLines; i++) {
-    const oldLine = oldLines[i];
-    const newLine = newLines[i];
-    
-    if (oldLine === newLine) {
-      unchanged++;
-    } else {
-      if (oldLine && !newLines.includes(oldLine)) {
-        removed.push(oldLine.trim().slice(0, 50));
-      }
-      if (newLine && !oldLines.includes(newLine)) {
-        added.push(newLine.trim().slice(0, 50));
-      }
-    }
-  }
-  
-  return { added: added.slice(0, 5), removed: removed.slice(0, 5), unchanged };
-}
 
 export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
   const t = useTranslations('versionHistoryPanel');
@@ -239,7 +222,6 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
               const isFuture = originalIndex > historyIndex;
 
               const isSelected = selectedDiffEntry?.id === entry.id;
-              const diff = isSelected ? calculateDiff(entry.previousCode, entry.newCode) : null;
 
               return (
                 <div key={entry.id} className="space-y-1">
@@ -306,32 +288,17 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
                     </div>
                   </button>
                   
-                  {/* Diff view */}
-                  {isSelected && diff && (
-                    <div className="ml-6 p-2 rounded-md bg-muted/50 text-[10px] font-mono space-y-1">
-                      {diff.removed.length > 0 && (
-                        <div className="space-y-0.5">
-                          {diff.removed.map((line, i) => (
-                            <div key={`r-${i}`} className="flex items-center gap-1 text-red-500">
-                              <Minus className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{line || '(empty line)'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {diff.added.length > 0 && (
-                        <div className="space-y-0.5">
-                          {diff.added.map((line, i) => (
-                            <div key={`a-${i}`} className="flex items-center gap-1 text-green-500">
-                              <Plus className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{line || '(empty line)'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {diff.removed.length === 0 && diff.added.length === 0 && (
-                        <div className="text-muted-foreground">No visible changes</div>
-                      )}
+                  {/* Diff view — Monaco diff editor */}
+                  {isSelected && (
+                    <div className="ml-6 rounded-md border overflow-hidden" style={{ height: 250 }}>
+                      <MonacoDiffEditor
+                        originalCode={entry.previousCode}
+                        modifiedCode={entry.newCode}
+                        language="typescript"
+                        originalLabel={t('previousVersion') || 'Previous'}
+                        modifiedLabel={t('currentVersion') || 'Current'}
+                        readOnly
+                      />
                     </div>
                   )}
                 </div>

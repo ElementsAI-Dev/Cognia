@@ -10,6 +10,11 @@ import { DEFAULT_GOOGLE_DRIVE_CONFIG } from '@/types/sync';
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 describe('GoogleDriveProvider', () => {
   let provider: GoogleDriveProvider;
   const mockAccessToken = 'mock-access-token';

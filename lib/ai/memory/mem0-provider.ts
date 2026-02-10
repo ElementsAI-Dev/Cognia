@@ -8,6 +8,7 @@
  */
 
 import { loggers } from '@/lib/logger';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import type {
   Memory,
   CreateMemoryInput,
@@ -118,7 +119,7 @@ export class Mem0Provider implements IMemoryProvider {
     const baseUrl = this.config.baseUrl || 'https://api.mem0.ai/v1';
     const url = `${baseUrl}${endpoint}`;
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',

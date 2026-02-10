@@ -90,6 +90,8 @@ describe('ChatBroadcastChannel', () => {
   describe('broadcast', () => {
     it('should broadcast message to other channels', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      // Clear sessionStorage so channel2 gets a different tabId
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const handler = jest.fn();
@@ -120,6 +122,7 @@ describe('ChatBroadcastChannel', () => {
   describe('event subscriptions', () => {
     it('should subscribe to specific event type', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const messageHandler = jest.fn();
@@ -136,6 +139,7 @@ describe('ChatBroadcastChannel', () => {
 
     it('should allow unsubscribing from events', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const handler = jest.fn();
@@ -151,6 +155,7 @@ describe('ChatBroadcastChannel', () => {
   describe('convenience methods', () => {
     it('should broadcast message added', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const handler = jest.fn();
@@ -178,6 +183,7 @@ describe('ChatBroadcastChannel', () => {
 
     it('should broadcast session switched', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const handler = jest.fn();
@@ -199,6 +205,7 @@ describe('ChatBroadcastChannel', () => {
   describe('close', () => {
     it('should close channel and clear listeners', () => {
       const channel1 = new ChatBroadcastChannel('test');
+      sessionStorage.removeItem('cognia-tab-id');
       const channel2 = new ChatBroadcastChannel('test');
 
       const handler = jest.fn();

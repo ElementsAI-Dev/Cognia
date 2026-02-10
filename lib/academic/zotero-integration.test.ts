@@ -20,6 +20,11 @@ import type { Paper } from '@/types/learning/academic';
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 // Mock logger
 jest.mock('@/lib/logger', () => ({
   loggers: {

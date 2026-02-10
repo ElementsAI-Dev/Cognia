@@ -23,6 +23,11 @@ import {
 import type { OpenRouterModel, OpenRouterUsageResponse } from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 describe('OpenRouterError', () => {
   it('creates error with code and metadata', () => {
     const error = new OpenRouterError('Test error', 400, { key: 'value' });

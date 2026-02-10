@@ -9,6 +9,7 @@
  */
 
 import { isTauri } from '@/lib/utils';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 import {
   BaseProtocolAdapter,
@@ -351,7 +352,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     this._eventsEndpoint = this.resolveEventsEndpoint(config);
 
     // Basic HTTP connectivity check
-    const response = await fetch(`${config.network.endpoint}/health`, {
+    const response = await proxyFetch(`${config.network.endpoint}/health`, {
       method: 'GET',
       headers: this.buildHeaders(config),
     });
@@ -1069,22 +1070,18 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     } else if (this._config?.transport === 'websocket' && this.networkSocket) {
       this.networkSocket.send(message);
     } else if (this._config?.transport === 'http' && this._config.network?.endpoint) {
-      const response = await fetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
+      const response = await proxyFetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
         method: 'POST',
         headers: this.buildHeaders(this._config),
         body: message,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.text();
-      if (data) {
+      if (response.ok) {
+        const data = await response.text();
         this.handleIncomingMessage(data);
       }
     } else if (this._config?.transport === 'sse' && this._config.network?.endpoint) {
-      const response = await fetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
+      const response = await proxyFetch(this._rpcEndpoint || `${this._config.network.endpoint}/message`, {
         method: 'POST',
         headers: this.buildHeaders(this._config),
         body: message,

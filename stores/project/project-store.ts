@@ -7,6 +7,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { Project, CreateProjectInput, UpdateProjectInput, KnowledgeFile } from '@/types';
 import { getPluginEventHooks } from '@/lib/plugin';
+import { projectRepository } from '@/lib/db/repositories/project-repository';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.store;
 
 interface ProjectState {
   // State
@@ -43,6 +47,9 @@ interface ProjectState {
   unarchiveProject: (id: string) => void;
   getArchivedProjects: () => Project[];
   getActiveProjects: () => Project[];
+
+  // Message count
+  incrementMessageCount: (projectId: string, delta?: number) => void;
 
   // Bulk operations
   clearAllProjects: () => void;
@@ -214,7 +221,7 @@ export const useProjectStore = create<ProjectState>()(
 
       addKnowledgeFile: (projectId, file) =>
         set((state) => {
-          const knowledgeFile = {
+          const knowledgeFile: KnowledgeFile = {
             ...file,
             id: nanoid(),
             createdAt: new Date(),
@@ -230,6 +237,11 @@ export const useProjectStore = create<ProjectState>()(
               : p
           );
           getPluginEventHooks().dispatchKnowledgeFileAdd(projectId, knowledgeFile);
+
+          // Sync to IndexedDB using putKnowledgeFile to preserve store-generated ID
+          projectRepository.putKnowledgeFile(projectId, knowledgeFile)
+            .catch((err) => log.warn('Failed to sync knowledge file to IndexedDB', { err }));
+
           return { projects: updatedProjects };
         }),
 
@@ -245,10 +257,15 @@ export const useProjectStore = create<ProjectState>()(
               : p
           );
           getPluginEventHooks().dispatchKnowledgeFileRemove(projectId, fileId);
+
+          // Sync deletion to IndexedDB
+          projectRepository.deleteKnowledgeFile(fileId)
+            .catch((err) => log.warn('Failed to delete knowledge file from IndexedDB', { err }));
+
           return { projects: updatedProjects };
         }),
 
-      updateKnowledgeFile: (projectId, fileId, content) =>
+      updateKnowledgeFile: (projectId, fileId, content) => {
         set((state) => ({
           projects: state.projects.map((p) =>
             p.id === projectId
@@ -263,7 +280,12 @@ export const useProjectStore = create<ProjectState>()(
                 }
               : p
           ),
-        })),
+        }));
+
+        // Sync updated content to IndexedDB
+        projectRepository.updateKnowledgeFile(fileId, { content, size: content.length })
+          .catch((err) => log.warn('Failed to update knowledge file in IndexedDB', { err }));
+      },
 
       // Tag management
       addTag: (projectId, tag) =>
@@ -344,6 +366,19 @@ export const useProjectStore = create<ProjectState>()(
         return projects.filter((p) => !p.isArchived);
       },
 
+      incrementMessageCount: (projectId, delta = 1) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  messageCount: p.messageCount + delta,
+                  updatedAt: new Date(),
+                }
+              : p
+          ),
+        })),
+
       clearAllProjects: () =>
         set({
           projects: [],
@@ -411,8 +446,10 @@ export const useProjectStore = create<ProjectState>()(
           updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
           lastAccessedAt:
             p.lastAccessedAt instanceof Date ? p.lastAccessedAt.toISOString() : p.lastAccessedAt,
+          // Strip file content from localStorage — content lives in IndexedDB
           knowledgeBase: p.knowledgeBase.map((f) => ({
             ...f,
+            content: '', // Content stored in IndexedDB, not localStorage
             createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
             updatedAt: f.updatedAt instanceof Date ? f.updatedAt.toISOString() : f.updatedAt,
           })),
@@ -432,11 +469,45 @@ export const useProjectStore = create<ProjectState>()(
               updatedAt: new Date(f.updatedAt),
             })),
           }));
+
+          // Restore knowledge file content from IndexedDB
+          _rehydrateKnowledgeContent(state);
         }
       },
     }
   )
 );
+
+/**
+ * Restore knowledge file content from IndexedDB after localStorage rehydration.
+ * localStorage only stores metadata (content=''), so we load actual content async.
+ */
+async function _rehydrateKnowledgeContent(state: ProjectState) {
+  try {
+    const projectsWithContent = await Promise.all(
+      state.projects.map(async (project) => {
+        if (project.knowledgeBase.length === 0) return project;
+
+        const dbFiles = await projectRepository.getKnowledgeFiles(project.id);
+        if (dbFiles.length === 0) return project;
+
+        const dbFileMap = new Map(dbFiles.map((f) => [f.id, f]));
+
+        return {
+          ...project,
+          knowledgeBase: project.knowledgeBase.map((f) => {
+            const dbFile = dbFileMap.get(f.id);
+            return dbFile ? { ...f, content: dbFile.content } : f;
+          }),
+        };
+      })
+    );
+
+    useProjectStore.setState({ projects: projectsWithContent });
+  } catch (err) {
+    log.warn('Failed to rehydrate knowledge content from IndexedDB', { err });
+  }
+}
 
 // Selectors
 export const selectProjects = (state: ProjectState) => state.projects;

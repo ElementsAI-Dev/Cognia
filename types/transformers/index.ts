@@ -165,3 +165,17 @@ export interface TransformersBatchEmbeddingResult {
   dimension: number;
   duration: number;
 }
+
+/**
+ * Model size categories for UI display
+ */
+export type ModelSize = 'tiny' | 'small' | 'medium' | 'large';
+
+/**
+ * Pipeline output tensor-like structure (from @huggingface/transformers)
+ */
+export interface PipelineTensorOutput {
+  data?: Float32Array | number[];
+  dims?: number[];
+  tolist?: () => unknown;
+}

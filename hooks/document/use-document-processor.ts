@@ -10,17 +10,21 @@ import { useState, useCallback, useRef } from 'react';
 import {
   processDocument,
   processDocumentAsync,
+  processDocuments,
   detectDocumentType,
   extractSummary,
   isTextFile,
   estimateTokenCount,
   validateFile,
   isBinaryType,
+  compareDocuments,
+  detectEncoding,
   type ProcessedDocument,
   type ProcessingOptions,
   type DocumentType,
   type ValidationResult,
   type ValidationOptions,
+  type DocumentDiff,
 } from '@/lib/document/document-processor';
 import { extractTables, type TableExtractionResult } from '@/lib/document/table-extractor';
 import { useDocumentStore } from '@/stores/document';
@@ -448,6 +452,36 @@ export function useDocumentProcessor() {
     []
   );
 
+  /**
+   * Compare two processed documents and return diff
+   */
+  const compare = useCallback(
+    (docA: ProcessedDocument, docB: ProcessedDocument): DocumentDiff => {
+      return compareDocuments(docA, docB);
+    },
+    []
+  );
+
+  /**
+   * Detect encoding of an ArrayBuffer (BOM-based)
+   */
+  const detectFileEncoding = useCallback((buffer: ArrayBuffer): string => {
+    return detectEncoding(buffer);
+  }, []);
+
+  /**
+   * Process multiple text documents synchronously (no File API needed)
+   */
+  const processTextDocuments = useCallback(
+    (
+      docs: { id: string; filename: string; content: string }[],
+      options: ProcessingOptions = {}
+    ): ProcessedDocument[] => {
+      return processDocuments(docs, options);
+    },
+    []
+  );
+
   return {
     // State
     ...state,
@@ -469,6 +503,11 @@ export function useDocumentProcessor() {
     detectType,
     isProcessable,
     estimateTokens,
+
+    // Comparison & encoding
+    compare,
+    detectFileEncoding,
+    processTextDocuments,
   };
 }
 

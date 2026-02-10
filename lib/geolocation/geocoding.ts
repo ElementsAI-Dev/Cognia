@@ -9,6 +9,7 @@ import type {
   MapPosition,
   UseGeocodingOptions,
 } from '@/types/map';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -87,7 +88,7 @@ export class GeocodingService {
     }
 
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `${NOMINATIM_BASE_URL}/search?${params.toString()}`,
         {
           headers: {
@@ -138,7 +139,7 @@ export class GeocodingService {
     }, REQUEST_TIMEOUT);
 
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `${NOMINATIM_BASE_URL}/reverse?${params.toString()}`,
         {
           headers: {

@@ -49,6 +49,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useGit } from '@/hooks/native/use-git';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
+import { isTauri } from '@/lib/utils';
 
 interface ProjectGitPanelProps {
   projectId: string;
@@ -186,7 +187,22 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
                       placeholder={t('initDialog.repoPathPlaceholder')}
                       className="flex-1"
                     />
-                    <Button variant="outline" size="icon">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={async () => {
+                        if (!isTauri()) return;
+                        try {
+                          const { open } = await import('@tauri-apps/plugin-dialog');
+                          const selected = await open({ directory: true, multiple: false });
+                          if (selected && typeof selected === 'string') {
+                            setRepoPath(selected);
+                          }
+                        } catch {
+                          // Dialog cancelled or not available
+                        }
+                      }}
+                    >
                       <FolderOpen className="h-4 w-4" />
                     </Button>
                   </div>

@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, Component, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import DOMPurify from 'dompurify';
 import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -54,19 +55,30 @@ class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.props.onError?.(error, errorInfo);
   }
 
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
       }
       return (
-        <Alert variant="destructive" className="m-4">
-          <AlertCircle className="h-4 w-4" />
+        <Alert variant="destructive" className="m-4" role="alert" aria-live="assertive">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
           <AlertDescription>
-            <p className="font-medium">{this.props.errorMessage || 'Preview failed to render'}</p>
-            {this.state.error?.message && (
-              <p className="text-xs mt-1 opacity-80">{this.state.error.message}</p>
-            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{this.props.errorMessage || 'Preview failed to render'}</p>
+                {this.state.error?.message && (
+                  <p className="text-xs mt-1 opacity-80">{this.state.error.message}</p>
+                )}
+              </div>
+              <Button size="sm" variant="ghost" onClick={this.handleRetry} aria-label="Retry preview">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       );
@@ -209,14 +221,14 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 
   // Default: iframe-based rendering for HTML, SVG, React
   return (
-    <div className={cn('relative h-full w-full', className)}>
+    <div className={cn('relative h-full w-full', className)} role="region" aria-label={t('previewTitle', { title: artifact.title })}>
       {isLoading && (
         <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm">
           <PreviewLoading message={t('loadingPreview')} defaultMessage={t('loadingPreview')} />
         </div>
       )}
       {error && (
-        <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive text-sm">
+        <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive text-sm" role="alert" aria-live="assertive">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="flex-1">{error}</span>
           <Button size="sm" variant="ghost" onClick={handleRefresh}>
@@ -228,7 +240,7 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
         ref={iframeRef}
         key={key}
         className="h-full w-full border-0 bg-white"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         title={t('previewTitle', { title: artifact.title })}
         onLoad={() => setIsLoading(false)}
         onError={() => {
@@ -241,12 +253,22 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
 }
 
 function renderHTML(doc: Document, content: string) {
+  const sanitized = DOMPurify.sanitize(content, {
+    WHOLE_DOCUMENT: true,
+    ADD_TAGS: ['style', 'link', 'meta'],
+    ADD_ATTR: ['target', 'rel', 'class', 'id', 'style'],
+    ALLOW_DATA_ATTR: true,
+  });
   doc.open();
-  doc.write(content);
+  doc.write(sanitized);
   doc.close();
 }
 
 function renderSVG(doc: Document, content: string) {
+  const sanitized = DOMPurify.sanitize(content, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ['style'],
+  });
   doc.open();
   doc.write(`
     <!DOCTYPE html>
@@ -257,7 +279,7 @@ function renderSVG(doc: Document, content: string) {
         svg { max-width: 100%; max-height: 100vh; }
       </style>
     </head>
-    <body>${content}</body>
+    <body>${sanitized}</body>
     </html>
   `);
   doc.close();
@@ -281,7 +303,18 @@ function renderReact(doc: Document, content: string) {
     </head>
     <body>
       <div id="root"></div>
+      <script>
+        // CDN load check with timeout
+        var _cdnTimeout = setTimeout(function() {
+          if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Babel === 'undefined') {
+            document.getElementById('root').innerHTML =
+              '<div style="color: #b45309; padding: 16px; background: #fef3c7; border-radius: 8px;">' +
+              '<strong>CDN Loading Failed</strong><p style="margin:8px 0 0">Unable to load React dependencies from CDN. Check your network connection.</p></div>';
+          }
+        }, 15000);
+      </script>
       <script type="text/babel" data-presets="react">
+        clearTimeout(_cdnTimeout);
         try {
           ${content}
 
@@ -290,7 +323,6 @@ function renderReact(doc: Document, content: string) {
             typeof App !== 'undefined' ? App : null,
             typeof Component !== 'undefined' ? Component : null,
             typeof Main !== 'undefined' ? Main : null,
-            typeof default !== 'undefined' ? default : null,
           ].filter(Boolean);
 
           if (components.length > 0) {

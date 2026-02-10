@@ -198,7 +198,14 @@ export const useSyncStore = create<SyncStore>()(
         }
       },
 
-      cancelSync: () => {
+      cancelSync: async () => {
+        try {
+          const { getSyncManager } = await import('@/lib/sync');
+          const manager = getSyncManager();
+          manager.cancelSync();
+        } catch {
+          // Manager may not be initialized
+        }
         set({
           status: 'idle',
           progress: null,

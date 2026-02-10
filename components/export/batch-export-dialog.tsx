@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, Loader2, FileArchive, Check, X } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { useSessionStore } from '@/stores';
 import { messageRepository } from '@/lib/db';
 import {
@@ -49,6 +51,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<BatchExportFormat>('mixed');
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [estimatedSize, setEstimatedSize] = useState(0);
 
@@ -75,6 +78,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
         setEstimatedSize(estimateExportSize(sessionsWithMessages));
       } catch (error) {
         console.error('Error estimating size:', error);
+        toast.error(t('estimateFailed'));
       } finally {
         setIsLoadingMessages(false);
       }
@@ -119,24 +123,30 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
       }
 
       // Export to ZIP
+      setExportProgress({ current: 0, total: sessionsWithMessages.length });
       const result = await exportSessionsToZip(sessionsWithMessages, {
         format,
         includeIndex: true,
         includeMetadata: true,
         includeAttachments: true,
         theme: 'system',
+        onProgress: (current, total) => setExportProgress({ current, total }),
       });
 
       if (result.success && result.blob) {
         downloadZip(result.blob, result.filename);
+        toast.success(t('exportSuccess'));
         setOpen(false);
       } else {
         console.error('Export failed:', result.error);
+        toast.error(result.error || t('exportFailed'));
       }
     } catch (error) {
       console.error('Export failed:', error);
+      toast.error(error instanceof Error ? error.message : t('exportFailed'));
     } finally {
       setIsExporting(false);
+      setExportProgress({ current: 0, total: 0 });
     }
   };
 
@@ -220,6 +230,17 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
               </div>
             </ScrollArea>
           </div>
+
+          {/* Export Progress */}
+          {isExporting && exportProgress.total > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{t('exportingProgress')}</span>
+                <span>{exportProgress.current}/{exportProgress.total}</span>
+              </div>
+              <Progress value={(exportProgress.current / exportProgress.total) * 100} />
+            </div>
+          )}
 
           {/* Size Estimate */}
           {selectedIds.size > 0 && (

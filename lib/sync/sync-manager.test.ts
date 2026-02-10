@@ -15,6 +15,7 @@ const mockWebDAVProvider = {
   download: jest.fn(),
   getRemoteMetadata: jest.fn(),
   listBackups: jest.fn(),
+  downloadBackup: jest.fn(),
   deleteBackup: jest.fn(),
   disconnect: jest.fn(),
 };
@@ -26,6 +27,7 @@ const mockGitHubProvider = {
   download: jest.fn(),
   getRemoteMetadata: jest.fn(),
   listBackups: jest.fn(),
+  downloadBackup: jest.fn(),
   deleteBackup: jest.fn(),
   disconnect: jest.fn(),
 };
@@ -40,12 +42,15 @@ jest.mock('./providers/github-provider', () => ({
 
 // Mock stores
 const mockSyncState = {
+  activeProvider: 'webdav' as const,
   webdavConfig: {
     type: 'webdav',
     enabled: true,
     serverUrl: 'https://dav.example.com',
     username: 'user',
     remotePath: '/sync/',
+    maxBackups: 10,
+    syncDataTypes: [],
   },
   githubConfig: {
     type: 'github',
@@ -54,6 +59,14 @@ const mockSyncState = {
     repoName: 'sync',
     branch: 'main',
     remotePath: 'backup/',
+    maxBackups: 10,
+    syncDataTypes: [],
+  },
+  googleDriveConfig: {
+    type: 'googledrive',
+    enabled: false,
+    maxBackups: 10,
+    syncDataTypes: [],
   },
   deviceId: 'device-123',
   deviceName: 'Test Device',

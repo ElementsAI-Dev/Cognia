@@ -40,7 +40,6 @@ import { useMessages } from '@/hooks';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   BatchCopyDialog,
-  ExportDialog,
   ChatSummaryDialog,
   ModeSwitchConfirmDialog,
 } from '../dialogs';
@@ -854,15 +853,6 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                       <Download className="mr-2 h-4 w-4" />
                       {t('export')}
-                    </DropdownMenuItem>
-                  }
-                />
-                <ExportDialog
-                  session={session}
-                  trigger={
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                      <Download className="mr-2 h-4 w-4" />
-                      {t('exportBasic')}
                     </DropdownMenuItem>
                   }
                 />

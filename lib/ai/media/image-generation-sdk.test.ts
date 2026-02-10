@@ -17,6 +17,12 @@ import {
 // Mock fetch
 global.fetch = jest.fn();
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+  isProxyEnabled: () => false,
+}));
+
 describe('Image Generation SDK', () => {
   beforeEach(() => {
     jest.clearAllMocks();

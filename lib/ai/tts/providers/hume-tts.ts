@@ -5,6 +5,7 @@
 
 import type { TTSResponse, HumeTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -57,7 +58,7 @@ export async function generateHumeTTS(
       requestBody.acting_instructions = actingInstructions;
     }
 
-    const response = await fetch('https://api.hume.ai/v0/tts', {
+    const response = await proxyFetch('https://api.hume.ai/v0/tts', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

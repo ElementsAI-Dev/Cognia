@@ -46,6 +46,19 @@
     "exportNotebook": "下载笔记本",
     "clearOutputs": "清空所有输出",
     "copyCell": "复制单元格",
-    "copied": "已复制！"
+    "copied": "已复制！",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "editCell": "编辑单元格",
+    "cancelEdit": "取消编辑",
+    "deleteCell": "删除单元格",
+    "enterCode": "# 输入代码...",
+    "enterMarkdown": "输入 Markdown...",
+    "saveHint": "Ctrl+Enter 保存 · Esc 取消",
+    "cancel": "取消",
+    "save": "保存",
+    "batchSelect": "切换批量选择",
+    "cellCollapsed": "单元格已折叠",
+    "cellExpanded": "单元格已展开"
   }
 }

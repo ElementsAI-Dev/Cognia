@@ -5,6 +5,7 @@
 
 import type { SandpackFiles } from '@codesandbox/sandpack-react';
 import { safeBase64Encode } from './cdn-resolver';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 export interface ProjectFiles {
   [path: string]: string;
@@ -359,7 +360,7 @@ export async function createGitHubGist(
       gistFiles[flatName] = { content };
     }
 
-    const response = await fetch('https://api.github.com/gists', {
+    const response = await proxyFetch('https://api.github.com/gists', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${githubToken}`,

@@ -19,7 +19,7 @@ import { useArtifactStore, useSessionStore } from '@/stores';
 import type { ArtifactType } from '@/types';
 import {
   matchesTypePatterns,
-  getLanguageDisplayName,
+  generateArtifactTitle,
 } from '@/lib/artifacts';
 import {
   detectArtifactType as detectType,
@@ -58,25 +58,7 @@ function detectArtifactType(language?: string, content?: string): ArtifactType {
   return baseType;
 }
 
-/**
- * Generate a title from content
- */
-function generateTitle(content: string, language?: string): string {
-  // Try to extract function/component name
-  const functionMatch = content.match(/(?:function|const|class)\s+(\w+)/);
-  if (functionMatch) {
-    return functionMatch[1];
-  }
-
-  // Try to extract export name
-  const exportMatch = content.match(/export\s+(?:default\s+)?(?:function|const|class)\s+(\w+)/);
-  if (exportMatch) {
-    return exportMatch[1];
-  }
-
-  // Use language display name as fallback
-  return language ? `${getLanguageDisplayName(language)} Code` : 'Code Artifact';
-}
+// generateTitle delegated to centralized generateArtifactTitle from lib/artifacts
 
 export function ArtifactCreateButton({
   content,
@@ -96,7 +78,7 @@ export function ArtifactCreateButton({
     if (!session) return;
 
     const detectedType = type || detectArtifactType(language, content);
-    const artifactTitle = title || generateTitle(content, language);
+    const artifactTitle = title || generateArtifactTitle(content, detectedType, language);
     const artifactLanguage = mapToArtifactLanguage(language);
 
     createArtifact({

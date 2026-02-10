@@ -3,12 +3,9 @@
  * Recommended ONNX models for various tasks, optimized for browser inference.
  */
 
-import type { TransformersTask, TransformersModelConfig } from '@/types/transformers';
+import type { TransformersTask, TransformersModelConfig, ModelSize } from '@/types/transformers';
 
-/**
- * Model size categories for UI display
- */
-export type ModelSize = 'tiny' | 'small' | 'medium' | 'large';
+export type { ModelSize };
 
 /**
  * Extended model info for UI

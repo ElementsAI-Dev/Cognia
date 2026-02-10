@@ -1,25 +1,34 @@
 'use client';
 
 /**
- * ArenaChatView - Inline arena view for chat container
- * Displays arena functionality within the chat interface
+ * ArenaChatView - Chat-first arena view for model comparison
+ * Inspired by Windsurf Arena Mode: streamlined prompt → side-by-side responses → vote
+ * Analytics (leaderboard/heatmap/history) are on the dedicated /arena page
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Scale, Trophy, Grid3X3, History, Zap, Plus, ChevronRight } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Scale,
+  Send,
+  BarChart3,
+  EyeOff,
+  Eye,
+  Loader2,
+  Swords,
+  Settings2,
+} from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import {
-  ArenaLeaderboard,
-  ArenaHeatmap,
-  ArenaHistory,
-  ArenaDialog,
-  ArenaBattleView,
-} from '@/components/arena';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import { ArenaInlineBattle } from './arena-inline-battle';
+import { ArenaDialog } from './arena-dialog';
 import { useArenaStore } from '@/stores/arena';
 import { useArena } from '@/hooks/arena';
 import { cn } from '@/lib/utils';
@@ -39,235 +48,255 @@ export function ArenaChatView({
 }: ArenaChatViewProps) {
   const t = useTranslations('arena');
 
-  const [activeTab, setActiveTab] = useState('battle');
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [blindMode, setBlindMode] = useState(true);
   const [showArenaDialog, setShowArenaDialog] = useState(false);
-  const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
 
   const battles = useArenaStore((state) => state.battles);
   const activeBattleId = useArenaStore((state) => state.activeBattleId);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
 
-  const { continueTurn, canContinue: checkCanContinue } = useArena();
+  const { isExecuting, startBattle, getAvailableModels } = useArena();
 
+  const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
+
+  // Get the most recent battles to display inline (active first, then recent completed)
   const activeBattles = battles.filter(
     (b) =>
       !b.winnerId &&
       !b.isTie &&
+      !b.isBothBad &&
       b.contestants.some((c) => c.status === 'streaming' || c.status === 'pending')
   );
-  const recentBattles = battles.slice(0, 5);
-  const completedBattles = battles.filter((b) => b.winnerId || b.isTie);
 
-  const handleStartBattle = useCallback(() => {
-    setShowArenaDialog(true);
-  }, []);
+  const recentCompletedBattles = battles
+    .filter((b) => b.winnerId || b.isTie || b.isBothBad)
+    .slice(0, 2);
 
-  const handleViewBattle = useCallback((battleId: string) => {
-    setSelectedBattleId(battleId);
-  }, []);
+  // Show the current active battle or most recent one
+  const displayBattleId = activeBattleId || (activeBattles.length > 0 ? activeBattles[0].id : null);
+
+  // Smart model pair selection (reuse logic from ArenaQuickBattle)
+  const modelRatings = useArenaStore((state) => state.modelRatings);
+  const getRecommendedMatchup = useArenaStore((state) => state.getRecommendedMatchup);
+
+  const getSmartModelPair = useCallback(() => {
+    const recommendation = getRecommendedMatchup();
+    if (recommendation) {
+      const modelA = availableModels.find(
+        (m) => `${m.provider}:${m.model}` === recommendation.modelA
+      );
+      const modelB = availableModels.find(
+        (m) => `${m.provider}:${m.model}` === recommendation.modelB
+      );
+      if (modelA && modelB) return [modelA, modelB];
+    }
+
+    if (availableModels.length >= 2) {
+      const sortedByRating = [...availableModels].sort((a, b) => {
+        const ratingA =
+          modelRatings.find((r) => r.modelId === `${a.provider}:${a.model}`)?.rating || 1500;
+        const ratingB =
+          modelRatings.find((r) => r.modelId === `${b.provider}:${b.model}`)?.rating || 1500;
+        return ratingB - ratingA;
+      });
+      const first = sortedByRating[0];
+      const second = sortedByRating.find((m) => m.provider !== first.provider) || sortedByRating[1];
+      return [first, second];
+    }
+
+    return availableModels.slice(0, 2);
+  }, [availableModels, modelRatings, getRecommendedMatchup]);
+
+  const selectedModels = useMemo(() => getSmartModelPair(), [getSmartModelPair]);
+
+  // Quick send: start battle with smart model pair
+  const handleQuickSend = useCallback(async () => {
+    if (!prompt.trim() || isExecuting || selectedModels.length < 2) return;
+
+    const currentPrompt = prompt.trim();
+    setPrompt('');
+
+    await startBattle(
+      currentPrompt,
+      selectedModels.map((m) => ({
+        provider: m.provider,
+        model: m.model,
+        displayName: m.displayName,
+      })),
+      {
+        sessionId,
+        systemPrompt,
+        blindMode,
+        conversationMode: 'single',
+      }
+    );
+  }, [prompt, isExecuting, selectedModels, startBattle, sessionId, systemPrompt, blindMode]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleQuickSend();
+      }
+    },
+    [handleQuickSend]
+  );
 
   const handleCloseBattle = useCallback(() => {
-    setSelectedBattleId(null);
     if (activeBattleId) {
       setActiveBattle(null);
     }
   }, [activeBattleId, setActiveBattle]);
 
-  const currentBattleId = selectedBattleId || activeBattleId;
+  const canSend = availableModels.length >= 2 && !isExecuting && prompt.trim().length > 0;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Minimal Header */}
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-2">
-          <Scale className="h-5 w-5 text-primary shrink-0" />
-          <h2 className="font-semibold hidden sm:block">{t('title')}</h2>
-          <Badge variant="secondary" className="text-xs hidden xs:inline-flex">
-            {battles.length} {t('history.battles')}
-          </Badge>
+          <Scale className="h-4.5 w-4.5 text-primary shrink-0" />
+          <h2 className="font-semibold text-sm">{t('title')}</h2>
+          {activeBattles.length > 0 && (
+            <Badge variant="default" className="text-[10px] gap-1 animate-pulse">
+              <div className="h-1.5 w-1.5 rounded-full bg-white" />
+              {activeBattles.length}
+            </Badge>
+          )}
         </div>
-        <Button onClick={handleStartBattle} size="sm" className="gap-1.5">
-          <Zap className="h-4 w-4" />
-          <span className="hidden sm:inline">{t('startBattle')}</span>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <Link href="/arena">
+                  <BarChart3 className="h-4 w-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('leaderboard.title')}</TooltipContent>
+          </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8 text-xs"
+            onClick={() => setShowArenaDialog(true)}
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('advancedOptions')}</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Active Battles Banner */}
-      {activeBattles.length > 0 && (
-        <div className="px-3 sm:px-4 py-2 bg-primary/10 border-b">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-              <span className="text-sm font-medium truncate">
-                {activeBattles.length} {t('history.inProgress')}
-              </span>
+      {/* Main Content Area */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-3 sm:p-4 space-y-4">
+          {/* Active battle inline */}
+          {displayBattleId && (
+            <ArenaInlineBattle
+              battleId={displayBattleId}
+              onClose={handleCloseBattle}
+            />
+          )}
+
+          {/* Recent completed battles (collapsible summaries) */}
+          {!displayBattleId && recentCompletedBattles.length > 0 && (
+            <div className="space-y-3">
+              {recentCompletedBattles.map((battle) => (
+                <ArenaInlineBattle
+                  key={battle.id}
+                  battleId={battle.id}
+                />
+              ))}
             </div>
+          )}
+
+          {/* Empty state */}
+          {!displayBattleId && recentCompletedBattles.length === 0 && (
+            <Empty className="py-12 border-0">
+              <EmptyMedia variant="icon">
+                <Swords className="h-8 w-8" />
+              </EmptyMedia>
+              <EmptyTitle>{t('title')}</EmptyTitle>
+              <EmptyDescription>{t('description')}</EmptyDescription>
+            </Empty>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Bottom Input Area */}
+      <div className="border-t bg-background p-3 sm:p-4 space-y-2">
+        {/* Model info + blind mode toggle */}
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            {selectedModels.length >= 2 ? (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="font-medium">
+                  {blindMode ? (
+                    <span className="flex items-center gap-1">
+                      <EyeOff className="h-3 w-3" />
+                      {t('blindMode')}
+                    </span>
+                  ) : (
+                    selectedModels.map((m) => m.displayName).join(' vs ')
+                  )}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">{t('selectAtLeast2Models')}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id="arena-blind"
+                checked={blindMode}
+                onCheckedChange={setBlindMode}
+                className="scale-75"
+              />
+              <Label htmlFor="arena-blind" className="text-xs text-muted-foreground cursor-pointer">
+                {blindMode ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </Label>
+            </div>
+          </div>
+        </div>
+
+        {/* Text input + send */}
+        <div className="flex gap-2">
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t('promptPlaceholder')}
+            disabled={availableModels.length < 2 || isExecuting}
+            className="min-h-[44px] max-h-32 resize-none flex-1"
+            rows={1}
+          />
+          <div className="flex flex-col gap-1">
             <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 shrink-0"
-              onClick={() => {
-                if (activeBattles[0]) {
-                  handleViewBattle(activeBattles[0].id);
-                }
-              }}
+              onClick={handleQuickSend}
+              disabled={!canSend}
+              size="icon"
+              className="shrink-0 h-[44px] w-[44px]"
             >
-              <span className="hidden xs:inline">{t('viewBattle')}</span>
-              <ChevronRight className="h-3 w-3" />
+              {isExecuting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 min-h-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <div className="px-2 sm:px-4 pt-2 border-b overflow-x-auto">
-            <TabsList className="h-9 w-full sm:w-auto">
-              <TabsTrigger value="battle" className="gap-1 sm:gap-1.5 text-xs px-2 sm:px-3">
-                <Zap className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">{t('quickBattle.title')}</span>
-              </TabsTrigger>
-              <TabsTrigger value="leaderboard" className="gap-1 sm:gap-1.5 text-xs px-2 sm:px-3">
-                <Trophy className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">{t('leaderboard.title')}</span>
-              </TabsTrigger>
-              <TabsTrigger value="heatmap" className="gap-1 sm:gap-1.5 text-xs px-2 sm:px-3">
-                <Grid3X3 className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">{t('heatmap.title')}</span>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1 sm:gap-1.5 text-xs px-2 sm:px-3">
-                <History className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">{t('history.title')}</span>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="battle" className="flex-1 m-0 min-h-0">
-            <ScrollArea className="h-full">
-              <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                {/* Quick Start Card */}
-                <Card className="py-4">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{t('quickBattle.title')}</CardTitle>
-                    <CardDescription>{t('description')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button onClick={handleStartBattle} className="w-full gap-2">
-                      <Plus className="h-4 w-4" />
-                      {t('newBattle')}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Recent Battles */}
-                {recentBattles.length > 0 && (
-                  <Card className="py-0 gap-0">
-                    <CardHeader className="px-4 py-3 border-b">
-                      <CardTitle className="text-sm">{t('history.recentBattles')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 divide-y">
-                      {recentBattles.map((battle) => (
-                        <div
-                          key={battle.id}
-                          className="px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => handleViewBattle(battle.id)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">
-                                {battle.prompt.slice(0, 50)}
-                                {battle.prompt.length > 50 ? '...' : ''}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-[10px]">
-                                  {battle.contestants.length} {t('models')}
-                                </Badge>
-                                {battle.winnerId && (
-                                  <Badge className="text-[10px] bg-primary">
-                                    <Trophy className="h-2.5 w-2.5 mr-1" />
-                                    {t('winnerSelected')}
-                                  </Badge>
-                                )}
-                                {battle.isTie && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    {t('tie')}
-                                  </Badge>
-                                )}
-                                {!battle.winnerId && !battle.isTie && (
-                                  <Badge variant="outline" className="text-[10px] text-yellow-600">
-                                    {t('history.inProgress')}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Stats Summary */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Card className="py-3">
-                    <CardContent className="p-0 px-3">
-                      <div className="text-2xl font-bold">{battles.length}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {t('history.totalBattles')}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="py-3">
-                    <CardContent className="p-0 px-3">
-                      <div className="text-2xl font-bold">{completedBattles.length}</div>
-                      <div className="text-xs text-muted-foreground">{t('history.completed')}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="leaderboard" className="flex-1 m-0 min-h-0 p-2 sm:p-4 overflow-auto">
-            <ArenaLeaderboard />
-          </TabsContent>
-
-          <TabsContent value="heatmap" className="flex-1 m-0 min-h-0 p-2 sm:p-4 overflow-auto">
-            <ArenaHeatmap />
-          </TabsContent>
-
-          <TabsContent value="history" className="flex-1 m-0 min-h-0 p-2 sm:p-4 overflow-auto">
-            <ArenaHistory onViewBattle={handleViewBattle} />
-          </TabsContent>
-        </Tabs>
       </div>
 
-      {/* Arena Dialog */}
+      {/* Arena Dialog for advanced configuration */}
       <ArenaDialog
         open={showArenaDialog}
         onOpenChange={setShowArenaDialog}
-        initialPrompt={initialPrompt}
+        initialPrompt={prompt}
         sessionId={sessionId}
         systemPrompt={systemPrompt}
-        onBattleStart={() => setActiveTab('battle')}
       />
-
-      {/* Battle View */}
-      {currentBattleId && (
-        <ArenaBattleView
-          battleId={currentBattleId}
-          open={!!currentBattleId}
-          onOpenChange={(open) => {
-            if (!open) {
-              handleCloseBattle();
-            }
-          }}
-          onContinueTurn={continueTurn}
-          canContinue={currentBattleId ? checkCanContinue(currentBattleId) : false}
-        />
-      )}
     </div>
   );
 }

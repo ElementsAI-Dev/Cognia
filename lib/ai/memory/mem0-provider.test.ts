@@ -9,6 +9,11 @@ import type { Memory, Mem0Memory } from '@/types';
 // Mock fetch
 global.fetch = jest.fn();
 
+// Mock proxyFetch to delegate to global.fetch
+jest.mock('@/lib/network/proxy-fetch', () => ({
+  proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
+}));
+
 describe('Mem0Provider', () => {
   const mockConfig = {
     apiKey: 'm0-test-key',

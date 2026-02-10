@@ -23,7 +23,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { chunkDocument, type ChunkingStrategy } from '@/lib/ai/embedding/chunking';
-import { processDocumentAsync } from '@/lib/document/document-processor';
+import { useDocumentProcessor } from '@/hooks/document';
 
 export interface DocumentFile {
   file: File;
@@ -52,7 +52,6 @@ const ACCEPTED_EXTENSIONS = [
   '.txt', '.md', '.json', '.csv', '.xml', '.html', '.htm',
   '.pdf', '.docx', '.doc', '.xlsx', '.xls',
 ];
-const BINARY_EXTENSIONS = ['.pdf', '.docx', '.doc', '.xlsx', '.xls'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (binary files can be larger)
 
 const CHUNKING_STRATEGIES: ChunkingStrategy[] = [
@@ -74,6 +73,7 @@ export function AddDocumentModal({
 }: AddDocumentModalProps) {
   const t = useTranslations('vectorSettings');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { processFile: processDocFile } = useDocumentProcessor();
 
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -157,29 +157,6 @@ export function AddDocumentModal({
     [addFiles]
   );
 
-  const isBinaryFile = (filename: string): boolean => {
-    const ext = '.' + filename.split('.').pop()?.toLowerCase();
-    return BINARY_EXTENSIONS.includes(ext);
-  };
-
-  const readFileContent = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
-    });
-  };
-
-  const readFileAsArrayBuffer = async (file: File): Promise<ArrayBuffer> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
   const handleProcess = async () => {
     const pendingFiles = files.filter((f) => f.status === 'pending');
     if (pendingFiles.length === 0) return;
@@ -199,21 +176,10 @@ export function AddDocumentModal({
       );
 
       try {
-        let textContent: string;
-
-        if (isBinaryFile(docFile.file.name)) {
-          // Process binary files (PDF, Word, Excel) using document processor
-          const buffer = await readFileAsArrayBuffer(docFile.file);
-          const processed = await processDocumentAsync(
-            `doc-${Date.now()}-${i}`,
-            docFile.file.name,
-            buffer,
-            { extractEmbeddable: true }
-          );
-          textContent = processed.embeddableContent || processed.content;
-        } else {
-          textContent = await readFileContent(docFile.file);
-        }
+        // Use unified processFile from useDocumentProcessor hook
+        // Handles both binary (PDF, Word, Excel) and text files automatically
+        const processed = await processDocFile(docFile.file, { extractEmbeddable: true });
+        const textContent = processed?.embeddableContent || processed?.content || '';
 
         const result = chunkDocument(textContent, {
           strategy,

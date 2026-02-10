@@ -4,7 +4,7 @@
  * WebDAVConfigForm - Configuration form for WebDAV sync
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Cloud,
@@ -39,7 +39,8 @@ import {
   getWebDAVPassword,
   getSyncManager,
 } from '@/lib/sync';
-import type { ConflictResolution } from '@/types/sync';
+import type { ConflictResolution, SyncDataType } from '@/types/sync';
+import { SyncAdvancedSettings } from './sync-advanced-settings';
 
 interface WebDAVConfigFormProps {
   onConnectionStatusChange?: (status: 'unknown' | 'success' | 'error') => void;
@@ -56,11 +57,11 @@ export function WebDAVConfigForm({ onConnectionStatusChange }: WebDAVConfigFormP
   const [hasPassword, setHasPassword] = useState(false);
 
   // Check for existing password on mount
-  useState(() => {
+  useEffect(() => {
     getWebDAVPassword().then((pwd) => {
       setHasPassword(!!pwd);
     });
-  });
+  }, []);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -272,6 +273,14 @@ export function WebDAVConfigForm({ onConnectionStatusChange }: WebDAVConfigFormP
             />
           </div>
         </div>
+
+        {/* Advanced: Max Backups & Selective Sync */}
+        <SyncAdvancedSettings
+          maxBackups={webdavConfig.maxBackups}
+          syncDataTypes={webdavConfig.syncDataTypes as SyncDataType[]}
+          onMaxBackupsChange={(maxBackups) => setWebDAVConfig({ maxBackups })}
+          onSyncDataTypesChange={(syncDataTypes) => setWebDAVConfig({ syncDataTypes })}
+        />
 
         {/* Save Button */}
         <Button onClick={handleSave} disabled={isSaving} className="w-full">

@@ -9,7 +9,7 @@ export interface ProjectTemplate {
   description: string;
   icon: string;
   color: string;
-  defaultMode: 'chat' | 'agent' | 'research';
+  defaultMode: 'chat' | 'agent' | 'research' | 'learning';
   customInstructions?: string;
   tags: string[];
   category: 'development' | 'writing' | 'research' | 'business' | 'personal';

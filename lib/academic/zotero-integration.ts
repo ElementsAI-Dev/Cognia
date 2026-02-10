@@ -4,6 +4,7 @@
  */
 
 import type { Paper, PaperAuthor } from '@/types/learning/academic';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -143,7 +144,7 @@ export class ZoteroClient {
   ): Promise<{ data: T; version: number }> {
     const url = `${ZOTERO_API_BASE}${this.getLibraryPrefix()}${endpoint}`;
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       ...options,
       headers: {
         'Zotero-API-Key': this.config.apiKey,
@@ -289,7 +290,7 @@ export class ZoteroClient {
    * Get the current library version
    */
   async getLibraryVersion(): Promise<number> {
-    const response = await fetch(
+    const response = await proxyFetch(
       `${ZOTERO_API_BASE}${this.getLibraryPrefix()}/items?limit=1`,
       {
         method: 'HEAD',

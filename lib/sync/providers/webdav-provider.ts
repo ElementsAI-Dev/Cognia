@@ -12,6 +12,7 @@ import type {
   WebDAVConfig,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.network;
@@ -60,7 +61,7 @@ class SimpleWebDAVClient {
       ...options.headers,
     };
 
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       method,
       headers,
       body: options.body,
@@ -270,7 +271,23 @@ export class WebDAVProvider extends BaseSyncProvider {
         return this.createErrorResult('upload', 'Failed to upload sync data');
       }
 
-      onProgress?.(this.createProgress('uploading', 60, 100, 'Creating backup...'));
+      onProgress?.(this.createProgress('uploading', 50, 100, 'Writing metadata...'));
+
+      // Write separate metadata file for fast getRemoteMetadata
+      const metadata: SyncMetadata = {
+        version: data.version,
+        syncedAt: data.syncedAt,
+        deviceId: data.deviceId,
+        deviceName: data.deviceName,
+        checksum: data.checksum,
+        size: jsonData.length,
+      };
+      await client.putFile(
+        this.getRemotePath('metadata.json'),
+        JSON.stringify(metadata)
+      );
+
+      onProgress?.(this.createProgress('uploading', 70, 100, 'Creating backup...'));
 
       // Also create a backup copy
       await client.putFile(this.getRemotePath(backupFilename), jsonData);
@@ -323,24 +340,25 @@ export class WebDAVProvider extends BaseSyncProvider {
   async getRemoteMetadata(): Promise<SyncMetadata | null> {
     try {
       const client = this.getClient();
-      const files = await client.listDirectory(this.getRemotePath());
-      
-      const currentFile = files.find((f) => f.basename === 'current.json');
-      if (!currentFile) return null;
 
-      // Download and parse to get metadata
+      // Try small metadata.json first (written by newer uploads)
+      const metaContent = await client.getFile(this.getRemotePath('metadata.json'));
+      if (metaContent) {
+        return JSON.parse(metaContent) as SyncMetadata;
+      }
+
+      // Fallback: download full current.json for legacy data
       const content = await client.getFile(this.getRemotePath('current.json'));
       if (!content) return null;
 
       const data = JSON.parse(content) as SyncData;
-      
       return {
         version: data.version,
         syncedAt: data.syncedAt,
         deviceId: data.deviceId,
         deviceName: data.deviceName,
         checksum: data.checksum,
-        size: currentFile.size,
+        size: content.length,
       };
     } catch {
       return null;
@@ -366,6 +384,17 @@ export class WebDAVProvider extends BaseSyncProvider {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch {
       return [];
+    }
+  }
+
+  async downloadBackup(id: string): Promise<SyncData | null> {
+    try {
+      const client = this.getClient();
+      const content = await client.getFile(this.getRemotePath(id));
+      if (!content) return null;
+      return JSON.parse(content) as SyncData;
+    } catch {
+      return null;
     }
   }
 

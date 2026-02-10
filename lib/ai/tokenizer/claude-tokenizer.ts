@@ -12,6 +12,7 @@ import type {
   TokenCountMessage,
   TokenCountOptions,
 } from '@/types/system/tokenizer';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 // Note: Uses internal estimation method instead of base-tokenizer
 
@@ -211,7 +212,7 @@ export class ClaudeTokenizer implements Tokenizer {
         body.system = system;
       }
 
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

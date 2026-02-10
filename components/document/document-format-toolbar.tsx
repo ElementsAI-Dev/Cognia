@@ -5,7 +5,7 @@
  * Provides common Word-like formatting operations with responsive mobile support
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, memo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Bold,
@@ -118,10 +118,6 @@ export interface DocumentFormatToolbarProps {
   disabled?: boolean;
   compact?: boolean;
   className?: string;
-  /** Show expanded toolbar on mobile (default: false, shows collapsed) */
-  mobileExpanded?: boolean;
-  /** Callback when mobile expansion state changes */
-  onMobileExpandedChange?: (expanded: boolean) => void;
 }
 
 const FONT_COLORS = [
@@ -158,7 +154,7 @@ interface ToolbarToggleProps {
   onClick: (action: FormatAction) => void;
 }
 
-function ToolbarToggle({
+const ToolbarToggle = memo(function ToolbarToggle({
   action,
   icon: Icon,
   tooltip,
@@ -176,6 +172,7 @@ function ToolbarToggle({
           onPressedChange={() => onClick(action)}
           disabled={disabled}
           className="h-8 w-8 p-0"
+          aria-label={tooltip}
         >
           <Icon className="h-4 w-4" />
         </Toggle>
@@ -188,9 +185,9 @@ function ToolbarToggle({
       </TooltipContent>
     </Tooltip>
   );
-}
+});
 
-export function DocumentFormatToolbar({
+export const DocumentFormatToolbar = memo(function DocumentFormatToolbar({
   formatState = {},
   onFormatAction,
   onFontChange,
@@ -200,11 +197,10 @@ export function DocumentFormatToolbar({
   disabled = false,
   compact = false,
   className,
-  mobileExpanded: _mobileExpanded = false,
-  onMobileExpandedChange: _onMobileExpandedChange,
 }: DocumentFormatToolbarProps) {
   const t = useTranslations('document');
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const handleAction = useCallback(
     (action: FormatAction) => {
@@ -639,7 +635,7 @@ export function DocumentFormatToolbar({
 
           {/* Alignment for mobile/tablet */}
           <DropdownMenuLabel className="text-xs text-muted-foreground md:hidden">
-            {t('alignLeft').replace('Left', '')}
+            {t('categoryAlignment')}
           </DropdownMenuLabel>
           <div className="flex items-center justify-center gap-1 px-2 pb-2 md:hidden">
             <Button
@@ -695,7 +691,7 @@ export function DocumentFormatToolbar({
 
           {/* Lists for mobile/tablet */}
           <DropdownMenuLabel className="text-xs text-muted-foreground lg:hidden">
-            {t('bulletList').replace('Bullet ', '')}
+            {t('categoryLists')}
           </DropdownMenuLabel>
           <div className="flex items-center justify-center gap-1 px-2 pb-2 lg:hidden">
             <Button
@@ -751,12 +747,12 @@ export function DocumentFormatToolbar({
 
           {/* Formatting options for mobile */}
           <DropdownMenuLabel className="text-xs text-muted-foreground xl:hidden">
-            {t('heading1').replace('1', '')}
+            {t('categoryHeadings')}
           </DropdownMenuLabel>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="xl:hidden">
               <Heading1 className="h-4 w-4 mr-2" />
-              {t('heading1').replace('1', '')}
+              {t('categoryHeadings')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               <DropdownMenuItem
@@ -954,11 +950,37 @@ export function DocumentFormatToolbar({
     </>
   );
 
+  // Keyboard navigation for toolbar (left/right arrow keys)
+  const handleToolbarKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+
+    const focusable = Array.from(
+      toolbar.querySelectorAll<HTMLElement>('button:not(:disabled), [role="radio"]:not(:disabled)')
+    );
+    const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+    if (currentIndex === -1) return;
+
+    e.preventDefault();
+    const nextIndex = e.key === 'ArrowRight'
+      ? (currentIndex + 1) % focusable.length
+      : (currentIndex - 1 + focusable.length) % focusable.length;
+    focusable[nextIndex]?.focus();
+  }, []);
+
   return (
-    <div className={cn('relative', className)}>
+    <div
+      className={cn('relative', className)}
+      role="toolbar"
+      aria-label={t('formattingToolbar')}
+      onKeyDown={handleToolbarKeyDown}
+    >
       {/* Scrollable container for mobile */}
       <ScrollArea className="w-full">
         <div
+          ref={toolbarRef}
           className={cn(
             'flex items-center gap-0.5 p-1',
             'min-w-max' // Prevent wrapping, allow horizontal scroll
@@ -970,6 +992,6 @@ export function DocumentFormatToolbar({
       </ScrollArea>
     </div>
   );
-}
+});
 
 export default DocumentFormatToolbar;

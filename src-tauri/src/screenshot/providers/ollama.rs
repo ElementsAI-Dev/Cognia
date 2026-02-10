@@ -74,10 +74,7 @@ impl OllamaVisionProvider {
 
     /// Check if Ollama server is running
     async fn check_server(&self) -> bool {
-        let client = match reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-        {
+        let client = match crate::http::get_client_for_url(&self.endpoint) {
             Ok(c) => c,
             Err(_) => return false,
         };
@@ -92,10 +89,7 @@ impl OllamaVisionProvider {
 
     /// Check if the specified model is available
     async fn check_model(&self) -> bool {
-        let client = match reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-        {
+        let client = match crate::http::get_client_for_url(&self.endpoint) {
             Ok(c) => c,
             Err(_) => return false,
         };
@@ -198,9 +192,7 @@ impl OcrProvider for OllamaVisionProvider {
         image_data: &[u8],
         options: &OcrOptions,
     ) -> Result<OcrResult, OcrError> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout_secs))
-            .build()
+        let client = crate::http::get_client_for_url(&self.endpoint)
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         // Encode image to base64

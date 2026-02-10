@@ -13,6 +13,7 @@ import type {
   GitHubSyncConfig,
 } from '@/types/sync';
 import { BaseSyncProvider } from './sync-provider';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.network;
@@ -77,7 +78,7 @@ class GitHubClient {
     body?: unknown
   ): Promise<T | null> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await proxyFetch(`${this.baseUrl}${endpoint}`, {
         method,
         headers: {
           Authorization: `Bearer ${this.token}`,
@@ -377,6 +378,32 @@ export class GitHubProvider extends BaseSyncProvider {
       return this.createErrorResult('upload', 'Failed to upload sync data');
     }
 
+    onProgress?.(this.createProgress('uploading', 60, 100, 'Writing metadata...'));
+
+    // Write separate metadata file for fast getRemoteMetadata
+    const metadataPath = this.getFilePath('metadata.json');
+    const metadata: SyncMetadata = {
+      version: data.version,
+      syncedAt: data.syncedAt,
+      deviceId: data.deviceId,
+      deviceName: data.deviceName,
+      checksum: data.checksum,
+      size: jsonData.length,
+    };
+    let metaSha: string | undefined;
+    const existingMeta = await client.getContent(repoOwner, repoName, metadataPath);
+    if (existingMeta && !Array.isArray(existingMeta) && existingMeta.sha) {
+      metaSha = existingMeta.sha;
+    }
+    await client.createOrUpdateFile(
+      repoOwner,
+      repoName,
+      metadataPath,
+      JSON.stringify(metadata),
+      `Metadata update from ${data.deviceName}`,
+      metaSha
+    );
+
     onProgress?.(this.createProgress('uploading', 80, 100, 'Creating backup...'));
 
     // Create backup
@@ -465,9 +492,35 @@ export class GitHubProvider extends BaseSyncProvider {
 
   async getRemoteMetadata(): Promise<SyncMetadata | null> {
     try {
+      const client = this.getClient();
+
+      if (this.config.gistMode) {
+        // Gist mode: read metadata from the main sync file
+        const data = await this.download();
+        if (!data) return null;
+        return {
+          version: data.version,
+          syncedAt: data.syncedAt,
+          deviceId: data.deviceId,
+          deviceName: data.deviceName,
+          checksum: data.checksum,
+          size: JSON.stringify(data).length,
+        };
+      }
+
+      // Repo mode: try small metadata.json first
+      const { repoOwner, repoName } = this.config;
+      const metadataPath = this.getFilePath('metadata.json');
+      const metaFile = await client.getContent(repoOwner, repoName, metadataPath);
+
+      if (metaFile && !Array.isArray(metaFile) && metaFile.content) {
+        const decoded = atob(metaFile.content);
+        return JSON.parse(decoded) as SyncMetadata;
+      }
+
+      // Fallback: download full current.json for legacy data
       const data = await this.download();
       if (!data) return null;
-
       return {
         version: data.version,
         syncedAt: data.syncedAt,
@@ -528,14 +581,44 @@ export class GitHubProvider extends BaseSyncProvider {
     }
   }
 
+  async downloadBackup(id: string): Promise<SyncData | null> {
+    try {
+      const client = this.getClient();
+
+      if (this.config.gistMode) {
+        if (!this.config.gistId) return null;
+        const gist = await client.getGist(this.config.gistId);
+        if (!gist || !gist.files[id]) return null;
+        const content = gist.files[id].content;
+        return JSON.parse(content) as SyncData;
+      } else {
+        const { repoOwner, repoName } = this.config;
+        const backups = await this.listBackups();
+        const backup = backups.find((b) => b.id === id);
+        if (!backup) return null;
+
+        const path = this.getFilePath(backup.filename);
+        const fileContent = await client.getContent(repoOwner, repoName, path);
+        if (!fileContent || Array.isArray(fileContent) || !fileContent.content) return null;
+
+        const decoded = atob(fileContent.content);
+        return JSON.parse(decoded) as SyncData;
+      }
+    } catch {
+      return null;
+    }
+  }
+
   async deleteBackup(id: string): Promise<boolean> {
     try {
       const client = this.getClient();
 
       if (this.config.gistMode) {
-        // In gist mode, we'd need to update the gist without that file
-        // This is more complex, so we'll skip for now
-        return false;
+        if (!this.config.gistId) return false;
+        // Delete a file from gist by setting its value to null
+        const files = { [id]: null } as unknown as Record<string, { content: string }>;
+        const result = await client.updateGist(this.config.gistId, 'Cognia Sync Backup', files);
+        return result !== null;
       } else {
         const { repoOwner, repoName } = this.config;
         const backups = await this.listBackups();

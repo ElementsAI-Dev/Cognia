@@ -16,6 +16,7 @@ import {
   Upload,
   Settings2,
   ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +29,13 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
 import { useSyncStore } from '@/stores/sync';
 import {
@@ -45,6 +53,8 @@ import {
   removeGoogleTokens,
   hasStoredCredentials,
 } from '@/lib/sync/credential-storage';
+import type { ConflictResolution, SyncDataType } from '@/types/sync';
+import { SyncAdvancedSettings } from './sync-advanced-settings';
 
 // Google OAuth Client ID - should be configured in environment
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -412,6 +422,76 @@ export function GoogleDriveConfigForm({
                 />
               </div>
             )}
+
+            {/* Conflict Resolution */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm">
+                  {t('conflictResolution') || 'Conflict Resolution'}
+                </Label>
+              </div>
+              <Select
+                value={googleDriveConfig.conflictResolution}
+                onValueChange={(value) =>
+                  setGoogleDriveConfig({
+                    conflictResolution: value as ConflictResolution,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">
+                    {t('useNewest') || 'Use Newest'}
+                  </SelectItem>
+                  <SelectItem value="local">
+                    {t('preferLocal') || 'Prefer Local'}
+                  </SelectItem>
+                  <SelectItem value="remote">
+                    {t('preferRemote') || 'Prefer Remote'}
+                  </SelectItem>
+                  <SelectItem value="manual">
+                    {t('askEverytime') || 'Ask Every Time'}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sync on Startup/Exit */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">
+                  {t('syncOnStartup') || 'Sync on Startup'}
+                </Label>
+                <Switch
+                  checked={googleDriveConfig.syncOnStartup}
+                  onCheckedChange={(checked) =>
+                    setGoogleDriveConfig({ syncOnStartup: checked })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">
+                  {t('syncOnExit') || 'Sync on Exit'}
+                </Label>
+                <Switch
+                  checked={googleDriveConfig.syncOnExit}
+                  onCheckedChange={(checked) =>
+                    setGoogleDriveConfig({ syncOnExit: checked })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Advanced: Max Backups & Selective Sync */}
+            <SyncAdvancedSettings
+              maxBackups={googleDriveConfig.maxBackups}
+              syncDataTypes={googleDriveConfig.syncDataTypes as SyncDataType[]}
+              onMaxBackupsChange={(maxBackups) => setGoogleDriveConfig({ maxBackups })}
+              onSyncDataTypesChange={(syncDataTypes) => setGoogleDriveConfig({ syncDataTypes })}
+            />
           </>
         )}
       </CardContent>

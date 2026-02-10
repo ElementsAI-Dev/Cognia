@@ -12,6 +12,7 @@ import type {
   TokenCountMessage,
   TokenCountOptions,
 } from '@/types/system/tokenizer';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 // Note: Uses internal estimation method optimized for Chinese
 
@@ -206,7 +207,7 @@ export class GLMTokenizer implements Tokenizer {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

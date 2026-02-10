@@ -4,6 +4,7 @@
  */
 
 import type { Paper, AcademicProviderType } from '@/types/learning/academic';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -60,7 +61,7 @@ export async function fetchCitationsFromSemanticScholar(
     const fields = 'paperId,title,authors,year,citationCount,isInfluential,venue,abstract';
     const url = `https://api.semanticscholar.org/graph/v1/paper/${paperId}/citations?fields=${fields}&limit=${limit}&offset=${offset}`;
     
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       headers: {
         'Accept': 'application/json',
       },
@@ -116,7 +117,7 @@ export async function fetchReferencesFromSemanticScholar(
     const fields = 'paperId,title,authors,year,citationCount,isInfluential,venue,abstract';
     const url = `https://api.semanticscholar.org/graph/v1/paper/${paperId}/references?fields=${fields}&limit=${limit}&offset=${offset}`;
     
-    const response = await fetch(url, {
+    const response = await proxyFetch(url, {
       headers: {
         'Accept': 'application/json',
       },

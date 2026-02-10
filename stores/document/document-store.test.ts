@@ -392,4 +392,154 @@ describe('useDocumentStore', () => {
       expect(useDocumentStore.getState().error).toBe('Test error');
     });
   });
+
+  describe('partialize (localStorage content exclusion)', () => {
+    it('should exclude content and embeddableContent from partialize output', () => {
+      act(() => {
+        useDocumentStore.getState().addDocument({
+          filename: 'large.pdf',
+          type: 'pdf',
+          content: 'A'.repeat(10000),
+          embeddableContent: 'B'.repeat(5000),
+          metadata: createMetadata({ size: 10000 }),
+        });
+      });
+
+      // Access the persist API to get the partialized state
+      const persistApi = (useDocumentStore as unknown as { persist: { getOptions: () => { partialize: (state: ReturnType<typeof useDocumentStore.getState>) => unknown } } }).persist;
+      const options = persistApi.getOptions();
+      const partialized = options.partialize(useDocumentStore.getState()) as { documents: Array<Record<string, unknown>> };
+
+      // Content should be excluded
+      expect(partialized.documents[0]).not.toHaveProperty('content');
+      expect(partialized.documents[0]).not.toHaveProperty('embeddableContent');
+      // But contentLength should be preserved
+      expect(partialized.documents[0].contentLength).toBe(10000);
+      // Other fields should still be present
+      expect(partialized.documents[0].filename).toBe('large.pdf');
+      expect(partialized.documents[0].type).toBe('pdf');
+    });
+
+    it('should exclude version content from partialize output', () => {
+      let docId: string;
+      act(() => {
+        const doc = useDocumentStore.getState().addDocument({
+          filename: 'test.txt',
+          type: 'text',
+          content: 'Version content here',
+          metadata: createMetadata(),
+        });
+        docId = doc.id;
+        useDocumentStore.getState().saveVersion(docId);
+      });
+
+      const persistApi = (useDocumentStore as unknown as { persist: { getOptions: () => { partialize: (state: ReturnType<typeof useDocumentStore.getState>) => unknown } } }).persist;
+      const options = persistApi.getOptions();
+      const partialized = options.partialize(useDocumentStore.getState()) as { versions: Record<string, Array<Record<string, unknown>>> };
+
+      const versions = Object.values(partialized.versions)[0];
+      expect(versions[0]).not.toHaveProperty('content');
+      expect(versions[0].documentId).toBeDefined();
+    });
+
+    it('should serialize dates as ISO strings in partialize output', () => {
+      act(() => {
+        useDocumentStore.getState().addDocument({
+          filename: 'test.txt',
+          type: 'text',
+          content: 'original',
+          metadata: createMetadata(),
+        });
+      });
+
+      const persistApi = (useDocumentStore as unknown as { persist: { getOptions: () => { partialize: (state: ReturnType<typeof useDocumentStore.getState>) => unknown } } }).persist;
+      const options = persistApi.getOptions();
+      const partialized = options.partialize(useDocumentStore.getState()) as { documents: Array<Record<string, unknown>> };
+
+      // Dates should be serialized as ISO strings for JSON storage
+      expect(typeof partialized.documents[0].createdAt).toBe('string');
+      expect(typeof partialized.documents[0].updatedAt).toBe('string');
+    });
+
+    it('should handle documents with undefined content gracefully in partialize', () => {
+      act(() => {
+        useDocumentStore.getState().addDocument({
+          filename: 'test.txt',
+          type: 'text',
+          content: '',
+          metadata: createMetadata(),
+        });
+      });
+
+      const persistApi = (useDocumentStore as unknown as { persist: { getOptions: () => { partialize: (state: ReturnType<typeof useDocumentStore.getState>) => unknown } } }).persist;
+      const options = persistApi.getOptions();
+      const partialized = options.partialize(useDocumentStore.getState()) as { documents: Array<Record<string, unknown>> };
+
+      expect(partialized.documents[0].contentLength).toBe(0);
+    });
+  });
+
+  describe('type re-exports from @/types/document', () => {
+    it('should export StoredDocument type', () => {
+      act(() => {
+        const doc = useDocumentStore.getState().addDocument({
+          filename: 'typed.txt',
+          type: 'text',
+          content: 'typed',
+          metadata: createMetadata(),
+        });
+        // StoredDocument should have all required fields
+        expect(doc.id).toBeDefined();
+        expect(doc.filename).toBe('typed.txt');
+        expect(doc.type).toBe('text');
+        expect(doc.version).toBe(1);
+        expect(doc.isIndexed).toBe(false);
+        expect(doc.createdAt).toBeInstanceOf(Date);
+        expect(doc.updatedAt).toBeInstanceOf(Date);
+      });
+    });
+
+    it('should export DocumentVersion type via saveVersion/getVersions', () => {
+      let docId: string;
+      act(() => {
+        const doc = useDocumentStore.getState().addDocument({
+          filename: 'ver.txt',
+          type: 'text',
+          content: 'v1',
+          metadata: createMetadata(),
+        });
+        docId = doc.id;
+        useDocumentStore.getState().saveVersion(docId);
+      });
+
+      const versions = useDocumentStore.getState().getVersions(docId!);
+      expect(versions).toHaveLength(1);
+      expect(versions[0].id).toBeDefined();
+      expect(versions[0].documentId).toBe(docId!);
+      expect(versions[0].version).toBe(1);
+      expect(versions[0].content).toBe('v1');
+      expect(versions[0].createdAt).toBeInstanceOf(Date);
+    });
+
+    it('should export DocumentFilter type via filterDocuments', () => {
+      act(() => {
+        useDocumentStore.getState().addDocument({
+          filename: 'a.md',
+          type: 'markdown',
+          content: 'md',
+          projectId: 'p1',
+          metadata: createMetadata(),
+        });
+      });
+
+      // DocumentFilter with all fields
+      const results = useDocumentStore.getState().filterDocuments({
+        type: 'markdown',
+        projectId: 'p1',
+        isIndexed: false,
+        searchQuery: 'md',
+      });
+      expect(results).toHaveLength(1);
+    });
+  });
 });

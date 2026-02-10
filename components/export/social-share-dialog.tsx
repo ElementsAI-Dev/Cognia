@@ -6,7 +6,7 @@
  * Supports: Twitter/X, LinkedIn, Reddit, WeChat, Weibo, Telegram, Facebook, Email
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Share2,
@@ -34,8 +34,8 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { messageRepository } from '@/lib/db';
-import type { Session, UIMessage } from '@/types';
+import type { Session } from '@/types';
+import { useExportMessages } from '@/hooks/export';
 import {
   type SocialPlatform,
   PLATFORM_CONFIGS,
@@ -71,8 +71,6 @@ const PLATFORM_ICONS: Record<SocialPlatform, React.ReactNode> = {
 export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [shareFormat, setShareFormat] = useState<ShareFormat>('text');
   const [copied, setCopied] = useState(false);
   const [wechatQR, setWechatQR] = useState<string | null>(null);
@@ -84,16 +82,7 @@ export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) 
   const [includeModel, setIncludeModel] = useState(true);
   const [maxMessages] = useState(10);
 
-  // Load messages when dialog opens
-  useEffect(() => {
-    if (open && messages.length === 0) {
-      setIsLoading(true);
-      messageRepository
-        .getBySessionId(session.id)
-        .then(setMessages)
-        .finally(() => setIsLoading(false));
-    }
-  }, [open, session.id, messages.length]);
+  const { messages, isLoading } = useExportMessages(session.id, open);
 
   // Generate share content
   const shareContent = useCallback(() => {

@@ -461,9 +461,7 @@ impl PluginManager {
         log::debug!("Fetching plugin info from: {}", url);
         
         // Create HTTP client
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
+        let client = crate::http::create_proxy_client()
             .map_err(|e| PluginError::Network(format!("Failed to create HTTP client: {}", e)))?;
         
         let response = client
@@ -492,9 +490,7 @@ impl PluginManager {
     async fn download_file(&self, url: &str, dest: &Path) -> PluginResult<()> {
         log::debug!("Downloading file from: {} to: {:?}", url, dest);
         
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(300))
-            .build()
+        let client = crate::http::create_proxy_client_long()
             .map_err(|e| PluginError::Network(format!("Failed to create HTTP client: {}", e)))?;
         
         let response = client

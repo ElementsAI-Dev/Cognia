@@ -17,6 +17,7 @@ import { symbolParser, type DocumentSymbol } from '@/lib/canvas/symbols/symbol-p
 import { themeRegistry, type EditorTheme } from '@/lib/canvas/themes/theme-registry';
 import { pluginManager } from '@/lib/canvas/plugins/plugin-manager';
 import { registerAllSnippets, registerEmmetSupport } from '@/lib/monaco/snippets';
+import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
 
 interface UseCanvasMonacoSetupOptions {
   documentId: string | null;
@@ -57,8 +58,10 @@ export function useCanvasMonacoSetup(
   const [debouncedContent, setDebouncedContent] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Theme state
-  const [activeThemeId, setActiveThemeIdState] = useState(themeRegistry.getActiveThemeId());
+  // Theme state - synced with settings store as single source of truth
+  const settingsTheme = useCanvasSettingsStore((state) => state.settings.theme);
+  const updateSettings = useCanvasSettingsStore((state) => state.updateSettings);
+  const [activeThemeId, setActiveThemeIdState] = useState(settingsTheme || themeRegistry.getActiveThemeId());
 
   // Debounce content for symbol parsing (avoid re-parsing on every keystroke)
   useEffect(() => {
@@ -101,10 +104,11 @@ export function useCanvasMonacoSetup(
     return snippetProvider.getSnippets(language).length;
   }, [language]);
 
-  // Set active theme and apply to Monaco
+  // Set active theme and apply to Monaco + persist to settings store
   const setActiveTheme = useCallback((themeId: string) => {
     themeRegistry.setActiveTheme(themeId);
     setActiveThemeIdState(themeId);
+    updateSettings({ theme: themeId });
 
     const monaco = monacoRef.current;
     if (monaco) {
@@ -115,7 +119,7 @@ export function useCanvasMonacoSetup(
         monaco.editor.setTheme(themeId);
       }
     }
-  }, []);
+  }, [updateSettings]);
 
   // Navigate to a symbol in the editor
   const goToSymbol = useCallback((symbol: DocumentSymbol) => {

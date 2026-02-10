@@ -5,6 +5,7 @@
 
 import type { TTSResponse, LMNTTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -48,7 +49,7 @@ export async function generateLMNTTTS(
 
   try {
     // Use LMNT REST API directly for better compatibility
-    const response = await fetch('https://api.lmnt.com/v1/ai/speech', {
+    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,7 +158,7 @@ export async function streamLMNTTTS(
   }
 
   try {
-    const response = await fetch('https://api.lmnt.com/v1/ai/speech/stream', {
+    const response = await proxyFetch('https://api.lmnt.com/v1/ai/speech/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

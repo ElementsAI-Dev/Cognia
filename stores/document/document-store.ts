@@ -4,39 +4,10 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { DocumentType, DocumentMetadata } from '@/lib/document/document-processor';
+import type { StoredDocument, DocumentVersion, DocumentFilter } from '@/types/document';
 
-export interface StoredDocument {
-  id: string;
-  filename: string;
-  type: DocumentType;
-  content: string;
-  embeddableContent?: string;
-  metadata: DocumentMetadata;
-  projectId?: string;
-  collectionId?: string;
-  isIndexed: boolean;
-  version: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface DocumentVersion {
-  id: string;
-  documentId: string;
-  version: number;
-  content: string;
-  createdAt: Date;
-  createdBy?: string;
-}
-
-export interface DocumentFilter {
-  type?: DocumentType;
-  projectId?: string;
-  collectionId?: string;
-  isIndexed?: boolean;
-  searchQuery?: string;
-}
+// Re-export canonical types for API compatibility
+export type { StoredDocument, DocumentVersion, DocumentFilter } from '@/types/document';
 
 interface DocumentState {
   // State
@@ -305,18 +276,28 @@ export const useDocumentStore = create<DocumentState>()(
       name: 'cognia-documents',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        documents: state.documents.map((d) => ({
-          ...d,
-          createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
-          updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : d.updatedAt,
-        })),
+        documents: state.documents.map((d) => {
+          // Exclude content and embeddableContent from localStorage to avoid quota overflow
+          // Large documents (PDF text, etc.) can easily exceed the 5-10MB localStorage limit
+          const { content: _content, embeddableContent: _embeddable, ...rest } = d;
+          return {
+            ...rest,
+            contentLength: (d.content || '').length,
+            createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : d.createdAt,
+            updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : d.updatedAt,
+          };
+        }),
         versions: Object.fromEntries(
           Object.entries(state.versions).map(([key, versions]) => [
             key,
-            versions.map((v) => ({
-              ...v,
-              createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt,
-            })),
+            versions.map((v) => {
+              // Exclude version content from localStorage as well
+              const { content: _content, ...rest } = v;
+              return {
+                ...rest,
+                createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : v.createdAt,
+              };
+            }),
           ])
         ),
       }),
@@ -324,6 +305,9 @@ export const useDocumentStore = create<DocumentState>()(
         if (state?.documents) {
           state.documents = state.documents.map((d) => ({
             ...d,
+            // Restore empty content for documents rehydrated without content
+            content: d.content || '',
+            embeddableContent: d.embeddableContent || '',
             createdAt: new Date(d.createdAt),
             updatedAt: new Date(d.updatedAt),
           }));
@@ -334,6 +318,7 @@ export const useDocumentStore = create<DocumentState>()(
               key,
               versions.map((v) => ({
                 ...v,
+                content: v.content || '',
                 createdAt: new Date(v.createdAt),
               })),
             ])

@@ -318,6 +318,13 @@ export const projectRepository = {
   },
 
   /**
+   * Upsert a knowledge file with a pre-existing ID (for store→DB sync)
+   */
+  async putKnowledgeFile(projectId: string, file: KnowledgeFile): Promise<void> {
+    await db.knowledgeFiles.put(toDBKnowledgeFile(file, projectId));
+  },
+
+  /**
    * Update a knowledge file
    */
   async updateKnowledgeFile(

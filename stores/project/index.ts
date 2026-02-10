@@ -11,4 +11,8 @@ export {
   type ProjectActivity,
 } from './project-activity-store';
 
-export { initProjectActivitySubscriber, resetSubscriberState } from './project-activity-subscriber';
+export {
+  initProjectActivitySubscriber,
+  initSessionMessageCountSubscriber,
+  resetSubscriberState,
+} from './project-activity-subscriber';

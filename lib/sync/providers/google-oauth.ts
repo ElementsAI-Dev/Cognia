@@ -4,6 +4,7 @@
  */
 
 import { loggers } from '@/lib/logger';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 const log = loggers.auth;
 
@@ -159,7 +160,7 @@ export async function exchangeGoogleCode(
 ): Promise<GoogleTokenResponse> {
   log.info('Exchanging Google authorization code for tokens');
 
-  const response = await fetch(GOOGLE_TOKEN_URL, {
+  const response = await proxyFetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -195,7 +196,7 @@ export async function refreshGoogleToken(
 ): Promise<GoogleTokenResponse> {
   log.info('Refreshing Google access token');
 
-  const response = await fetch(GOOGLE_TOKEN_URL, {
+  const response = await proxyFetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -226,7 +227,7 @@ export async function refreshGoogleToken(
 export async function revokeGoogleToken(token: string): Promise<void> {
   log.info('Revoking Google token');
 
-  const response = await fetch(`${GOOGLE_REVOKE_URL}?token=${token}`, {
+  const response = await proxyFetch(`${GOOGLE_REVOKE_URL}?token=${token}`, {
     method: 'POST',
   });
 
@@ -244,7 +245,7 @@ export async function revokeGoogleToken(token: string): Promise<void> {
 export async function getGoogleUserInfo(
   accessToken: string
 ): Promise<GoogleUserInfo> {
-  const response = await fetch(GOOGLE_USERINFO_URL, {
+  const response = await proxyFetch(GOOGLE_USERINFO_URL, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

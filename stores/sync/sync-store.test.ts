@@ -26,6 +26,7 @@ import type { SyncConflict, SyncResult } from '@/types/sync';
 jest.mock('@/lib/sync', () => ({
   getSyncManager: jest.fn(() => ({
     sync: jest.fn(),
+    cancelSync: jest.fn(),
     testConnection: jest.fn(),
     listBackups: jest.fn(),
     restoreBackup: jest.fn(),
@@ -172,13 +173,16 @@ describe('Sync Store', () => {
     });
 
     describe('cancelSync', () => {
-      it('should reset status to idle', () => {
+      it('should reset status to idle', async () => {
         act(() => {
           useSyncStore.setState({
             status: 'syncing',
             progress: { phase: 'uploading', current: 50, total: 100, message: 'Uploading...' },
           });
-          useSyncStore.getState().cancelSync();
+        });
+
+        await act(async () => {
+          await useSyncStore.getState().cancelSync();
         });
 
         const state = useSyncStore.getState();

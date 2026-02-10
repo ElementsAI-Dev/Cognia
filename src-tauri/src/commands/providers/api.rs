@@ -3,7 +3,7 @@
 //! This module provides commands for testing API connections to various
 //! AI providers. It uses the shared HTTP client from the http module.
 
-use crate::http::HTTP_CLIENT;
+use crate::http::{create_proxy_client, get_client_for_url};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -55,7 +55,8 @@ async fn test_bearer_auth_api(
 ) -> Result<ApiTestResult, String> {
     let start = std::time::Instant::now();
 
-    let response = HTTP_CLIENT
+    let client = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?;
+    let response = client
         .get(url)
         .header("Authorization", format!("Bearer {}", api_key))
         .send()
@@ -105,7 +106,8 @@ pub async fn test_anthropic_connection(api_key: String) -> Result<ApiTestResult,
         m
     }];
 
-    let response = HTTP_CLIENT
+    let client = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?;
+    let response = client
         .post("https://api.anthropic.com/v1/messages")
         .header("x-api-key", &api_key)
         .header("anthropic-version", "2023-06-01")
@@ -142,7 +144,8 @@ pub async fn test_anthropic_connection(api_key: String) -> Result<ApiTestResult,
 pub async fn test_google_connection(api_key: String) -> Result<ApiTestResult, String> {
     let start = std::time::Instant::now();
 
-    let response = HTTP_CLIENT
+    let client = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?;
+    let response = client
         .get(format!(
             "https://generativelanguage.googleapis.com/v1beta/models?key={}",
             api_key
@@ -176,7 +179,8 @@ pub async fn test_google_connection(api_key: String) -> Result<ApiTestResult, St
 pub async fn test_deepseek_connection(api_key: String) -> Result<ApiTestResult, String> {
     let start = std::time::Instant::now();
 
-    let response = HTTP_CLIENT
+    let client = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?;
+    let response = client
         .get("https://api.deepseek.com/v1/models")
         .header("Authorization", format!("Bearer {}", api_key))
         .send()
@@ -232,7 +236,8 @@ pub async fn test_ollama_connection(base_url: String) -> Result<ApiTestResult, S
 
     let url = base_url.trim_end_matches("/v1");
 
-    let response = HTTP_CLIENT
+    let client = get_client_for_url(url).map_err(|e| format!("HTTP client error: {}", e))?;
+    let response = client
         .get(format!("{}/api/tags", url))
         .send()
         .await

@@ -416,6 +416,12 @@ export {
   type TokenUsageSnapshot,
 } from './agent-trace';
 
+// Transformers stores
+export {
+  useTransformersStore,
+  type TransformersState,
+} from './ai/transformers-store';
+
 // External Agent stores (merged into agent/external-agent-store)
 export {
   useExternalAgentStore,

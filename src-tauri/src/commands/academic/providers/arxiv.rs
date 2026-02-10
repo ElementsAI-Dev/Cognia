@@ -4,7 +4,7 @@
 
 use super::AcademicProvider;
 use crate::commands::academic::types::*;
-use crate::http::HTTP_CLIENT;
+use crate::http::create_proxy_client;
 use async_trait::async_trait;
 use quick_xml::events::Event;
 use quick_xml::Reader;
@@ -225,7 +225,7 @@ impl AcademicProvider for ArxivProvider {
     async fn test_connection(&self) -> Result<bool, String> {
         let url = format!("{}?search_query=all:test&max_results=1", ARXIV_API_URL);
         
-        match HTTP_CLIENT.get(&url).send().await {
+        match create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?.get(&url).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(e) => Err(format!("Connection test failed: {}", e)),
         }
@@ -283,7 +283,7 @@ impl AcademicProvider for ArxivProvider {
         
         log::debug!("arXiv search URL: {}", url);
         
-        let response = HTTP_CLIENT
+        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
             .get(&url)
             .send()
             .await
@@ -323,7 +323,7 @@ impl AcademicProvider for ArxivProvider {
     async fn get_paper(&self, paper_id: &str) -> Result<Paper, String> {
         let url = format!("{}?id_list={}", ARXIV_API_URL, paper_id);
         
-        let response = HTTP_CLIENT
+        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
             .get(&url)
             .send()
             .await

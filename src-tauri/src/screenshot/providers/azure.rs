@@ -273,9 +273,7 @@ impl AzureVisionProvider {
         image_data: &[u8],
         options: &OcrOptions,
     ) -> Result<OcrResult, OcrError> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout_secs))
-            .build()
+        let client = crate::http::create_proxy_client_with_timeout(self.timeout_secs)
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         // Image Analysis 4.0 endpoint
@@ -339,9 +337,7 @@ impl AzureVisionProvider {
         image_data: &[u8],
         options: &OcrOptions,
     ) -> Result<OcrResult, OcrError> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout_secs))
-            .build()
+        let client = crate::http::create_proxy_client_with_timeout(self.timeout_secs)
             .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         let mut url = format!("{}/vision/v3.2/read/analyze", self.endpoint);

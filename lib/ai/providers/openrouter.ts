@@ -18,6 +18,7 @@ import type {
   ProviderOrderingConfig,
 } from '@/types/provider/openrouter';
 import type { BYOKKeyEntry } from '@/types/provider';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -74,7 +75,7 @@ export async function listApiKeys(
     url.searchParams.set('offset', offset.toString());
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await proxyFetch(url.toString(), {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${provisioningKey}`,
@@ -90,7 +91,7 @@ export async function createApiKey(
   provisioningKey: string,
   config: OpenRouterApiKeyCreate
 ): Promise<OpenRouterApiKeyCreateResponse['data']> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/keys`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/keys`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${provisioningKey}`,
@@ -107,7 +108,7 @@ export async function getApiKey(
   provisioningKey: string,
   keyHash: string
 ): Promise<OpenRouterApiKey> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${provisioningKey}`,
@@ -124,7 +125,7 @@ export async function updateApiKey(
   keyHash: string,
   updates: OpenRouterApiKeyUpdate
 ): Promise<OpenRouterApiKey> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${provisioningKey}`,
@@ -141,7 +142,7 @@ export async function deleteApiKey(
   provisioningKey: string,
   keyHash: string
 ): Promise<void> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/keys/${keyHash}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${provisioningKey}`,
@@ -159,7 +160,7 @@ export async function deleteApiKey(
 // ============================================================================
 
 export async function getCredits(apiKey: string): Promise<OpenRouterCredits> {
-  const response = await fetch(`${OPENROUTER_BASE_URL}/auth/key`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/auth/key`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -246,7 +247,7 @@ export async function listModels(apiKey?: string): Promise<OpenRouterModel[]> {
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+  const response = await proxyFetch(`${OPENROUTER_BASE_URL}/models`, {
     method: 'GET',
     headers,
   });

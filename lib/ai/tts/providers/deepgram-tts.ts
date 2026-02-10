@@ -5,6 +5,7 @@
 
 import type { TTSResponse, DeepgramTTSVoice } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -59,7 +60,7 @@ export async function generateDeepgramTTS(
       params.set('sample_rate', String(sampleRate));
     }
 
-    const response = await fetch(`${DEEPGRAM_API_BASE}?${params.toString()}`, {
+    const response = await proxyFetch(`${DEEPGRAM_API_BASE}?${params.toString()}`, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,
@@ -175,7 +176,7 @@ export async function streamDeepgramTTS(
       encoding,
     });
 
-    const response = await fetch(`${DEEPGRAM_API_BASE}?${params.toString()}`, {
+    const response = await proxyFetch(`${DEEPGRAM_API_BASE}?${params.toString()}`, {
       method: 'POST',
       headers: {
         'Authorization': `Token ${apiKey}`,

@@ -143,7 +143,7 @@ describe('ArtifactPreview', () => {
       render(<ArtifactPreview artifact={mockHtmlArtifact} />);
     });
     const iframe = screen.getByTitle(`Preview: ${mockHtmlArtifact.title}`);
-    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts');
   });
 
   it('renders SVG artifact', async () => {

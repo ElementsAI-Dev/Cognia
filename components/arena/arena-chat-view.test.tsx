@@ -1,5 +1,6 @@
 /**
  * Tests for ArenaChatView component
+ * Updated for chat-first layout (no tabs, inline battle, bottom input area)
  */
 
 import React from 'react';
@@ -12,21 +13,11 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       title: 'Chat Arena',
       description: 'Compare responses from multiple AI models',
-      startBattle: 'Start Battle',
-      newBattle: 'New Battle',
-      viewBattle: 'View Battle',
-      models: 'models',
-      winnerSelected: 'Winner Selected',
-      tie: 'Tie',
-      'quickBattle.title': 'Quick Battle',
+      blindMode: 'Blind Mode',
+      advancedOptions: 'Advanced Options',
+      promptPlaceholder: 'Enter a prompt to compare...',
+      selectAtLeast2Models: 'Select at least 2 models',
       'leaderboard.title': 'Leaderboard',
-      'heatmap.title': 'Heatmap',
-      'history.title': 'History',
-      'history.battles': 'battles',
-      'history.recentBattles': 'Recent Battles',
-      'history.inProgress': 'In Progress',
-      'history.totalBattles': 'Total Battles',
-      'history.completed': 'Completed',
     };
     return translations[key] || key;
   },
@@ -37,22 +28,14 @@ const mockBattles = [
   {
     id: 'battle-1',
     prompt: 'Test prompt for battle 1',
+    mode: 'blind',
     contestants: [
-      { id: 'c1', provider: 'openai', model: 'gpt-4o', status: 'completed' },
-      { id: 'c2', provider: 'anthropic', model: 'claude-3', status: 'completed' },
+      { id: 'c1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', status: 'completed', response: 'Response A' },
+      { id: 'c2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', status: 'completed', response: 'Response B' },
     ],
     winnerId: 'c1',
     isTie: false,
-  },
-  {
-    id: 'battle-2',
-    prompt: 'Test prompt for battle 2',
-    contestants: [
-      { id: 'c3', provider: 'openai', model: 'gpt-4o', status: 'streaming' },
-      { id: 'c4', provider: 'anthropic', model: 'claude-3', status: 'pending' },
-    ],
-    winnerId: null,
-    isTie: false,
+    isBothBad: false,
   },
 ];
 
@@ -62,29 +45,40 @@ jest.mock('@/stores/arena', () => ({
       battles: mockBattles,
       activeBattleId: null,
       setActiveBattle: jest.fn(),
+      modelRatings: [],
+      getRecommendedMatchup: () => null,
     };
     return typeof selector === 'function' ? selector(state) : state;
   }),
 }));
 
-// Mock arena components
-jest.mock('@/components/arena', () => ({
-  ArenaLeaderboard: () => <div data-testid="arena-leaderboard">Leaderboard</div>,
-  ArenaHeatmap: () => <div data-testid="arena-heatmap">Heatmap</div>,
-  ArenaHistory: ({ onViewBattle }: { onViewBattle: (id: string) => void }) => (
-    <div data-testid="arena-history" onClick={() => onViewBattle('battle-1')}>
-      History
-    </div>
+// Mock useArena hook
+jest.mock('@/hooks/arena', () => ({
+  useArena: () => ({
+    isExecuting: false,
+    startBattle: jest.fn(),
+    getAvailableModels: () => [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3' },
+    ],
+  }),
+}));
+
+// Mock child components
+jest.mock('./arena-inline-battle', () => ({
+  ArenaInlineBattle: ({ battleId }: { battleId: string }) => (
+    <div data-testid="arena-inline-battle">{battleId}</div>
   ),
+}));
+
+jest.mock('./arena-dialog', () => ({
   ArenaDialog: ({ open }: { open: boolean }) =>
     open ? <div data-testid="arena-dialog">Dialog</div> : null,
-  ArenaBattleView: ({ battleId, open }: { battleId: string; open: boolean }) =>
-    open ? <div data-testid="arena-battle-view">{battleId}</div> : null,
 }));
 
 // Mock cn utility
 jest.mock('@/lib/utils', () => ({
-  cn: (...classes: (string | undefined)[]) => classes.filter(Boolean).join(' '),
+  cn: (...classes: (string | undefined | false)[]) => classes.filter(Boolean).join(' '),
 }));
 
 describe('ArenaChatView', () => {
@@ -97,84 +91,45 @@ describe('ArenaChatView', () => {
       render(<ArenaChatView />);
 
       expect(screen.getByText('Chat Arena')).toBeInTheDocument();
-      expect(screen.getByText(/battles/)).toBeInTheDocument();
     });
 
-    it('renders tab navigation with all tabs', () => {
+    it('does not render tabs (removed in chat-first layout)', () => {
       render(<ArenaChatView />);
 
-      // Check for tab list with 4 tabs
-      const tabList = screen.getByRole('tablist');
-      expect(tabList).toBeInTheDocument();
-
-      const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(4);
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     });
 
-    it('renders start battle button', () => {
+    it('renders bottom input area with textarea', () => {
       render(<ArenaChatView />);
 
-      expect(screen.getByText('Start Battle')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter a prompt to compare...')).toBeInTheDocument();
     });
 
-    it('shows active battles banner when battles are in progress', () => {
+    it('renders advanced options button', () => {
       render(<ArenaChatView />);
 
-      // Check for the animated pulse indicator which only appears in active battles banner
-      const pulseIndicator = document.querySelector('.animate-pulse');
-      expect(pulseIndicator).toBeInTheDocument();
+      expect(screen.getByText('Advanced Options')).toBeInTheDocument();
     });
 
-    it('renders stats summary', () => {
+    it('renders analytics link to /arena', () => {
       render(<ArenaChatView />);
 
-      expect(screen.getByText('Total Battles')).toBeInTheDocument();
-      expect(screen.getByText('Completed')).toBeInTheDocument();
-    });
-  });
-
-  describe('tab navigation', () => {
-    it('defaults to battle tab with New Battle button visible', () => {
-      render(<ArenaChatView />);
-
-      expect(screen.getByText('New Battle')).toBeInTheDocument();
+      const link = document.querySelector('a[href="/arena"]');
+      expect(link).toBeInTheDocument();
     });
 
-    it('has leaderboard tab trigger', () => {
+    it('shows recent completed battles inline', () => {
       render(<ArenaChatView />);
 
-      const leaderboardTab = screen.getByRole('tab', { name: /leaderboard/i });
-      expect(leaderboardTab).toBeInTheDocument();
-    });
-
-    it('has heatmap tab trigger', () => {
-      render(<ArenaChatView />);
-
-      const heatmapTab = screen.getByRole('tab', { name: /heatmap/i });
-      expect(heatmapTab).toBeInTheDocument();
-    });
-
-    it('has history tab trigger', () => {
-      render(<ArenaChatView />);
-
-      const historyTab = screen.getByRole('tab', { name: /history/i });
-      expect(historyTab).toBeInTheDocument();
+      expect(screen.getByTestId('arena-inline-battle')).toBeInTheDocument();
     });
   });
 
   describe('battle interactions', () => {
-    it('opens arena dialog when start battle button is clicked', () => {
+    it('opens arena dialog when advanced options button is clicked', () => {
       render(<ArenaChatView />);
 
-      fireEvent.click(screen.getByText('Start Battle'));
-
-      expect(screen.getByTestId('arena-dialog')).toBeInTheDocument();
-    });
-
-    it('opens arena dialog when new battle button is clicked', () => {
-      render(<ArenaChatView />);
-
-      fireEvent.click(screen.getByText('New Battle'));
+      fireEvent.click(screen.getByText('Advanced Options'));
 
       expect(screen.getByTestId('arena-dialog')).toBeInTheDocument();
     });
@@ -193,10 +148,11 @@ describe('ArenaChatView', () => {
       expect(screen.getByText('Chat Arena')).toBeInTheDocument();
     });
 
-    it('accepts initialPrompt prop', () => {
+    it('accepts initialPrompt prop and shows it in textarea', () => {
       render(<ArenaChatView initialPrompt="Test prompt" />);
 
-      expect(screen.getByText('Chat Arena')).toBeInTheDocument();
+      const textarea = screen.getByPlaceholderText('Enter a prompt to compare...');
+      expect(textarea).toHaveValue('Test prompt');
     });
 
     it('accepts className prop', () => {
@@ -210,7 +166,6 @@ describe('ArenaChatView', () => {
     it('renders with responsive classes', () => {
       const { container } = render(<ArenaChatView />);
 
-      // Check for responsive padding classes
       const header = container.querySelector('.px-3');
       expect(header).toBeInTheDocument();
     });

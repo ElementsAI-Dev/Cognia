@@ -8,6 +8,7 @@ export { useCanvasDocuments } from './use-canvas-documents';
 export { useChunkLoader } from './use-chunk-loader';
 export { useCollaborativeSession } from './use-collaborative-session';
 export { useCanvasMonacoSetup } from './use-canvas-monaco-setup';
+export { useCanvasActions } from './use-canvas-actions';
 
 export type { CodeSandboxExecutionResult, ExecutionOptions } from './use-code-execution';
 export type {

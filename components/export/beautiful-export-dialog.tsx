@@ -48,8 +48,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { messageRepository } from '@/lib/db';
-import type { Session, UIMessage } from '@/types';
+import type { Session } from '@/types';
+import { useExportMessages } from '@/hooks/export';
 import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/html/syntax-themes';
 import { useCustomThemeStore } from '@/stores/settings';
 import { CustomThemeEditor } from './custom-theme-editor';
@@ -177,14 +177,25 @@ const FORMAT_CONFIG: Record<
 export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<ExportFormat | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('beautiful-html');
-  const [options, setOptions] = useState<ExportOptions>(DEFAULT_OPTIONS);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>(() => {
+    try {
+      const saved = localStorage.getItem('cognia-export-format');
+      if (saved && saved in FORMAT_CONFIG) return saved as ExportFormat;
+    } catch { /* ignore */ }
+    return 'beautiful-html';
+  });
+  const [options, setOptions] = useState<ExportOptions>(() => {
+    try {
+      const saved = localStorage.getItem('cognia-export-options');
+      if (saved) return { ...DEFAULT_OPTIONS, ...JSON.parse(saved) };
+    } catch { /* ignore */ }
+    return DEFAULT_OPTIONS;
+  });
   const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewText, setPreviewText] = useState<string>('');
   const previewRef = useRef<HTMLIFrameElement>(null);
 
   // Custom theme editor state
@@ -192,28 +203,19 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const { customThemes, deleteTheme } = useCustomThemeStore();
 
-  // Load messages when dialog opens
-  useEffect(() => {
-    if (open && messages.length === 0) {
-      setIsLoading(true);
-      messageRepository
-        .getBySessionId(session.id)
-        .then(setMessages)
-        .finally(() => setIsLoading(false));
-    }
-  }, [open, session.id, messages.length]);
+  const { messages, isLoading } = useExportMessages(session.id, open);
 
   // Generate preview when format or options change
   useEffect(() => {
     if (!open || messages.length === 0) return;
 
     const generatePreview = async () => {
-      if (selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') {
-        try {
+      try {
+        if (selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') {
           const { exportToBeautifulHTML } = await import('@/lib/export/html/beautiful-html');
           const html = exportToBeautifulHTML({
             session,
-            messages: messages.slice(0, 3), // Preview first 3 messages
+            messages: messages.slice(0, 3),
             exportedAt: new Date(),
             options: {
               theme: options.theme,
@@ -223,16 +225,51 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
               showTokens: options.showTokens,
               showThinkingProcess: options.showThinkingProcess,
               showToolCalls: options.showToolCalls,
-              includeCoverPage: false, // Disable cover for preview
+              includeCoverPage: false,
               includeTableOfContents: false,
               syntaxHighlighting: options.syntaxHighlighting,
               compactMode: options.compactMode,
             },
           });
           setPreviewHtml(html);
-        } catch (err) {
-          console.error('Preview generation failed:', err);
+          setPreviewText('');
+        } else if (selectedFormat === 'animated-html') {
+          const { exportToAnimatedHTML } = await import('@/lib/export');
+          const html = exportToAnimatedHTML({
+            session,
+            messages: messages.slice(0, 3),
+            exportedAt: new Date(),
+            options: { theme: options.theme, showTimestamps: options.showTimestamps, showControls: true, autoPlay: false },
+          });
+          setPreviewHtml(html);
+          setPreviewText('');
+        } else if (selectedFormat === 'markdown') {
+          const { exportToRichMarkdown } = await import('@/lib/export');
+          const md = exportToRichMarkdown({
+            session,
+            messages: messages.slice(0, 5),
+            exportedAt: new Date(),
+            includeMetadata: true,
+          });
+          setPreviewText(md);
+          setPreviewHtml('');
+        } else if (selectedFormat === 'json') {
+          const { exportToRichJSON } = await import('@/lib/export');
+          const json = exportToRichJSON({
+            session,
+            messages: messages.slice(0, 3),
+            exportedAt: new Date(),
+          });
+          setPreviewText(json.slice(0, 2000) + '\n...');
+          setPreviewHtml('');
+        } else {
+          setPreviewHtml('');
+          setPreviewText('');
         }
+      } catch (err) {
+        console.error('Preview generation failed:', err);
+        setPreviewHtml('');
+        setPreviewText('');
       }
     };
 
@@ -397,6 +434,12 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
       }
 
       setExportSuccess(selectedFormat);
+
+      // Persist user preferences
+      try {
+        localStorage.setItem('cognia-export-format', selectedFormat);
+        localStorage.setItem('cognia-export-options', JSON.stringify(options));
+      } catch { /* ignore */ }
     } catch (error) {
       console.error('Export failed:', error);
       setExportError(error instanceof Error ? error.message : 'Export failed');
@@ -523,6 +566,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                             }
                           } catch (error) {
                             console.error('Failed to open Google Sheets:', error);
+                            toast.error(t('exportFailed'));
                           }
                         }}
                         disabled={messages.length === 0}
@@ -1011,8 +1055,7 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                 {t('preview')}
               </div>
               <div className="rounded-lg border bg-muted/30 overflow-hidden h-[420px]">
-                {(selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') &&
-                previewHtml ? (
+                {previewHtml ? (
                   <iframe
                     ref={previewRef}
                     srcDoc={previewHtml}
@@ -1020,11 +1063,22 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                     title="Export Preview"
                     sandbox="allow-same-origin"
                   />
+                ) : previewText ? (
+                  <ScrollArea className="h-full p-4">
+                    <pre className="text-xs font-mono whitespace-pre-wrap text-foreground/80">
+                      {previewText}
+                    </pre>
+                  </ScrollArea>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <Download className="h-12 w-12 mb-4 opacity-50" />
-                    <p className="text-sm">{t('previewNotAvailable')}</p>
-                    <p className="text-xs mt-1">{t('exportToSeeResult')}</p>
+                    <div className="rounded-xl bg-muted/50 p-6 mb-4">
+                      {(() => {
+                        const Icon = FORMAT_CONFIG[selectedFormat]?.icon || Download;
+                        return <Icon className="h-12 w-12 opacity-50" />;
+                      })()}
+                    </div>
+                    <p className="text-sm font-medium">{FORMAT_CONFIG[selectedFormat]?.label}</p>
+                    <p className="text-xs mt-1 text-center max-w-[200px]">{FORMAT_CONFIG[selectedFormat]?.description}</p>
                   </div>
                 )}
               </div>

@@ -117,6 +117,9 @@ export function CollaborationPanel({
           <SheetTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             {t('collaboration')}
+            <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 text-yellow-600 border-yellow-400">
+              Experimental
+            </Badge>
           </SheetTitle>
         </SheetHeader>
 

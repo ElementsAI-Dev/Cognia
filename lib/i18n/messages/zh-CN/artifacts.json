@@ -38,6 +38,7 @@
     "search": "搜索作品...",
     "filterByType": "按类型筛选",
     "allTypes": "所有类型",
+    "batchSelect": "切换批量选择",
     "batchDelete": "批量删除",
     "batchDeleteConfirm": "删除 {count} 个作品？",
     "versionHistory": "版本历史",

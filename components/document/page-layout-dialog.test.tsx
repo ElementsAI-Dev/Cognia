@@ -702,6 +702,88 @@ describe('PageLayoutDialog', () => {
     });
   });
 
+  describe('Settings Sync', () => {
+    it('should sync localSettings when settings prop changes', async () => {
+      const initialSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        orientation: 'portrait',
+      };
+
+      const updatedSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        orientation: 'landscape',
+      };
+
+      const { rerender } = renderWithProviders(
+        <PageLayoutDialog
+          settings={initialSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+        />
+      );
+
+      // Should show portrait dimensions initially (210 x 297 for A4)
+      expect(screen.getAllByText(/210.*297/i).length).toBeGreaterThan(0);
+
+      // Re-render with updated settings (landscape)
+      rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <PageLayoutDialog
+            settings={updatedSettings}
+            onSettingsChange={mockOnSettingsChange}
+            open={true}
+          />
+        </NextIntlClientProvider>
+      );
+
+      // Should now show landscape dimensions (297 x 210 for A4)
+      await waitFor(() => {
+        expect(screen.getAllByText(/297.*210/i).length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should apply synced settings when Apply is clicked after prop change', async () => {
+      const initialSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        pageSize: 'a4',
+      };
+
+      const updatedSettings: PageLayoutSettings = {
+        ...defaultSettings,
+        pageSize: 'letter',
+      };
+
+      const { rerender } = renderWithProviders(
+        <PageLayoutDialog
+          settings={initialSettings}
+          onSettingsChange={mockOnSettingsChange}
+          open={true}
+          onOpenChange={mockOnOpenChange}
+        />
+      );
+
+      // Update settings prop
+      rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <PageLayoutDialog
+            settings={updatedSettings}
+            onSettingsChange={mockOnSettingsChange}
+            open={true}
+            onOpenChange={mockOnOpenChange}
+          />
+        </NextIntlClientProvider>
+      );
+
+      // Click Apply — should pass the updated (synced) settings
+      const applyButton = screen.getByRole('button', { name: /apply/i });
+      await userEvent.click(applyButton);
+
+      expect(mockOnSettingsChange).toHaveBeenCalled();
+      const calledSettings = mockOnSettingsChange.mock.calls[0][0];
+      expect(calledSettings.pageSize).toBe('letter');
+    });
+  });
+
   describe('Custom Page Size', () => {
     it('should show custom dimension inputs when custom size is selected', async () => {
       const customSettings: PageLayoutSettings = {

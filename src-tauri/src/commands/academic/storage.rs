@@ -3,7 +3,7 @@
 //! Handles persistence of papers, collections, and annotations
 
 use crate::commands::academic::types::*;
-use crate::http::HTTP_CLIENT_LONG;
+use crate::http::create_proxy_client_long;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -253,7 +253,8 @@ impl PaperStorage {
     // ========================================================================
     
     pub async fn download_pdf(&self, paper_id: &str, pdf_url: &str) -> Result<String, String> {
-        let response = HTTP_CLIENT_LONG
+        let response = create_proxy_client_long()
+            .map_err(|e| format!("HTTP client error: {}", e))?
             .get(pdf_url)
             .send()
             .await

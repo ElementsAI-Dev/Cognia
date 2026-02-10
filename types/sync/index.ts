@@ -14,6 +14,10 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'conflict';
 export type ConflictResolution = 'local' | 'remote' | 'newest' | 'manual';
 export type SyncDirection = 'upload' | 'download' | 'bidirectional';
 
+export type SyncDataType = 'settings' | 'sessions' | 'messages' | 'artifacts' | 'folders' | 'projects';
+
+export const ALL_SYNC_DATA_TYPES: SyncDataType[] = ['settings', 'sessions', 'messages', 'artifacts', 'folders', 'projects'];
+
 export interface BaseSyncConfig {
   enabled: boolean;
   autoSync: boolean;
@@ -23,6 +27,8 @@ export interface BaseSyncConfig {
   syncOnExit: boolean;
   conflictResolution: ConflictResolution;
   syncDirection: SyncDirection;
+  maxBackups: number; // max number of backup files to keep (0 = unlimited)
+  syncDataTypes: SyncDataType[]; // which data types to sync (empty = all)
 }
 
 // ============================================
@@ -48,6 +54,8 @@ export const DEFAULT_WEBDAV_CONFIG: WebDAVConfig = {
   syncOnExit: false,
   conflictResolution: 'newest',
   syncDirection: 'bidirectional',
+  maxBackups: 10,
+  syncDataTypes: [],
   serverUrl: '',
   username: '',
   remotePath: '/cognia-sync/',
@@ -80,6 +88,8 @@ export const DEFAULT_GITHUB_CONFIG: GitHubSyncConfig = {
   syncOnExit: false,
   conflictResolution: 'newest',
   syncDirection: 'bidirectional',
+  maxBackups: 10,
+  syncDataTypes: [],
   repoOwner: '',
   repoName: 'cognia-sync',
   branch: 'main',
@@ -113,6 +123,8 @@ export const DEFAULT_GOOGLE_DRIVE_CONFIG: GoogleDriveConfig = {
   syncOnExit: false,
   conflictResolution: 'newest',
   syncDirection: 'bidirectional',
+  maxBackups: 10,
+  syncDataTypes: [],
   useAppDataFolder: true,
   folderName: 'cognia-backup',
   enableResumableUpload: true,
@@ -214,6 +226,9 @@ export interface SyncProvider {
   
   /** List available backups */
   listBackups(): Promise<BackupInfo[]>;
+
+  /** Download a specific backup by ID */
+  downloadBackup(id: string): Promise<SyncData | null>;
   
   /** Delete a specific backup */
   deleteBackup(id: string): Promise<boolean>;

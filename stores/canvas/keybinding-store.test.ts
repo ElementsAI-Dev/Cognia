@@ -187,11 +187,13 @@ describe('useKeybindingStore', () => {
       });
 
       const conflicts = result.current.checkConflicts();
-      // Default bindings have intentional conflicts:
-      // - Ctrl+Shift+S: canvas.saveVersion & action.simplify
-      // - Ctrl+H: canvas.replace & view.toggleHistory
+      // After refactoring fix, only one intentional conflict remains:
       // - Escape: canvas.close & navigation.rejectSuggestion
-      expect(Object.keys(conflicts).length).toBe(3);
+      // Previously fixed conflicts:
+      // - Ctrl+Shift+S → action.simplify changed to Ctrl+Shift+L
+      // - Ctrl+H → view.toggleHistory changed to Ctrl+Shift+H
+      expect(Object.keys(conflicts).length).toBe(1);
+      expect(conflicts['escape']).toBeDefined();
     });
   });
 });

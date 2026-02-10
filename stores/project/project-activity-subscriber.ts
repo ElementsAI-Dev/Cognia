@@ -1,16 +1,60 @@
 /**
  * Project Activity Subscriber
  * Automatically logs activities when project store changes
+ * Also tracks session messageCount changes to update project messageCount
  */
 
 import { useProjectStore } from './project-store';
 import { useProjectActivityStore, getActivityDescription } from './project-activity-store';
-import type { Project } from '@/types';
+import type { Project, Session } from '@/types';
 
 let previousState: {
   projects: Project[];
   activeProjectId: string | null;
 } | null = null;
+
+let _previousSessions: Session[] | null = null;
+
+/**
+ * Initialize session messageCount tracking for projects.
+ * When a session's messageCount changes, propagate the delta to its project.
+ */
+export function initSessionMessageCountSubscriber(): (() => void) | null {
+  try {
+    // Lazy import to avoid circular dependency
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useSessionStore } = require('@/stores/chat/session-store');
+
+    const unsubscribe = useSessionStore.subscribe((state: { sessions: Session[] }) => {
+      if (!_previousSessions) {
+        _previousSessions = state.sessions;
+        return;
+      }
+
+      const { incrementMessageCount, getProjectForSession } = useProjectStore.getState();
+
+      for (const session of state.sessions) {
+        const prev = _previousSessions.find((s: Session) => s.id === session.id);
+        if (!prev) continue;
+
+        const delta = (session.messageCount || 0) - (prev.messageCount || 0);
+        if (delta > 0) {
+          const project = getProjectForSession(session.id);
+          if (project) {
+            incrementMessageCount(project.id, delta);
+          }
+        }
+      }
+
+      _previousSessions = state.sessions;
+    });
+
+    return unsubscribe;
+  } catch {
+    // Session store not available yet
+    return null;
+  }
+}
 
 /**
  * Initialize the project activity subscriber

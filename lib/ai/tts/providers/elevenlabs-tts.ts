@@ -5,6 +5,7 @@
 
 import type { TTSResponse, ElevenLabsTTSVoice, ElevenLabsTTSModel } from '@/types/media/tts';
 import { getTTSError, TTS_PROVIDERS } from '@/types/media/tts';
+import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -53,7 +54,7 @@ export async function generateElevenLabsTTS(
 
   try {
     // Use ElevenLabs REST API directly for better compatibility
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+    const response = await proxyFetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -171,7 +172,7 @@ export async function streamElevenLabsTTS(
   }
 
   try {
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream`, {
+    const response = await proxyFetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',

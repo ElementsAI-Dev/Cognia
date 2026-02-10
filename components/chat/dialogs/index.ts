@@ -6,6 +6,7 @@ export { AISettingsDialog, type AISettings } from './ai-settings-dialog';
 export { BatchCopyDialog } from './batch-copy-dialog';
 export { ChatSummaryDialog } from './chat-summary-dialog';
 export { ContextSettingsDialog } from './context-settings-dialog';
+/** @deprecated Use BeautifulExportDialog from '@/components/export' instead */
 export { ExportDialog } from './export-dialog';
 export { ImageGenerationDialog } from './image-generation-dialog';
 export { ModelPickerDialog } from './model-picker-dialog';

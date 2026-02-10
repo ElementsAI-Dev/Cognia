@@ -14,6 +14,9 @@ import { useDebouncedCallback } from '@/hooks/utils/use-debounce';
 import { useMediaQuery } from '@/hooks/ui/use-media-query';
 import {
   ReactSandbox,
+  MonacoSandpackEditor,
+  DesignerPreview,
+  ResponsiveControls,
   ElementTree,
   StylePanel,
   VersionHistoryPanel,
@@ -68,10 +71,6 @@ import {
   PanelLeft,
   PanelRight,
   History,
-  Monitor,
-  Tablet,
-  Smartphone,
-  Maximize,
 } from 'lucide-react';
 import {
   Dialog,
@@ -124,8 +123,6 @@ export default function DesignerPage() {
   const toggleHistoryPanel = useDesignerStore((state) => state.toggleHistoryPanel);
   const designerMode = useDesignerStore((state) => state.mode);
   const setDesignerMode = useDesignerStore((state) => state.setMode);
-  const viewport = useDesignerStore((state) => state.viewport);
-  const setViewport = useDesignerStore((state) => state.setViewport);
   
   // History for undo/redo
   const [history, setHistory] = useState<string[]>([DESIGNER_TEMPLATES[0].code]);
@@ -467,61 +464,8 @@ export default function DesignerPage() {
             </Tooltip>
           </ButtonGroup>
 
-          {/* Viewport controls */}
-          <ButtonGroup>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewport === 'mobile' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setViewport('mobile')}
-                >
-                  <Smartphone className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Mobile</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewport === 'tablet' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setViewport('tablet')}
-                >
-                  <Tablet className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Tablet</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewport === 'desktop' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setViewport('desktop')}
-                >
-                  <Monitor className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Desktop</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={viewport === 'full' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setViewport('full')}
-                >
-                  <Maximize className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Full Width</TooltipContent>
-            </Tooltip>
-          </ButtonGroup>
+          {/* Responsive viewport controls */}
+          <ResponsiveControls />
         </div>
       </header>
 
@@ -591,23 +535,13 @@ export default function DesignerPage() {
             /* Mobile: Tab-based layout */
             <MobileDesignerLayout
               previewContent={
-                <ReactSandbox
-                  code={code}
-                  onCodeChange={handleCodeChange}
-                  showFileExplorer={false}
-                  showConsole={false}
-                  framework={framework}
-                  onAIEdit={() => setShowAIPanel(true)}
-                />
+                <DesignerPreview className="h-full" />
               }
               codeContent={
-                <ReactSandbox
-                  code={code}
-                  onCodeChange={handleCodeChange}
-                  showFileExplorer={false}
-                  showConsole={true}
-                  framework={framework}
-                  showPreview={false}
+                <MonacoSandpackEditor
+                  showStatusBar
+                  showToolbar
+                  onSave={(savedCode) => handleCodeChange(savedCode ?? '')}
                 />
               }
               elementsContent={<ElementTree className="h-full overflow-auto" />}
@@ -641,15 +575,35 @@ export default function DesignerPage() {
 
               {/* Main Preview/Editor Panel */}
               <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100} data-tour="designer-canvas">
-                <div className="flex flex-col h-full">
-                  <ReactSandbox
-                    code={code}
-                    onCodeChange={handleCodeChange}
-                    showFileExplorer={false}
-                    showConsole={false}
-                    framework={framework}
-                    onAIEdit={() => setShowAIPanel(true)}
-                  />
+                <div className="flex flex-col h-full min-h-0">
+                  {designerMode === 'code' ? (
+                    /* Code mode: MonacoSandpackEditor + ReactSandbox preview split */
+                    <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+                      <ResizablePanel defaultSize={55} minSize={30}>
+                        <MonacoSandpackEditor
+                          onSave={(savedCode) => handleCodeChange(savedCode ?? '')}
+                          showStatusBar
+                          showToolbar
+                        />
+                      </ResizablePanel>
+                      <ResizableHandle withHandle />
+                      <ResizablePanel defaultSize={45} minSize={25}>
+                        <ReactSandbox
+                          code={code}
+                          onCodeChange={handleCodeChange}
+                          showEditor={false}
+                          showPreview
+                          showFileExplorer
+                          showConsole={false}
+                          framework={framework}
+                          onAIEdit={() => setShowAIPanel(true)}
+                        />
+                      </ResizablePanel>
+                    </ResizablePanelGroup>
+                  ) : (
+                    /* Preview/Design mode: DesignerPreview with full interactive features */
+                    <DesignerPreview className="flex-1 min-h-0" />
+                  )}
                   {/* Floating AI Prompt Bar */}
                   {showAIPanel && (
                     <div className="p-3 border-t bg-background/95 backdrop-blur-sm">

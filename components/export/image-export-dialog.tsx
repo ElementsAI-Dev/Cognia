@@ -34,8 +34,8 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { messageRepository } from '@/lib/db';
-import type { Session, UIMessage } from '@/types';
+import type { Session } from '@/types';
+import { useExportMessages } from '@/hooks/export';
 import {
   downloadAsImage,
   generateThumbnail,
@@ -68,8 +68,6 @@ const SCALE_OPTIONS: { value: ScaleOption; labelKey: string }[] = [
 export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -89,16 +87,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
 
   const formats = getImageExportFormats();
 
-  // Load messages when dialog opens
-  useEffect(() => {
-    if (open && messages.length === 0) {
-      setIsLoading(true);
-      messageRepository
-        .getBySessionId(session.id)
-        .then(setMessages)
-        .finally(() => setIsLoading(false));
-    }
-  }, [open, session.id, messages.length]);
+  const { messages, isLoading } = useExportMessages(session.id, open);
 
   // Generate preview when options change
   useEffect(() => {
@@ -114,6 +103,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
         setPreview(thumbnail);
       } catch (error) {
         console.error('Preview generation failed:', error);
+        setPreview(null);
       } finally {
         setIsGeneratingPreview(false);
       }

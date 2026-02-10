@@ -13,21 +13,7 @@ import {
   Settings,
   Plus,
   Trash2,
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
+  Search,
   Calendar,
   Clock,
   Archive,
@@ -41,7 +27,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import {
   Tooltip,
   TooltipContent,
@@ -63,6 +48,7 @@ import { ProjectActivity } from './project-activity';
 import { ProjectGitPanel } from './project-git-panel';
 import { useProjectStore, useSessionStore, useProjectActivityStore } from '@/stores';
 import type { CreateProjectInput } from '@/types';
+import { ProjectIcon } from '@/lib/project/utils';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -70,24 +56,6 @@ interface ProjectDetailProps {
   onNewChat?: (projectId: string) => void;
   onSelectSession?: (sessionId: string) => void;
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
-};
 
 export function ProjectDetail({
   projectId,
@@ -99,6 +67,7 @@ export function ProjectDetail({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [sessionToRemove, setSessionToRemove] = useState<string | null>(null);
+  const [sessionSearch, setSessionSearch] = useState('');
 
   const project = useProjectStore((state) => state.getProject(projectId));
   const updateProject = useProjectStore((state) => state.updateProject);
@@ -136,8 +105,6 @@ export function ProjectDetail({
     );
   }
 
-  const IconComponent = iconMap[project.icon || 'Folder'] || Folder;
-
   const handleEdit = (input: CreateProjectInput) => {
     updateProject(projectId, input);
     setShowEditDialog(false);
@@ -155,13 +122,12 @@ export function ProjectDetail({
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(undefined, {
+  const formatDate = (date: Date) =>
+    new Date(date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
-  };
 
   return (
     <div className="space-y-6">
@@ -175,7 +141,8 @@ export function ProjectDetail({
             className="flex h-14 w-14 items-center justify-center rounded-xl"
             style={{ backgroundColor: `${project.color}20` }}
           >
-            <IconComponent
+            <ProjectIcon
+              iconName={project.icon}
               className="h-7 w-7"
               style={{ color: project.color }}
             />
@@ -258,7 +225,6 @@ export function ProjectDetail({
               <span className="text-2xl font-bold">{projectSessions.length}</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{t('chatSessions')}</p>
-            <Progress value={Math.min(projectSessions.length * 10, 100)} className="mt-2 h-1" />
           </CardContent>
         </Card>
         <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '50ms' }}>
@@ -272,7 +238,6 @@ export function ProjectDetail({
               <span className="text-2xl font-bold">{project.knowledgeBase.length}</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{t('knowledgeFiles')}</p>
-            <Progress value={Math.min(project.knowledgeBase.length * 10, 100)} className="mt-2 h-1" />
           </CardContent>
         </Card>
         <Card className="transition-all hover:shadow-md hover:border-primary/20 animate-in fade-in-0 slide-in-from-bottom-2 duration-300" style={{ animationDelay: '100ms' }}>
@@ -337,9 +302,38 @@ export function ProjectDetail({
 
         <TabsContent value="sessions" className="mt-4">
           {projectSessions.length > 0 ? (
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2">
-                {projectSessions.map((session) => (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={sessionSearch}
+                  onChange={(e) => setSessionSearch(e.target.value)}
+                  placeholder={t('searchSessions') || 'Search sessions...'}
+                  className="w-full rounded-md border border-input bg-background px-9 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                {sessionSearch && (
+                  <button
+                    onClick={() => setSessionSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <ScrollArea className="h-[360px]">
+                <div className="space-y-2">
+                  {projectSessions
+                    .filter((s) => {
+                      if (!sessionSearch.trim()) return true;
+                      const q = sessionSearch.toLowerCase();
+                      return (
+                        s.title.toLowerCase().includes(q) ||
+                        s.mode.toLowerCase().includes(q) ||
+                        s.model.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((session) => (
                   <div
                     key={session.id}
                     className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent/50 cursor-pointer"
@@ -378,6 +372,7 @@ export function ProjectDetail({
                 ))}
               </div>
             </ScrollArea>
+          </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground/50" />

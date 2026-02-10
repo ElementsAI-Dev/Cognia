@@ -30,6 +30,20 @@ jest.mock('@/lib/ai/transformers/transformers-manager', () => ({
 jest.mock('@/lib/ai/transformers', () => ({
   isWebGPUAvailable: () => false,
   isWebWorkerAvailable: () => true,
+  DEFAULT_TASK_MODELS: {
+    'feature-extraction': 'Xenova/all-MiniLM-L6-v2',
+    'text-classification': 'Xenova/distilbert-base-uncased-finetuned-sst-2-english',
+    'translation': 'Xenova/nllb-200-distilled-600M',
+    'summarization': 'Xenova/distilbart-cnn-6-6',
+    'text-generation': 'onnx-community/Qwen2.5-0.5B-Instruct',
+    'question-answering': 'Xenova/distilbert-base-cased-distilled-squad',
+    'zero-shot-classification': 'Xenova/mobilebert-uncased-mnli',
+    'automatic-speech-recognition': 'Xenova/whisper-tiny',
+    'image-classification': 'Xenova/vit-base-patch16-224',
+    'object-detection': 'Xenova/detr-resnet-50',
+    'fill-mask': 'Xenova/bert-base-uncased',
+    'token-classification': 'Xenova/bert-base-NER',
+  },
 }));
 
 // Reset store before each test
