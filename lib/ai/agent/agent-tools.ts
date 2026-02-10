@@ -43,7 +43,7 @@ import { initializeEnvironmentTools, getEnvironmentToolsSystemPrompt, getEnviron
 import { getJupyterTools, getJupyterToolsSystemPrompt } from '../tools/jupyter-tools';
 import { initializeProcessTools, getProcessToolsSystemPrompt, getProcessToolsPromptSnippet } from '../tools/process-tools';
 import { createCanvasTools } from '../tools/canvas-tool';
-import { artifactTools, memoryTools } from '../tools';
+import { artifactTools, memoryTools, getArtifactToolsPrompt } from '../tools';
 
 export interface AgentToolsConfig {
   tavilyApiKey?: string;
@@ -732,10 +732,13 @@ export function initializeAgentTools(config: AgentToolsConfig = {}): Record<stri
     Object.assign(tools, imageTools);
   }
 
-  // PPT generation tools from registry
+  // PPT generation tools from registry (includes image generation tools)
   if (config.enablePPTTools) {
     const pptTools = getToolsFromRegistry(
-      ['ppt_outline', 'ppt_slide_content', 'ppt_finalize', 'ppt_export'],
+      [
+        'ppt_outline', 'ppt_slide_content', 'ppt_finalize', 'ppt_export',
+        'ppt_generate_image', 'ppt_batch_generate_images',
+      ],
       registryConfig
     );
     Object.assign(tools, pptTools);
@@ -894,6 +897,7 @@ export function buildAgentSystemPrompt(config: {
   fileToolsDetailed?: boolean;
   enableDocumentTools?: boolean;
   documentToolsDetailed?: boolean;
+  enableArtifactTools?: boolean;
 }): string {
   const parts: string[] = [];
 
@@ -938,6 +942,11 @@ export function buildAgentSystemPrompt(config: {
   // Document tools prompt
   if (config.enableDocumentTools) {
     parts.push(config.documentToolsDetailed ? documentToolSystemPrompt : documentToolPromptSnippet);
+  }
+
+  // Artifact tools prompt
+  if (config.enableArtifactTools) {
+    parts.push(getArtifactToolsPrompt());
   }
 
   return parts.join('\n\n');

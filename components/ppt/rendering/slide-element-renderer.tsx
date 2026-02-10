@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ChartElement } from '../elements';
 import type { SlideElementRendererProps } from '../types';
@@ -8,7 +9,7 @@ import type { ChartData, ChartType } from '../elements';
 /**
  * SlideElementRenderer - Renders different slide element types
  */
-export function SlideElementRenderer({ element, theme }: SlideElementRendererProps) {
+export const SlideElementRenderer = memo(function SlideElementRenderer({ element, theme, animationDelay = 0 }: SlideElementRendererProps & { animationDelay?: number }) {
   const baseStyle: React.CSSProperties = {
     ...(element.position && {
       position: 'absolute',
@@ -18,6 +19,8 @@ export function SlideElementRenderer({ element, theme }: SlideElementRendererPro
       height: `${element.position.height}%`,
     }),
     ...element.style,
+    // Element entrance animation
+    animation: `slideElementFadeIn 0.4s ease-out ${animationDelay * 0.1}s both`,
   };
 
   switch (element.type) {
@@ -213,6 +216,8 @@ export function SlideElementRenderer({ element, theme }: SlideElementRendererPro
         </div>
       );
   }
-}
+});
+
+SlideElementRenderer.displayName = 'SlideElementRenderer';
 
 export default SlideElementRenderer;

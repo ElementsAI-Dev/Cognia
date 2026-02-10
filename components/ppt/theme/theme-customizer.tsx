@@ -20,6 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { PPTTheme } from '@/types/workflow';
 import { Palette, Type, RotateCcw } from 'lucide-react';
 
@@ -154,7 +155,12 @@ export function ThemeCustomizer({
 }: ThemeCustomizerProps) {
   const t = useTranslations('pptEditor');
 
+  // Use store's updateThemeColors for individual color changes with undo support
+  const updateThemeColors = usePPTEditorStore((s) => s.updateThemeColors);
+
   const handleColorChange = (key: keyof PPTTheme, color: string) => {
+    // Use store method for proper undo history
+    updateThemeColors({ [key]: color } as Partial<Pick<PPTTheme, 'primaryColor' | 'secondaryColor' | 'accentColor' | 'backgroundColor' | 'textColor'>>);
     onChange({ ...theme, [key]: color });
   };
 

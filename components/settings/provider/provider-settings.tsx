@@ -641,14 +641,21 @@ export function ProviderSettings() {
 
   if (showEmptyState) {
     return (
-      <ProviderEmptyState
-        onAddProvider={() => {
-          setEditingProviderId(null);
-          setShowCustomDialog(true);
-        }}
-        onImportSettings={() => {}}
-        importButton={<ProviderImportExport />}
-      />
+      <>
+        <ProviderEmptyState
+          onAddProvider={() => {
+            setEditingProviderId(null);
+            setShowCustomDialog(true);
+          }}
+          onImportSettings={() => {}}
+          importButton={<ProviderImportExport />}
+        />
+        <CustomProviderDialog
+          open={showCustomDialog}
+          onOpenChange={setShowCustomDialog}
+          editingProviderId={editingProviderId}
+        />
+      </>
     );
   }
 

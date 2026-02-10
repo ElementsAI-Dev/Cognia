@@ -121,6 +121,7 @@ import { SelectionToolbarSettings } from '@/components/selection-toolbar/setting
 import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
 import { PluginSettingsPage } from '@/components/plugin';
 import { CompletionSettings } from '@/components/input-completion';
+import { TransformersSettings } from '@/components/settings/transformers/transformers-settings';
 
 import { SettingsSection, SettingsGroup } from '@/types/settings';
 import { SETTINGS_SEARCH_INDEX } from '@/lib/settings';
@@ -444,6 +445,13 @@ export default function SettingsPage() {
         group: 'ai',
       },
       {
+        id: 'transformersjs',
+        label: t('tabTransformersJs') || 'Transformers.js',
+        icon: <Brain className="h-4 w-4" />,
+        description: t('descTransformersJs') || 'Browser-based ML model inference',
+        group: 'ai',
+      },
+      {
         id: 'appearance',
         label: t('tabAppearance'),
         icon: <Palette className="h-4 w-4" />,
@@ -601,9 +609,9 @@ export default function SettingsPage() {
             },
             {
               id: 'input-completion' as const,
-              label: 'Input Completion',
+              label: t('tabInputCompletion') || 'Input Completion',
               icon: <Keyboard className="h-4 w-4" />,
-              description: 'AI-powered Tab completion settings',
+              description: t('descInputCompletion') || 'AI-powered Tab completion settings',
               group: 'system' as const,
             },
           ]
@@ -693,6 +701,8 @@ export default function SettingsPage() {
         return <LoggingSettings />;
       case 'input-completion':
         return <CompletionSettings />;
+      case 'transformersjs':
+        return <TransformersSettings />;
       default:
         return <ProviderSettings />;
     }
@@ -785,13 +795,19 @@ export default function SettingsPage() {
         </header>
 
         {/* Content area */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="p-4 lg:p-6" data-settings-panel>
-            <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-              {renderContent()}
-            </div>
+        {activeSection === 'prompt-marketplace' ? (
+          <div className="flex-1 min-h-0 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200" data-settings-panel>
+            {renderContent()}
           </div>
-        </ScrollArea>
+        ) : (
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-4 lg:p-6" data-settings-panel>
+              <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {renderContent()}
+              </div>
+            </div>
+          </ScrollArea>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

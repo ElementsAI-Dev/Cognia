@@ -20,6 +20,13 @@ jest.mock('@/lib/themes', () => ({
     lavender: { name: 'Lavender', colors: { light: '#7c3aed', dark: '#8b5cf6' } },
     rose: { name: 'Rose', colors: { light: '#e11d48', dark: '#f43f5e' } },
   },
+  getPresetColors: (_preset: string, _isDark: boolean) => ({
+    primary: '#3b82f6',
+    background: '#ffffff',
+    foreground: '#0f172a',
+    muted: '#94a3b8',
+    secondary: '#e2e8f0',
+  }),
 }));
 
 // Mock UI components

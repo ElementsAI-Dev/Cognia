@@ -14,6 +14,10 @@ import type {
 import { createEmptySlide, getDefaultPPTTheme } from '@/types/workflow';
 import type { SlideshowSettings } from '@/components/ppt/types';
 
+// Debounce timer for history pushes during rapid operations (e.g. dragging)
+let historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const HISTORY_DEBOUNCE_MS = 300;
+
 // History entry for undo/redo
 interface HistoryEntry {
   presentation: PPTPresentation;
@@ -829,31 +833,56 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
 
       // History (undo/redo)
       pushHistory: (description) => {
-        const { presentation, history, historyIndex, maxHistorySize } = get();
-        if (!presentation) return;
-
-        // Remove any future history if we're not at the end
-        const newHistory = history.slice(0, historyIndex + 1);
-
-        // Add new entry
-        newHistory.push({
-          presentation: JSON.parse(JSON.stringify(presentation)),
-          timestamp: Date.now(),
-          description,
-        });
-
-        // Limit history size
-        if (newHistory.length > maxHistorySize) {
-          newHistory.shift();
+        // Debounce rapid consecutive calls (e.g. during drag operations)
+        if (historyDebounceTimer) {
+          clearTimeout(historyDebounceTimer);
         }
 
-        set({
-          history: newHistory,
-          historyIndex: newHistory.length - 1,
-        });
+        historyDebounceTimer = setTimeout(() => {
+          const { presentation, history, historyIndex, maxHistorySize } = get();
+          if (!presentation) return;
+
+          // Remove any future history if we're not at the end
+          const newHistory = history.slice(0, historyIndex + 1);
+
+          // Merge with previous entry if same description within debounce window
+          const lastEntry = newHistory[newHistory.length - 1];
+          if (lastEntry && lastEntry.description === description && Date.now() - lastEntry.timestamp < 1000) {
+            // Update the last entry instead of adding a new one
+            newHistory[newHistory.length - 1] = {
+              presentation: structuredClone(presentation),
+              timestamp: Date.now(),
+              description,
+            };
+          } else {
+            // Add new entry
+            newHistory.push({
+              presentation: structuredClone(presentation),
+              timestamp: Date.now(),
+              description,
+            });
+          }
+
+          // Limit history size
+          if (newHistory.length > maxHistorySize) {
+            newHistory.shift();
+          }
+
+          set({
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+          });
+
+          historyDebounceTimer = null;
+        }, HISTORY_DEBOUNCE_MS);
       },
 
       undo: () => {
+        // Flush any pending debounced history push before undoing
+        if (historyDebounceTimer) {
+          clearTimeout(historyDebounceTimer);
+          historyDebounceTimer = null;
+        }
         const { history, historyIndex } = get();
         if (historyIndex <= 0) return;
 
@@ -861,7 +890,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const entry = history[newIndex];
 
         set({
-          presentation: JSON.parse(JSON.stringify(entry.presentation)),
+          presentation: structuredClone(entry.presentation),
           historyIndex: newIndex,
           isDirty: true,
         });
@@ -875,7 +904,7 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         const entry = history[newIndex];
 
         set({
-          presentation: JSON.parse(JSON.stringify(entry.presentation)),
+          presentation: structuredClone(entry.presentation),
           historyIndex: newIndex,
           isDirty: true,
         });

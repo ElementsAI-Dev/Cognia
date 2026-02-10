@@ -7,6 +7,7 @@
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import {
   Select,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { VariableSelector } from './variable-selector';
 import type { NodeConfigProps, CodeNodeData } from './types';
 import { createEditorOptions, getMonacoLanguage } from '@/lib/monaco';
 
@@ -66,6 +68,25 @@ export function CodeNodeConfig({ data, onUpdate }: NodeConfigProps<CodeNodeData>
             })}
           />
         </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Insert Variable Reference</Label>
+        <VariableSelector
+          value={null}
+          onChange={(ref) => {
+            if (ref) {
+              const varRef = `inputs.${ref.nodeId}.${ref.variableName}`;
+              onUpdate({ code: (data.code || '') + varRef });
+            }
+          }}
+          currentNodeId={data.id}
+          placeholder="Pick variable to insert..."
+          className="w-full"
+          allowClear={false}
+        />
       </div>
     </div>
   );

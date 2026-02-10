@@ -31,7 +31,22 @@
     "typeMermaid": "图表",
     "typeChart": "图表",
     "typeMath": "数学",
-    "typeJupyter": "Jupyter"
+    "typeJupyter": "Jupyter",
+    "runnable": "可运行",
+    "words": "字",
+    "duplicate": "复制",
+    "search": "搜索作品...",
+    "filterByType": "按类型筛选",
+    "allTypes": "所有类型",
+    "batchDelete": "批量删除",
+    "batchDeleteConfirm": "删除 {count} 个作品？",
+    "versionHistory": "版本历史",
+    "restoreVersion": "恢复",
+    "saveVersion": "保存版本",
+    "noVersions": "暂无版本历史",
+    "versionRestored": "版本已恢复",
+    "analysisResults": "分析结果",
+    "recentArtifacts": "最近作品"
   },
   "artifactPreview": {
     "previewError": "预览错误",

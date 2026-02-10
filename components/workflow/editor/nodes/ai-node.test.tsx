@@ -160,7 +160,7 @@ describe('AINode integration tests', () => {
     const minimalData: AINodeData = {
       ...mockData,
       model: '',
-      temperature: 0,
+      temperature: undefined as unknown as number,
       responseFormat: 'text',
       aiPrompt: '',
     };

@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
+import { calculateSnapGuides, snapToGuide } from '../utils';
 import {
   Image as ImageIcon,
   BarChart3,
@@ -68,7 +70,10 @@ export function SlideElement({
   onSendToBack,
 }: SlideElementProps) {
   const t = useTranslations('pptEditor');
+  const { moveElement, resizeElement } = usePPTEditorStore();
+  const currentSlideId = usePPTEditorStore((s) => s.presentation?.slides[s.currentSlideIndex]?.id);
   const [isEditingContent, setIsEditingContent] = useState(false);
+  const [activeSnapGuides, setActiveSnapGuides] = useState<Array<{ type: 'horizontal' | 'vertical'; position: number; label?: string }>>([]);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [showImagePopover, setShowImagePopover] = useState(false);
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -149,8 +154,28 @@ export function SlideElement({
       const dy = ((ev.clientY - s.startY) / ch) * 100;
 
       if (s.isDragging) {
-        const newX = Math.max(0, Math.min(100 - s.startElW, s.startElX + dx));
-        const newY = Math.max(0, Math.min(100 - s.startElH, s.startElY + dy));
+        let newX = Math.max(0, Math.min(100 - s.startElW, s.startElX + dx));
+        let newY = Math.max(0, Math.min(100 - s.startElH, s.startElY + dy));
+
+        // Calculate snap guides from sibling elements
+        const store = usePPTEditorStore.getState();
+        const slide = store.presentation?.slides[store.currentSlideIndex];
+        if (slide) {
+          const currentEl: typeof element = {
+            ...element,
+            position: { ...element.position!, x: newX, y: newY, width: s.startElW, height: s.startElH },
+          };
+          const guides = calculateSnapGuides(slide.elements, currentEl);
+          const snapX = snapToGuide(newX, guides, 'vertical', 1.5);
+          const snapY = snapToGuide(newY, guides, 'horizontal', 1.5);
+          if (snapX.guide) newX = snapX.snapped;
+          if (snapY.guide) newY = snapY.snapped;
+          setActiveSnapGuides([
+            ...(snapX.guide ? [snapX.guide] : []),
+            ...(snapY.guide ? [snapY.guide] : []),
+          ]);
+        }
+
         onUpdate({
           position: { x: newX, y: newY, width: s.startElW, height: s.startElH },
         });
@@ -175,16 +200,29 @@ export function SlideElement({
     };
 
     const handleMouseUp = () => {
-      dragStateRef.current.isDragging = false;
-      dragStateRef.current.isResizing = false;
-      dragStateRef.current.resizeDir = null;
+      const s = dragStateRef.current;
+      // Commit final position/size to store with undo history
+      if (currentSlideId) {
+        if (s.isDragging || (!s.isResizing && !s.isDragging)) {
+          const pos = element.position;
+          if (pos) moveElement(currentSlideId, element.id, { x: pos.x, y: pos.y });
+        }
+        if (s.isResizing) {
+          const pos = element.position;
+          if (pos) resizeElement(currentSlideId, element.id, { width: pos.width, height: pos.height });
+        }
+      }
+      s.isDragging = false;
+      s.isResizing = false;
+      s.resizeDir = null;
+      setActiveSnapGuides([]);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-  }, [isEditing, isSelected, elX, elY, elW, elH, getContainerRect, onUpdate]);
+  }, [isEditing, isSelected, elX, elY, elW, elH, getContainerRect, onUpdate, currentSlideId, element, moveElement, resizeElement]);
 
   // --- Image handling ---
   const handleImageUrlSubmit = useCallback(() => {
@@ -555,7 +593,24 @@ export function SlideElement({
       }}
     >
       {renderContent()}
-      
+
+      {/* Snap guide lines during drag */}
+      {activeSnapGuides.length > 0 && activeSnapGuides.map((guide, i) => (
+        guide.type === 'vertical' ? (
+          <div
+            key={`snap-${i}`}
+            className="absolute top-0 bottom-0 w-px bg-blue-500/60 pointer-events-none z-30"
+            style={{ left: `${guide.position - elX}%` }}
+          />
+        ) : (
+          <div
+            key={`snap-${i}`}
+            className="absolute left-0 right-0 h-px bg-blue-500/60 pointer-events-none z-30"
+            style={{ top: `${guide.position - elY}%` }}
+          />
+        )
+      ))}
+
       {/* Selection handles */}
       {isSelected && isEditing && (
         <>

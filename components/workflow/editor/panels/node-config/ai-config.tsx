@@ -23,6 +23,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Sparkles, Settings } from 'lucide-react';
+import { VariableSelector } from './variable-selector';
+import { Separator } from '@/components/ui/separator';
 import type { NodeConfigProps, AINodeData } from './types';
 
 export function AINodeConfig({ data, onUpdate }: NodeConfigProps<AINodeData>) {
@@ -61,6 +63,23 @@ export function AINodeConfig({ data, onUpdate }: NodeConfigProps<AINodeData>) {
               <p className="text-xs text-muted-foreground">
                 {t('promptVariablesHint')}
               </p>
+            </div>
+            <Separator />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Insert Variable Reference</Label>
+              <VariableSelector
+                value={null}
+                onChange={(ref) => {
+                  if (ref) {
+                    const varRef = `{{${ref.nodeId}.${ref.variableName}}}`;
+                    onUpdate({ aiPrompt: (data.aiPrompt || '') + varRef });
+                  }
+                }}
+                currentNodeId={data.id}
+                placeholder="Pick variable to insert..."
+                className="w-full"
+                allowClear={false}
+              />
             </div>
           </div>
         </AccordionContent>

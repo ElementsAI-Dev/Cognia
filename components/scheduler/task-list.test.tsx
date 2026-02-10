@@ -1,5 +1,6 @@
 /**
  * TaskList Component Tests
+ * Updated for redesigned TaskList with left status border, colored type icons, and hover actions
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -80,7 +81,7 @@ describe('TaskList', () => {
       createMockTask({ id: 'task-2', name: 'Task 2' }),
     ];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('Task 1')).toBeInTheDocument();
     expect(screen.getByText('Task 2')).toBeInTheDocument();
   });
@@ -88,42 +89,65 @@ describe('TaskList', () => {
   it('should show task description', () => {
     const tasks = [createMockTask({ description: 'My task description' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('My task description')).toBeInTheDocument();
   });
 
-  it('should display task status badge', () => {
+  it('should show task type as fallback when no description', () => {
+    const tasks = [createMockTask({ description: undefined, type: 'backup' })];
+    render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    expect(screen.getByText('backup')).toBeInTheDocument();
+  });
+
+  it('should display task status label', () => {
     const tasks = [createMockTask({ status: 'active' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('should display paused status', () => {
     const tasks = [createMockTask({ status: 'paused' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('Paused')).toBeInTheDocument();
   });
 
   it('should display disabled status', () => {
     const tasks = [createMockTask({ status: 'disabled' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('Disabled')).toBeInTheDocument();
   });
 
   it('should display expired status', () => {
     const tasks = [createMockTask({ status: 'expired' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('Expired')).toBeInTheDocument();
+  });
+
+  it('should apply left border color for active status', () => {
+    const tasks = [createMockTask({ status: 'active' })];
+    const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    const taskButton = container.querySelector('.border-l-green-500');
+    expect(taskButton).toBeInTheDocument();
+  });
+
+  it('should apply left border color for paused status', () => {
+    const tasks = [createMockTask({ status: 'paused' })];
+    const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    const taskButton = container.querySelector('.border-l-yellow-500');
+    expect(taskButton).toBeInTheDocument();
   });
 
   it('should call onSelect when task is clicked', () => {
     const tasks = [createMockTask({ id: 'task-123' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     fireEvent.click(screen.getByText('Test Task'));
     expect(mockOnSelect).toHaveBeenCalledWith('task-123');
   });
@@ -133,17 +157,28 @@ describe('TaskList', () => {
     const { container } = render(
       <TaskList {...defaultProps} tasks={tasks} selectedTaskId="task-123" />
     );
-    
-    const card = container.querySelector('.ring-2');
-    expect(card).toBeInTheDocument();
+
+    const selectedButton = container.querySelector('.bg-accent\\/50');
+    expect(selectedButton).toBeInTheDocument();
   });
 
-  it('should display success and failure counts', () => {
+  it('should display success count', () => {
     const tasks = [createMockTask({ successCount: 15, failureCount: 3 })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
-    expect(screen.getByText('15 ✓')).toBeInTheDocument();
-    expect(screen.getByText('3 ✗')).toBeInTheDocument();
+
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('should hide failure count when zero', () => {
+    const tasks = [createMockTask({ successCount: 10, failureCount: 0 })];
+    render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    expect(screen.getByText('10')).toBeInTheDocument();
+    // failureCount 0 should not render XCircle + count
+    const allTexts = screen.queryAllByText('0');
+    // 0 should not appear as a failure count (only success is shown)
+    expect(allTexts.length).toBe(0);
   });
 
   it('should sort active tasks first', () => {
@@ -152,21 +187,28 @@ describe('TaskList', () => {
       createMockTask({ id: 'task-2', name: 'Active Task', status: 'active' }),
     ];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
-    // Get card titles by data-slot attribute
+
     const cardTitles = screen.getAllByText(/Task$/);
-    // Active task should come first due to sorting
     expect(cardTitles[0].textContent).toBe('Active Task');
     expect(cardTitles[1].textContent).toBe('Paused Task');
   });
 
-  it('should display task type icon', () => {
+  it('should render colored type icon for each task type', () => {
     const tasks = [createMockTask({ type: 'workflow' })];
     const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
-    
-    // Check that an icon is rendered
-    const icon = container.querySelector('svg');
-    expect(icon).toBeInTheDocument();
+
+    // Workflow type should have violet background
+    const iconContainer = container.querySelector('.bg-violet-500\\/10');
+    expect(iconContainer).toBeInTheDocument();
+  });
+
+  it('should render different icon colors for different types', () => {
+    const tasks = [createMockTask({ type: 'backup' })];
+    const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    // Backup type should have orange background
+    const iconContainer = container.querySelector('.bg-orange-500\\/10');
+    expect(iconContainer).toBeInTheDocument();
   });
 
   it('should format next run time for overdue tasks', () => {
@@ -174,7 +216,7 @@ describe('TaskList', () => {
     pastDate.setHours(pastDate.getHours() - 1);
     const tasks = [createMockTask({ nextRunAt: pastDate })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('overdue')).toBeInTheDocument();
   });
 
@@ -183,34 +225,42 @@ describe('TaskList', () => {
     futureDate.setSeconds(futureDate.getSeconds() + 30);
     const tasks = [createMockTask({ nextRunAt: futureDate })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('lessThanMinute')).toBeInTheDocument();
   });
 
-  it('should format next run time in minutes', () => {
+  it('should format next run time in compact minutes', () => {
     const futureDate = new Date();
     futureDate.setMinutes(futureDate.getMinutes() + 30);
     const tasks = [createMockTask({ nextRunAt: futureDate })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
-    // Check for minutes format (29-30 minutes depending on timing)
-    expect(screen.getByText(/\d+ minutes?/)).toBeInTheDocument();
+
+    // New format is compact e.g. "30m" or "29m"
+    expect(screen.getByText(/^\d+m$/)).toBeInTheDocument();
   });
 
-  it('should format next run time in hours', () => {
+  it('should format next run time in compact hours', () => {
     const futureDate = new Date();
     futureDate.setHours(futureDate.getHours() + 5);
     const tasks = [createMockTask({ nextRunAt: futureDate })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
-    // Check for hours format (4-5 hours depending on timing)
-    expect(screen.getByText(/\d+ hours?/)).toBeInTheDocument();
+
+    // New format is compact e.g. "5h" or "4h"
+    expect(screen.getByText(/^\d+h$/)).toBeInTheDocument();
   });
 
   it('should show no schedule when nextRunAt is undefined', () => {
     const tasks = [createMockTask({ nextRunAt: undefined })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
-    
+
     expect(screen.getByText('noSchedule')).toBeInTheDocument();
+  });
+
+  it('should render status dot with correct color', () => {
+    const tasks = [createMockTask({ status: 'active' })];
+    const { container } = render(<TaskList {...defaultProps} tasks={tasks} />);
+
+    const statusDot = container.querySelector('.bg-green-500');
+    expect(statusDot).toBeInTheDocument();
   });
 });

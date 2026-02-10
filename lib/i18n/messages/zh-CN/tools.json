@@ -315,7 +315,8 @@
     "importSuccess": "导入成功",
     "importSuccessDesc": "已导入 {imported} 个服务器，跳过 {skipped} 个",
     "importFailed": "导入失败",
-    "invalidConfigFormat": "配置文件格式无效"
+    "invalidConfigFormat": "配置文件格式无效",
+    "serverLogs": "服务器日志"
   },
   "mcpInstall": {
     "quickInstall": "快速安装 MCP 服务器",

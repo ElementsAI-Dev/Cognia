@@ -40,8 +40,15 @@ describe('DEFAULT_EMBEDDING_MODELS', () => {
     expect(DEFAULT_EMBEDDING_MODELS.mistral.dimensions).toBe(1024);
   });
 
+  it('has Transformers.js model config', () => {
+    expect(DEFAULT_EMBEDDING_MODELS.transformersjs).toBeDefined();
+    expect(DEFAULT_EMBEDDING_MODELS.transformersjs.provider).toBe('transformersjs');
+    expect(DEFAULT_EMBEDDING_MODELS.transformersjs.model).toBe('Xenova/all-MiniLM-L6-v2');
+    expect(DEFAULT_EMBEDDING_MODELS.transformersjs.dimensions).toBe(384);
+  });
+
   it('all configs have required properties', () => {
-    const providers: EmbeddingProvider[] = ['openai', 'google', 'cohere', 'mistral'];
+    const providers: EmbeddingProvider[] = ['openai', 'google', 'cohere', 'mistral', 'transformersjs'];
     
     providers.forEach((provider) => {
       const config = DEFAULT_EMBEDDING_MODELS[provider];
@@ -226,6 +233,22 @@ describe('getEmbeddingApiKey', () => {
     const result = getEmbeddingApiKey('openai', {});
     
     expect(result).toBeNull();
+  });
+
+  it('returns empty string for transformersjs (no API key needed)', () => {
+    const result = getEmbeddingApiKey('transformersjs', {});
+    
+    expect(result).toBe('');
+  });
+
+  it('returns empty string for transformersjs even with settings', () => {
+    const settings = {
+      openai: { apiKey: 'sk-openai-key' },
+    };
+    
+    const result = getEmbeddingApiKey('transformersjs', settings);
+    
+    expect(result).toBe('');
   });
 });
 

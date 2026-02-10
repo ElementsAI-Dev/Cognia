@@ -47,7 +47,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Tooltip,
@@ -256,32 +255,29 @@ export function PromptMarketplaceDetail({
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-6 pb-4">
             {/* Stats Row */}
-            <div className="flex items-center gap-6 p-4 bg-muted/50 rounded-lg">
-              <div className="text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="text-center p-2">
                 <div className="flex items-center gap-1 justify-center">
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                   <span className="text-lg font-semibold">{prompt.rating.average.toFixed(1)}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">{prompt.rating.count} {t('ratings')}</div>
               </div>
-              <Separator orientation="vertical" className="h-10" />
-              <div className="text-center">
+              <div className="text-center p-2">
                 <div className="flex items-center gap-1 justify-center">
                   <Download className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.downloads)}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">{t('downloads')}</div>
               </div>
-              <Separator orientation="vertical" className="h-10" />
-              <div className="text-center">
+              <div className="text-center p-2">
                 <div className="flex items-center gap-1 justify-center">
                   <Heart className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.favorites)}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">{t('favorites')}</div>
               </div>
-              <Separator orientation="vertical" className="h-10" />
-              <div className="text-center">
+              <div className="text-center p-2">
                 <div className="flex items-center gap-1 justify-center">
                   <Eye className="h-4 w-4" />
                   <span className="text-lg font-semibold">{formatNumber(prompt.stats.views)}</span>
@@ -289,16 +285,13 @@ export function PromptMarketplaceDetail({
                 <div className="text-xs text-muted-foreground">{t('views')}</div>
               </div>
               {prompt.stats.successRate && (
-                <>
-                  <Separator orientation="vertical" className="h-10" />
-                  <div className="text-center">
-                    <div className="flex items-center gap-1 justify-center">
-                      <Sparkles className="h-4 w-4 text-green-500" />
-                      <span className="text-lg font-semibold">{Math.round(prompt.stats.successRate * 100)}%</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{t('successRate')}</div>
+                <div className="text-center p-2 col-span-2 sm:col-span-4">
+                  <div className="flex items-center gap-1 justify-center">
+                    <Sparkles className="h-4 w-4 text-green-500" />
+                    <span className="text-lg font-semibold">{Math.round(prompt.stats.successRate * 100)}%</span>
                   </div>
-                </>
+                  <div className="text-xs text-muted-foreground">{t('successRate')}</div>
+                </div>
               )}
             </div>
 

@@ -484,6 +484,7 @@
     "invalidSkillContent": "Invalid SKILL.md content",
     "skillMdPlaceholder": "---\nname: my-skill\ndescription: What this skill does...\n---\n\n# My Skill\n...",
     "contentPlaceholder": "# My Skill\n\n## When to Use\n\n## Instructions\n\n...",
+    "skillNamePlaceholder": "my-skill-name",
     "categories": {
       "creativeDesign": "Creative & Design",
       "development": "Development",

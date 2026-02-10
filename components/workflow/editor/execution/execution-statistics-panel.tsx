@@ -24,6 +24,7 @@ import {
   formatExecutionDuration,
   formatExecutionStatus,
   getStatusColor,
+  calculateExecutionStats,
 } from '@/lib/workflow-editor';
 import {
   BarChart3,
@@ -47,6 +48,13 @@ export function ExecutionStatisticsPanel() {
   const statistics = useMemo(() => {
     return getWorkflowStatistics();
   }, [getWorkflowStatistics]);
+
+  // Calculate per-execution stats for the current execution state
+  const { executionState } = useWorkflowEditorStore();
+  const currentExecStats = useMemo(() => {
+    if (!executionState) return null;
+    return calculateExecutionStats(executionState);
+  }, [executionState]);
 
   const formatDuration = formatExecutionDuration;
 
@@ -223,6 +231,42 @@ export function ExecutionStatisticsPanel() {
                 </div>
               </ScrollArea>
             </div>
+
+            {/* Current Execution Stats */}
+            {currentExecStats && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">{t('currentRunStats') || 'Current Run Stats'}</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 bg-muted/50 rounded">
+                      <span className="text-muted-foreground">Duration</span>
+                      <div className="font-mono font-medium">{formatDuration(currentExecStats.duration)}</div>
+                    </div>
+                    <div className="p-2 bg-muted/50 rounded">
+                      <span className="text-muted-foreground">Avg Step</span>
+                      <div className="font-mono font-medium">{formatDuration(currentExecStats.averageStepDuration)}</div>
+                    </div>
+                    {currentExecStats.fastestStep && (
+                      <div className="p-2 bg-green-500/10 rounded">
+                        <span className="text-muted-foreground">Fastest</span>
+                        <div className="font-mono text-green-600">
+                          {currentExecStats.fastestStep.nodeId.slice(0, 12)}… ({formatDuration(currentExecStats.fastestStep.duration)})
+                        </div>
+                      </div>
+                    )}
+                    {currentExecStats.slowestStep && (
+                      <div className="p-2 bg-orange-500/10 rounded">
+                        <span className="text-muted-foreground">Slowest</span>
+                        <div className="font-mono text-orange-600">
+                          {currentExecStats.slowestStep.nodeId.slice(0, 12)}… ({formatDuration(currentExecStats.slowestStep.duration)})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
             <Separator />
 

@@ -36,10 +36,10 @@ export function ThemeSchedule() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          <CardTitle>{t('title')}</CardTitle>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-base">{t('title')}</CardTitle>
         </div>
         <CardDescription>
           {t('description')}

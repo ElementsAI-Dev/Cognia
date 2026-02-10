@@ -222,4 +222,34 @@ describe('PromptMarketplaceSidebar', () => {
     const separators = screen.getAllByTestId('separator');
     expect(separators.length).toBeGreaterThanOrEqual(2);
   });
+
+  // Layout: sidebar uses w-full (fills Sheet container)
+  it('renders with w-full class for Sheet compatibility', () => {
+    const { container } = render(<PromptMarketplaceSidebar {...defaultProps} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('w-full');
+    expect(root.className).not.toContain('w-64');
+    expect(root.className).not.toContain('hidden');
+  });
+
+  it('always uses flex layout (not hidden)', () => {
+    const { container } = render(<PromptMarketplaceSidebar {...defaultProps} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex');
+    expect(root.className).toContain('flex-col');
+  });
+
+  it('has border-r when not in mobile mode', () => {
+    const { container } = render(<PromptMarketplaceSidebar {...defaultProps} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('border-r');
+  });
+
+  it('does not have border-r in mobile mode', () => {
+    const { container } = render(
+      <PromptMarketplaceSidebar {...defaultProps} isMobile onClose={jest.fn()} />
+    );
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).not.toContain('border-r');
+  });
 });

@@ -24,7 +24,7 @@ export function PromptTemplateSelector({ open, onOpenChange, onSelect }: PromptT
   const [searchQuery, setSearchQuery] = useState('');
 
   const sorted = useMemo(() => {
-    let list = [...templates].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    let list = [...templates].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       list = list.filter(

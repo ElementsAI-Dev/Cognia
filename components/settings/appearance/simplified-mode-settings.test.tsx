@@ -800,7 +800,7 @@ describe('SimplifiedModeSettings', () => {
     it('has correct CSS classes', () => {
       const { container } = render(<SimplifiedModeSettings />);
       const mainDiv = container.firstChild as HTMLElement;
-      expect(mainDiv).toHaveClass('space-y-6');
+      expect(mainDiv).toHaveClass('space-y-4');
     });
 
     it('renders card headers correctly', () => {

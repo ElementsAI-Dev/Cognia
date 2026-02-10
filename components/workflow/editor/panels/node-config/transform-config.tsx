@@ -7,6 +7,7 @@
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { VariableSelector } from './variable-selector';
 import type { NodeConfigProps, TransformNodeData } from './types';
 
 export function TransformNodeConfig({ data, onUpdate }: NodeConfigProps<TransformNodeData>) {
@@ -52,6 +54,25 @@ export function TransformNodeConfig({ data, onUpdate }: NodeConfigProps<Transfor
         <p className="text-xs text-muted-foreground">
           {t('transformExpressionHint') || 'Use JavaScript arrow function syntax'}
         </p>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Insert Variable Reference</Label>
+        <VariableSelector
+          value={null}
+          onChange={(ref) => {
+            if (ref) {
+              const varRef = `${ref.nodeId}.${ref.variableName}`;
+              onUpdate({ expression: (data.expression || '') + varRef });
+            }
+          }}
+          currentNodeId={data.id}
+          placeholder="Pick variable to insert..."
+          className="w-full"
+          allowClear={false}
+        />
       </div>
     </div>
   );

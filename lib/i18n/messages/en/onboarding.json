@@ -15,6 +15,32 @@
     "zenMode": "Zen Mode",
     "focusedMode": "Focused Mode",
     "pressForFullInterface": "Press Ctrl+Shift+S for full interface",
+    "simplifiedSuggestions": {
+      "chat": {
+        "0": "Explain quantum computing in simple terms",
+        "1": "Write a poem about the ocean",
+        "2": "Help me brainstorm ideas for a birthday party",
+        "3": "What are the best practices for productivity?"
+      },
+      "agent": {
+        "0": "Create a Python script to organize my files",
+        "1": "Analyze this CSV data and create a chart",
+        "2": "Build a simple web scraper for news articles",
+        "3": "Help me debug my JavaScript code"
+      },
+      "research": {
+        "0": "What are the latest developments in AI?",
+        "1": "Compare different renewable energy sources",
+        "2": "Explain the history of the internet",
+        "3": "What are the economic trends for 2025?"
+      },
+      "learning": {
+        "0": "Teach me the basics of machine learning",
+        "1": "Help me understand calculus step by step",
+        "2": "Explain how blockchain technology works",
+        "3": "Guide me through learning a new language"
+      }
+    },
     "modes": {
       "chat": {
         "title": "Chat Mode",

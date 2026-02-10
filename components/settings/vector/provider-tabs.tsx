@@ -27,14 +27,14 @@ export function ProviderTabs({
       onValueChange={(v) => onValueChange(v as VectorDBProvider)}
       className={cn('w-full', className)}
     >
-      <TabsList className="w-full h-10 bg-transparent border border-border rounded-lg p-1 gap-1">
+      <TabsList className="w-full h-auto bg-transparent border border-border rounded-lg p-1 gap-1 flex flex-wrap">
         {options.map((opt) => (
           <TabsTrigger
             key={opt.value}
             value={opt.value}
             disabled={opt.disabled}
             className={cn(
-              'flex-1 h-8 rounded-md border border-transparent',
+              'flex-1 min-w-[80px] h-8 rounded-md border border-transparent text-xs sm:text-sm',
               'data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:border-foreground',
               'data-[state=inactive]:bg-background data-[state=inactive]:text-muted-foreground',
               'disabled:opacity-50 disabled:cursor-not-allowed'

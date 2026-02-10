@@ -3,9 +3,10 @@
  * Extracts common action handlers used by both mobile and desktop toolbars
  */
 
-import { useCallback, useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
+import { toast } from 'sonner';
 
 export interface ToolbarState {
   canUndo: boolean;
@@ -26,7 +27,7 @@ export function useToolbarActions() {
     isExecuting,
     executionState,
     selectedNodes,
-    history,
+    historyLength,
     historyIndex,
     validationErrors,
     showNodePalette,
@@ -55,7 +56,7 @@ export function useToolbarActions() {
       isExecuting: state.isExecuting,
       executionState: state.executionState,
       selectedNodes: state.selectedNodes,
-      history: state.history,
+      historyLength: state.history.length,
       historyIndex: state.historyIndex,
       validationErrors: state.validationErrors,
       showNodePalette: state.showNodePalette,
@@ -83,7 +84,7 @@ export function useToolbarActions() {
   // Computed state
   const state: ToolbarState = useMemo(() => ({
     canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1,
+    canRedo: historyIndex < historyLength - 1,
     canSave: isDirty && currentWorkflow !== null,
     canRun: !isExecuting && currentWorkflow !== null,
     canPause: isExecuting && executionState?.status === 'running',
@@ -91,7 +92,7 @@ export function useToolbarActions() {
     canStop: isExecuting,
     isValid: validationErrors.length === 0,
     hasSelection: selectedNodes.length > 0,
-  }), [historyIndex, history.length, isDirty, currentWorkflow, isExecuting, executionState, validationErrors, selectedNodes]);
+  }), [historyIndex, historyLength, isDirty, currentWorkflow, isExecuting, executionState, validationErrors, selectedNodes]);
 
   // Action handlers
   const handleSave = useCallback(() => {
@@ -133,6 +134,20 @@ export function useToolbarActions() {
     }
   }, [state.hasSelection, selectedNodes.length, distributeNodes]);
 
+  const handleUndo = useCallback(() => {
+    if (state.canUndo) {
+      undo();
+      toast.info('Undo', { duration: 1500 });
+    }
+  }, [state.canUndo, undo]);
+
+  const handleRedo = useCallback(() => {
+    if (state.canRedo) {
+      redo();
+      toast.info('Redo', { duration: 1500 });
+    }
+  }, [state.canRedo, redo]);
+
   return {
     // State
     state,
@@ -152,8 +167,8 @@ export function useToolbarActions() {
     handleDuplicateSelection,
     handleAlign,
     handleDistribute,
-    undo,
-    redo,
+    handleUndo,
+    handleRedo,
     autoLayout,
     pauseExecution,
     resumeExecution,

@@ -9,3 +9,4 @@ export * from './openrouter';
 export * from './auto-router';
 export * from './memory-provider';
 export * from './load-balancer';
+export * from '../transformers';

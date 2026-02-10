@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import * as Icons from 'lucide-react';
 import {
@@ -109,7 +110,7 @@ export function AgentModeSelector({
   const { customModes, deleteMode, duplicateMode, recordModeUsage } = useCustomModeStore();
 
   // Agent team store
-  const teamsList = useAgentTeamStore((s) => Object.values(s.teams));
+  const teamsList = useAgentTeamStore(useShallow((s) => Object.values(s.teams)));
   const activeTeams = useMemo(
     () => teamsList.filter((t) => t.status === 'executing' || t.status === 'planning' || t.status === 'paused'),
     [teamsList]

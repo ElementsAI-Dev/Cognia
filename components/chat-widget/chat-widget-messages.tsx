@@ -14,7 +14,6 @@ import {
   User,
   AlertCircle,
   RefreshCw,
-  Sparkles,
   Volume2,
   VolumeX,
   ThumbsUp,
@@ -27,7 +26,6 @@ import {
 import { Streamdown } from 'streamdown';
 import { InlineCopyButton } from '@/components/chat/ui/copy-button';
 import { LoadingAnimation } from '@/components/chat/renderers/loading-animation';
-import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { useSpeech } from '@/hooks/media/use-speech';
 import type { ChatWidgetMessage, MessageFeedback } from '@/stores/chat';
 
@@ -66,17 +64,6 @@ export function ChatWidgetMessages({
   return (
     <ScrollArea ref={scrollRef} className={cn('flex-1 px-3 py-2', className)}>
       <div className="flex flex-col gap-3">
-        {/* Empty state */}
-        {messages.length === 0 && !isLoading && (
-          <EmptyState
-            icon={<Sparkles className="h-10 w-10 text-primary/50" />}
-            title={t('emptyTitle')}
-            description={t('emptyDesc')}
-            compact
-            className="h-40"
-          />
-        )}
-
         {/* Messages */}
         {messages.map((message, index) => (
           <MessageBubble

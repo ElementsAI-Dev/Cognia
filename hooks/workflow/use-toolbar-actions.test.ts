@@ -22,13 +22,14 @@ const mockStore: {
   undo: jest.Mock;
   redo: jest.Mock;
   deleteNodes: jest.Mock;
-  duplicateNode: jest.Mock;
+  duplicateNodes: jest.Mock;
   startExecution: jest.Mock;
   pauseExecution: jest.Mock;
   resumeExecution: jest.Mock;
   cancelExecution: jest.Mock;
   autoLayout: jest.Mock;
   alignNodes: jest.Mock;
+  distributeNodes: jest.Mock;
   toggleNodePalette: jest.Mock;
   toggleConfigPanel: jest.Mock;
   toggleMinimap: jest.Mock;
@@ -49,13 +50,14 @@ const mockStore: {
   undo: jest.fn(),
   redo: jest.fn(),
   deleteNodes: jest.fn(),
-  duplicateNode: jest.fn(),
+  duplicateNodes: jest.fn(),
   startExecution: jest.fn(),
   pauseExecution: jest.fn(),
   resumeExecution: jest.fn(),
   cancelExecution: jest.fn(),
   autoLayout: jest.fn(),
   alignNodes: jest.fn(),
+  distributeNodes: jest.fn(),
   toggleNodePalette: jest.fn(),
   toggleConfigPanel: jest.fn(),
   toggleMinimap: jest.fn(),
@@ -280,9 +282,7 @@ describe('useToolbarActions', () => {
         result.current.handleDuplicateSelection();
       });
 
-      expect(mockStore.duplicateNode).toHaveBeenCalledTimes(2);
-      expect(mockStore.duplicateNode).toHaveBeenCalledWith('node-1');
-      expect(mockStore.duplicateNode).toHaveBeenCalledWith('node-2');
+      expect(mockStore.duplicateNodes).toHaveBeenCalledWith(['node-1', 'node-2']);
     });
 
     it('should not duplicate when no selection', () => {
@@ -294,7 +294,7 @@ describe('useToolbarActions', () => {
         result.current.handleDuplicateSelection();
       });
 
-      expect(mockStore.duplicateNode).not.toHaveBeenCalled();
+      expect(mockStore.duplicateNodes).not.toHaveBeenCalled();
     });
   });
 
@@ -343,21 +343,29 @@ describe('useToolbarActions', () => {
   });
 
   describe('exposed store actions', () => {
-    it('should expose undo', () => {
+    it('should expose handleUndo', () => {
+      // historyIndex > 0 means canUndo = true
+      mockStore.history = [{}, {}];
+      mockStore.historyIndex = 1;
+
       const { result } = renderHook(() => useToolbarActions());
 
       act(() => {
-        result.current.undo();
+        result.current.handleUndo();
       });
 
       expect(mockStore.undo).toHaveBeenCalled();
     });
 
-    it('should expose redo', () => {
+    it('should expose handleRedo', () => {
+      // historyIndex < history.length - 1 means canRedo = true
+      mockStore.history = [{}, {}];
+      mockStore.historyIndex = 0;
+
       const { result } = renderHook(() => useToolbarActions());
 
       act(() => {
-        result.current.redo();
+        result.current.handleRedo();
       });
 
       expect(mockStore.redo).toHaveBeenCalled();

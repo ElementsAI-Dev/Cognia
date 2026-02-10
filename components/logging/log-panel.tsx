@@ -9,7 +9,8 @@
  * regex search, and bookmark support.
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslations } from 'next-intl';
 import {
   Search,
@@ -164,15 +165,16 @@ function HighlightedText({
   const { parts, regex } = result;
   return (
     <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
+      {parts.map((part, i) => {
+        regex.lastIndex = 0;
+        return regex.test(part) ? (
           <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
             {part}
           </mark>
         ) : (
           <span key={i}>{part}</span>
-        )
-      )}
+        );
+      })}
     </>
   );
 }
@@ -423,6 +425,149 @@ function TraceGroup({
   );
 }
 
+const ESTIMATED_LOG_HEIGHT = 44;
+
+const MemoizedLogEntry = memo(LogEntry);
+
+function VirtualizedLogList({
+  scrollRef,
+  containerRef,
+  maxHeight,
+  isLoading,
+  error,
+  filteredLogs,
+  groupByTraceId,
+  groupedLogs,
+  expandedIds,
+  toggleExpanded,
+  searchQuery,
+  useRegex,
+  bookmarkedIds,
+  toggleBookmark,
+  handleSelectLog,
+  t,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  maxHeight: string;
+  isLoading: boolean;
+  error: Error | null;
+  filteredLogs: StructuredLogEntry[];
+  groupByTraceId: boolean;
+  groupedLogs: Map<string, StructuredLogEntry[]>;
+  expandedIds: Set<string>;
+  toggleExpanded: (id: string) => void;
+  searchQuery: string;
+  useRegex: boolean;
+  bookmarkedIds: Set<string>;
+  toggleBookmark: (id: string) => void;
+  handleSelectLog: (log: StructuredLogEntry) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const virtualizer = useVirtualizer({
+    count: filteredLogs.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ESTIMATED_LOG_HEIGHT,
+    overscan: 10,
+  });
+
+  if (isLoading && filteredLogs.length === 0) {
+    return (
+      <div className="flex-1 overflow-auto" style={{ maxHeight }} ref={scrollRef}>
+        <div className="flex items-center justify-center py-8">
+          <InlineLoading text={t('panel.loadingLogs')} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 overflow-auto" style={{ maxHeight }} ref={scrollRef}>
+        <Alert variant="destructive" className="m-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{t('panel.errorLoading')}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (filteredLogs.length === 0) {
+    return (
+      <div className="flex-1 overflow-auto" style={{ maxHeight }} ref={scrollRef}>
+        <Empty className="py-8 border-0">
+          <EmptyTitle className="text-sm font-normal text-muted-foreground">
+            {t('panel.noLogs')}
+          </EmptyTitle>
+        </Empty>
+      </div>
+    );
+  }
+
+  if (groupByTraceId) {
+    return (
+      <div className="flex-1 overflow-auto" style={{ maxHeight }} ref={scrollRef}>
+        <div className="p-2">
+          {Array.from(groupedLogs.entries()).map(([traceId, traceLogs]) => (
+            <TraceGroup
+              key={traceId}
+              traceId={traceId}
+              logs={traceLogs}
+              expandedIds={expandedIds}
+              toggleExpanded={toggleExpanded}
+              searchQuery={searchQuery}
+              useRegex={useRegex}
+              bookmarkedIds={bookmarkedIds}
+              onToggleBookmark={toggleBookmark}
+              t={t}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      className="flex-1 overflow-auto"
+      style={{ maxHeight }}
+    >
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        className="outline-none relative w-full"
+        style={{ height: `${virtualizer.getTotalSize()}px` }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const log = filteredLogs[virtualRow.index];
+          return (
+            <div
+              key={log.id}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              className="absolute top-0 left-0 w-full"
+              style={{ transform: `translateY(${virtualRow.start}px)` }}
+            >
+              <MemoizedLogEntry
+                log={log}
+                isExpanded={expandedIds.has(log.id)}
+                onToggle={() => toggleExpanded(log.id)}
+                onSelect={() => handleSelectLog(log)}
+                searchQuery={searchQuery}
+                useRegex={useRegex}
+                isBookmarked={bookmarkedIds.has(log.id)}
+                onToggleBookmark={toggleBookmark}
+                t={t}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function LogPanel({
   className,
   maxHeight = '600px',
@@ -438,8 +583,10 @@ export function LogPanel({
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [useRegex, setUseRegex] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [autoScroll, setAutoScroll] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -489,7 +636,7 @@ export function LogPanel({
       refreshInterval,
       level: levelFilter,
       module: moduleFilter === 'all' ? undefined : moduleFilter,
-      searchQuery: searchQuery || undefined,
+      searchQuery: deferredSearchQuery || undefined,
       useRegex,
       groupByTraceId,
       maxLogs: 1000,
@@ -531,7 +678,7 @@ export function LogPanel({
         const csvContent = logs
           .map((log) => {
             const timestamp = new Date(log.timestamp).toISOString();
-            const message = log.message.replace(/"/g, '""');
+            const message = log.message.replace(/"/g, '""').replace(/[\r\n]+/g, ' ');
             return `"${timestamp}","${log.level}","${log.module}","${message}"`;
           })
           .join('\n');
@@ -604,6 +751,19 @@ export function LogPanel({
       } else if (e.key === 'd' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setViewMode((prev) => (prev === 'list' ? 'dashboard' : 'list'));
+      } else if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, filteredLogs.length - 1));
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < filteredLogs.length) {
+        e.preventDefault();
+        const log = filteredLogs[focusedIndex];
+        toggleExpanded(log.id);
+      } else if (e.key === 'o' && focusedIndex >= 0 && focusedIndex < filteredLogs.length) {
+        e.preventDefault();
+        handleSelectLog(filteredLogs[focusedIndex]);
       }
     };
 
@@ -612,14 +772,14 @@ export function LogPanel({
       container.addEventListener('keydown', handleKeyDown);
       return () => container.removeEventListener('keydown', handleKeyDown);
     }
-  }, [refresh, showDetailPanel]);
+  }, [refresh, showDetailPanel, filteredLogs, focusedIndex, toggleExpanded, handleSelectLog]);
 
   // Auto-scroll to bottom on new logs
   useEffect(() => {
-    if (scrollRef.current && autoRefresh) {
+    if (scrollRef.current && autoScroll && autoRefresh) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs.length, autoRefresh]);
+  }, [logs.length, autoScroll, autoRefresh]);
 
   return (
     <div className={cn('flex flex-col border rounded-lg bg-background', className)}>
@@ -693,12 +853,15 @@ export function LogPanel({
               <SelectValue placeholder="Level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('panel.allLevels')}</SelectItem>
-              {ALL_LEVELS.map((level) => (
-                <SelectItem key={level} value={level}>
-                  {t(`levels.${level}`)}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">{t('panel.allLevels')} ({stats.total})</SelectItem>
+              {ALL_LEVELS.map((level) => {
+                const count = stats.byLevel[level] || 0;
+                return (
+                  <SelectItem key={level} value={level}>
+                    {t(`levels.${level}`)} {count > 0 && `(${count})`}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
 
@@ -739,23 +902,27 @@ export function LogPanel({
               <Button
                 variant={autoRefresh ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setAutoRefresh(!autoRefresh)}
+                onClick={(e) => {
+                  if (e.shiftKey) {
+                    setAutoRefresh(!autoRefresh);
+                  } else {
+                    refresh();
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setAutoRefresh(!autoRefresh);
+                }}
               >
                 <RefreshCw className={cn('h-4 w-4', autoRefresh && 'animate-spin')} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {autoRefresh ? t('panel.disableAutoRefresh') : t('panel.enableAutoRefresh')}
+              {autoRefresh ? t('panel.disableAutoRefresh') : t('panel.refresh')}
+              <span className="block text-muted-foreground text-[10px]">
+                Shift+Click: {autoRefresh ? t('panel.disableAutoRefresh') : t('panel.enableAutoRefresh')}
+              </span>
             </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => refresh()}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('panel.refresh')}</TooltipContent>
           </Tooltip>
 
           {/* Export dropdown */}
@@ -887,58 +1054,24 @@ export function LogPanel({
               <LogStatsDashboard logs={filteredLogs} />
             </ScrollArea>
           ) : (
-            <ScrollArea ref={scrollRef} className="flex-1" style={{ maxHeight }}>
-              {isLoading && filteredLogs.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <InlineLoading text={t('panel.loadingLogs')} />
-                </div>
-              ) : error ? (
-                <Alert variant="destructive" className="m-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{t('panel.errorLoading')}</AlertDescription>
-                </Alert>
-              ) : filteredLogs.length === 0 ? (
-                <Empty className="py-8 border-0">
-                  <EmptyTitle className="text-sm font-normal text-muted-foreground">
-                    {t('panel.noLogs')}
-                  </EmptyTitle>
-                </Empty>
-              ) : groupByTraceId ? (
-                <div className="p-2">
-                  {Array.from(groupedLogs.entries()).map(([traceId, traceLogs]) => (
-                    <TraceGroup
-                      key={traceId}
-                      traceId={traceId}
-                      logs={traceLogs}
-                      expandedIds={expandedIds}
-                      toggleExpanded={toggleExpanded}
-                      searchQuery={searchQuery}
-                      useRegex={useRegex}
-                      bookmarkedIds={bookmarkedIds}
-                      onToggleBookmark={toggleBookmark}
-                      t={t}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div ref={containerRef} tabIndex={0} className="outline-none">
-                  {filteredLogs.map((log) => (
-                    <LogEntry
-                      key={log.id}
-                      log={log}
-                      isExpanded={expandedIds.has(log.id)}
-                      onToggle={() => toggleExpanded(log.id)}
-                      onSelect={() => handleSelectLog(log)}
-                      searchQuery={searchQuery}
-                      useRegex={useRegex}
-                      isBookmarked={bookmarkedIds.has(log.id)}
-                      onToggleBookmark={toggleBookmark}
-                      t={t}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+            <VirtualizedLogList
+              scrollRef={scrollRef}
+              containerRef={containerRef}
+              maxHeight={maxHeight}
+              isLoading={isLoading}
+              error={error}
+              filteredLogs={filteredLogs}
+              groupByTraceId={groupByTraceId}
+              groupedLogs={groupedLogs}
+              expandedIds={expandedIds}
+              toggleExpanded={toggleExpanded}
+              searchQuery={searchQuery}
+              useRegex={useRegex}
+              bookmarkedIds={bookmarkedIds}
+              toggleBookmark={toggleBookmark}
+              handleSelectLog={handleSelectLog}
+              t={t}
+            />
           )}
         </div>
 

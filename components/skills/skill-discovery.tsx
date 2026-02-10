@@ -398,10 +398,10 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
       )}
 
       {/* Skills grid */}
-      <ScrollArea className="h-[500px]">
+      <ScrollArea className="max-h-[60vh]">
         {isDiscovering && discoverable.length === 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i}>
                 <CardHeader className="pb-2">
                   <Skeleton className="h-5 w-3/4" />
@@ -435,7 +435,7 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
             )}
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredSkills.map((skill) => (
               <DiscoverableSkillCard
                 key={skill.key}

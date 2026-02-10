@@ -10,7 +10,7 @@ import {
 } from '@/lib/ai/embedding/embedding';
 import type { ProviderName } from '@/types/provider';
 
-export type EmbeddingProvider = 'openai' | 'google' | 'cohere' | 'mistral';
+export type EmbeddingProvider = 'openai' | 'google' | 'cohere' | 'mistral' | 'transformersjs';
 
 export interface EmbeddingModelConfig {
   provider: EmbeddingProvider;
@@ -39,6 +39,11 @@ export const DEFAULT_EMBEDDING_MODELS: Record<EmbeddingProvider, EmbeddingModelC
     model: 'mistral-embed',
     dimensions: 1024,
   },
+  transformersjs: {
+    provider: 'transformersjs',
+    model: 'Xenova/all-MiniLM-L6-v2',
+    dimensions: 384,
+  },
 };
 
 export interface EmbeddingResult {
@@ -61,6 +66,18 @@ export async function generateEmbedding(
   config: EmbeddingModelConfig,
   apiKey: string
 ): Promise<EmbeddingResult> {
+  // Browser-local inference via Transformers.js (no API key needed)
+  if (config.provider === 'transformersjs') {
+    const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+    const manager = getTransformersManager();
+    const result = await manager.generateEmbedding(text, config.model);
+    return {
+      embedding: result.embedding,
+      model: config.model,
+      provider: config.provider,
+    };
+  }
+
   const result = await generateAiEmbedding(text, {
     provider: config.provider,
     model: config.model,
@@ -83,6 +100,18 @@ export async function generateEmbeddings(
   config: EmbeddingModelConfig,
   apiKey: string
 ): Promise<BatchEmbeddingResult> {
+  // Browser-local inference via Transformers.js (no API key needed)
+  if (config.provider === 'transformersjs') {
+    const { getTransformersManager } = await import('@/lib/ai/transformers/transformers-manager');
+    const manager = getTransformersManager();
+    const result = await manager.generateEmbeddings(texts, config.model);
+    return {
+      embeddings: result.embeddings,
+      model: config.model,
+      provider: config.provider,
+    };
+  }
+
   const result = await generateAiEmbeddings(texts, {
     provider: config.provider,
     model: config.model,
@@ -131,7 +160,10 @@ export function getEmbeddingApiKey(
   provider: EmbeddingProvider,
   providerSettings: Record<string, { apiKey?: string }>
 ): string | null {
-  const providerMap: Record<EmbeddingProvider, ProviderName> = {
+  // transformersjs doesn't need an API key
+  if (provider === 'transformersjs') return '';
+
+  const providerMap: Record<Exclude<EmbeddingProvider, 'transformersjs'>, ProviderName> = {
     openai: 'openai',
     google: 'google',
     cohere: 'cohere',

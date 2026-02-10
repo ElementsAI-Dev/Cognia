@@ -16,9 +16,12 @@ jest.mock('@/hooks/scheduler', () => ({
     statistics: {
       totalTasks: 0,
       activeTasks: 0,
+      pausedTasks: 0,
       upcomingExecutions: 0,
       successfulExecutions: 0,
       failedExecutions: 0,
+      totalExecutions: 0,
+      averageDuration: 0,
     },
     selectedTask: null,
     isLoading: false,
@@ -31,6 +34,20 @@ jest.mock('@/hooks/scheduler', () => ({
     runTaskNow: jest.fn(),
     selectTask: jest.fn(),
     refresh: jest.fn(),
+    activeTasks: [],
+    pausedTasks: [],
+    upcomingTasks: [],
+    recentExecutions: [],
+    schedulerStatus: 'idle',
+    filter: {},
+    setFilter: jest.fn(),
+    clearFilter: jest.fn(),
+    loadRecentExecutions: jest.fn(),
+    loadUpcomingTasks: jest.fn(),
+    cleanupOldExecutions: jest.fn().mockResolvedValue(0),
+    getActivePluginCount: jest.fn().mockReturnValue(0),
+    cancelPluginExecution: jest.fn(),
+    isPluginExecutionActive: jest.fn().mockReturnValue(false),
   }),
   useSystemScheduler: () => ({
     capabilities: { can_elevate: false },
@@ -59,6 +76,9 @@ jest.mock('@/components/scheduler', () => ({
   TaskDetails: () => <div data-testid="task-details" />,
   TaskForm: () => <div data-testid="task-form" />,
   SystemTaskForm: () => <div data-testid="system-task-form" />,
+  StatsOverview: () => <div data-testid="stats-overview" />,
+  WorkflowScheduleDialog: ({ trigger }: { trigger: React.ReactNode }) => <>{trigger}</>,
+  BackupScheduleDialog: ({ trigger }: { trigger: React.ReactNode }) => <>{trigger}</>,
   TaskConfirmationDialog: ({ open }: { open: boolean }) =>
     open ? <div data-testid="task-confirmation-dialog" /> : null,
   AdminElevationDialog: ({ open }: { open: boolean }) =>
@@ -129,6 +149,18 @@ jest.mock('@/components/ui/tabs', () => {
 jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
+
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+}));
+
 
 describe('SchedulerPage', () => {
   it('renders app and system tabs', () => {

@@ -15,7 +15,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Star,
+  ChevronRight,
   ArrowUp,
   ArrowDown,
   Globe,
@@ -56,6 +56,7 @@ import {
 import { testProviderConnection } from '@/lib/search/provider-test';
 import { SEARCH_SOURCES } from '@/lib/search/search-constants';
 import type { ProviderTestState } from '@/types/ui/keyboard';
+import { cn } from '@/lib/utils';
 
 export function SearchSettings() {
   const t = useTranslations('searchSettings');
@@ -168,10 +169,12 @@ export function SearchSettings() {
     id => searchProviders[id]?.apiKey && searchProviders[id]?.enabled
   );
 
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+
   return (
     <TooltipProvider delayDuration={300}>
     <div className="space-y-4">
-      {/* Global Search Settings */}
+      {/* Global Search Settings + Research Sources */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
@@ -183,8 +186,8 @@ export function SearchSettings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Enable Search & Fallback in grid */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Enable Search & Fallback — responsive grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
               <Label className="text-xs">{t('enableSearch')}</Label>
               <Switch
@@ -203,117 +206,130 @@ export function SearchSettings() {
             </div>
           </div>
 
-          {/* Default Provider Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Star className="h-3.5 w-3.5 text-muted-foreground" />
+          {/* Default Provider + Max Results — responsive side-by-side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Default Provider Selection */}
+            <div className="space-y-2">
               <Label className="text-sm">{t('defaultProvider') || 'Default Provider'}</Label>
-            </div>
-            <Select
-              value={defaultSearchProvider}
-              onValueChange={(value) => setDefaultSearchProvider(value as SearchProviderType)}
-              disabled={!searchEnabled || configuredProviders.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t('selectProvider') || 'Select provider'} />
-              </SelectTrigger>
-              <SelectContent>
-                {configuredProviders.length > 0 ? (
-                  configuredProviders.map((id) => (
-                    <SelectItem key={id} value={id}>
-                      <span className="flex items-center gap-2">
-                        {SEARCH_PROVIDERS[id].name}
-                        {searchProviders[id]?.priority === 1 && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">{t('primary')}</Badge>
-                        )}
-                      </span>
+              <Select
+                value={defaultSearchProvider}
+                onValueChange={(value) => setDefaultSearchProvider(value as SearchProviderType)}
+                disabled={!searchEnabled || configuredProviders.length === 0}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('selectProvider') || 'Select provider'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {configuredProviders.length > 0 ? (
+                    configuredProviders.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        <span className="flex items-center gap-2">
+                          {SEARCH_PROVIDERS[id].name}
+                          {searchProviders[id]?.priority === 1 && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">{t('primary')}</Badge>
+                          )}
+                        </span>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="tavily" disabled>
+                      {t('noProviders') || 'No providers configured'}
                     </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="tavily" disabled>
-                    {t('noProviders') || 'No providers configured'}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {configuredProviders.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                {t('configureProviderHint') || 'Configure at least one search provider below'}
-              </p>
-            )}
-          </div>
+                  )}
+                </SelectContent>
+              </Select>
+              {configuredProviders.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t('configureProviderHint') || 'Configure at least one search provider below'}
+                </p>
+              )}
+            </div>
 
-          {/* Max Results */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            {/* Max Results */}
+            <div className="space-y-2">
               <Label className="text-sm">{t('maxResults')}: {searchMaxResults}</Label>
+              <Slider
+                value={[searchMaxResults]}
+                onValueChange={([value]) => setSearchMaxResults(value)}
+                min={1}
+                max={10}
+                step={1}
+                disabled={!searchEnabled}
+              />
             </div>
-            <Slider
-              value={[searchMaxResults]}
-              onValueChange={([value]) => setSearchMaxResults(value)}
-              min={1}
-              max={10}
-              step={1}
-              disabled={!searchEnabled}
-            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Research Sources - for deep research mode */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <CardTitle className="text-base">{t('researchSources') || 'Research Sources'}</CardTitle>
-              <CardDescription className="text-xs">
+          {/* Research Sources — collapsible section */}
+          <Collapsible open={sourcesExpanded} onOpenChange={setSourcesExpanded}>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center justify-between w-full rounded-md border px-3 py-2 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">{t('researchSources') || 'Research Sources'}</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    {defaultSearchSources.length} {t('selected') || 'selected'}
+                  </Badge>
+                </div>
+                <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', sourcesExpanded && 'rotate-90')} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <div className="flex flex-wrap gap-2">
+                {SEARCH_SOURCES.map((source) => {
+                  const isSelected = defaultSearchSources.includes(source.id);
+                  return (
+                    <button
+                      key={source.id}
+                      onClick={() => toggleSearchSource(source.id)}
+                      disabled={!searchEnabled}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                        !searchEnabled && 'opacity-50 cursor-not-allowed',
+                        searchEnabled && 'cursor-pointer'
+                      )}
+                    >
+                      <span>{source.icon}</span>
+                      <span>{source.name}</span>
+                      {isSelected && <Check className="h-3 w-3" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
                 {t('researchSourcesDesc') || 'Default sources for deep research mode'}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {SEARCH_SOURCES.map((source) => {
-              const isSelected = defaultSearchSources.includes(source.id);
-              return (
-                <button
-                  key={source.id}
-                  onClick={() => toggleSearchSource(source.id)}
-                  disabled={!searchEnabled}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  } ${!searchEnabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <span>{source.icon}</span>
-                  <span>{source.name}</span>
-                  {isSelected && <Check className="h-3 w-3" />}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            {t('selectedSources', { count: defaultSearchSources.length }) || 
-              `${defaultSearchSources.length} source${defaultSearchSources.length !== 1 ? 's' : ''} selected`}
-          </p>
+              </p>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
       {/* Search Providers */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            {t('providers') || 'Search Providers'}
-            <Badge variant="secondary" className="text-[10px]">{enabledCount} {t('enabled') || 'enabled'}</Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              {t('providers') || 'Search Providers'}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-[10px]">
+                {enabledCount}/{providerIds.length} {t('enabled') || 'enabled'}
+              </Badge>
+              {configuredProviders.length > 0 && defaultSearchProvider && (
+                <Badge variant="outline" className="text-[10px]">
+                  {SEARCH_PROVIDERS[defaultSearchProvider]?.name}
+                </Badge>
+              )}
+            </div>
+          </div>
           <CardDescription className="text-xs">
             {t('providersDescription') || 'Configure API keys for search providers'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {providerIds.map((providerId) => {
             const config = SEARCH_PROVIDERS[providerId];
             const settings = searchProviders[providerId];
@@ -321,6 +337,7 @@ export function SearchSettings() {
             const isExpanded = expandedProviders[providerId];
             const showKey = showKeys[providerId];
             const isValidKey = settings?.apiKey ? validateApiKey(providerId, settings.apiKey) : false;
+            const isActive = settings?.enabled && settings?.apiKey;
 
             return (
               <Collapsible
@@ -328,47 +345,20 @@ export function SearchSettings() {
                 open={isExpanded}
                 onOpenChange={() => toggleExpanded(providerId)}
               >
-                <div className="border rounded-lg">
+                <div className={cn(
+                  'border rounded-lg transition-colors',
+                  isActive && 'border-primary/30 bg-primary/[0.02]',
+                  !settings?.enabled && !isExpanded && 'opacity-70'
+                )}>
                   <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col gap-0.5">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                onClick={(e) => { e.stopPropagation(); adjustPriority(providerId, -1); }}
-                                className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                                disabled={!settings?.enabled}
-                              >
-                                <ArrowUp className="h-2.5 w-2.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">{t('higherPriority')}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                onClick={(e) => { e.stopPropagation(); adjustPriority(providerId, 1); }}
-                                className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-                                disabled={!settings?.enabled}
-                              >
-                                <ArrowDown className="h-2.5 w-2.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="text-xs">{t('lowerPriority')}</TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-medium">{config.name}</span>
-                            {settings?.enabled && settings?.apiKey && (
+                            {isActive && (
                               <Badge variant="default" className="text-[10px] px-1 py-0">
                                 {t('active') || 'Active'}
-                              </Badge>
-                            )}
-                            {settings?.priority && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                P{settings.priority}
                               </Badge>
                             )}
                             {config.features.aiAnswer && (
@@ -382,7 +372,7 @@ export function SearchSettings() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Switch
                           checked={settings?.enabled ?? false}
                           onCheckedChange={(enabled) => setSearchProviderEnabled(providerId, enabled)}
@@ -390,9 +380,9 @@ export function SearchSettings() {
                           onClick={(e) => e.stopPropagation()}
                         />
                         {isExpanded ? (
-                          <ChevronUp className="h-4 w-4" />
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <ChevronDown className="h-4 w-4" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
                     </div>
@@ -445,23 +435,23 @@ export function SearchSettings() {
 
                         {/* Test Result */}
                         {testState.result === 'success' && (
-                          <p className="flex items-center gap-1 text-sm text-green-600">
-                            <Check className="h-4 w-4" /> {t('connectionSuccess')}
+                          <p className="flex items-center gap-1 text-xs text-green-600">
+                            <Check className="h-3.5 w-3.5" /> {t('connectionSuccess')}
                           </p>
                         )}
                         {testState.result === 'error' && (
-                          <p className="flex items-center gap-1 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4" /> {t('connectionFailed')}
+                          <p className="flex items-center gap-1 text-xs text-destructive">
+                            <AlertCircle className="h-3.5 w-3.5" /> {t('connectionFailed')}
                           </p>
                         )}
                         {settings?.apiKey && !isValidKey && (
-                          <p className="flex items-center gap-1 text-sm text-amber-600">
-                            <AlertCircle className="h-4 w-4" /> {t('invalidKeyFormat') || 'Invalid key format'}
+                          <p className="flex items-center gap-1 text-xs text-amber-600">
+                            <AlertCircle className="h-3.5 w-3.5" /> {t('invalidKeyFormat') || 'Invalid key format'}
                           </p>
                         )}
 
                         {/* Docs Link */}
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t('getApiKey') || 'Get your API key at'}{' '}
                           <a
                             href={config.docsUrl}
@@ -474,48 +464,86 @@ export function SearchSettings() {
                         </p>
                       </div>
 
-                      {/* Features */}
-                      <div className="flex flex-wrap gap-1">
-                        {config.features.aiAnswer && (
-                          <Badge variant="secondary">{t('features.aiAnswer')}</Badge>
-                        )}
-                        {config.features.newsSearch && (
-                          <Badge variant="secondary">{t('features.news')}</Badge>
-                        )}
-                        {config.features.imageSearch && (
-                          <Badge variant="secondary">{t('features.images')}</Badge>
-                        )}
-                        {config.features.academicSearch && (
-                          <Badge variant="secondary">{t('features.academic')}</Badge>
-                        )}
-                        {config.features.recencyFilter && (
-                          <Badge variant="secondary">{t('features.recencyFilter')}</Badge>
-                        )}
-                        {config.features.domainFilter && (
-                          <Badge variant="secondary">{t('features.domainFilter')}</Badge>
-                        )}
-                        {config.features.contentExtraction && (
-                          <Badge variant="secondary">{t('features.contentExtraction')}</Badge>
-                        )}
+                      {/* Priority Control */}
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">
+                          {t('priority') || 'Priority'}: P{settings?.priority ?? 5}
+                        </Label>
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => adjustPriority(providerId, -1)}
+                                disabled={!settings?.enabled}
+                              >
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">{t('higherPriority')}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => adjustPriority(providerId, 1)}
+                                disabled={!settings?.enabled}
+                              >
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">{t('lowerPriority')}</TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
 
-                      {/* Pricing Info */}
-                      {config.pricing && (
-                        <p className="text-xs text-muted-foreground">
-                          {config.pricing.freeCredits && (
-                            <span>{config.pricing.freeCredits} free credits/month • </span>
+                      {/* Features + Pricing — compact row */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1">
+                          {config.features.aiAnswer && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.aiAnswer')}</Badge>
                           )}
-                          {config.pricing.pricePerSearch && (
-                            <span>${config.pricing.pricePerSearch}/search</span>
+                          {config.features.newsSearch && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.news')}</Badge>
                           )}
-                        </p>
-                      )}
+                          {config.features.imageSearch && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.images')}</Badge>
+                          )}
+                          {config.features.academicSearch && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.academic')}</Badge>
+                          )}
+                          {config.features.recencyFilter && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.recencyFilter')}</Badge>
+                          )}
+                          {config.features.domainFilter && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.domainFilter')}</Badge>
+                          )}
+                          {config.features.contentExtraction && (
+                            <Badge variant="secondary" className="text-[10px]">{t('features.contentExtraction')}</Badge>
+                          )}
+                        </div>
+                        {config.pricing && (
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {config.pricing.freeCredits && (
+                              <>{config.pricing.freeCredits} free • </>
+                            )}
+                            {config.pricing.pricePerSearch && (
+                              <>${config.pricing.pricePerSearch}/search</>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </div>
               </Collapsible>
             );
           })}
+          </div>
         </CardContent>
       </Card>
     </div>

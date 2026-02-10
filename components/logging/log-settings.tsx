@@ -27,6 +27,10 @@ import { Separator } from '@/components/ui/separator';
 import {
   getLoggerConfig,
   updateLoggerConfig,
+  addTransport,
+  removeTransport,
+  createConsoleTransport,
+  createIndexedDBTransport,
   type LogLevel,
   type UnifiedLoggerConfig,
 } from '@/lib/logger';
@@ -117,6 +121,31 @@ export function LogSettings({ className }: LogSettingsProps) {
     try {
       // Update logger config
       updateLoggerConfig(config as UnifiedLoggerConfig);
+
+      // Apply transport changes
+      if (transports.console) {
+        addTransport(createConsoleTransport());
+      } else {
+        removeTransport('console');
+      }
+
+      if (transports.indexedDB) {
+        const idbTransport = createIndexedDBTransport({
+          maxEntries: retention.maxEntries,
+          retentionDays: retention.maxAgeDays,
+        });
+        removeTransport('indexeddb');
+        addTransport(idbTransport);
+      } else {
+        removeTransport('indexeddb');
+      }
+
+      if (!transports.langfuse) {
+        removeTransport('langfuse');
+      }
+      if (!transports.opentelemetry) {
+        removeTransport('opentelemetry');
+      }
 
       // Store transport and retention settings in localStorage
       localStorage.setItem('cognia-logging-transports', JSON.stringify(transports));

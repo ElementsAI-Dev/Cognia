@@ -42,6 +42,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import type { WorkflowNodeType } from '@/types/workflow/workflow-editor';
 
 interface CanvasContextMenuProps {
@@ -76,11 +77,24 @@ export function CanvasContextMenu({ open, position, onClose, onAddNode }: Canvas
     selectAll,
     autoLayout,
     copiedNodes,
-    history,
+    historyLength,
     historyIndex,
     saveWorkflow,
     exportToFile,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      undo: state.undo,
+      redo: state.redo,
+      pasteSelection: state.pasteSelection,
+      selectAll: state.selectAll,
+      autoLayout: state.autoLayout,
+      copiedNodes: state.copiedNodes,
+      historyLength: state.history.length,
+      historyIndex: state.historyIndex,
+      saveWorkflow: state.saveWorkflow,
+      exportToFile: state.exportToFile,
+    }))
+  );
 
   // Close on escape
   useEffect(() => {
@@ -102,7 +116,7 @@ export function CanvasContextMenu({ open, position, onClose, onAddNode }: Canvas
   );
 
   const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < history.length - 1;
+  const canRedo = historyIndex < historyLength - 1;
   const hasCopied = copiedNodes.length > 0;
 
   return (

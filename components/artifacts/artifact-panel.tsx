@@ -18,6 +18,8 @@ import {
   FolderOpen,
   Maximize2,
   Minimize2,
+  History,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ArtifactPanelLoading } from '@/components/ui/loading-states';
@@ -48,12 +50,15 @@ import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
 import type { Artifact as ArtifactType } from '@/types';
 import { ArtifactPreview } from './artifact-preview';
+import { ArtifactList } from './artifact-list';
 import { createEditorOptions, getMonacoTheme, getMonacoLanguage } from '@/lib/monaco';
 import {
   getShikiLanguage as getShikiLang,
   getArtifactExtension,
   canPreview,
   canDesign,
+  MERMAID_TYPE_NAMES,
+  DESIGNABLE_TYPES,
 } from '@/lib/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
 
@@ -81,6 +86,14 @@ export function ArtifactPanel() {
   const [editContent, setEditContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+
+  // Version history integration
+  const saveArtifactVersion = useArtifactStore((state) => state.saveArtifactVersion);
+  const restoreArtifactVersion = useArtifactStore((state) => state.restoreArtifactVersion);
+  const getArtifactVersions = useArtifactStore((state) => state.getArtifactVersions);
+
+  const versions = activeArtifact ? getArtifactVersions(activeArtifact.id) : [];
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -112,11 +125,25 @@ export function ArtifactPanel() {
 
   const handleSaveEdit = useCallback(() => {
     if (activeArtifact && hasChanges) {
+      saveArtifactVersion(activeArtifact.id, 'Before edit');
       updateArtifact(activeArtifact.id, { content: editContent });
       setHasChanges(false);
       setViewMode('code');
     }
-  }, [activeArtifact, editContent, hasChanges, updateArtifact]);
+  }, [activeArtifact, editContent, hasChanges, updateArtifact, saveArtifactVersion]);
+
+  const handleRestoreVersion = useCallback((versionId: string) => {
+    if (activeArtifact) {
+      restoreArtifactVersion(activeArtifact.id, versionId);
+      setShowVersionHistory(false);
+    }
+  }, [activeArtifact, restoreArtifactVersion]);
+
+  const handleSaveVersion = useCallback(() => {
+    if (activeArtifact) {
+      saveArtifactVersion(activeArtifact.id, `Manual save v${activeArtifact.version}`);
+    }
+  }, [activeArtifact, saveArtifactVersion]);
 
   const handleCancelEdit = useCallback(() => {
     setViewMode('code');
@@ -196,6 +223,12 @@ export function ArtifactPanel() {
                   <ArtifactTitle>{activeArtifact.title}</ArtifactTitle>
                   <span className="text-xs text-muted-foreground">
                     v{activeArtifact.version} · {activeArtifact.language || activeArtifact.type}
+                    {activeArtifact.type === 'mermaid' && (() => {
+                      const match = activeArtifact.content.match(/^(\w+)/m);
+                      const diagramType = match ? MERMAID_TYPE_NAMES[match[1]] : null;
+                      return diagramType ? ` · ${diagramType}` : '';
+                    })()}
+                    {DESIGNABLE_TYPES.includes(activeArtifact.type) ? ' · Designable' : ''}
                   </span>
                 </div>
               </div>
@@ -266,6 +299,11 @@ export function ArtifactPanel() {
                       onClick={handleOpenInCanvas}
                     />
                     <ArtifactAction
+                      tooltip={t('versionHistory')}
+                      icon={History}
+                      onClick={() => setShowVersionHistory(!showVersionHistory)}
+                    />
+                    <ArtifactAction
                       tooltip={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
                       icon={isFullscreen ? Minimize2 : Maximize2}
                       onClick={toggleFullscreen}
@@ -326,10 +364,56 @@ export function ArtifactPanel() {
                 <ArtifactPreview artifact={activeArtifact} />
               )}
             </ArtifactContent>
+
+            {/* Version History Panel */}
+            {showVersionHistory && (
+              <div className="border-t bg-muted/30 max-h-[200px] overflow-auto">
+                <div className="flex items-center justify-between px-4 py-2 border-b">
+                  <h4 className="text-sm font-medium flex items-center gap-1.5">
+                    <History className="h-3.5 w-3.5" />
+                    {t('versionHistory')}
+                  </h4>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleSaveVersion}>
+                    <Save className="h-3 w-3 mr-1" />
+                    {t('saveVersion')}
+                  </Button>
+                </div>
+                {versions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-4 py-3">{t('noVersions')}</p>
+                ) : (
+                  <div className="divide-y">
+                    {versions.map((version) => (
+                      <div key={version.id} className="flex items-center justify-between px-4 py-2 text-xs hover:bg-muted/50">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{version.changeDescription || `v${version.version}`}</p>
+                          <p className="text-muted-foreground">
+                            {version.createdAt instanceof Date
+                              ? version.createdAt.toLocaleString()
+                              : new Date(version.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs shrink-0 ml-2"
+                          onClick={() => handleRestoreVersion(version.id)}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          {t('restoreVersion')}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </Artifact>
         ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p>{t('noArtifact')}</p>
+          <div className="flex flex-col h-full">
+            <div className="px-4 py-3 border-b">
+              <h3 className="text-sm font-medium">{t('recentArtifacts')}</h3>
+            </div>
+            <ArtifactList className="flex-1" maxHeight="100%" />
           </div>
         )}
 

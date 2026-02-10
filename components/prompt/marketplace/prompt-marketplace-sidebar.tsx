@@ -58,8 +58,8 @@ export function PromptMarketplaceSidebar({
   return (
     <div
       className={cn(
-        'hidden lg:flex flex-col w-64 xl:w-72 shrink-0 border-r bg-background/50 backdrop-blur-sm',
-        isMobile && 'flex w-full',
+        'flex flex-col w-full shrink-0 bg-background/50 backdrop-blur-sm',
+        !isMobile && 'border-r',
         className
       )}
     >

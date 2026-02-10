@@ -40,6 +40,10 @@ import {
   FileJson,
   Copy,
 } from 'lucide-react';
+import {
+  validateWorkflowInput,
+  sanitizeWorkflowOutput,
+} from '@/lib/workflow-editor';
 import type { StartNodeData } from '@/types/workflow/workflow-editor';
 import type { WorkflowIOSchema } from '@/types/workflow';
 
@@ -196,9 +200,22 @@ export function WorkflowInputTestPanel() {
       return;
     }
 
+    const inputs = parseInputValues();
+
+    // Validate inputs against workflow schema
+    if (currentWorkflow) {
+      const inputValidation = validateWorkflowInput(currentWorkflow, inputs);
+      if (!inputValidation.valid) {
+        setTestResult({
+          status: 'error',
+          message: `Input validation failed: ${inputValidation.errors.join(', ')}`,
+        });
+        return;
+      }
+    }
+
     setTestResult({ status: 'running' });
     try {
-      const inputs = parseInputValues();
       await startExecution(inputs);
       setTestResult({ status: 'success', message: 'Workflow started successfully!' });
       setIsOpen(false);
@@ -210,10 +227,11 @@ export function WorkflowInputTestPanel() {
     }
   };
 
-  // Copy inputs as JSON
+  // Copy inputs as JSON (sanitized for safe display)
   const handleCopyAsJson = () => {
     const inputs = parseInputValues();
-    navigator.clipboard.writeText(JSON.stringify(inputs, null, 2));
+    const sanitized = sanitizeWorkflowOutput(inputs);
+    navigator.clipboard.writeText(JSON.stringify(sanitized, null, 2));
   };
 
   // Load sample inputs (if available)

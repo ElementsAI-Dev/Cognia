@@ -19,15 +19,14 @@ jest.mock('@/stores', () => ({
       },
       welcomeSettings: {
         userName: '',
-        timeBasedGreeting: true,
+        timeBasedGreeting: { enabled: false, morning: '', afternoon: '', evening: '', night: '' },
         customGreeting: '',
         customDescription: '',
         iconConfig: { type: 'default' },
         useCustomSimplifiedSuggestions: false,
-        simplifiedSuggestions: [],
+        simplifiedSuggestions: { chat: [], agent: [], research: [], learning: [] },
       },
       language: 'en',
-      setSimplifiedModePreset: jest.fn(),
     };
     return selector ? selector(state) : state;
   }),
@@ -77,10 +76,10 @@ describe('SimplifiedWelcome', () => {
       expect(screen.getByText("I'll guide you through any topic step by step")).toBeInTheDocument();
     });
 
-    it('renders the Sparkles icon', () => {
+    it('renders the Sparkles icon in default mode', () => {
       const { container } = render(<SimplifiedWelcome {...defaultProps} />);
       
-      // Check for SVG icon
+      // Check for SVG icon (Sparkles)
       const svgElement = container.querySelector('svg');
       expect(svgElement).toBeInTheDocument();
     });
@@ -136,26 +135,30 @@ describe('SimplifiedWelcome', () => {
     });
   });
 
-  describe('SuggestionPill', () => {
-    it('renders suggestion pills as buttons', () => {
-      render(<SimplifiedWelcome {...defaultProps} />);
-      
-      const buttons = screen.getAllByRole('button');
-      // 4 suggestion pills + full mode toggle button
-      expect(buttons.length).toBeGreaterThanOrEqual(4);
-    });
-
-    it('applies animation delay based on index', () => {
+  describe('SuggestionCard', () => {
+    it('renders suggestion cards as buttons with icons', () => {
       const { container } = render(<SimplifiedWelcome {...defaultProps} />);
       
-      // Find suggestion pill buttons (those with animationDelay style)
+      const buttons = screen.getAllByRole('button');
+      // 4 suggestion cards (no top bar buttons anymore)
+      expect(buttons.length).toBeGreaterThanOrEqual(4);
+
+      // Each card should have an icon container div
+      const iconContainers = container.querySelectorAll('.rounded-lg');
+      expect(iconContainers.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('applies staggered animation delay based on index', () => {
+      const { container } = render(<SimplifiedWelcome {...defaultProps} />);
+      
+      // Find suggestion card buttons (those with animationDelay style)
       const allButtons = Array.from(container.querySelectorAll('button'));
-      const pillButtons = allButtons.filter(b => b.style.animationDelay);
-      expect(pillButtons.length).toBeGreaterThanOrEqual(2);
+      const cardButtons = allButtons.filter(b => b.style.animationDelay);
+      expect(cardButtons.length).toBeGreaterThanOrEqual(2);
       // Verify sequential delay pattern
-      if (pillButtons.length >= 2) {
-        const delay0 = parseInt(pillButtons[0].style.animationDelay);
-        const delay1 = parseInt(pillButtons[1].style.animationDelay);
+      if (cardButtons.length >= 2) {
+        const delay0 = parseInt(cardButtons[0].style.animationDelay);
+        const delay1 = parseInt(cardButtons[1].style.animationDelay);
         expect(delay1).toBeGreaterThan(delay0);
       }
     });
@@ -174,15 +177,14 @@ describe('SimplifiedWelcome', () => {
           },
           welcomeSettings: {
             userName: '',
-            timeBasedGreeting: true,
+            timeBasedGreeting: { enabled: false, morning: '', afternoon: '', evening: '', night: '' },
             customGreeting: '',
             customDescription: '',
             iconConfig: { type: 'default' },
             useCustomSimplifiedSuggestions: false,
-            simplifiedSuggestions: [],
+            simplifiedSuggestions: { chat: [], agent: [], research: [], learning: [] },
           },
           language: 'en',
-          setSimplifiedModePreset: jest.fn(),
         };
         return selector ? selector(state) : state;
       });
@@ -194,54 +196,31 @@ describe('SimplifiedWelcome', () => {
     });
   });
 
-  describe('ProviderIcon in model indicator', () => {
-    it('renders provider icon in model badge when providerName is given', () => {
-      const { container } = render(
-        <SimplifiedWelcome {...defaultProps} modelName="gpt-4o" providerName="openai" />
-      );
-      // ProviderIcon should render an img for the known provider
-      const img = container.querySelector('img[alt*="icon"]');
-      expect(img).toBeInTheDocument();
-    });
-
-    it('renders model name in badge', () => {
-      render(
-        <SimplifiedWelcome {...defaultProps} modelName="gpt-4o" providerName="openai" />
-      );
-      expect(screen.getByText('gpt-4o')).toBeInTheDocument();
-    });
-
-    it('renders provider name text in badge', () => {
-      render(
-        <SimplifiedWelcome {...defaultProps} modelName="gpt-4o" providerName="openai" />
-      );
-      expect(screen.getByText(/openai/)).toBeInTheDocument();
-    });
-
-    it('does not render provider icon when providerName is absent', () => {
-      const { container } = render(
-        <SimplifiedWelcome {...defaultProps} modelName="gpt-4o" />
-      );
-      // No ProviderIcon img should be rendered
-      const img = container.querySelector('img[alt*="icon"]');
-      expect(img).toBeNull();
-    });
-  });
-
   describe('Layout', () => {
     it('renders with correct container structure', () => {
       const { container } = render(<SimplifiedWelcome {...defaultProps} />);
       
-      // Check for flex container
+      // Check for flex container with justify-end (content near bottom/input)
       expect(container.firstChild).toHaveClass('flex');
       expect(container.firstChild).toHaveClass('h-full');
+      expect(container.firstChild).toHaveClass('justify-end');
     });
 
-    it('renders keyboard hint', () => {
+    it('does not render redundant top bar or bottom hints', () => {
       render(<SimplifiedWelcome {...defaultProps} />);
       
-      expect(screen.getByText('Type a message or press')).toBeInTheDocument();
-      expect(screen.getByText('to send')).toBeInTheDocument();
+      // Top bar elements should not exist (moved to ChatHeader)
+      expect(screen.queryByText('Full Mode')).not.toBeInTheDocument();
+      // Bottom keyboard hint should not exist (ChatInput handles this)
+      expect(screen.queryByText('Type a message or press')).not.toBeInTheDocument();
+      expect(screen.queryByText('to send')).not.toBeInTheDocument();
+    });
+
+    it('renders mode dropdown when onModeChange is provided', () => {
+      render(<SimplifiedWelcome {...defaultProps} onModeChange={jest.fn()} />);
+      
+      // Mode switcher dropdown trigger should be present
+      expect(screen.getByText('Chat')).toBeInTheDocument();
     });
   });
 });

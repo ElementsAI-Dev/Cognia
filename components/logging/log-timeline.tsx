@@ -56,9 +56,13 @@ export function LogTimeline({
   const buckets = useMemo((): TimelineBucket[] => {
     if (logs.length === 0) return [];
 
-    const timestamps = logs.map((l) => new Date(l.timestamp).getTime());
-    const minTs = Math.min(...timestamps);
-    const maxTs = Math.max(...timestamps);
+    let minTs = Infinity;
+    let maxTs = -Infinity;
+    for (const log of logs) {
+      const ts = new Date(log.timestamp).getTime();
+      if (ts < minTs) minTs = ts;
+      if (ts > maxTs) maxTs = ts;
+    }
     const range = Math.max(maxTs - minTs, 1000); // At least 1 second
     const bucketMs = range / bucketCount;
 
@@ -92,7 +96,11 @@ export function LogTimeline({
   }, [logs, bucketCount]);
 
   const maxCount = useMemo(() => {
-    return Math.max(1, ...buckets.map((b) => b.total));
+    let max = 1;
+    for (const b of buckets) {
+      if (b.total > max) max = b.total;
+    }
+    return max;
   }, [buckets]);
 
   const handleBucketClick = useCallback(
@@ -116,15 +124,15 @@ export function LogTimeline({
         <div className="flex items-center gap-1.5 ml-auto">
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-sm bg-green-500" />
-            <span className="text-[10px] text-muted-foreground">Info</span>
+            <span className="text-[10px] text-muted-foreground">{t('levels.info')}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-sm bg-yellow-500" />
-            <span className="text-[10px] text-muted-foreground">Warn</span>
+            <span className="text-[10px] text-muted-foreground">{t('levels.warn')}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-sm bg-red-500" />
-            <span className="text-[10px] text-muted-foreground">Error</span>
+            <span className="text-[10px] text-muted-foreground">{t('levels.error')}</span>
           </div>
         </div>
       </div>

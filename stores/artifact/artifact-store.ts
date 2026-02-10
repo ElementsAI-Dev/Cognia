@@ -39,9 +39,8 @@ function rehydrateArtifact(artifact: Artifact): Artifact {
 
 /**
  * Rehydrate canvas document dates from storage
- * @internal Reserved for future canvas document getters
  */
-function _rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
+function rehydrateCanvasDocument(doc: CanvasDocument): CanvasDocument {
   return {
     ...doc,
     createdAt: ensureDate(doc.createdAt),
@@ -636,8 +635,8 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
       getCanvasVersions: (documentId) => {
         const doc = get().canvasDocuments[documentId];
         if (!doc || !doc.versions) return [];
-        return [...doc.versions]
-          .map((v) => ({ ...v, createdAt: ensureDate(v.createdAt) }))
+        const rehydrated = rehydrateCanvasDocument(doc);
+        return [...(rehydrated.versions || [])]
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       },
 

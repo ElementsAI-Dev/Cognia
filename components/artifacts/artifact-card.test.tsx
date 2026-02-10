@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ArtifactCard, ArtifactInlineRef, MessageArtifacts } from './artifact-card';
+import { ArtifactCard, ArtifactInlineRef, MessageArtifacts, MessageAnalysisResults } from './artifact-card';
 import type { Artifact } from '@/types';
 
 // Mock artifact-icons
@@ -16,12 +16,16 @@ jest.mock('./artifact-icons', () => ({
 // Mock stores
 const mockSetActiveArtifact = jest.fn();
 const mockOpenPanel = jest.fn();
+const mockDuplicateArtifact = jest.fn();
+const mockGetMessageAnalysis = jest.fn(() => []);
 
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       setActiveArtifact: mockSetActiveArtifact,
       openPanel: mockOpenPanel,
+      duplicateArtifact: mockDuplicateArtifact,
+      getMessageAnalysis: mockGetMessageAnalysis,
       artifacts: {
         'artifact-1': {
           id: 'artifact-1',
@@ -176,6 +180,41 @@ describe('ArtifactCard', () => {
     render(<ArtifactCard artifact={codeArtifact} />);
     expect(screen.getByText('Code')).toBeInTheDocument();
   });
+
+  it('renders duplicate button', () => {
+    render(<ArtifactCard artifact={mockArtifact} />);
+    const buttons = screen.getAllByRole('button');
+    // Should have eye button and copy/duplicate button
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('calls duplicateArtifact when duplicate button is clicked', () => {
+    mockDuplicateArtifact.mockReturnValue({ ...mockArtifact, id: 'artifact-dup' });
+    render(<ArtifactCard artifact={mockArtifact} />);
+    // Find the duplicate button by its title attribute
+    const dupButton = screen.getByTitle('Duplicate');
+    fireEvent.click(dupButton);
+    expect(mockDuplicateArtifact).toHaveBeenCalledWith('artifact-1');
+  });
+
+  it('displays runnable metadata when available', () => {
+    const runnableArtifact: Artifact = {
+      ...mockArtifact,
+      metadata: { runnable: true },
+    };
+    render(<ArtifactCard artifact={runnableArtifact} />);
+    expect(screen.getByText('Runnable')).toBeInTheDocument();
+  });
+
+  it('displays wordCount metadata when available', () => {
+    const docArtifact: Artifact = {
+      ...mockArtifact,
+      type: 'document',
+      metadata: { wordCount: 150 },
+    };
+    render(<ArtifactCard artifact={docArtifact} />);
+    expect(screen.getByText(/150/)).toBeInTheDocument();
+  });
 });
 
 describe('ArtifactInlineRef', () => {
@@ -224,14 +263,61 @@ describe('MessageArtifacts', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders compact view by default', () => {
+  it('renders compact view using ArtifactInlineRef by default', () => {
     render(<MessageArtifacts messageId="message-1" />);
-    // Both artifacts should be visible
+    // Both artifacts should be visible as inline refs
     expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Another Artifact').length).toBeGreaterThan(0);
   });
 
   it('renders full view when compact is false', () => {
     render(<MessageArtifacts messageId="message-1" compact={false} />);
     expect(screen.getAllByText('Test Artifact').length).toBeGreaterThan(0);
+  });
+});
+
+describe('MessageAnalysisResults', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns null when no analysis results', () => {
+    mockGetMessageAnalysis.mockReturnValue([]);
+    const { container } = render(<MessageAnalysisResults messageId="msg-1" />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders analysis results when available', () => {
+    mockGetMessageAnalysis.mockReturnValue([
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: { summary: 'Quadratic' }, createdAt: new Date() },
+    ]);
+    render(<MessageAnalysisResults messageId="msg-1" />);
+    expect(mockGetMessageAnalysis).toHaveBeenCalledWith('msg-1');
+    expect(screen.getByText('Quadratic')).toBeInTheDocument();
+  });
+
+  it('renders type emoji for math results', () => {
+    mockGetMessageAnalysis.mockReturnValue([
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: {}, createdAt: new Date() },
+    ]);
+    render(<MessageAnalysisResults messageId="msg-1" />);
+    expect(screen.getByText('📐')).toBeInTheDocument();
+  });
+
+  it('renders type emoji for chart results', () => {
+    mockGetMessageAnalysis.mockReturnValue([
+      { id: 'a2', sessionId: 's1', messageId: 'msg-1', type: 'chart' as const, content: '{}', output: {}, createdAt: new Date() },
+    ]);
+    render(<MessageAnalysisResults messageId="msg-1" />);
+    expect(screen.getByText('📊')).toBeInTheDocument();
+  });
+
+  it('calls openPanel when analysis result is clicked', () => {
+    mockGetMessageAnalysis.mockReturnValue([
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'data' as const, content: 'data', output: { summary: 'Stats' }, createdAt: new Date() },
+    ]);
+    render(<MessageAnalysisResults messageId="msg-1" />);
+    fireEvent.click(screen.getByText('Stats'));
+    expect(mockOpenPanel).toHaveBeenCalledWith('analysis');
   });
 });

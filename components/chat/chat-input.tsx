@@ -210,6 +210,10 @@ interface ChatInputProps {
   onOpenPromptOptimization?: () => void;
   onOpenArena?: () => void;
   hasActivePreset?: boolean;
+  // Multi-model support
+  multiModelEnabled?: boolean;
+  multiModelModels?: import('@/types/chat/multi-model').ArenaModelConfig[];
+  onMultiModelModelsChange?: (models: import('@/types/chat/multi-model').ArenaModelConfig[]) => void;
 }
 
 export function ChatInput({
@@ -245,6 +249,9 @@ export function ChatInput({
   onOpenPromptOptimization,
   onOpenArena,
   hasActivePreset,
+  multiModelEnabled,
+  multiModelModels,
+  onMultiModelModelsChange,
 }: ChatInputProps) {
   const t = useTranslations('chatInput');
   const tPlaceholders = useTranslations('placeholders');
@@ -1240,6 +1247,9 @@ export function ChatInput({
             onOpenPromptOptimization={onOpenPromptOptimization}
             onOpenArena={onOpenArena}
             hasActivePreset={hasActivePreset}
+            multiModelEnabled={multiModelEnabled}
+            multiModelModels={multiModelModels}
+            onMultiModelModelsChange={onMultiModelModelsChange}
             disabled={disabled}
             isProcessing={isProcessing}
             hideTokenCount={isSimplifiedMode && simplifiedModeSettings.hideTokenCount}

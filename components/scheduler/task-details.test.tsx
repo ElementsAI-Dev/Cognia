@@ -1,5 +1,6 @@
 /**
  * TaskDetails Component Tests
+ * Updated for redesigned TaskDetails with hero section, metrics bar, and timeline
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -14,6 +15,8 @@ jest.mock('next-intl', () => ({
 // Mock cron-parser
 jest.mock('@/lib/scheduler/cron-parser', () => ({
   describeCronExpression: jest.fn((expr) => `Cron: ${expr}`),
+  getNextCronTimes: jest.fn(() => []),
+  matchesCronExpression: jest.fn(() => false),
 }));
 
 const createMockTask = (overrides: Partial<ScheduledTask> = {}): ScheduledTask => ({
@@ -96,61 +99,71 @@ describe('TaskDetails', () => {
 
   it('should render action buttons', () => {
     render(<TaskDetails {...defaultProps} />);
-    
-    expect(screen.getByText('runNow')).toBeInTheDocument();
-    expect(screen.getByText('pause')).toBeInTheDocument();
-    expect(screen.getByText('edit')).toBeInTheDocument();
-    expect(screen.getByText('delete')).toBeInTheDocument();
+
+    // Buttons have text in hidden spans + tooltip content, getAllByText returns all matches
+    expect(screen.getAllByText('runNow').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('pause').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('edit').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('delete').length).toBeGreaterThan(0);
   });
 
   it('should show resume button when paused', () => {
     const pausedTask = createMockTask({ status: 'paused' });
     render(<TaskDetails {...defaultProps} task={pausedTask} />);
-    
-    expect(screen.getByText('resume')).toBeInTheDocument();
+
+    expect(screen.getAllByText('resume').length).toBeGreaterThan(0);
     expect(screen.queryByText('pause')).not.toBeInTheDocument();
   });
 
   it('should call onRunNow when run now button is clicked', () => {
     render(<TaskDetails {...defaultProps} />);
-    
-    fireEvent.click(screen.getByText('runNow'));
+
+    // Click the first button containing runNow text
+    const runNowSpan = screen.getAllByText('runNow')[0];
+    fireEvent.click(runNowSpan.closest('button')!);
     expect(mockOnRunNow).toHaveBeenCalledTimes(1);
   });
 
   it('should call onPause when pause button is clicked', () => {
     render(<TaskDetails {...defaultProps} />);
-    
-    fireEvent.click(screen.getByText('pause'));
+
+    const pauseSpan = screen.getAllByText('pause')[0];
+    fireEvent.click(pauseSpan.closest('button')!);
     expect(mockOnPause).toHaveBeenCalledTimes(1);
   });
 
   it('should call onResume when resume button is clicked', () => {
     const pausedTask = createMockTask({ status: 'paused' });
     render(<TaskDetails {...defaultProps} task={pausedTask} />);
-    
-    fireEvent.click(screen.getByText('resume'));
+
+    const resumeSpan = screen.getAllByText('resume')[0];
+    fireEvent.click(resumeSpan.closest('button')!);
     expect(mockOnResume).toHaveBeenCalledTimes(1);
   });
 
   it('should call onEdit when edit button is clicked', () => {
     render(<TaskDetails {...defaultProps} />);
-    
-    fireEvent.click(screen.getByText('edit'));
+
+    const editSpan = screen.getAllByText('edit')[0];
+    fireEvent.click(editSpan.closest('button')!);
     expect(mockOnEdit).toHaveBeenCalledTimes(1);
   });
 
   it('should call onDelete when delete button is clicked', () => {
-    render(<TaskDetails {...defaultProps} />);
-    
-    fireEvent.click(screen.getByText('delete'));
+    const { container } = render(<TaskDetails {...defaultProps} />);
+
+    // Delete button is icon-only with text-destructive class
+    const deleteButton = container.querySelector('button.text-destructive');
+    expect(deleteButton).toBeInTheDocument();
+    fireEvent.click(deleteButton!);
     expect(mockOnDelete).toHaveBeenCalledTimes(1);
   });
 
   it('should disable run now button when loading', () => {
     render(<TaskDetails {...defaultProps} isLoading={true} />);
-    
-    const runNowButton = screen.getByText('runNow').closest('button');
+
+    const runNowSpan = screen.getAllByText('runNow')[0];
+    const runNowButton = runNowSpan.closest('button');
     expect(runNowButton).toBeDisabled();
   });
 
@@ -188,24 +201,25 @@ describe('TaskDetails', () => {
     expect(screen.getByText('On event: message.created')).toBeInTheDocument();
   });
 
-  it('should display statistics', () => {
+  it('should display metrics in hero header', () => {
     render(<TaskDetails {...defaultProps} />);
-    
+
+    // Metrics bar shows run count, success count, failure count
     expect(screen.getByText('10')).toBeInTheDocument(); // Total runs
     expect(screen.getByText('8')).toBeInTheDocument(); // Successful
     expect(screen.getByText('2')).toBeInTheDocument(); // Failed
   });
 
-  it('should display success rate', () => {
+  it('should display success rate with progress bar', () => {
     render(<TaskDetails {...defaultProps} />);
-    
+
     expect(screen.getByText('80%')).toBeInTheDocument();
   });
 
   it('should not display success rate when no executions', () => {
     const task = createMockTask({ successCount: 0, failureCount: 0 });
     render(<TaskDetails {...defaultProps} task={task} />);
-    
+
     expect(screen.queryByText('%')).not.toBeInTheDocument();
   });
 

@@ -24,6 +24,7 @@ export { ParameterExtractorNode } from './parameter-extractor-node';
 export { VariableAggregatorNode } from './variable-aggregator-node';
 export { QuestionClassifierNode } from './question-classifier-node';
 export { TemplateTransformNode } from './template-transform-node';
+export { ChartNode } from './chart-node';
 
 import { StartNode } from './start-node';
 import { EndNode } from './end-node';
@@ -46,6 +47,7 @@ import { ParameterExtractorNode } from './parameter-extractor-node';
 import { VariableAggregatorNode } from './variable-aggregator-node';
 import { QuestionClassifierNode } from './question-classifier-node';
 import { TemplateTransformNode } from './template-transform-node';
+import { ChartNode } from './chart-node';
 
 /**
  * Node type to component mapping for React Flow
@@ -72,4 +74,12 @@ export const nodeTypes = {
   variableAggregator: VariableAggregatorNode,
   questionClassifier: QuestionClassifierNode,
   templateTransform: TemplateTransformNode,
+  // Chart nodes
+  chart: ChartNode,
+  lineChart: ChartNode,
+  barChart: ChartNode,
+  pieChart: ChartNode,
+  areaChart: ChartNode,
+  scatterChart: ChartNode,
+  radarChart: ChartNode,
 };

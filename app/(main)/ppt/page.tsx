@@ -75,13 +75,14 @@ import {
   PPTQuickAction,
   PPTPreview,
   SlideshowView,
+  SlideContent,
 } from '@/components/ppt';
 import { usePPTGeneration, type PPTGenerationConfig } from '@/hooks/ppt';
-import { useWorkflowStore, usePPTEditorStore } from '@/stores';
+import { useWorkflowStore, selectActivePresentation, usePPTEditorStore } from '@/stores';
 import type { PPTPresentation } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { executePPTExport } from '@/lib/ai/tools/ppt-tool';
-import { downloadPPTX } from '@/lib/export/document/pptx-export';
+import { downloadPPTX, exportToPPTXBase64 } from '@/lib/export/document/pptx-export';
 
 type SortOption = 'newest' | 'oldest' | 'name' | 'slides';
 
@@ -110,9 +111,11 @@ function PPTPageContent() {
   const presentations = useWorkflowStore((state) => state.presentations);
   const setActivePresentation = useWorkflowStore((state) => state.setActivePresentation);
   const deletePresentation = useWorkflowStore((state) => state.deletePresentation);
+  const activePresentation = useWorkflowStore(selectActivePresentation);
   
   // PPT editor store
   const loadPresentation = usePPTEditorStore((state) => state.loadPresentation);
+  const clearPresentation = usePPTEditorStore((state) => state.clearPresentation);
   const presentation = usePPTEditorStore((state) => state.presentation);
   
   // Get presentation ID from URL
@@ -159,6 +162,9 @@ function PPTPageContent() {
       setActivePresentation(id);
     }
   }, [presentationIdFromUrl, selectedPresentationId, presentations, loadPresentation, setActivePresentation]);
+
+  // Use activePresentation from workflow store for synced metadata display
+  const activeTitle = activePresentation?.title || presentation?.title;
   
   // Handle new presentation
   const handleNewPresentation = useCallback(() => {
@@ -197,12 +203,13 @@ function PPTPageContent() {
       deletePresentation(presentationToDelete);
       if (selectedPresentationId === presentationToDelete) {
         setSelectedPresentationId(null);
+        clearPresentation();
         router.push('/ppt');
       }
       setPresentationToDelete(null);
     }
     setDeleteDialogOpen(false);
-  }, [deletePresentation, presentationToDelete, selectedPresentationId, router]);
+  }, [deletePresentation, presentationToDelete, selectedPresentationId, router, clearPresentation]);
   
   // Handle duplicate presentation
   const handleDuplicatePresentation = useCallback((pres: PPTPresentation) => {
@@ -324,19 +331,32 @@ function PPTPageContent() {
     return (
       <div className="flex flex-col h-screen">
         <header className="flex items-center gap-4 px-4 py-2 border-b bg-background">
-          <Link href="/ppt">
+          <Link href="/ppt" onClick={() => { clearPresentation(); setActivePresentation(null); }}>
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div className="flex items-center gap-2">
             <Presentation className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">{presentation.title}</h1>
+            <h1 className="text-lg font-semibold">{activeTitle || presentation.title}</h1>
           </div>
           <Badge variant="secondary" className="ml-2">
             {presentation.slides.length} {t('slides') || 'slides'}
           </Badge>
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                const result = await exportToPPTXBase64(presentation);
+                if (result.success && result.base64) {
+                  await navigator.clipboard.writeText(result.base64);
+                }
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              {t('copyBase64') || 'Copy Base64'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -549,6 +569,16 @@ function PPTPageContent() {
                     </div>
                     
                     <div onClick={() => handleSelectPresentation(pres.id)}>
+                      {/* First slide thumbnail preview */}
+                      {pres.slides[0] && pres.theme && (
+                        <div className="aspect-video bg-muted rounded-t-lg overflow-hidden border-b">
+                          <SlideContent
+                            slide={pres.slides[0]}
+                            theme={pres.theme}
+                            size="small"
+                          />
+                        </div>
+                      )}
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base truncate pr-8">{pres.title}</CardTitle>
                         <CardDescription className="text-xs">
@@ -656,9 +686,8 @@ function PPTPageContent() {
                 handleSelectPresentation(pres.id);
               }}
               onExport={(format) => handleExport(format, previewPresentation)}
-              onThemeChange={(themeId) => {
-                // Theme change in preview is read-only, just update preview
-                console.log('Theme change requested:', themeId);
+              onThemeChange={() => {
+                // Theme change in preview is read-only
               }}
               className="h-full"
             />

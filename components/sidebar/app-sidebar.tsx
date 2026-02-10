@@ -783,85 +783,74 @@ export function AppSidebar() {
                 <ChevronRight className="h-4 w-4" />
               )}
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="flex gap-2">
-                <Link href="/projects" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <FolderKanban className="h-4 w-4 text-blue-500" />
-                    <span>{t('projects')}</span>
+            <CollapsibleContent>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Link href="/projects">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <FolderKanban className="h-4 w-4 shrink-0 text-blue-500" />
+                    <span className="truncate">{t('projects')}</span>
                   </div>
                 </Link>
-                <Link href="/designer" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Wand2 className="h-4 w-4 text-purple-500" />
-                    <span>{t('designer')}</span>
+                <Link href="/designer">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Wand2 className="h-4 w-4 shrink-0 text-purple-500" />
+                    <span className="truncate">{t('designer')}</span>
                   </div>
                 </Link>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/skills" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <span>{t('skills')}</span>
+                <Link href="/skills">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span className="truncate">{t('skills')}</span>
                   </div>
                 </Link>
-                <Link href="/workflows" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Workflow className="h-4 w-4 text-green-500" />
-                    <span>{t('workflows')}</span>
+                <Link href="/workflows">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Workflow className="h-4 w-4 shrink-0 text-green-500" />
+                    <span className="truncate">{t('workflows')}</span>
                   </div>
                 </Link>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/native-tools" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Wrench className="h-4 w-4 text-orange-500" />
-                    <span>{t('nativeTools') || 'Native Tools'}</span>
+                <Link href="/native-tools">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Wrench className="h-4 w-4 shrink-0 text-orange-500" />
+                    <span className="truncate">{t('nativeTools') || 'Native Tools'}</span>
                   </div>
                 </Link>
-                <Link href="/git" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <GitBranch className="h-4 w-4 text-cyan-500" />
-                    <span>Git</span>
+                <Link href="/git">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <GitBranch className="h-4 w-4 shrink-0 text-cyan-500" />
+                    <span className="truncate">Git</span>
                   </div>
                 </Link>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/latex" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <FileCode className="h-4 w-4 text-teal-500" />
-                    <span>{t('latex') || 'LaTeX'}</span>
+                <Link href="/latex">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <FileCode className="h-4 w-4 shrink-0 text-teal-500" />
+                    <span className="truncate">{t('latex') || 'LaTeX'}</span>
                   </div>
                 </Link>
-                <Link href="/scheduler" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Calendar className="h-4 w-4 text-rose-500" />
-                    <span>{t('scheduler') || 'Scheduler'}</span>
+                <Link href="/scheduler">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Calendar className="h-4 w-4 shrink-0 text-rose-500" />
+                    <span className="truncate">{t('scheduler') || 'Scheduler'}</span>
                   </div>
                 </Link>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/speedpass" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <GraduationCap className="h-4 w-4 text-indigo-500" />
-                    <span>{t('speedPass') || 'SpeedPass'}</span>
+                <Link href="/speedpass">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <GraduationCap className="h-4 w-4 shrink-0 text-indigo-500" />
+                    <span className="truncate">{t('speedPass') || 'SpeedPass'}</span>
                   </div>
                 </Link>
-                <Link href="/academic" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <BookOpen className="h-4 w-4 text-emerald-500" />
-                    <span>{t('academic') || 'Academic'}</span>
+                <Link href="/academic">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <BookOpen className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <span className="truncate">{t('academic') || 'Academic'}</span>
                   </div>
                 </Link>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/sandbox" className="flex-1">
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50">
-                    <Terminal className="h-4 w-4 text-lime-500" />
-                    <span>{t('sandbox') || 'Sandbox'}</span>
+                <Link href="/sandbox">
+                  <div className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/50 min-w-0">
+                    <Terminal className="h-4 w-4 shrink-0 text-lime-500" />
+                    <span className="truncate">{t('sandbox') || 'Sandbox'}</span>
                   </div>
                 </Link>
-                <div className="flex-1" />
               </div>
             </CollapsibleContent>
           </Collapsible>

@@ -42,6 +42,8 @@ export const ParameterExtractorNodeConfig = lazy(() => import('./parameter-extra
 export const VariableAggregatorNodeConfig = lazy(() => import('./variable-aggregator-config'));
 export const QuestionClassifierNodeConfig = lazy(() => import('./question-classifier-config'));
 export const TemplateTransformNodeConfig = lazy(() => import('./template-transform-config'));
+// Chart node config
+export const ChartNodeConfig = lazy(() => import('./chart-config'));
 
 // Loading fallback component
 export function ConfigLoadingFallback() {
@@ -89,6 +91,14 @@ export const NODE_CONFIG_COMPONENTS = {
   variableAggregator: VariableAggregatorNodeConfig,
   questionClassifier: QuestionClassifierNodeConfig,
   templateTransform: TemplateTransformNodeConfig,
+  // Chart nodes
+  chart: ChartNodeConfig,
+  lineChart: ChartNodeConfig,
+  barChart: ChartNodeConfig,
+  pieChart: ChartNodeConfig,
+  areaChart: ChartNodeConfig,
+  scatterChart: ChartNodeConfig,
+  radarChart: ChartNodeConfig,
 } as const;
 
 export type NodeConfigComponentType = keyof typeof NODE_CONFIG_COMPONENTS;

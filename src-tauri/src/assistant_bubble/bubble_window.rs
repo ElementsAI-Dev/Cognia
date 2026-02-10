@@ -166,7 +166,8 @@ impl AssistantBubbleWindow {
         .resizable(false)
         .visible(true)
         .focused(false)
-        .shadow(false);
+        .shadow(false)
+        .disable_drag_drop_handler();
 
         // On Windows, transparent windows need special handling
         // Using transparent(true) with a proper CSS background works best
@@ -204,33 +205,15 @@ impl AssistantBubbleWindow {
                 is_visible.store(true, Ordering::SeqCst);
             }
             tauri::WindowEvent::Moved(pos) => {
-                // Track position changes (e.g., user dragging the bubble)
+                // Track position changes in memory only (no file I/O during drag)
                 *position.write() = Some((pos.x, pos.y));
                 
-                // Persist to config if remember_position is enabled
-                let should_save = {
+                // Update in-memory config (file save deferred to drag end / destroy)
+                {
                     let mut cfg = config.write();
                     if cfg.remember_position {
                         cfg.x = Some(pos.x);
                         cfg.y = Some(pos.y);
-                        true
-                    } else {
-                        false
-                    }
-                };
-                
-                // Save config to file immediately after position change
-                if should_save {
-                    let config_clone = config.read().clone();
-                    if let Some(config_path) = app_handle
-                        .path()
-                        .app_data_dir()
-                        .ok()
-                        .map(|p| p.join("bubble_config.json"))
-                    {
-                        if let Ok(content) = serde_json::to_string_pretty(&config_clone) {
-                            let _ = std::fs::write(&config_path, content);
-                        }
                     }
                 }
                 
@@ -298,6 +281,11 @@ impl AssistantBubbleWindow {
 
     /// Hide the bubble window
     pub fn hide(&self) -> Result<(), String> {
+        // Persist config before hiding (position may have changed since last save)
+        if let Err(e) = self.save_config() {
+            log::warn!("[AssistantBubbleWindow] Failed to save config on hide: {}", e);
+        }
+        
         if let Some(window) = self
             .app_handle
             .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)

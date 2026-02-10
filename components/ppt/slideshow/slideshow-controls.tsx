@@ -29,6 +29,7 @@ import {
   Settings,
   Timer,
   Keyboard,
+  Monitor,
   X,
 } from 'lucide-react';
 import type { SlideshowSettings } from '../types';
@@ -47,6 +48,7 @@ interface SlideshowControlsProps {
   onToggleNotes: () => void;
   onSettingsChange: (settings: Partial<SlideshowSettings>) => void;
   onShowKeyboardHelp: () => void;
+  onTogglePresenterMode?: () => void;
   className?: string;
 }
 
@@ -64,6 +66,7 @@ export function SlideshowControls({
   onToggleNotes,
   onSettingsChange,
   onShowKeyboardHelp,
+  onTogglePresenterMode,
   className,
 }: SlideshowControlsProps) {
   const t = useTranslations('pptSlideshow');
@@ -239,6 +242,25 @@ export function SlideshowControls({
             </Tooltip>
           </TooltipProvider>
 
+          {/* Presenter mode */}
+          {onTogglePresenterMode && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20"
+                    onClick={onTogglePresenterMode}
+                  >
+                    <Monitor className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{t('presenterMode') || 'Presenter Mode (R)'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Settings popover */}
           <Popover>
             <PopoverTrigger asChild>
@@ -350,6 +372,9 @@ export function KeyboardHelpModal({ isOpen, onClose }: KeyboardHelpModalProps) {
     { keys: ['N'], action: t('showHideNotes') },
     { keys: ['P'], action: t('startPauseAutoplay') },
     { keys: ['?', 'H'], action: t('showHelp') },
+    { keys: ['L'], action: t('toggleLaser') || 'Laser pointer' },
+    { keys: ['D'], action: t('toggleDraw') || 'Draw mode' },
+    { keys: ['R'], action: t('togglePresenter') || 'Presenter mode' },
   ];
 
   return (

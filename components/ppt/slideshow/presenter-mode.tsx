@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +25,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { SlideContent } from '../rendering';
+import { PPTPreviewErrorBoundary } from '../rendering/error-boundary';
 import type { PresenterModeProps } from '../types';
 
 /**
@@ -47,6 +48,7 @@ export function PresenterMode({
   const [countdownTotal, setCountdownTotal] = useState(30 * 60); // in seconds
   const startTimeRef = useRef<number>(0);
   const slideStartRef = useRef<number>(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const currentSlide = presentation.slides[currentIndex];
   const nextSlide = currentIndex < presentation.slides.length - 1
@@ -265,12 +267,29 @@ export function PresenterMode({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div
+        className="flex-1 flex overflow-hidden"
+        onTouchStart={(e: ReactTouchEvent) => {
+          touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }}
+        onTouchEnd={(e: ReactTouchEvent) => {
+          if (!touchStartRef.current) return;
+          const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+          const minSwipeDistance = 50;
+          if (Math.abs(deltaX) > minSwipeDistance) {
+            if (deltaX > 0 && currentIndex > 0) onPrev();
+            else if (deltaX < 0 && currentIndex < presentation.slides.length - 1) onNext();
+          }
+          touchStartRef.current = null;
+        }}
+      >
         {/* Left: Current slide (large) */}
         <div className="flex-[3] flex flex-col p-4">
           <div className="flex-1 flex items-center justify-center">
             <div className="w-full max-w-[800px] aspect-video rounded-lg overflow-hidden shadow-2xl border border-zinc-800">
-              <SlideContent slide={currentSlide} theme={presentation.theme} />
+              <PPTPreviewErrorBoundary>
+                <SlideContent slide={currentSlide} theme={presentation.theme} />
+              </PPTPreviewErrorBoundary>
             </div>
           </div>
 
@@ -314,7 +333,9 @@ export function PresenterMode({
                 className="aspect-video rounded-md overflow-hidden border border-zinc-800 cursor-pointer hover:border-zinc-600 transition-colors"
                 onClick={() => onGoToSlide(currentIndex + 1)}
               >
-                <SlideContent slide={nextSlide} theme={presentation.theme} />
+                <PPTPreviewErrorBoundary>
+                  <SlideContent slide={nextSlide} theme={presentation.theme} />
+                </PPTPreviewErrorBoundary>
               </div>
             ) : (
               <div className="aspect-video rounded-md border border-zinc-800 flex items-center justify-center bg-zinc-900">

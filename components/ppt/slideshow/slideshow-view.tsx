@@ -5,9 +5,28 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ThumbnailNavigator } from './thumbnail-navigator';
 import { SlideshowControls, KeyboardHelpModal } from './slideshow-controls';
+import { PresenterMode } from './presenter-mode';
 import { SlideContent } from '../rendering';
+import { PPTPreviewErrorBoundary } from '../rendering/error-boundary';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
 import type { SlideshowViewProps, SlideshowSettings } from '../types';
+
+// Layout constants
+const SLIDESHOW_LAYOUT = {
+  THUMBNAIL_SIDEBAR_MARGIN: 'ml-32',
+  NOTES_PANEL_WIDTH: 'w-80',
+  NOTES_PANEL_MARGIN: 'mr-80',
+  MIN_SWIPE_DISTANCE: 50,
+  LASER_DOT_SIZE: 16,
+  DRAW_COLORS: ['#EF4444', '#FBBF24', '#34D399', '#60A5FA', '#FFFFFF'] as const,
+  DRAW_WIDTHS: [2, 4, 6] as const,
+} as const;
+
+interface DrawingStroke {
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+}
 
 /**
  * SlideshowView - Enhanced full-screen slideshow presentation mode
@@ -29,10 +48,14 @@ export function SlideshowView({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [transitionPhase, setTransitionPhase] = useState<'idle' | 'exit' | 'enter'>('idle');
+  const pendingNavigationRef = useRef<{ direction: 'prev' | 'next' | number } | null>(null);
   const [slideDirection, setSlideDirection] = useState<'next' | 'prev'>('next');
+  const [showPresenterMode, setShowPresenterMode] = useState(false);
   const [pointerMode, setPointerMode] = useState<'none' | 'laser' | 'draw'>('none');
   const [laserPos, setLaserPos] = useState<{ x: number; y: number } | null>(null);
-  const [drawingStrokes, setDrawingStrokes] = useState<Array<{ x: number; y: number }[]>>([]);
+  const [drawColor, setDrawColor] = useState('#EF4444');
+  const [drawWidth, setDrawWidth] = useState(3);
+  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
   const currentStrokeRef = useRef<{ x: number; y: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
@@ -63,6 +86,30 @@ export function SlideshowView({
     currentStrokeRef.current = [];
   }, []);
 
+  // Execute the actual navigation (called after exit transition completes)
+  const executeNavigation = useCallback((direction: 'prev' | 'next' | number) => {
+    if (typeof direction === 'number') {
+      onGoToSlide?.(direction);
+    } else if (direction === 'prev') {
+      onPrev();
+    } else {
+      onNext();
+    }
+  }, [onPrev, onNext, onGoToSlide]);
+
+  // Handle CSS transitionEnd to drive animation phases
+  const handleTransitionEnd = useCallback(() => {
+    if (transitionPhase === 'exit' && pendingNavigationRef.current) {
+      // Exit transition done — navigate and start enter phase
+      executeNavigation(pendingNavigationRef.current.direction);
+      pendingNavigationRef.current = null;
+      setTransitionPhase('enter');
+    } else if (transitionPhase === 'enter') {
+      // Enter transition done — back to idle
+      setTransitionPhase('idle');
+    }
+  }, [transitionPhase, executeNavigation]);
+
   // Handle slide navigation with transitions
   const navigateWithTransition = useCallback((direction: 'prev' | 'next' | number) => {
     if (isTransitioning) return;
@@ -77,36 +124,13 @@ export function SlideshowView({
     setSlideDirection(navDir);
     
     if (settings.enableTransitions) {
-      // Phase 1: Exit animation
+      // Store pending navigation and start exit phase
+      pendingNavigationRef.current = { direction };
       setTransitionPhase('exit');
-      const halfDuration = Math.max(settings.transitionDuration / 2, 100);
-
-      setTimeout(() => {
-        // Navigate to new slide
-        if (typeof direction === 'number') {
-          onGoToSlide?.(direction);
-        } else if (direction === 'prev') {
-          onPrev();
-        } else {
-          onNext();
-        }
-        // Phase 2: Enter animation
-        setTransitionPhase('enter');
-
-        setTimeout(() => {
-          setTransitionPhase('idle');
-        }, halfDuration);
-      }, halfDuration);
     } else {
-      if (typeof direction === 'number') {
-        onGoToSlide?.(direction);
-      } else if (direction === 'prev') {
-        onPrev();
-      } else {
-        onNext();
-      }
+      executeNavigation(direction);
     }
-  }, [isTransitioning, currentIndex, settings.enableTransitions, settings.transitionDuration, onPrev, onNext, onGoToSlide, clearDrawings]);
+  }, [isTransitioning, currentIndex, settings.enableTransitions, executeNavigation, clearDrawings]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -134,8 +158,10 @@ export function SlideshowView({
     };
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (disabled when presenter mode is active — it has its own listener)
   useEffect(() => {
+    if (showPresenterMode) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowLeft':
@@ -201,6 +227,13 @@ export function SlideshowView({
           setPointerMode(prev => prev === 'laser' ? 'none' : 'laser');
           setLaserPos(null);
           break;
+        case 'r':
+        case 'R':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setShowPresenterMode(prev => !prev);
+          }
+          break;
         case 'd':
         case 'D':
           if (!e.ctrlKey && !e.metaKey) {
@@ -220,7 +253,7 @@ export function SlideshowView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, totalSlides, settings.showThumbnails, settings.showNotes, onExit, navigateWithTransition, handleSettingsChange]);
+  }, [currentIndex, totalSlides, settings.showThumbnails, settings.showNotes, onExit, navigateWithTransition, handleSettingsChange, showPresenterMode]);
 
   // Touch gesture support
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -232,9 +265,7 @@ export function SlideshowView({
     
     const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    const minSwipeDistance = 50;
-
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SLIDESHOW_LAYOUT.MIN_SWIPE_DISTANCE) {
       if (deltaX > 0 && currentIndex > 0) {
         navigateWithTransition('prev');
       } else if (deltaX < 0 && currentIndex < totalSlides - 1) {
@@ -309,17 +340,17 @@ export function SlideshowView({
     ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
     ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
 
-    ctx.strokeStyle = '#EF4444';
-    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
     for (const stroke of drawingStrokes) {
-      if (stroke.length < 2) continue;
+      if (stroke.points.length < 2) continue;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
       ctx.beginPath();
-      ctx.moveTo(stroke[0].x, stroke[0].y);
-      for (let i = 1; i < stroke.length; i++) {
-        ctx.lineTo(stroke[i].x, stroke[i].y);
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
       ctx.stroke();
     }
@@ -335,9 +366,12 @@ export function SlideshowView({
       const rect = e.currentTarget.getBoundingClientRect();
       const pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       currentStrokeRef.current = [...currentStrokeRef.current, pt];
-      setDrawingStrokes(prev => [...prev.slice(0, -1), [...currentStrokeRef.current]]);
+      setDrawingStrokes(prev => [
+        ...prev.slice(0, -1),
+        { points: [...currentStrokeRef.current], color: drawColor, width: drawWidth },
+      ]);
     }
-  }, [pointerMode]);
+  }, [pointerMode, drawColor, drawWidth]);
 
   const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (pointerMode === 'draw') {
@@ -346,9 +380,9 @@ export function SlideshowView({
       const rect = e.currentTarget.getBoundingClientRect();
       const pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       currentStrokeRef.current = [pt];
-      setDrawingStrokes(prev => [...prev, [pt]]);
+      setDrawingStrokes(prev => [...prev, { points: [pt], color: drawColor, width: drawWidth }]);
     }
-  }, [pointerMode]);
+  }, [pointerMode, drawColor, drawWidth]);
 
   const handlePointerUp = useCallback(() => {
     if (pointerMode === 'draw') {
@@ -366,6 +400,20 @@ export function SlideshowView({
   }, [pointerMode]);
 
   if (!slide) return null;
+
+  // Presenter mode - dual-panel view with notes and timer
+  if (showPresenterMode) {
+    return (
+      <PresenterMode
+        presentation={presentation}
+        currentIndex={currentIndex}
+        onPrev={onPrev}
+        onNext={onNext}
+        onGoToSlide={(index) => onGoToSlide?.(index)}
+        onExit={() => setShowPresenterMode(false)}
+      />
+    );
+  }
 
   return (
     <div
@@ -393,8 +441,8 @@ export function SlideshowView({
       <div
         className={cn(
           'flex-1 flex flex-col justify-center items-center p-8 relative',
-          settings.showThumbnails && 'ml-32',
-          settings.showNotes && 'mr-80',
+          settings.showThumbnails && SLIDESHOW_LAYOUT.THUMBNAIL_SIDEBAR_MARGIN,
+          settings.showNotes && SLIDESHOW_LAYOUT.NOTES_PANEL_MARGIN,
           pointerMode === 'laser' && 'cursor-none',
           pointerMode === 'draw' && 'cursor-crosshair',
           pointerMode === 'none' && 'cursor-pointer'
@@ -404,6 +452,7 @@ export function SlideshowView({
           color: theme.textColor,
           ...getTransitionStyle(),
         }}
+        onTransitionEnd={handleTransitionEnd}
         onClick={pointerMode === 'none' ? handleSlideClick : undefined}
         onPointerMove={handlePointerMove}
         onPointerDown={handlePointerDown}
@@ -411,15 +460,16 @@ export function SlideshowView({
         onPointerLeave={handlePointerLeave}
       >
         <div className="max-w-5xl w-full">
-          <SlideContent
-            slide={slide}
-            theme={theme}
-            size="fullscreen"
-            className="p-0"
-          />
+          <PPTPreviewErrorBoundary>
+            <SlideContent
+              slide={slide}
+              theme={theme}
+              size="fullscreen"
+              className="p-0"
+            />
+          </PPTPreviewErrorBoundary>
         </div>
 
-        {/* Drawing annotation canvas */}
         {(pointerMode === 'draw' || drawingStrokes.length > 0) && (
           <canvas
             ref={canvasRef}
@@ -448,13 +498,46 @@ export function SlideshowView({
           <div className="absolute top-4 right-4 z-30 flex items-center gap-2 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs">
             <div className={cn('w-2 h-2 rounded-full', pointerMode === 'laser' ? 'bg-red-500' : 'bg-yellow-400')} />
             {pointerMode === 'laser' ? t('laserPointer') || 'Laser (L)' : t('drawMode') || 'Draw (D)'}
-            {pointerMode === 'draw' && drawingStrokes.length > 0 && (
-              <button
-                className="ml-1 text-white/70 hover:text-white underline"
-                onClick={(e) => { e.stopPropagation(); setDrawingStrokes([]); }}
-              >
-                {t('clear') || 'Clear (C)'}
-              </button>
+            {pointerMode === 'draw' && (
+              <>
+                {/* Brush color picker */}
+                <div className="flex items-center gap-1 ml-2">
+                  {SLIDESHOW_LAYOUT.DRAW_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      className={cn(
+                        'w-3.5 h-3.5 rounded-full border transition-transform',
+                        drawColor === color ? 'border-white scale-125' : 'border-white/40 hover:scale-110'
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={(e) => { e.stopPropagation(); setDrawColor(color); }}
+                    />
+                  ))}
+                </div>
+                {/* Brush width picker */}
+                <div className="flex items-center gap-1 ml-1">
+                  {SLIDESHOW_LAYOUT.DRAW_WIDTHS.map((w) => (
+                    <button
+                      key={w}
+                      className={cn(
+                        'flex items-center justify-center w-5 h-5 rounded transition-colors',
+                        drawWidth === w ? 'bg-white/30' : 'hover:bg-white/15'
+                      )}
+                      onClick={(e) => { e.stopPropagation(); setDrawWidth(w); }}
+                    >
+                      <div className="rounded-full bg-white" style={{ width: w + 1, height: w + 1 }} />
+                    </button>
+                  ))}
+                </div>
+                {drawingStrokes.length > 0 && (
+                  <button
+                    className="ml-1 text-white/70 hover:text-white underline"
+                    onClick={(e) => { e.stopPropagation(); setDrawingStrokes([]); }}
+                  >
+                    {t('clear') || 'Clear (C)'}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -462,7 +545,7 @@ export function SlideshowView({
 
       {/* Speaker notes panel */}
       {settings.showNotes && (
-        <div className="absolute right-0 top-0 bottom-16 w-80 bg-black/80 backdrop-blur-sm text-white p-4 overflow-y-auto z-10">
+        <div className={cn('absolute right-0 top-0 bottom-16 bg-black/80 backdrop-blur-sm text-white p-4 overflow-y-auto z-10', SLIDESHOW_LAYOUT.NOTES_PANEL_WIDTH)}>
           <div className="text-xs uppercase tracking-wider text-white/60 mb-2">{t('speakerNotes')}</div>
           <div className="text-sm leading-relaxed">
             {slide.notes || <span className="text-white/40 italic">{t('noNotes')}</span>}
@@ -500,6 +583,7 @@ export function SlideshowView({
         onToggleNotes={() => handleSettingsChange({ showNotes: !settings.showNotes })}
         onSettingsChange={handleSettingsChange}
         onShowKeyboardHelp={() => setShowKeyboardHelp(true)}
+        onTogglePresenterMode={() => setShowPresenterMode(true)}
       />
 
       {/* Keyboard help modal */}

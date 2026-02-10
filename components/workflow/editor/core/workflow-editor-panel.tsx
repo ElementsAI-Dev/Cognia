@@ -74,6 +74,9 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   // Helper lines state for alignment guides during drag
   const [helperLines, setHelperLines] = useState<{ horizontal: number | null; vertical: number | null }>({ horizontal: null, vertical: null });
 
+  // Drag-over visual feedback state
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const {
     currentWorkflow,
     isDirty,
@@ -288,6 +291,15 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  }, [isDragOver]);
+
+  // Handle drag leave
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
+    // Only clear if leaving the wrapper (not entering a child)
+    if (!event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) {
+      setIsDragOver(false);
+    }
   }, []);
 
   // Handle drop for adding nodes
@@ -304,6 +316,7 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       });
 
       addNode(type, position);
+      setIsDragOver(false);
     },
     [screenToFlowPosition, addNode]
   );
@@ -337,6 +350,62 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       } as Node;
     });
   }, [currentWorkflow, executionState]);
+
+  // Shared ReactFlow props — avoids duplicating config between mobile & desktop
+  const sharedReactFlowProps = useMemo(() => ({
+    nodes: nodesWithExecState,
+    edges: currentWorkflow?.edges ?? [],
+    onNodesChange: handleNodesChange,
+    onEdgesChange: handleEdgesChange,
+    onConnect: handleConnect,
+    onReconnect: handleReconnect,
+    onDelete: handleDelete,
+    isValidConnection,
+    onPaneContextMenu: handlePaneContextMenu,
+    onSelectionChange: handleSelectionChange,
+    onNodeDragStart: () => {
+      isDragHistoryPendingRef.current = true;
+    },
+    onNodeDrag: handleNodeDrag,
+    onNodeDragStop: handleNodeDragStop,
+    onMoveEnd: (_event: unknown, viewport: { x: number; y: number; zoom: number }) => {
+      setViewport(viewport);
+    },
+    nodeTypes,
+    edgeTypes,
+    edgesReconnectable: true,
+    connectionLineComponent: CustomConnectionLine,
+    fitView: true,
+    fitViewOptions: { padding: 0.2 },
+    defaultViewport: currentWorkflow?.viewport,
+    snapToGrid: currentWorkflow?.settings.snapToGrid,
+    snapGrid: [currentWorkflow?.settings.gridSize ?? 20, currentWorkflow?.settings.gridSize ?? 20] as [number, number],
+    deleteKeyCode: ['Backspace', 'Delete'],
+    multiSelectionKeyCode: ['Shift', 'Meta', 'Control'],
+    selectionOnDrag: true,
+    panOnScroll: true,
+    zoomOnPinch: true,
+    panOnDrag: [1, 2] as [number, number],
+    selectNodesOnDrag: false,
+    className: 'bg-background touch-none',
+    proOptions: { hideAttribution: true },
+  }), [
+    nodesWithExecState,
+    currentWorkflow?.edges,
+    currentWorkflow?.viewport,
+    currentWorkflow?.settings,
+    handleNodesChange,
+    handleEdgesChange,
+    handleConnect,
+    handleReconnect,
+    handleDelete,
+    isValidConnection,
+    handlePaneContextMenu,
+    handleSelectionChange,
+    handleNodeDrag,
+    handleNodeDragStop,
+    setViewport,
+  ]);
 
   // Derive mobile panel visibility - close when switching to desktop
   const effectiveMobilePanel = isMobile ? mobilePanel : null;
@@ -374,48 +443,12 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
           /* Mobile layout - no resizable panels */
           <div
             ref={reactFlowWrapper}
-            className="flex-1 h-full relative"
+            className={cn('flex-1 h-full relative transition-shadow duration-200', isDragOver && 'ring-2 ring-primary/40 ring-inset')}
             onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <ReactFlow
-              nodes={nodesWithExecState}
-              edges={currentWorkflow.edges}
-              onNodesChange={handleNodesChange}
-              onEdgesChange={handleEdgesChange}
-              onConnect={handleConnect}
-              onReconnect={handleReconnect}
-              onDelete={handleDelete}
-              isValidConnection={isValidConnection}
-              onPaneContextMenu={handlePaneContextMenu}
-              onSelectionChange={handleSelectionChange}
-              onNodeDragStart={() => {
-                isDragHistoryPendingRef.current = true;
-              }}
-              onNodeDrag={handleNodeDrag}
-              onNodeDragStop={handleNodeDragStop}
-              onMoveEnd={(_event, viewport) => {
-                setViewport(viewport);
-              }}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              edgesReconnectable
-              connectionLineComponent={CustomConnectionLine}
-              fitView
-              fitViewOptions={{ padding: 0.2 }}
-              defaultViewport={currentWorkflow.viewport}
-              snapToGrid={currentWorkflow.settings.snapToGrid}
-              snapGrid={[currentWorkflow.settings.gridSize, currentWorkflow.settings.gridSize]}
-              deleteKeyCode={['Backspace', 'Delete']}
-              multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-              selectionOnDrag
-              panOnScroll
-              zoomOnPinch
-              panOnDrag={[1, 2]}
-              selectNodesOnDrag={false}
-              className="bg-background touch-none"
-              proOptions={{ hideAttribution: true }}
-            >
+            <ReactFlow {...sharedReactFlowProps}>
               <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
               {showMinimap && (
                 <MiniMap
@@ -530,48 +563,12 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
             <ResizablePanel id="canvas" order={2} defaultSize={64} minSize={30}>
               <div
                 ref={reactFlowWrapper}
-                className="h-full relative"
+                className={cn('h-full relative transition-shadow duration-200', isDragOver && 'ring-2 ring-primary/40 ring-inset')}
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <ReactFlow
-                  nodes={nodesWithExecState}
-                  edges={currentWorkflow.edges}
-                  onNodesChange={handleNodesChange}
-                  onEdgesChange={handleEdgesChange}
-                  onConnect={handleConnect}
-                  onReconnect={handleReconnect}
-                  onDelete={handleDelete}
-                  isValidConnection={isValidConnection}
-                  onPaneContextMenu={handlePaneContextMenu}
-                  onSelectionChange={handleSelectionChange}
-                  onNodeDragStart={() => {
-                    isDragHistoryPendingRef.current = true;
-                  }}
-                  onNodeDrag={handleNodeDrag}
-                  onNodeDragStop={handleNodeDragStop}
-                  onMoveEnd={(_event, viewport) => {
-                    setViewport(viewport);
-                  }}
-                  nodeTypes={nodeTypes}
-                  edgeTypes={edgeTypes}
-                  edgesReconnectable
-                  connectionLineComponent={CustomConnectionLine}
-                  fitView
-                  fitViewOptions={{ padding: 0.2 }}
-                  defaultViewport={currentWorkflow.viewport}
-                  snapToGrid={currentWorkflow.settings.snapToGrid}
-                  snapGrid={[currentWorkflow.settings.gridSize, currentWorkflow.settings.gridSize]}
-                  deleteKeyCode={['Backspace', 'Delete']}
-                  multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-                  selectionOnDrag
-                  panOnScroll
-                  zoomOnPinch
-                  panOnDrag={[1, 2]}
-                  selectNodesOnDrag={false}
-                  className="bg-background touch-none"
-                  proOptions={{ hideAttribution: true }}
-                >
+                <ReactFlow {...sharedReactFlowProps}>
                   <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
                   <Controls className="hidden md:flex" />
                   <Panel position="top-left">

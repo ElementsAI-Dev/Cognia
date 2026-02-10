@@ -82,12 +82,13 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
-  // Use ref for transport to avoid recreating on each render
+  // Use shared singleton transport to avoid creating new IndexedDB connections
   const transportRef = useRef<IndexedDBTransport | null>(null);
+  const initialFetchDone = useRef(false);
   
   // Initialize transport
   useEffect(() => {
-    transportRef.current = new IndexedDBTransport();
+    transportRef.current = sharedTransport;
     return () => {
       transportRef.current = null;
     };
@@ -98,7 +99,9 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
     if (!transportRef.current) return;
     
     try {
-      setIsLoading(true);
+      if (!initialFetchDone.current) {
+        setIsLoading(true);
+      }
       setError(null);
       
       const filter: LogFilter = {
@@ -160,6 +163,7 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
       setError(err instanceof Error ? err : new Error('Failed to fetch logs'));
     } finally {
       setIsLoading(false);
+      initialFetchDone.current = true;
     }
   }, [opts.maxLogs, opts.level, opts.module, opts.traceId, opts.searchQuery, opts.useRegex, opts.tags]);
 
@@ -176,9 +180,18 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
     return () => clearInterval(interval);
   }, [opts.autoRefresh, opts.refreshInterval, fetchLogs]);
 
+  // Real-time log push via BroadcastChannel (supplements polling)
+  useEffect(() => {
+    if (!opts.autoRefresh) return;
+    const unsubscribe = IndexedDBTransport.onLogsUpdated(() => {
+      fetchLogs();
+    });
+    return unsubscribe;
+  }, [opts.autoRefresh, fetchLogs]);
+
   // Group logs by trace ID
-  const groupedLogs = useCallback(() => {
-    if (!opts.groupByTraceId) return new Map();
+  const groupedLogs = useMemo(() => {
+    if (!opts.groupByTraceId) return new Map<string, StructuredLogEntry[]>();
     
     const groups = new Map<string, StructuredLogEntry[]>();
     
@@ -220,7 +233,7 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
   }, [logs]);
 
   // Calculate statistics
-  const stats = useCallback(() => {
+  const stats = useMemo(() => {
     const byLevel: Record<string, number> = {};
     const byModule: Record<string, number> = {};
     let oldest: Date | undefined;
@@ -259,30 +272,44 @@ export function useLogStream(options: LogStreamOptions = {}): LogStreamResult {
 
   return {
     logs,
-    groupedLogs: groupedLogs(),
+    groupedLogs,
     isLoading,
     error,
     refresh: fetchLogs,
     clearLogs,
     exportLogs,
-    stats: stats(),
+    stats,
     logRate,
   };
 }
 
 /**
- * Hook for getting unique module names from logs
+ * Shared singleton transport to avoid creating multiple IndexedDB connections
+ */
+let sharedTransportInstance: IndexedDBTransport | null = null;
+function getSharedTransport(): IndexedDBTransport {
+  if (!sharedTransportInstance) {
+    sharedTransportInstance = new IndexedDBTransport();
+  }
+  return sharedTransportInstance;
+}
+const sharedTransport = typeof window !== 'undefined' ? getSharedTransport() : null as unknown as IndexedDBTransport;
+
+/**
+ * Hook for getting unique module names from logs.
+ * Uses the shared transport singleton to avoid redundant IndexedDB connections.
  */
 export function useLogModules(): string[] {
   const [modules, setModules] = useState<string[]>([]);
   
   useEffect(() => {
-    const transport = new IndexedDBTransport();
+    const transport = sharedTransport;
+    if (!transport) return;
     
     const fetchModuleNames = async () => {
       try {
-        const logs = await transport.getLogs({ limit: 1000 });
-        const uniqueModules = [...new Set(logs.map(l => l.module))].sort();
+        const stats = await transport.getStats();
+        const uniqueModules = Object.keys(stats.byModule).sort();
         setModules(uniqueModules);
       } catch {
         // Ignore errors

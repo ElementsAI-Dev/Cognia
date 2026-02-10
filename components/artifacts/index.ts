@@ -6,7 +6,7 @@ export { ArtifactPanel } from './artifact-panel';
 export { ArtifactPreview } from './artifact-preview';
 export { ArtifactCreateButton } from './artifact-create-button';
 export { ArtifactList, ArtifactListCompact } from './artifact-list';
-export { ArtifactCard, ArtifactInlineRef, MessageArtifacts } from './artifact-card';
+export { ArtifactCard, ArtifactInlineRef, MessageArtifacts, MessageAnalysisResults } from './artifact-card';
 export {
   MermaidRenderer,
   ChartRenderer,

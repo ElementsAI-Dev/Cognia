@@ -30,9 +30,15 @@ import {
   ExternalLink,
   ArrowUpDown,
   Layers,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -437,150 +443,119 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
         onValueChange={setActiveTab}
         className={cn('space-y-4', className)}
       >
-        {/* Tab Navigation - Horizontal scroll on mobile */}
+        {/* Tab Navigation - Compact with overflow handling */}
         <div className="relative">
-          <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 p-1.5 bg-muted/50 border rounded-xl">
+          <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-0.5 p-1 bg-muted/50 border rounded-lg">
             <TabsTrigger 
               value="my-plugins" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:shadow-primary/10 transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Puzzle className="h-4 w-4" />
-              <span className="hidden xs:inline">{t('tabs.myPlugins')}</span>
-              <span className="xs:hidden">插件</span>
+              <Puzzle className="h-3.5 w-3.5" />
+              <span>{t('tabs.myPlugins')}</span>
               {plugins.length > 0 && (
-                <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0">
+                <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px] font-medium bg-primary/10 text-primary border-0">
                   {plugins.length}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger 
               value="marketplace" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Store className="h-4 w-4" />
-              <span className="hidden xs:inline">{t('tabs.marketplace')}</span>
-              <span className="xs:hidden">市场</span>
+              <Store className="h-3.5 w-3.5" />
+              <span>{t('tabs.marketplace')}</span>
             </TabsTrigger>
             <TabsTrigger 
               value="analytics" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Activity className="h-4 w-4" />
+              <Activity className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('tabs.analytics')}</span>
-              <span className="sm:hidden">分析</span>
             </TabsTrigger>
             <TabsTrigger 
               value="develop" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Code2 className="h-4 w-4" />
+              <Code2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('tabs.develop')}</span>
-              <span className="sm:hidden">开发</span>
             </TabsTrigger>
             <TabsTrigger 
               value="health" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Heart className="h-4 w-4" />
+              <Heart className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('tabs.health')}</span>
-              <span className="sm:hidden">健康</span>
             </TabsTrigger>
             <TabsTrigger 
               value="settings" 
-              className="shrink-0 gap-1.5 text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+              className="shrink-0 gap-1 text-xs px-2.5 py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
             >
-              <Settings2 className="h-4 w-4" />
+              <Settings2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('tabs.settings')}</span>
-              <span className="sm:hidden">设置</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
         {/* My Plugins Tab */}
-        <TabsContent value="my-plugins" className="space-y-5 mt-0">
-          {/* Hero Section with Stats */}
-          <div className="rounded-xl border bg-muted/30 p-4 sm:p-6">
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-primary/10 ring-1 ring-primary/20">
-                      <Puzzle className="h-5 w-5 text-primary" />
-                    </div>
-                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight">{t('title')}</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    {t('description')}
-                  </p>
-                </div>
-                
-                {/* Stats Cards */}
-                {plugins.length > 0 && (
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    {/* Health Score */}
-                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
-                      <div className="flex items-center gap-1.5">
-                        <div className={cn(
-                          "h-2 w-2 rounded-full",
-                          healthScore >= 80 ? "bg-emerald-500" : healthScore >= 50 ? "bg-amber-500" : "bg-red-500"
-                        )} />
-                        <span className="text-lg sm:text-xl font-bold tabular-nums">{healthScore}%</span>
-                      </div>
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Health</span>
-                    </div>
-                    
-                    {/* Enabled Count */}
-                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                        <span className="text-lg sm:text-xl font-bold tabular-nums">{enabledPlugins.length}</span>
-                      </div>
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Enabled</span>
-                    </div>
-                    
-                    {/* Tools Count */}
-                    <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-background border min-w-[70px]">
-                      <div className="flex items-center gap-1.5">
-                        <Zap className="h-3.5 w-3.5 text-amber-500" />
-                        <span className="text-lg sm:text-xl font-bold tabular-nums">{totalTools}</span>
-                      </div>
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Tools</span>
-                    </div>
-                    
-                    {/* Error Count - Only show if errors exist */}
-                    {errorPlugins.length > 0 && (
-                      <div className="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg bg-destructive/10 border border-destructive/30 min-w-[70px]">
-                        <div className="flex items-center gap-1.5">
-                          <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-                          <span className="text-lg sm:text-xl font-bold tabular-nums text-destructive">{errorPlugins.length}</span>
-                        </div>
-                        <span className="text-[10px] sm:text-xs text-destructive/80">Errors</span>
-                      </div>
-                    )}
-                  </div>
+        <TabsContent value="my-plugins" className="mt-0">
+          {/* Sticky Toolbar Area */}
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-3 space-y-2">
+          {/* Compact Stats Bar */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-muted/30 px-4 py-2.5">
+            <div className="flex items-center gap-2 mr-auto">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Puzzle className="h-4 w-4 text-primary" />
+              </div>
+              <h2 className="text-sm font-semibold">{t('title')}</h2>
+            </div>
+            {plugins.length > 0 && (
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <div className={cn(
+                    "h-2 w-2 rounded-full",
+                    healthScore >= 80 ? "bg-emerald-500" : healthScore >= 50 ? "bg-amber-500" : "bg-red-500"
+                  )} />
+                  <span className="font-medium tabular-nums">{healthScore}%</span>
+                </span>
+                <span className="text-border">|</span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-emerald-500" />
+                  <span className="tabular-nums">{enabledPlugins.length}</span>
+                  <span className="hidden sm:inline">{t('stats.enabled')}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-amber-500" />
+                  <span className="tabular-nums">{totalTools}</span>
+                  <span className="hidden sm:inline">{t('stats.tools')}</span>
+                </span>
+                {errorPlugins.length > 0 && (
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    <span className="tabular-nums">{errorPlugins.length}</span>
+                    <span className="hidden sm:inline">{t('stats.errors')}</span>
+                  </span>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Actions Bar - Enhanced with better grouping */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Primary Actions */}
-            <div className="flex items-center gap-2 flex-wrap">
+          {/* Toolbar: Primary Actions + Filter Bar */}
+          <div className="space-y-2">
+            {/* Row 1: Actions + View Controls */}
+            <div className="flex items-center gap-2">
               <Button 
                 size="sm" 
                 onClick={() => setIsCreateWizardOpen(true)}
-                className="h-9 px-4"
+                className="h-8 px-3 text-xs"
               >
-                <Plus className="h-4 w-4 mr-1.5" />
-                {t('createPlugin')}
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                <span className="hidden sm:inline">{t('createPlugin')}</span>
+                <span className="sm:hidden">{t('tabs.myPlugins')}</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 px-3">
-                    <Download className="h-4 w-4 mr-1.5" />
-                    <span className="hidden sm:inline">{t('import')}</span>
-                    <span className="sm:hidden">Import</span>
+                  <Button variant="outline" size="sm" className="h-8 px-2.5">
+                    <Download className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
@@ -604,45 +579,30 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 hover:bg-primary/10"
+                    className="h-8 w-8 hover:bg-primary/10"
                     onClick={handleRefresh}
                     disabled={isRefreshing}
                   >
-                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('refresh')}</TooltipContent>
               </Tooltip>
-            </div>
 
-            {/* Filters and View Controls */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Filter Bar */}
-              <PluginFilterBar
-                className="flex-1 lg:flex-initial"
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                statusFilter={filterBy}
-                onStatusFilterChange={setFilterBy}
-                typeFilter={typeFilter}
-                onTypeFilterChange={setTypeFilter}
-                capabilityFilter={capabilityFilter}
-                onCapabilityFilterChange={setCapabilityFilter}
-                onResetFilters={resetFilters}
-                activeCount={filteredPlugins.length}
-              />
+              <div className="flex-1" />
 
-              {/* Sort Dropdown */}
+              {/* Sort & Group combined dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                  <Button variant={groupBy !== 'none' ? 'default' : 'outline'} size="sm" className="h-8 gap-1 text-xs">
                     <ArrowUpDown className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">
+                    <span className="hidden md:inline">
                       {sortBy === 'name' ? t('filters.sortByName') : sortBy === 'recent' ? t('filters.sortByRecent') : t('filters.sortByStatus')}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem disabled className="text-xs font-semibold text-muted-foreground">{t('filters.sortByName').replace(/.$/, '')}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSortBy('name')} className={cn(sortBy === 'name' && 'bg-accent')}>
                     {t('filters.sortByName')}
                   </DropdownMenuItem>
@@ -652,78 +612,85 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
                   <DropdownMenuItem onClick={() => setSortBy('status')} className={cn(sortBy === 'status' && 'bg-accent')}>
                     {t('filters.sortByStatus')}
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* GroupBy Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant={groupBy !== 'none' ? 'default' : 'outline'} size="sm" className="h-9 gap-1.5">
-                    <Layers className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline text-xs">
-                      {groupBy === 'none' ? t('filters.noGroup') : groupBy === 'type' ? t('filters.groupByType') : groupBy === 'capability' ? t('filters.groupByCapability') : t('filters.groupByStatus')}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled className="text-xs font-semibold text-muted-foreground">{t('filters.noGroup')}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setGroupBy('none')} className={cn(groupBy === 'none' && 'bg-accent')}>
                     {t('filters.noGroup')}
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setGroupBy('type')} className={cn(groupBy === 'type' && 'bg-accent')}>
+                    <Layers className="h-3.5 w-3.5 mr-2" />
                     {t('filters.groupByType')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setGroupBy('capability')} className={cn(groupBy === 'capability' && 'bg-accent')}>
+                    <Layers className="h-3.5 w-3.5 mr-2" />
                     {t('filters.groupByCapability')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setGroupBy('status')} className={cn(groupBy === 'status' && 'bg-accent')}>
+                    <Layers className="h-3.5 w-3.5 mr-2" />
                     {t('filters.groupByStatus')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* View Mode Toggle - Enhanced with ToggleGroup */}
+              {/* View Mode Toggle */}
               <ToggleGroup
                 type="single"
                 value={viewMode}
                 onValueChange={(value) => value && setViewMode(value as ViewMode)}
-                className="rounded-lg border border-border/50 bg-muted/30 p-0.5"
+                className="rounded-md border border-border/50 bg-muted/30 p-0.5"
               >
                 <ToggleGroupItem
                   value="grid"
                   aria-label="Grid view"
-                  className="h-8 w-8 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  className="h-7 w-7 p-0 rounded data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <LayoutGrid className="h-3.5 w-3.5" />
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="list"
                   aria-label="List view"
-                  className="h-8 w-8 p-0 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  className="h-7 w-7 p-0 rounded data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
-                  <List className="h-4 w-4" />
+                  <List className="h-3.5 w-3.5" />
                 </ToggleGroupItem>
               </ToggleGroup>
 
               {/* Selection Mode Toggle */}
-              <Button
-                variant={isSelectionMode ? 'default' : 'outline'}
-                size="sm"
-                className={cn(
-                  "h-9 gap-1.5 transition-all duration-200",
-                  isSelectionMode && "bg-primary/90 hover:bg-primary"
-                )}
-                onClick={() => {
-                  setIsSelectionMode(!isSelectionMode);
-                  if (isSelectionMode) setSelectedPlugins(new Set());
-                }}
-              >
-                <CheckCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {isSelectionMode ? t('filters.exitSelect') : t('filters.select')}
-                </span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isSelectionMode ? 'default' : 'ghost'}
+                    size="icon"
+                    className={cn(
+                      "h-8 w-8",
+                      isSelectionMode && "bg-primary/90 hover:bg-primary"
+                    )}
+                    onClick={() => {
+                      setIsSelectionMode(!isSelectionMode);
+                      if (isSelectionMode) setSelectedPlugins(new Set());
+                    }}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSelectionMode ? t('filters.exitSelect') : t('filters.select')}</TooltipContent>
+              </Tooltip>
             </div>
+
+            {/* Row 2: Filter Bar (compact) */}
+            <PluginFilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              statusFilter={filterBy}
+              onStatusFilterChange={setFilterBy}
+              typeFilter={typeFilter}
+              onTypeFilterChange={setTypeFilter}
+              capabilityFilter={capabilityFilter}
+              onCapabilityFilterChange={setCapabilityFilter}
+              onResetFilters={resetFilters}
+              activeCount={filteredPlugins.length}
+            />
+          </div>
           </div>
 
           {/* Plugin Grid/List */}
@@ -844,12 +811,22 @@ export function PluginSettingsPage({ className }: PluginSettingsPageProps) {
 
         {/* Health Tab */}
         <TabsContent value="health" className="space-y-4 mt-0">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <PluginUpdates autoCheck />
             <PluginConflicts autoDetect />
           </div>
           <PluginHealth autoRefresh refreshInterval={30000} />
-          <PluginDependencyTree />
+          <Collapsible defaultOpen={false}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-between h-9 px-3 text-xs font-medium text-muted-foreground hover:text-foreground border rounded-lg">
+                {t('tabs.health')} - Dependency Tree
+                <ChevronDown className="h-3.5 w-3.5 transition-transform data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <PluginDependencyTree />
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         {/* Settings Tab - Improved with consistent card patterns */}

@@ -4,6 +4,7 @@
  */
 
 import type { ArtifactType, ArtifactLanguage } from '@/types';
+import { LANGUAGE_MAP, ALWAYS_CREATE_TYPES } from '@/lib/artifacts';
 
 // Configuration for auto-detection
 export interface ArtifactDetectionConfig {
@@ -87,34 +88,7 @@ const JUPYTER_PATTERNS = [
   /"nbformat"\s*:/,
 ];
 
-// Language to ArtifactLanguage mapping
-const LANGUAGE_MAP: Record<string, ArtifactLanguage> = {
-  'js': 'javascript',
-  'javascript': 'javascript',
-  'ts': 'typescript',
-  'typescript': 'typescript',
-  'py': 'python',
-  'python': 'python',
-  'html': 'html',
-  'css': 'css',
-  'json': 'json',
-  'md': 'markdown',
-  'markdown': 'markdown',
-  'jsx': 'jsx',
-  'tsx': 'tsx',
-  'sql': 'sql',
-  'sh': 'bash',
-  'bash': 'bash',
-  'shell': 'bash',
-  'yml': 'yaml',
-  'yaml': 'yaml',
-  'xml': 'xml',
-  'svg': 'svg',
-  'mermaid': 'mermaid',
-  'latex': 'latex',
-  'tex': 'latex',
-  'ipynb': 'json',
-};
+// LANGUAGE_MAP imported from @/lib/artifacts (centralized, no duplication)
 
 /**
  * Detect artifact type from content
@@ -254,8 +228,7 @@ export function shouldAutoCreate(
   const lineCount = countLines(content);
 
   // Always auto-create for specific types regardless of line count
-  const alwaysCreateTypes: ArtifactType[] = ['html', 'react', 'svg', 'mermaid', 'chart', 'jupyter'];
-  if (alwaysCreateTypes.includes(type)) {
+  if (ALWAYS_CREATE_TYPES.includes(type)) {
     return lineCount >= 3; // At least 3 lines for these types
   }
 

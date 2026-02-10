@@ -10,6 +10,9 @@ jest.mock('next-intl', () => ({
       'timeline.total': 'Total',
       'timeline.errors': 'Errors',
       'timeline.warnings': 'Warnings',
+      'levels.info': 'Info',
+      'levels.warn': 'Warning',
+      'levels.error': 'Error',
     };
     return translations[key] || key;
   },
@@ -49,7 +52,7 @@ describe('LogTimeline', () => {
     it('renders legend labels', () => {
       render(<LogTimeline logs={logs} />);
       expect(screen.getByText('Info')).toBeInTheDocument();
-      expect(screen.getByText('Warn')).toBeInTheDocument();
+      expect(screen.getByText('Warning')).toBeInTheDocument();
       expect(screen.getByText('Error')).toBeInTheDocument();
     });
 
@@ -74,6 +77,25 @@ describe('LogTimeline', () => {
       render(<LogTimeline logs={logs} bucketCount={20} />);
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBe(20);
+    });
+  });
+
+  describe('Large datasets', () => {
+    it('handles large log arrays without stack overflow', () => {
+      // Previously used Math.min/max(...timestamps) which would overflow
+      // with large arrays. Now uses a loop.
+      const now = Date.now();
+      const largeLogs = Array.from({ length: 200000 }, (_, i) =>
+        createMockLog({
+          level: i % 3 === 0 ? 'error' : 'info',
+          timestamp: new Date(now - i * 100).toISOString(),
+        })
+      );
+
+      // Should not throw RangeError: Maximum call stack size exceeded
+      expect(() => {
+        render(<LogTimeline logs={largeLogs} bucketCount={10} />);
+      }).not.toThrow();
     });
   });
 

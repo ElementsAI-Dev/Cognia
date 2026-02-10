@@ -531,6 +531,48 @@ function addElement(
 // =====================
 
 /**
+ * Create a configured PptxGenJS document with all slides
+ */
+function createPPTXDocument(
+  presentation: PPTPresentation,
+  options: PPTXExportOptions = {}
+): PptxGenJS {
+  const pptx = new PptxGenJS();
+
+  // Set metadata
+  pptx.author = options.author || 'Cognia';
+  pptx.company = options.company || '';
+  pptx.subject = options.subject || presentation.description || '';
+  pptx.title = presentation.title;
+
+  // Set layout
+  pptx.layout = presentation.aspectRatio === '4:3' ? 'LAYOUT_4x3' : 'LAYOUT_16x9';
+
+  // Apply theme
+  applyTheme(pptx, presentation.theme);
+
+  // Add slides
+  for (const slide of presentation.slides) {
+    addSlide(pptx, slide, presentation.theme, options);
+  }
+
+  return pptx;
+}
+
+/**
+ * Generate a safe filename for the presentation
+ */
+function generateFilename(title: string): string {
+  const safeTitle = title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+  const timestamp = new Date().toISOString().slice(0, 10);
+  return `${safeTitle}-${timestamp}.pptx`;
+}
+
+/**
  * Export presentation to PPTX format
  */
 export async function exportToPPTX(
@@ -538,36 +580,9 @@ export async function exportToPPTX(
   options: PPTXExportOptions = {}
 ): Promise<PPTXExportResult> {
   try {
-    const pptx = new PptxGenJS();
-
-    // Set metadata
-    pptx.author = options.author || 'Cognia';
-    pptx.company = options.company || '';
-    pptx.subject = options.subject || presentation.description || '';
-    pptx.title = presentation.title;
-
-    // Set layout
-    pptx.layout = presentation.aspectRatio === '4:3' ? 'LAYOUT_4x3' : 'LAYOUT_16x9';
-
-    // Apply theme
-    applyTheme(pptx, presentation.theme);
-
-    // Add slides
-    for (const slide of presentation.slides) {
-      addSlide(pptx, slide, presentation.theme, options);
-    }
-
-    // Generate blob
+    const pptx = createPPTXDocument(presentation, options);
     const blob = await pptx.write({ outputType: 'blob' }) as Blob;
-
-    // Generate filename
-    const safeTitle = presentation.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 50);
-    const timestamp = new Date().toISOString().slice(0, 10);
-    const filename = `${safeTitle}-${timestamp}.pptx`;
+    const filename = generateFilename(presentation.title);
 
     return {
       success: true,
@@ -614,26 +629,7 @@ export async function exportToPPTXBase64(
   options: PPTXExportOptions = {}
 ): Promise<{ success: boolean; base64?: string; error?: string }> {
   try {
-    const pptx = new PptxGenJS();
-
-    // Set metadata
-    pptx.author = options.author || 'Cognia';
-    pptx.company = options.company || '';
-    pptx.subject = options.subject || presentation.description || '';
-    pptx.title = presentation.title;
-
-    // Set layout
-    pptx.layout = presentation.aspectRatio === '4:3' ? 'LAYOUT_4x3' : 'LAYOUT_16x9';
-
-    // Apply theme
-    applyTheme(pptx, presentation.theme);
-
-    // Add slides
-    for (const slide of presentation.slides) {
-      addSlide(pptx, slide, presentation.theme, options);
-    }
-
-    // Generate base64
+    const pptx = createPPTXDocument(presentation, options);
     const base64 = await pptx.write({ outputType: 'base64' }) as string;
 
     return {

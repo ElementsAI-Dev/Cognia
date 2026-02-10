@@ -5,7 +5,7 @@
  */
 
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Eye } from 'lucide-react';
+import { ExternalLink, Eye, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,10 +48,20 @@ export function ArtifactCard({
   const t = useTranslations('artifacts');
   const setActiveArtifact = useArtifactStore((state) => state.setActiveArtifact);
   const openPanel = useArtifactStore((state) => state.openPanel);
+  const duplicateArtifact = useArtifactStore((state) => state.duplicateArtifact);
 
   const handleOpen = () => {
     setActiveArtifact(artifact.id);
     openPanel('artifact');
+  };
+
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const dup = duplicateArtifact(artifact.id);
+    if (dup) {
+      setActiveArtifact(dup.id);
+      openPanel('artifact');
+    }
   };
 
   // Get a preview snippet of the content
@@ -122,21 +132,42 @@ export function ArtifactCard({
                   <span>{artifact.language}</span>
                 </>
               )}
+              {artifact.metadata?.runnable && (
+                <>
+                  <span>·</span>
+                  <span>{t('runnable')}</span>
+                </>
+              )}
+              {artifact.metadata?.wordCount != null && (
+                <>
+                  <span>·</span>
+                  <span>{artifact.metadata.wordCount} {t('words')}</span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="shrink-0">
+          <div className="shrink-0 flex flex-col gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
                 handleOpen();
               }}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleDuplicate}
+              title={t('duplicate')}
+            >
+              <Copy className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -201,7 +232,7 @@ export function MessageArtifacts({
     return (
       <div className={cn('flex flex-wrap gap-1 mt-2', className)}>
         {messageArtifacts.map((artifact) => (
-          <ArtifactCard key={artifact.id} artifact={artifact} compact />
+          <ArtifactInlineRef key={artifact.id} artifact={artifact} />
         ))}
       </div>
     );
@@ -211,6 +242,49 @@ export function MessageArtifacts({
     <div className={cn('space-y-2 mt-3', className)}>
       {messageArtifacts.map((artifact) => (
         <ArtifactCard key={artifact.id} artifact={artifact} showPreview />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Display analysis results for a message
+ */
+export function MessageAnalysisResults({
+  messageId,
+  className,
+}: {
+  messageId: string;
+  className?: string;
+}) {
+  const getMessageAnalysis = useArtifactStore((state) => state.getMessageAnalysis);
+  const openPanel = useArtifactStore((state) => state.openPanel);
+
+  const analysisResults = getMessageAnalysis(messageId);
+
+  if (analysisResults.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={cn('flex flex-wrap gap-1.5 mt-2', className)}>
+      {analysisResults.map((result) => (
+        <Button
+          key={result.id}
+          variant="outline"
+          size="sm"
+          className="gap-1.5 h-7 text-xs"
+          onClick={() => {
+            openPanel('analysis');
+          }}
+        >
+          {result.type === 'math' && '📐'}
+          {result.type === 'chart' && '📊'}
+          {result.type === 'data' && '📋'}
+          <span className="max-w-[100px] truncate">
+            {result.output?.summary || result.type}
+          </span>
+        </Button>
       ))}
     </div>
   );

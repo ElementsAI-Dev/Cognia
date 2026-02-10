@@ -18,10 +18,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { ArtifactType } from '@/types';
 import {
-  mapToArtifactLanguage,
   matchesTypePatterns,
   getLanguageDisplayName,
 } from '@/lib/artifacts';
+import {
+  detectArtifactType as detectType,
+  mapToArtifactLanguage,
+} from '@/hooks/chat/use-artifact-detection';
 
 interface ArtifactCreateButtonProps {
   content: string;
@@ -34,35 +37,25 @@ interface ArtifactCreateButtonProps {
 
 /**
  * Detect artifact type from language and content
- * Uses centralized detection patterns from lib/artifacts
+ * Uses detectArtifactType from useArtifactDetection hook with
+ * additional pattern matching from lib/artifacts
  */
 function detectArtifactType(language?: string, content?: string): ArtifactType {
-  if (!language) return 'code';
+  // Use the hook's detection as base
+  const baseType = detectType(language, content);
 
-  const lang = language.toLowerCase();
-
-  // Direct language mappings
-  if (lang === 'mermaid') return 'mermaid';
-  if (lang === 'latex' || lang === 'tex' || lang === 'math') return 'math';
-  if (lang === 'markdown' || lang === 'md') return 'document';
-  if (lang === 'html') return 'html';
-  if (lang === 'svg') return 'svg';
-
-  // JSX/TSX - check for React patterns
-  if (lang === 'jsx' || lang === 'tsx') {
-    if (content && matchesTypePatterns(content, 'react')) {
+  // Enhance with centralized pattern matching for edge cases
+  if (baseType === 'code' && content) {
+    const lang = language?.toLowerCase();
+    if ((lang === 'jsx' || lang === 'tsx') && matchesTypePatterns(content, 'react')) {
       return 'react';
     }
-  }
-
-  // JSON - check for chart data patterns
-  if (lang === 'json' && content) {
-    if (matchesTypePatterns(content, 'chart')) {
+    if (lang === 'json' && matchesTypePatterns(content, 'chart')) {
       return 'chart';
     }
   }
 
-  return 'code';
+  return baseType;
 }
 
 /**

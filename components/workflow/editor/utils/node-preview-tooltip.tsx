@@ -7,6 +7,7 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 import {
   HoverCard,
   HoverCardContent,
@@ -306,8 +307,8 @@ export function NodePreviewTooltip({
 
           <Separator className="my-2" />
 
-          {/* Status */}
-          <div className="flex items-center gap-2 mb-2">
+          {/* Status & IO */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             {data.isConfigured ? (
               <div className="flex items-center gap-1 text-xs text-green-600">
                 <CheckCircle className="h-3 w-3" />
@@ -324,6 +325,30 @@ export function NodePreviewTooltip({
                 <AlertCircle className="h-3 w-3" />
                 <span>{t('hasErrors')}</span>
               </div>
+            )}
+            {data.executionStatus && data.executionStatus !== 'idle' && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[10px] h-4 px-1',
+                  data.executionStatus === 'running' && 'border-blue-500 text-blue-600',
+                  data.executionStatus === 'completed' && 'border-green-500 text-green-600',
+                  data.executionStatus === 'failed' && 'border-red-500 text-red-600',
+                  data.executionStatus === 'skipped' && 'border-gray-400 text-gray-500',
+                )}
+              >
+                {data.executionStatus}
+              </Badge>
+            )}
+            {data.inputs && Object.keys(data.inputs as Record<string, unknown>).length > 0 && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1">
+                {Object.keys(data.inputs as Record<string, unknown>).length} in
+              </Badge>
+            )}
+            {data.outputs && Object.keys(data.outputs as Record<string, unknown>).length > 0 && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1">
+                {Object.keys(data.outputs as Record<string, unknown>).length} out
+              </Badge>
             )}
           </div>
 

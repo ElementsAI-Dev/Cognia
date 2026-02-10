@@ -21,7 +21,6 @@ import {
   RotateCcw,
   Settings,
   Sparkles,
-  GripHorizontal,
   Download,
   Maximize2,
 } from 'lucide-react';
@@ -65,15 +64,16 @@ export function ChatWidgetHeader({
     <div
       className={cn(
         'flex items-center justify-between',
-        'px-3 py-2 h-12',
-        'bg-muted/50 border-b border-border/50',
+        'px-3 py-1.5 h-11',
+        'bg-background/80 backdrop-blur-sm',
+        'border-b border-border/30',
         'select-none',
         className
       )}
     >
       {/* Left side - drag region and title */}
       <div
-        className="flex items-center gap-2 flex-1 cursor-move"
+        className="flex items-center gap-2 flex-1 cursor-move min-w-0"
         data-tauri-drag-region
         onMouseDown={(e) => {
           // Prevent drag from interfering with button clicks
@@ -83,17 +83,18 @@ export function ChatWidgetHeader({
           }
         }}
       >
-        <GripHorizontal className="h-4 w-4 text-muted-foreground/50" />
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Cognia</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center justify-center h-6 w-6 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight">Cognia</span>
+          {config.pinned && <Pin className="h-3 w-3 text-primary/60" />}
           {messages && messages.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+            <Badge variant="secondary" className="text-[10px] h-4 px-1 font-normal">
               {messages.length}
             </Badge>
           )}
         </div>
-        {config.pinned && <Pin className="h-3 w-3 text-muted-foreground ml-1" />}
       </div>
 
       {/* Model selector */}
@@ -107,13 +108,13 @@ export function ChatWidgetHeader({
       )}
 
       {/* Right side - actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <TooltipProvider delayDuration={300}>
           {/* Expand to full chat */}
           {onExpandToFull && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onExpandToFull}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onExpandToFull}>
                   <Maximize2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -121,24 +122,10 @@ export function ChatWidgetHeader({
             </Tooltip>
           )}
 
-          {/* Pin toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onTogglePin}>
-                {config.pinned ? (
-                  <PinOff className="h-3.5 w-3.5" />
-                ) : (
-                  <Pin className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">{config.pinned ? t('unpin') : t('pin')}</TooltipContent>
-          </Tooltip>
-
-          {/* More menu */}
+          {/* More menu - includes pin toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -146,6 +133,14 @@ export function ChatWidgetHeader({
               <DropdownMenuItem onClick={onNewSession}>
                 <RotateCcw className="h-4 w-4 mr-2" />
                 {t('newSession')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onTogglePin}>
+                {config.pinned ? (
+                  <PinOff className="h-4 w-4 mr-2" />
+                ) : (
+                  <Pin className="h-4 w-4 mr-2" />
+                )}
+                {config.pinned ? t('unpin') : t('pin')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onClearMessages}>
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -168,11 +163,11 @@ export function ChatWidgetHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Close button - outside tooltip to ensure click works */}
+          {/* Close button */}
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+            className="h-7 w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

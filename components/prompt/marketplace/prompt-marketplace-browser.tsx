@@ -303,242 +303,230 @@ export function PromptMarketplaceBrowser({
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
+  const gridClasses = viewMode === 'grid'
+    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4'
+    : 'flex flex-col gap-3';
+
+  const activeFilterCount = (selectedCategory !== 'all' ? 1 : 0) + selectedTiers.length + (minRating > 0 ? 1 : 0);
+
   return (
-    <div className="flex h-full overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Sidebar - Visible on Desktop */}
-      <PromptMarketplaceSidebar
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        selectedTiers={selectedTiers}
-        onToggleTier={handleTierToggle}
-        minRating={minRating}
-        onMinRatingChange={setMinRating}
-        categoryCounts={categoryCounts}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="shrink-0 px-4 lg:px-6 py-3 border-b space-y-3 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-          <div className="flex items-center justify-between gap-4">
-            {/* Tabs */}
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as TabValue)}
-              className="w-full"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <TabsList className="bg-muted/50 p-1 h-auto">
-                  <TabsTrigger value="browse" className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm">
-                    <Package className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t('tabs.browse')}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="installed" className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm">
-                    <Download className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t('tabs.installed')}</span>
-                    {installedPrompts.length > 0 && (
-                      <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-semibold">
-                        {installedPrompts.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="favorites" className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm">
-                    <Heart className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t('tabs.favorites')}</span>
-                    {favoriteIds.length > 0 && (
-                      <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-semibold">
-                        {favoriteIds.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="collections" className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm">
-                    <FolderOpen className="h-4 w-4" />
-                    <span className="hidden md:inline">{t('collections.title')}</span>
-                    {collections.length > 0 && (
-                      <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px] font-semibold">
-                        {collections.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="recent" className="gap-1.5 px-3 py-2 data-[state=active]:shadow-sm">
-                    <History className="h-4 w-4" />
-                    <span className="hidden md:inline">{t('tabs.recent')}</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <div className="flex items-center gap-2">
-                  {/* Mobile Filter Sheet Trigger */}
-                  <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
-                    <SheetTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'lg:hidden gap-1.5 h-9',
-                          hasActiveFilters && 'border-primary/50 bg-primary/5'
-                        )}
-                      >
-                        <SlidersHorizontal className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t('filters.title')}</span>
-                        {hasActiveFilters && (
-                          <Badge variant="default" className="ml-1 h-5 min-w-5 px-1 text-[10px]">
-                            {(selectedCategory !== 'all' ? 1 : 0) + selectedTiers.length + (minRating > 0 ? 1 : 0)}
-                          </Badge>
-                        )}
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-80 sm:w-96">
-                      <PromptMarketplaceSidebar
-                        selectedCategory={selectedCategory}
-                        onSelectCategory={(cat) => {
-                          setSelectedCategory(cat);
-                        }}
-                        selectedTiers={selectedTiers}
-                        onToggleTier={handleTierToggle}
-                        minRating={minRating}
-                        onMinRatingChange={setMinRating}
-                        categoryCounts={categoryCounts}
-                        className="flex w-full h-full border-none"
-                        isMobile
-                        onClose={() => setMobileFilterOpen(false)}
-                      />
-                    </SheetContent>
-                  </Sheet>
-
-                  {/* View Mode Toggle */}
-                  <div className="hidden sm:flex items-center gap-0.5 border rounded-lg p-0.5 bg-muted/30">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                          size="icon"
-                          className={cn(
-                            'h-8 w-8 transition-all',
-                            viewMode === 'grid' && 'shadow-sm'
-                          )}
-                          onClick={() => setViewMode('grid')}
-                        >
-                          <Grid3X3 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t('view.gridView')}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                          size="icon"
-                          className={cn(
-                            'h-8 w-8 transition-all',
-                            viewMode === 'list' && 'shadow-sm'
-                          )}
-                          onClick={() => setViewMode('list')}
-                        >
-                          <List className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t('view.listView')}</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              </div>
-            </Tabs>
-          </div>
-
-          {/* Search & Sort Bar */}
-          {activeTab === 'browse' && (
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-2xl">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t('search.placeholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-9 h-10 bg-muted/30 border-muted-foreground/20 focus-visible:bg-background focus-visible:border-primary/40 transition-all"
-                />
-                {searchQuery && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setSearchQuery('')}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('search.clearSearch')}</TooltipContent>
-                  </Tooltip>
+    <div className="flex flex-col h-full overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Compact Header */}
+      <div className="shrink-0 px-3 lg:px-4 py-2 border-b space-y-2 bg-background/80 backdrop-blur-sm">
+        {/* Row 1: Tabs + Actions */}
+        <div className="flex items-center gap-2">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as TabValue)}
+            className="flex-1 min-w-0"
+          >
+            <TabsList className="bg-muted/50 p-0.5 h-auto overflow-x-auto scrollbar-none">
+              <TabsTrigger value="browse" className="gap-1 px-2 py-1.5 text-xs data-[state=active]:shadow-sm">
+                <Package className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('tabs.browse')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="installed" className="gap-1 px-2 py-1.5 text-xs data-[state=active]:shadow-sm">
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('tabs.installed')}</span>
+                {installedPrompts.length > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-semibold">
+                    {installedPrompts.length}
+                  </Badge>
                 )}
-              </div>
+              </TabsTrigger>
+              <TabsTrigger value="favorites" className="gap-1 px-2 py-1.5 text-xs data-[state=active]:shadow-sm">
+                <Heart className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('tabs.favorites')}</span>
+                {favoriteIds.length > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-semibold">
+                    {favoriteIds.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="collections" className="gap-1 px-2 py-1.5 text-xs data-[state=active]:shadow-sm">
+                <FolderOpen className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{t('collections.title')}</span>
+                {collections.length > 0 && (
+                  <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-semibold">
+                    {collections.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="recent" className="gap-1 px-2 py-1.5 text-xs data-[state=active]:shadow-sm">
+                <History className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{t('tabs.recent')}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-              <Select
-                value={sortBy}
-                onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}
-              >
-                <SelectTrigger className="w-36 sm:w-44 h-10 bg-muted/30 border-muted-foreground/20">
-                  <SelectValue placeholder={t('sort.placeholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="downloads">{t('sort.downloads')}</SelectItem>
-                  <SelectItem value="rating">{t('sort.rating')}</SelectItem>
-                  <SelectItem value="trending">{t('sort.trending')}</SelectItem>
-                  <SelectItem value="newest">{t('sort.newest')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Filter Sheet Trigger */}
+            {activeTab === 'browse' && (
+              <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'gap-1.5 h-8',
+                      hasActiveFilters && 'border-primary/50 bg-primary/5'
+                    )}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">{t('filters.title')}</span>
+                    {activeFilterCount > 0 && (
+                      <Badge variant="default" className="ml-0.5 h-4 min-w-4 px-1 text-[10px]">
+                        {activeFilterCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 w-80 sm:w-96">
+                  <PromptMarketplaceSidebar
+                    selectedCategory={selectedCategory}
+                    onSelectCategory={(cat) => {
+                      setSelectedCategory(cat);
+                    }}
+                    selectedTiers={selectedTiers}
+                    onToggleTier={handleTierToggle}
+                    minRating={minRating}
+                    onMinRatingChange={setMinRating}
+                    categoryCounts={categoryCounts}
+                    className="flex w-full h-full border-none"
+                    isMobile
+                    onClose={() => setMobileFilterOpen(false)}
+                  />
+                </SheetContent>
+              </Sheet>
+            )}
 
-          {/* Active Filters Pills (Mobile) */}
-          {hasActiveFilters && activeTab === 'browse' && (
-            <div className="flex items-center gap-2 lg:hidden overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none">
-              {selectedCategory !== 'all' && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 gap-1.5 pl-2 pr-1 py-1 cursor-pointer hover:bg-secondary/80"
-                  onClick={() => setSelectedCategory('all')}
-                >
-                  {selectedCategory}
-                  <X className="h-3 w-3" />
-                </Badge>
-              )}
-              {selectedTiers.map((tier) => (
-                <Badge
-                  key={tier}
-                  variant="secondary"
-                  className="shrink-0 gap-1.5 pl-2 pr-1 py-1 cursor-pointer hover:bg-secondary/80"
-                  onClick={() => handleTierToggle(tier)}
-                >
-                  {tier}
-                  <X className="h-3 w-3" />
-                </Badge>
-              ))}
-              {minRating > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 gap-1.5 pl-2 pr-1 py-1 cursor-pointer hover:bg-secondary/80"
-                  onClick={() => setMinRating(0)}
-                >
-                  {minRating}+ ★
-                  <X className="h-3 w-3" />
-                </Badge>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0 h-6 px-2 text-xs text-muted-foreground"
-                onClick={clearFilters}
-              >
-                {t('filters.clearAll')}
-              </Button>
+            {/* View Mode Toggle */}
+            <div className="hidden sm:flex items-center gap-0.5 border rounded-lg p-0.5 bg-muted/30">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className={cn(
+                      'h-7 w-7 transition-all',
+                      viewMode === 'grid' && 'shadow-sm'
+                    )}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('view.gridView')}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className={cn(
+                      'h-7 w-7 transition-all',
+                      viewMode === 'list' && 'shadow-sm'
+                    )}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('view.listView')}</TooltipContent>
+              </Tooltip>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Scrollable Content */}
-        <ScrollArea className="flex-1">
-          <div className="p-4 lg:p-6 xl:p-8 space-y-8">
+        {/* Row 2: Search & Sort (browse tab only) */}
+        {activeTab === 'browse' && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder={t('search.placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-8 h-8 text-sm bg-muted/30 border-muted-foreground/20 focus-visible:bg-background focus-visible:border-primary/40 transition-all"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
+            <Select
+              value={sortBy}
+              onValueChange={(v) => setSortBy(v as MarketplaceSearchFilters['sortBy'])}
+            >
+              <SelectTrigger className="w-32 sm:w-36 h-8 text-xs bg-muted/30 border-muted-foreground/20">
+                <SelectValue placeholder={t('sort.placeholder')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="downloads">{t('sort.downloads')}</SelectItem>
+                <SelectItem value="rating">{t('sort.rating')}</SelectItem>
+                <SelectItem value="trending">{t('sort.trending')}</SelectItem>
+                <SelectItem value="newest">{t('sort.newest')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Active Filters Pills */}
+        {hasActiveFilters && activeTab === 'browse' && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+            {selectedCategory !== 'all' && (
+              <Badge
+                variant="secondary"
+                className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
+                onClick={() => setSelectedCategory('all')}
+              >
+                {selectedCategory}
+                <X className="h-3 w-3" />
+              </Badge>
+            )}
+            {selectedTiers.map((tier) => (
+              <Badge
+                key={tier}
+                variant="secondary"
+                className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
+                onClick={() => handleTierToggle(tier)}
+              >
+                {tier}
+                <X className="h-3 w-3" />
+              </Badge>
+            ))}
+            {minRating > 0 && (
+              <Badge
+                variant="secondary"
+                className="shrink-0 gap-1 pl-2 pr-1 py-0.5 text-xs cursor-pointer hover:bg-secondary/80"
+                onClick={() => setMinRating(0)}
+              >
+                {minRating}+ ★
+                <X className="h-3 w-3" />
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 h-5 px-1.5 text-[10px] text-muted-foreground"
+              onClick={clearFilters}
+            >
+              {t('filters.clearAll')}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Scrollable Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-3 lg:p-4 space-y-5">
             {activeTab === 'browse' && (
               <>
                 {/* Featured Section (only when no filters) */}
@@ -560,14 +548,7 @@ export function PromptMarketplaceBrowser({
                         {featuredPrompts.length} {t('common.prompts')}
                       </Badge>
                     </div>
-                    <div
-                      className={cn(
-                        'gap-4',
-                        viewMode === 'grid'
-                          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                          : 'flex flex-col'
-                      )}
-                    >
+                    <div className={gridClasses}>
                       {featuredPrompts.map((prompt, index) => (
                         <PromptMarketplaceCard
                           key={prompt.id}
@@ -601,14 +582,7 @@ export function PromptMarketplaceBrowser({
                         {t('common.thisWeek')}
                       </Badge>
                     </div>
-                    <div
-                      className={cn(
-                        'gap-4',
-                        viewMode === 'grid'
-                          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                          : 'flex flex-col'
-                      )}
-                    >
+                    <div className={gridClasses}>
                       {trendingPrompts.slice(0, 8).map((prompt) => (
                         <PromptMarketplaceCard
                           key={prompt.id}
@@ -658,14 +632,7 @@ export function PromptMarketplaceBrowser({
                   </div>
 
                   {isLoading ? (
-                    <div
-                      className={cn(
-                        'gap-4',
-                        viewMode === 'grid'
-                          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                          : 'flex flex-col'
-                      )}
-                    >
+                    <div className={gridClasses}>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
                         <div key={i} className="space-y-3">
                           <Skeleton className="h-[200px] rounded-xl" />
@@ -678,14 +645,7 @@ export function PromptMarketplaceBrowser({
                     </div>
                   ) : displayPrompts.length > 0 ? (
                     <div className="space-y-6">
-                      <div
-                        className={cn(
-                          'gap-4',
-                          viewMode === 'grid'
-                            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                            : 'flex flex-col'
-                        )}
-                      >
+                      <div className={gridClasses}>
                         {paginatedPrompts.map((prompt) => (
                           <PromptMarketplaceCard
                             key={prompt.id}
@@ -712,7 +672,7 @@ export function PromptMarketplaceBrowser({
                       )}
                     </div>
                   ) : (
-                    <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                    <Empty className="py-10 sm:py-14 border-2 rounded-2xl bg-muted/20">
                       <EmptyMedia variant="icon" className="bg-muted/50">
                         <Package className="h-10 w-10 text-muted-foreground/40" />
                       </EmptyMedia>
@@ -797,14 +757,7 @@ export function PromptMarketplaceBrowser({
                   )}
                 </div>
                 {installedPromptsList.length > 0 ? (
-                  <div
-                    className={cn(
-                      'gap-4',
-                      viewMode === 'grid'
-                        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                        : 'flex flex-col'
-                    )}
-                  >
+                  <div className={gridClasses}>
                     {installedPromptsList.map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
@@ -817,7 +770,7 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                  <Empty className="py-10 sm:py-14 border-2 rounded-2xl bg-muted/20">
                     <EmptyMedia variant="icon" className="bg-green-500/10">
                       <Download className="h-10 w-10 text-green-500/50" />
                     </EmptyMedia>
@@ -879,14 +832,7 @@ export function PromptMarketplaceBrowser({
                   )}
                 </div>
                 {favoritePrompts.length > 0 ? (
-                  <div
-                    className={cn(
-                      'gap-4',
-                      viewMode === 'grid'
-                        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                        : 'flex flex-col'
-                    )}
-                  >
+                  <div className={gridClasses}>
                     {favoritePrompts.map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
@@ -898,7 +844,7 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                  <Empty className="py-10 sm:py-14 border-2 rounded-2xl bg-muted/20">
                     <EmptyMedia variant="icon" className="bg-red-500/10">
                       <Heart className="h-10 w-10 text-red-500/50" />
                     </EmptyMedia>
@@ -934,7 +880,7 @@ export function PromptMarketplaceBrowser({
                   </Badge>
                 </div>
                 {collections.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {collections.map((collection) => {
                       const collectionPrompts = collection.promptIds
                         .map((id) => getPromptById(id))
@@ -950,7 +896,7 @@ export function PromptMarketplaceBrowser({
                     })}
                   </div>
                 ) : (
-                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                  <Empty className="py-10 sm:py-14 border-2 rounded-2xl bg-muted/20">
                     <EmptyMedia variant="icon" className="bg-amber-500/10">
                       <FolderOpen className="h-10 w-10 text-amber-500/50" />
                     </EmptyMedia>
@@ -980,14 +926,7 @@ export function PromptMarketplaceBrowser({
                   </Badge>
                 </div>
                 {recentlyViewed.length > 0 ? (
-                  <div
-                    className={cn(
-                      'gap-4',
-                      viewMode === 'grid'
-                        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5'
-                        : 'flex flex-col'
-                    )}
-                  >
+                  <div className={gridClasses}>
                     {recentlyViewed.map((prompt) => (
                       <PromptMarketplaceCard
                         key={prompt.id}
@@ -999,7 +938,7 @@ export function PromptMarketplaceBrowser({
                     ))}
                   </div>
                 ) : (
-                  <Empty className="py-16 sm:py-24 border-2 rounded-2xl bg-muted/20">
+                  <Empty className="py-10 sm:py-14 border-2 rounded-2xl bg-muted/20">
                     <EmptyMedia variant="icon" className="bg-purple-500/10">
                       <History className="h-10 w-10 text-purple-500/50" />
                     </EmptyMedia>
@@ -1017,7 +956,6 @@ export function PromptMarketplaceBrowser({
             )}
           </div>
         </ScrollArea>
-      </div>
 
       {/* Detail Dialog */}
       <PromptMarketplaceDetail

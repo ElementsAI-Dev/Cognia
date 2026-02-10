@@ -45,14 +45,14 @@ export function SimplifiedModeSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Mode Selection */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              <CardTitle>{t('title')}</CardTitle>
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">{t('title')}</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -68,7 +68,7 @@ export function SimplifiedModeSettings() {
             {t('description')}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {/* Preset Selection */}
           <div className="space-y-3">
             <Label>{t('presetLabel')}</Label>
@@ -124,7 +124,7 @@ export function SimplifiedModeSettings() {
 
       {/* Header Customization */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('headerSettings')}</CardTitle>
           <CardDescription className="text-xs">{t('headerDescription')}</CardDescription>
         </CardHeader>
@@ -155,7 +155,7 @@ export function SimplifiedModeSettings() {
 
       {/* Input Customization */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('inputSettings')}</CardTitle>
           <CardDescription className="text-xs">{t('inputDescription')}</CardDescription>
         </CardHeader>
@@ -207,7 +207,7 @@ export function SimplifiedModeSettings() {
 
       {/* Welcome Screen Customization */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('welcomeSettings')}</CardTitle>
           <CardDescription className="text-xs">{t('welcomeDescription')}</CardDescription>
         </CardHeader>
@@ -238,7 +238,7 @@ export function SimplifiedModeSettings() {
 
       {/* Sidebar & Message Display */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('sidebarAndMessageSettings')}</CardTitle>
           <CardDescription className="text-xs">{t('sidebarAndMessageDescription')}</CardDescription>
         </CardHeader>
@@ -276,12 +276,12 @@ export function SimplifiedModeSettings() {
 
       {/* Keyboard Shortcut */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('shortcutSettings')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-            <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <div className="space-y-1">
               <p className="text-sm font-medium">{t('shortcutHint')}</p>
               <p className="text-xs text-muted-foreground">

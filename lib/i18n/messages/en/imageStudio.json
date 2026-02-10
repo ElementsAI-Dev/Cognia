@@ -381,6 +381,21 @@
     "scales": {
       "1x": "1× (Original)",
       "2x": "2× (Double)"
-    }
+    },
+    "batchExport": "Batch Export",
+    "exportFormat": "Export Format",
+    "formatMarkdown": "Markdown (.md)",
+    "formatJson": "JSON (.json)",
+    "formatHtml": "Static HTML",
+    "formatAnimatedHtml": "Animated HTML",
+    "formatText": "Plain Text (.txt)",
+    "formatMixed": "All Formats",
+    "selectSessions": "Select Sessions ({selected} of {total})",
+    "all": "All",
+    "none": "None",
+    "noSessions": "No sessions to export",
+    "estimatedSize": "Estimated size:",
+    "cancel": "Cancel",
+    "exportSessions": "Export {count} Sessions"
   }
 }

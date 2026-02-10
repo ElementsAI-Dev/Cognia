@@ -93,6 +93,22 @@ const messages = {
   common: {
     close: 'Close',
   },
+  backgroundImportExport: {
+    importExportButton: 'Import/Export',
+    dialogTitle: 'Background Import/Export',
+    dialogDescription: 'Share your background settings or import from a file',
+    exportSettings: 'Export Settings',
+    exportSettingsDesc: 'Export current background settings to a JSON file',
+    exportToFile: 'Export to File',
+    exportSuccess: 'Export successful',
+    importSettings: 'Import Settings',
+    importSettingsDesc: 'Import background settings from a JSON file',
+    selectFile: 'Select File',
+    importSuccess: 'Import successful',
+    parseFileFailed: 'Failed to parse file',
+    invalidFileFormat: 'Invalid file format',
+    localFilesNote: 'Note: Locally uploaded images are not included in exports. Only URL and preset backgrounds are exported.',
+  },
 };
 
 const renderWithProviders = (component: React.ReactNode) => {
@@ -228,12 +244,35 @@ describe('BackgroundImportExport', () => {
   });
 
   describe('Chinese language support', () => {
-    beforeEach(() => {
-      useSettingsStore.setState({ language: 'zh-CN' });
-    });
+    const zhMessages = {
+      settings: {},
+      common: {
+        close: '关闭',
+      },
+      backgroundImportExport: {
+        importExportButton: '导入/导出',
+        dialogTitle: '背景导入/导出',
+        dialogDescription: '分享你的背景设置或从文件导入',
+        exportSettings: '导出设置',
+        exportSettingsDesc: '将当前背景设置导出为 JSON 文件',
+        exportToFile: '导出到文件',
+        exportSuccess: '导出成功',
+        importSettings: '导入设置',
+        importSettingsDesc: '从 JSON 文件导入背景设置',
+        selectFile: '选择文件',
+        importSuccess: '导入成功',
+        parseFileFailed: '解析文件失败',
+        invalidFileFormat: '文件格式无效',
+        localFilesNote: '注意：本地上传的图片不会包含在导出中。仅导出 URL 和预设背景。',
+      },
+    };
 
     it('should show Chinese labels', () => {
-      renderWithProviders(<BackgroundImportExport />);
+      render(
+        <NextIntlClientProvider locale="zh-CN" messages={zhMessages}>
+          <BackgroundImportExport />
+        </NextIntlClientProvider>
+      );
       
       expect(screen.getByRole('button', { name: /导入.*导出/i })).toBeInTheDocument();
     });

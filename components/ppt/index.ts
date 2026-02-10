@@ -11,6 +11,7 @@ export { PPTEditor, SlideEditor, SlideElement, SortableSlideItem, AlignmentToolb
 // Element components
 export {
   ChartElement,
+  ChartEditor,
   type ChartElementProps,
   type ChartType,
   type ChartData,
@@ -23,7 +24,7 @@ export {
 export { PPTPreview, PPTPreviewWithErrorBoundary, SingleSlideView, GridView, OutlineView } from './preview';
 
 // Slideshow components
-export { SlideshowView, SlideshowControls, KeyboardHelpModal, ThumbnailNavigator } from './slideshow';
+export { SlideshowView, SlideshowControls, KeyboardHelpModal, ThumbnailNavigator, PresenterMode } from './slideshow';
 
 // Generation components
 export { PPTGenerationDialog, PPTQuickAction, PPTOutlinePreview } from './generation';

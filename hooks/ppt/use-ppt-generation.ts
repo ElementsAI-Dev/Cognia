@@ -21,6 +21,7 @@ import {
   buildSlideContentPrompt,
   type GenerationContext,
 } from '@/components/ppt/utils/generation-prompts';
+import { suggestLayout } from '@/components/ppt/utils/layout-engine';
 
 export interface PPTGenerationConfig {
   topic: string;
@@ -276,11 +277,20 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             imagePrompt?: string;
           };
 
-          // Create slide
+          // Use suggestLayout for intelligent layout selection based on content
+          const contentLayout = suggestLayout({
+            title: contentData.title || slideOutline.title,
+            subtitle: contentData.subtitle,
+            bullets: contentData.bullets,
+            hasChart: false,
+            hasTable: false,
+          });
+
+          // Create slide - prefer AI layout, fallback to content-based suggestion
           const slide: PPTSlide = {
             id: `slide-${i + 1}-${Date.now()}`,
             order: i,
-            layout: (slideOutline.layout as PPTSlide['layout']) || 'title-content',
+            layout: (slideOutline.layout as PPTSlide['layout']) || contentLayout,
             title: contentData.title || slideOutline.title,
             subtitle: contentData.subtitle,
             content: contentData.content,
@@ -495,10 +505,17 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             notes?: string;
           };
 
+          // Use suggestLayout for intelligent layout fallback
+          const contentLayout = suggestLayout({
+            title: contentData.title || slideOutline.title,
+            subtitle: contentData.subtitle,
+            bullets: contentData.bullets,
+          });
+
           const slide: PPTSlide = {
             id: `slide-${i + 1}-${Date.now()}`,
             order: i,
-            layout: (slideOutline.layout as PPTSlide['layout']) || 'title-content',
+            layout: (slideOutline.layout as PPTSlide['layout']) || contentLayout,
             title: contentData.title || slideOutline.title,
             subtitle: contentData.subtitle,
             content: contentData.content,

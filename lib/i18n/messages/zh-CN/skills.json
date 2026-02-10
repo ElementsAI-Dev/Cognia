@@ -484,6 +484,7 @@
     "invalidSkillContent": "无效的 SKILL.md 内容",
     "skillMdPlaceholder": "---\nname: my-skill\ndescription: 此技能的功能...\n---\n\n# 我的技能\n...",
     "contentPlaceholder": "# 我的技能\n\n## 使用场景\n\n## 说明\n\n...",
+    "skillNamePlaceholder": "my-skill-name",
     "categories": {
       "creativeDesign": "创意与设计",
       "development": "开发",

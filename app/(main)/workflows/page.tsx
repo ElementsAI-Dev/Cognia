@@ -4,7 +4,7 @@
  * Workflows Page - Workflow management and editor interface
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkflowEditorPanel } from '@/components/workflow/editor';
@@ -39,9 +39,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { workflowRepository } from '@/lib/db/repositories';
-import { useWorkflowEditorStore } from '@/stores/workflow';
-import { useShallow } from 'zustand/react/shallow';
-import { workflowEditorTemplates } from '@/lib/workflow-editor/templates';
+import { useWorkflowEditor } from '@/hooks/designer/use-workflow-editor';
+import { useWorkflowExecutionWithKeyboard } from '@/hooks/designer/use-workflow-execution';
+import { workflowEditorTemplates, getTemplateCategories } from '@/lib/workflow-editor/templates';
+import { definitionToVisual } from '@/lib/workflow-editor/converter';
+import { toast } from 'sonner';
 import type { VisualWorkflow, WorkflowEditorTemplate } from '@/types/workflow/workflow-editor';
 import {
   Plus,
@@ -57,6 +59,10 @@ import {
   Clock,
   Workflow,
   Store,
+  Play,
+  Pause,
+  Square,
+  AlertTriangle,
 } from 'lucide-react';
 
 type ViewMode = 'list' | 'editor';
@@ -76,17 +82,40 @@ export default function WorkflowsPage() {
   const [templateBrowserOpen, setTemplateBrowserOpen] = useState(false);
 
   const {
-    loadWorkflow,
-    createWorkflow,
     currentWorkflow,
-    saveWorkflow: saveWorkflowState,
-  } = useWorkflowEditorStore(
-    useShallow((state) => ({
-      loadWorkflow: state.loadWorkflow,
-      createWorkflow: state.createWorkflow,
-      currentWorkflow: state.currentWorkflow,
-      saveWorkflow: state.saveWorkflow,
-    }))
+    isExecuting,
+    isDirty,
+    validationErrors,
+    createWorkflow,
+    loadWorkflow,
+    saveWorkflow,
+    executeWorkflow,
+    pauseExecution,
+    resumeExecution,
+    cancelExecution,
+    validate,
+    exportWorkflow: exportCurrentWorkflow,
+    importWorkflow: importWorkflowFromJson,
+  } = useWorkflowEditor({
+    autoSave: true,
+    autoSaveInterval: 30000,
+    onExecutionComplete: () => {
+      toast.success(t('executionComplete') || 'Workflow execution completed');
+    },
+    onExecutionError: (error) => {
+      toast.error(error);
+    },
+  });
+
+  // Keyboard shortcuts for execution (Space=pause/resume, Esc=cancel)
+  useWorkflowExecutionWithKeyboard({
+    onSuccess: () => toast.success(t('executionComplete') || 'Done'),
+    onError: (error: string) => toast.error(error),
+  });
+
+  const hasErrors = useMemo(
+    () => validationErrors.some((e) => e.severity === 'error'),
+    [validationErrors]
   );
 
   // Load workflows from database
@@ -177,8 +206,22 @@ export default function WorkflowsPage() {
     }
   };
 
-  // Handle export workflow
+  // Handle export workflow (uses hook's exportCurrentWorkflow for current, or repo for any)
   const handleExport = async (workflowId: string) => {
+    // If exporting the currently loaded workflow, use the hook
+    if (currentWorkflow && currentWorkflow.id === workflowId) {
+      const json = exportCurrentWorkflow();
+      if (json) {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `workflow-${workflowId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+    }
     const json = await workflowRepository.export(workflowId);
     if (json) {
       const blob = new Blob([json], { type: 'application/json' });
@@ -191,7 +234,7 @@ export default function WorkflowsPage() {
     }
   };
 
-  // Handle import workflow
+  // Handle import workflow (uses hook's importWorkflow for loading into editor)
   const handleImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -200,6 +243,22 @@ export default function WorkflowsPage() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const text = await file.text();
+        // Try to load into editor first
+        if (importWorkflowFromJson(text)) {
+          setViewMode('editor');
+          return;
+        }
+        // Try converting from WorkflowDefinition format
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.steps && !parsed.nodes) {
+            const visual = definitionToVisual(parsed);
+            loadWorkflow(visual);
+            setViewMode('editor');
+            return;
+          }
+        } catch { /* not a definition format */ }
+        // Fallback to repository import
         await workflowRepository.import(text);
         loadWorkflows();
       }
@@ -217,8 +276,18 @@ export default function WorkflowsPage() {
   // Handle save workflow
   const handleSaveWorkflow = async () => {
     if (!currentWorkflow) return;
-    await saveWorkflowState();
+    await saveWorkflow();
     await loadWorkflows();
+  };
+
+  // Handle execute workflow
+  const handleExecuteWorkflow = async () => {
+    if (!currentWorkflow) return;
+    if (!validate()) {
+      toast.error(t('validationErrors') || 'Fix validation errors before running');
+      return;
+    }
+    await executeWorkflow();
   };
 
   if (viewMode === 'editor') {
@@ -229,8 +298,45 @@ export default function WorkflowsPage() {
             <ArrowLeft className="h-4 w-4 mr-1" />
             {tCommon('back')}
           </Button>
+
+          {/* Dirty / validation indicators */}
+          <div className="flex items-center gap-1.5">
+            {isDirty && (
+              <Badge variant="outline" className="text-xs text-yellow-600">
+                {t('unsaved') || 'Unsaved'}
+              </Badge>
+            )}
+            {hasErrors && (
+              <Badge variant="destructive" className="text-xs">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {validationErrors.filter((e) => e.severity === 'error').length}
+              </Badge>
+            )}
+          </div>
+
           <div className="flex-1" />
-          <Button size="sm" onClick={handleSaveWorkflow}>
+
+          {/* Execution controls */}
+          {isExecuting ? (
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={pauseExecution}>
+                <Pause className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={resumeExecution}>
+                <Play className="h-4 w-4" />
+              </Button>
+              <Button variant="destructive" size="sm" onClick={cancelExecution}>
+                <Square className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleExecuteWorkflow} disabled={hasErrors}>
+              <Play className="h-4 w-4 mr-1" />
+              {t('run') || 'Run'}
+            </Button>
+          )}
+
+          <Button size="sm" onClick={handleSaveWorkflow} disabled={!isDirty}>
             {tCommon('save')}
           </Button>
         </div>
@@ -281,16 +387,26 @@ export default function WorkflowsPage() {
                 {t('blankWorkflow')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">{t('templates')}</div>
-              {workflowEditorTemplates.slice(0, 5).map((template: WorkflowEditorTemplate) => (
-                <DropdownMenuItem
-                  key={template.id}
-                  onClick={() => handleCreateFromTemplate(template.id)}
-                >
-                  <LayoutTemplate className="h-4 w-4 mr-2" />
-                  {template.name}
-                </DropdownMenuItem>
-              ))}
+              {getTemplateCategories().map((category) => {
+                const categoryTemplates = workflowEditorTemplates.filter(
+                  (tmpl: WorkflowEditorTemplate) => tmpl.category === category
+                );
+                if (categoryTemplates.length === 0) return null;
+                return (
+                  <div key={category}>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground capitalize">{category}</div>
+                    {categoryTemplates.slice(0, 3).map((template: WorkflowEditorTemplate) => (
+                      <DropdownMenuItem
+                        key={template.id}
+                        onClick={() => handleCreateFromTemplate(template.id)}
+                      >
+                        <LayoutTemplate className="h-4 w-4 mr-2" />
+                        {template.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

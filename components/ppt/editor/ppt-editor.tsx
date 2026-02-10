@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DndContext,
@@ -42,7 +42,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
+import { usePPTEditorStore, selectCurrentSlide, selectSelectedElements, selectSlideCount, selectIsDirty } from '@/stores/tools/ppt-editor-store';
 import { useWindowControls } from '@/hooks';
 import type { PPTSlideLayout } from '@/types/workflow';
 import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
@@ -92,8 +92,8 @@ export function PPTEditor({
     mode,
     zoom,
     showNotes,
-    isDirty,
     isGenerating,
+    panelWidth,
     loadPresentation,
     savePresentation,
     addSlide,
@@ -112,7 +112,14 @@ export function PPTEditor({
     reorderSlides,
     setThemeById,
     regenerateSlide,
+    setPanelWidth,
   } = usePPTEditorStore();
+
+  // Use optimized store selectors for derived state
+  const currentSlide = usePPTEditorStore(selectCurrentSlide);
+  const selectedElements = usePPTEditorStore(selectSelectedElements);
+  const slideCount = usePPTEditorStore(selectSlideCount);
+  const isDirty = usePPTEditorStore(selectIsDirty);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSlidePanel, setShowSlidePanel] = useState(true);
@@ -145,16 +152,6 @@ export function PPTEditor({
     setTheme,
   } = usePPTEditorStore();
 
-  // Current slide (declared early so handlers can use it)
-  const currentSlide = useMemo(() => {
-    return presentation?.slides[currentSlideIndex] || null;
-  }, [presentation, currentSlideIndex]);
-
-  // Selected elements for alignment operations
-  const selectedElements = useMemo(() => {
-    if (!currentSlide || selection.elementIds.length === 0) return [];
-    return currentSlide.elements.filter(el => selection.elementIds.includes(el.id));
-  }, [currentSlide, selection.elementIds]);
 
   // Alignment handlers
   const handleAlign = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
@@ -215,6 +212,15 @@ export function PPTEditor({
       loadPresentation(initialPresentation);
     }
   }, [initialPresentation, loadPresentation]);
+
+  // Auto-save when dirty (5-second debounce)
+  useEffect(() => {
+    if (!isDirty || !presentation) return;
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isDirty, presentation, handleSave]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -690,12 +696,30 @@ export function PPTEditor({
       <div className="flex-1 flex overflow-hidden">
         {/* Slide panel (left) */}
         {showSlidePanel && (
-          <div className="w-64 border-r bg-muted/30 flex flex-col">
+          <div className="border-r bg-muted/30 flex flex-col relative" style={{ width: panelWidth }}>
             <div className="p-2 border-b flex items-center justify-between">
               <span className="text-sm font-medium">
-                {t('slides')} ({presentation.slides.length})
+                {t('slides')} ({slideCount})
               </span>
             </div>
+            {/* Resize handle */}
+            <div
+              className="absolute top-0 right-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 z-10"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startWidth = panelWidth;
+                const onMove = (ev: MouseEvent) => {
+                  setPanelWidth(startWidth + (ev.clientX - startX));
+                };
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove);
+                  window.removeEventListener('mouseup', onUp);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+            />
             <ScrollArea className="flex-1">
               <DndContext
                 sensors={sensors}
@@ -793,7 +817,7 @@ export function PPTEditor({
           <span>
             {t('slideOf', {
               current: currentSlideIndex + 1,
-              total: presentation.slides.length,
+              total: slideCount,
             })}
           </span>
           <span>{SLIDE_LAYOUT_INFO[currentSlide?.layout || 'title-content'].name}</span>

@@ -12,3 +12,4 @@ export { SystemTaskForm } from './system-task-form';
 export { WorkflowScheduleDialog } from './workflow-schedule-dialog';
 export { BackupScheduleDialog } from './backup-schedule-dialog';
 export { SchedulerInitializer } from './scheduler-initializer';
+export { StatsOverview } from './stats-overview';

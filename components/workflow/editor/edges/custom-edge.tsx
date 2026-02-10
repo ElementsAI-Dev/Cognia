@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { X, Edit2, Check, Zap, AlertTriangle } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 
 export interface CustomEdgeData {
@@ -87,10 +88,28 @@ function CustomEdgeComponent({
 }: EdgeProps) {
   const t = useTranslations('workflowEditor');
   const edgeData = (data || {}) as CustomEdgeData;
-  const { deleteEdge, updateEdge } = useWorkflowEditorStore();
+  const { deleteEdge, updateEdge } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      deleteEdge: state.deleteEdge,
+      updateEdge: state.updateEdge,
+    }))
+  );
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [labelText, setLabelText] = useState(edgeData.label || '');
   const [showPopover, setShowPopover] = useState(false);
+
+  // Auto-derive display label for conditional edges (True/False branches)
+  const displayLabel = edgeData.label
+    || (edgeData.conditionValue === true ? t('true') : undefined)
+    || (edgeData.conditionValue === false ? t('false') : undefined)
+    || (edgeData.edgeType === 'success' ? '✓' : undefined)
+    || (edgeData.edgeType === 'failure' ? '✗' : undefined);
+
+  // Double-click to enter inline label editing
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingLabel(true);
+  }, []);
 
   // Use smooth step path for better visualization
   const [edgePath, labelX, labelY] = getBezierPath({
@@ -215,8 +234,9 @@ function CustomEdgeComponent({
                     'cursor-pointer transition-all duration-200',
                     selected || showPopover ? 'opacity-100' : 'opacity-70 hover:opacity-100'
                   )}
+                  onDoubleClick={handleDoubleClick}
                 >
-                  {edgeData.label ? (
+                  {displayLabel ? (
                     <Badge
                       variant="secondary"
                       className={cn(
@@ -224,12 +244,14 @@ function CustomEdgeComponent({
                         edgeData.edgeType === 'success' && 'border-green-500 bg-green-500/10 text-green-600',
                         edgeData.edgeType === 'failure' && 'border-red-500 bg-red-500/10 text-red-600',
                         edgeData.edgeType === 'conditional' && 'border-yellow-500 bg-yellow-500/10 text-yellow-600',
+                        edgeData.conditionValue === true && 'border-green-500 bg-green-500/10 text-green-600',
+                        edgeData.conditionValue === false && 'border-red-500 bg-red-500/10 text-red-600',
                         edgeData.isValid === false && 'border-red-500 bg-red-500/10'
                       )}
                     >
                       {edgeData.animated && <Zap className="h-3 w-3 mr-1" />}
                       {edgeData.isValid === false && <AlertTriangle className="h-3 w-3 mr-1" />}
-                      {edgeData.label}
+                      {displayLabel}
                     </Badge>
                   ) : selected ? (
                     <div className="h-6 w-6 rounded-full bg-background border-2 border-primary flex items-center justify-center cursor-pointer hover:bg-accent">

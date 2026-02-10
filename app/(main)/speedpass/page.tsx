@@ -307,7 +307,7 @@ interface OverviewTabProps {
 }
 
 function OverviewTab({ store, router, onModeSelect, onAddTextbook }: OverviewTabProps) {
-  const t = useTranslations('speedpass');
+  const t = useTranslations('learningMode.speedpass.page');
   const globalStats = store.globalStats;
   const textbookCount = Object.keys(store.textbooks).length;
   const tutorialCount = Object.keys(store.tutorials).length;

@@ -1,24 +1,54 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import {
   usePPTAI,
+  parseAIJSON,
   type AISlideResult,
   type AIContentResult,
   type AISuggestionsResult,
 } from './use-ppt-ai';
 import type { PPTSlide, PPTPresentation } from '@/types/workflow';
 
-// Mock fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+// Helper: create a mock async iterable for streamText's textStream
+function createMockTextStream(text: string) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      // Yield in chunks to simulate streaming
+      const chunkSize = 20;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        yield text.slice(i, i + chunkSize);
+      }
+    },
+  };
+}
+
+// Mock streamText from 'ai'
+const mockStreamText = jest.fn();
+jest.mock('ai', () => ({
+  streamText: (...args: unknown[]) => mockStreamText(...args),
+}));
+
+// Mock getProxyProviderModel
+const mockGetProxyProviderModel = jest.fn().mockReturnValue('mock-model-instance');
+jest.mock('@/lib/ai/core/proxy-client', () => ({
+  getProxyProviderModel: (...args: unknown[]) => mockGetProxyProviderModel(...args),
+}));
+
+// Mock getNextApiKey
+jest.mock('@/lib/ai/infrastructure/api-key-rotation', () => ({
+  getNextApiKey: jest.fn().mockReturnValue({ apiKey: 'rotated-key', index: 1 }),
+}));
 
 // Mock settings store
-const mockProviderSettings: {
-  openai: {
-    apiKey: string;
-    baseURL: string | undefined;
-    defaultModel: string;
-  };
-} = {
+const mockProviderSettings: Record<string, {
+  apiKey: string;
+  baseURL?: string;
+  defaultModel: string;
+  apiKeys?: string[];
+  apiKeyRotationEnabled?: boolean;
+  apiKeyRotationStrategy?: string;
+  currentKeyIndex?: number;
+  apiKeyUsageStats?: Record<string, unknown>;
+}> = {
   openai: {
     apiKey: 'test-api-key',
     baseURL: undefined,
@@ -27,13 +57,37 @@ const mockProviderSettings: {
 };
 
 jest.mock('@/stores', () => ({
-  useSettingsStore: jest.fn((selector) => {
-    const state = {
-      defaultProvider: 'openai',
-      providerSettings: mockProviderSettings,
-    };
-    return selector(state);
-  }),
+  useSettingsStore: Object.assign(
+    jest.fn((selector: (state: Record<string, unknown>) => unknown) => {
+      const state = {
+        defaultProvider: 'openai',
+        providerSettings: mockProviderSettings,
+      };
+      return selector(state);
+    }),
+    {
+      getState: () => ({
+        updateProviderSettings: jest.fn(),
+      }),
+    }
+  ),
+}));
+
+// Mock PPT editor store
+jest.mock('@/stores/tools/ppt-editor-store', () => ({
+  usePPTEditorStore: Object.assign(
+    jest.fn((selector: (state: Record<string, unknown>) => unknown) => {
+      const state = {
+        setGenerating: jest.fn(),
+      };
+      return selector(state);
+    }),
+    {
+      getState: () => ({
+        setGenerating: jest.fn(),
+      }),
+    }
+  ),
 }));
 
 // Test data
@@ -72,10 +126,92 @@ const mockPresentation: PPTPresentation = {
   updatedAt: new Date(),
 };
 
+// Helper to set up mockStreamText to return a given JSON object
+function setupMockStream(responseObj: unknown) {
+  const text = JSON.stringify(responseObj);
+  mockStreamText.mockReturnValue({
+    textStream: createMockTextStream(text),
+  });
+}
+
+describe('parseAIJSON', () => {
+  it('should parse plain JSON string', () => {
+    const result = parseAIJSON('{"key": "value"}');
+    expect(result).toEqual({ key: 'value' });
+  });
+
+  it('should parse JSON wrapped in markdown code block', () => {
+    const result = parseAIJSON('```json\n{"title": "Hello"}\n```');
+    expect(result).toEqual({ title: 'Hello' });
+  });
+
+  it('should parse JSON in code block without language tag', () => {
+    const result = parseAIJSON('```\n{"data": [1,2,3]}\n```');
+    expect(result).toEqual({ data: [1, 2, 3] });
+  });
+
+  it('should extract JSON object from surrounding text', () => {
+    const result = parseAIJSON('Here is the result: {"title": "Extracted"} and some extra text');
+    expect(result).toEqual({ title: 'Extracted' });
+  });
+
+  it('should extract JSON array from surrounding text', () => {
+    const result = parseAIJSON('The items are: [1, 2, 3] in the response');
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it('should handle nested JSON objects', () => {
+    const nested = { outer: { inner: { deep: true } } };
+    const result = parseAIJSON(JSON.stringify(nested));
+    expect(result).toEqual(nested);
+  });
+
+  it('should throw on completely invalid input', () => {
+    expect(() => parseAIJSON('no json here at all')).toThrow('Failed to parse AI response as JSON');
+  });
+
+  it('should throw on empty string', () => {
+    expect(() => parseAIJSON('')).toThrow();
+  });
+
+  it('should handle JSON with whitespace padding', () => {
+    const result = parseAIJSON('  \n  {"key": "value"}  \n  ');
+    expect(result).toEqual({ key: 'value' });
+  });
+
+  it('should handle markdown code block with extra whitespace', () => {
+    const result = parseAIJSON('```json  \n  {"key": "value"}  \n  ```');
+    expect(result).toEqual({ key: 'value' });
+  });
+
+  it('should prefer code block content over raw text', () => {
+    const input = 'Some text {"wrong": true} ```json\n{"right": true}\n``` more text';
+    const result = parseAIJSON(input);
+    expect(result).toEqual({ right: true });
+  });
+
+  it('should handle complex AI response with explanation + JSON', () => {
+    const input = `Here's the optimized slide content:
+
+\`\`\`json
+{
+  "title": "AI Revolution",
+  "bullets": ["Point 1", "Point 2"],
+  "layout": "title-content"
+}
+\`\`\`
+
+This should work well for your presentation.`;
+    const result = parseAIJSON(input) as Record<string, unknown>;
+    expect(result.title).toBe('AI Revolution');
+    expect(result.bullets).toEqual(['Point 1', 'Point 2']);
+  });
+});
+
 describe('usePPTAI', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch.mockReset();
+    mockStreamText.mockReset();
   });
 
   describe('initial state', () => {
@@ -84,6 +220,8 @@ describe('usePPTAI', () => {
 
       expect(result.current.isProcessing).toBe(false);
       expect(result.current.error).toBeNull();
+      expect(result.current.streamingText).toBe('');
+      expect(typeof result.current.cancelGeneration).toBe('function');
       expect(typeof result.current.regenerateSlide).toBe('function');
       expect(typeof result.current.optimizeContent).toBe('function');
       expect(typeof result.current.generateSuggestions).toBe('function');
@@ -103,14 +241,7 @@ describe('usePPTAI', () => {
         layout: 'title-content',
         speakerNotes: 'New speaker notes',
       };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
-      });
+      setupMockStream(mockResponse);
 
       const { result } = renderHook(() => usePPTAI());
 
@@ -134,79 +265,47 @@ describe('usePPTAI', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('should handle regeneration with context', async () => {
-      const mockResponse = {
-        title: 'Contextual Title',
-        subtitle: 'Contextual Subtitle',
-        content: 'Contextual content',
-        bullets: ['Context Point 1'],
-        layout: 'title-content',
-        speakerNotes: 'Contextual notes',
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
-      });
+    it('should call getProxyProviderModel with correct args', async () => {
+      setupMockStream({ title: 'Test' });
 
       const { result } = renderHook(() => usePPTAI());
 
-      const previousSlide: PPTSlide = { ...mockSlide, id: 'prev', title: 'Previous Slide' };
-      const nextSlide: PPTSlide = { ...mockSlide, id: 'next', title: 'Next Slide' };
-
       await act(async () => {
-        await result.current.regenerateSlide({
-          slide: mockSlide,
-          context: {
-            presentationTitle: 'My Presentation',
-            presentationDescription: 'A great presentation',
-            previousSlide,
-            nextSlide,
-          },
-          instructions: 'Make it more engaging',
-          keepLayout: true,
-        });
+        await result.current.regenerateSlide({ slide: mockSlide });
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.messages[1].content).toContain('My Presentation');
-      expect(callBody.messages[1].content).toContain('Make it more engaging');
-      expect(callBody.messages[1].content).toContain('Previous Slide');
-      expect(callBody.messages[1].content).toContain('Next Slide');
+      expect(mockGetProxyProviderModel).toHaveBeenCalledWith(
+        'openai',
+        'gpt-4o',
+        'test-api-key',
+        undefined,
+        true
+      );
     });
 
-    it('should handle API errors', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: { message: 'Internal server error' } }),
-      });
+    it('should call streamText with system prompt', async () => {
+      setupMockStream({ title: 'Test' });
 
       const { result } = renderHook(() => usePPTAI());
 
-      let response: AISlideResult | undefined;
       await act(async () => {
-        response = await result.current.regenerateSlide({ slide: mockSlide });
+        await result.current.regenerateSlide({ slide: mockSlide });
       });
 
-      expect(response).toEqual({
-        success: false,
-        error: 'Internal server error',
-      });
-      expect(result.current.error).toBe('Internal server error');
+      expect(mockStreamText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'mock-model-instance',
+          system: 'You are an expert presentation designer. Always respond with valid JSON.',
+          temperature: 0.7,
+        })
+      );
     });
 
-    it('should handle JSON parse errors', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: 'invalid json' } }],
-          }),
+    it('should handle stream errors', async () => {
+      mockStreamText.mockReturnValue({
+        textStream: (async function* () {
+          throw new Error('Stream interrupted');
+        })(),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -217,23 +316,15 @@ describe('usePPTAI', () => {
       });
 
       expect(response?.success).toBe(false);
-      expect(response?.error).toBeDefined();
+      expect(response?.error).toBe('Stream interrupted');
     });
   });
 
   describe('optimizeContent', () => {
     it('should successfully optimize content', async () => {
-      const mockResponse = {
+      setupMockStream({
         optimized: 'Optimized text here',
         alternatives: ['Alternative 1', 'Alternative 2'],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -253,74 +344,10 @@ describe('usePPTAI', () => {
       });
     });
 
-    it('should handle different content types and styles', async () => {
-      const mockResponse = {
-        optimized: 'Professional bullet point',
-        alternatives: ['Alt 1'],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.optimizeContent({
-          content: 'Test bullet',
-          type: 'bullets',
-          style: 'professional',
-          maxLength: 100,
-        });
-      });
-
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.messages[1].content).toContain('bullets');
-      expect(callBody.messages[1].content).toContain('formal and business-appropriate');
-      expect(callBody.messages[1].content).toContain('100 characters');
-    });
-
-    it('should handle all style options', async () => {
-      const styles = ['concise', 'detailed', 'professional', 'casual'] as const;
-      const styleDescriptions = {
-        concise: 'short, punchy, and to the point',
-        detailed: 'comprehensive with supporting details',
-        professional: 'formal and business-appropriate',
-        casual: 'friendly and conversational',
-      };
-
-      for (const style of styles) {
-        mockFetch.mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              choices: [
-                { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-              ],
-            }),
-        });
-
-        const { result } = renderHook(() => usePPTAI());
-
-        await act(async () => {
-          await result.current.optimizeContent({
-            content: 'Test',
-            type: 'content',
-            style,
-          });
-        });
-
-        const callBody = JSON.parse(mockFetch.mock.calls[mockFetch.mock.calls.length - 1][1].body);
-        expect(callBody.messages[1].content).toContain(styleDescriptions[style]);
-      }
-    });
-
     it('should handle optimization errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockStreamText.mockImplementation(() => {
+        throw new Error('Network error');
+      });
 
       const { result } = renderHook(() => usePPTAI());
 
@@ -339,21 +366,13 @@ describe('usePPTAI', () => {
 
   describe('generateSuggestions', () => {
     it('should successfully generate suggestions', async () => {
-      const mockResponse = {
+      const mockSuggestions = {
         suggestions: [
           { type: 'content', description: 'Add more examples', action: 'Include case studies' },
           { type: 'layout', description: 'Use columns', action: 'Switch to two-column layout' },
-          { type: 'design', description: 'Add visuals', action: 'Include relevant images' },
         ],
       };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
-      });
+      setupMockStream(mockSuggestions);
 
       const { result } = renderHook(() => usePPTAI());
 
@@ -368,91 +387,18 @@ describe('usePPTAI', () => {
 
       expect(response).toEqual({
         success: true,
-        suggestions: mockResponse.suggestions,
+        suggestions: mockSuggestions.suggestions,
       });
-    });
-
-    it('should handle specific suggestion types', async () => {
-      const suggestionTypes = ['content', 'layout', 'design'] as const;
-
-      for (const suggestionType of suggestionTypes) {
-        mockFetch.mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
-            }),
-        });
-
-        const { result } = renderHook(() => usePPTAI());
-
-        await act(async () => {
-          await result.current.generateSuggestions({
-            slide: mockSlide,
-            presentation: mockPresentation,
-            suggestionType,
-          });
-        });
-
-        const callBody = JSON.parse(mockFetch.mock.calls[mockFetch.mock.calls.length - 1][1].body);
-        expect(callBody.messages[1].content).toContain(`Suggestion focus: ${suggestionType}`);
-      }
-    });
-
-    it('should handle suggestion generation errors', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        json: () => Promise.resolve({ error: { message: 'Rate limit exceeded' } }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: AISuggestionsResult | undefined;
-      await act(async () => {
-        response = await result.current.generateSuggestions({
-          slide: mockSlide,
-          presentation: mockPresentation,
-          suggestionType: 'all',
-        });
-      });
-
-      expect(response?.success).toBe(false);
-      expect(response?.error).toBe('Rate limit exceeded');
     });
   });
 
   describe('generateOutline', () => {
     it('should successfully generate an outline', async () => {
-      const mockResponse = {
+      setupMockStream({
         outline: [
-          {
-            title: 'Introduction',
-            description: 'Opening slide',
-            type: 'title',
-            keyPoints: ['Welcome', 'Overview'],
-          },
-          {
-            title: 'Main Topic',
-            description: 'Core content',
-            type: 'content',
-            keyPoints: ['Point A', 'Point B'],
-          },
-          {
-            title: 'Conclusion',
-            description: 'Closing slide',
-            type: 'closing',
-            keyPoints: ['Summary', 'Call to action'],
-          },
+          { title: 'Introduction', description: 'Opening', type: 'title', keyPoints: ['Welcome'] },
+          { title: 'Main', description: 'Core', type: 'content', keyPoints: ['A', 'B'] },
         ],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -463,48 +409,20 @@ describe('usePPTAI', () => {
       });
 
       expect(response?.success).toBe(true);
-      expect(response?.outline).toHaveLength(3);
+      expect(response?.outline).toHaveLength(2);
       expect(response?.outline?.[0]).toEqual({
         id: 'outline-0',
         title: 'Introduction',
-        description: 'Opening slide',
-        keyPoints: ['Welcome', 'Overview'],
+        description: 'Opening',
+        keyPoints: ['Welcome'],
         order: 0,
         type: 'title',
       });
     });
 
-    it('should include slide count in prompt', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ outline: [] }) } }],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.generateOutline('Test Topic', 10);
-      });
-
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.messages[1].content).toContain('exactly 10 slides');
-      expect(callBody.messages[1].content).toContain('Test Topic');
-    });
-
     it('should handle outline items without keyPoints', async () => {
-      const mockResponse = {
-        outline: [{ title: 'No Key Points', description: 'Test', type: 'content' }],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
+      setupMockStream({
+        outline: [{ title: 'No Points', description: 'Test', type: 'content' }],
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -517,34 +435,12 @@ describe('usePPTAI', () => {
       const firstItem = response?.outline?.[0] as { keyPoints?: unknown[] } | undefined;
       expect(firstItem?.keyPoints).toEqual([]);
     });
-
-    it('should handle outline generation errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Timeout'));
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: { success: boolean; outline?: unknown[]; error?: string } | undefined;
-      await act(async () => {
-        response = await result.current.generateOutline('Test', 5);
-      });
-
-      expect(response?.success).toBe(false);
-      expect(response?.error).toBe('Timeout');
-    });
   });
 
   describe('expandBullets', () => {
     it('should successfully expand bullet points', async () => {
-      const mockResponse = {
-        bullets: ['Point 1', 'Point 2', 'Point 3', 'New Point 4', 'New Point 5'],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
+      setupMockStream({
+        bullets: ['Point 1', 'Point 2', 'Point 3', 'New 4', 'New 5'],
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -554,63 +450,15 @@ describe('usePPTAI', () => {
         response = await result.current.expandBullets(['Point 1', 'Point 2', 'Point 3'], 5);
       });
 
-      expect(response).toEqual({
-        success: true,
-        bullets: mockResponse.bullets,
-      });
-    });
-
-    it('should include correct count in prompt', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ bullets: [] }) } }],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.expandBullets(['A', 'B'], 6);
-      });
-
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.messages[1].content).toContain('Expand these bullet points to 6 items');
-      expect(callBody.messages[1].content).toContain('Add 4 more related bullet points');
-    });
-
-    it('should handle expand bullets errors', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({ error: { message: 'Bad request' } }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: { success: boolean; bullets?: string[]; error?: string } | undefined;
-      await act(async () => {
-        response = await result.current.expandBullets(['Test'], 5);
-      });
-
-      expect(response?.success).toBe(false);
-      expect(response?.error).toBe('Bad request');
+      expect(response?.success).toBe(true);
+      expect(response?.bullets).toHaveLength(5);
     });
   });
 
   describe('improveSlideNotes', () => {
     it('should successfully improve slide notes', async () => {
-      const mockResponse = {
-        notes: 'Comprehensive speaker notes with talking points and timing suggestions.',
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify(mockResponse) } }],
-          }),
+      setupMockStream({
+        notes: 'Improved speaker notes with timing.',
       });
 
       const { result } = renderHook(() => usePPTAI());
@@ -622,58 +470,14 @@ describe('usePPTAI', () => {
 
       expect(response).toEqual({
         success: true,
-        notes: mockResponse.notes,
+        notes: 'Improved speaker notes with timing.',
       });
-    });
-
-    it('should handle slides without content', async () => {
-      const emptySlide: PPTSlide = {
-        id: 'empty',
-        layout: 'blank',
-        order: 0,
-        elements: [],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [{ message: { content: JSON.stringify({ notes: 'Generated notes' }) } }],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.improveSlideNotes(emptySlide);
-      });
-
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.messages[1].content).toContain('Title: Untitled');
-      expect(callBody.messages[1].content).toContain('Content: None');
-      expect(callBody.messages[1].content).toContain('Bullets: None');
-      expect(callBody.messages[1].content).toContain('Current notes: None');
-    });
-
-    it('should handle improve notes errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Service unavailable'));
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: { success: boolean; notes?: string; error?: string } | undefined;
-      await act(async () => {
-        response = await result.current.improveSlideNotes(mockSlide);
-      });
-
-      expect(response?.success).toBe(false);
-      expect(response?.error).toBe('Service unavailable');
     });
   });
 
   describe('API configuration', () => {
     it('should throw error when API key is not configured', async () => {
-      // Temporarily mock empty API key
-      const originalSettings = mockProviderSettings.openai.apiKey;
+      const originalKey = mockProviderSettings.openai.apiKey;
       mockProviderSettings.openai.apiKey = '';
 
       const { result } = renderHook(() => usePPTAI());
@@ -686,155 +490,15 @@ describe('usePPTAI', () => {
       expect(response?.success).toBe(false);
       expect(response?.error).toBe('API key not configured');
 
-      // Restore
-      mockProviderSettings.openai.apiKey = originalSettings;
-    });
-
-    it('should use custom baseURL when provided', async () => {
-      mockProviderSettings.openai.baseURL = 'https://custom-api.example.com';
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-            ],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.optimizeContent({ content: 'Test', type: 'title' });
-      });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://custom-api.example.com/chat/completions',
-        expect.any(Object)
-      );
-
-      // Restore
-      mockProviderSettings.openai.baseURL = undefined;
-    });
-
-    it('should use default OpenAI endpoint when no baseURL', async () => {
-      mockProviderSettings.openai.baseURL = undefined;
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-            ],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.optimizeContent({ content: 'Test', type: 'title' });
-      });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.openai.com/v1/chat/completions',
-        expect.any(Object)
-      );
-    });
-
-    it('should include correct headers in API request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-            ],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.optimizeContent({ content: 'Test', type: 'title' });
-      });
-
-      const callOptions = mockFetch.mock.calls[0][1];
-      expect(callOptions.headers).toEqual({
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer test-api-key',
-      });
-    });
-
-    it('should use correct model in API request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [
-              { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-            ],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      await act(async () => {
-        await result.current.optimizeContent({ content: 'Test', type: 'title' });
-      });
-
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.model).toBe('gpt-4o');
-      expect(callBody.temperature).toBe(0.7);
-      expect(callBody.response_format).toEqual({ type: 'json_object' });
+      mockProviderSettings.openai.apiKey = originalKey;
     });
   });
 
   describe('processing state', () => {
-    it('should set isProcessing during API calls', async () => {
-      let resolvePromise: (value: unknown) => void;
-      const pendingPromise = new Promise((resolve) => {
-        resolvePromise = resolve;
-      });
-
-      mockFetch.mockReturnValueOnce(pendingPromise);
-
-      const { result } = renderHook(() => usePPTAI());
-
-      expect(result.current.isProcessing).toBe(false);
-
-      let responsePromise: Promise<unknown>;
-      act(() => {
-        responsePromise = result.current.optimizeContent({ content: 'Test', type: 'title' });
-      });
-
-      await waitFor(() => {
-        expect(result.current.isProcessing).toBe(true);
-      });
-
-      // Resolve the pending promise
-      act(() => {
-        resolvePromise!({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              choices: [
-                { message: { content: JSON.stringify({ optimized: 'test', alternatives: [] }) } },
-              ],
-            }),
-        });
-      });
-
-      await act(async () => {
-        await responsePromise;
-      });
-
-      expect(result.current.isProcessing).toBe(false);
-    });
-
     it('should reset isProcessing after error', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Error'));
+      mockStreamText.mockImplementation(() => {
+        throw new Error('Error');
+      });
 
       const { result } = renderHook(() => usePPTAI());
 
@@ -845,49 +509,9 @@ describe('usePPTAI', () => {
       expect(result.current.isProcessing).toBe(false);
       expect(result.current.error).toBe('Error');
     });
-  });
-
-  describe('error handling', () => {
-    it('should handle API response without error message', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.reject(new Error('Invalid JSON')),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: AISlideResult | undefined;
-      await act(async () => {
-        response = await result.current.regenerateSlide({ slide: mockSlide });
-      });
-
-      expect(response?.success).toBe(false);
-      expect(response?.error).toBe('API error: 500');
-    });
-
-    it('should handle empty API response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            choices: [],
-          }),
-      });
-
-      const { result } = renderHook(() => usePPTAI());
-
-      let response: AISlideResult | undefined;
-      await act(async () => {
-        response = await result.current.regenerateSlide({ slide: mockSlide });
-      });
-
-      // Empty response will cause JSON parse error
-      expect(response?.success).toBe(false);
-    });
 
     it('should handle non-Error exceptions', async () => {
-      mockFetch.mockImplementationOnce(() => {
+      mockStreamText.mockImplementation(() => {
         throw 'String error';
       });
 

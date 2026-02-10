@@ -288,9 +288,14 @@ describe('usePPTEditorStore', () => {
 
   describe('history (undo/redo)', () => {
     beforeEach(() => {
+      jest.useFakeTimers();
       act(() => {
         usePPTEditorStore.getState().loadPresentation(createMockPresentation());
       });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
     it('should track canUndo', () => {
@@ -298,12 +303,19 @@ describe('usePPTEditorStore', () => {
       act(() => {
         usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Changed' });
       });
+      // Flush debounced pushHistory
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
       expect(usePPTEditorStore.getState().canUndo()).toBe(true);
     });
 
     it('should undo changes', () => {
       act(() => {
         usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Changed' });
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
       });
       act(() => {
         usePPTEditorStore.getState().undo();
@@ -316,12 +328,142 @@ describe('usePPTEditorStore', () => {
         usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Changed' });
       });
       act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      act(() => {
         usePPTEditorStore.getState().undo();
       });
       act(() => {
         usePPTEditorStore.getState().redo();
       });
       expect(usePPTEditorStore.getState().presentation?.slides[0].title).toBe('Changed');
+    });
+  });
+
+  describe('pushHistory debounce and structuredClone (#2)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      act(() => {
+        usePPTEditorStore.getState().loadPresentation(createMockPresentation());
+      });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should debounce rapid pushHistory calls', () => {
+      const store = usePPTEditorStore.getState();
+      const initialHistoryLen = store.history.length;
+
+      // Rapid pushHistory calls
+      act(() => {
+        store.pushHistory('drag');
+        store.pushHistory('drag');
+        store.pushHistory('drag');
+      });
+
+      // Before debounce timer fires, history should not have changed
+      expect(usePPTEditorStore.getState().history.length).toBe(initialHistoryLen);
+
+      // After timer fires
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      // Only one entry should be added (debounced)
+      expect(usePPTEditorStore.getState().history.length).toBe(initialHistoryLen + 1);
+    });
+
+    it('should merge entries with same description within 1 second', () => {
+      const store = usePPTEditorStore.getState();
+      const initialHistoryLen = store.history.length;
+
+      // First push
+      act(() => {
+        store.pushHistory('resize element');
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      const afterFirst = usePPTEditorStore.getState().history.length;
+      expect(afterFirst).toBe(initialHistoryLen + 1);
+
+      // Second push with same description within 1 second
+      act(() => {
+        usePPTEditorStore.getState().pushHistory('resize element');
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      // Should merge (replace) the previous entry, not add new one
+      expect(usePPTEditorStore.getState().history.length).toBe(afterFirst);
+    });
+
+    it('should create separate entries for different descriptions', () => {
+      const store = usePPTEditorStore.getState();
+      const initialHistoryLen = store.history.length;
+
+      act(() => {
+        store.pushHistory('move element');
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      // Wait more than 1 second to avoid merge
+      act(() => {
+        jest.advanceTimersByTime(1100);
+      });
+
+      act(() => {
+        usePPTEditorStore.getState().pushHistory('resize element');
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      expect(usePPTEditorStore.getState().history.length).toBe(initialHistoryLen + 2);
+    });
+
+    it('should use deep clone (structuredClone) for history entries', () => {
+      const store = usePPTEditorStore.getState();
+
+      // Make a change
+      act(() => {
+        store.updateSlide('slide-1', { title: 'Modified' });
+      });
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+
+      // Modify the current presentation further
+      act(() => {
+        usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Further Modified' });
+      });
+
+      // The history entry should still have the old value (deep clone)
+      const history = usePPTEditorStore.getState().history;
+      const lastEntry = history[history.length - 1];
+      expect(lastEntry.presentation.slides[0].title).toBe('Modified');
+    });
+
+    it('should flush pending debounce on undo', () => {
+      act(() => {
+        usePPTEditorStore.getState().updateSlide('slide-1', { title: 'Changed' });
+      });
+
+      // Undo should still work even with pending debounce
+      act(() => {
+        jest.advanceTimersByTime(400);
+      });
+      act(() => {
+        usePPTEditorStore.getState().undo();
+      });
+
+      expect(usePPTEditorStore.getState().presentation?.slides[0].title).toBe('Slide 1');
     });
   });
 

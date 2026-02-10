@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
     'playwright',
     'playwright-core',
     '@tavily/core',
+    'onnxruntime-node',
   ],
   // Turbopack config - alias Tauri plugins and Node.js-only packages to stubs for browser/SSR builds
   turbopack: {
@@ -52,6 +53,8 @@ const nextConfig: NextConfig = {
         'playwright': require.resolve('./lib/stubs/playwright-stub.ts'),
         'playwright-core': require.resolve('./lib/stubs/playwright-stub.ts'),
         '@tavily/core': require.resolve('./lib/stubs/tavily-stub.ts'),
+        'onnxruntime-node': false,
+        'sharp': false,
       };
       config.resolve.fallback = {
         ...config.resolve.fallback,

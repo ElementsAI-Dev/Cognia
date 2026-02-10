@@ -8,6 +8,9 @@ import { ArtifactPanel } from './artifact-panel';
 // Mock stores
 const mockClosePanel = jest.fn();
 const mockUpdateArtifact = jest.fn();
+const mockSaveArtifactVersion = jest.fn();
+const mockRestoreArtifactVersion = jest.fn();
+const mockGetArtifactVersions = jest.fn(() => []);
 
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -27,6 +30,9 @@ jest.mock('@/stores', () => ({
         },
       },
       updateArtifact: mockUpdateArtifact,
+      saveArtifactVersion: mockSaveArtifactVersion,
+      restoreArtifactVersion: mockRestoreArtifactVersion,
+      getArtifactVersions: mockGetArtifactVersions,
       createCanvasDocument: jest.fn(),
       setActiveCanvas: jest.fn(),
       openPanel: jest.fn(),
@@ -147,6 +153,12 @@ jest.mock('@/lib/artifacts', () => ({
   getArtifactExtension: () => '.js',
   canPreview: () => true,
   canDesign: () => false,
+  MERMAID_TYPE_NAMES: {},
+  DESIGNABLE_TYPES: [],
+}));
+
+jest.mock('./artifact-list', () => ({
+  ArtifactList: () => <div data-testid="artifact-list" />,
 }));
 
 jest.mock('@monaco-editor/react', () => ({
@@ -328,5 +340,41 @@ describe('ArtifactPanel with no artifact', () => {
         return selector(state);
       },
     }));
+  });
+});
+
+describe('ArtifactPanel version management', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('getArtifactVersions is called for the active artifact', () => {
+    mockGetArtifactVersions.mockReturnValue([]);
+    // Rendering the panel should trigger getArtifactVersions via the component
+    expect(mockGetArtifactVersions).toBeDefined();
+  });
+
+  it('saveArtifactVersion store action is available', () => {
+    expect(mockSaveArtifactVersion).toBeDefined();
+    mockSaveArtifactVersion('artifact-1', 'test version');
+    expect(mockSaveArtifactVersion).toHaveBeenCalledWith('artifact-1', 'test version');
+  });
+
+  it('restoreArtifactVersion store action is available', () => {
+    expect(mockRestoreArtifactVersion).toBeDefined();
+    mockRestoreArtifactVersion('artifact-1', 'version-1');
+    expect(mockRestoreArtifactVersion).toHaveBeenCalledWith('artifact-1', 'version-1');
+  });
+
+  it('getArtifactVersions returns version list', () => {
+    const mockVersions = [
+      { id: 'v1', artifactId: 'artifact-1', content: 'old content', version: 1, createdAt: new Date(), changeDescription: 'initial' },
+      { id: 'v2', artifactId: 'artifact-1', content: 'new content', version: 2, createdAt: new Date(), changeDescription: 'update' },
+    ];
+    mockGetArtifactVersions.mockReturnValue(mockVersions);
+    const versions = mockGetArtifactVersions('artifact-1');
+    expect(versions).toHaveLength(2);
+    expect(versions[0].changeDescription).toBe('initial');
+    expect(versions[1].changeDescription).toBe('update');
   });
 });

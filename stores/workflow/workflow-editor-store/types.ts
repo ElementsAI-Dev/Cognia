@@ -186,7 +186,7 @@ export interface HistorySliceActions {
 export interface ViewportSliceActions {
   setViewport: (viewport: Viewport) => void;
   fitView: () => void;
-  autoLayout: () => void;
+  autoLayout: (direction?: 'TB' | 'LR' | 'RL' | 'BT') => void;
   alignNodes: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
   distributeNodes: (direction: 'horizontal' | 'vertical') => void;
 }
@@ -204,6 +204,8 @@ export interface ExecutionSliceActions {
   updateNodeExecutionState: (nodeId: string, state: Partial<NodeExecutionState>) => void;
   addExecutionLog: (log: ExecutionLog) => void;
   clearExecutionState: () => void;
+  persistExecution: () => Promise<void>;
+  replayExecution: (executionId: string) => Promise<void>;
 }
 
 export interface DebugSliceActions {

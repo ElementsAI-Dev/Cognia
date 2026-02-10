@@ -57,9 +57,18 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock logger functions
+const mockAddTransport = jest.fn();
+const mockRemoveTransport = jest.fn();
+const mockCreateConsoleTransport = jest.fn(() => ({ name: 'console' }));
+const mockCreateIndexedDBTransport = jest.fn((_o?: unknown) => ({ name: 'indexeddb' }));
+
 jest.mock('@/lib/logger', () => ({
   getLoggerConfig: jest.fn(),
   updateLoggerConfig: jest.fn(),
+  addTransport: (t: unknown) => mockAddTransport(t),
+  removeTransport: (n: unknown) => mockRemoveTransport(n),
+  createConsoleTransport: () => mockCreateConsoleTransport(),
+  createIndexedDBTransport: (o?: unknown) => mockCreateIndexedDBTransport(o),
 }));
 
 const mockGetLoggerConfig = getLoggerConfig as jest.Mock;
@@ -348,6 +357,69 @@ describe('LogSettings', () => {
 
       const saveButton = screen.getByText('Save');
       expect(saveButton).not.toBeDisabled();
+    });
+  });
+
+  describe('Transport Application', () => {
+    it('calls addTransport for enabled transports on save', async () => {
+      const user = userEvent.setup();
+      render(<LogSettings />);
+
+      // Make a change to enable save
+      const switches = screen.getAllByRole('switch');
+      if (switches.length > 0) {
+        await user.click(switches[0]);
+      }
+
+      const saveButton = screen.getByText('Save');
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        // Console transport should be added (enabled by default)
+        expect(mockAddTransport).toHaveBeenCalled();
+      });
+    });
+
+    it('calls createIndexedDBTransport with retention settings on save', async () => {
+      const user = userEvent.setup();
+      render(<LogSettings />);
+
+      // Make a change
+      const switches = screen.getAllByRole('switch');
+      if (switches.length > 0) {
+        await user.click(switches[0]);
+      }
+
+      const saveButton = screen.getByText('Save');
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(mockCreateIndexedDBTransport).toHaveBeenCalledWith(
+          expect.objectContaining({
+            maxEntries: expect.any(Number),
+            retentionDays: expect.any(Number),
+          })
+        );
+      });
+    });
+
+    it('calls removeTransport for disabled transports on save', async () => {
+      const user = userEvent.setup();
+      render(<LogSettings />);
+
+      // Make a change
+      const switches = screen.getAllByRole('switch');
+      if (switches.length > 0) {
+        await user.click(switches[0]);
+      }
+
+      const saveButton = screen.getByText('Save');
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        // removeTransport should be called for indexeddb before re-adding
+        expect(mockRemoveTransport).toHaveBeenCalledWith('indexeddb');
+      });
     });
   });
 

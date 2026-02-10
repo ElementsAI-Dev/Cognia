@@ -641,7 +641,7 @@ export function PluginMarketplace({
         </div>
 
         {/* Results */}
-        <ScrollArea className="flex-1 p-4 sm:p-6">
+        <div className="p-4 sm:p-6">
           {isLoading ? (
             <MarketplaceLoadingSkeleton viewMode={viewMode} />
           ) : filteredPlugins.length === 0 ? (
@@ -653,7 +653,7 @@ export function PluginMarketplace({
             />
           ) : viewMode === 'grid' ? (
             <>
-              <div className="grid gap-4 grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visiblePlugins.map((plugin, index) => (
                   <div 
                     key={plugin.id}
@@ -716,10 +716,10 @@ export function PluginMarketplace({
               )}
             </>
           )}
-        </ScrollArea>
+        </div>
 
-        {/* Results count */}
-        <div className="px-4 sm:px-6 py-2 border-t text-xs text-muted-foreground flex items-center justify-between">
+        {/* Results count - inline */}
+        <div className="px-4 sm:px-6 py-2 text-xs text-muted-foreground flex items-center justify-between">
           <span className="font-medium">{t('results.count', { count: filteredPlugins.length })}</span>
           {hasActiveFilters && (
             <Button 

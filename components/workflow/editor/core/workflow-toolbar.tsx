@@ -112,8 +112,8 @@ export function WorkflowToolbar({
     handleDuplicateSelection,
     handleAlign,
     handleDistribute,
-    undo,
-    redo,
+    handleUndo,
+    handleRedo,
     autoLayout,
     pauseExecution,
     resumeExecution,
@@ -155,7 +155,7 @@ export function WorkflowToolbar({
               variant="ghost"
               size="icon"
               className="h-9 w-9"
-              onClick={undo}
+              onClick={handleUndo}
               disabled={!canUndo}
             >
               <Undo2 className="h-4 w-4" />
@@ -164,7 +164,7 @@ export function WorkflowToolbar({
               variant="ghost"
               size="icon"
               className="h-9 w-9"
-              onClick={redo}
+              onClick={handleRedo}
               disabled={!canRedo}
             >
               <Redo2 className="h-4 w-4" />
@@ -268,7 +268,7 @@ export function WorkflowToolbar({
                 </>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={autoLayout}>
+              <DropdownMenuItem onClick={() => autoLayout()}>
                 <LayoutGrid className="h-4 w-4 mr-2" />
                 {t('autoLayout')}
               </DropdownMenuItem>
@@ -349,7 +349,7 @@ export function WorkflowToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={undo}
+                onClick={handleUndo}
                 disabled={!canUndo}
               >
                 <Undo2 className="h-4 w-4" />
@@ -364,7 +364,7 @@ export function WorkflowToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={redo}
+                onClick={handleRedo}
                 disabled={!canRedo}
               >
                 <Redo2 className="h-4 w-4" />
@@ -419,7 +419,7 @@ export function WorkflowToolbar({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={autoLayout}
+                onClick={() => autoLayout()}
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>

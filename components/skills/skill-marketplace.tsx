@@ -282,7 +282,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
       )}
 
       {/* Skills grid/list */}
-      <ScrollArea className="h-[500px]">
+      <ScrollArea className="max-h-[60vh]">
         {isLoading && itemsWithStatus.length === 0 ? (
           <div className={cn('gap-4', viewMode === 'grid' ? 'grid md:grid-cols-2 lg:grid-cols-3' : 'flex flex-col')}>
             {[1, 2, 3, 4, 5, 6].map((i) => (

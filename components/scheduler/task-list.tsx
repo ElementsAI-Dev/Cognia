@@ -2,6 +2,7 @@
 
 /**
  * TaskList - Display list of scheduled tasks
+ * Redesigned with left status border, colored type icons, and hover actions
  */
 
 import { useMemo } from 'react';
@@ -20,18 +21,15 @@ import {
   Database,
   Archive,
   Cog,
+  MoreHorizontal,
+  Sparkles,
+  MessageSquare,
+  FileCode,
+  TestTube,
+  Plug,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,24 +57,38 @@ interface TaskListProps {
   isLoading?: boolean;
 }
 
-const taskTypeIcons: Record<ScheduledTaskType, React.ReactNode> = {
-  workflow: <Workflow className="h-4 w-4" />,
-  agent: <Bot className="h-4 w-4" />,
-  sync: <Database className="h-4 w-4" />,
-  backup: <Archive className="h-4 w-4" />,
-  custom: <Cog className="h-4 w-4" />,
-  plugin: <Cog className="h-4 w-4" />,
-  script: <Cog className="h-4 w-4" />,
-  test: <Cog className="h-4 w-4" />,
-  chat: <Bot className="h-4 w-4" />,
-  'ai-generation': <Bot className="h-4 w-4" />,
+const taskTypeConfig: Record<ScheduledTaskType, { icon: React.ReactNode; bg: string; color: string }> = {
+  workflow: { icon: <Workflow className="h-3.5 w-3.5" />, bg: 'bg-violet-500/10', color: 'text-violet-500' },
+  agent: { icon: <Bot className="h-3.5 w-3.5" />, bg: 'bg-blue-500/10', color: 'text-blue-500' },
+  sync: { icon: <Database className="h-3.5 w-3.5" />, bg: 'bg-cyan-500/10', color: 'text-cyan-500' },
+  backup: { icon: <Archive className="h-3.5 w-3.5" />, bg: 'bg-orange-500/10', color: 'text-orange-500' },
+  custom: { icon: <Cog className="h-3.5 w-3.5" />, bg: 'bg-gray-500/10', color: 'text-gray-500' },
+  plugin: { icon: <Plug className="h-3.5 w-3.5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
+  script: { icon: <FileCode className="h-3.5 w-3.5" />, bg: 'bg-amber-500/10', color: 'text-amber-500' },
+  test: { icon: <TestTube className="h-3.5 w-3.5" />, bg: 'bg-pink-500/10', color: 'text-pink-500' },
+  chat: { icon: <MessageSquare className="h-3.5 w-3.5" />, bg: 'bg-indigo-500/10', color: 'text-indigo-500' },
+  'ai-generation': { icon: <Sparkles className="h-3.5 w-3.5" />, bg: 'bg-purple-500/10', color: 'text-purple-500' },
 };
 
-const statusConfig: Record<ScheduledTaskStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  active: { label: 'Active', color: 'bg-green-500/10 text-green-500', icon: <CheckCircle className="h-3 w-3" /> },
-  paused: { label: 'Paused', color: 'bg-yellow-500/10 text-yellow-500', icon: <Pause className="h-3 w-3" /> },
-  disabled: { label: 'Disabled', color: 'bg-gray-500/10 text-gray-500', icon: <XCircle className="h-3 w-3" /> },
-  expired: { label: 'Expired', color: 'bg-red-500/10 text-red-500', icon: <XCircle className="h-3 w-3" /> },
+const statusBorderColor: Record<ScheduledTaskStatus, string> = {
+  active: 'border-l-green-500',
+  paused: 'border-l-yellow-500',
+  disabled: 'border-l-gray-400',
+  expired: 'border-l-red-500',
+};
+
+const statusDotColor: Record<ScheduledTaskStatus, string> = {
+  active: 'bg-green-500',
+  paused: 'bg-yellow-500',
+  disabled: 'bg-gray-400',
+  expired: 'bg-red-500',
+};
+
+const statusLabel: Record<ScheduledTaskStatus, string> = {
+  active: 'Active',
+  paused: 'Paused',
+  disabled: 'Disabled',
+  expired: 'Expired',
 };
 
 export function TaskList({
@@ -93,21 +105,21 @@ export function TaskList({
 
   const formatNextRun = (date: Date | undefined): string => {
     if (!date) return t('noSchedule') || 'No schedule';
-    
+
     const now = new Date();
     const diff = date.getTime() - now.getTime();
-    
+
     if (diff < 0) return t('overdue') || 'Overdue';
-    if (diff < 60000) return t('lessThanMinute') || 'Less than a minute';
+    if (diff < 60000) return t('lessThanMinute') || '< 1 min';
     if (diff < 3600000) {
       const minutes = Math.floor(diff / 60000);
-      return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+      return `${minutes}m`;
     }
     if (diff < 86400000) {
       const hours = Math.floor(diff / 3600000);
-      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+      return `${hours}h`;
     }
-    
+
     return date.toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric',
@@ -121,149 +133,164 @@ export function TaskList({
       // Active tasks first
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (a.status !== 'active' && b.status === 'active') return 1;
-      
+
       // Then by next run time
       if (a.nextRunAt && b.nextRunAt) {
         return a.nextRunAt.getTime() - b.nextRunAt.getTime();
       }
       if (a.nextRunAt) return -1;
       if (b.nextRunAt) return 1;
-      
+
       return 0;
     });
   }, [tasks]);
 
   if (tasks.length === 0) {
     return (
-      <Empty className="py-12 px-4">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Calendar className="h-6 w-6" />
-          </EmptyMedia>
-          <EmptyTitle>{t('noTasks') || 'No scheduled tasks'}</EmptyTitle>
-          <EmptyDescription>
-            {t('noTasksDescription') || 'Create a scheduled task to automate your workflows'}
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <div className="flex h-full flex-col items-center justify-center px-6 py-12">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5">
+          <Calendar className="h-7 w-7 text-primary/40" />
+        </div>
+        <h3 className="text-sm font-medium">{t('noTasks') || 'No scheduled tasks'}</h3>
+        <p className="mt-1 max-w-[200px] text-center text-xs text-muted-foreground">
+          {t('noTasksDescription') || 'Create a task to start automating your workflows'}
+        </p>
+      </div>
     );
   }
 
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-2 p-2 sm:p-1">
+      <div className="space-y-1 p-2">
         {sortedTasks.map((task) => {
-          const status = statusConfig[task.status];
+          const typeConfig = taskTypeConfig[task.type];
           const isSelected = task.id === selectedTaskId;
 
           return (
-            <Card
+            <button
               key={task.id}
+              type="button"
               className={cn(
-                'cursor-pointer transition-all hover:bg-accent/50 hover:shadow-md',
-                'active:scale-[0.98] touch-manipulation',
-                isSelected && 'ring-2 ring-primary bg-accent/30'
+                'group relative flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all',
+                'border-l-[3px] hover:bg-accent/40',
+                statusBorderColor[task.status],
+                isSelected
+                  ? 'bg-accent/50 border-l-primary shadow-sm'
+                  : 'hover:shadow-sm'
               )}
               onClick={() => onSelect(task.id)}
             >
-              <CardHeader className="p-3 sm:p-3 pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">
-                      {taskTypeIcons[task.type]}
-                    </span>
-                    <CardTitle className="text-sm font-medium">
-                      {task.name}
-                    </CardTitle>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline" className={cn('text-xs', status.color)}>
-                      {status.icon}
-                      <span className="ml-1">{status.label}</span>
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-6 sm:w-6 p-0 touch-manipulation">
-                          <Cog className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRunNow(task.id);
-                          }}
-                          disabled={isLoading}
-                        >
-                          <Play className="h-4 w-4 mr-2" />
-                          {t('runNow') || 'Run Now'}
-                        </DropdownMenuItem>
-                        {task.status === 'active' ? (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPause(task.id);
-                            }}
-                          >
-                            <Pause className="h-4 w-4 mr-2" />
-                            {t('pause') || 'Pause'}
-                          </DropdownMenuItem>
-                        ) : task.status === 'paused' ? (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onResume(task.id);
-                            }}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            {t('resume') || 'Resume'}
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(task.id);
-                          }}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('delete') || 'Delete'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {/* Type Icon */}
+              <div className={cn(
+                'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105',
+                typeConfig.bg, typeConfig.color
+              )}>
+                {typeConfig.icon}
+              </div>
+
+              {/* Content */}
+              <div className="min-w-0 flex-1">
+                {/* Row 1: Name + Status */}
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium">{task.name}</span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <div className={cn('h-1.5 w-1.5 rounded-full', statusDotColor[task.status])} />
+                    <span className="text-[10px] text-muted-foreground">{statusLabel[task.status]}</span>
                   </div>
                 </div>
-                {task.description && (
-                  <CardDescription className="text-xs line-clamp-1 mt-1">
-                    {task.description}
-                  </CardDescription>
+
+                {/* Row 2: Description or Type */}
+                {task.description ? (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{task.description}</p>
+                ) : (
+                  <p className="mt-0.5 text-xs capitalize text-muted-foreground/70">{task.type}</p>
                 )}
-              </CardHeader>
-              <CardContent className="p-3 sm:p-3 pt-0">
-                <div className="flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+
+                {/* Row 3: Next run + Stats */}
+                <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1">
+                        <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          <span>{formatNextRun(task.nextRunAt)}</span>
-                        </div>
+                          {formatNextRun(task.nextRunAt)}
+                        </span>
                       </TooltipTrigger>
-                      <TooltipContent>
+                      <TooltipContent side="bottom">
                         {task.nextRunAt
                           ? task.nextRunAt.toLocaleString()
                           : t('noScheduledRun') || 'No scheduled run'}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <span className="text-green-500 font-medium">{task.successCount} ✓</span>
-                    <span className="text-red-500 font-medium">{task.failureCount} ✗</span>
-                  </div>
+                  <span className="flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-green-500" />
+                    <span className="tabular-nums">{task.successCount}</span>
+                  </span>
+                  {task.failureCount > 0 && (
+                    <span className="flex items-center gap-1">
+                      <XCircle className="h-3 w-3 text-red-500" />
+                      <span className="tabular-nums">{task.failureCount}</span>
+                    </span>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              {/* Action Menu */}
+              <div className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRunNow(task.id);
+                      }}
+                      disabled={isLoading}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      {t('runNow') || 'Run Now'}
+                    </DropdownMenuItem>
+                    {task.status === 'active' ? (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPause(task.id);
+                        }}
+                      >
+                        <Pause className="h-4 w-4 mr-2" />
+                        {t('pause') || 'Pause'}
+                      </DropdownMenuItem>
+                    ) : task.status === 'paused' ? (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResume(task.id);
+                        }}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        {t('resume') || 'Resume'}
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(task.id);
+                      }}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t('delete') || 'Delete'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </button>
           );
         })}
       </div>

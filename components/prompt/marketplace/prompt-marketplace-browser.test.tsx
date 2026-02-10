@@ -77,9 +77,33 @@ jest.mock('@/components/ui/tabs', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="sheet" data-open={open}>{children}</div>
+  ),
+  SheetTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-trigger">{children}</div>
+  ),
+  SheetContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-content">{children}</div>
+  ),
+}));
+
+jest.mock('@/components/ui/empty', () => ({
+  Empty: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="empty" className={className}>{children}</div>
+  ),
+  EmptyMedia: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  EmptyTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  EmptyDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  EmptyContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
 // Mock child components
 jest.mock('./prompt-marketplace-sidebar', () => ({
-  PromptMarketplaceSidebar: () => <div data-testid="sidebar">Sidebar</div>,
+  PromptMarketplaceSidebar: ({ isMobile }: { isMobile?: boolean }) => (
+    <div data-testid="sidebar" data-mobile={isMobile}>Sidebar</div>
+  ),
 }));
 
 jest.mock('./prompt-marketplace-card', () => ({
@@ -115,7 +139,7 @@ describe('PromptMarketplaceBrowser', () => {
 
   it('renders correctly', () => {
     render(<PromptMarketplaceBrowser />);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 
   it('has a search input', () => {
@@ -123,20 +147,79 @@ describe('PromptMarketplaceBrowser', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
-  it('renders empty state when no prompts', () => {
-    render(<PromptMarketplaceBrowser />);
-    // Should show sidebar
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-  });
-
   it('renders tabs for navigation', () => {
     render(<PromptMarketplaceBrowser />);
     expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 
-  it('renders multiple tabs', () => {
+  it('renders all five tabs', () => {
     render(<PromptMarketplaceBrowser />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs).toHaveLength(5);
+  });
+
+  it('renders tab values correctly', () => {
+    render(<PromptMarketplaceBrowser />);
+    const tabs = screen.getAllByRole('tab');
+    const values = tabs.map((t) => t.getAttribute('data-value'));
+    expect(values).toEqual(['browse', 'installed', 'favorites', 'collections', 'recent']);
+  });
+
+  // Layout: sidebar is inside Sheet, not rendered directly
+  it('renders sidebar inside Sheet (not as standalone)', () => {
+    render(<PromptMarketplaceBrowser />);
+    const sheetContent = screen.getByTestId('sheet-content');
+    expect(sheetContent).toBeInTheDocument();
+    const sidebar = screen.getByTestId('sidebar');
+    expect(sidebar).toBeInTheDocument();
+    expect(sheetContent.contains(sidebar)).toBe(true);
+  });
+
+  it('passes isMobile to sidebar inside Sheet', () => {
+    render(<PromptMarketplaceBrowser />);
+    const sidebar = screen.getByTestId('sidebar');
+    expect(sidebar.getAttribute('data-mobile')).toBe('true');
+  });
+
+  // Layout: filter trigger button
+  it('renders filter Sheet trigger button', () => {
+    render(<PromptMarketplaceBrowser />);
+    expect(screen.getByTestId('sheet-trigger')).toBeInTheDocument();
+  });
+
+  // Layout: compact header
+  it('renders compact header with reduced padding', () => {
+    const { container } = render(<PromptMarketplaceBrowser />);
+    const header = container.querySelector('.shrink-0.border-b');
+    expect(header).toBeInTheDocument();
+    expect(header?.className).toContain('px-3');
+    expect(header?.className).toContain('py-2');
+    expect(header?.className).toContain('space-y-2');
+  });
+
+  // Layout: empty state padding
+  it('renders empty state with compact padding', () => {
+    render(<PromptMarketplaceBrowser />);
+    const emptyStates = screen.getAllByTestId('empty');
+    emptyStates.forEach((el) => {
+      expect(el.className).toContain('py-10');
+      expect(el.className).toContain('sm:py-14');
+    });
+  });
+
+  // Layout: root container is flex-col (not flex-row with sidebar)
+  it('root container uses flex-col layout (no side-by-side sidebar)', () => {
+    const { container } = render(<PromptMarketplaceBrowser />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain('flex-col');
+    expect(root.className).toContain('h-full');
+    expect(root.className).toContain('overflow-hidden');
+  });
+
+  // Layout: content area has reduced padding
+  it('content area has compact padding', () => {
+    const { container } = render(<PromptMarketplaceBrowser />);
+    const contentDiv = container.querySelector('.p-3.space-y-5');
+    expect(contentDiv).toBeInTheDocument();
   });
 });

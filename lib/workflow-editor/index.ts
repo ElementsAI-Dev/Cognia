@@ -55,6 +55,12 @@ export {
 } from './validation';
 
 export {
+  applyDagreLayout,
+  type LayoutDirection,
+  type LayoutOptions,
+} from './layout';
+
+export {
   formatExecutionDuration,
   getExecutionSummary,
   filterLogsByLevel,

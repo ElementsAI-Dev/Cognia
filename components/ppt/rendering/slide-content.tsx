@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { SlideElementRenderer } from './slide-element-renderer';
+import { calculateOptimalFontSize, LAYOUT_TEMPLATES } from '../utils';
 import type { PPTSlide, PPTTheme } from '@/types/workflow';
 
 export interface SlideContentProps {
@@ -15,7 +17,7 @@ export interface SlideContentProps {
  * SlideContent - Reusable component for rendering slide content
  * Used by SingleSlideView, SlideshowView, and any other slide display contexts
  */
-export function SlideContent({
+export const SlideContent = memo(function SlideContent({
   slide,
   theme,
   size = 'medium',
@@ -64,6 +66,19 @@ export function SlideContent({
   const styles = sizeStyles[size];
   const isLargeTitle = slide.layout === 'title' || slide.layout === 'section';
 
+  // Get layout zones for current layout to inform element positioning
+  const layoutZones = LAYOUT_TEMPLATES[slide.layout] || LAYOUT_TEMPLATES['title-content'];
+  const titleZone = layoutZones?.find(z => z.contentType === 'title');
+
+  // Calculate optimal font size for long content to prevent overflow
+  const contentFontSize = useMemo(() => {
+    if (!slide.content || slide.content.length < 100) return undefined;
+    // Estimate container dimensions based on size
+    const dims = { small: { w: 300, h: 150 }, medium: { w: 600, h: 300 }, large: { w: 800, h: 400 }, fullscreen: { w: 1000, h: 500 } };
+    const d = dims[size];
+    return calculateOptimalFontSize(slide.content, d.w, d.h);
+  }, [slide.content, size]);
+
   return (
     <div className={cn('h-full flex flex-col justify-center', styles.padding, className)}>
       {/* Title */}
@@ -76,6 +91,7 @@ export function SlideContent({
           style={{
             fontFamily: theme.headingFont,
             color: theme.primaryColor,
+            ...(titleZone ? { maxWidth: `${titleZone.width}%` } : {}),
           }}
         >
           {slide.title}
@@ -103,7 +119,7 @@ export function SlideContent({
       {slide.content && (
         <div
           className={cn('leading-relaxed mb-4', styles.content)}
-          style={{ fontFamily: theme.bodyFont }}
+          style={{ fontFamily: theme.bodyFont, ...(contentFontSize ? { fontSize: contentFontSize } : {}) }}
         >
           {slide.content}
         </div>
@@ -127,17 +143,20 @@ export function SlideContent({
       {/* Custom Elements */}
       {slide.elements && slide.elements.length > 0 && (
         <div className="relative mt-4 flex-1 min-h-[100px]">
-          {slide.elements.map((element) => (
+          {slide.elements.map((element, index) => (
             <SlideElementRenderer
               key={element.id}
               element={element}
               theme={theme}
+              animationDelay={index}
             />
           ))}
         </div>
       )}
     </div>
   );
-}
+});
+
+SlideContent.displayName = 'SlideContent';
 
 export default SlideContent;

@@ -22,6 +22,10 @@ import {
   filterLogsByLevel,
   getNodeStatusColor,
   canRetryExecution,
+  getLogsForNode,
+  exportExecutionState,
+  getExecutionTimeline,
+  getRetryableNodes,
 } from '@/lib/workflow-editor';
 import {
   Play,
@@ -33,9 +37,11 @@ import {
   Loader2,
   AlertCircle,
   ChevronRight,
+  ChevronDown,
   Terminal,
   RotateCcw,
   Filter,
+  Download,
 } from 'lucide-react';
 import type { NodeExecutionStatus, ExecutionLog } from '@/types/workflow/workflow-editor';
 
@@ -88,6 +94,26 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
   };
 
   const [logFilter, setLogFilter] = useState<ExecutionLog['level'] | 'all'>('all');
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+
+  // Export execution state as JSON download
+  const handleExportExecution = () => {
+    if (!executionState) return;
+    const json = exportExecutionState(executionState);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `execution-${executionState.executionId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Timeline for completed executions
+  const timeline = useMemo(() => {
+    if (!executionState) return [];
+    return getExecutionTimeline(executionState);
+  }, [executionState]);
 
   const executionSummary = useMemo(() => {
     if (!executionState) return null;
@@ -114,6 +140,11 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
   const isRetryable = useMemo(() => {
     if (!executionState) return false;
     return canRetryExecution(executionState);
+  }, [executionState]);
+
+  const retryableNodes = useMemo(() => {
+    if (!executionState) return [];
+    return getRetryableNodes(executionState);
   }, [executionState]);
 
   const filteredLogs = useMemo(() => {
@@ -286,6 +317,16 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
               >
                 {t('clear')}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleExportExecution}
+                title="Export execution log"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Export
+              </Button>
               {isRetryable && (
                 <Button
                   variant="outline"
@@ -301,11 +342,23 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
           )}
         </div>
 
+        {/* Execution Timeline (completed) */}
+        {(executionState.status === 'completed' || executionState.status === 'failed') && timeline.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-medium text-muted-foreground">Timeline ({timeline.length} events)</h4>
+          </div>
+        )}
+
         {/* Failed Nodes Summary */}
         {failedNodes.length > 0 && (
           <div className="space-y-1">
             <h4 className="text-xs font-medium text-destructive">
               {failedNodes.length} node(s) failed
+              {retryableNodes.length > 0 && (
+                <span className="text-muted-foreground font-normal ml-1">
+                  ({retryableNodes.length} retryable)
+                </span>
+              )}
             </h4>
             {failedNodes.map((fn) => (
               <div
@@ -313,6 +366,9 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
                 className="text-xs bg-red-500/10 rounded p-1.5 text-red-600 dark:text-red-400"
               >
                 <span className="font-mono">{fn.nodeId}</span>: {fn.error}
+                {retryableNodes.includes(fn.nodeId) && (
+                  <Badge variant="outline" className="ml-1 text-[10px] py-0 h-4">retryable</Badge>
+                )}
               </div>
             ))}
           </div>
@@ -333,37 +389,72 @@ export function ExecutionPanel({ className }: ExecutionPanelProps) {
               const statusColor = getNodeStatusColor(status);
 
               return (
-                <div
-                  key={step.id}
-                  className={cn(
-                    'flex items-center gap-2 p-2 rounded-md text-sm',
-                    status === 'running' && 'bg-blue-500/10',
-                    status === 'completed' && 'bg-green-500/10',
-                    status === 'failed' && 'bg-red-500/10'
-                  )}
-                >
+                <div key={step.id} className="space-y-0">
                   <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: statusColor }}
-                  />
-                  <Icon
                     className={cn(
-                      'h-4 w-4',
-                      config.color,
-                      status === 'running' && 'animate-spin'
+                      'flex items-center gap-2 p-2 rounded-md text-sm',
+                      status === 'running' && 'bg-blue-500/10',
+                      status === 'completed' && 'bg-green-500/10',
+                      status === 'failed' && 'bg-red-500/10'
                     )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium">{step.label}</div>
-                    {step.state?.duration && (
-                      <div className="text-xs text-muted-foreground">
-                        {formatExecutionDuration(step.state.duration)}
-                      </div>
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: statusColor }}
+                    />
+                    <Icon
+                      className={cn(
+                        'h-4 w-4',
+                        config.color,
+                        status === 'running' && 'animate-spin'
+                      )}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate font-medium">{step.label}</div>
+                      {step.state?.duration && (
+                        <div className="text-xs text-muted-foreground">
+                          {formatExecutionDuration(step.state.duration)}
+                        </div>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {config.label}
+                    </Badge>
+                    {step.state && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0"
+                        onClick={() => setExpandedNodeId(expandedNodeId === step.id ? null : step.id)}
+                      >
+                        {expandedNodeId === step.id ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </Button>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    {config.label}
-                  </Badge>
+                  {expandedNodeId === step.id && executionState && (
+                    <div className="ml-8 space-y-1 pb-1">
+                      {getLogsForNode(executionState!, step.id).map((log, li) => (
+                        <div
+                          key={li}
+                          className={cn(
+                            'text-xs font-mono py-0.5',
+                            log.level === 'error' && 'text-red-500',
+                            log.level === 'warn' && 'text-yellow-500',
+                            log.level === 'debug' && 'text-muted-foreground'
+                          )}
+                        >
+                          {log.message}
+                        </div>
+                      ))}
+                      {getLogsForNode(executionState!, step.id).length === 0 && (
+                        <div className="text-xs text-muted-foreground italic">No logs for this node</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

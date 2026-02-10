@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { isTauri } from '@/lib/native/utils';
 import { useChatWidget } from '@/hooks/chat';
 import { useChatWidgetStore } from '@/stores/chat';
+import { useSettingsStore } from '@/stores';
+import { getCurrentTimePeriod, DEFAULT_TIME_GREETINGS } from '@/types/settings/welcome';
+import { Sparkles, Command } from 'lucide-react';
 import { ChatWidgetHeader } from './chat-widget-header';
 import { ChatWidgetMessages } from './chat-widget-messages';
 import { ChatWidgetInput } from './chat-widget-input';
@@ -24,6 +27,18 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const resetConfig = useChatWidgetStore((state) => state.resetConfig);
   const setFeedback = useChatWidgetStore((state) => state.setFeedback);
   const editMessage = useChatWidgetStore((state) => state.editMessage);
+
+  // Settings for time-based greeting
+  const language = useSettingsStore((state) => state.language);
+  const userName = useSettingsStore((state) => state.welcomeSettings.userName);
+
+  // Time-based greeting
+  const greeting = useMemo(() => {
+    const period = getCurrentTimePeriod();
+    const localeKey = language === 'zh-CN' ? 'zh-CN' : 'en';
+    const timeGreeting = DEFAULT_TIME_GREETINGS[period][localeKey];
+    return userName ? `${timeGreeting}, ${userName}` : timeGreeting;
+  }, [language, userName]);
 
   const {
     isVisible,
@@ -118,12 +133,8 @@ export function ChatWidget({ className }: ChatWidgetProps) {
       data-content-ready={contentReady}
       className={cn(
         'flex flex-col h-screen w-full',
-        // Use solid opaque background to ensure content visibility
-        // Avoid backdrop-blur which can cause transparency issues on some platforms
-        'bg-background',
-        // No border/rounded corners to prevent gap at window edges
+        'bg-gradient-to-b from-background via-background to-background/95',
         'overflow-hidden',
-        // Ensure text and content are always visible with proper contrast
         'text-foreground',
         className
       )}
@@ -157,32 +168,56 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         }}
       />
 
-      {/* Messages area */}
-      <ChatWidgetMessages
-        messages={messages}
-        isLoading={isLoading}
-        error={error}
-        showTimestamps={config.showTimestamps}
-        onRegenerate={regenerate}
-        onFeedback={(messageId, feedback) => setFeedback(messageId, feedback)}
-        onEdit={(messageId, newContent) => {
-          editMessage(messageId, newContent);
-          // Re-submit to get new response after editing
-          handleSubmit();
-        }}
-        onContinue={() => {
-          // Continue generation by sending a "continue" message
-          setInputValue(t('continueGeneration'));
-          handleSubmit();
-        }}
-      />
+      {/* Welcome area - show when no messages */}
+      {messages.length === 0 && !isLoading ? (
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          {/* Greeting section */}
+          <div className="flex flex-col items-center justify-center px-4 pt-8 pb-4">
+            <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 mb-3 shadow-sm">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold tracking-tight text-center">
+              {greeting}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 text-center max-w-[240px]">
+              {t('messages.emptyDesc')}
+            </p>
+            <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/60">
+              <Command className="h-3 w-3" />
+              <span>+</span>
+              <span className="font-mono">Enter</span>
+              <span className="ml-1">{t('input.sendMessage')}</span>
+            </div>
+          </div>
 
-      {/* Quick suggestions - show when empty */}
-      {messages.length === 0 && !isLoading && (
-        <ChatWidgetSuggestions
-          onSelect={(prompt) => {
-            setInputValue(prompt);
-            inputRef.current?.focus();
+          {/* Suggestions below greeting */}
+          <div className="mt-auto">
+            <ChatWidgetSuggestions
+              onSelect={(prompt) => {
+                setInputValue(prompt);
+                inputRef.current?.focus();
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        /* Messages area */
+        <ChatWidgetMessages
+          messages={messages}
+          isLoading={isLoading}
+          error={error}
+          showTimestamps={config.showTimestamps}
+          onRegenerate={regenerate}
+          onFeedback={(messageId, feedback) => setFeedback(messageId, feedback)}
+          onEdit={(messageId, newContent) => {
+            editMessage(messageId, newContent);
+            // Re-submit to get new response after editing
+            handleSubmit();
+          }}
+          onContinue={() => {
+            // Continue generation by sending a "continue" message
+            setInputValue(t('continueGeneration'));
+            handleSubmit();
           }}
         />
       )}

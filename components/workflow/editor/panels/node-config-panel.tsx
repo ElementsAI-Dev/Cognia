@@ -47,6 +47,7 @@ import {
   VariableAggregatorNodeConfig,
   QuestionClassifierNodeConfig,
   TemplateTransformNodeConfig,
+  ChartNodeConfig,
   IOSchemaEditor,
   NodeErrorConfigPanel,
   NodeOutputPreview,
@@ -73,6 +74,7 @@ import {
   type QuestionClassifierNodeData,
   type TemplateTransformNodeData,
 } from './node-config';
+import type { ChartNodeData } from '@/types/workflow/workflow-editor';
 import type { NodeErrorConfig } from '@/types/workflow/workflow-editor';
 
 interface NodeConfigPanelProps {
@@ -417,6 +419,15 @@ export function NodeConfigPanel({ nodeId, className }: NodeConfigPanelProps) {
               {nodeType === 'templateTransform' && (
                 <TemplateTransformNodeConfig
                   data={data as TemplateTransformNodeData}
+                  onUpdate={handleUpdateData}
+                />
+              )}
+
+              {(nodeType === 'chart' || nodeType === 'lineChart' || nodeType === 'barChart' ||
+                nodeType === 'pieChart' || nodeType === 'areaChart' || nodeType === 'scatterChart' ||
+                nodeType === 'radarChart') && (
+                <ChartNodeConfig
+                  data={data as ChartNodeData}
                   onUpdate={handleUpdateData}
                 />
               )}

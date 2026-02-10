@@ -5,28 +5,51 @@
 import { renderHook, act } from '@testing-library/react';
 import { useLogStream, useLogModules } from './use-log-stream';
 
-// Mock IndexedDBTransport
-const mockGetLogs = jest.fn();
-const mockClear = jest.fn();
+// Mock instance must be created INSIDE the factory to avoid jest.mock hoisting issues.
+// jest.mock is hoisted above all variable declarations, so external vars are undefined
+// when the factory executes.
+jest.mock('@/lib/logger', () => {
+  const instance = {
+    getLogs: jest.fn().mockResolvedValue([]),
+    clear: jest.fn(),
+    getStats: jest.fn().mockResolvedValue({ total: 0, byLevel: {}, byModule: {} }),
+  };
 
-jest.mock('@/lib/logger', () => ({
-  IndexedDBTransport: jest.fn().mockImplementation(() => ({
-    getLogs: mockGetLogs,
-    clear: mockClear,
-  })),
-}));
+  const onLogsUpdated = jest.fn(() => jest.fn());
+
+  const MockTransport = jest.fn(() => instance);
+  Object.defineProperty(MockTransport, 'onLogsUpdated', {
+    value: onLogsUpdated,
+    writable: true,
+  });
+
+  return {
+    IndexedDBTransport: MockTransport,
+    __mockInstance: instance,
+    __mockOnLogsUpdated: onLogsUpdated,
+  };
+});
+
+// Access mock internals via jest.requireMock (safe after jest.mock is set up)
+const { __mockInstance: mockInstance, __mockOnLogsUpdated: mockOnLogsUpdated } =
+  jest.requireMock<Record<string, unknown>>('@/lib/logger') as {
+    __mockInstance: { getLogs: jest.Mock; clear: jest.Mock; getStats: jest.Mock };
+    __mockOnLogsUpdated: jest.Mock;
+  };
 
 describe('useLogStream', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetLogs.mockResolvedValue([]);
+    // Re-assign mock functions to avoid clearAllMocks disrupting singleton
+    mockInstance.getLogs = jest.fn().mockResolvedValue([]);
+    mockInstance.clear = jest.fn();
+    mockInstance.getStats = jest.fn().mockResolvedValue({ total: 0, byLevel: {}, byModule: {} });
+    mockOnLogsUpdated.mockClear();
   });
 
   describe('initialization', () => {
     it('should return initial state', async () => {
       const { result } = renderHook(() => useLogStream());
 
-      // Wait for initial fetch to complete
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
@@ -52,7 +75,7 @@ describe('useLogStream', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(mockGetLogs).toHaveBeenCalledWith({
+      expect(mockInstance.getLogs).toHaveBeenCalledWith({
         limit: 500,
         level: 'error',
         module: 'test-module',
@@ -62,10 +85,10 @@ describe('useLogStream', () => {
 
   describe('fetchLogs', () => {
     it('should fetch logs from IndexedDB', async () => {
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Test log', module: 'test', timestamp: Date.now() },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -73,11 +96,11 @@ describe('useLogStream', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(result.current.logs).toEqual(mockLogs);
+      expect(result.current.logs).toEqual(testLogs);
     });
 
     it('should filter by trace ID', async () => {
-      mockGetLogs.mockResolvedValue([]);
+      mockInstance.getLogs.mockResolvedValue([]);
 
       renderHook(() => useLogStream({ traceId: 'trace-123' }));
 
@@ -85,17 +108,17 @@ describe('useLogStream', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(mockGetLogs).toHaveBeenCalledWith(
+      expect(mockInstance.getLogs).toHaveBeenCalledWith(
         expect.objectContaining({ traceId: 'trace-123' })
       );
     });
 
     it('should filter by search query', async () => {
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Hello world', module: 'test', timestamp: Date.now() },
         { id: '2', level: 'info', message: 'Goodbye world', module: 'test', timestamp: Date.now() },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream({ searchQuery: 'hello' }));
 
@@ -103,11 +126,11 @@ describe('useLogStream', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(result.current.logs).toEqual([mockLogs[0]]);
+      expect(result.current.logs).toEqual([testLogs[0]]);
     });
 
     it('should handle fetch error', async () => {
-      mockGetLogs.mockRejectedValue(new Error('Fetch failed'));
+      mockInstance.getLogs.mockRejectedValue(new Error('Fetch failed'));
 
       const { result } = renderHook(() => useLogStream());
 
@@ -121,7 +144,7 @@ describe('useLogStream', () => {
 
   describe('refresh', () => {
     it('should refresh logs', async () => {
-      mockGetLogs.mockResolvedValue([]);
+      mockInstance.getLogs.mockResolvedValue([]);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -129,19 +152,19 @@ describe('useLogStream', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      mockGetLogs.mockClear();
+      mockInstance.getLogs.mockClear();
 
       await act(async () => {
         await result.current.refresh();
       });
 
-      expect(mockGetLogs).toHaveBeenCalled();
+      expect(mockInstance.getLogs).toHaveBeenCalled();
     });
   });
 
   describe('clearLogs', () => {
     it('should clear all logs', async () => {
-      mockClear.mockResolvedValue(undefined);
+      mockInstance.clear.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -153,12 +176,12 @@ describe('useLogStream', () => {
         await result.current.clearLogs();
       });
 
-      expect(mockClear).toHaveBeenCalled();
+      expect(mockInstance.clear).toHaveBeenCalled();
       expect(result.current.logs).toEqual([]);
     });
 
     it('should handle clear error', async () => {
-      mockClear.mockRejectedValue(new Error('Clear failed'));
+      mockInstance.clear.mockRejectedValue(new Error('Clear failed'));
 
       const { result } = renderHook(() => useLogStream());
 
@@ -176,10 +199,10 @@ describe('useLogStream', () => {
 
   describe('exportLogs', () => {
     it('should export logs as JSON', async () => {
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Test', module: 'test', timestamp: Date.now() },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -188,15 +211,15 @@ describe('useLogStream', () => {
       });
 
       const exported = result.current.exportLogs('json');
-      expect(JSON.parse(exported)).toEqual(mockLogs);
+      expect(JSON.parse(exported)).toEqual(testLogs);
     });
 
     it('should export logs as text', async () => {
       const timestamp = Date.now();
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Test message', module: 'test-mod', timestamp, traceId: 'abc12345' },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -212,7 +235,7 @@ describe('useLogStream', () => {
     });
 
     it('should default to JSON format', async () => {
-      mockGetLogs.mockResolvedValue([]);
+      mockInstance.getLogs.mockResolvedValue([]);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -227,12 +250,12 @@ describe('useLogStream', () => {
 
   describe('stats', () => {
     it('should calculate log statistics', async () => {
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Test 1', module: 'module-a', timestamp: Date.now() },
         { id: '2', level: 'error', message: 'Test 2', module: 'module-a', timestamp: Date.now() },
         { id: '3', level: 'info', message: 'Test 3', module: 'module-b', timestamp: Date.now() },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream());
 
@@ -250,12 +273,12 @@ describe('useLogStream', () => {
 
   describe('groupedLogs', () => {
     it('should group logs by trace ID when enabled', async () => {
-      const mockLogs = [
+      const testLogs = [
         { id: '1', level: 'info', message: 'Test 1', module: 'test', timestamp: Date.now(), traceId: 'trace-1' },
         { id: '2', level: 'info', message: 'Test 2', module: 'test', timestamp: Date.now(), traceId: 'trace-1' },
         { id: '3', level: 'info', message: 'Test 3', module: 'test', timestamp: Date.now(), traceId: 'trace-2' },
       ];
-      mockGetLogs.mockResolvedValue(mockLogs);
+      mockInstance.getLogs.mockResolvedValue(testLogs);
 
       const { result } = renderHook(() => useLogStream({ groupByTraceId: true }));
 
@@ -269,7 +292,7 @@ describe('useLogStream', () => {
     });
 
     it('should not group logs when disabled', async () => {
-      mockGetLogs.mockResolvedValue([]);
+      mockInstance.getLogs.mockResolvedValue([]);
 
       const { result } = renderHook(() => useLogStream({ groupByTraceId: false }));
 
@@ -280,21 +303,65 @@ describe('useLogStream', () => {
       expect(result.current.groupedLogs.size).toBe(0);
     });
   });
+
+  describe('loading state', () => {
+    it('should not flash loading on subsequent refreshes', async () => {
+      mockInstance.getLogs.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useLogStream());
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      // After initial fetch, loading should be false
+      expect(result.current.isLoading).toBe(false);
+
+      // Manual refresh should not set loading to true
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
+
+  describe('BroadcastChannel integration', () => {
+    it('should subscribe to log updates when autoRefresh is enabled', async () => {
+      renderHook(() => useLogStream({ autoRefresh: true }));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(mockOnLogsUpdated).toHaveBeenCalled();
+    });
+
+    it('should not subscribe to log updates when autoRefresh is disabled', async () => {
+      renderHook(() => useLogStream({ autoRefresh: false }));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(mockOnLogsUpdated).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('useLogModules', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockInstance.getLogs = jest.fn().mockResolvedValue([]);
+    mockInstance.clear = jest.fn();
+    mockInstance.getStats = jest.fn().mockResolvedValue({
+      total: 3,
+      byLevel: { info: 3 },
+      byModule: { 'module-a': 2, 'module-b': 1 },
+    });
+    mockOnLogsUpdated.mockClear();
   });
 
-  it('should return unique module names', async () => {
-    const mockLogs = [
-      { id: '1', level: 'info', message: 'Test 1', module: 'module-b', timestamp: Date.now() },
-      { id: '2', level: 'info', message: 'Test 2', module: 'module-a', timestamp: Date.now() },
-      { id: '3', level: 'info', message: 'Test 3', module: 'module-b', timestamp: Date.now() },
-    ];
-    mockGetLogs.mockResolvedValue(mockLogs);
-
+  it('should return unique module names from stats', async () => {
     const { result } = renderHook(() => useLogModules());
 
     await act(async () => {
@@ -305,7 +372,7 @@ describe('useLogModules', () => {
   });
 
   it('should return empty array on error', async () => {
-    mockGetLogs.mockRejectedValue(new Error('Failed'));
+    mockInstance.getStats.mockRejectedValue(new Error('Failed'));
 
     const { result } = renderHook(() => useLogModules());
 

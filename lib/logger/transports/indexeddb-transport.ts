@@ -9,6 +9,7 @@ import { LEVEL_PRIORITY } from '../types';
 const DB_NAME = 'cognia-logs';
 const DB_VERSION = 1;
 const STORE_NAME = 'logs';
+const BROADCAST_CHANNEL_NAME = 'cognia-logs-updates';
 
 /**
  * IndexedDB transport options
@@ -41,10 +42,18 @@ export class IndexedDBTransport implements Transport {
   private buffer: StructuredLogEntry[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private initPromise: Promise<void> | null = null;
+  private broadcastChannel: BroadcastChannel | null = null;
 
   constructor(options?: IndexedDBTransportOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.initPromise = this.init();
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      } catch {
+        // BroadcastChannel not supported
+      }
+    }
   }
 
   /**
@@ -97,6 +106,19 @@ export class IndexedDBTransport implements Transport {
   }
 
   /**
+   * Update transport options (e.g. retention settings) at runtime
+   */
+  updateOptions(options: Partial<IndexedDBTransportOptions>): void {
+    this.options = { ...this.options, ...options };
+    if (options.flushInterval) {
+      this.startFlushTimer();
+    }
+    if (options.retentionDays || options.maxEntries) {
+      this.cleanup();
+    }
+  }
+
+  /**
    * Log entry to buffer
    */
   log(entry: StructuredLogEntry): void {
@@ -130,6 +152,15 @@ export class IndexedDBTransport implements Transport {
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
       });
+
+      // Notify listeners about new logs
+      if (this.broadcastChannel) {
+        try {
+          this.broadcastChannel.postMessage({ type: 'logs-flushed', count: entries.length });
+        } catch {
+          // Ignore broadcast errors
+        }
+      }
     } catch (error) {
       console.error('Failed to flush logs:', error);
       // Re-add to buffer on failure
@@ -200,14 +231,29 @@ export class IndexedDBTransport implements Transport {
         const store = transaction.objectStore(STORE_NAME);
         const logs: StructuredLogEntry[] = [];
 
-        const request = store.index('timestamp').openCursor(null, 'prev');
+        // Use index-based range query when time filters are provided
+        const timestampIndex = store.index('timestamp');
+        let range: IDBKeyRange | null = null;
+
+        if (filter?.since && filter?.until) {
+          range = IDBKeyRange.bound(
+            filter.since.toISOString(),
+            filter.until.toISOString()
+          );
+        } else if (filter?.since) {
+          range = IDBKeyRange.lowerBound(filter.since.toISOString());
+        } else if (filter?.until) {
+          range = IDBKeyRange.upperBound(filter.until.toISOString());
+        }
+
+        const request = timestampIndex.openCursor(range, 'prev');
         
         request.onsuccess = (event) => {
           const cursor = (event.target as IDBRequest).result;
           if (cursor) {
             const entry = cursor.value as StructuredLogEntry;
             
-            // Apply filters
+            // Apply remaining filters (level, module, traceId, search, tags)
             if (this.matchesFilter(entry, filter)) {
               logs.push(entry);
             }
@@ -365,9 +411,39 @@ export class IndexedDBTransport implements Transport {
       this.flushTimer = null;
     }
     
+    if (this.broadcastChannel) {
+      this.broadcastChannel.close();
+      this.broadcastChannel = null;
+    }
+    
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+  }
+
+  /**
+   * Subscribe to log update notifications via BroadcastChannel.
+   * Returns an unsubscribe function.
+   */
+  static onLogsUpdated(callback: (count: number) => void): () => void {
+    if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
+      return () => {};
+    }
+    try {
+      const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      const handler = (event: MessageEvent) => {
+        if (event.data?.type === 'logs-flushed') {
+          callback(event.data.count);
+        }
+      };
+      channel.addEventListener('message', handler);
+      return () => {
+        channel.removeEventListener('message', handler);
+        channel.close();
+      };
+    } catch {
+      return () => {};
     }
   }
 }

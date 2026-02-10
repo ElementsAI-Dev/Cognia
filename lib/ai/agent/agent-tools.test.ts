@@ -43,6 +43,7 @@ jest.mock('../tools', () => ({
   ragSearchInputSchema: z.object({ query: z.string() }),
   artifactTools: [],
   memoryTools: [],
+  getArtifactToolsPrompt: jest.fn(() => 'Artifact tools guidance prompt'),
 }));
 
 jest.mock('@/lib/skills', () => ({
@@ -246,7 +247,11 @@ describe('createRAGSearchTool', () => {
     
     expect(executeRAGSearch).toHaveBeenCalledWith(
       expect.objectContaining({ collectionName: 'my-default' }),
-      ragConfig
+      expect.objectContaining({
+        embeddingProvider: 'openai',
+        embeddingModel: 'text-embedding-3-small',
+        embeddingApiKey: 'test-key',
+      })
     );
   });
 });
@@ -327,17 +332,17 @@ describe('createCodeExecutionTool', () => {
     const tool = createCodeExecutionTool();
 
     expect(tool.name).toBe('execute_code');
-    expect(tool.description).toContain('Execute JavaScript code');
+    expect(tool.description).toContain('Execute code in a sandboxed environment');
     expect(tool.requiresApproval).toBe(true);
   });
 
   it('executes valid JavaScript code', async () => {
     const tool = createCodeExecutionTool();
-    const result = await tool.execute({ code: '2 + 2' }) as { success: boolean; result: string };
+    const result = await tool.execute({ code: '2 + 2' }) as { success: boolean; result?: string; stdout?: string; stderr?: string; language: string };
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
-      result: '4',
+      language: 'javascript',
     });
   });
 
@@ -691,6 +696,22 @@ describe('buildAgentSystemPrompt', () => {
     expect(prompt).toContain('Jupyter tools prompt');
   });
 
+  it('includes artifact tools prompt when enabled', () => {
+    const prompt = buildAgentSystemPrompt({
+      enableArtifactTools: true,
+    });
+
+    expect(prompt).toContain('Artifact tools guidance prompt');
+  });
+
+  it('does not include artifact tools prompt when not enabled', () => {
+    const prompt = buildAgentSystemPrompt({
+      enableArtifactTools: false,
+    });
+
+    expect(prompt).not.toContain('Artifact tools guidance prompt');
+  });
+
   it('combines all prompts', () => {
     const skill: Skill = {
       id: 'skill-1',
@@ -711,11 +732,13 @@ describe('buildAgentSystemPrompt', () => {
       activeSkills: [skill],
       enableEnvironmentTools: true,
       enableJupyterTools: true,
+      enableArtifactTools: true,
     });
 
     expect(prompt).toContain('Base prompt');
     expect(prompt).toContain('Skill: test-skill');
     expect(prompt).toContain('environment tools prompt');
     expect(prompt).toContain('Jupyter tools prompt');
+    expect(prompt).toContain('Artifact tools guidance prompt');
   });
 });

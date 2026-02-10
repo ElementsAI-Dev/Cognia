@@ -177,13 +177,52 @@ pub fn run() {
             // Ensure Ctrl+C (or terminal close) performs graceful teardown instead of abrupt kill
             {
                 let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    if tokio::signal::ctrl_c().await.is_ok() {
-                        log::info!("Ctrl+C detected, performing graceful shutdown");
-                        perform_full_cleanup(&handle);
-                        handle.exit(0);
+
+                #[cfg(target_os = "windows")]
+                {
+                    // On Windows, use SetConsoleCtrlHandler to intercept Ctrl+C at the Win32 level.
+                    // Returning TRUE from the handler suppresses the default "Terminate batch job (Y/N)?" prompt.
+                    use std::sync::OnceLock;
+                    use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT, CTRL_CLOSE_EVENT};
+                    use windows::Win32::Foundation::BOOL;
+
+                    static EXIT_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
+                    let _ = EXIT_HANDLE.set(handle.clone());
+
+                    unsafe extern "system" fn ctrl_handler(ctrl_type: u32) -> BOOL {
+                        if ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_CLOSE_EVENT {
+                            log::info!("Console ctrl event {} detected, performing graceful shutdown", ctrl_type);
+                            if let Some(h) = EXIT_HANDLE.get() {
+                                perform_full_cleanup(h);
+                                h.exit(0);
+                            }
+                            // Return TRUE to suppress default handler ("Terminate batch job" prompt)
+                            BOOL(1)
+                        } else {
+                            // Let the system handle other events
+                            BOOL(0)
+                        }
                     }
-                });
+
+                    unsafe {
+                        if let Err(e) = SetConsoleCtrlHandler(Some(ctrl_handler), true) {
+                            log::error!("Failed to set console ctrl handler: {}", e);
+                        } else {
+                            log::info!("Windows console ctrl handler registered");
+                        }
+                    }
+                }
+
+                #[cfg(not(target_os = "windows"))]
+                {
+                    tauri::async_runtime::spawn(async move {
+                        if tokio::signal::ctrl_c().await.is_ok() {
+                            log::info!("Ctrl+C detected, performing graceful shutdown");
+                            perform_full_cleanup(&handle);
+                            handle.exit(0);
+                        }
+                    });
+                }
             }
 
             // Initialize system tray
@@ -1938,55 +1977,54 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
         }
     }
 
-    // 3. Stop screen recording if active
-    if app.try_state::<ScreenRecordingManager>().is_some() {
+    // 3. Stop screen recording and shutdown MCP manager synchronously with timeout
+    if let Ok(rt_handle) = tokio::runtime::Handle::try_current() {
         let app_clone = app.clone();
-        // Use spawn to avoid blocking - cleanup is best-effort
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
-                    let _ = mgr.stop().await;
-                }
+        let cleanup_result = std::thread::spawn(move || {
+            rt_handle.block_on(async move {
+                let cleanup_future = async {
+                    if let Some(mgr) = app_clone.try_state::<ScreenRecordingManager>() {
+                        let _ = mgr.stop().await;
+                        log::debug!("Screen recording stopped");
+                    }
+                    if let Some(mgr) = app_clone.try_state::<McpManager>() {
+                        mgr.shutdown().await;
+                        log::debug!("MCP manager shut down");
+                    }
+                };
+                // Give async cleanup at most 2 seconds to finish
+                let _ = tokio::time::timeout(
+                    tokio::time::Duration::from_secs(2),
+                    cleanup_future,
+                ).await;
             });
+        }).join();
+        if let Err(_) = cleanup_result {
+            log::warn!("Async cleanup thread panicked");
         }
-        log::debug!("Screen recording stop requested");
     }
 
-    // 4. Shutdown MCP manager
-    if app.try_state::<McpManager>().is_some() {
-        let app_clone = app.clone();
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                if let Some(mgr) = app_clone.try_state::<McpManager>() {
-                    mgr.shutdown().await;
-                }
-            });
-        }
-        log::debug!("MCP manager shutdown requested");
-    }
-
-    // 5. Explicitly destroy auxiliary windows FIRST to avoid lingering Win32 classes
-    destroy_aux_windows(app);
-
-    // Small delay to ensure windows are fully destroyed
-    std::thread::sleep(std::time::Duration::from_millis(50));
-
-    // 6. Remove tray icon AFTER windows are destroyed
+    // 4. Remove tray icon FIRST (fast operation, prevents "Error removing system tray icon")
     if let Some(tray) = app.tray_by_id("main-tray") {
-        // First hide, then attempt to remove
+        // Clear menu to release resources, then hide to trigger OS cleanup
+        let _ = tray.set_menu(None::<tauri::menu::Menu<tauri::Wry>>);
         let _ = tray.set_visible(false);
-        // Note: Tauri 2.x doesn't expose a remove() method, but hiding should prevent the error
-        log::debug!("Tray icon hidden");
+        log::debug!("Tray icon removed");
     }
 
-    // Additional delay to ensure tray cleanup completes
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // 5. Destroy ALL windows (auxiliary + main) to allow Win32 class unregistration
+    destroy_all_windows(app);
+
+    // Allow WebView2 to fully tear down its Win32 window classes
+    std::thread::sleep(std::time::Duration::from_millis(200));
 
     log::info!("Full cleanup completed");
 }
 
-/// Tear down auxiliary windows safely (chat widget, selection toolbar, assistant bubble, splash)
-fn destroy_aux_windows(app: &tauri::AppHandle) {
+/// Tear down all windows safely to prevent Win32 class unregistration errors
+fn destroy_all_windows(app: &tauri::AppHandle) {
+    // 1. Auxiliary windows first (chat widget, selection toolbar, assistant bubble, splash)
+
     // Prefer manager-aware destroy for chat widget to persist position
     if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
         if let Err(e) = manager.destroy() {
@@ -2021,5 +2059,15 @@ fn destroy_aux_windows(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("splashscreen") {
         let _ = window.hide();
         let _ = window.destroy();
+    }
+
+    // Small delay between auxiliary and main window destruction
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // 2. Main window LAST - prevents ERROR_CLASS_HAS_WINDOWS (Error 1412)
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+        let _ = window.close();
+        log::debug!("Main window closed");
     }
 }

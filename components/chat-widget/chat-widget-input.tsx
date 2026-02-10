@@ -133,7 +133,7 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
       <form
         ref={formRef}
         onSubmit={onSubmit}
-        className={cn('flex items-end gap-2 p-3 border-t border-border/50 bg-muted/30', className)}
+        className={cn('flex items-end gap-2 px-3 pb-3 pt-1', className)}
       >
         <div className="flex-1 relative">
           <Textarea
@@ -145,10 +145,11 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
             disabled={disabled}
             className={cn(
               'min-h-[40px] max-h-[120px] py-2.5 px-3 pr-12',
-              'resize-none overflow-y-auto',
-              'bg-background border-border/50',
-              'focus-visible:ring-1 focus-visible:ring-primary/50',
-              'text-sm placeholder:text-muted-foreground/60'
+              'resize-none overflow-y-auto rounded-xl',
+              'bg-muted/40 border-border/30',
+              'focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/30',
+              'text-sm placeholder:text-muted-foreground/50',
+              'transition-all duration-200'
             )}
             rows={1}
           />
@@ -212,7 +213,7 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="h-9 w-9 shrink-0"
+                    className="h-9 w-9 shrink-0 rounded-xl"
                     onClick={onStop}
                   >
                     <Square className="h-4 w-4" />
@@ -227,7 +228,13 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
                   <Button
                     type="submit"
                     size="icon"
-                    className="h-9 w-9 shrink-0"
+                    className={cn(
+                      'h-9 w-9 shrink-0 rounded-xl',
+                      'bg-primary hover:bg-primary/90',
+                      'shadow-sm hover:shadow-md',
+                      'transition-all duration-200',
+                      (!value.trim() || isLoading) && 'opacity-50 shadow-none'
+                    )}
                     disabled={!value.trim() || isLoading}
                   >
                     <Send className="h-4 w-4" />

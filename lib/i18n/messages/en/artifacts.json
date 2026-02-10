@@ -32,7 +32,22 @@
     "typeMermaid": "Diagram",
     "typeChart": "Chart",
     "typeMath": "Math",
-    "typeJupyter": "Jupyter"
+    "typeJupyter": "Jupyter",
+    "runnable": "Runnable",
+    "words": "words",
+    "duplicate": "Duplicate",
+    "search": "Search artifacts...",
+    "filterByType": "Filter by type",
+    "allTypes": "All Types",
+    "batchDelete": "Delete Selected",
+    "batchDeleteConfirm": "Delete {count} artifacts?",
+    "versionHistory": "Version History",
+    "restoreVersion": "Restore",
+    "saveVersion": "Save Version",
+    "noVersions": "No version history",
+    "versionRestored": "Version restored",
+    "analysisResults": "Analysis Results",
+    "recentArtifacts": "Recent Artifacts"
   },
   "artifactPreview": {
     "previewError": "Preview error",

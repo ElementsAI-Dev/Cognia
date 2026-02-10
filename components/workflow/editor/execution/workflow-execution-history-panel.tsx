@@ -72,7 +72,7 @@ export function WorkflowExecutionHistoryPanel({
   workflowId,
 }: WorkflowExecutionHistoryPanelProps) {
   const t = useTranslations('workflowEditor');
-  const { currentWorkflow, startExecution } = useWorkflowEditorStore();
+  const { currentWorkflow, startExecution, replayExecution } = useWorkflowEditorStore();
 
   const effectiveWorkflowId = workflowId || currentWorkflow?.id;
 
@@ -138,12 +138,16 @@ export function WorkflowExecutionHistoryPanel({
     return orderedGroups;
   }, [filteredExecutions]);
 
-  // Re-run with same input
+  // Re-run with same input (use replayExecution for DB-persisted records)
   const handleRerun = useCallback(
     (execution: WorkflowExecutionHistoryRecord) => {
-      startExecution(execution.input || {});
+      if (execution.id) {
+        replayExecution(execution.id);
+      } else {
+        startExecution(execution.input || {});
+      }
     },
-    [startExecution]
+    [replayExecution, startExecution]
   );
 
   // Delete execution

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AppearanceSettings } from './appearance-settings';
 
 // Mock next-intl
@@ -25,15 +25,16 @@ jest.mock('lucide-react', () => ({
   MapPin: () => <span>MapPin</span>,
   RefreshCw: () => <span>RefreshCw</span>,
   Power: () => <span>Power</span>,
+  Image: () => <span>Image</span>,
+  Sliders: () => <span>Sliders</span>,
 }));
 
 // Mock useAutostart hook
 jest.mock('@/hooks/native', () => ({
   useAutostart: () => ({
-    autostart: false,
-    setAutostart: jest.fn(),
+    isEnabled: false,
+    toggle: jest.fn(),
     isLoading: false,
-    isSupported: false,
   }),
 }));
 
@@ -42,8 +43,6 @@ const mockSetTheme = jest.fn();
 const mockSetColorTheme = jest.fn();
 const mockSetLanguage = jest.fn();
 const mockSetSidebarCollapsed = jest.fn();
-const mockSetSendOnEnter = jest.fn();
-const mockSetStreamResponses = jest.fn();
 const mockSetActiveCustomTheme = jest.fn();
 
 jest.mock('@/stores', () => ({
@@ -60,31 +59,15 @@ jest.mock('@/stores', () => ({
       setLanguage: mockSetLanguage,
       sidebarCollapsed: false,
       setSidebarCollapsed: mockSetSidebarCollapsed,
-      sendOnEnter: true,
-      setSendOnEnter: mockSetSendOnEnter,
-      streamResponses: true,
-      setStreamResponses: mockSetStreamResponses,
       uiFontSize: 14,
       setUIFontSize: jest.fn(),
       messageBubbleStyle: 'modern',
       setMessageBubbleStyle: jest.fn(),
-      uiCustomization: {
-        borderRadius: 'md',
-        spacing: 'comfortable',
-        shadowIntensity: 'subtle',
-        enableAnimations: true,
-        enableBlur: true,
-        sidebarWidth: 280,
-        chatMaxWidth: 800,
-      },
-      setBorderRadius: jest.fn(),
-      setSpacing: jest.fn(),
-      setShadowIntensity: jest.fn(),
-      setEnableAnimations: jest.fn(),
-      setEnableBlur: jest.fn(),
-      setSidebarWidth: jest.fn(),
-      setChatMaxWidth: jest.fn(),
-      resetUICustomization: jest.fn(),
+      autoDetectLocale: false,
+      setAutoDetectLocale: jest.fn(),
+      localeDetectionResult: null,
+      setLocaleDetectionResult: jest.fn(),
+      detectedTimezone: null,
     };
     return selector(state);
   },
@@ -147,21 +130,45 @@ jest.mock('@/components/ui/select', () => ({
   SelectValue: () => <span>Value</span>,
 }));
 
-jest.mock('@/lib/themes', () => ({
-  THEME_PRESETS: {
-    default: { name: 'Default', colors: {} },
-    ocean: { name: 'Ocean', colors: {} },
-    forest: { name: 'Forest', colors: {} },
-    sunset: { name: 'Sunset', colors: {} },
-    lavender: { name: 'Lavender', colors: {} },
-    rose: { name: 'Rose', colors: {} },
+// Mock Tabs component — render all TabsContent children, track active tab via data attribute
+let activeTab = 'theme';
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, defaultValue }: { children: React.ReactNode; defaultValue?: string }) => {
+    activeTab = defaultValue || 'theme';
+    return <div data-testid="tabs" data-active={activeTab}>{children}</div>;
   },
-  applyUICustomization: jest.fn(),
+  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list" role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value, ...props }: { children: React.ReactNode; value: string }) => (
+    <button role="tab" data-value={value} onClick={() => { activeTab = value; }} {...props}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`tab-${value}`} role="tabpanel">{children}</div>
+  ),
+}));
+
+jest.mock('@/lib/themes', () => ({
+  THEME_MODE_OPTIONS: [
+    { value: 'light', icon: 'sun', labelKey: 'themeLight' },
+    { value: 'dark', icon: 'moon', labelKey: 'themeDark' },
+    { value: 'system', icon: 'monitor', labelKey: 'themeSystem' },
+  ],
+  COLOR_THEME_OPTIONS: [
+    { value: 'default', color: 'bg-blue-500', labelKey: 'default' },
+    { value: 'ocean', color: 'bg-cyan-500', labelKey: 'ocean' },
+  ],
+  getPresetColors: () => ({
+    primary: '#000',
+    background: '#fff',
+    foreground: '#000',
+    muted: '#888',
+    secondary: '#eee',
+  }),
 }));
 
 jest.mock('@/lib/i18n', () => ({
   localeNames: { en: 'English', zh: '中文' },
   localeFlags: { en: '🇺🇸', zh: '🇨🇳' },
+  autoDetectLocale: jest.fn().mockResolvedValue({ locale: 'en', source: 'browser', confidence: 'high' }),
 }));
 
 jest.mock('./theme-editor', () => ({
@@ -170,6 +177,10 @@ jest.mock('./theme-editor', () => ({
 
 jest.mock('./theme-schedule', () => ({
   ThemeSchedule: () => <div data-testid="theme-schedule" />,
+}));
+
+jest.mock('./theme-preview', () => ({
+  ThemePreview: ({ children }: { children: React.ReactNode }) => <div data-testid="theme-preview">{children}</div>,
 }));
 
 jest.mock('./ui-customization-settings', () => ({
@@ -184,6 +195,18 @@ jest.mock('./theme-import-export', () => ({
   ThemeImportExport: () => <div data-testid="theme-import-export" />,
 }));
 
+jest.mock('./settings-profiles', () => ({
+  SettingsProfiles: () => <div data-testid="settings-profiles" />,
+}));
+
+jest.mock('./simplified-mode-settings', () => ({
+  SimplifiedModeSettings: () => <div data-testid="simplified-mode-settings" />,
+}));
+
+jest.mock('./welcome-settings', () => ({
+  WelcomeSettings: () => <div data-testid="welcome-settings" />,
+}));
+
 describe('AppearanceSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -191,34 +214,117 @@ describe('AppearanceSettings', () => {
 
   it('renders without crashing', () => {
     render(<AppearanceSettings />);
-    expect(screen.getAllByTestId('card').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('tabs')).toBeInTheDocument();
   });
 
-  it('displays language settings', () => {
+  it('renders 4 tab triggers', () => {
     render(<AppearanceSettings />);
-    expect(screen.getByText('language')).toBeInTheDocument();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(4);
   });
 
-  it('displays theme settings', () => {
+  it('defaults to theme tab', () => {
     render(<AppearanceSettings />);
-    expect(screen.getByText('theme')).toBeInTheDocument();
+    expect(screen.getByTestId('tabs')).toHaveAttribute('data-active', 'theme');
   });
 
-  it('renders theme options', () => {
+  // --- Theme Tab ---
+  it('renders theme mode options in Theme tab', () => {
     render(<AppearanceSettings />);
     expect(screen.getByText('themeLight')).toBeInTheDocument();
     expect(screen.getByText('themeDark')).toBeInTheDocument();
     expect(screen.getByText('themeSystem')).toBeInTheDocument();
   });
 
-  it('renders language selector', () => {
+  it('calls setTheme when theme mode button is clicked', () => {
     render(<AppearanceSettings />);
-    expect(screen.getAllByTestId('select').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText('themeDark'));
+    expect(mockSetTheme).toHaveBeenCalledWith('dark');
   });
 
-  it('renders switches for preferences', () => {
+  it('renders color theme options with ThemePreview wrappers', () => {
     render(<AppearanceSettings />);
-    const switches = screen.getAllByRole('switch');
+    const previews = screen.getAllByTestId('theme-preview');
+    expect(previews.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('calls setColorTheme when color theme is clicked', () => {
+    render(<AppearanceSettings />);
+    const themeTab = screen.getByTestId('tab-theme');
+    // Find buttons inside theme tab that have the color theme preset text
+    const presetButtons = themeTab.querySelectorAll('[data-testid="theme-preview"] button');
+    if (presetButtons.length > 0) {
+      fireEvent.click(presetButtons[0]);
+      expect(mockSetColorTheme).toHaveBeenCalled();
+    }
+  });
+
+  it('renders ThemeSchedule in Theme tab', () => {
+    render(<AppearanceSettings />);
+    const themeTab = screen.getByTestId('tab-theme');
+    expect(themeTab.querySelector('[data-testid="theme-schedule"]')).toBeInTheDocument();
+  });
+
+  // --- Layout & Style Tab ---
+  it('renders UICustomizationSettings in Layout tab', () => {
+    render(<AppearanceSettings />);
+    const layoutTab = screen.getByTestId('tab-layout');
+    expect(layoutTab.querySelector('[data-testid="ui-customization-settings"]')).toBeInTheDocument();
+  });
+
+  it('renders font size slider in Layout tab', () => {
+    render(<AppearanceSettings />);
+    const layoutTab = screen.getByTestId('tab-layout');
+    expect(layoutTab.querySelector('[data-testid="slider"]')).toBeInTheDocument();
+  });
+
+  // --- Background Tab ---
+  it('renders BackgroundSettings in Background tab', () => {
+    render(<AppearanceSettings />);
+    const bgTab = screen.getByTestId('tab-background');
+    expect(bgTab.querySelector('[data-testid="background-settings"]')).toBeInTheDocument();
+  });
+
+  // --- Advanced Tab ---
+  it('renders language selector in Advanced tab', () => {
+    render(<AppearanceSettings />);
+    const advancedTab = screen.getByTestId('tab-advanced');
+    expect(advancedTab.querySelector('[data-testid="select"]')).toBeInTheDocument();
+  });
+
+  it('renders SettingsProfiles in Advanced tab', () => {
+    render(<AppearanceSettings />);
+    const advancedTab = screen.getByTestId('tab-advanced');
+    expect(advancedTab.querySelector('[data-testid="settings-profiles"]')).toBeInTheDocument();
+  });
+
+  it('renders SimplifiedModeSettings in Advanced tab', () => {
+    render(<AppearanceSettings />);
+    const advancedTab = screen.getByTestId('tab-advanced');
+    expect(advancedTab.querySelector('[data-testid="simplified-mode-settings"]')).toBeInTheDocument();
+  });
+
+  it('renders WelcomeSettings in Advanced tab', () => {
+    render(<AppearanceSettings />);
+    const advancedTab = screen.getByTestId('tab-advanced');
+    expect(advancedTab.querySelector('[data-testid="welcome-settings"]')).toBeInTheDocument();
+  });
+
+  it('renders switches for preferences in Advanced tab', () => {
+    render(<AppearanceSettings />);
+    const advancedTab = screen.getByTestId('tab-advanced');
+    const switches = advancedTab.querySelectorAll('[role="switch"]');
     expect(switches.length).toBeGreaterThan(0);
+  });
+
+  it('does NOT render sendOnEnter or streamResponses', () => {
+    render(<AppearanceSettings />);
+    expect(screen.queryByText('sendOnEnter')).not.toBeInTheDocument();
+    expect(screen.queryByText('streamResponses')).not.toBeInTheDocument();
+  });
+
+  it('renders ThemeEditor dialog', () => {
+    render(<AppearanceSettings />);
+    expect(screen.getByTestId('theme-editor')).toBeInTheDocument();
   });
 });

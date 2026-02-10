@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bot, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
+import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { ProviderName } from '@/types';
 
 interface ChatWidgetModelSelectorProps {
@@ -145,7 +146,7 @@ export function ChatWidgetModelSelector({
                 className
               )}
             >
-              <Bot className="h-3 w-3" />
+              <ProviderIcon providerId={provider} size={14} className="shrink-0" />
               <span className="max-w-[80px] truncate">{displayName}</span>
               <ChevronDown className="h-2.5 w-2.5 opacity-50" />
             </Button>

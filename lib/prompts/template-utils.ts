@@ -55,5 +55,5 @@ export function applyTemplateVariables(
 }
 
 export function sortTemplatesByUpdatedAt(templates: PromptTemplate[]): PromptTemplate[] {
-  return [...templates].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  return [...templates].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }

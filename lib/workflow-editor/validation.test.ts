@@ -1153,7 +1153,7 @@ describe('validateWorkflowComprehensive', () => {
       isConfigured: true,
       hasError: false,
       ...data,
-    },
+    } as unknown as import('@/types/workflow/workflow-editor').WorkflowNodeData,
   });
 
   it('should return comprehensive validation result', () => {

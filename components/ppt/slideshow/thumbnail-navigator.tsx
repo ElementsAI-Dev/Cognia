@@ -75,6 +75,8 @@ export function ThumbnailNavigator({
                   )}
                   style={{
                     backgroundColor: slide.backgroundColor || theme.backgroundColor,
+                    contentVisibility: 'auto',
+                    containIntrinsicSize: size === 'small' ? '64px 40px' : size === 'medium' ? '96px 56px' : '128px 80px',
                   }}
                 >
                   <div className="w-full h-full p-1 flex flex-col justify-center items-center overflow-hidden">

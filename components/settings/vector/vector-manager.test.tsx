@@ -1,8 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VectorManager } from './vector-manager';
-import type { VectorCollectionInfo, VectorSearchResult } from '@/lib/vector';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -15,12 +14,10 @@ jest.mock('next-intl', () => ({
       createNewCollection: 'Create new collection',
       collectionNamePlaceholder: 'collection name',
       create: 'Create',
-      collection: 'Collection',
       documents: 'Documents',
       dimension: 'Dimension',
       model: 'Model',
       provider: 'Provider',
-      descriptionLabel: 'Description',
       collections: 'Collections',
       totalPoints: 'Total Points',
       storage: 'Storage',
@@ -36,12 +33,12 @@ jest.mock('next-intl', () => ({
       renameCollection: 'Rename collection',
       addDocument: 'Add document',
       documentContentPlaceholder: 'Document content',
-      metadataPlaceholder: 'Metadata JSON e.g. {"type":"note"}',
+      metadataPlaceholder: 'Metadata JSON',
       addDocumentBtn: 'Add Document',
       query: 'Query',
       searchTextPlaceholder: 'Search text',
       topK: 'Top K',
-      threshold: 'Threshold (0-1)',
+      threshold: 'Threshold',
       filterJson: 'Filter (JSON)',
       filterPlaceholder: 'e.g. {"type":"doc"}',
       sort: 'Sort',
@@ -49,16 +46,8 @@ jest.mock('next-intl', () => ({
       search: 'Search',
       results: 'Results',
       noResults: 'No results found',
-      score: 'Score',
       metadata: 'Metadata',
       addFromFiles: 'Add from files',
-      addFromFilesTooltip: 'Upload files, chunk them, and add into the active collection',
-      deleteCollectionTooltip: 'Delete this collection',
-      clearCollectionTooltip: 'Clear all documents',
-      truncateTooltip: 'Truncate collection',
-      deleteAllDocsTooltip: 'Delete all documents',
-      exportTooltip: 'Export collection',
-      importTooltip: 'Import collection',
       confirmDeleteTitle: 'Delete Collection?',
       confirmDeleteDesc: 'This will permanently delete the collection.',
       confirmClearTitle: 'Clear Collection?',
@@ -67,8 +56,6 @@ jest.mock('next-intl', () => ({
       confirmTruncateDesc: 'This will truncate the collection.',
       confirmDeleteDocsTitle: 'Delete All Documents?',
       confirmDeleteDocsDesc: 'This will remove all documents.',
-      scoreDesc: 'Score ↓',
-      scoreAsc: 'Score ↑',
       sortByScore: 'Sort by score',
       sortById: 'Sort by id',
       sortByMetadataSize: 'Sort by metadata size',
@@ -77,68 +64,118 @@ jest.mock('next-intl', () => ({
       toggleSummaryHint: 'Toggle metadata summary',
       showMetadata: 'Show metadata',
       hideMetadata: 'Hide metadata',
-      peek: 'Peek',
       peekBtn: 'Peek',
       total: 'total',
       prev: 'Previous',
       next: 'Next',
-      renameSuccess: 'Collection renamed',
-      renameFailed: 'Rename failed',
-      truncateSuccess: 'Collection truncated',
-      truncateFailed: 'Truncate failed',
-      deleteDocsSuccess: 'Deleted {count} documents',
-      deleteDocsFailed: 'Delete failed',
-      exportSuccess: 'Collection exported',
-      exportFailed: 'Export failed',
-      importSuccess: 'Imported {name}',
-      importFailed: 'Import failed',
-      searchFailed: 'Search failed',
-      invalidMetadataJson: 'Invalid document metadata JSON',
     };
     return translations[key] || key;
   },
 }));
 
-// Mock the useVectorDB hook
-const mockCreateCollection = jest.fn();
-const mockDeleteCollection = jest.fn();
-const mockClearCollection = jest.fn();
-const mockListAllCollections = jest.fn();
-const mockAddDocument = jest.fn();
-const mockSearchWithOptions = jest.fn();
-const mockPeek = jest.fn();
-const mockGetStats = jest.fn();
-const mockGetCollectionInfo = jest.fn();
+// Mock useVectorManager hook — the component now delegates all logic here
+const mockHandleCreate = jest.fn();
+const mockHandleRefresh = jest.fn();
+const mockHandleRename = jest.fn();
+const mockHandleExport = jest.fn();
+const mockHandleImport = jest.fn();
+const mockHandleAddDocument = jest.fn();
+const mockHandleAddDocumentsFromModal = jest.fn();
+const mockHandleSearchWithPagination = jest.fn();
+const mockHandlePeek = jest.fn();
+const mockHandleConfirmAction = jest.fn();
+const mockSetCollectionName = jest.fn();
+const mockSetNewCollection = jest.fn();
+const mockSetNewDocContent = jest.fn();
+const mockSetNewDocMeta = jest.fn();
+const mockSetQuery = jest.fn();
+const mockSetTopK = jest.fn();
+const mockSetThreshold = jest.fn();
+const mockSetFilterJson = jest.fn();
+const mockSetSortOrder = jest.fn();
+const mockSetSortField = jest.fn();
+const mockSetPageSize = jest.fn();
+const mockSetShowAddDocModal = jest.fn();
+const mockSetShowRenameDialog = jest.fn();
+const mockSetRenameNewName = jest.fn();
+const mockSetActiveTab = jest.fn();
+const mockSetExpanded = jest.fn();
+const mockSetShowMetadataSummary = jest.fn();
+const mockSetConfirmAction = jest.fn();
+const mockFileInputRef = { current: null };
 
-jest.mock('@/hooks/rag', () => ({
-  useVectorDB: jest.fn(() => ({
-    isLoading: false,
-    error: null,
-    isInitialized: true,
-    createCollection: mockCreateCollection,
-    deleteCollection: mockDeleteCollection,
-    clearCollection: mockClearCollection,
-    listAllCollections: mockListAllCollections,
-    addDocument: mockAddDocument,
-    searchWithOptions: mockSearchWithOptions,
-    searchWithTotal: mockSearchWithOptions,
-    peek: mockPeek,
-    getStats: mockGetStats,
-    getCollectionInfo: mockGetCollectionInfo,
-  })),
-}));
+let mockHookState: Record<string, unknown> = {};
 
-// Mock useVectorStore
-jest.mock('@/stores', () => ({
-  useVectorStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      settings: {
-        chunkSize: 1000,
-        chunkOverlap: 200,
-      },
-    };
-    return selector(state);
+const getDefaultHookState = () => ({
+  collectionName: 'default',
+  setCollectionName: mockSetCollectionName,
+  collections: [
+    { name: 'collection1', documentCount: 5, dimension: 1536, embeddingModel: 'model1', embeddingProvider: 'provider1' },
+    { name: 'collection2', documentCount: 3, dimension: 768 },
+  ],
+  newCollection: '',
+  setNewCollection: mockSetNewCollection,
+  stats: null,
+  selectedCollectionInfo: null,
+  newDocContent: '',
+  setNewDocContent: mockSetNewDocContent,
+  newDocMeta: '',
+  setNewDocMeta: mockSetNewDocMeta,
+  filterError: null,
+  query: '',
+  setQuery: mockSetQuery,
+  topK: 5,
+  setTopK: mockSetTopK,
+  threshold: 0,
+  setThreshold: mockSetThreshold,
+  filterJson: '',
+  setFilterJson: mockSetFilterJson,
+  results: [],
+  sortOrder: 'desc' as const,
+  setSortOrder: mockSetSortOrder,
+  sortField: 'score' as const,
+  setSortField: mockSetSortField,
+  totalResults: 0,
+  totalPages: 0,
+  currentPage: 1,
+  pageSize: 10,
+  setPageSize: mockSetPageSize,
+  showAddDocModal: false,
+  setShowAddDocModal: mockSetShowAddDocModal,
+  showRenameDialog: false,
+  setShowRenameDialog: mockSetShowRenameDialog,
+  renameNewName: '',
+  setRenameNewName: mockSetRenameNewName,
+  activeTab: 'collections',
+  setActiveTab: mockSetActiveTab,
+  expanded: {},
+  setExpanded: mockSetExpanded,
+  showMetadataSummary: true,
+  setShowMetadataSummary: mockSetShowMetadataSummary,
+  confirmAction: null,
+  setConfirmAction: mockSetConfirmAction,
+  confirmLabels: {
+    delete: { title: 'Delete Collection?', desc: 'This will permanently delete the collection.' },
+    clear: { title: 'Clear Collection?', desc: 'This will remove all documents.' },
+    truncate: { title: 'Truncate Collection?', desc: 'This will truncate the collection.' },
+    deleteAllDocs: { title: 'Delete All Documents?', desc: 'This will remove all documents.' },
   },
+  fileInputRef: mockFileInputRef,
+  settings: { chunkSize: 1000, chunkOverlap: 200 },
+  handleRefresh: mockHandleRefresh,
+  handleCreate: mockHandleCreate,
+  handleRename: mockHandleRename,
+  handleExport: mockHandleExport,
+  handleImport: mockHandleImport,
+  handleAddDocument: mockHandleAddDocument,
+  handleAddDocumentsFromModal: mockHandleAddDocumentsFromModal,
+  handleSearchWithPagination: mockHandleSearchWithPagination,
+  handlePeek: mockHandlePeek,
+  handleConfirmAction: mockHandleConfirmAction,
+});
+
+jest.mock('@/hooks/vector/use-vector-manager', () => ({
+  useVectorManager: () => mockHookState,
 }));
 
 // Mock AddDocumentModal
@@ -149,63 +186,25 @@ jest.mock('./add-document-modal', () => ({
 }));
 
 // Mock UI components
-interface ButtonProps {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  'data-testid'?: string;
-  [key: string]: unknown;
-}
-
-interface InputProps {
-  value?: string | number;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  'data-testid'?: string;
-  [key: string]: unknown;
-}
-
 interface BaseProps {
   children?: React.ReactNode;
   [key: string]: unknown;
 }
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: ButtonProps) => (
-    <button onClick={onClick} disabled={disabled} data-testid={props['data-testid']} {...props}>
-      {children}
-    </button>
+  Button: ({ children, onClick, disabled, ...props }: BaseProps & { onClick?: () => void; disabled?: boolean }) => (
+    <button onClick={onClick} disabled={disabled} {...props}>{children}</button>
   ),
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: ({ value, onChange, placeholder, ...props }: InputProps) => (
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      data-testid={props['data-testid']}
-      {...props}
-    />
+  Input: ({ value, onChange, placeholder, ...props }: BaseProps & { value?: string | number; onChange?: React.ChangeEventHandler<HTMLInputElement>; placeholder?: string }) => (
+    <input value={value} onChange={onChange} placeholder={placeholder} {...props} />
   ),
 }));
 
 jest.mock('@/components/ui/label', () => ({
-  Label: ({ children, ...props }: BaseProps) => (
-    <label {...props}>{children}</label>
-  ),
-}));
-
-jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, ...props }: BaseProps) => <div {...props}>{children}</div>,
-  CardContent: ({ children, ...props }: BaseProps) => <div {...props}>{children}</div>,
-  CardDescription: ({ children, ...props }: BaseProps) => <div {...props}>{children}</div>,
-  CardHeader: ({ children, ...props }: BaseProps) => <div {...props}>{children}</div>,
-  CardTitle: ({ children, ...props }: BaseProps) => <div {...props}>{children}</div>,
-}));
-
-jest.mock('@/components/ui/separator', () => ({
-  Separator: () => <hr data-testid="separator" />,
+  Label: ({ children, ...props }: BaseProps) => <label {...props}>{children}</label>,
 }));
 
 jest.mock('@/components/ui/scroll-area', () => ({
@@ -216,13 +215,18 @@ jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children, ...props }: BaseProps) => <span {...props}>{children}</span>,
 }));
 
-// Mock Select component as native select
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, value }: BaseProps & { value?: string }) => <div data-testid="tabs" data-value={value}>{children}</div>,
+  TabsList: ({ children }: BaseProps) => <div data-testid="tabs-list">{children}</div>,
+  TabsTrigger: ({ children, value, ...props }: BaseProps & { value?: string }) => <button data-testid={`tab-${value}`} {...props}>{children}</button>,
+  TabsContent: ({ children, value }: BaseProps & { value?: string }) => <div data-testid={`tab-content-${value}`}>{children}</div>,
+}));
+
 jest.mock('@/components/ui/select', () => ({
   Select: ({ children, value, onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => (
-    <div data-testid="select">{typeof children === 'function' ? null : children}
-      <select value={value} onChange={(e) => onValueChange?.(e.target.value)} data-testid="select-native">
-        {/* SelectItems will be rendered as options */}
-      </select>
+    <div data-testid="select">
+      <select value={value} onChange={(e) => onValueChange?.(e.target.value)} data-testid="select-native" />
+      {children}
     </div>
   ),
   SelectTrigger: ({ children }: BaseProps) => <div data-testid="select-trigger">{children}</div>,
@@ -233,554 +237,358 @@ jest.mock('@/components/ui/select', () => ({
   ),
 }));
 
-// Mock AlertDialog components
 jest.mock('@/components/ui/alert-dialog', () => ({
-  AlertDialog: ({ children }: BaseProps) => <div>{children}</div>,
-  AlertDialogTrigger: ({ children, asChild }: BaseProps & { asChild?: boolean }) => asChild ? <>{children}</> : <div>{children}</div>,
+  AlertDialog: ({ children, open }: BaseProps & { open?: boolean }) => open ? <div data-testid="alert-dialog">{children}</div> : null,
   AlertDialogContent: ({ children }: BaseProps) => <div data-testid="alert-dialog-content">{children}</div>,
   AlertDialogHeader: ({ children }: BaseProps) => <div>{children}</div>,
-  AlertDialogTitle: ({ children }: BaseProps) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: BaseProps) => <div data-testid="alert-dialog-title">{children}</div>,
   AlertDialogDescription: ({ children }: BaseProps) => <div>{children}</div>,
   AlertDialogFooter: ({ children }: BaseProps) => <div>{children}</div>,
-  AlertDialogAction: ({ children, onClick }: ButtonProps) => <button onClick={onClick}>{children}</button>,
+  AlertDialogAction: ({ children, onClick }: BaseProps & { onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
   AlertDialogCancel: ({ children }: BaseProps) => <button>{children}</button>,
 }));
 
-// Mock Alert components
-jest.mock('@/components/ui/alert', () => ({
-  Alert: ({ children }: BaseProps) => <div data-testid="alert">{children}</div>,
-  AlertDescription: ({ children }: BaseProps) => <div>{children}</div>,
+jest.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ children, open }: BaseProps & { open?: boolean }) => open ? <div data-testid="dialog">{children}</div> : null,
+  DialogContent: ({ children }: BaseProps) => <div data-testid="dialog-content">{children}</div>,
+  DialogHeader: ({ children }: BaseProps) => <div>{children}</div>,
+  DialogTitle: ({ children }: BaseProps) => <div>{children}</div>,
+  DialogDescription: ({ children }: BaseProps) => <div>{children}</div>,
+  DialogFooter: ({ children }: BaseProps) => <div>{children}</div>,
 }));
 
-// Mock Textarea
+jest.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: BaseProps) => <div data-testid="dropdown-menu">{children}</div>,
+  DropdownMenuTrigger: ({ children, asChild }: BaseProps & { asChild?: boolean }) => asChild ? <>{children}</> : <div>{children}</div>,
+  DropdownMenuContent: ({ children }: BaseProps) => <div data-testid="dropdown-content">{children}</div>,
+  DropdownMenuItem: ({ children, onClick, disabled }: BaseProps & { onClick?: () => void; disabled?: boolean }) => (
+    <button onClick={onClick} disabled={disabled} data-testid="dropdown-item">{children}</button>
+  ),
+  DropdownMenuSeparator: () => <hr />,
+}));
+
 jest.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder, ...props }: InputProps & { rows?: number }) => (
-    <textarea value={value as string} onChange={onChange as unknown as React.ChangeEventHandler<HTMLTextAreaElement>} placeholder={placeholder} {...props} />
+  Textarea: ({ value, onChange, placeholder, ...props }: BaseProps & { value?: string; onChange?: React.ChangeEventHandler<HTMLTextAreaElement>; placeholder?: string }) => (
+    <textarea value={value} onChange={onChange} placeholder={placeholder} {...props} />
   ),
 }));
 
-// Mock Tooltip components
-jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: BaseProps) => <div data-testid="tooltip">{children}</div>,
-  TooltipContent: ({ children }: BaseProps) => <span>{children}</span>,
-  TooltipTrigger: ({ children, asChild }: BaseProps & { asChild?: boolean }) => asChild ? <>{children}</> : <div>{children}</div>,
-  TooltipProvider: ({ children }: BaseProps) => <>{children}</>,
+jest.mock('@/components/settings/common/settings-section', () => ({
+  SettingsCard: ({ children, title, description }: BaseProps & { title?: string; description?: string }) => (
+    <div data-testid="settings-card">
+      {title && <h3>{title}</h3>}
+      {description && <p>{description}</p>}
+      {children}
+    </div>
+  ),
 }));
 
-const mockCollections: VectorCollectionInfo[] = [
-  {
-    name: 'collection1',
-    documentCount: 5,
-    dimension: 1536,
-    createdAt: 1640995200,
-    updatedAt: 1640995300,
-    description: 'Test collection 1',
-    embeddingModel: 'model1',
-    embeddingProvider: 'provider1',
-  },
-  {
-    name: 'collection2',
-    documentCount: 3,
-    dimension: 768,
-    createdAt: 1640995400,
-    updatedAt: 1640995500,
-  },
-];
-
-const mockSearchResults: VectorSearchResult[] = [
-  {
-    id: 'result1',
-    content: 'Test search result 1',
-    score: 0.95,
-    metadata: { type: 'document', category: 'test' },
-  },
-  {
-    id: 'result2',
-    content: 'Test search result 2',
-    score: 0.87,
-    metadata: { type: 'article' },
-  },
-];
+jest.mock('./section-header', () => ({
+  SectionHeader: ({ title }: { title: string }) => <div data-testid="section-header">{title}</div>,
+}));
 
 describe('VectorManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockListAllCollections.mockResolvedValue(mockCollections);
-    // searchWithTotal returns { results, total }
-    mockSearchWithOptions.mockResolvedValue({ results: [], total: 0 });
-    mockPeek.mockResolvedValue([]);
+    mockHookState = getDefaultHookState();
   });
 
-  it('renders the component with title and description', async () => {
+  it('renders the component with title and description', () => {
     render(<VectorManager />);
-    
     expect(screen.getByText('Collections & Search')).toBeInTheDocument();
     expect(screen.getByText('Manage collections, clear data, and run vector searches.')).toBeInTheDocument();
-    
-    // Wait for async collection loading to complete
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
   });
 
-  it('loads and displays collections on mount', async () => {
+  it('renders all three tabs', () => {
     render(<VectorManager />);
+    expect(screen.getByTestId('tab-collections')).toBeInTheDocument();
+    expect(screen.getByTestId('tab-documents')).toBeInTheDocument();
+    expect(screen.getByTestId('tab-search')).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
-
-    // Check if collections are rendered in the select items
+  it('displays collections in the select', () => {
+    render(<VectorManager />);
     expect(screen.getByTestId('select-item-collection1')).toBeInTheDocument();
+    expect(screen.getByTestId('select-item-collection2')).toBeInTheDocument();
   });
 
-  it('creates a new collection', async () => {
+  it('renders collection info when available', () => {
+    mockHookState = {
+      ...getDefaultHookState(),
+      selectedCollectionInfo: {
+        name: 'test-col',
+        documentCount: 42,
+        dimension: 1536,
+        embeddingModel: 'text-embedding-3',
+        embeddingProvider: 'openai',
+      },
+    };
+
+    render(<VectorManager />);
+    expect(screen.getByText('test-col')).toBeInTheDocument();
+    expect(screen.getByText(/42/)).toBeInTheDocument();
+  });
+
+  it('renders stats when available', () => {
+    mockHookState = {
+      ...getDefaultHookState(),
+      stats: { collectionCount: 3, totalPoints: 150, storageSizeBytes: 2048 },
+    };
+
+    render(<VectorManager />);
+    expect(screen.getByText(/Collections: 3/)).toBeInTheDocument();
+    expect(screen.getByText(/Total Points: 150/)).toBeInTheDocument();
+  });
+
+  it('calls handleRefresh when refresh button is clicked', async () => {
     const user = userEvent.setup();
-    mockCreateCollection.mockResolvedValue(undefined);
-    mockListAllCollections.mockResolvedValueOnce(mockCollections).mockResolvedValueOnce([
-      ...mockCollections,
-      { name: 'new-collection', documentCount: 0, dimension: 1536 },
-    ]);
+    render(<VectorManager />);
+
+    const refreshButton = screen.getByText('Refresh');
+    await user.click(refreshButton);
+
+    expect(mockHandleRefresh).toHaveBeenCalled();
+  });
+
+  it('calls handleCreate when create button is clicked', async () => {
+    const user = userEvent.setup();
+    mockHookState = { ...getDefaultHookState(), newCollection: 'new-col' };
 
     render(<VectorManager />);
 
-    // Find and fill the new collection input
-    const input = screen.getByPlaceholderText('collection name');
-    await user.type(input, 'new-collection');
-
-    // Click create button
     const createButton = screen.getByText('Create');
     await user.click(createButton);
 
-    await waitFor(() => {
-      expect(mockCreateCollection).toHaveBeenCalledWith('new-collection');
-      expect(mockListAllCollections).toHaveBeenCalled(); // Called at least once
-    });
+    expect(mockHandleCreate).toHaveBeenCalled();
   });
 
-  it('prevents creating collection with empty name', async () => {
-    const user = userEvent.setup();
+  it('disables create button when newCollection is empty', () => {
+    mockHookState = { ...getDefaultHookState(), newCollection: '' };
     render(<VectorManager />);
 
     const createButton = screen.getByText('Create');
     expect(createButton).toBeDisabled();
-
-    // Type something then clear it
-    const input = screen.getByPlaceholderText('collection name');
-    await user.type(input, 'test');
-    await user.clear(input);
-
-    expect(createButton).toBeDisabled();
   });
 
-  it('deletes a collection', async () => {
+  it('calls handleExport when export button is clicked', async () => {
     const user = userEvent.setup();
-    mockDeleteCollection.mockResolvedValue(undefined);
-    const collectionsAfterDelete = mockCollections.slice(1);
-    mockListAllCollections.mockResolvedValueOnce(mockCollections).mockResolvedValueOnce(collectionsAfterDelete);
-
     render(<VectorManager />);
 
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
+    const exportButton = screen.getByText('Export');
+    await user.click(exportButton);
 
-    const deleteButton = screen.getByText('Delete collection');
-    await user.click(deleteButton);
-
-    // AlertDialog mock renders content always visible - click Confirm
-    const confirmButtons = screen.getAllByText('Confirm');
-    await user.click(confirmButtons[0]);
-
-    await waitFor(() => {
-      expect(mockDeleteCollection).toHaveBeenCalled();
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
+    expect(mockHandleExport).toHaveBeenCalled();
   });
 
-  it('clears a collection', async () => {
-    const user = userEvent.setup();
-    mockClearCollection.mockResolvedValue(undefined);
-    mockListAllCollections.mockResolvedValueOnce(mockCollections).mockResolvedValueOnce(mockCollections);
-
+  it('renders action dropdown with dangerous actions', () => {
     render(<VectorManager />);
+    expect(screen.getByText('Clear collection')).toBeInTheDocument();
+    expect(screen.getByText('Truncate')).toBeInTheDocument();
+    expect(screen.getByText('Delete all docs')).toBeInTheDocument();
+    expect(screen.getByText('Delete collection')).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
+  it('calls setConfirmAction when dropdown items are clicked', async () => {
+    const user = userEvent.setup();
+    render(<VectorManager />);
 
     const clearButton = screen.getByText('Clear collection');
     await user.click(clearButton);
-
-    // AlertDialog mock renders content always visible - click Confirm
-    const confirmButtons = screen.getAllByText('Confirm');
-    await user.click(confirmButtons[1]);
-
-    await waitFor(() => {
-      expect(mockClearCollection).toHaveBeenCalled();
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
+    expect(mockSetConfirmAction).toHaveBeenCalledWith('clear');
   });
 
-  it('adds a document with content and metadata', async () => {
+  it('renders confirm dialog when confirmAction is set', () => {
+    mockHookState = { ...getDefaultHookState(), confirmAction: 'delete' };
+    render(<VectorManager />);
+
+    expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
+    expect(screen.getByText('Delete Collection?')).toBeInTheDocument();
+  });
+
+  it('calls handleConfirmAction on confirm dialog confirm click', async () => {
     const user = userEvent.setup();
-    mockAddDocument.mockResolvedValue('doc-123');
-    mockListAllCollections.mockResolvedValueOnce(mockCollections).mockResolvedValueOnce(mockCollections);
+    mockHookState = { ...getDefaultHookState(), confirmAction: 'delete' };
 
     render(<VectorManager />);
 
-    // Fill document content
-    const contentInput = screen.getByPlaceholderText('Document content');
-    await user.type(contentInput, 'Test document content');
+    const confirmButton = screen.getByText('Confirm');
+    await user.click(confirmButton);
 
-    // Fill metadata JSON using fireEvent to avoid userEvent JSON parsing issues
-    const metadataInput = screen.getByPlaceholderText('Metadata JSON e.g. {"type":"note"}');
-    fireEvent.change(metadataInput, { target: { value: '{"type":"test","priority":"high"}' } });
-
-    // Click add document button
-    const addButton = screen.getByText('Add Document');
-    await user.click(addButton);
-
-    await waitFor(() => {
-      expect(mockAddDocument).toHaveBeenCalledWith('Test document content', {
-        type: 'test',
-        priority: 'high',
-      });
-    });
+    expect(mockHandleConfirmAction).toHaveBeenCalled();
   });
 
-  it('prevents adding document with empty content', async () => {
+  it('renders rename dialog when showRenameDialog is true', () => {
+    mockHookState = {
+      ...getDefaultHookState(),
+      showRenameDialog: true,
+      renameNewName: 'old-name',
+    };
+
+    render(<VectorManager />);
+    expect(screen.getByTestId('dialog')).toBeInTheDocument();
+    // 'Rename collection' text appears in both the button and dialog title
+    const renameTexts = screen.getAllByText('Rename collection');
+    expect(renameTexts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders document tab content with textarea and add button', () => {
+    render(<VectorManager />);
+    expect(screen.getByTestId('tab-content-documents')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Document content')).toBeInTheDocument();
+  });
+
+  it('disables add document button when content is empty', () => {
+    mockHookState = { ...getDefaultHookState(), newDocContent: '' };
     render(<VectorManager />);
 
     const addButton = screen.getByText('Add Document');
     expect(addButton).toBeDisabled();
   });
 
-  it('shows error for invalid metadata JSON', async () => {
-    const user = userEvent.setup();
+  it('enables add document button when content is present', () => {
+    mockHookState = { ...getDefaultHookState(), newDocContent: 'Some content' };
     render(<VectorManager />);
 
-    // Fill document content
-    const contentInput = screen.getByPlaceholderText('Document content');
-    await user.type(contentInput, 'Test content');
+    const addButton = screen.getByText('Add Document');
+    expect(addButton).not.toBeDisabled();
+  });
 
-    // Fill invalid metadata JSON using fireEvent
-    const metadataInput = screen.getByPlaceholderText('Metadata JSON e.g. {"type":"note"}');
-    fireEvent.change(metadataInput, { target: { value: '{"invalid": json}' } });
+  it('calls handleAddDocument on add button click', async () => {
+    const user = userEvent.setup();
+    mockHookState = { ...getDefaultHookState(), newDocContent: 'Content' };
+    render(<VectorManager />);
 
-    // Click add document button
     const addButton = screen.getByText('Add Document');
     await user.click(addButton);
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Invalid document metadata JSON').length).toBeGreaterThan(0);
-    });
-
-    expect(mockAddDocument).not.toHaveBeenCalled();
+    expect(mockHandleAddDocument).toHaveBeenCalled();
   });
 
-  it('performs search with query and options', async () => {
-    const user = userEvent.setup();
-    // searchWithTotal returns { results, total }
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
-
+  it('displays filterError when present', () => {
+    mockHookState = { ...getDefaultHookState(), filterError: 'Invalid JSON' };
     render(<VectorManager />);
 
-    // Fill search query
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test query');
-
-    // Set top K - find the first input with value 5 (search top K input)
-    const topKInputs = screen.getAllByDisplayValue('5');
-    const topKInput = topKInputs[0]; // First one should be search top K
-    await user.clear(topKInput);
-    await user.type(topKInput, '10');
-
-    // Set threshold
-    const thresholdInput = screen.getByDisplayValue('0');
-    await user.clear(thresholdInput);
-    await user.type(thresholdInput, '0.8');
-
-    // Set filter JSON using fireEvent to avoid userEvent JSON parsing issues
-    const filterInput = screen.getByPlaceholderText('e.g. {"type":"doc"}');
-    fireEvent.change(filterInput, { target: { value: '{"type":"document"}' } });
-
-    // Click search button
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(mockSearchWithOptions).toHaveBeenCalled();
-    });
-
-    // Check if results are displayed
-    expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-    expect(screen.getByText('Test search result 2')).toBeInTheDocument();
+    const errors = screen.getAllByText('Invalid JSON');
+    expect(errors.length).toBeGreaterThan(0);
   });
 
-  it('shows error for invalid filter JSON', async () => {
+  it('renders search tab with search input and buttons', () => {
+    render(<VectorManager />);
+    expect(screen.getByTestId('tab-content-search')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search text')).toBeInTheDocument();
+    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Peek')).toBeInTheDocument();
+  });
+
+  it('calls handleSearchWithPagination when search button is clicked', async () => {
     const user = userEvent.setup();
     render(<VectorManager />);
 
-    // Fill search query
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test query');
-
-    // Fill invalid filter JSON using fireEvent
-    const filterInput = screen.getByPlaceholderText('e.g. {"type":"doc"}');
-    fireEvent.change(filterInput, { target: { value: '{invalid json}' } });
-
-    // Click search button
     const searchButton = screen.getByText('Search');
     await user.click(searchButton);
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Invalid JSON').length).toBeGreaterThan(0);
-    });
-
-    expect(mockSearchWithOptions).not.toHaveBeenCalled();
+    expect(mockHandleSearchWithPagination).toHaveBeenCalledWith(1);
   });
 
-  it('sorts search results by score', async () => {
+  it('calls handlePeek when peek button is clicked', async () => {
     const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
+    render(<VectorManager />);
+
+    const peekButton = screen.getByText('Peek');
+    await user.click(peekButton);
+
+    expect(mockHandlePeek).toHaveBeenCalled();
+  });
+
+  it('displays "No results found" when results are empty', () => {
+    mockHookState = { ...getDefaultHookState(), results: [] };
+    render(<VectorManager />);
+    expect(screen.getByText('No results found')).toBeInTheDocument();
+  });
+
+  it('displays search results when available', () => {
+    mockHookState = {
+      ...getDefaultHookState(),
+      results: [
+        { id: 'r1', content: 'Result content 1', score: 0.95, metadata: { type: 'doc' } },
+        { id: 'r2', content: 'Result content 2', score: 0.8 },
+      ],
+      totalResults: 2,
+    };
+
+    render(<VectorManager />);
+    expect(screen.getByText('Result content 1')).toBeInTheDocument();
+    expect(screen.getByText('Result content 2')).toBeInTheDocument();
+    expect(screen.getByText('0.9500')).toBeInTheDocument();
+  });
+
+  it('renders pagination when totalPages > 1', () => {
+    mockHookState = {
+      ...getDefaultHookState(),
+      results: [{ id: '1', content: 'x', score: 1.0 }],
+      totalResults: 25,
+      totalPages: 3,
+      currentPage: 2,
+    };
+
+    render(<VectorManager />);
+    expect(screen.getByText('Previous')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+  });
+
+  it('calls handleSearchWithPagination for pagination clicks', async () => {
+    const user = userEvent.setup();
+    mockHookState = {
+      ...getDefaultHookState(),
+      results: [{ id: '1', content: 'x', score: 1.0 }],
+      totalResults: 25,
+      totalPages: 3,
+      currentPage: 2,
+    };
 
     render(<VectorManager />);
 
-    // Perform search
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
+    await user.click(screen.getByText('Next'));
+    expect(mockHandleSearchWithPagination).toHaveBeenCalledWith(3);
 
-    await waitFor(() => {
-      expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-    });
-
-    // Click sort ascending button
-    const sortAscButton = screen.getByText('Score ↑');
-    await user.click(sortAscButton);
-
-    // Results should be re-sorted (lower scores first)
-    // This is tested through the UI state changes - check button is in document
-    expect(sortAscButton).toBeInTheDocument();
+    await user.click(screen.getByText('Previous'));
+    expect(mockHandleSearchWithPagination).toHaveBeenCalledWith(1);
   });
 
   it('toggles metadata summary display', async () => {
     const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
+    mockHookState = {
+      ...getDefaultHookState(),
+      showMetadataSummary: true,
+    };
 
     render(<VectorManager />);
 
-    // Perform search first to have results
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-    });
-
-    // Find and click the toggle button (i18n key returns capitalized text)
     const toggleButton = screen.getByText('Hide Summary');
     await user.click(toggleButton);
 
-    // Button text should change
-    expect(screen.getByText('Show Summary')).toBeInTheDocument();
+    expect(mockSetShowMetadataSummary).toHaveBeenCalled();
   });
 
-  it('expands and collapses metadata for search results', async () => {
-    const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
-
-    render(<VectorManager />);
-
-    // Perform search first
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-    });
-
-    // Find and click show metadata button for first result
-    const showMetadataButtons = screen.getAllByText('Show metadata');
-    await user.click(showMetadataButtons[0]);
-
-    // Metadata should be visible - check that the Hide metadata button appeared (indicates metadata is shown)
-    expect(screen.getByText('Hide metadata')).toBeInTheDocument();
-
-    // Click to hide metadata
-    const hideMetadataButton = screen.getByText('Hide metadata');
-    await user.click(hideMetadataButton);
-
-    // Should have show metadata buttons available again
-    expect(screen.getAllByText('Show metadata').length).toBeGreaterThan(0);
-  });
-
-  it('performs peek operation', async () => {
-    const user = userEvent.setup();
-    mockPeek.mockResolvedValue(mockSearchResults.slice(0, 1));
-
-    render(<VectorManager />);
-
-    // Set peek top K value
-    const peekInputs = screen.getAllByDisplayValue('5');
-    const peekInput = peekInputs[peekInputs.length - 1]; // Last input should be peek input
-    await user.clear(peekInput);
-    await user.type(peekInput, '3');
-
-    // Click peek button (use role to avoid matching Label which also has text 'Peek')
-    const peekButton = screen.getByRole('button', { name: 'Peek' });
-    await user.click(peekButton);
-
-    await waitFor(() => {
-      expect(mockPeek).toHaveBeenCalled();
-    });
-
-    // Should show results
-    expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-  });
-
-  it('refreshes collections list', async () => {
-    const user = userEvent.setup();
-    mockListAllCollections.mockResolvedValueOnce(mockCollections).mockResolvedValueOnce(mockCollections);
-
-    render(<VectorManager />);
-
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalledTimes(1);
-    });
-
-    // Click refresh button
-    const refreshButton = screen.getByText('Refresh');
-    await user.click(refreshButton);
-
-    await waitFor(() => {
-      // Refresh should trigger at least one additional call
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
-  });
-
-  it('changes active collection', async () => {
-    render(<VectorManager />);
-
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
-
-    // Find collection select dropdown - may be implemented as a different UI component
-    try {
-      const selectElement = screen.getByRole('combobox');
-      fireEvent.change(selectElement, { target: { value: 'collection2' } });
-      expect(selectElement).toHaveValue('collection2');
-    } catch {
-      // If combobox not found, skip this test as UI may be implemented differently
-      expect(mockListAllCollections).toHaveBeenCalled();
-    }
-  });
-
-  it('displays "No results" when search returns empty', async () => {
-    const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: [], total: 0 });
-
-    render(<VectorManager />);
-
-    // Perform search
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'no results query');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('No results found')).toBeInTheDocument();
-    });
-  });
-
-  it('sorts results by different fields', async () => {
-    const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
-
-    render(<VectorManager />);
-
-    // Perform search
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Test search result 1')).toBeInTheDocument();
-    });
-
-    // Test sorting by ID
-    const sortByIdButton = screen.getByText('Sort by id');
-    await user.click(sortByIdButton);
-
-    // Test sorting by metadata size
-    const sortByMetadataButton = screen.getByText('Sort by metadata size');
-    await user.click(sortByMetadataButton);
-
-    // These clicks change the internal state for sorting
-    expect(sortByIdButton).toBeInTheDocument();
-    expect(sortByMetadataButton).toBeInTheDocument();
-  });
-
-  it('handles collection operations when no collection is selected', async () => {
-    mockListAllCollections.mockResolvedValue([]);
-    render(<VectorManager />);
-
-    await waitFor(() => {
-      expect(mockListAllCollections).toHaveBeenCalled();
-    });
-
-    // When no collections exist, buttons may be present but functionality limited
-    const deleteButton = screen.queryByText('Delete collection');
-    const clearButton = screen.queryByText('Clear collection');
-    
-    if (deleteButton) {
-      expect(deleteButton).toBeInTheDocument();
-    }
-    if (clearButton) {
-      expect(clearButton).toBeInTheDocument();
-    }
-  });
-
-  it('displays search result scores correctly', async () => {
-    const user = userEvent.setup();
-    mockSearchWithOptions.mockResolvedValue({ results: mockSearchResults, total: mockSearchResults.length });
-
-    render(<VectorManager />);
-
-    // Perform search
-    const queryInput = screen.getByPlaceholderText('Search text');
-    await user.type(queryInput, 'test');
-    const searchButton = screen.getByText('Search');
-    await user.click(searchButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Score: 0.9500')).toBeInTheDocument();
-      expect(screen.getByText('Score: 0.8700')).toBeInTheDocument();
-    });
-  });
-
-  it('displays Add from files button', () => {
-    render(<VectorManager />);
-    expect(screen.getByText('Add from files')).toBeInTheDocument();
-  });
-
-  it('opens AddDocumentModal when Add from files button is clicked', async () => {
+  it('opens add document modal when add from files is clicked', async () => {
     const user = userEvent.setup();
     render(<VectorManager />);
 
-    const addFromFilesButton = screen.getByText('Add from files');
+    const addFromFilesButton = screen.getAllByText('Add from files')[0];
     await user.click(addFromFilesButton);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('add-document-modal')).toBeInTheDocument();
-    });
+    expect(mockSetShowAddDocModal).toHaveBeenCalledWith(true);
+  });
+
+  it('renders AddDocumentModal when showAddDocModal is true', () => {
+    mockHookState = { ...getDefaultHookState(), showAddDocModal: true };
+    render(<VectorManager />);
+    expect(screen.getByTestId('add-document-modal')).toBeInTheDocument();
+  });
+
+  it('renders section headers in document and search tabs', () => {
+    render(<VectorManager />);
+    const sectionHeaders = screen.getAllByTestId('section-header');
+    expect(sectionHeaders.length).toBeGreaterThanOrEqual(2); // Documents + Search
   });
 });

@@ -44,8 +44,8 @@ jest.mock('@/lib/utils', () => ({
   cn: (...args: string[]) => args.filter(Boolean).join(' '),
 }));
 
-// Mock lib/themes/color-utils
-jest.mock('@/lib/themes/color-utils', () => ({
+// Mock lib/themes (includes color-utils exports re-exported from themes)
+jest.mock('@/lib/themes', () => ({
   checkContrast: () => ({ 
     level: 'AA', 
     ratio: 4.5,
@@ -64,6 +64,72 @@ jest.mock('@/lib/themes/color-utils', () => ({
     foreground: '#0f172a',
     muted: '#f1f5f9',
   }),
+  COLOR_LABELS: [
+    { key: 'primary', labelKey: 'primary', description: 'Buttons, links, highlights', category: 'core' },
+    { key: 'secondary', labelKey: 'secondary', description: 'Secondary backgrounds', category: 'core' },
+    { key: 'accent', labelKey: 'accent', description: 'Hover states, accents', category: 'core' },
+    { key: 'background', labelKey: 'background', description: 'Main background', category: 'core' },
+    { key: 'foreground', labelKey: 'foreground', description: 'Main text color', category: 'core' },
+    { key: 'muted', labelKey: 'muted', description: 'Muted backgrounds', category: 'core' },
+    { key: 'primaryForeground', labelKey: 'primaryForeground', description: 'Text on primary', category: 'extended' },
+    { key: 'secondaryForeground', labelKey: 'secondaryForeground', description: 'Text on secondary', category: 'extended' },
+    { key: 'accentForeground', labelKey: 'accentForeground', description: 'Text on accent', category: 'extended' },
+    { key: 'mutedForeground', labelKey: 'mutedForeground', description: 'Muted text', category: 'extended' },
+    { key: 'card', labelKey: 'card', description: 'Card background', category: 'extended' },
+    { key: 'cardForeground', labelKey: 'cardForeground', description: 'Card text', category: 'extended' },
+    { key: 'border', labelKey: 'border', description: 'Borders', category: 'extended' },
+    { key: 'ring', labelKey: 'ring', description: 'Focus ring', category: 'extended' },
+    { key: 'destructive', labelKey: 'destructive', description: 'Error/delete', category: 'extended' },
+    { key: 'destructiveForeground', labelKey: 'destructiveForeground', description: 'Text on destructive', category: 'extended' },
+  ],
+  DEFAULT_LIGHT_COLORS: {
+    primary: '#3b82f6',
+    primaryForeground: '#ffffff',
+    secondary: '#f1f5f9',
+    secondaryForeground: '#1e293b',
+    accent: '#f1f5f9',
+    accentForeground: '#1e293b',
+    background: '#ffffff',
+    foreground: '#0f172a',
+    muted: '#f1f5f9',
+    mutedForeground: '#64748b',
+    card: '#ffffff',
+    cardForeground: '#0f172a',
+    border: '#e2e8f0',
+    ring: '#3b82f6',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
+  },
+  DEFAULT_DARK_COLORS: {
+    primary: '#3b82f6',
+    primaryForeground: '#ffffff',
+    secondary: '#1e293b',
+    secondaryForeground: '#f8fafc',
+    accent: '#1e293b',
+    accentForeground: '#f8fafc',
+    background: '#0f172a',
+    foreground: '#f8fafc',
+    muted: '#1e293b',
+    mutedForeground: '#94a3b8',
+    card: '#1e293b',
+    cardForeground: '#f8fafc',
+    border: '#334155',
+    ring: '#3b82f6',
+    destructive: '#dc2626',
+    destructiveForeground: '#ffffff',
+  },
+  CONTRAST_LEVEL_COLORS: {
+    'fail': 'text-red-500',
+    'AA-large': 'text-yellow-500',
+    'AA': 'text-green-500',
+    'AAA': 'text-green-600',
+  },
+  CONTRAST_LEVEL_LABELS: {
+    'fail': 'Fails WCAG',
+    'AA-large': 'AA Large Text',
+    'AA': 'AA Normal Text',
+    'AAA': 'AAA (Best)',
+  },
 }));
 
 // Mock tooltip component
@@ -95,6 +161,27 @@ jest.mock('lucide-react', () => ({
   AlertTriangle: () => <span>AlertTriangle</span>,
   CheckCircle2: () => <span>CheckCircle2</span>,
   Wand2: () => <span>Wand2</span>,
+  Eye: () => <span>Eye</span>,
+  EyeOff: () => <span>EyeOff</span>,
+}));
+
+// Mock AlertDialog
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    open ? <div data-testid="alert-dialog">{children}</div> : <div>{children}</div>
+  ),
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={onClick}>{children}</button>
+  ),
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  AlertDialogTrigger: ({ children, asChild: _asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+    <div>{children}</div>
+  ),
 }));
 
 // Mock UI components
@@ -171,8 +258,8 @@ describe('ThemeEditor', () => {
 
   it('displays colors section', () => {
     render(<ThemeEditor {...defaultProps} />);
-    // The component uses "Custom Colors" as the tab label (hardcoded text)
-    expect(screen.getByText('Custom Colors')).toBeInTheDocument();
+    // The component uses t('customColors') which renders as the key with mocked useTranslations
+    expect(screen.getByText('customColors')).toBeInTheDocument();
   });
 
   it('displays preview section', () => {

@@ -5,6 +5,12 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SkillSettings } from './skill-settings';
 
+// Mock dependencies
+jest.mock('@/lib/utils', () => ({
+  cn: (...args: (string | boolean | undefined | null)[]) =>
+    args.filter(Boolean).join(' '),
+}));
+
 // Mock skill store
 const mockCreateSkill = jest.fn();
 const mockDeleteSkill = jest.fn();
@@ -125,6 +131,58 @@ jest.mock('@/components/skills/skill-detail', () => ({
   ),
 }));
 
+// Mock SkillDiscovery and SkillMarketplace
+jest.mock('@/components/skills/skill-discovery', () => ({
+  SkillDiscovery: () => <div data-testid="skill-discovery">Discovery</div>,
+}));
+
+jest.mock('@/components/skills/skill-marketplace', () => ({
+  SkillMarketplace: () => <div data-testid="skill-marketplace">Marketplace</div>,
+}));
+
+// Mock skill-icons
+jest.mock('./skill-icons', () => ({
+  SKILL_CATEGORY_ICONS: {
+    'creative-design': <span data-testid="icon-creative">🎨</span>,
+    development: <span data-testid="icon-dev">💻</span>,
+    enterprise: <span data-testid="icon-enterprise">🏢</span>,
+    productivity: <span data-testid="icon-productivity">⚡</span>,
+    'data-analysis': <span data-testid="icon-data">📊</span>,
+    communication: <span data-testid="icon-comm">💬</span>,
+    meta: <span data-testid="icon-meta">⚙️</span>,
+    custom: <span data-testid="icon-custom">📄</span>,
+  },
+}));
+
+jest.mock('@/lib/settings/tools', () => ({
+  SKILL_CATEGORY_KEYS: {
+    'creative-design': 'creativeDesign',
+    development: 'development',
+    enterprise: 'enterprise',
+    productivity: 'productivity',
+    'data-analysis': 'dataAnalysis',
+    communication: 'communication',
+    meta: 'meta',
+    custom: 'custom',
+  },
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Plus: () => <span data-testid="icon-plus">+</span>,
+  Sparkles: () => <span data-testid="icon-sparkles">✨</span>,
+  Search: () => <span data-testid="icon-search">🔍</span>,
+  X: () => <span data-testid="icon-x">✕</span>,
+  AlertCircle: () => <span data-testid="icon-alert">⚠️</span>,
+  BookOpen: () => <span data-testid="icon-book">📖</span>,
+  Upload: () => <span data-testid="icon-upload">📤</span>,
+  Grid3X3: () => <span data-testid="icon-grid">⊞</span>,
+  List: () => <span data-testid="icon-list">☰</span>,
+  Zap: () => <span data-testid="icon-zap">⚡</span>,
+  Edit2: () => <span data-testid="icon-edit">Edit</span>,
+  Trash2: () => <span data-testid="icon-trash">Trash</span>,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => (
@@ -137,13 +195,15 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, variant }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant}>{children}</button>
+  Button: ({ children, onClick, disabled, variant, size, className }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+    <button onClick={onClick} disabled={disabled} data-variant={variant} data-size={size} className={className}>{children}</button>
   ),
 }));
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children }: { children: React.ReactNode }) => <span data-testid="badge">{children}</span>,
+  Badge: ({ children, variant, className }: { children: React.ReactNode; variant?: string; className?: string }) => (
+    <span data-testid="badge" data-variant={variant} className={className}>{children}</span>
+  ),
 }));
 
 jest.mock('@/components/ui/switch', () => ({
@@ -151,6 +211,29 @@ jest.mock('@/components/ui/switch', () => ({
     <button role="switch" aria-checked={checked ? 'true' : 'false'} onClick={() => onCheckedChange?.(!checked)} data-testid="switch">
       Switch
     </button>
+  ),
+}));
+
+jest.mock('@/components/ui/input-group', () => ({
+  InputGroup: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="input-group" className={className}>{children}</div>
+  ),
+  InputGroupAddon: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  InputGroupInput: ({ value, onChange, placeholder, className }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input value={value} onChange={onChange} placeholder={placeholder} className={className} data-testid="input" />
+  ),
+  InputGroupButton: ({ children, onClick, size }: { children: React.ReactNode; onClick?: () => void; size?: string }) => (
+    <button onClick={onClick} data-size={size}>{children}</button>
+  ),
+}));
+
+jest.mock('@/components/ui/skeleton', () => ({
+  Skeleton: ({ className }: { className?: string }) => <div data-testid="skeleton" className={className} />,
+}));
+
+jest.mock('@/components/ui/separator', () => ({
+  Separator: ({ orientation, className }: { orientation?: string; className?: string }) => (
+    <hr data-testid="separator" data-orientation={orientation} className={className} />
   ),
 }));
 
@@ -180,14 +263,6 @@ jest.mock('@/components/ui/alert', () => ({
   AlertTitle: ({ children }: { children: React.ReactNode }) => <h4>{children}</h4>,
 }));
 
-jest.mock('@/components/ui/collapsible', () => ({
-  Collapsible: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
-    <div data-testid="collapsible" data-open={open}>{children}</div>
-  ),
-  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible-content">{children}</div>,
-  CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible-trigger">{children}</div>,
-}));
-
 jest.mock('@/components/ui/select', () => ({
   Select: ({ children, value, onValueChange: _onValueChange }: { children: React.ReactNode; value?: string; onValueChange?: (v: string) => void }) => (
     <div data-testid="select" data-value={value}>{children}</div>
@@ -209,6 +284,13 @@ jest.mock('@/components/ui/dialog', () => ({
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
 }));
 
+jest.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}));
+
 jest.mock('@/components/ui/tabs', () => ({
   Tabs: ({ children, value }: { children: React.ReactNode; value?: string }) => (
     <div data-testid="tabs" data-value={value}>{children}</div>
@@ -222,10 +304,31 @@ jest.mock('@/components/ui/tabs', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    <div data-testid="alert-dialog" data-open={open}>{children}</div>
+  ),
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
+}));
+
+jest.mock('@/components/layout/feedback/empty-state', () => ({
+  EmptyState: ({ title, description }: { icon?: React.ComponentType; title: string; description: string }) => (
+    <div data-testid="empty-state">
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  ),
+}));
+
 describe('SkillSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock window.confirm
     window.confirm = jest.fn().mockReturnValue(true);
   });
 
@@ -264,13 +367,13 @@ describe('SkillSettings', () => {
     expect(screen.getAllByTestId('select').length).toBeGreaterThan(0);
   });
 
-  it('displays skill cards', () => {
+  it('displays skill cards with names', () => {
     render(<SkillSettings />);
     expect(screen.getByText('test-skill')).toBeInTheDocument();
     expect(screen.getByText('builtin-skill')).toBeInTheDocument();
   });
 
-  it('displays skill descriptions', () => {
+  it('displays skill descriptions in cards', () => {
     render(<SkillSettings />);
     expect(screen.getByText('A test skill for development')).toBeInTheDocument();
     expect(screen.getByText('A built-in skill')).toBeInTheDocument();
@@ -278,22 +381,10 @@ describe('SkillSettings', () => {
 
   it('displays Built-in badge for builtin skills', () => {
     render(<SkillSettings />);
-    expect(screen.getByText('Built-in')).toBeInTheDocument();
+    expect(screen.getAllByText('Built-in').length).toBeGreaterThan(0);
   });
 
-  it('displays Active badge for active skills', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText('Active')).toBeInTheDocument();
-  });
-
-  it('displays skill tags', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText('test')).toBeInTheDocument();
-    // 'development' appears multiple times (as tag and category)
-    expect(screen.getAllByText('development').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('displays category labels', () => {
+  it('displays category labels in group headers', () => {
     render(<SkillSettings />);
     expect(screen.getAllByText('Development').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Productivity').length).toBeGreaterThan(0);
@@ -315,51 +406,75 @@ describe('SkillSettings', () => {
   it('displays switch for each skill', () => {
     render(<SkillSettings />);
     const switches = screen.getAllByTestId('switch');
-    expect(switches.length).toBeGreaterThan(0);
-  });
-
-  it('displays Edit button in expanded skill', () => {
-    render(<SkillSettings />);
-    expect(screen.getAllByText('Edit').length).toBeGreaterThan(0);
-  });
-
-  it('displays Delete button for custom skills', () => {
-    render(<SkillSettings />);
-    expect(screen.getAllByText('Delete').length).toBeGreaterThan(0);
+    expect(switches.length).toBeGreaterThanOrEqual(2);
   });
 
   it('displays Activate/Deactivate buttons', () => {
     render(<SkillSettings />);
-    expect(screen.getByText('Activate')).toBeInTheDocument();
-    expect(screen.getByText('Deactivate')).toBeInTheDocument();
+    expect(screen.getAllByText('Activate').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Deactivate').length).toBeGreaterThan(0);
   });
 
-  it('displays Create New Skill dialog title', () => {
+  it('displays view toggle buttons (grid/list)', () => {
+    render(<SkillSettings />);
+    expect(screen.getByTestId('icon-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-list')).toBeInTheDocument();
+  });
+
+  it('displays stats summary', () => {
+    render(<SkillSettings />);
+    // 2 skills total, 2 enabled, 1 active - stats show in header
+    expect(screen.getAllByText(/2/).length).toBeGreaterThan(0);
+  });
+
+  it('displays separators in category headers', () => {
+    render(<SkillSettings />);
+    const separators = screen.getAllByTestId('separator');
+    expect(separators.length).toBeGreaterThan(0);
+  });
+
+  it('displays tabs for my-skills, discover, marketplace', () => {
+    render(<SkillSettings />);
+    expect(screen.getByText('My Skills')).toBeInTheDocument();
+    expect(screen.getAllByText('Discover').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Marketplace').length).toBeGreaterThan(0);
+  });
+
+  it('renders SkillDiscovery in discover tab', () => {
+    render(<SkillSettings />);
+    expect(screen.getByTestId('skill-discovery')).toBeInTheDocument();
+  });
+
+  it('renders SkillMarketplace in marketplace tab', () => {
+    render(<SkillSettings />);
+    expect(screen.getByTestId('skill-marketplace')).toBeInTheDocument();
+  });
+
+  it('displays usage count for skills with usage', () => {
+    render(<SkillSettings />);
+    expect(screen.getByText('5x')).toBeInTheDocument();
+    expect(screen.getByText('10x')).toBeInTheDocument();
+  });
+
+  it('displays edit icon buttons', () => {
+    render(<SkillSettings />);
+    expect(screen.getAllByTestId('icon-edit').length).toBeGreaterThan(0);
+  });
+
+  it('displays delete icon for custom skills only', () => {
+    render(<SkillSettings />);
+    // Only skill-1 is custom, skill-2 is builtin
+    expect(screen.getAllByTestId('icon-trash').length).toBe(1);
+  });
+
+  it('displays Create New Skill dialog', () => {
     render(<SkillSettings />);
     expect(screen.getByText('Create New Skill')).toBeInTheDocument();
   });
 
-  it('displays Import Skill dialog title', () => {
+  it('displays Import Skill dialog', () => {
     render(<SkillSettings />);
     expect(screen.getByText('Import Skill')).toBeInTheDocument();
-  });
-
-  it('displays dialog tabs for blank and template modes', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText('Start Blank')).toBeInTheDocument();
-    expect(screen.getByText('Use Template')).toBeInTheDocument();
-  });
-
-  it('displays form fields in create dialog', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Category')).toBeInTheDocument();
-    expect(screen.getByText('Description')).toBeInTheDocument();
-  });
-
-  it('displays skill instructions label', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText('Skill Instructions (Markdown)')).toBeInTheDocument();
   });
 
   it('displays Cancel button in dialogs', () => {
@@ -367,50 +482,8 @@ describe('SkillSettings', () => {
     expect(screen.getAllByText('Cancel').length).toBeGreaterThan(0);
   });
 
-  it('displays collapsible triggers for skill details', () => {
+  it('displays delete confirmation dialog', () => {
     render(<SkillSettings />);
-    expect(screen.getAllByTestId('collapsible-trigger').length).toBeGreaterThan(0);
-  });
-
-  it('displays collapsible content with skill metadata', () => {
-    render(<SkillSettings />);
-    expect(screen.getAllByText(/Category:/)).toHaveLength(2);
-    expect(screen.getAllByText(/Source:/)).toHaveLength(2);
-  });
-
-  it('displays usage count for skills', () => {
-    render(<SkillSettings />);
-    expect(screen.getByText(/5 times/)).toBeInTheDocument();
-    expect(screen.getByText(/10 times/)).toBeInTheDocument();
-  });
-});
-
-describe('SkillSettings - Loading State', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('displays loading indicator when isLoading is true', () => {
-    // Would need to re-mock the store with isLoading: true
-  });
-});
-
-describe('SkillSettings - Error State', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('displays error alert when error exists', () => {
-    // Would need to re-mock the store with error state
-  });
-});
-
-describe('SkillSettings - Empty State', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('displays empty state when no skills exist', () => {
-    // Would need to re-mock the store with empty skills
+    expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
   });
 });

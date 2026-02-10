@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 import { Sparkles, MessageCircle, Settings, X, RotateCcw } from "lucide-react";
 import { isTauri } from "@/lib/native/utils";
 
-const STORAGE_KEY = "cognia-assistant-bubble";
-
-type StoredBubblePosition = {
-  x: number;
-  y: number;
-};
+// Drag detection threshold in pixels
+const DRAG_THRESHOLD = 6;
+// Safety timeout for startDragging() in case it gets stuck (ms)
+const DRAG_SAFETY_TIMEOUT = 3000;
+// Debounce delay for edge snapping after drag ends (ms)
+const SNAP_DEBOUNCE_MS = 200;
 
 type BubbleState = {
   isLoading: boolean;
@@ -26,7 +26,10 @@ export default function AssistantBubblePage() {
   const t = useTranslations('assistantBubble');
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
+  const isDraggingRef = useRef(false);
   const lastClickTimeRef = useRef<number>(0);
+  const snapTimerRef = useRef<number | null>(null);
+  const dragSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -42,7 +45,62 @@ export default function AssistantBubblePage() {
   // Tooltip delay timer
   const tooltipTimerRef = useRef<number | null>(null);
 
-  // Restore last bubble position and keep it persisted + listen for state updates
+  // Perform edge snapping after drag ends (debounced to avoid loops)
+  const performEdgeSnap = useCallback(async () => {
+    if (!isTauri()) return;
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
+      const { invoke } = await import("@tauri-apps/api/core");
+      const appWindow = getCurrentWindow();
+
+      const workArea = await invoke<{
+        width: number;
+        height: number;
+        x: number;
+        y: number;
+        scaleFactor: number;
+      }>("assistant_bubble_get_work_area");
+
+      const pos = await appWindow.outerPosition();
+      const bubbleSize = Math.round(64 * workArea.scaleFactor);
+      const snapThreshold = 20;
+      const edgePadding = 8;
+
+      let { x, y } = pos;
+
+      const workLeft = workArea.x;
+      const workRight = workArea.x + workArea.width;
+      const workTop = workArea.y;
+      const workBottom = workArea.y + workArea.height;
+
+      // Snap to edges
+      if (x < workLeft + snapThreshold) x = workLeft + edgePadding;
+      if (x > workRight - bubbleSize - snapThreshold) x = workRight - bubbleSize - edgePadding;
+      if (y < workTop + snapThreshold) y = workTop + edgePadding;
+      if (y > workBottom - bubbleSize - snapThreshold) y = workBottom - bubbleSize - edgePadding;
+
+      // Clamp to ensure fully within work area
+      x = Math.max(workLeft, Math.min(x, workRight - bubbleSize));
+      y = Math.max(workTop, Math.min(y, workBottom - bubbleSize));
+
+      if (x !== pos.x || y !== pos.y) {
+        await appWindow.setPosition(new PhysicalPosition(x, y));
+      }
+
+      // Update menu position based on final position
+      const menuHeight = 180;
+      const spaceAbove = y - workTop;
+      setMenuPosition(spaceAbove < menuHeight ? 'below' : 'above');
+
+      // Persist config to disk after drag ends
+      await invoke("assistant_bubble_save_config");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Listen for events and set up move handler
   useEffect(() => {
     if (!isTauri()) {
       return;
@@ -56,90 +114,28 @@ export default function AssistantBubblePage() {
 
     const setup = async () => {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const { PhysicalPosition } = await import("@tauri-apps/api/dpi");
       const { listen } = await import("@tauri-apps/api/event");
       const appWindow = getCurrentWindow();
 
-      // Restore position
-      try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as StoredBubblePosition;
-          if (typeof parsed?.x === "number" && typeof parsed?.y === "number") {
-            await appWindow.setPosition(new PhysicalPosition(parsed.x, parsed.y));
-          }
+      // onMoved: lightweight handler — no IPC during drag, debounced snap after
+      unlistenMove = await appWindow.onMoved(({ payload }) => {
+        // Skip heavy processing while actively dragging
+        if (isDraggingRef.current) {
+          return;
         }
-      } catch {
-        // ignore
-      }
 
-      // Persist on move with edge snapping (multi-monitor aware)
-      unlistenMove = await appWindow.onMoved(async ({ payload }) => {
-        try {
-          const { invoke } = await import("@tauri-apps/api/core");
-          
-          // Get work area from Rust backend (properly handles multi-monitor)
-          const workArea = await invoke<{
-            width: number;
-            height: number;
-            x: number;
-            y: number;
-            scaleFactor: number;
-          }>("assistant_bubble_get_work_area");
-          
-          // Bubble size in physical pixels (64 logical * scale)
-          const bubbleSize = Math.round(64 * workArea.scaleFactor);
-          const snapThreshold = 20; // Snap when within 20px of edge
-          const edgePadding = 8; // Final padding from edge
-          const menuHeight = 180; // Approximate height of context menu + tooltip
-
-          let { x, y } = payload;
-
-          // Calculate edges relative to the work area (handles multi-monitor offsets)
-          const workLeft = workArea.x;
-          const workRight = workArea.x + workArea.width;
-          const workTop = workArea.y;
-          const workBottom = workArea.y + workArea.height;
-
-          // Snap to left edge
-          if (x < workLeft + snapThreshold) {
-            x = workLeft + edgePadding;
-          }
-          // Snap to right edge
-          if (x > workRight - bubbleSize - snapThreshold) {
-            x = workRight - bubbleSize - edgePadding;
-          }
-          // Snap to top edge
-          if (y < workTop + snapThreshold) {
-            y = workTop + edgePadding;
-          }
-          // Snap to bottom edge
-          if (y > workBottom - bubbleSize - snapThreshold) {
-            y = workBottom - bubbleSize - edgePadding;
-          }
-
-          // Apply snapped position if different
-          if (x !== payload.x || y !== payload.y) {
-            await appWindow.setPosition(new PhysicalPosition(x, y));
-          }
-
-          const next: StoredBubblePosition = { x, y };
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-
-          // Also sync to Rust backend
-          await invoke("assistant_bubble_set_position", { x, y });
-          
-          // Determine menu position based on available space above
-          // If bubble is near top of screen, show menu below
-          const spaceAbove = y - workTop;
-          if (spaceAbove < menuHeight) {
-            setMenuPosition('below');
-          } else {
-            setMenuPosition('above');
-          }
-        } catch {
-          // ignore
+        // Debounce edge snap: clear previous timer, set new one
+        if (snapTimerRef.current) {
+          window.clearTimeout(snapTimerRef.current);
         }
+        snapTimerRef.current = window.setTimeout(() => {
+          performEdgeSnap();
+          snapTimerRef.current = null;
+        }, SNAP_DEBOUNCE_MS);
+
+        // Update menu position from payload (lightweight, no IPC)
+        const menuHeight = 180;
+        setMenuPosition(payload.y < menuHeight ? 'below' : 'above');
       });
 
       // Listen for loading state changes from chat widget
@@ -170,8 +166,11 @@ export default function AssistantBubblePage() {
       unlistenUnread?.();
       unlistenChatVisible?.();
       unlistenChatHidden?.();
+      if (snapTimerRef.current) {
+        window.clearTimeout(snapTimerRef.current);
+      }
     };
-  }, []);
+  }, [performEdgeSnap]);
 
   const handleClick = useCallback(async () => {
     if (!isTauri()) {
@@ -223,21 +222,43 @@ export default function AssistantBubblePage() {
   }, []);
 
   const startDrag = useCallback(async () => {
-    if (!isTauri() || isDragging) {
+    if (!isTauri() || isDraggingRef.current) {
       return;
     }
 
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const appWindow = getCurrentWindow();
     didDragRef.current = true;
+    isDraggingRef.current = true;
     setIsDragging(true);
+
+    // Safety timeout: if startDragging() promise never resolves (known Tauri bug on Windows),
+    // force-reset the dragging state to prevent the button from being stuck.
+    dragSafetyTimerRef.current = setTimeout(() => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        // Perform snap + save after forced reset
+        performEdgeSnap();
+      }
+      dragSafetyTimerRef.current = null;
+    }, DRAG_SAFETY_TIMEOUT);
 
     try {
       await appWindow.startDragging();
     } finally {
+      // Clear safety timer since promise resolved normally
+      if (dragSafetyTimerRef.current) {
+        clearTimeout(dragSafetyTimerRef.current);
+        dragSafetyTimerRef.current = null;
+      }
+      isDraggingRef.current = false;
       setIsDragging(false);
+
+      // Edge snap + persist config after drag ends
+      performEdgeSnap();
     }
-  }, [isDragging]);
+  }, [performEdgeSnap]);
 
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     didDragRef.current = false;
@@ -286,7 +307,7 @@ export default function AssistantBubblePage() {
     const deltaY = event.clientY - pointerStartRef.current.y;
     const distance = Math.hypot(deltaX, deltaY);
 
-    if (distance > 4) {
+    if (distance > DRAG_THRESHOLD) {
       startDrag().catch(() => {
         // ignore
       });

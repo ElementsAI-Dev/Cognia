@@ -341,14 +341,14 @@ export function WelcomeSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* General Settings */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              <CardTitle>{t('title')}</CardTitle>
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">{t('title')}</CardTitle>
             </div>
             <Button
               variant="ghost"
@@ -438,10 +438,10 @@ export function WelcomeSettings() {
 
       {/* Section Visibility */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
-            <CardTitle>{t('sectionVisibility')}</CardTitle>
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">{t('sectionVisibility')}</CardTitle>
           </div>
           <CardDescription>{t('sectionVisibilityDescription')}</CardDescription>
         </CardHeader>
@@ -463,17 +463,17 @@ export function WelcomeSettings() {
       {/* Custom Suggestions */}
       <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CollapsibleTrigger asChild>
               <div className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  <CardTitle>{t('customSuggestions')}</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">{t('customSuggestions')}</CardTitle>
                 </div>
                 {suggestionsOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </CollapsibleTrigger>
@@ -545,17 +545,17 @@ export function WelcomeSettings() {
       {/* Personalization - User Name, Time-Based Greeting, Icon, Gradient, Layout */}
       <Collapsible open={personalizationOpen} onOpenChange={setPersonalizationOpen}>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CollapsibleTrigger asChild>
               <div className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  <CardTitle>{t('userName')}</CardTitle>
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">{t('userName')}</CardTitle>
                 </div>
                 {personalizationOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </CollapsibleTrigger>
@@ -760,17 +760,17 @@ export function WelcomeSettings() {
       {/* Simplified Mode Suggestions */}
       <Collapsible open={simplifiedSuggestionsOpen} onOpenChange={setSimplifiedSuggestionsOpen}>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CollapsibleTrigger asChild>
               <div className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  <CardTitle>{t('simplifiedSuggestions')}</CardTitle>
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">{t('simplifiedSuggestions')}</CardTitle>
                 </div>
                 {simplifiedSuggestionsOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </CollapsibleTrigger>
@@ -828,17 +828,17 @@ export function WelcomeSettings() {
       {/* Quick Access Links */}
       <Collapsible open={quickAccessOpen} onOpenChange={setQuickAccessOpen}>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CollapsibleTrigger asChild>
               <div className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5" />
-                  <CardTitle>{t('quickAccessLinks')}</CardTitle>
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">{t('quickAccessLinks')}</CardTitle>
                 </div>
                 {quickAccessOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </CollapsibleTrigger>

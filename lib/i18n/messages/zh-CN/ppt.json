@@ -193,6 +193,11 @@
     "aiProcessing": "处理中...",
     "presenterMode": "演讲者模式",
     "slideTime": "幻灯片",
+    "timerSettings": "计时器",
+    "elapsed": "已用时间",
+    "countdown": "倒计时",
+    "minutes": "分钟",
+    "start": "开始",
     "exit": "退出",
     "prev": "上一张",
     "next": "下一张",
@@ -233,7 +238,14 @@
     "showHideThumbnails": "显示/隐藏缩略图",
     "showHideNotes": "显示/隐藏备注",
     "startPauseAutoplay": "开始/暂停自动播放",
-    "showHelp": "显示快捷键帮助"
+    "showHelp": "显示快捷键帮助",
+    "laserPointer": "激光笔 (L)",
+    "drawMode": "画笔 (D)",
+    "clear": "清除 (C)",
+    "toggleLaser": "激光笔",
+    "toggleDraw": "画笔模式",
+    "togglePresenter": "演讲者模式",
+    "presenterMode": "演讲者模式 (R)"
   },
   "pptChart": {
     "data": "数据",

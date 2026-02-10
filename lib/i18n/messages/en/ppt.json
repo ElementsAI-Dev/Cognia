@@ -193,6 +193,11 @@
     "aiProcessing": "Processing...",
     "presenterMode": "Presenter Mode",
     "slideTime": "Slide",
+    "timerSettings": "Timer",
+    "elapsed": "Elapsed",
+    "countdown": "Countdown",
+    "minutes": "min",
+    "start": "Start",
     "exit": "Exit",
     "prev": "Previous",
     "next": "Next",
@@ -233,7 +238,14 @@
     "showHideThumbnails": "Show/hide thumbnails",
     "showHideNotes": "Show/hide notes",
     "startPauseAutoplay": "Start/pause auto-play",
-    "showHelp": "Show keyboard shortcuts"
+    "showHelp": "Show keyboard shortcuts",
+    "laserPointer": "Laser (L)",
+    "drawMode": "Draw (D)",
+    "clear": "Clear (C)",
+    "toggleLaser": "Laser pointer",
+    "toggleDraw": "Draw mode",
+    "togglePresenter": "Presenter mode",
+    "presenterMode": "Presenter Mode (R)"
   },
   "pptChart": {
     "data": "Data",

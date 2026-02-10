@@ -86,7 +86,7 @@ export function PluginFilterBar({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className={cn(
-            'pl-9 pr-9 h-10 rounded-lg transition-colors',
+            'pl-9 pr-9 h-8 text-sm rounded-lg transition-colors',
             isBackgroundActive ? TRANSPARENCY_CONFIG.interactive : 'bg-background'
           )}
         />
@@ -111,7 +111,7 @@ export function PluginFilterBar({
               variant="outline"
               size="sm"
               className={cn(
-                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                'h-8 px-2.5 text-xs border-border/60 rounded-lg transition-all duration-200 shrink-0',
                 statusFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
@@ -149,7 +149,7 @@ export function PluginFilterBar({
               variant="outline"
               size="sm"
               className={cn(
-                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                'h-8 px-2.5 text-xs border-border/60 rounded-lg transition-all duration-200 shrink-0',
                 typeFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
@@ -206,7 +206,7 @@ export function PluginFilterBar({
               variant="outline"
               size="sm"
               className={cn(
-                'h-10 px-3 border-border/60 rounded-lg transition-all duration-200 shrink-0',
+                'h-8 px-2.5 text-xs border-border/60 rounded-lg transition-all duration-200 shrink-0',
                 capabilityFilter !== 'all' && 'bg-primary/10 border-primary/30 text-primary',
                 isBackgroundActive && TRANSPARENCY_CONFIG.interactive
               )}
@@ -269,7 +269,7 @@ export function PluginFilterBar({
             variant="ghost"
             size="sm"
             onClick={onResetFilters}
-            className="h-10 px-3 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors shrink-0"
+            className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors shrink-0"
           >
             <X className="h-4 w-4 mr-1.5" />
             <span className="hidden sm:inline">Reset</span>

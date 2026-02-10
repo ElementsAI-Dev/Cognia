@@ -38,6 +38,15 @@ jest.mock('next-intl', () => ({
       'panel.scrollToBottom': 'Scroll to bottom',
       'panel.pauseAutoScroll': 'Pause auto-scroll',
       'panel.resumeAutoScroll': 'Resume auto-scroll',
+      'panel.listView': 'List view',
+      'panel.dashboardView': 'Dashboard view',
+      'panel.regexPlaceholder': 'Regex...',
+      'panel.toggleRegex': 'Toggle regex',
+      'panel.timeRange6h': 'Last 6h',
+      'panel.timeRange24h': 'Last 24h',
+      'panel.timeRange7d': 'Last 7d',
+      'panel.logsPerMin': 'logs/min',
+      'panel.closeDetails': 'Close details',
       'levels.trace': 'Trace',
       'levels.debug': 'Debug',
       'levels.info': 'Info',
@@ -53,6 +62,22 @@ jest.mock('next-intl', () => ({
 jest.mock('@/hooks/logging', () => ({
   useLogStream: jest.fn(),
   useLogModules: jest.fn(),
+}));
+
+// Mock @tanstack/react-virtual so virtualized list renders all items in jsdom
+jest.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        key: String(i),
+        start: i * 44,
+        size: 44,
+        measureElement: jest.fn(),
+      })),
+    getTotalSize: () => count * 44,
+    measureElement: jest.fn(),
+  }),
 }));
 
 // Note: clipboard is mocked by userEvent internally
@@ -86,6 +111,7 @@ const defaultMockHookReturn = {
     byLevel: { trace: 0, debug: 0, info: 0, warn: 0, error: 0, fatal: 0 },
     byModule: {},
   },
+  logRate: 0,
 };
 
 describe('LogPanel', () => {
@@ -100,7 +126,7 @@ describe('LogPanel', () => {
       render(<LogPanel />);
 
       expect(screen.getByPlaceholderText('Search logs...')).toBeInTheDocument();
-      expect(screen.getByText('All Levels')).toBeInTheDocument();
+      expect(screen.getByText(/All Levels/)).toBeInTheDocument();
       expect(screen.getByText('All Modules')).toBeInTheDocument();
     });
 
@@ -200,7 +226,7 @@ describe('LogPanel', () => {
       render(<LogPanel />);
 
       // Verify level filter exists
-      expect(screen.getByText('All Levels')).toBeInTheDocument();
+      expect(screen.getByText(/All Levels/)).toBeInTheDocument();
 
       // useLogStream should be called with default level
       expect(mockUseLogStream).toHaveBeenCalledWith(

@@ -5,6 +5,7 @@
 
 import type { Viewport } from '@xyflow/react';
 import type { SliceCreator, ViewportSliceActions } from '../types';
+import { applyDagreLayout } from '@/lib/workflow-editor/layout';
 
 export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get) => {
   return {
@@ -27,87 +28,15 @@ export const createViewportSlice: SliceCreator<ViewportSliceActions> = (set, get
       // This will be handled by the React Flow component
     },
 
-    autoLayout: () => {
+    autoLayout: (direction?: 'TB' | 'LR' | 'RL' | 'BT') => {
       const { currentWorkflow } = get();
       if (!currentWorkflow) return;
 
-      // Simple top-to-bottom layout
-      const nodes = [...currentWorkflow.nodes];
-      const edges = currentWorkflow.edges;
-
-      // Build adjacency list
-      const adjacency = new Map<string, string[]>();
-      const inDegree = new Map<string, number>();
-
-      nodes.forEach((n) => {
-        adjacency.set(n.id, []);
-        inDegree.set(n.id, 0);
-      });
-
-      edges.forEach((e) => {
-        adjacency.get(e.source)?.push(e.target);
-        inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1);
-      });
-
-      // Topological sort with levels
-      const levels: string[][] = [];
-      const queue = nodes.filter((n) => inDegree.get(n.id) === 0).map((n) => n.id);
-      const visited = new Set<string>();
-
-      while (queue.length > 0) {
-        const levelNodes: string[] = [];
-        const levelSize = queue.length;
-
-        for (let i = 0; i < levelSize; i++) {
-          const nodeId = queue.shift()!;
-          if (visited.has(nodeId)) continue;
-          visited.add(nodeId);
-          levelNodes.push(nodeId);
-
-          adjacency.get(nodeId)?.forEach((targetId) => {
-            const newDegree = (inDegree.get(targetId) || 0) - 1;
-            inDegree.set(targetId, newDegree);
-            if (newDegree === 0 && !visited.has(targetId)) {
-              queue.push(targetId);
-            }
-          });
-        }
-
-        if (levelNodes.length > 0) {
-          levels.push(levelNodes);
-        }
-      }
-
-      // Add disconnected nodes (not reached by topological sort) as a final level
-      const disconnected = nodes.filter((n) => !visited.has(n.id));
-      if (disconnected.length > 0) {
-        levels.push(disconnected.map((n) => n.id));
-      }
-
-      // Position nodes
-      const nodeWidth = 200;
-      const nodeHeight = 80;
-      const horizontalGap = 50;
-      const verticalGap = 100;
-
-      const updatedNodes = nodes.map((node) => {
-        const levelIndex = levels.findIndex((level) => level.includes(node.id));
-        if (levelIndex === -1) {
-          // Fallback: keep original position if somehow still not found
-          return node;
-        }
-        const nodeIndex = levels[levelIndex].indexOf(node.id);
-        const levelWidth = levels[levelIndex].length * (nodeWidth + horizontalGap);
-        const startX = (800 - levelWidth) / 2;
-
-        return {
-          ...node,
-          position: {
-            x: startX + nodeIndex * (nodeWidth + horizontalGap),
-            y: levelIndex * (nodeHeight + verticalGap) + 50,
-          },
-        };
-      });
+      const updatedNodes = applyDagreLayout(
+        currentWorkflow.nodes,
+        currentWorkflow.edges,
+        { direction: direction || 'TB' }
+      );
 
       const updated = {
         ...currentWorkflow,

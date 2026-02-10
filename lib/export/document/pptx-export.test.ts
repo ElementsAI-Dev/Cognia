@@ -249,6 +249,96 @@ describe('pptx-export', () => {
     });
   });
 
+  describe('CJK filename sanitization (#16)', () => {
+    it('should preserve Chinese characters in filename', async () => {
+      const chinesePresentation = {
+        ...mockPresentation,
+        title: '人工智能概述',
+      };
+
+      const result = await exportToPPTX(chinesePresentation);
+
+      expect(result.success).toBe(true);
+      expect(result.filename).toContain('人工智能概述');
+      expect(result.filename).toMatch(/\.pptx$/);
+    });
+
+    it('should preserve Japanese characters in filename', async () => {
+      const japanesePresentation = {
+        ...mockPresentation,
+        title: 'プレゼンテーション',
+      };
+
+      const result = await exportToPPTX(japanesePresentation);
+
+      expect(result.success).toBe(true);
+      expect(result.filename).toContain('プレゼンテーション');
+    });
+
+    it('should preserve Korean characters in filename', async () => {
+      const koreanPresentation = {
+        ...mockPresentation,
+        title: '프레젠테이션',
+      };
+
+      const result = await exportToPPTX(koreanPresentation);
+
+      expect(result.success).toBe(true);
+      expect(result.filename).toContain('프레젠테이션');
+    });
+
+    it('should handle mixed CJK and ASCII characters', async () => {
+      const mixedPresentation = {
+        ...mockPresentation,
+        title: 'AI 人工智能 Report 2024',
+      };
+
+      const result = await exportToPPTX(mixedPresentation);
+
+      expect(result.success).toBe(true);
+      expect(result.filename).toMatch(/\.pptx$/);
+      // Should not have consecutive dashes
+      expect(result.filename).not.toMatch(/--+/);
+    });
+
+    it('should truncate very long CJK filenames to max 50 chars', async () => {
+      const longTitle = '这是一个非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的标题名称';
+      const longPresentation = {
+        ...mockPresentation,
+        title: longTitle,
+      };
+
+      const result = await exportToPPTX(longPresentation);
+
+      expect(result.success).toBe(true);
+      // The safe part of the filename (before date) should be <= 50 chars
+      const parts = result.filename!.split('-');
+      // Remove the date and extension parts
+      const namePart = parts.slice(0, -3).join('-');
+      expect(namePart.length).toBeLessThanOrEqual(50);
+    });
+  });
+
+  describe('exportToPPTXBase64 deduplication (#9)', () => {
+    it('should produce consistent results between exportToPPTX and exportToPPTXBase64', async () => {
+      const result1 = await exportToPPTX(mockPresentation);
+      const result2 = await exportToPPTXBase64(mockPresentation);
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+    });
+
+    it('should generate base64 output with same options as blob export', async () => {
+      const result = await exportToPPTXBase64(mockPresentation, {
+        includeNotes: true,
+        author: 'Test Author',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.base64).toBeDefined();
+    });
+  });
+
   describe('aspect ratios', () => {
     it('should handle 16:9 aspect ratio', async () => {
       const result = await exportToPPTX(mockPresentation);

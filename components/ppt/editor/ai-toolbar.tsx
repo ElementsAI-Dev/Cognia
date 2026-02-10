@@ -31,6 +31,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { usePPTAI } from '@/hooks/designer/use-ppt-ai';
+import { buildImprovementPrompt, generateSpeakerNotesPrompt, suggestLayoutFromContent } from '../utils';
 import type { PPTSlide, PPTPresentation } from '@/types/workflow';
 
 interface AIToolbarProps {
@@ -41,6 +42,7 @@ interface AIToolbarProps {
 }
 
 type OptimizeStyle = 'concise' | 'detailed' | 'professional' | 'casual';
+type ImprovementStyle = 'concise' | 'detailed' | 'engaging' | 'professional' | 'simplified';
 
 /**
  * AIToolbar - Floating AI editing toolbar for slide content
@@ -126,13 +128,41 @@ export function AIToolbar({
     }
   }, [slide.bullets, expandBullets, onSlideUpdate]);
 
-  // Improve speaker notes
+  // Improve slide content using buildImprovementPrompt
+  const handleImproveContent = useCallback(async (style: ImprovementStyle) => {
+    const improvementPrompt = buildImprovementPrompt(
+      { title: slide.title, subtitle: slide.subtitle, content: slide.content, bullets: slide.bullets },
+      style
+    );
+    // Pass the structured improvement prompt as instructions for regeneration
+    const result = await regenerateSlide({
+      slide,
+      instructions: improvementPrompt,
+      keepLayout: true,
+    });
+    if (result.success && result.slide) {
+      setPendingUpdate(result.slide);
+    }
+  }, [slide, regenerateSlide]);
+
+  // Improve speaker notes using generateSpeakerNotesPrompt for structured prompting
   const handleImproveNotes = useCallback(async () => {
-    const result = await improveSlideNotes(slide);
+    // Build structured notes prompt for context-aware generation
+    const notesPrompt = generateSpeakerNotesPrompt({
+      title: slide.title || '',
+      content: slide.content,
+      bullets: slide.bullets,
+    });
+    // Use the structured prompt as enhanced slide notes context
+    const enhancedSlide = { ...slide, notes: notesPrompt };
+    const result = await improveSlideNotes(enhancedSlide);
     if (result.success && result.notes) {
       onSlideUpdate({ notes: result.notes });
     }
   }, [slide, improveSlideNotes, onSlideUpdate]);
+
+  // Suggest layout based on content
+  const suggestedLayout = slide.content ? suggestLayoutFromContent(slide.content) : null;
 
   // Get suggestions
   const handleGetSuggestions = useCallback(async () => {
@@ -282,6 +312,49 @@ export function AIToolbar({
           <TooltipContent>{t('improveNotesTooltip') || 'Generate/improve speaker notes'}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
+
+      {/* Improve content */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" disabled={isProcessing}>
+            <Sparkles className="h-3.5 w-3.5" />
+            {t('improve') || 'Improve'}
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-44 p-1" align="start">
+          <div className="space-y-0.5">
+            {(['concise', 'detailed', 'engaging', 'professional', 'simplified'] as ImprovementStyle[]).map(style => (
+              <button
+                key={style}
+                className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted flex items-center gap-2"
+                onClick={() => handleImproveContent(style)}
+              >
+                <Wand2 className="h-3 w-3" />
+                {t(`improve_${style}`) || style}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Layout suggestion badge */}
+      {suggestedLayout && suggestedLayout !== slide.layout && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className="h-6 text-[10px] cursor-pointer hover:bg-primary/10"
+                onClick={() => onSlideUpdate({ layout: suggestedLayout })}
+              >
+                {t('suggestLayout') || 'Try'}: {suggestedLayout}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>{t('suggestLayoutTooltip') || 'AI suggests this layout might work better'}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
       {/* AI Suggestions */}
       <Popover open={showSuggestions} onOpenChange={setShowSuggestions}>

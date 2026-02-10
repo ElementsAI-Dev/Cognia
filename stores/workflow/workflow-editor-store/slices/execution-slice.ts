@@ -19,6 +19,8 @@ import {
   cancelVisualWorkflow,
 } from '@/lib/workflow-editor';
 import { useSettingsStore } from '@/stores/settings';
+import { workflowRepository } from '@/lib/db/repositories';
+import type { WorkflowExecutionHistoryRecord } from '@/types/workflow/workflow-editor';
 
 export const executionSliceInitialState: ExecutionSliceState = {
   isExecuting: false,
@@ -209,6 +211,9 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
                 },
               });
               toast.success('Workflow completed successfully');
+
+              // Persist to IndexedDB
+              get().persistExecution();
             },
             onError: (execution, error) => {
               const currentState = get().executionState;
@@ -232,6 +237,9 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
               toast.error('Workflow execution failed', {
                 description: error,
               });
+
+              // Persist to IndexedDB
+              get().persistExecution();
             },
           }
         );
@@ -318,6 +326,9 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         },
       });
       toast.info('Workflow cancelled');
+
+      // Persist to IndexedDB
+      get().persistExecution();
     },
 
     updateNodeExecutionState: (nodeId, state) => {
@@ -353,6 +364,79 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           logs: [...executionState.logs, log],
         },
       });
+    },
+
+    persistExecution: async () => {
+      const { executionState, currentWorkflow } = get();
+      if (!executionState || !currentWorkflow) return;
+
+      try {
+        const record: WorkflowExecutionHistoryRecord = {
+          id: executionState.executionId,
+          workflowId: currentWorkflow.id,
+          status: executionState.status as WorkflowExecutionHistoryRecord['status'],
+          input: executionState.input,
+          output: executionState.output,
+          nodeStates: executionState.nodeStates,
+          logs: executionState.logs,
+          error: executionState.error,
+          startedAt: executionState.startedAt ? new Date(executionState.startedAt) : new Date(),
+          completedAt: executionState.completedAt ? new Date(executionState.completedAt) : undefined,
+        };
+
+        // Try update first (in case it was already created), then create
+        const existing = await workflowRepository.getExecution(record.id);
+        if (existing) {
+          await workflowRepository.updateExecution(record.id, {
+            status: record.status,
+            output: record.output,
+            nodeStates: record.nodeStates,
+            logs: record.logs,
+            error: record.error,
+            completedAt: record.completedAt,
+          });
+        } else {
+          await workflowRepository.createExecution(currentWorkflow.id, record.input || {});
+          await workflowRepository.updateExecution(record.id, {
+            status: record.status,
+            output: record.output,
+            nodeStates: record.nodeStates,
+            logs: record.logs,
+            error: record.error,
+            completedAt: record.completedAt,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to persist execution:', error);
+      }
+    },
+
+    replayExecution: async (executionId) => {
+      try {
+        const record = await workflowRepository.getExecution(executionId);
+        if (!record) {
+          toast.error('Execution not found');
+          return;
+        }
+
+        if (!record.input || Object.keys(record.input).length === 0) {
+          toast.info('Re-running workflow with empty input');
+        }
+
+        // Ensure the correct workflow is loaded
+        const { currentWorkflow } = get();
+        if (!currentWorkflow || currentWorkflow.id !== record.workflowId) {
+          toast.error('Load the matching workflow first');
+          return;
+        }
+
+        // Start execution with the same input
+        get().startExecution(record.input || {});
+        toast.info('Replaying execution with saved input');
+      } catch (error) {
+        console.error('Failed to replay execution:', error);
+        toast.error('Failed to replay execution');
+      }
     },
 
     clearExecutionState: () => {

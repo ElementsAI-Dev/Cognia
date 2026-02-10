@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -30,6 +31,8 @@ export interface CompletionSettingsProps {
 }
 
 export function CompletionSettings({ onSave, className }: CompletionSettingsProps) {
+  const t = useTranslations('inputCompletion');
+  const tProviders = useTranslations('providers');
   const {
     config,
     updateConfig,
@@ -102,15 +105,15 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
     <div className={className}>
       <Card>
         <CardHeader>
-          <CardTitle>Input Completion</CardTitle>
-          <CardDescription>AI-powered real-time text completion (Tab to accept)</CardDescription>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable and Status */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Enable Completion</Label>
-              <p className="text-sm text-muted-foreground">{isRunning ? 'Running' : 'Stopped'}</p>
+              <Label>{t('enableCompletion')}</Label>
+              <p className="text-sm text-muted-foreground">{isRunning ? t('statusRunning') : t('statusStopped')}</p>
             </div>
             <div className="flex items-center gap-2">
               <Switch
@@ -118,18 +121,18 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                 onCheckedChange={(enabled) => updateLocalConfig({ enabled })}
               />
               <Button variant="outline" size="sm" onClick={() => (isRunning ? stop() : start())}>
-                {isRunning ? 'Stop' : 'Start'}
+                {isRunning ? t('stop') : t('start')}
               </Button>
             </div>
           </div>
 
           {/* Model Settings */}
           <div className="space-y-4">
-            <h4 className="font-medium">Model</h4>
+            <h4 className="font-medium">{t('model')}</h4>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Provider</Label>
+                <Label>{t('provider')}</Label>
                 <Select
                   value={localConfig.model.provider}
                   onValueChange={(provider: CompletionProvider) =>
@@ -142,17 +145,17 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ollama">Ollama (Local)</SelectItem>
-                    <SelectItem value="openai">OpenAI</SelectItem>
-                    <SelectItem value="groq">Groq</SelectItem>
-                    <SelectItem value="auto">Auto</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
+                    <SelectItem value="ollama">{tProviders('ollama')}</SelectItem>
+                    <SelectItem value="openai">{tProviders('openai')}</SelectItem>
+                    <SelectItem value="groq">{tProviders('groq')}</SelectItem>
+                    <SelectItem value="auto">{t('providerAuto')}</SelectItem>
+                    <SelectItem value="custom">{t('providerCustom')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Model ID</Label>
+                <Label>{t('modelId')}</Label>
                 <Input
                   value={localConfig.model.model_id}
                   onChange={(e) =>
@@ -160,7 +163,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                       model: { ...localConfig.model, model_id: e.target.value },
                     })
                   }
-                  placeholder="qwen2.5-coder:0.5b"
+                  placeholder={t('modelIdPlaceholder')}
                 />
               </div>
 
@@ -169,7 +172,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                 localConfig.model.provider === 'groq') && (
                 <>
                   <div className="space-y-2">
-                    <Label>Endpoint</Label>
+                    <Label>{t('endpoint')}</Label>
                     <Input
                       value={localConfig.model.endpoint || ''}
                       onChange={(e) =>
@@ -177,12 +180,12 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                           model: { ...localConfig.model, endpoint: e.target.value },
                         })
                       }
-                      placeholder="https://api.example.com"
+                      placeholder={t('endpointPlaceholder')}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>API Key</Label>
+                    <Label>{t('apiKey')}</Label>
                     <Input
                       type="password"
                       value={localConfig.model.api_key || ''}
@@ -191,7 +194,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                           model: { ...localConfig.model, api_key: e.target.value },
                         })
                       }
-                      placeholder="sk-..."
+                      placeholder={t('apiKeyPlaceholder')}
                     />
                   </div>
                 </>
@@ -199,7 +202,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="space-y-2">
-              <Label>Temperature: {localConfig.model.temperature}</Label>
+              <Label>{t('temperature', { value: localConfig.model.temperature })}</Label>
               <Slider
                 value={[localConfig.model.temperature]}
                 min={0}
@@ -216,10 +219,10 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
           {/* Trigger Settings */}
           <div className="space-y-4">
-            <h4 className="font-medium">Trigger</h4>
+            <h4 className="font-medium">{t('trigger')}</h4>
 
             <div className="space-y-2">
-              <Label>Debounce: {localConfig.trigger.debounce_ms}ms</Label>
+              <Label>{t('debounce', { value: localConfig.trigger.debounce_ms })}</Label>
               <Slider
                 value={[localConfig.trigger.debounce_ms]}
                 min={100}
@@ -234,7 +237,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="space-y-2">
-              <Label>Min Context Length: {localConfig.trigger.min_context_length} chars</Label>
+              <Label>{t('minContextLength', { value: localConfig.trigger.min_context_length })}</Label>
               <Slider
                 value={[localConfig.trigger.min_context_length]}
                 min={1}
@@ -249,7 +252,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="flex items-center justify-between">
-              <Label>Skip with modifier keys</Label>
+              <Label>{t('skipWithModifiers')}</Label>
               <Switch
                 checked={localConfig.trigger.skip_with_modifiers}
                 onCheckedChange={(skip_with_modifiers) =>
@@ -263,10 +266,10 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
           {/* UI Settings */}
           <div className="space-y-4">
-            <h4 className="font-medium">Display</h4>
+            <h4 className="font-medium">{t('display')}</h4>
 
             <div className="flex items-center justify-between">
-              <Label>Show inline preview</Label>
+              <Label>{t('showInlinePreview')}</Label>
               <Switch
                 checked={localConfig.ui.show_inline_preview}
                 onCheckedChange={(show_inline_preview) =>
@@ -278,7 +281,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="flex items-center justify-between">
-              <Label>Show accept hint</Label>
+              <Label>{t('showAcceptHint')}</Label>
               <Switch
                 checked={localConfig.ui.show_accept_hint}
                 onCheckedChange={(show_accept_hint) =>
@@ -290,7 +293,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
             </div>
 
             <div className="space-y-2">
-              <Label>Ghost text opacity: {localConfig.ui.ghost_text_opacity}</Label>
+              <Label>{t('ghostTextOpacity', { value: localConfig.ui.ghost_text_opacity })}</Label>
               <Slider
                 value={[localConfig.ui.ghost_text_opacity]}
                 min={0.1}
@@ -306,10 +309,9 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
             <div className="space-y-2">
               <Label>
-                Auto-dismiss:{' '}
                 {localConfig.ui.auto_dismiss_ms === 0
-                  ? 'Never'
-                  : `${localConfig.ui.auto_dismiss_ms}ms`}
+                  ? t('autoDismissNever')
+                  : t('autoDismiss', { value: localConfig.ui.auto_dismiss_ms })}
               </Label>
               <Slider
                 value={[localConfig.ui.auto_dismiss_ms]}
@@ -330,54 +332,54 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
           {/* Statistics */}
           <div className="space-y-4">
-            <h4 className="font-medium">Statistics</h4>
+            <h4 className="font-medium">{t('statistics')}</h4>
 
             {stats ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Total Requests:</span>
+                  <span className="text-muted-foreground">{t('totalRequests')}</span>
                   <span className="ml-2 font-medium">{stats.total_requests}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Successful:</span>
+                  <span className="text-muted-foreground">{t('successful')}</span>
                   <span className="ml-2 font-medium text-green-600">
                     {stats.successful_completions}
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Failed:</span>
+                  <span className="text-muted-foreground">{t('failed')}</span>
                   <span className="ml-2 font-medium text-red-600">{stats.failed_completions}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Avg Latency:</span>
+                  <span className="text-muted-foreground">{t('avgLatency')}</span>
                   <span className="ml-2 font-medium">{stats.avg_latency_ms.toFixed(0)}ms</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Cache Hit Rate:</span>
+                  <span className="text-muted-foreground">{t('cacheHitRate')}</span>
                   <span className="ml-2 font-medium">
                     {(stats.cache_hit_rate * 100).toFixed(1)}%
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No statistics available</p>
+              <p className="text-sm text-muted-foreground">{t('noStatistics')}</p>
             )}
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleResetStats}>
                 <RotateCcw className="mr-1 h-3 w-3" />
-                Reset Stats
+                {t('resetStats')}
               </Button>
               <Button variant="outline" size="sm" onClick={handleClearCache}>
                 <Trash2 className="mr-1 h-3 w-3" />
-                Clear Cache
+                {t('clearCache')}
               </Button>
             </div>
           </div>
 
           {/* Connection Test */}
           <div className="space-y-4">
-            <h4 className="font-medium">Connection Test</h4>
+            <h4 className="font-medium">{t('connectionTest')}</h4>
 
             <div className="flex items-center gap-3">
               <Button
@@ -387,20 +389,20 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-                Test Connection
+                {t('testConnection')}
               </Button>
 
               {testResult === 'success' && (
                 <div className="flex items-center text-sm text-green-600">
                   <CheckCircle className="mr-1 h-4 w-4" />
-                  Success {testLatency !== null && `(${testLatency}ms)`}
+                  {testLatency !== null ? t('testSuccessLatency', { latency: testLatency }) : t('testSuccess')}
                 </div>
               )}
 
               {testResult === 'error' && (
                 <div className="flex items-center text-sm text-red-600">
                   <XCircle className="mr-1 h-4 w-4" />
-                  Connection failed
+                  {t('testFailed')}
                 </div>
               )}
             </div>
@@ -409,10 +411,10 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={handleReset}>
-              Reset to Defaults
+              {t('resetToDefaults')}
             </Button>
             <Button onClick={handleSave} disabled={!hasChanges}>
-              Save Changes
+              {t('saveChanges')}
             </Button>
           </div>
         </CardContent>
@@ -423,16 +425,17 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
 /** Unified completion settings section (partial accept, emoji, web AI) */
 function UnifiedCompletionSection() {
+  const t = useTranslations('inputCompletion');
   const store = useCompletionSettingsStore();
 
   return (
     <div className="space-y-4">
-      <h4 className="font-medium">Unified Completion</h4>
+      <h4 className="font-medium">{t('unifiedCompletion')}</h4>
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label>Partial Accept</Label>
-          <p className="text-xs text-muted-foreground">Ctrl+→ word-by-word, Ctrl+↓ line-by-line</p>
+          <Label>{t('partialAccept')}</Label>
+          <p className="text-xs text-muted-foreground">{t('partialAcceptDesc')}</p>
         </div>
         <Switch
           checked={store.enablePartialAccept}
@@ -442,8 +445,8 @@ function UnifiedCompletionSection() {
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label>Emoji Completion</Label>
-          <p className="text-xs text-muted-foreground">Type : to search emojis</p>
+          <Label>{t('emojiCompletion')}</Label>
+          <p className="text-xs text-muted-foreground">{t('emojiCompletionDesc')}</p>
         </div>
         <Switch
           checked={store.emojiEnabled}
@@ -453,8 +456,8 @@ function UnifiedCompletionSection() {
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label>Slash Commands</Label>
-          <p className="text-xs text-muted-foreground">Type / for quick commands</p>
+          <Label>{t('slashCommands')}</Label>
+          <p className="text-xs text-muted-foreground">{t('slashCommandsDesc')}</p>
         </div>
         <Switch
           checked={store.slashCommandsEnabled}
@@ -464,8 +467,8 @@ function UnifiedCompletionSection() {
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <Label>@Mention</Label>
-          <p className="text-xs text-muted-foreground">Type @ to mention MCP tools</p>
+          <Label>{t('mention')}</Label>
+          <p className="text-xs text-muted-foreground">{t('mentionDesc')}</p>
         </div>
         <Switch
           checked={store.mentionEnabled}
@@ -474,7 +477,7 @@ function UnifiedCompletionSection() {
       </div>
 
       <div className="space-y-2">
-        <Label>Max Suggestions: {store.maxSuggestions}</Label>
+        <Label>{t('maxSuggestions', { value: store.maxSuggestions })}</Label>
         <Slider
           value={[store.maxSuggestions]}
           min={3}

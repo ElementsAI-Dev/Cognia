@@ -17,8 +17,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { workflowRepository } from '@/lib/db/repositories';
-import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useWorkflowEditorStore, useWorkflowStore, selectActiveExecution, selectExecutionProgress } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
+import { Progress } from '@/components/ui/progress';
 import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
 
 interface SidebarWorkflowsProps {
@@ -49,6 +50,10 @@ export function SidebarWorkflows({
       isExecuting: state.isExecuting,
     }))
   );
+
+  // Active execution & progress from workflow store selectors
+  const activeExecution = useWorkflowStore(selectActiveExecution);
+  const executionProgress = useWorkflowStore(selectExecutionProgress);
 
   // Load recent workflows
   const loadRecentWorkflows = useCallback(async () => {
@@ -159,6 +164,11 @@ export function SidebarWorkflows({
                 key={workflow.id}
                 workflow={workflow}
                 isRunning={runningWorkflowId === workflow.id && isExecuting}
+                progress={
+                  runningWorkflowId === workflow.id && activeExecution
+                    ? executionProgress
+                    : undefined
+                }
                 onOpen={() => handleOpenWorkflow(workflow)}
                 onQuickRun={(e) => handleQuickRun(workflow, e)}
                 runningLabel={tSidebar('running') || t('running') || 'Running...'}
@@ -189,6 +199,7 @@ export function SidebarWorkflows({
 interface WorkflowItemProps {
   workflow: VisualWorkflow;
   isRunning: boolean;
+  progress?: number;
   onOpen: () => void;
   onQuickRun: (e: React.MouseEvent) => void;
   runningLabel: string;
@@ -198,6 +209,7 @@ interface WorkflowItemProps {
 function WorkflowItem({
   workflow,
   isRunning,
+  progress,
   onOpen,
   onQuickRun,
   runningLabel,
@@ -219,6 +231,10 @@ function WorkflowItem({
           {new Date(workflow.updatedAt).toLocaleDateString()}
         </p>
       </div>
+      {/* Execution progress bar */}
+      {isRunning && progress !== undefined && progress > 0 && (
+        <Progress value={progress} className="h-1 w-12" />
+      )}
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>

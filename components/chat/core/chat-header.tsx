@@ -94,7 +94,6 @@ import { ChatGoalDialog } from '../goal';
 import { useSummary } from '@/hooks/chat';
 import { useSettingsStore } from '@/stores';
 import { SimplifiedModeQuickToggle } from '../ui/simplified-mode-toggle';
-import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 
 interface ChatHeaderProps {
   sessionId?: string;
@@ -477,17 +476,6 @@ export function ChatHeader({ sessionId, viewMode = 'list', onViewModeChange }: C
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-          )}
-
-          {/* Provider/Model indicator - compact display of current model */}
-          {session && !isFocusedOrZen && (
-            <div className="hidden sm:flex items-center gap-1">
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-muted-foreground">
-                <ProviderIcon providerId={session.provider || 'openai'} size={14} className="shrink-0" />
-                <span className="max-w-20 truncate">{session.model || 'gpt-4o'}</span>
-              </div>
-            </div>
           )}
 
           {/* Agent sub-mode selector - only shown in agent mode, hidden in focused/zen modes */}

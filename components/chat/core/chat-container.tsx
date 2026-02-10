@@ -71,7 +71,7 @@ import { QuotedContent } from '../message';
 import { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from '../message-parts';
 import { A2UIMessageRenderer, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
 import { MessageReactions } from '../message';
-import { MessageArtifacts } from '@/components/artifacts';
+import { MessageArtifacts, MessageAnalysisResults } from '@/components/artifacts';
 import type { EmojiReaction } from '@/types/core/message';
 import type { MessagePart } from '@/types/core/message';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
@@ -238,6 +238,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   // Artifact store for auto-creating artifacts from AI responses
   const autoCreateFromContent = useArtifactStore((state) => state.autoCreateFromContent);
+  const addAnalysisResult = useArtifactStore((state) => state.addAnalysisResult);
 
   // A2UI message integration for processing A2UI content from AI responses
   const { processMessage: processA2UIMessage } = useA2UIMessageIntegration();
@@ -1868,6 +1869,27 @@ Be thorough in your thinking but concise in your final answer.`;
             console.warn('Failed to auto-create artifacts:', artifactError);
           }
 
+          // Auto-detect analysis results (math expressions, chart data) from AI responses
+          try {
+            const mathBlocks = finalContent.match(/\$\$([\s\S]+?)\$\$/g);
+            if (mathBlocks && mathBlocks.length > 0) {
+              for (const block of mathBlocks) {
+                const content = block.replace(/^\$\$|\$\$$/g, '').trim();
+                if (content.split('\n').length >= 2) {
+                  addAnalysisResult({
+                    sessionId: currentSessionId!,
+                    messageId: assistantMessage.id,
+                    type: 'math',
+                    content,
+                    output: { latex: content },
+                  });
+                }
+              }
+            }
+          } catch (analysisError) {
+            console.warn('Failed to auto-detect analysis results:', analysisError);
+          }
+
           // Process A2UI content if detected in the response
           if (hasA2UIContent(finalContent)) {
             try {
@@ -1919,6 +1941,7 @@ Be thorough in your thinking but concise in your final answer.`;
       updateSession,
       getLearningSessionByChat,
       autoCreateFromContent,
+      addAnalysisResult,
       processA2UIMessage,
       sourceVerification,
       checkIntent,
@@ -2466,6 +2489,18 @@ Be thorough in your thinking but concise in your final answer.`;
         onOpenPromptOptimization={() => setShowPromptOptimizationHub(true)}
         onOpenArena={() => setShowArenaDialog(true)}
         hasActivePreset={!!activePreset}
+        multiModelEnabled={session?.multiModelConfig?.enabled}
+        multiModelModels={session?.multiModelConfig?.models}
+        onMultiModelModelsChange={(models) => {
+          if (session) {
+            updateSession(session.id, {
+              multiModelConfig: {
+                ...session.multiModelConfig!,
+                models,
+              },
+            });
+          }
+        }}
       />
       <PluginExtensionPoint point="chat.input.below" />
       <PluginExtensionPoint point="chat.footer" />
@@ -3092,6 +3127,8 @@ function ChatMessageItem({
               )}
               {/* Message artifacts */}
               {message.role === 'assistant' && <MessageArtifacts messageId={message.id} compact />}
+              {/* Message analysis results */}
+              {message.role === 'assistant' && <MessageAnalysisResults messageId={message.id} />}
               {/* Message timestamp */}
               {!hideMessageTimestamps && message.createdAt && (
                 <div className="mt-1 text-[10px] text-muted-foreground/50">

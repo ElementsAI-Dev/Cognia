@@ -163,4 +163,54 @@ describe('PromptMarketplaceDetail', () => {
     render(<PromptMarketplaceDetail {...defaultProps} />);
     expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
+
+  // Layout: stats row uses grid instead of flex+separator
+  it('renders stats in a grid layout', () => {
+    const { container } = render(<PromptMarketplaceDetail {...defaultProps} />);
+    const statsGrid = container.querySelector('.grid.grid-cols-2');
+    expect(statsGrid).toBeInTheDocument();
+    expect(statsGrid?.className).toContain('sm:grid-cols-4');
+  });
+
+  it('does not render separators in stats row', () => {
+    const { container } = render(<PromptMarketplaceDetail {...defaultProps} />);
+    const separators = container.querySelectorAll('[data-testid="separator"]');
+    expect(separators).toHaveLength(0);
+  });
+
+  it('displays rating stat', () => {
+    render(<PromptMarketplaceDetail {...defaultProps} />);
+    const ratingElements = screen.getAllByText('4.5');
+    expect(ratingElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('displays download count', () => {
+    render(<PromptMarketplaceDetail {...defaultProps} />);
+    expect(screen.getByText('100')).toBeInTheDocument();
+  });
+
+  it('displays favorites count', () => {
+    render(<PromptMarketplaceDetail {...defaultProps} />);
+    expect(screen.getByText('50')).toBeInTheDocument();
+  });
+
+  it('displays views count', () => {
+    render(<PromptMarketplaceDetail {...defaultProps} />);
+    expect(screen.getByText('1.0K')).toBeInTheDocument();
+  });
+
+  it('displays success rate when available', () => {
+    const promptWithSuccess = {
+      ...mockPrompt,
+      stats: { ...mockPrompt.stats, successRate: 0.95 },
+    };
+    const { container } = render(
+      <PromptMarketplaceDetail {...defaultProps} prompt={promptWithSuccess} />
+    );
+    expect(screen.getByText('95%')).toBeInTheDocument();
+    // Success rate element should exist with col-span classes
+    const allCells = container.querySelectorAll('.text-center.p-2');
+    const successCell = Array.from(allCells).find((el) => el.className.includes('col-span-2'));
+    expect(successCell).toBeTruthy();
+  });
 });

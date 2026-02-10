@@ -154,16 +154,16 @@ describe('ConditionalNode integration tests', () => {
     expect(screen.getByText('isValid && hasPermission')).toBeInTheDocument();
   });
 
-  it('handles switch type condition', () => {
-    const switchData: ConditionalNodeData = {
+  it('handles expression condition with variable path', () => {
+    const variablePathData: ConditionalNodeData = {
       ...mockData,
       conditionType: 'expression',
       condition: 'user.role',
     };
 
-    render(<ConditionalNode {...baseProps} data={switchData} selected={false} />);
+    render(<ConditionalNode {...baseProps} data={variablePathData} selected={false} />);
 
-    expect(screen.getByText('switch')).toBeInTheDocument();
+    expect(screen.getByText('expression')).toBeInTheDocument();
     expect(screen.getByText('user.role')).toBeInTheDocument();
   });
 });

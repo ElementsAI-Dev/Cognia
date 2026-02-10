@@ -302,6 +302,8 @@ const config: Config = {
     // Skip tests with severe memory issues (require dedicated Node heap increase)
     "components/providers/provider-context.test.tsx",
     "hooks/sandbox/use-sandbox-db.test.ts",
+    // Skip test utility files that don't contain tests
+    "__tests__/test-utils\\.ts$",
   ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
@@ -318,7 +320,7 @@ const config: Config = {
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   transformIgnorePatterns: [
-    "node_modules/(?!(nanoid|cheerio|htmlparser2|dom-serializer|domelementtype|domhandler|domutils|entities|css-select|css-what|boolbase|nth-check|parse5|parse5-htmlparser2-tree-adapter|react-markdown|remark-parse|remark-rehype|unified|unist-util-visit|unist-util-is|bail|trough|vfile|vfile-message|mdast-util-from-markdown|mdast-util-to-hast|micromark|decode-named-character-reference|character-entities|property-information|hast-util-whitespace|space-separated-tokens|comma-separated-tokens|ccount|escape-string-regexp|markdown-table|zwitch|longest-streak|devlop|unist-util-position|unist-util-stringify-position|html-url-attributes|trim-lines|hast-util-to-jsx-runtime|estree-util-is-identifier-name|hast-util-raw|eventsource-parser|recharts|d3-shape|d3-path|internmap|delaunator|robust-predicates|use-stick-to-bottom|streamdown|rehype-sanitize|rehype-raw|hast-util-sanitize|@qdrant)/)",
+    "node_modules/(?!(nanoid|cheerio|htmlparser2|dom-serializer|domelementtype|domhandler|domutils|entities|css-select|css-what|boolbase|nth-check|parse5|parse5-htmlparser2-tree-adapter|react-markdown|remark-parse|remark-rehype|unified|unist-util-visit|unist-util-is|bail|trough|vfile|vfile-message|mdast-util-from-markdown|mdast-util-to-hast|micromark|decode-named-character-reference|character-entities|property-information|hast-util-whitespace|space-separated-tokens|comma-separated-tokens|ccount|escape-string-regexp|markdown-table|zwitch|longest-streak|devlop|unist-util-position|unist-util-stringify-position|html-url-attributes|trim-lines|hast-util-to-jsx-runtime|estree-util-is-identifier-name|hast-util-raw|eventsource-parser|recharts|d3-shape|d3-path|internmap|delaunator|robust-predicates|use-stick-to-bottom|streamdown|rehype-sanitize|rehype-raw|hast-util-sanitize|dagre-d3-es|@qdrant)/)",
   ],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them

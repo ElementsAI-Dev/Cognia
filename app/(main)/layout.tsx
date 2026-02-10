@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "../providers";
 import { TitleBar, WindowInitializer } from "@/components/layout";
 import { SyncInitializer } from "@/components/sync";
+import { FontBody } from "./font-body";
 import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Cognia - AI Chat Assistant",
@@ -27,16 +17,14 @@ export default function MainLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <FontBody>
         <Providers>
           <TitleBar />
           <WindowInitializer />
           <SyncInitializer />
           {children}
         </Providers>
-      </body>
+      </FontBody>
     </html>
   );
 }

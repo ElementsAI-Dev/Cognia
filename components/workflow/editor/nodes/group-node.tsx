@@ -32,6 +32,7 @@ import {
   Folder,
 } from 'lucide-react';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 
 export interface GroupNodeData {
   [key: string]: unknown;
@@ -61,7 +62,13 @@ function GroupNodeComponent({ id, data, selected }: NodeProps) {
   const nodeData = data as GroupNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(nodeData.label);
-  const { updateNode, deleteNode, duplicateNode } = useWorkflowEditorStore();
+  const { updateNode, deleteNode, duplicateNode } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      updateNode: state.updateNode,
+      deleteNode: state.deleteNode,
+      duplicateNode: state.duplicateNode,
+    }))
+  );
 
   const handleToggleCollapse = useCallback(() => {
     updateNode(id, { isCollapsed: !nodeData.isCollapsed });

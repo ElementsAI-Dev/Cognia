@@ -1,18 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { FilePlus } from 'lucide-react';
+import { FilePlus, MoreHorizontal, Trash2, Eraser, Download, Upload, Pencil, Search, FileText, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useVectorDB } from '@/hooks/rag';
-import { useVectorStore } from '@/stores';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AddDocumentModal } from './add-document-modal';
+import { SectionHeader } from './section-header';
 import {
   Select,
   SelectContent,
@@ -29,467 +26,194 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import type { VectorCollectionInfo, VectorStats, CollectionExport } from '@/lib/vector';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
+import { SettingsCard } from '@/components/settings/common/settings-section';
+import { useVectorManager } from '@/hooks/vector/use-vector-manager';
 
 export function VectorManager() {
   const t = useTranslations('vectorManager');
-  const settings = useVectorStore((state) => state.settings);
 
-  const [collectionName, setCollectionName] = useState('default');
-  const [showAddDocModal, setShowAddDocModal] = useState(false);
-  const [collections, setCollections] = useState<VectorCollectionInfo[]>([]);
-  const [newCollection, setNewCollection] = useState('');
-  const [query, setQuery] = useState('');
-  const [topK, setTopK] = useState(5);
-  const [threshold, setThreshold] = useState(0);
-  const [filterJson, setFilterJson] = useState('');
-  const [newDocContent, setNewDocContent] = useState('');
-  const [newDocMeta, setNewDocMeta] = useState('');
-  const [results, setResults] = useState<
-    { id: string; content: string; score: number; metadata?: Record<string, unknown> }[]
-  >([]);
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  const [sortField, setSortField] = useState<'score' | 'id' | 'metadataLen'>('score');
-  const [filterError, setFilterError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [showMetadataSummary, setShowMetadataSummary] = useState(true);
-  
-  // New state for enhanced features
-  const [renameNewName, setRenameNewName] = useState('');
-  const [showRenameInput, setShowRenameInput] = useState(false);
-  const [stats, setStats] = useState<VectorStats | null>(null);
-  const [selectedCollectionInfo, setSelectedCollectionInfo] = useState<VectorCollectionInfo | null>(null);
-  const [totalResults, setTotalResults] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const vector = useVectorDB({ collectionName, autoInitialize: false });
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const list = await vector.listAllCollections();
-        if (mounted) setCollections(list);
-      } catch {
-        // ignore load errors in settings UI
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [vector]);
-
-  const handleCreate = async () => {
-    const name = newCollection.trim();
-    if (!name) return;
-    await vector.createCollection(name);
-    setCollectionName(name);
-    setNewCollection('');
-    const list = await vector.listAllCollections();
-    setCollections(list);
-  };
-
-  const handleDelete = async () => {
-    if (!collectionName) return;
-    await vector.deleteCollection(collectionName);
-    setCollectionName(collections.find((c) => c.name !== collectionName)?.name || 'default');
-    const list = await vector.listAllCollections();
-    setCollections(list);
-  };
-
-  const handleClear = async () => {
-    if (!collectionName) return;
-    await vector.clearCollection();
-    const list = await vector.listAllCollections();
-    setCollections(list);
-  };
-
-  const handleAddDocument = async () => {
-    if (!collectionName || !newDocContent.trim()) return;
-    let parsedMeta: Record<string, unknown> | undefined;
-    if (newDocMeta.trim()) {
-      try {
-        parsedMeta = JSON.parse(newDocMeta);
-        if (typeof parsedMeta !== 'object' || Array.isArray(parsedMeta)) {
-          setFilterError('Document metadata must be JSON object');
-          return;
-        }
-      } catch {
-        setFilterError('Invalid document metadata JSON');
-        return;
-      }
-    }
-    setFilterError(null);
-    await vector.addDocument(newDocContent, parsedMeta as Record<string, string | number | boolean> | undefined);
-    setNewDocContent('');
-    setNewDocMeta('');
-    const list = await vector.listAllCollections();
-    setCollections(list);
-  };
-
-  const handleRefresh = async () => {
-    const list = await vector.listAllCollections();
-    setCollections(list);
-    // Load stats
-    try {
-      const s = await vector.getStats();
-      setStats(s);
-    } catch {
-      // Stats not available
-    }
-    // Load selected collection info
-    if (collectionName) {
-      try {
-        const info = await vector.getCollectionInfo(collectionName);
-        setSelectedCollectionInfo(info);
-      } catch {
-        setSelectedCollectionInfo(null);
-      }
-    }
-  };
-
-  const handleRename = async () => {
-    if (!collectionName || !renameNewName.trim()) return;
-    try {
-      await vector.renameCollection(collectionName, renameNewName.trim());
-      setCollectionName(renameNewName.trim());
-      setRenameNewName('');
-      setShowRenameInput(false);
-      setActionMessage({ type: 'success', text: t('renameSuccess') });
-      await handleRefresh();
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('renameFailed') });
-    }
-  };
-
-  const handleTruncate = async () => {
-    if (!collectionName) return;
-    try {
-      await vector.truncateCollection(collectionName);
-      setActionMessage({ type: 'success', text: t('truncateSuccess') });
-      await handleRefresh();
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('truncateFailed') });
-    }
-  };
-
-  const handleDeleteAllDocs = async () => {
-    if (!collectionName) return;
-    try {
-      const count = await vector.removeAllDocuments();
-      setActionMessage({ type: 'success', text: t('deleteDocsSuccess', { count }) });
-      await handleRefresh();
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('deleteDocsFailed') });
-    }
-  };
-
-  const handleExport = async () => {
-    if (!collectionName) return;
-    try {
-      const data = await vector.exportCollection(collectionName);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${collectionName}-export.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setActionMessage({ type: 'success', text: t('exportSuccess') });
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('exportFailed') });
-    }
-  };
-
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text) as CollectionExport;
-      await vector.importCollection(data, true);
-      setActionMessage({ type: 'success', text: t('importSuccess', { name: data.meta.name }) });
-      await handleRefresh();
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('importFailed') });
-    }
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleAddDocumentsFromModal = async (
-    documents: Array<{ content: string; metadata: Record<string, unknown> }>
-  ) => {
-    for (const doc of documents) {
-      await vector.addDocument(doc.content, doc.metadata as Record<string, string | number | boolean>);
-    }
-    await handleRefresh();
-    setShowAddDocModal(false);
-  };
-
-  const handleSearchWithPagination = async (page: number = 1) => {
-    if (!collectionName) return;
-    setCurrentPage(page);
-    const offset = (page - 1) * pageSize;
-    
-    let parsedFilter: Record<string, unknown> | undefined;
-    if (filterJson.trim()) {
-      try {
-        parsedFilter = JSON.parse(filterJson);
-        if (typeof parsedFilter !== 'object' || Array.isArray(parsedFilter)) {
-          setFilterError('Filter must be a JSON object');
-          return;
-        }
-        setFilterError(null);
-      } catch {
-        setFilterError('Invalid JSON');
-        return;
-      }
-    }
-    
-    try {
-      const response = await vector.searchWithTotal(query, { 
-        topK, 
-        threshold: threshold > 0 ? threshold : undefined, 
-        filter: parsedFilter,
-        offset,
-        limit: pageSize,
-      });
-      setTotalResults(response.total);
-      const sorted = [...response.results].sort((a, b) => {
-        if (sortField === 'id') {
-          const cmp = a.id.localeCompare(b.id);
-          return sortOrder === 'desc' ? -cmp : cmp;
-        }
-        if (sortField === 'metadataLen') {
-          const lenA = a.metadata ? JSON.stringify(a.metadata).length : 0;
-          const lenB = b.metadata ? JSON.stringify(b.metadata).length : 0;
-          return sortOrder === 'desc' ? lenB - lenA : lenA - lenB;
-        }
-        return sortOrder === 'desc' ? b.score - a.score : a.score - b.score;
-      });
-      setResults(sorted);
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : t('searchFailed') });
-    }
-  };
-
-  const totalPages = Math.ceil(totalResults / pageSize);
+  const {
+    // Collection state
+    collectionName, setCollectionName, collections, newCollection, setNewCollection,
+    stats, selectedCollectionInfo,
+    // Document state
+    newDocContent, setNewDocContent, newDocMeta, setNewDocMeta, filterError,
+    // Search state
+    query, setQuery, topK, setTopK, threshold, setThreshold,
+    filterJson, setFilterJson, results, sortOrder, setSortOrder,
+    sortField, setSortField, totalResults, totalPages, currentPage, pageSize, setPageSize,
+    // UI state
+    showAddDocModal, setShowAddDocModal, showRenameDialog, setShowRenameDialog,
+    renameNewName, setRenameNewName, activeTab, setActiveTab,
+    expanded, setExpanded, showMetadataSummary, setShowMetadataSummary,
+    confirmAction, setConfirmAction, confirmLabels, fileInputRef, settings,
+    // Handlers
+    handleRefresh, handleCreate, handleRename, handleExport, handleImport,
+    handleAddDocument, handleAddDocumentsFromModal, handleSearchWithPagination,
+    handlePeek, handleConfirmAction,
+  } = useVectorManager();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('title')}</CardTitle>
-        <CardDescription>{t('description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>{t('activeCollection')}</Label>
-            <div className="flex gap-2">
-              <Select value={collectionName} onValueChange={setCollectionName}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={t('activeCollection')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {collections.map((c) => (
-                    <SelectItem key={c.name} value={c.name}>
-                      {c.name} ({c.documentCount})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={handleRefresh} size="sm">
-                {t('refresh')}
+    <SettingsCard
+      title={t('title')}
+      description={t('description')}
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full h-auto bg-muted/30 border rounded-lg p-1 gap-1 flex">
+          <TabsTrigger value="collections" className="flex-1 gap-1.5 text-xs sm:text-sm h-8 rounded-md">
+            <FolderOpen className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('activeCollection')}</span>
+            <span className="sm:hidden">{t('activeCollection')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex-1 gap-1.5 text-xs sm:text-sm h-8 rounded-md">
+            <FileText className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('addDocument')}</span>
+            <span className="sm:hidden">{t('addDocument')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="search" className="flex-1 gap-1.5 text-xs sm:text-sm h-8 rounded-md">
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('query')}</span>
+            <span className="sm:hidden">{t('query')}</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: Collection Management */}
+        <TabsContent value="collections" className="space-y-3 mt-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">{t('activeCollection')}</Label>
+              <div className="flex gap-2">
+                <Select value={collectionName} onValueChange={setCollectionName}>
+                  <SelectTrigger className="flex-1 h-9">
+                    <SelectValue placeholder={t('activeCollection')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collections.map((c) => (
+                      <SelectItem key={c.name} value={c.name}>
+                        {c.name} ({c.documentCount})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={handleRefresh} size="sm" className="h-9">
+                  {t('refresh')}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">{t('createNewCollection')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder={t('collectionNamePlaceholder')}
+                  value={newCollection}
+                  onChange={(e) => setNewCollection(e.target.value)}
+                  className="h-9"
+                />
+                <Button onClick={handleCreate} disabled={!newCollection.trim()} size="sm" className="h-9">
+                  {t('create')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Collection Info + Stats */}
+          {(selectedCollectionInfo || stats) && (
+            <div className="p-2.5 rounded-lg border bg-muted/20 text-xs text-muted-foreground space-y-1.5">
+              {selectedCollectionInfo && (
+                <>
+                  <div className="text-sm font-medium text-foreground">{selectedCollectionInfo.name}</div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    <span>{t('documents')}: {selectedCollectionInfo.documentCount}</span>
+                    {selectedCollectionInfo.dimension && <span>{t('dimension')}: {selectedCollectionInfo.dimension}</span>}
+                    {selectedCollectionInfo.embeddingModel && <span>{t('model')}: {selectedCollectionInfo.embeddingModel}</span>}
+                    {selectedCollectionInfo.embeddingProvider && <span>{t('provider')}: {selectedCollectionInfo.embeddingProvider}</span>}
+                  </div>
+                </>
+              )}
+              {stats && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <span>{t('collections')}: {stats.collectionCount}</span>
+                  <span>{t('totalPoints')}: {stats.totalPoints}</span>
+                  <span>{t('storage')}: {(stats.storageSizeBytes / 1024).toFixed(1)} KB</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons: grouped primary + secondary */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => setShowAddDocModal(true)} className="gap-1.5">
+                <FilePlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('addFromFiles')}</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={!collectionName} className="gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('export')}</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-1.5">
+                <Upload className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('import')}</span>
               </Button>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>{t('createNewCollection')}</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder={t('collectionNamePlaceholder')}
-                value={newCollection}
-                onChange={(e) => setNewCollection(e.target.value)}
-              />
-              <Button onClick={handleCreate} disabled={!newCollection.trim()}>
-                {t('create')}
+
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Button variant="outline" size="sm" onClick={() => { setRenameNewName(collectionName); setShowRenameDialog(true); }} disabled={!collectionName} className="gap-1.5">
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('renameCollection')}</span>
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setConfirmAction('clear')} disabled={!collectionName}>
+                    <Eraser className="mr-2 h-3.5 w-3.5" />
+                    {t('clearCollection')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setConfirmAction('truncate')} disabled={!collectionName}>
+                    <Eraser className="mr-2 h-3.5 w-3.5" />
+                    {t('truncate')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setConfirmAction('deleteAllDocs')}
+                    disabled={!collectionName}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    {t('deleteAllDocs')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setConfirmAction('delete')}
+                    disabled={!collectionName}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    {t('deleteCollection')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </div>
-        </div>
-
-        {/* Action message */}
-        {actionMessage && (
-          <Alert variant={actionMessage.type === 'success' ? 'default' : 'destructive'} className="py-2">
-            <AlertDescription className="flex items-center justify-between">
-              {actionMessage.text}
-              <Button variant="ghost" size="sm" className="h-5 px-2" onClick={() => setActionMessage(null)}>×</Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Collection info display */}
-        {selectedCollectionInfo && (
-          <div className="p-3 rounded-md border bg-muted/30 text-sm space-y-1">
-            <div className="font-medium">{t('collection')}: {selectedCollectionInfo.name}</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
-              <span>{t('documents')}: {selectedCollectionInfo.documentCount}</span>
-              {selectedCollectionInfo.dimension && <span>{t('dimension')}: {selectedCollectionInfo.dimension}</span>}
-              {selectedCollectionInfo.embeddingModel && <span>{t('model')}: {selectedCollectionInfo.embeddingModel}</span>}
-              {selectedCollectionInfo.embeddingProvider && <span>{t('provider')}: {selectedCollectionInfo.embeddingProvider}</span>}
-            </div>
-            {selectedCollectionInfo.description && (
-              <div className="text-xs text-muted-foreground">{t('descriptionLabel')}: {selectedCollectionInfo.description}</div>
-            )}
-          </div>
-        )}
-
-        {/* Stats display */}
-        {stats && (
-          <div className="p-2 rounded-md border bg-muted/20 text-xs text-muted-foreground flex flex-wrap gap-4">
-            <span>{t('collections')}: {stats.collectionCount}</span>
-            <span>{t('totalPoints')}: {stats.totalPoints}</span>
-            <span>{t('storage')}: {(stats.storageSizeBytes / 1024).toFixed(1)} KB</span>
-          </div>
-        )}
-
-        <TooltipProvider>
-          <div className="flex flex-wrap gap-2">
-            <AlertDialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={!collectionName}>
-                      {t('deleteCollection')}
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('deleteCollectionTooltip')}</TooltipContent>
-              </Tooltip>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>{t('confirmDeleteDesc')}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>{t('confirm')}</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={!collectionName}>
-                      {t('clearCollection')}
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('clearCollectionTooltip')}</TooltipContent>
-              </Tooltip>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('confirmClearTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>{t('confirmClearDesc')}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClear}>{t('confirm')}</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={!collectionName}>
-                      {t('truncate')}
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('truncateTooltip')}</TooltipContent>
-              </Tooltip>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('confirmTruncateTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>{t('confirmTruncateDesc')}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleTruncate}>{t('confirm')}</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={!collectionName}>
-                      {t('deleteAllDocs')}
-                    </Button>
-                  </AlertDialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>{t('deleteAllDocsTooltip')}</TooltipContent>
-              </Tooltip>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t('confirmDeleteDocsTitle')}</AlertDialogTitle>
-                  <AlertDialogDescription>{t('confirmDeleteDocsDesc')}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteAllDocs}>{t('confirm')}</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" onClick={handleExport} disabled={!collectionName}>
-                  {t('export')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('exportTooltip')}</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  {t('import')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('importTooltip')}</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" onClick={() => setShowAddDocModal(true)} className="gap-1.5">
-                  <FilePlus className="h-4 w-4" />
-                  {t('addFromFiles')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('addFromFilesTooltip')}</TooltipContent>
-            </Tooltip>
 
             <input
               ref={fileInputRef}
@@ -499,261 +223,269 @@ export function VectorManager() {
               onChange={handleImport}
             />
           </div>
-        </TooltipProvider>
+        </TabsContent>
 
-        {/* Rename section */}
-        <div className="flex gap-2 items-center">
-          {showRenameInput ? (
-            <>
-              <Input
-                placeholder={t('newName')}
-                value={renameNewName}
-                onChange={(e) => setRenameNewName(e.target.value)}
-                className="w-48"
-              />
-              <Button size="sm" onClick={handleRename} disabled={!renameNewName.trim()}>
-                {t('confirm')}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setShowRenameInput(false); setRenameNewName(''); }}>
-                {t('cancel')}
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => setShowRenameInput(true)} disabled={!collectionName}>
-              {t('renameCollection')}
-            </Button>
-          )}
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <Label>{t('addDocument')}</Label>
-          <div className="grid gap-2 md:grid-cols-3">
+        {/* Tab 2: Add Document */}
+        <TabsContent value="documents" className="space-y-3 mt-3">
+          <SectionHeader icon={FileText} title={t('addDocument')} />
+          <div className="space-y-2">
             <Textarea
               placeholder={t('documentContentPlaceholder')}
               value={newDocContent}
               onChange={(e) => setNewDocContent(e.target.value)}
-              className="md:col-span-2 min-h-[80px]"
+              className="min-h-[80px] w-full"
             />
-            <Input
-              placeholder={t('metadataPlaceholder')}
-              value={newDocMeta}
-              onChange={(e) => setNewDocMeta(e.target.value)}
-            />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('metadataPlaceholder')}</Label>
+              <Textarea
+                placeholder='{"source": "manual", "category": "faq"}'
+                value={newDocMeta}
+                onChange={(e) => setNewDocMeta(e.target.value)}
+                className="min-h-[48px] font-mono text-xs"
+              />
+            </div>
+            <div className="flex gap-2 items-center">
+              <Button size="sm" onClick={handleAddDocument} disabled={!newDocContent.trim()}>
+                {t('addDocumentBtn')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setActiveTab('collections'); setShowAddDocModal(true); }} className="gap-1.5">
+                <FilePlus className="h-3.5 w-3.5" />
+                {t('addFromFiles')}
+              </Button>
+              {filterError && <p className="text-xs text-destructive">{filterError}</p>}
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={handleAddDocument} disabled={!newDocContent.trim()}>
-              {t('addDocumentBtn')}
-            </Button>
-            {filterError && <p className="text-xs text-destructive">{filterError}</p>}
-          </div>
-        </div>
+        </TabsContent>
 
-        <Separator />
+        {/* Tab 3: Search & Results */}
+        <TabsContent value="search" className="space-y-3 mt-3">
+          <SectionHeader icon={Search} title={t('query')} />
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-2 md:col-span-2">
-            <Label>{t('query')}</Label>
-            <Input
-              placeholder={t('searchTextPlaceholder')}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+          {/* Row 1: Search input full width */}
+          <Input
+            placeholder={t('searchTextPlaceholder')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-9"
+          />
+
+          {/* Row 2: topK + threshold */}
+          <div className="grid gap-3 grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('topK')}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={topK}
+                onChange={(e) => setTopK(Number(e.target.value) || 1)}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('threshold')}</Label>
+              <Input
+                type="number"
+                min={0}
+                max={1}
+                step={0.01}
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value) || 0)}
+                className="h-9"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>{t('topK')}</Label>
-            <Input
-              type="number"
-              min={1}
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value) || 1)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t('threshold')}</Label>
-            <Input
-              type="number"
-              min={0}
-              max={1}
-              step={0.01}
-              value={threshold}
-              onChange={(e) => setThreshold(Number(e.target.value) || 0)}
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>{t('filterJson')}</Label>
+
+          {/* Row 3: Filter JSON full width */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">{t('filterJson')}</Label>
             <Input
               placeholder={t('filterPlaceholder')}
               value={filterJson}
               onChange={(e) => setFilterJson(e.target.value)}
+              className="h-9"
             />
             {filterError && <p className="text-xs text-destructive">{filterError}</p>}
           </div>
-          <div className="space-y-2">
-            <Label>{t('sort')}</Label>
-            <div className="flex gap-2">
-              <Button
-                variant={sortOrder === 'desc' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortOrder('desc')}
-              >
-                {t('scoreDesc')}
-              </Button>
-              <Button
-                variant={sortOrder === 'asc' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortOrder('asc')}
-              >
-                {t('scoreAsc')}
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={sortField === 'score' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortField('score')}
-              >
-                {t('sortByScore')}
-              </Button>
-              <Button
-                variant={sortField === 'id' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortField('id')}
-              >
-                {t('sortById')}
-              </Button>
-              <Button
-                variant={sortField === 'metadataLen' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSortField('metadataLen')}
-              >
-                {t('sortByMetadataSize')}
-              </Button>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7"
-                onClick={() => setShowMetadataSummary((v) => !v)}
-              >
-                {showMetadataSummary ? t('hideSummary') : t('showSummary')}
-              </Button>
-              <span className="text-muted-foreground">
-                {t('toggleSummaryHint')}
-              </span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>{t('pageSize')}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value) || 10)}
-              className="w-20"
-            />
-          </div>
-          <div className="flex items-end">
-            <Button onClick={() => handleSearchWithPagination(1)} className="w-full">
-              {t('search')}
-            </Button>
-          </div>
-        </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>{t('results')} {totalResults > 0 && <span className="text-muted-foreground">({totalResults} {t('total')})</span>}</Label>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2 text-sm">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => handleSearchWithPagination(currentPage - 1)}
-                >
-                  {t('prev')}
-                </Button>
-                <span className="text-muted-foreground">
-                  {t('pageInfo', { current: currentPage, total: totalPages })}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => handleSearchWithPagination(currentPage + 1)}
-                >
-                  {t('next')}
-                </Button>
-              </div>
-            )}
+          {/* Row 4: Sort + PageSize + Buttons */}
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('sort')}</Label>
+              <Select value={`${sortField}-${sortOrder}`} onValueChange={(v) => {
+                const [field, order] = v.split('-') as [typeof sortField, typeof sortOrder];
+                setSortField(field);
+                setSortOrder(order);
+              }}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="score-desc">{t('sortByScore')} ↓</SelectItem>
+                  <SelectItem value="score-asc">{t('sortByScore')} ↑</SelectItem>
+                  <SelectItem value="id-desc">{t('sortById')} ↓</SelectItem>
+                  <SelectItem value="id-asc">{t('sortById')} ↑</SelectItem>
+                  <SelectItem value="metadataLen-desc">{t('sortByMetadataSize')} ↓</SelectItem>
+                  <SelectItem value="metadataLen-asc">{t('sortByMetadataSize')} ↑</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{t('pageSize')}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value) || 10)}
+                className="h-9"
+              />
+            </div>
+            <div className="flex items-end col-span-2 sm:col-span-2 gap-2">
+              <Button onClick={() => handleSearchWithPagination(1)} className="flex-1 h-9">
+                {t('search')}
+              </Button>
+              <Button variant="outline" size="sm" className="h-9" onClick={handlePeek}>
+                {t('peekBtn')}
+              </Button>
+            </div>
           </div>
-          <ScrollArea className="h-60 rounded-md border p-3">
-            {results.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('noResults')}</p>
-            ) : (
-              <div className="space-y-3">
-                {results.map((r) => (
-                  <div key={r.id} className="rounded-md border p-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{t('score')}: {r.score.toFixed(4)}</span>
-                      {r.metadata && Object.keys(r.metadata).length > 0 && (
-                        <Badge variant="outline" className="text-[10px]">
-                          {t('metadata')}
-                        </Badge>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowMetadataSummary((v) => !v)}
+            >
+              {showMetadataSummary ? t('hideSummary') : t('showSummary')}
+            </Button>
+            <span className="text-xs text-muted-foreground">{t('toggleSummaryHint')}</span>
+          </div>
+
+          {/* Results */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">{t('results')} {totalResults > 0 && <span className="text-muted-foreground">({totalResults} {t('total')})</span>}</Label>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    disabled={currentPage <= 1}
+                    onClick={() => handleSearchWithPagination(currentPage - 1)}
+                  >
+                    {t('prev')}
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-1">
+                    {t('pageInfo', { current: currentPage, total: totalPages })}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => handleSearchWithPagination(currentPage + 1)}
+                  >
+                    {t('next')}
+                  </Button>
+                </div>
+              )}
+            </div>
+            <ScrollArea className="min-h-[120px] max-h-[min(400px,50vh)] rounded-md border p-3">
+              {results.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">{t('noResults')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {results.map((r) => (
+                    <div key={r.id} className="rounded-md border p-2.5 space-y-1 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium truncate flex-1">{r.id}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="secondary" className="text-[10px] font-mono">
+                            {r.score.toFixed(4)}
+                          </Badge>
+                          {r.metadata && Object.keys(r.metadata).length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {t('metadata')}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground break-words line-clamp-3">{r.content}</div>
+                      {r.metadata && (
+                        <div className="space-y-1">
+                          {showMetadataSummary && (
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {JSON.stringify(r.metadata).slice(0, 100)}
+                              {JSON.stringify(r.metadata).length > 100 ? '…' : ''}
+                            </div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1.5 text-[10px]"
+                            onClick={() =>
+                              setExpanded((prev) => ({ ...prev, [r.id]: !prev[r.id] }))
+                            }
+                          >
+                            {expanded[r.id] ? t('hideMetadata') : t('showMetadata')}
+                          </Button>
+                          {expanded[r.id] && (
+                            <pre className="rounded bg-muted/50 p-2 text-[10px] text-muted-foreground overflow-x-auto">
+                              {JSON.stringify(r.metadata, null, 2)}
+                            </pre>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className="text-sm font-medium truncate">{r.id}</div>
-                    <div className="text-sm mt-1 wrap-break-word">{r.content}</div>
-                    {r.metadata && (
-                      <div className="mt-1 space-y-1">
-                        {showMetadataSummary && (
-                          <div className="text-[11px] text-muted-foreground">
-                            Summary: {JSON.stringify(r.metadata).slice(0, 80)}
-                            {JSON.stringify(r.metadata).length > 80 ? '…' : ''}
-                          </div>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() =>
-                            setExpanded((prev) => ({ ...prev, [r.id]: !prev[r.id] }))
-                          }
-                        >
-                          {expanded[r.id] ? t('hideMetadata') : t('showMetadata')}
-                        </Button>
-                        {expanded[r.id] && (
-                          <pre className="rounded bg-muted/50 p-2 text-[11px] text-muted-foreground overflow-x-auto">
-                            {JSON.stringify(r.metadata, null, 2)}
-                          </pre>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-        <div className="space-y-2">
-          <Label>{t('peek')}</Label>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              min={1}
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value) || 1)}
-              className="w-24"
-            />
-            <Button variant="outline" onClick={async () => setResults(await vector.peek(topK))}>
-              {t('peekBtn')}
-            </Button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
           </div>
-        </div>
-      </CardContent>
+        </TabsContent>
+      </Tabs>
+
+      {/* Rename Dialog */}
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('renameCollection')}</DialogTitle>
+            <DialogDescription>
+              {collectionName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-sm">{t('newName')}</Label>
+            <Input
+              value={renameNewName}
+              onChange={(e) => setRenameNewName(e.target.value)}
+              placeholder={t('newName')}
+              className="h-9"
+              onKeyDown={(e) => e.key === 'Enter' && renameNewName.trim() && handleRename()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRenameDialog(false)}>{t('cancel')}</Button>
+            <Button onClick={handleRename} disabled={!renameNewName.trim()}>{t('confirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm dialog for dangerous actions */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction && confirmLabels[confirmAction].title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction && confirmLabels[confirmAction].desc}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>{t('confirm')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add Document Modal */}
       <AddDocumentModal
@@ -764,7 +496,7 @@ export function VectorManager() {
         chunkSize={settings.chunkSize}
         chunkOverlap={settings.chunkOverlap}
       />
-    </Card>
+    </SettingsCard>
   );
 }
 

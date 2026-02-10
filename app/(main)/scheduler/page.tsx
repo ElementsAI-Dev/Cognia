@@ -11,7 +11,6 @@ import {
   Plus,
   RefreshCw,
   Calendar,
-  Clock,
   Activity,
   Settings,
   List,
@@ -22,19 +21,13 @@ import {
   X,
   Trash2,
   Pause,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  ArrowRight,
-  BarChart3,
+  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -70,6 +63,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AdminElevationDialog,
   BackupScheduleDialog,
+  StatsOverview,
   SystemTaskForm,
   TaskConfirmationDialog,
   TaskDetails,
@@ -154,17 +148,17 @@ export default function SchedulerPage() {
   const [showAdminDialog, setShowAdminDialog] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(filter.search || '');
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const isSystemView = schedulerTab === 'system';
 
-  // Load recent executions and upcoming tasks when dashboard is shown
+  // Load recent executions and upcoming tasks on init
   useEffect(() => {
-    if (showDashboard && isInitialized) {
+    if (isInitialized) {
       loadRecentExecutions(20);
       loadUpcomingTasks(5);
     }
-  }, [showDashboard, isInitialized, loadRecentExecutions, loadUpcomingTasks]);
+  }, [isInitialized, loadRecentExecutions, loadUpcomingTasks]);
 
   // Debounced search filter
   useEffect(() => {
@@ -185,12 +179,6 @@ export default function SchedulerPage() {
     }
   }, [cleanupOldExecutions, loadRecentExecutions]);
 
-  const formatDuration = (ms: number | undefined): string => {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
-  };
   const isRefreshing = isSystemView ? systemLoading : isLoading;
   const selectedSystemTask = useMemo(
     () => systemTasks.find((task) => task.id === systemEditTaskId) || null,
@@ -404,289 +392,174 @@ export default function SchedulerPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-3 sm:p-4 border-b">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
-              <span className="truncate">{t('title') || 'Task Scheduler'}</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">
-              {t('subtitle') || 'Manage automated tasks and workflows'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-8 sm:h-9">
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline ml-1">{t('refresh') || 'Refresh'}</span>
-            </Button>
-            <Button size="sm" onClick={handleCreateClick} className="h-8 sm:h-9">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">
-                {isSystemView ? t('createSystemTask') || 'Create System Task' : t('createTask') || 'Create Task'}
-              </span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Statistics + Scheduler Status */}
-        {!isSystemView && statistics && (
-          <div className="space-y-2 mt-3 sm:mt-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-              <Card className="bg-gradient-to-br from-card to-muted/20">
-                <CardContent className="p-2.5 sm:p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-base sm:text-lg font-bold">{statistics.totalTasks}</div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('totalTasks') || 'Total'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10">
-                <CardContent className="p-2.5 sm:p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-                      <Activity className="h-4 w-4 text-green-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-base sm:text-lg font-bold text-green-500">{activeTasks.length}</div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('activeTasks') || 'Active'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-yellow-500/5 to-yellow-500/10">
-                <CardContent className="p-2.5 sm:p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/10">
-                      <Pause className="h-4 w-4 text-yellow-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-base sm:text-lg font-bold text-yellow-500">{pausedTasks.length}</div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{t('pausedTasks') || 'Paused'}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-card to-muted/20">
-                <CardContent className="p-2.5 sm:p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <Badge variant="outline" className="text-green-500 text-xs px-1.5">
-                        {statistics.successfulExecutions}
-                      </Badge>
-                      <span className="text-muted-foreground">/</span>
-                      <Badge variant="outline" className="text-red-500 text-xs px-1.5">
-                        {statistics.failedExecutions}
-                      </Badge>
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground">
-                      {t('successFailed') || 'S/F'}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            {/* Scheduler Status Indicator */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${schedulerStatus === 'running' ? 'bg-green-500 animate-pulse' : schedulerStatus === 'stopped' ? 'bg-red-500' : 'bg-gray-400'}`} />
-                <span>{schedulerStatus === 'running' ? t('schedulerRunning') || 'Scheduler running' : schedulerStatus === 'stopped' ? t('schedulerStopped') || 'Scheduler stopped' : t('schedulerIdle') || 'Scheduler idle'}</span>
+      <div className="border-b bg-gradient-to-b from-background to-muted/5">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Calendar className="h-5 w-5 text-primary" />
               </div>
-              {getActivePluginCount() > 0 && (
-                <Badge variant="outline" className="text-blue-500 text-[10px]">
-                  {getActivePluginCount()} {t('activePluginTasks') || 'active plugin task(s)'}
-                </Badge>
-              )}
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+                  {t('title') || 'Task Scheduler'}
+                </h1>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <div className={`h-1.5 w-1.5 rounded-full ${schedulerStatus === 'running' ? 'bg-green-500 animate-pulse' : schedulerStatus === 'stopped' ? 'bg-red-500' : 'bg-gray-400'}`} />
+                  <span className="text-xs text-muted-foreground">
+                    {schedulerStatus === 'running' ? t('schedulerRunning') || 'Running' : schedulerStatus === 'stopped' ? t('schedulerStopped') || 'Stopped' : t('schedulerIdle') || 'Idle'}
+                  </span>
+                  {getActivePluginCount() > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
+                      {getActivePluginCount()} plugin
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Search + Quick Actions */}
-      {!isSystemView && (
-        <div className="px-3 sm:px-4 py-2 space-y-2">
-          {/* Search / Filter Bar */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('searchTasks') || 'Search tasks...'}
-                className="h-8 pl-8 pr-8 text-sm"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchQuery(''); clearFilter(); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant={showDashboard ? 'secondary' : 'outline'}
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setShowDashboard(!showDashboard)}
-                  >
-                    <BarChart3 className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('toggleDashboard') || 'Toggle Dashboard'}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8" onClick={handleCleanup}>
+                  <Button variant="outline" size="sm" onClick={handleCleanup} className="h-8 w-8 p-0">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('cleanupOldExecutions') || 'Cleanup old executions (30d)'}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="h-8 gap-1.5">
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{t('refresh') || 'Refresh'}</span>
+            </Button>
+            <Button size="sm" onClick={handleCreateClick} className="h-8 gap-1.5 bg-primary shadow-sm">
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {isSystemView ? t('createSystemTask') || 'New System Task' : t('createTask') || 'New Task'}
+              </span>
+            </Button>
           </div>
-
-          {/* Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground mr-1">
-              {t('quickActions') || 'Quick Actions'}:
-            </span>
-            <WorkflowScheduleDialog
-              workflowId="default"
-              workflowName="Workflow"
-              trigger={
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                  <Workflow className="h-3.5 w-3.5" />
-                  {t('scheduleWorkflowAction') || 'Schedule Workflow'}
-                </Button>
-              }
-              onScheduled={() => refresh()}
-            />
-            <BackupScheduleDialog
-              trigger={
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-                  <Database className="h-3.5 w-3.5" />
-                  {t('scheduleBackup') || 'Schedule Backup'}
-                </Button>
-              }
-              onScheduled={() => refresh()}
-            />
-          </div>
-
-          {/* Dashboard Panel - Upcoming Tasks & Recent Executions */}
-          {showDashboard && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-2">
-              {/* Upcoming Tasks */}
-              <Card>
-                <CardHeader className="pb-2 px-3 pt-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                    {t('upcomingTasks') || 'Upcoming Tasks'}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  {upcomingTasks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-2">{t('noUpcomingTasks') || 'No upcoming tasks'}</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {upcomingTasks.map((task) => (
-                        <button
-                          key={task.id}
-                          type="button"
-                          onClick={() => { selectTask(task.id); setShowDashboard(false); }}
-                          className="flex items-center justify-between w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-medium truncate">{task.name}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {task.nextRunAt?.toLocaleString() || '-'}
-                            </div>
-                          </div>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 ml-2" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Recent Executions */}
-              <Card>
-                <CardHeader className="pb-2 px-3 pt-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-green-500" />
-                    {t('recentExecutions') || 'Recent Executions'}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  {recentExecutions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-2">{t('noRecentExecutions') || 'No recent executions'}</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {recentExecutions.slice(0, 8).map((exec) => (
-                        <div
-                          key={exec.id}
-                          className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {exec.status === 'completed' ? (
-                              <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
-                            ) : exec.status === 'failed' ? (
-                              <XCircle className="h-3 w-3 text-red-500 shrink-0" />
-                            ) : (
-                              <AlertCircle className="h-3 w-3 text-yellow-500 shrink-0" />
-                            )}
-                            <span className="truncate font-medium">{exec.taskName}</span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className="text-muted-foreground">{formatDuration(exec.duration)}</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {exec.startedAt.toLocaleTimeString()}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
-      )}
 
-      <div className="px-3 sm:px-4 pb-2">
-        <Tabs value={schedulerTab} onValueChange={(v) => setSchedulerTab(v as 'app' | 'system')}>
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="app" className="gap-1">
-              {t('appScheduler') || 'App Scheduler'}
-            </TabsTrigger>
-            <TabsTrigger value="system" className="gap-1">
-              {t('systemScheduler') || 'System Scheduler'}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Tab Navigation */}
+        <div className="px-4 sm:px-6">
+          <Tabs value={schedulerTab} onValueChange={(v) => setSchedulerTab(v as 'app' | 'system')}>
+            <TabsList className="h-9 w-full sm:w-auto">
+              <TabsTrigger value="app" className="gap-1.5 text-xs">
+                <Activity className="h-3.5 w-3.5" />
+                {t('appScheduler') || 'App Scheduler'}
+              </TabsTrigger>
+              <TabsTrigger value="system" className="gap-1.5 text-xs">
+                <Settings className="h-3.5 w-3.5" />
+                {t('systemScheduler') || 'System Scheduler'}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {!isSystemView && (
-        <>
-          {/* Main Content - Desktop: side-by-side, Mobile: tabs */}
-          {/* Desktop Layout */}
-          <div className="flex-1 hidden md:flex min-h-0">
-            {/* Task List */}
-            <div className="w-72 lg:w-80 border-r flex flex-col">
-              <div className="p-2 border-b">
-                <h2 className="text-sm font-medium px-2">{t('tasks') || 'Tasks'}</h2>
+        <div className="flex flex-1 flex-col min-h-0">
+          {/* Stats + Search Bar */}
+          <div className="space-y-4 px-4 py-4 sm:px-6">
+            {/* Stats Overview */}
+            <StatsOverview
+              statistics={statistics}
+              activeTasks={activeTasks}
+              pausedTasks={pausedTasks}
+              upcomingTasks={upcomingTasks}
+              recentExecutions={recentExecutions}
+              schedulerStatus={schedulerStatus}
+              onSelectTask={selectTask}
+            />
+
+            {/* Search + Filter + Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('searchTasks') || 'Search tasks...'}
+                  className="h-8 pl-9 pr-8 text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); clearFilter(); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex items-center gap-1">
+                {[
+                  { key: 'all', label: t('all') || 'All', count: tasks.length },
+                  { key: 'active', label: t('activeTasks') || 'Active', count: activeTasks.length },
+                  { key: 'paused', label: t('pausedTasks') || 'Paused', count: pausedTasks.length },
+                ].map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(chip.key);
+                      if (chip.key === 'all') {
+                        clearFilter();
+                      } else {
+                        setFilter({ status: chip.key as 'active' | 'paused' });
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+                      statusFilter === chip.key
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {chip.label}
+                    {chip.count > 0 && (
+                      <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                        statusFilter === chip.key ? 'bg-primary-foreground/20' : 'bg-background'
+                      }`}>
+                        {chip.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="ml-auto flex items-center gap-1.5">
+                <WorkflowScheduleDialog
+                  workflowId="default"
+                  workflowName="Workflow"
+                  trigger={
+                    <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                      <Workflow className="h-3.5 w-3.5" />
+                      <span className="hidden lg:inline">{t('scheduleWorkflowAction') || 'Workflow'}</span>
+                    </Button>
+                  }
+                  onScheduled={() => refresh()}
+                />
+                <BackupScheduleDialog
+                  trigger={
+                    <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                      <Database className="h-3.5 w-3.5" />
+                      <span className="hidden lg:inline">{t('scheduleBackup') || 'Backup'}</span>
+                    </Button>
+                  }
+                  onScheduled={() => refresh()}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Layout - Master Detail */}
+          <div className="hidden flex-1 md:flex min-h-0 border-t">
+            {/* Task List Panel */}
+            <div className="w-80 lg:w-96 flex flex-col border-r bg-muted/5">
               <div className="flex-1 min-h-0">
                 <TaskList
                   tasks={tasks}
@@ -701,7 +574,7 @@ export default function SchedulerPage() {
               </div>
             </div>
 
-            {/* Task Details */}
+            {/* Task Details Panel */}
             <div className="flex-1 min-w-0">
               {selectedTask ? (
                 <TaskDetails
@@ -717,24 +590,24 @@ export default function SchedulerPage() {
                   isPluginExecutionActive={isPluginExecutionActive}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-center p-4">
-                  <div>
-                    <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted/50">
-                      <Calendar className="h-10 w-10 text-muted-foreground/50" />
+                <div className="flex h-full items-center justify-center p-8 text-center">
+                  <div className="max-w-[280px]">
+                    <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-muted/80 to-muted/40">
+                      <Calendar className="h-9 w-9 text-muted-foreground/40" />
                     </div>
-                    <h3 className="text-lg font-medium">
+                    <h3 className="text-base font-medium">
                       {t('selectTask') || 'Select a task'}
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-1 max-w-[240px]">
-                      {t('selectTaskDescription') || 'Choose a task from the list to view details'}
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      {t('selectTaskDescription') || 'Choose a task from the list to view its details and execution history'}
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-4"
+                      className="mt-5 gap-1.5"
                       onClick={() => setShowCreateSheet(true)}
                     >
-                      <Plus className="h-4 w-4 mr-1" />
+                      <Plus className="h-3.5 w-3.5" />
                       {t('createFirst') || 'Create your first task'}
                     </Button>
                   </div>
@@ -743,14 +616,14 @@ export default function SchedulerPage() {
             </div>
           </div>
 
-          {/* Mobile Layout - Tab Navigation */}
-          <div className="flex-1 flex flex-col md:hidden min-h-0">
+          {/* Mobile Layout */}
+          <div className="flex flex-1 flex-col border-t md:hidden min-h-0">
             <Tabs
               value={mobileView}
               onValueChange={(v) => setMobileView(v as 'list' | 'details')}
-              className="flex flex-col flex-1 min-h-0"
+              className="flex flex-1 flex-col min-h-0"
             >
-              <TabsList className="mx-3 mt-2 grid w-auto grid-cols-2">
+              <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
                 <TabsTrigger value="list" className="gap-1.5">
                   <List className="h-4 w-4" />
                   {t('tasks') || 'Tasks'}
@@ -765,7 +638,7 @@ export default function SchedulerPage() {
                   {t('details') || 'Details'}
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="list" className="flex-1 min-h-0 mt-0 p-0">
                 <TaskList
                   tasks={tasks}
@@ -781,7 +654,7 @@ export default function SchedulerPage() {
                   isLoading={isLoading}
                 />
               </TabsContent>
-              
+
               <TabsContent value="details" className="flex-1 min-h-0 mt-0">
                 {selectedTask ? (
                   <TaskDetails
@@ -797,24 +670,24 @@ export default function SchedulerPage() {
                     isPluginExecutionActive={isPluginExecutionActive}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-center p-4">
+                  <div className="flex h-full items-center justify-center p-4 text-center">
                     <div>
-                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
-                        <Calendar className="h-8 w-8 text-muted-foreground/50" />
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
+                        <Calendar className="h-8 w-8 text-muted-foreground/40" />
                       </div>
                       <h3 className="text-base font-medium">
                         {t('selectTask') || 'Select a task'}
                       </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {t('selectTaskDescription') || 'Choose a task from the list'}
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-4"
+                        className="mt-4 gap-1.5"
                         onClick={() => setMobileView('list')}
                       >
-                        <List className="h-4 w-4 mr-1" />
+                        <List className="h-3.5 w-3.5" />
                         {t('viewTasks') || 'View Tasks'}
                       </Button>
                     </div>
@@ -823,28 +696,33 @@ export default function SchedulerPage() {
               </TabsContent>
             </Tabs>
           </div>
-        </>
+        </div>
       )}
 
       {isSystemView && (
         <div className="flex-1 min-h-0">
           {!isSystemAvailable ? (
-            <div className="p-4 text-sm text-muted-foreground">
-              <p>{t('systemSchedulerUnavailable') || 'System scheduler is unavailable.'}</p>
-              {capabilities?.can_elevate && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3"
-                  onClick={() => setShowAdminDialog(true)}
-                >
-                  {t('requestElevation') || 'Request Elevation'}
-                </Button>
-              )}
+            <div className="flex h-full items-center justify-center p-8 text-center">
+              <div className="max-w-[280px]">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
+                  <Settings className="h-8 w-8 text-muted-foreground/40" />
+                </div>
+                <h3 className="text-base font-medium">{t('systemSchedulerUnavailable') || 'System scheduler is unavailable'}</h3>
+                {capabilities?.can_elevate && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4 gap-1.5"
+                    onClick={() => setShowAdminDialog(true)}
+                  >
+                    {t('requestElevation') || 'Request Elevation'}
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <ScrollArea className="h-full">
-              <div className="space-y-3 p-3 sm:p-4">
+              <div className="space-y-3 p-4 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="capitalize">
                     {isElevated ? t('runLevelAdmin') || 'Administrator' : t('runLevelUser') || 'User'}
@@ -852,74 +730,78 @@ export default function SchedulerPage() {
                   <span>{t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}</span>
                 </div>
                 {systemError && (
-                  <div className="text-xs text-destructive">
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                     {systemError}
                   </div>
                 )}
                 {sortedSystemTasks.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    {t('noSystemTasks') || 'No system tasks'}
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50">
+                      <Settings className="h-7 w-7 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{t('noSystemTasks') || 'No system tasks'}</p>
                   </div>
                 ) : (
                   sortedSystemTasks.map((task) => (
-                    <Card key={task.id} className="bg-gradient-to-br from-card to-muted/20">
-                      <CardContent className="p-3 sm:p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 space-y-1">
-                            <div className="text-sm font-medium truncate">{task.name}</div>
-                            {task.description && (
-                              <div className="text-xs text-muted-foreground line-clamp-2">
-                                {task.description}
-                              </div>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              {formatSystemTrigger(task.trigger)}
+                    <Card key={task.id} className="overflow-hidden border-border/50 transition-all hover:-translate-y-0.5 hover:shadow-md">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <div className={`h-2 w-2 shrink-0 rounded-full ${
+                                task.status === 'disabled' ? 'bg-gray-400' : 'bg-green-500'
+                              }`} />
+                              <span className="truncate text-sm font-medium">{task.name}</span>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatSystemAction(task.action)}
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 pl-4">{task.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 pl-4 text-[11px] text-muted-foreground">
+                              <span>{formatSystemTrigger(task.trigger)}</span>
+                              <span>{formatSystemAction(task.action)}</span>
                             </div>
                           </div>
-                          <Badge variant="outline" className="capitalize">
+                          <Badge variant="outline" className={`shrink-0 capitalize ${
+                            task.status === 'disabled' ? 'text-gray-500' : 'text-green-500'
+                          }`}>
                             {task.status}
                           </Badge>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSystemRunNow(task.id)}
-                            disabled={systemLoading}
-                          >
-                            {t('runNow') || 'Run Now'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSystemToggle(task)}
-                            disabled={systemLoading}
-                          >
-                            {task.status === 'disabled'
-                              ? t('enableTask') || 'Enable'
-                              : t('disableTask') || 'Disable'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSystemEditTaskId(task.id);
-                              setShowSystemEditSheet(true);
-                            }}
-                          >
-                            {t('edit') || 'Edit'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            onClick={() => setSystemDeleteTaskId(task.id)}
-                          >
-                            {t('delete') || 'Delete'}
-                          </Button>
+                        <div className="flex flex-wrap gap-1.5 pl-4">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleSystemRunNow(task.id)} disabled={systemLoading}>
+                                  <Play className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('runNow') || 'Run Now'}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleSystemToggle(task)} disabled={systemLoading}>
+                                  {task.status === 'disabled' ? <Activity className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{task.status === 'disabled' ? t('enableTask') || 'Enable' : t('disableTask') || 'Disable'}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setSystemEditTaskId(task.id); setShowSystemEditSheet(true); }}>
+                                  <Settings className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('edit') || 'Edit'}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setSystemDeleteTaskId(task.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('delete') || 'Delete'}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </CardContent>
                     </Card>

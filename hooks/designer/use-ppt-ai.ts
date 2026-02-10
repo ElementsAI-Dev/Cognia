@@ -5,8 +5,12 @@
  * Provides functions for slide regeneration, content optimization, and AI suggestions
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
+import { streamText } from 'ai';
 import { useSettingsStore } from '@/stores';
+import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
+import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
+import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
 import type { ProviderName } from '@/types/provider';
 import type { PPTSlide, PPTPresentation, PPTSlideLayout, PPTOutlineItem } from '@/types/workflow';
 
@@ -61,6 +65,8 @@ export interface AISuggestionsResult {
 export interface UsePPTAIReturn {
   isProcessing: boolean;
   error: string | null;
+  streamingText: string;
+  cancelGeneration: () => void;
   regenerateSlide: (options: RegenerateSlideOptions) => Promise<AISlideResult>;
   optimizeContent: (options: OptimizeContentOptions) => Promise<AIContentResult>;
   generateSuggestions: (options: GenerateSuggestionsOptions) => Promise<AISuggestionsResult>;
@@ -192,75 +198,109 @@ Provide 3-5 specific, actionable suggestions in JSON format:
 }`;
 }
 
+/**
+ * Safely parse JSON from AI response, handling markdown code blocks and malformed output
+ */
+export function parseAIJSON(response: string): unknown {
+  // Try to extract JSON from markdown code blocks
+  const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const jsonStr = jsonMatch ? jsonMatch[1].trim() : response.trim();
+
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    // Try to find JSON object in the response
+    const objectMatch = response.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      try {
+        return JSON.parse(objectMatch[0]);
+      } catch {
+        // ignore, fall through to array match
+      }
+    }
+    // Try to find JSON array in the response
+    const arrayMatch = response.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        return JSON.parse(arrayMatch[0]);
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error('Failed to parse AI response as JSON');
+  }
+}
+
 export function usePPTAI(): UsePPTAIReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState<string>('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const setGenerating = usePPTEditorStore((s) => s.setGenerating);
 
   const defaultProviderRaw = useSettingsStore((state) => state.defaultProvider);
   const defaultProvider = defaultProviderRaw as ProviderName;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
-
-  const getApiKey = useCallback((): string => {
-    const settings = providerSettings[defaultProvider];
-    return settings?.apiKey || '';
-  }, [defaultProvider, providerSettings]);
-
-  const getBaseURL = useCallback((): string | undefined => {
-    const settings = providerSettings[defaultProvider];
-    return settings?.baseURL;
-  }, [defaultProvider, providerSettings]);
 
   /**
-   * Call AI API with a prompt
+   * Call AI API with a prompt — uses getProxyProviderModel for multi-provider support
    */
   const callAI = useCallback(
     async (prompt: string): Promise<string> => {
-      const apiKey = getApiKey();
-      const baseURL = getBaseURL();
+      const settings = providerSettings[defaultProvider];
+      const model = settings?.defaultModel || 'gpt-4o';
+      let apiKey = settings?.apiKey || '';
 
       if (!apiKey) {
         throw new Error('API key not configured');
       }
 
-      const endpoint = baseURL
-        ? `${baseURL}/chat/completions`
-        : defaultProvider === 'openai'
-          ? 'https://api.openai.com/v1/chat/completions'
-          : 'https://api.openai.com/v1/chat/completions';
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: defaultModel,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert presentation designer. Always respond with valid JSON.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          response_format: { type: 'json_object' },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `API error: ${response.status}`);
+      // Support API key rotation
+      if (settings?.apiKeys && settings.apiKeys.length > 0 && settings.apiKeyRotationEnabled) {
+        const usageStats = settings.apiKeyUsageStats || {};
+        const rotationResult = getNextApiKey(
+          settings.apiKeys,
+          settings.apiKeyRotationStrategy || 'round-robin',
+          settings.currentKeyIndex || 0,
+          usageStats
+        );
+        apiKey = rotationResult.apiKey;
+        useSettingsStore.getState().updateProviderSettings(defaultProvider, {
+          currentKeyIndex: rotationResult.index,
+        });
       }
 
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || '';
+      const modelInstance = getProxyProviderModel(
+        defaultProvider,
+        model,
+        apiKey,
+        settings?.baseURL,
+        true
+      );
+
+      // Use streaming for real-time progress feedback
+      abortControllerRef.current = new AbortController();
+      setStreamingText('');
+
+      const result = streamText({
+        model: modelInstance,
+        system: 'You are an expert presentation designer. Always respond with valid JSON.',
+        prompt,
+        temperature: 0.7,
+        abortSignal: abortControllerRef.current.signal,
+      });
+
+      let fullText = '';
+      for await (const chunk of result.textStream) {
+        fullText += chunk;
+        setStreamingText(fullText);
+      }
+
+      abortControllerRef.current = null;
+      setStreamingText('');
+      return fullText;
     },
-    [getApiKey, getBaseURL, defaultProvider, defaultModel]
+    [defaultProvider, providerSettings]
   );
 
   /**
@@ -269,12 +309,13 @@ export function usePPTAI(): UsePPTAIReturn {
   const regenerateSlide = useCallback(
     async (options: RegenerateSlideOptions): Promise<AISlideResult> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
         const prompt = buildRegeneratePrompt(options);
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
         return {
           success: true,
@@ -293,9 +334,10 @@ export function usePPTAI(): UsePPTAIReturn {
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
 
   /**
@@ -304,12 +346,13 @@ export function usePPTAI(): UsePPTAIReturn {
   const optimizeContent = useCallback(
     async (options: OptimizeContentOptions): Promise<AIContentResult> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
         const prompt = buildOptimizePrompt(options);
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
         return {
           success: true,
@@ -322,9 +365,10 @@ export function usePPTAI(): UsePPTAIReturn {
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
 
   /**
@@ -333,12 +377,13 @@ export function usePPTAI(): UsePPTAIReturn {
   const generateSuggestions = useCallback(
     async (options: GenerateSuggestionsOptions): Promise<AISuggestionsResult> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
         const prompt = buildSuggestionsPrompt(options);
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
         return {
           success: true,
@@ -350,9 +395,10 @@ export function usePPTAI(): UsePPTAIReturn {
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
 
   /**
@@ -364,6 +410,7 @@ export function usePPTAI(): UsePPTAIReturn {
       slideCount: number
     ): Promise<{ success: boolean; outline?: PPTOutlineItem[]; error?: string }> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
@@ -388,9 +435,9 @@ Respond in JSON format:
 }`;
 
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
-        const outline: PPTOutlineItem[] = result.outline.map(
+        const outline: PPTOutlineItem[] = (result.outline as Array<Record<string, unknown>>).map(
           (
             item: { title: string; description: string; keyPoints: string[]; type: string },
             index: number
@@ -411,9 +458,10 @@ Respond in JSON format:
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
 
   /**
@@ -425,6 +473,7 @@ Respond in JSON format:
       count: number
     ): Promise<{ success: boolean; bullets?: string[]; error?: string }> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
@@ -444,7 +493,7 @@ Respond in JSON format:
 }`;
 
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
         return { success: true, bullets: result.bullets };
       } catch (err) {
@@ -453,9 +502,10 @@ Respond in JSON format:
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
 
   /**
@@ -464,6 +514,7 @@ Respond in JSON format:
   const improveSlideNotes = useCallback(
     async (slide: PPTSlide): Promise<{ success: boolean; notes?: string; error?: string }> => {
       setIsProcessing(true);
+      setGenerating(true);
       setError(null);
 
       try {
@@ -487,23 +538,36 @@ Respond in JSON format:
 }`;
 
         const response = await callAI(prompt);
-        const result = JSON.parse(response);
+        const result = parseAIJSON(response) as Record<string, unknown>;
 
-        return { success: true, notes: result.notes };
+        return { success: true, notes: result.notes as string };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to improve notes';
         setError(message);
         return { success: false, error: message };
       } finally {
         setIsProcessing(false);
+        setGenerating(false);
       }
     },
-    [callAI]
+    [callAI, setGenerating]
   );
+
+  const cancelGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setStreamingText('');
+      setIsProcessing(false);
+      setGenerating(false);
+    }
+  }, [setGenerating]);
 
   return {
     isProcessing,
     error,
+    streamingText,
+    cancelGeneration,
     regenerateSlide,
     optimizeContent,
     generateSuggestions,

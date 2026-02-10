@@ -304,7 +304,7 @@ export function WelcomeState({
     if (customGreeting) {
       return userName ? customGreeting.replace('{name}', userName) : customGreeting;
     }
-    if (timeBasedGreeting.enabled) {
+    if (timeBasedGreeting?.enabled) {
       const customTimeGreeting = timeBasedGreeting[timePeriod];
       const localeKey = language === 'zh-CN' ? 'zh-CN' : 'en';
       const timePrefix = customTimeGreeting || DEFAULT_TIME_GREETINGS[timePeriod][localeKey];
@@ -318,13 +318,13 @@ export function WelcomeState({
 
   // Render welcome icon based on iconConfig
   const welcomeIcon = useMemo(() => {
-    switch (iconConfig.type) {
+    switch (iconConfig?.type) {
       case 'emoji':
-        return <span className="text-2xl sm:text-3xl">{iconConfig.emoji || '✨'}</span>;
+        return <span className="text-2xl sm:text-3xl">{iconConfig?.emoji || '✨'}</span>;
       case 'avatar':
         return (
           <Avatar className="h-7 w-7 sm:h-10 sm:w-10 border border-primary/20">
-            <AvatarImage src={iconConfig.avatarUrl} alt={userName || 'User'} />
+            <AvatarImage src={iconConfig?.avatarUrl} alt={userName || 'User'} />
             <AvatarFallback className="bg-primary/10 text-primary text-sm">
               {userName ? userName.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
             </AvatarFallback>
@@ -333,7 +333,7 @@ export function WelcomeState({
       case 'text':
         return (
           <span className="text-xl sm:text-2xl font-bold text-primary">
-            {iconConfig.text || (userName ? userName.charAt(0).toUpperCase() : 'C')}
+            {iconConfig?.text || (userName ? userName.charAt(0).toUpperCase() : 'C')}
           </span>
         );
       default:
@@ -343,7 +343,7 @@ export function WelcomeState({
 
   // Determine header gradient
   const headerGradient = useMemo(() => {
-    if (gradientConfig.enabled && gradientConfig.customGradient) {
+    if (gradientConfig?.enabled && gradientConfig?.customGradient) {
       return gradientConfig.customGradient;
     }
     return modeGradients[mode];

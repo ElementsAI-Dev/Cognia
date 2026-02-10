@@ -36,7 +36,8 @@
       "installed": "Installed",
       "enabled": "Enabled",
       "tools": "Tools",
-      "health": "Health"
+      "health": "Health",
+      "errors": "Errors"
     },
     "filters": {
       "searchPlaceholder": "Search plugins...",

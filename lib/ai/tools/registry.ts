@@ -127,6 +127,14 @@ import {
   type PPTExportInput,
 } from './ppt-tool';
 import {
+  pptImageGenerateInputSchema,
+  pptBatchImageGenerateInputSchema,
+  executePPTImageGenerate,
+  executePPTBatchImageGenerate,
+  type PPTImageGenerateInput,
+  type PPTBatchImageGenerateInput,
+} from './ppt-image-tool';
+import {
   displayFlashcardInputSchema,
   displayFlashcardDeckInputSchema,
   displayQuizInputSchema,
@@ -730,6 +738,25 @@ Features: multiple sizes, quality options, style options, and batch generation.`
     requiresApproval: false,
     category: 'ppt',
     create: () => (input: unknown) => executePPTExport(input as PPTExportInput),
+  });
+
+  // PPT image generation tools
+  registry.register({
+    name: 'ppt_generate_image',
+    description: 'Generate a single AI image for a presentation slide. Supports multiple styles (photorealistic, illustration, corporate, etc.) and providers (OpenAI DALL-E, Stability AI, etc.).',
+    parameters: pptImageGenerateInputSchema,
+    requiresApproval: false,
+    category: 'ppt',
+    create: (config) => (input: unknown) => executePPTImageGenerate(input as PPTImageGenerateInput, (config.apiKey as string) || ''),
+  });
+
+  registry.register({
+    name: 'ppt_batch_generate_images',
+    description: 'Generate AI images for multiple presentation slides in batch. Processes slides concurrently with rate limiting.',
+    parameters: pptBatchImageGenerateInputSchema,
+    requiresApproval: true,
+    category: 'ppt',
+    create: (config) => (input: unknown) => executePPTBatchImageGenerate(input as PPTBatchImageGenerateInput, (config.apiKey as string) || ''),
   });
 
   // Learning tools (Generative UI)
