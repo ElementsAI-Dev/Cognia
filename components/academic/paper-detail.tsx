@@ -4,7 +4,7 @@
  * PaperDetail - Comprehensive paper detail view with all metadata
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ExternalLink,
@@ -49,7 +49,9 @@ import {
 import { useAcademic } from '@/hooks/academic';
 import { CitationGraph } from '@/components/academic/citation-graph';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 import type {
+  Paper,
   LibraryPaper,
   PaperReadingStatus,
   PaperAnalysisType,
@@ -81,9 +83,13 @@ const STATUS_OPTIONS: { value: PaperReadingStatus; label: string }[] = [
 ];
 
 interface PaperDetailProps {
-  paper: LibraryPaper | null;
+  paper: Paper | LibraryPaper | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function isLibraryPaper(paper: Paper | LibraryPaper): paper is LibraryPaper {
+  return 'libraryId' in paper && 'readingStatus' in paper;
 }
 
 export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
@@ -107,12 +113,25 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isAbstractExpanded, setIsAbstractExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [userNote, setUserNote] = useState(paper?.userNotes || '');
+  const [userNote, setUserNote] = useState((paper && isLibraryPaper(paper) ? paper.userNotes : '') || '');
   const [newTag, setNewTag] = useState('');
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<PaperAnalysisType>('summary');
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
+
+  // Reset state when paper changes
+  useEffect(() => {
+    setActiveTab('overview');
+    setIsAbstractExpanded(false);
+    setCopied(false);
+    setUserNote((paper && isLibraryPaper(paper) ? paper.userNotes : '') || '');
+    setNewTag('');
+    setSelectedAnalysisType('summary');
+    setAnalysisResult(null);
+    setIsAnalyzing(false);
+    setShowAnalysisHistory(false);
+  }, [paper?.id, paper]);
 
   // Get analysis history for this paper
   const analysisHistory = paper ? getAnalysisHistory(paper.id) : [];
@@ -157,7 +176,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
       };
       saveAnalysisResult(paper.id, analysisResultObj);
     } catch (error) {
-      console.error('Analysis failed:', error);
+      toast({ type: 'error', title: 'Analysis failed', description: error instanceof Error ? error.message : String(error) });
     } finally {
       setIsAnalyzing(false);
     }
@@ -362,7 +381,8 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                   </div>
                 )}
 
-                {/* Reading Status */}
+                {/* Reading Status — only for library papers */}
+                {isLibraryPaper(paper) && (
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Clock className="h-4 w-4" />
@@ -402,8 +422,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     </div>
                   </div>
                 </div>
+                )}
 
-                {/* Collections */}
+                {/* Collections — only for library papers */}
+                {isLibraryPaper(paper) && (
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Bookmark className="h-4 w-4" />
@@ -438,8 +460,10 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     </Select>
                   </div>
                 </div>
+                )}
 
-                {/* Tags */}
+                {/* Tags — only for library papers */}
+                {isLibraryPaper(paper) && (
                 <div className="space-y-2">
                   <h4 className="font-medium flex items-center gap-2">
                     <Tag className="h-4 w-4" />
@@ -475,6 +499,7 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
                     </div>
                   </div>
                 </div>
+                )}
               </TabsContent>
 
               <TabsContent value="notes" className="space-y-4 mt-4">
@@ -585,8 +610,8 @@ export function PaperDetail({ paper, open, onOpenChange }: PaperDetailProps) {
               <TabsContent value="citations" className="space-y-4 mt-4">
                 <CitationGraph
                   paper={paper}
-                  onPaperClick={(paperId: string, title: string) => {
-                    console.log('View paper:', paperId, title);
+                  onPaperClick={(paperId: string, _title: string) => {
+                    window.open(`https://www.semanticscholar.org/paper/${paperId}`, '_blank');
                   }}
                 />
               </TabsContent>

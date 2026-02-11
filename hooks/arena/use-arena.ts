@@ -122,12 +122,11 @@ export function useArena(options: UseArenaOptions = {}) {
           onContestantStream?.(contestant.id, chunk);
         }
 
-        // Get usage info - using type assertion for AI SDK compatibility
+        // Get usage info - AI SDK may use different field names across versions
         const usage = await result.usage;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const usageAny = usage as any;
-        inputTokens = usageAny?.promptTokens ?? usageAny?.inputTokens ?? 0;
-        outputTokens = usageAny?.completionTokens ?? usageAny?.outputTokens ?? 0;
+        const usageRecord = usage as Record<string, unknown> | undefined;
+        inputTokens = Number(usageRecord?.promptTokens ?? usageRecord?.inputTokens ?? 0);
+        outputTokens = Number(usageRecord?.completionTokens ?? usageRecord?.outputTokens ?? 0);
 
         // Update contestant with final data
         updateContestant(battleId, contestant.id, {

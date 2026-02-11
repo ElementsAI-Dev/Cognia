@@ -5,7 +5,7 @@
  * Displays streaming responses from multiple models side-by-side
  */
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   X,
@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Send,
   RotateCcw,
+  Diff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -48,9 +49,10 @@ import {
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
 import { useArena } from '@/hooks/arena';
-import { useArenaStore } from '@/stores/arena';
+import { useArenaStore, selectBattleById } from '@/stores/arena';
 import { MarkdownRenderer } from '@/components/chat/utils';
 import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
+import { ArenaDiffView } from '@/components/arena/arena-diff-view';
 import type { ArenaContestant, ArenaWinReason } from '@/types/arena';
 import type { ArenaModelConfig } from '@/types/chat/multi-model';
 
@@ -260,8 +262,9 @@ function ArenaBattleViewComponent({
   const [selectedReason, setSelectedReason] = useState<ArenaWinReason>('quality');
   const [continueMessage, setContinueMessage] = useState('');
   const [isContinuing, setIsContinuing] = useState(false);
+  const [showDiffView, setShowDiffView] = useState(false);
 
-  const battle = useArenaStore((state) => state.battles.find((b) => b.id === battleId));
+  const battle = useArenaStore(selectBattleById(battleId));
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
   const declareBothBad = useArenaStore((state) => state.declareBothBad);
@@ -343,6 +346,65 @@ function ArenaBattleViewComponent({
     }
   }, [battleId, continueMessage, onContinueTurn]);
 
+  // UX-4: Randomize contestant display order in blind mode to eliminate positional bias
+  // Uses a simple hash of battleId for deterministic per-battle shuffle
+  const displayContestants = useMemo(() => {
+    if (!battle || battle.mode !== 'blind' || battle.contestants.length < 2) {
+      return battle?.contestants ?? [];
+    }
+    // Simple hash: sum of char codes modulo 2
+    const hash = battleId.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    const shouldSwap = hash % 2 === 1;
+    if (shouldSwap) {
+      return [...battle.contestants].reverse();
+    }
+    return battle.contestants;
+  }, [battle, battleId]);
+
+  // UX-1: Keyboard shortcuts for voting
+  useEffect(() => {
+    if (!open || !battle) return;
+
+    const isBattleReady = battle.contestants.every(
+      (c) => c.status === 'completed' || c.status === 'error' || c.status === 'cancelled'
+    );
+    const hasResult = !!battle.winnerId || !!battle.isTie || !!battle.isBothBad;
+
+    if (!isBattleReady || hasResult) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case '1':
+        case 'a':
+          if (battle.contestants[0]) {
+            handleVote(battle.contestants[0].id);
+          }
+          break;
+        case '2':
+        case 'b':
+          if (battle.contestants[1]) {
+            handleVote(battle.contestants[1].id);
+          }
+          break;
+        case 't':
+          handleDeclareTie();
+          break;
+        case 'escape':
+          handleClose();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, battle, handleVote, handleDeclareTie, handleClose]);
+
   if (!battle) {
     return null;
   }
@@ -356,7 +418,7 @@ function ArenaBattleViewComponent({
   const isBattleComplete = !!battle.winnerId || !!battle.isTie || !!battle.isBothBad;
 
   // Convert contestants to ArenaModelConfig for QuickVoteBar (must be after isBlindMode)
-  const modelsForVoteBar: ArenaModelConfig[] = battle.contestants.map((c, index) => ({
+  const modelsForVoteBar: ArenaModelConfig[] = displayContestants.map((c, index) => ({
     id: c.id,
     provider: c.provider,
     model: c.model,
@@ -451,10 +513,10 @@ function ArenaBattleViewComponent({
           <div
             className="grid gap-4 h-full"
             style={{
-              gridTemplateColumns: `repeat(${Math.min(battle.contestants.length, 4)}, 1fr)`,
+              gridTemplateColumns: `repeat(${Math.min(displayContestants.length, 4)}, 1fr)`,
             }}
           >
-            {battle.contestants.map((contestant, index) => (
+            {displayContestants.map((contestant, index) => (
               <ContestantCard
                 key={contestant.id}
                 contestant={contestant}
@@ -469,6 +531,22 @@ function ArenaBattleViewComponent({
             ))}
           </div>
         </div>
+
+        {/* Diff view - shown after battle completion when toggled */}
+        {isBattleComplete && showDiffView && battle.contestants.length >= 2 && (
+          <div className="px-4 py-3 border-t">
+            <ArenaDiffView
+              responseA={battle.contestants[0].response}
+              responseB={battle.contestants[1].response}
+              labelA={isBlindMode && !isRevealing
+                ? `${t('model')} A`
+                : battle.contestants[0].displayName}
+              labelB={isBlindMode && !isRevealing
+                ? `${t('model')} B`
+                : battle.contestants[1].displayName}
+            />
+          </div>
+        )}
 
         {/* Unified Vote Bar - shown when all models are done and no winner yet */}
         {allDone && !isBattleComplete && (
@@ -541,6 +619,18 @@ function ArenaBattleViewComponent({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Diff toggle button after voting */}
+              {isBattleComplete && battle.contestants.length >= 2 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDiffView(!showDiffView)}
+                  className="gap-1.5"
+                >
+                  <Diff className="h-3 w-3" />
+                  {showDiffView ? t('hideDiff', { fallback: 'Hide Diff' }) : t('showDiff', { fallback: 'Compare' })}
+                </Button>
+              )}
               {/* Model reveal info after voting */}
               {isBattleComplete && isRevealing && battle.mode === 'blind' && (
                 <span className="text-xs text-muted-foreground animate-in fade-in duration-500">

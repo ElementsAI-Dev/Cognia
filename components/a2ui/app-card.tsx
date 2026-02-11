@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,6 +78,7 @@ export function AppCard({
   onThumbnailGenerated,
   className,
 }: AppCardProps) {
+  const t = useTranslations('a2ui');
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(app.thumbnail || null);
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   const thumbnailGenerated = useRef(false);
@@ -89,10 +91,10 @@ export function AppCard({
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
 
     return date.toLocaleDateString();
   };
@@ -190,7 +192,7 @@ export function AppCard({
                 {views}
               </span>
             </TooltipTrigger>
-            <TooltipContent>查看次数</TooltipContent>
+            <TooltipContent>{t('views')}</TooltipContent>
           </Tooltip>
         )}
         {uses !== undefined && (
@@ -201,7 +203,7 @@ export function AppCard({
                 {uses}
               </span>
             </TooltipTrigger>
-            <TooltipContent>使用次数</TooltipContent>
+            <TooltipContent>{t('uses')}</TooltipContent>
           </Tooltip>
         )}
         {rating !== undefined && (
@@ -215,7 +217,7 @@ export function AppCard({
                 )}
               </span>
             </TooltipTrigger>
-            <TooltipContent>用户评分</TooltipContent>
+            <TooltipContent>{t('rating')}</TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -282,7 +284,7 @@ export function AppCard({
                 {app.name}
               </CardTitle>
               <CardDescription className="text-xs truncate">
-                {template?.name || app.category || '自定义应用'}
+                {template?.name || app.category || 'Custom App'}
               </CardDescription>
             </div>
           </div>
@@ -301,36 +303,36 @@ export function AppCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onOpen?.(app.id)}>
                 <Play className="h-4 w-4 mr-2" />
-                打开
+                {t('run')}
               </DropdownMenuItem>
               {onViewDetails && (
                 <DropdownMenuItem onClick={() => onViewDetails(app)}>
                   <Info className="h-4 w-4 mr-2" />
-                  详情
+                  {t('appDetail')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => onRename?.(app)}>
                 <Edit2 className="h-4 w-4 mr-2" />
-                重命名
+                {t('appName')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate?.(app.id)}>
                 <Copy className="h-4 w-4 mr-2" />
-                复制
+                {t('duplicate')}
               </DropdownMenuItem>
               {onShare && (
                 <DropdownMenuItem onClick={() => onShare(app.id)}>
                   <Share2 className="h-4 w-4 mr-2" />
-                  分享
+                  {t('share')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => onReset?.(app.id)}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                重置数据
+                {t('reset')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(app.id)}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                删除
+                {t('delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

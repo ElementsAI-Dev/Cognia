@@ -5,12 +5,12 @@
  * Renders Lucide icons by name
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { icons, HelpCircle, type LucideIcon } from 'lucide-react';
 import type { A2UIComponentProps, A2UIIconComponent } from '@/types/artifact/a2ui';
 
-export function A2UIIcon({ component }: A2UIComponentProps<A2UIIconComponent>) {
+export const A2UIIcon = memo(function A2UIIcon({ component }: A2UIComponentProps<A2UIIconComponent>) {
   const iconName = component.name;
   const size = component.size || 24;
   const color = component.color;
@@ -47,4 +47,4 @@ export function A2UIIcon({ component }: A2UIComponentProps<A2UIIconComponent>) {
       <IconComponent size={size} color={color} />
     </span>
   );
-}
+});

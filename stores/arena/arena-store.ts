@@ -1016,5 +1016,12 @@ export const useArenaStore = create<ArenaState>()(
 export const selectBattles = (state: ArenaState) => state.battles;
 export const selectActiveBattle = (state: ArenaState) =>
   state.activeBattleId ? state.battles.find((b) => b.id === state.activeBattleId) : undefined;
+export const selectActiveBattleId = (state: ArenaState) => state.activeBattleId;
 export const selectSettings = (state: ArenaState) => state.settings;
 export const selectModelRatings = (state: ArenaState) => state.modelRatings;
+export const selectPreferences = (state: ArenaState) => state.preferences;
+export const selectTotalBattleCount = (state: ArenaState) => state.battles.length;
+export const selectCompletedBattleCount = (state: ArenaState) =>
+  state.battles.filter((b) => b.winnerId || b.isTie).length;
+export const selectBattleById = (battleId: string) => (state: ArenaState) =>
+  state.battles.find((b) => b.id === battleId);

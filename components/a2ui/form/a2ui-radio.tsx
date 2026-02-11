@@ -5,7 +5,7 @@
  * Maps to shadcn/ui RadioGroup
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import type { A2UIComponentProps, A2UIRadioGroupComponent } from '@/types/artifa
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UIRadioGroup({ component, onDataChange }: A2UIComponentProps<A2UIRadioGroupComponent>) {
+export const A2UIRadioGroup = memo(function A2UIRadioGroup({ component, onDataChange }: A2UIComponentProps<A2UIRadioGroupComponent>) {
   const { resolveString, resolveBoolean } = useA2UIContext();
 
   const value = resolveString(component.value, '');
@@ -61,4 +61,4 @@ export function A2UIRadioGroup({ component, onDataChange }: A2UIComponentProps<A
       </RadioGroup>
     </div>
   );
-}
+});

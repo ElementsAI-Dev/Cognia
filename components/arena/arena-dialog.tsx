@@ -49,7 +49,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArena } from '@/hooks/arena';
-import { useArenaStore } from '@/stores/arena';
+
 import { ARENA_MODEL_PRESETS } from '@/types/arena';
 import type { ProviderName } from '@/types/provider';
 
@@ -100,7 +100,6 @@ export function ArenaDialog({
     },
   });
 
-  const _settings = useArenaStore((state) => state.settings);
   const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
 
   // Toggle model selection

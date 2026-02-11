@@ -8,6 +8,7 @@ import {
   type ScheduledTask,
   type TaskExecution,
   type TaskExecutionLog,
+  type TaskExecutionConfig,
   type CreateScheduledTaskInput,
   type UpdateScheduledTaskInput,
   type ScheduledTaskStatus,
@@ -18,6 +19,8 @@ import { getNextCronTime } from './cron-parser';
 import { schedulerDb } from './scheduler-db';
 import { notifyTaskEvent } from './notification-integration';
 import { emitSchedulerEvent } from './event-integration';
+import { SchedulerError } from './errors';
+import { isLeaderTab, startLeaderElection, stopLeaderElection, onLeaderChange } from './tab-lock';
 import { loggers } from '@/lib/logger';
 import { getPluginLifecycleHooks } from '@/lib/plugin';
 
@@ -57,6 +60,8 @@ class TaskSchedulerImpl {
   private isInitialized = false;
   private checkInterval: ReturnType<typeof setInterval> | null = null;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private leaderUnsubscribe: (() => void) | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   /**
    * Initialize the scheduler
@@ -67,12 +72,23 @@ class TaskSchedulerImpl {
     log.info('Initializing task scheduler...');
 
     try {
-      // Load all active tasks and schedule them
-      const tasks = await schedulerDb.getTasksByStatus('active');
-      log.info(`Found ${tasks.length} active tasks to schedule`);
+      // Start leader election — only the leader tab will execute scheduled tasks
+      await startLeaderElection();
+      this.leaderUnsubscribe = onLeaderChange((isLeader) => {
+        if (isLeader) {
+          log.info('This tab became leader — scheduling all active tasks');
+          this.scheduleAllActiveTasks().catch((err) => {
+            log.error('Error scheduling tasks after becoming leader:', err);
+          });
+        } else {
+          log.info('This tab lost leadership — unscheduling all tasks');
+          this.unscheduleAllTasks();
+        }
+      });
 
-      for (const task of tasks) {
-        await this.scheduleTask(task);
+      // Load all active tasks and schedule them (only if leader)
+      if (isLeaderTab()) {
+        await this.scheduleAllActiveTasks();
       }
 
       // Start periodic check for missed tasks
@@ -81,11 +97,44 @@ class TaskSchedulerImpl {
       // Start auto-cleanup for old executions (runs every 24 hours)
       this.startAutoCleanup();
 
+      // Visibility-aware scheduling: catch up on missed tasks when tab becomes visible
+      if (typeof document !== 'undefined') {
+        this.visibilityHandler = () => {
+          if (!document.hidden && isLeaderTab()) {
+            log.debug('Tab became visible — checking for missed tasks');
+            this.checkMissedTasks().catch((err) => {
+              log.error('Error checking missed tasks on visibility change:', err);
+            });
+          }
+        };
+        document.addEventListener('visibilitychange', this.visibilityHandler);
+      }
+
       this.isInitialized = true;
       log.info('Task scheduler initialized successfully');
     } catch (error) {
       log.error('Failed to initialize task scheduler:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Schedule all active tasks (called on init and when becoming leader)
+   */
+  private async scheduleAllActiveTasks(): Promise<void> {
+    const tasks = await schedulerDb.getTasksByStatus('active');
+    log.info(`Found ${tasks.length} active tasks to schedule`);
+    for (const task of tasks) {
+      await this.scheduleTask(task);
+    }
+  }
+
+  /**
+   * Unschedule all tasks (called when losing leadership)
+   */
+  private unscheduleAllTasks(): void {
+    for (const taskId of this.timers.keys()) {
+      this.unscheduleTask(taskId);
     }
   }
 
@@ -165,6 +214,19 @@ class TaskSchedulerImpl {
    */
   stop(): void {
     log.info('Stopping task scheduler...');
+
+    // Stop leader election
+    if (this.leaderUnsubscribe) {
+      this.leaderUnsubscribe();
+      this.leaderUnsubscribe = null;
+    }
+    stopLeaderElection();
+
+    // Remove visibility handler
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
 
     // Clear all timers
     for (const [taskId, timer] of this.timers) {
@@ -533,17 +595,18 @@ class TaskSchedulerImpl {
         await notifyTaskEvent(task, execution, 'error');
       }
 
-      // Handle retry
+      // Handle retry with exponential backoff + jitter
       if (retryAttempt < task.config.maxRetries) {
+        const delay = this.calculateRetryDelay(task.config, retryAttempt);
         execution.logs.push(
-          this.createLog('info', `Scheduling retry ${retryAttempt + 1}/${task.config.maxRetries}`)
+          this.createLog('info', `Scheduling retry ${retryAttempt + 1}/${task.config.maxRetries} in ${Math.round(delay / 1000)}s`)
         );
         
         setTimeout(() => {
           this.executeTask(task, retryAttempt + 1).catch((err) => {
             log.error(`Retry failed for task ${task.name}:`, err);
           });
-        }, task.config.retryDelay);
+        }, delay);
       }
 
       // Update task statistics
@@ -560,27 +623,32 @@ class TaskSchedulerImpl {
   }
 
   /**
-   * Execute a function with timeout
+   * Execute a function with timeout using AbortController
    */
   private async executeWithTimeout<T>(
     fn: () => Promise<T>,
     timeoutMs: number
   ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`Execution timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-      fn()
-        .then((result) => {
-          clearTimeout(timer);
-          resolve(result);
-        })
-        .catch((error) => {
-          clearTimeout(timer);
-          reject(error);
-        });
-    });
+    try {
+      const result = await Promise.race([
+        fn(),
+        new Promise<never>((_resolve, reject) => {
+          controller.signal.addEventListener('abort', () => {
+            reject(new SchedulerError(
+              'EXECUTION_TIMEOUT',
+              `Execution timed out after ${timeoutMs}ms`,
+              { timeoutMs }
+            ));
+          });
+        }),
+      ]);
+      return result;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /**
@@ -668,6 +736,19 @@ class TaskSchedulerImpl {
   }
 
   /**
+   * Calculate retry delay using exponential backoff with jitter
+   * Formula: min(baseDelay * 2^attempt + random_jitter, maxDelay)
+   */
+  private calculateRetryDelay(config: TaskExecutionConfig, attempt: number): number {
+    const baseDelay = config.retryDelay;
+    const maxDelay = config.maxRetryDelay || 60000;
+    const exponentialDelay = baseDelay * Math.pow(2, attempt);
+    // Add random jitter (0-25% of exponential delay) to prevent thundering herd
+    const jitter = Math.random() * exponentialDelay * 0.25;
+    return Math.min(exponentialDelay + jitter, maxDelay);
+  }
+
+  /**
    * Create a log entry
    */
   private createLog(level: TaskExecutionLog['level'], message: string, data?: unknown): TaskExecutionLog {
@@ -722,11 +803,20 @@ class TaskSchedulerImpl {
 let schedulerInstance: TaskSchedulerImpl | null = null;
 
 /**
- * Get the task scheduler instance
+ * Create a new task scheduler instance (factory pattern).
+ * Useful for testing or creating isolated scheduler instances.
+ */
+export function createTaskScheduler(): TaskSchedulerImpl {
+  return new TaskSchedulerImpl();
+}
+
+/**
+ * Get the task scheduler singleton instance.
+ * Creates one if it doesn't exist yet.
  */
 export function getTaskScheduler(): TaskSchedulerImpl {
   if (!schedulerInstance) {
-    schedulerInstance = new TaskSchedulerImpl();
+    schedulerInstance = createTaskScheduler();
   }
   return schedulerInstance;
 }

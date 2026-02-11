@@ -5,7 +5,7 @@
  * Toggle switch for boolean values
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ export interface A2UISwitchComponent extends A2UIBaseComponent {
   disabled?: boolean | { path: string };
 }
 
-export function A2UISwitch({ component, onDataChange }: A2UIComponentProps<A2UISwitchComponent>) {
+export const A2UISwitch = memo(function A2UISwitch({ component, onDataChange }: A2UIComponentProps<A2UISwitchComponent>) {
   const { resolveBoolean } = useA2UIContext();
 
   const checked = resolveBoolean(component.checked, false);
@@ -63,4 +63,4 @@ export function A2UISwitch({ component, onDataChange }: A2UIComponentProps<A2UIS
       />
     </div>
   );
-}
+});

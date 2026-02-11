@@ -122,6 +122,7 @@ export function PluginMarketplace({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [errorDismissed, setErrorDismissed] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Search debounce + persist to search history
   useEffect(() => {
@@ -161,7 +162,7 @@ export function PluginMarketplace({
 
   // Resolve favorite plugin objects
   const favoritePlugins = useMemo(() => {
-    return marketplacePlugins.filter((p) => favorites.has(p.id));
+    return marketplacePlugins.filter((p) => !!favorites[p.id]);
   }, [favorites, marketplacePlugins]);
 
   // Resolve recently viewed plugin objects
@@ -294,6 +295,24 @@ export function PluginMarketplace({
   );
   const hasMore = visibleCount < filteredPlugins.length;
 
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((c) => c + PAGE_SIZE);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    if (hasMore) {
+      observer.observe(sentinel);
+    }
+    return () => observer.disconnect();
+  }, [hasMore]);
+
   const hasActiveFilters = debouncedQuery || categoryFilter !== 'all' || quickFilter !== 'all';
 
   return (
@@ -366,7 +385,7 @@ export function PluginMarketplace({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-purple-500" />
-            <h3 className="font-semibold text-sm sm:text-base">{t('collections.title')}</h3>
+            <h3 className="font-semibold text-sm sm:text-base">{t('collectionsSection.title')}</h3>
           </div>
         </div>
         <ScrollArea className="w-full">
@@ -658,7 +677,7 @@ export function PluginMarketplace({
                   <div 
                     key={plugin.id}
                     className="animate-in fade-in-0 slide-in-from-bottom-2"
-                    style={{ animationDelay: `${Math.min(index, 10) * 30}ms`, animationFillMode: 'backwards' }}
+                    style={index < PAGE_SIZE ? { animationDelay: `${Math.min(index, 10) * 30}ms`, animationFillMode: 'backwards' } : { animationDuration: '150ms' }}
                   >
                     <PluginGridCard
                       plugin={plugin}
@@ -671,15 +690,8 @@ export function PluginMarketplace({
                 ))}
               </div>
               {hasMore && (
-                <div className="flex justify-center mt-6">
-                  <Button
-                    variant="outline"
-                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                    className="gap-2"
-                  >
-                    <Loader2 className="h-4 w-4" />
-                    {t('results.loadMore')}
-                  </Button>
+                <div ref={loadMoreRef} className="flex justify-center mt-6 py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               )}
             </>
@@ -690,7 +702,7 @@ export function PluginMarketplace({
                   <div 
                     key={plugin.id}
                     className="animate-in fade-in-0 slide-in-from-left-2"
-                    style={{ animationDelay: `${Math.min(index, 10) * 20}ms`, animationFillMode: 'backwards' }}
+                    style={index < PAGE_SIZE ? { animationDelay: `${Math.min(index, 10) * 20}ms`, animationFillMode: 'backwards' } : { animationDuration: '150ms' }}
                   >
                     <PluginListItem
                       plugin={plugin}
@@ -703,15 +715,8 @@ export function PluginMarketplace({
                 ))}
               </div>
               {hasMore && (
-                <div className="flex justify-center mt-6">
-                  <Button
-                    variant="outline"
-                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                    className="gap-2"
-                  >
-                    <Loader2 className="h-4 w-4" />
-                    {t('results.loadMore')}
-                  </Button>
+                <div ref={loadMoreRef} className="flex justify-center mt-6 py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               )}
             </>

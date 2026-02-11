@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   useSchedulerStore,
   selectTasks,
@@ -23,15 +23,10 @@ import {
   selectError,
   selectIsInitialized,
 } from '@/stores/scheduler';
-import type {
-  CreateScheduledTaskInput,
-  UpdateScheduledTaskInput,
-  TaskFilter,
-} from '@/types/scheduler';
 
 export function useScheduler() {
   const store = useSchedulerStore();
-  const initRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Selectors
   const tasks = useSchedulerStore(selectTasks);
@@ -49,123 +44,53 @@ export function useScheduler() {
   const error = useSchedulerStore(selectError);
   const isInitialized = useSchedulerStore(selectIsInitialized);
 
-  // Initialize on mount
+  // Initialize on mount — store handles deduplication of concurrent calls
   useEffect(() => {
-    if (!initRef.current && !isInitialized) {
-      initRef.current = true;
+    if (!isInitialized) {
       store.initialize();
     }
   }, [isInitialized, store]);
 
-  // Auto-refresh
+  // Auto-refresh with visibility-aware polling (PERF-3)
   useEffect(() => {
     if (!isInitialized || store.autoRefreshInterval <= 0) return;
 
-    const interval = setInterval(() => {
-      store.refreshAll();
-    }, store.autoRefreshInterval * 1000);
+    const startPolling = () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        store.refreshAll();
+      }, store.autoRefreshInterval * 1000);
+    };
 
-    return () => clearInterval(interval);
+    const stopPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Refresh immediately when tab becomes visible, then restart polling
+        store.refreshAll();
+        startPolling();
+      }
+    };
+
+    // Start polling only if tab is visible
+    if (!document.hidden) {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isInitialized, store, store.autoRefreshInterval]);
-
-  // Actions
-  const createTask = useCallback(
-    async (input: CreateScheduledTaskInput) => {
-      return store.createTask(input);
-    },
-    [store]
-  );
-
-  const updateTask = useCallback(
-    async (taskId: string, input: UpdateScheduledTaskInput) => {
-      return store.updateTask(taskId, input);
-    },
-    [store]
-  );
-
-  const deleteTask = useCallback(
-    async (taskId: string) => {
-      return store.deleteTask(taskId);
-    },
-    [store]
-  );
-
-  const pauseTask = useCallback(
-    async (taskId: string) => {
-      return store.pauseTask(taskId);
-    },
-    [store]
-  );
-
-  const resumeTask = useCallback(
-    async (taskId: string) => {
-      return store.resumeTask(taskId);
-    },
-    [store]
-  );
-
-  const runTaskNow = useCallback(
-    async (taskId: string) => {
-      return store.runTaskNow(taskId);
-    },
-    [store]
-  );
-
-  const selectTask = useCallback(
-    (taskId: string | null) => {
-      store.selectTask(taskId);
-    },
-    [store]
-  );
-
-  const setFilter = useCallback(
-    (filter: Partial<TaskFilter>) => {
-      store.setFilter(filter);
-    },
-    [store]
-  );
-
-  const clearFilter = useCallback(() => {
-    store.clearFilter();
-  }, [store]);
-
-  const refresh = useCallback(() => {
-    store.refreshAll();
-  }, [store]);
-
-  const clearError = useCallback(() => {
-    store.setError(null);
-  }, [store]);
-
-  const loadRecentExecutions = useCallback(
-    (limit?: number) => store.loadRecentExecutions(limit),
-    [store]
-  );
-
-  const loadUpcomingTasks = useCallback(
-    (limit?: number) => store.loadUpcomingTasks(limit),
-    [store]
-  );
-
-  const cleanupOldExecutions = useCallback(
-    (maxAgeDays?: number) => store.cleanupOldExecutions(maxAgeDays),
-    [store]
-  );
-
-  const cancelPluginExecution = useCallback(
-    (executionId: string) => store.cancelPluginExecution(executionId),
-    [store]
-  );
-
-  const getActivePluginCount = useCallback(
-    () => store.getActivePluginCount(),
-    [store]
-  );
-
-  const isPluginExecutionActive = useCallback(
-    (executionId: string) => store.isPluginExecutionActive(executionId),
-    [store]
-  );
 
   return {
     // State
@@ -184,24 +109,29 @@ export function useScheduler() {
     error,
     isInitialized,
 
-    // Actions
-    createTask,
-    updateTask,
-    deleteTask,
-    pauseTask,
-    resumeTask,
-    runTaskNow,
-    selectTask,
-    setFilter,
-    clearFilter,
-    refresh,
-    clearError,
-    loadRecentExecutions,
-    loadUpcomingTasks,
-    cleanupOldExecutions,
-    cancelPluginExecution,
-    getActivePluginCount,
-    isPluginExecutionActive,
+    // Actions — store methods are stable references, no useCallback needed
+    createTask: store.createTask,
+    updateTask: store.updateTask,
+    deleteTask: store.deleteTask,
+    pauseTask: store.pauseTask,
+    resumeTask: store.resumeTask,
+    runTaskNow: store.runTaskNow,
+    selectTask: store.selectTask,
+    setFilter: store.setFilter,
+    clearFilter: store.clearFilter,
+    refresh: store.refreshAll,
+    clearError: store.clearError,
+    loadRecentExecutions: store.loadRecentExecutions,
+    loadUpcomingTasks: store.loadUpcomingTasks,
+    cleanupOldExecutions: store.cleanupOldExecutions,
+    cancelPluginExecution: store.cancelPluginExecution,
+    getActivePluginCount: store.getActivePluginCount,
+    isPluginExecutionActive: store.isPluginExecutionActive,
+
+    // Bulk Operations
+    bulkPause: store.bulkPause,
+    bulkResume: store.bulkResume,
+    bulkDelete: store.bulkDelete,
   };
 }
 

@@ -469,6 +469,7 @@ function LibraryPaperCard({
   onDownloadPdf,
   onRemove,
 }: LibraryPaperCardProps) {
+  const t = useTranslations('academic.paperLibrary');
   const StatusIcon = STATUS_ICONS[paper.readingStatus];
   const statusColor = STATUS_COLORS[paper.readingStatus];
 
@@ -586,7 +587,7 @@ function LibraryPaperCard({
             }}
           >
             <Eye className="h-4 w-4 mr-2" />
-            View Details
+            {t('viewDetails')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -595,7 +596,7 @@ function LibraryPaperCard({
             }}
           >
             <BookMarked className="h-4 w-4 mr-2" />
-            Mark as Reading
+            {t('markAsReading')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -604,7 +605,7 @@ function LibraryPaperCard({
             }}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            Mark as Completed
+            {t('markAsCompleted')}
           </DropdownMenuItem>
           {paper.pdfUrl && (
             <DropdownMenuItem
@@ -614,7 +615,7 @@ function LibraryPaperCard({
               }}
             >
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              {t('downloadPDF')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -622,19 +623,19 @@ function LibraryPaperCard({
             <AlertDialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
-                Remove from Library
+                {t('removeFromLibrary')}
               </DropdownMenuItem>
             </AlertDialogTrigger>
             <AlertDialogContent onClick={(e) => e.stopPropagation()}>
               <AlertDialogHeader>
-                <AlertDialogTitle>Remove paper from library?</AlertDialogTitle>
+                <AlertDialogTitle>{t('removeConfirmTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will remove the paper from your library. This action cannot be undone.
+                  {t('removeConfirmDescription')}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onRemove}>Remove</AlertDialogAction>
+                <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={onRemove}>{t('remove')}</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

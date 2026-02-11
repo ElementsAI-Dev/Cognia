@@ -28,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 import type { Paper, AcademicProviderType } from '@/types/learning/academic';
 import { DEFAULT_ACADEMIC_PROVIDERS } from '@/types/learning/academic';
 
@@ -91,7 +92,7 @@ export function PaperSearch({ onPaperSelect, className }: PaperSearchProps) {
       try {
         await addToLibrary(paper);
       } catch (error) {
-        console.error('Failed to add paper to library:', error);
+        toast({ type: 'error', title: 'Failed to add paper to library', description: error instanceof Error ? error.message : String(error) });
       }
     },
     [addToLibrary]

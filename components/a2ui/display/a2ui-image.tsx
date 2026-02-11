@@ -6,7 +6,7 @@
  */
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
 import type { A2UIComponentProps, A2UIImageComponent } from '@/types/artifact/a2ui';
@@ -25,7 +25,7 @@ const toCssDimension = (value?: number | string) => {
 const isInlineSource = (value: string) =>
   value.startsWith('data:') || value.startsWith('blob:');
 
-export function A2UIImage({ component }: A2UIComponentProps<A2UIImageComponent>) {
+export const A2UIImage = memo(function A2UIImage({ component }: A2UIComponentProps<A2UIImageComponent>) {
   const { resolveString } = useA2UIContext();
   const [hasError, setHasError] = useState(false);
 
@@ -90,4 +90,4 @@ export function A2UIImage({ component }: A2UIComponentProps<A2UIImageComponent>)
       unoptimized={isInlineSource(src)}
     />
   );
-}
+});

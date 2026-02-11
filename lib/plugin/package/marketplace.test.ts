@@ -233,6 +233,61 @@ describe('PluginMarketplace', () => {
 
       expect(result.success).toBeDefined();
     });
+
+    it('should emit progress events in web environment', async () => {
+      const stages: string[] = [];
+
+      marketplace.onInstallProgress('web-plugin', (progress) => {
+        stages.push(progress.stage);
+      });
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'web-plugin', name: 'Web Plugin', manifest: {} }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([{ version: '1.0.0', downloadUrl: 'url' }]),
+        });
+
+      await marketplace.installPlugin('web-plugin');
+
+      // Web environment: should reach complete stage (no Tauri)
+      expect(stages).toContain('complete');
+    });
+  });
+
+  describe('Cache', () => {
+    it('should cache API responses', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: 'cached-plugin', name: 'Cached' }),
+      });
+
+      // First call hits API
+      await marketplace.getPlugin('cached-plugin');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Second call should use cache (no additional fetch)
+      await marketplace.getPlugin('cached-plugin');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should clear cache', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: 'cached-plugin', name: 'Cached' }),
+      });
+
+      await marketplace.getPlugin('cached-plugin');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      marketplace.clearCache();
+
+      await marketplace.getPlugin('cached-plugin');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Popular and Recent Plugins', () => {

@@ -5,7 +5,7 @@
  * Maps to Recharts for data visualization
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   LineChart,
@@ -44,7 +44,7 @@ const DEFAULT_COLORS = [
   '#00C49F',
 ];
 
-export function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartComponent>) {
+export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartComponent>) {
   const { dataModel } = useA2UIContext();
 
   // Resolve data - can be static array or data-bound
@@ -313,4 +313,4 @@ export function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartC
       </ResponsiveContainer>
     </div>
   );
-}
+});

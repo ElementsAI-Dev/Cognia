@@ -264,7 +264,7 @@
       "title": "Trending",
       "viewAll": "View All"
     },
-    "collections": {
+    "collectionsSection": {
       "title": "Collections"
     },
     "recentlyViewed": {
@@ -307,6 +307,38 @@
     "results": {
       "count": "{count} plugins",
       "loadMore": "Load More"
+    },
+    "categories": {
+      "all": "All",
+      "tools": "Tools",
+      "components": "Components",
+      "modes": "Modes",
+      "skills": "Skills",
+      "themes": "Themes",
+      "commands": "Commands",
+      "hooks": "Hooks",
+      "processors": "Processors",
+      "providers": "Providers",
+      "exporters": "Exporters",
+      "importers": "Importers",
+      "a2ui": "A2UI",
+      "python": "Python",
+      "scheduler": "Scheduler"
+    },
+    "quickFilters": {
+      "all": "All",
+      "verified": "Verified",
+      "free": "Free",
+      "new": "New",
+      "popular": "Popular"
+    },
+    "collections": {
+      "developerEssentials": "Developer Essentials",
+      "developerEssentialsDesc": "Must-have plugins for developers",
+      "productivityBoost": "Productivity Boost",
+      "productivityBoostDesc": "Supercharge your workflow",
+      "creativeSuite": "Creative Suite",
+      "creativeSuiteDesc": "Tools for creative professionals"
     }
   },
   "pluginDetail": {
@@ -341,6 +373,18 @@
     "changelog": {
       "title": "Version History",
       "breaking": "Breaking"
+    },
+    "helpful": "Helpful ({count})",
+    "verified": "Verified",
+    "links": {
+      "github": "GitHub",
+      "website": "Website",
+      "documentation": "Documentation"
+    },
+    "requirements": {
+      "cognia": "Cognia v1.0.0 or higher",
+      "python": "Python 3.9+",
+      "nodejs": "Node.js 18+"
     }
   },
   "pluginDevTools": {

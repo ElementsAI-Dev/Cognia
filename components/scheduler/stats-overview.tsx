@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { TaskStatistics, ScheduledTask, TaskExecution } from '@/types/scheduler';
+import { formatDuration, formatRelativeTime } from '@/lib/scheduler/format-utils';
 
 interface StatsOverviewProps {
   statistics: TaskStatistics | null;
@@ -49,31 +50,6 @@ export function StatsOverview({
     if (total === 0) return 0;
     return Math.round((statistics.successfulExecutions / total) * 100);
   }, [statistics]);
-
-  const formatDuration = (ms: number | undefined): string => {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
-  };
-
-  const formatRelativeTime = (date: Date | undefined): string => {
-    if (!date) return '-';
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    if (diff < 0) return t('overdue') || 'Overdue';
-    if (diff < 60000) return t('lessThanMinute') || '< 1 min';
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `${minutes}m`;
-    }
-    if (diff < 86400000) {
-      const hours = Math.floor(diff / 3600000);
-      return `${hours}h`;
-    }
-    const days = Math.floor(diff / 86400000);
-    return `${days}d`;
-  };
 
   if (!statistics) return null;
 

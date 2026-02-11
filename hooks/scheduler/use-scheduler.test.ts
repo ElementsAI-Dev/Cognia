@@ -4,6 +4,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useScheduler } from './use-scheduler';
+import type { CreateScheduledTaskInput } from '@/types/scheduler';
 
 // Mock scheduler store
 const mockStore = {
@@ -86,10 +87,10 @@ describe('useScheduler', () => {
 
   describe('createTask', () => {
     it('should call store createTask', async () => {
-      const input = {
+      const input: CreateScheduledTaskInput = {
         name: 'Test Task',
         type: 'chat' as const,
-        schedule: { type: 'once' as const, executeAt: new Date() },
+        trigger: { type: 'once' as const, runAt: new Date() },
         config: {},
       };
       mockStore.createTask.mockResolvedValue({ id: 'task-1', ...input });

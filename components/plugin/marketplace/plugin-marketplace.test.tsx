@@ -16,12 +16,23 @@ const messages = {
     featured: {
       title: 'Featured Plugins',
     },
+    favorites: {
+      title: 'My Favorites',
+    },
     trending: {
       title: 'Trending',
       viewAll: 'View All',
     },
+    collectionsSection: {
+      title: 'Collections',
+    },
+    recentlyViewed: {
+      title: 'Recently Viewed',
+    },
     search: {
       placeholder: 'Search plugins...',
+      recentSearches: 'Recent searches',
+      clearHistory: 'Clear',
     },
     sort: {
       popular: 'Popular',
@@ -29,8 +40,32 @@ const messages = {
       recent: 'Recent',
       downloads: 'Downloads',
     },
+    filters: {
+      title: 'Filters',
+      category: 'Category',
+      sortBy: 'Sort by',
+      clearAll: 'Clear all filters',
+    },
+    stats: {
+      plugins: 'Plugins',
+      downloads: 'Downloads',
+      developers: 'Developers',
+      thisWeek: 'This Week',
+    },
+    empty: {
+      noResults: 'No plugins found',
+      noMatch: 'No plugins match "{query}".',
+      noFilters: 'No plugins available.',
+      clearSearch: 'Clear Search',
+      refresh: 'Refresh',
+      popularSearches: 'Popular searches:',
+    },
+    error: {
+      retry: 'Retry',
+    },
     results: {
       count: '{count} plugins found',
+      loadMore: 'Load More',
     },
   },
 };

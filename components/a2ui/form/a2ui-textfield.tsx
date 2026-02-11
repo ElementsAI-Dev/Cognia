@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Input with Label
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import type { A2UIComponentProps, A2UITextFieldComponent } from '@/types/artifac
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UITextField({ component, onDataChange }: A2UIComponentProps<A2UITextFieldComponent>) {
+export const A2UITextField = memo(function A2UITextField({ component, onDataChange }: A2UIComponentProps<A2UITextFieldComponent>) {
   const { resolveString, resolveBoolean } = useA2UIContext();
 
   const value = resolveString(component.value, '');
@@ -61,4 +61,4 @@ export function A2UITextField({ component, onDataChange }: A2UIComponentProps<A2
       )}
     </div>
   );
-}
+});

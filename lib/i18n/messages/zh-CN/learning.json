@@ -797,7 +797,9 @@
         "references": "参考文献"
       },
       "noCitations": "未找到引用",
-      "noReferences": "未找到参考文献"
+      "noReferences": "未找到参考文献",
+      "noInfluentialCitations": "未找到有影响力的引用",
+      "noInfluentialReferences": "未找到有影响力的参考文献"
     },
     "paperComparison": {
       "title": "论文对比",
@@ -818,7 +820,9 @@
       "openAccess": "开放获取",
       "pdfAvailable": "PDF可用",
       "yes": "是",
-      "no": "否"
+      "no": "否",
+      "inReadingList": "在阅读列表中",
+      "userRating": "用户评分"
     },
     "paperSearch": {
       "placeholder": "按标题、作者或关键词搜索论文...",
@@ -920,7 +924,29 @@
       "analyze": "分析",
       "analyzing": "分析中...",
       "noAnalysis": "暂无分析",
-      "analyzeHint": "点击「分析」获取AI驱动的论文洞察"
+      "analyzeHint": "点击「分析」获取AI驱动的论文洞察",
+      "analysisTypes": {
+        "summary": "摘要",
+        "summaryDesc": "全面的论文摘要",
+        "key-insights": "关键洞察",
+        "key-insightsDesc": "主要发现和要点",
+        "methodology": "方法论",
+        "methodologyDesc": "研究方法分析",
+        "findings": "研究发现",
+        "findingsDesc": "结果与结论",
+        "limitations": "局限性",
+        "limitationsDesc": "研究局限",
+        "future-work": "未来工作",
+        "future-workDesc": "建议的研究方向",
+        "related-work": "相关工作",
+        "related-workDesc": "与其他研究的联系",
+        "technical-details": "技术细节",
+        "technical-detailsDesc": "实现细节",
+        "critique": "批判性分析",
+        "critiqueDesc": "优势与不足",
+        "eli5": "通俗解释",
+        "eli5Desc": "简单易懂的解释"
+      }
     },
     "paperLibrary": {
       "collections": "收藏夹",
@@ -953,7 +979,9 @@
       "markAsReading": "标记为阅读中",
       "markAsCompleted": "标记为已完成",
       "downloadPDF": "下载PDF",
-      "removeFromLibrary": "从文献库移除"
+      "removeFromLibrary": "从文献库移除",
+      "removeConfirmTitle": "确定从文献库移除？",
+      "removeConfirmDescription": "这将从您的文献库中移除该论文。此操作无法撤销。"
     }
   },
   "flowChat": {

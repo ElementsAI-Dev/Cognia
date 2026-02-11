@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Button
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -22,7 +22,7 @@ const variantMap: Record<string, 'default' | 'destructive' | 'outline' | 'second
   link: 'link',
 };
 
-export function A2UIButton({ component, onAction }: A2UIComponentProps<A2UIButtonComponent>) {
+export const A2UIButton = memo(function A2UIButton({ component, onAction }: A2UIComponentProps<A2UIButtonComponent>) {
   const { resolveString, resolveBoolean } = useA2UIContext();
 
   const text = resolveString(component.text, '');
@@ -48,4 +48,4 @@ export function A2UIButton({ component, onAction }: A2UIComponentProps<A2UIButto
       {text}
     </Button>
   );
-}
+});

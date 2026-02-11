@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Slider
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import type { A2UIComponentProps, A2UISliderComponent } from '@/types/artifact/a
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UISlider({ component, onDataChange }: A2UIComponentProps<A2UISliderComponent>) {
+export const A2UISlider = memo(function A2UISlider({ component, onDataChange }: A2UIComponentProps<A2UISliderComponent>) {
   const { resolveNumber, resolveBoolean } = useA2UIContext();
 
   const value = resolveNumber(component.value, component.min ?? 0);
@@ -54,4 +54,4 @@ export function A2UISlider({ component, onDataChange }: A2UIComponentProps<A2UIS
       />
     </div>
   );
-}
+});

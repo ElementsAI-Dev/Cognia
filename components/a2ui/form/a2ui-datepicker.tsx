@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Calendar with Popover
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -17,7 +17,7 @@ import type { A2UIComponentProps, A2UIDatePickerComponent } from '@/types/artifa
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UIDatePicker({ component, onDataChange }: A2UIComponentProps<A2UIDatePickerComponent>) {
+export const A2UIDatePicker = memo(function A2UIDatePicker({ component, onDataChange }: A2UIComponentProps<A2UIDatePickerComponent>) {
   const { resolveString, resolveBoolean } = useA2UIContext();
 
   const valueStr = resolveString(component.value, '');
@@ -101,4 +101,4 @@ export function A2UIDatePicker({ component, onDataChange }: A2UIComponentProps<A
       </Popover>
     </div>
   );
-}
+});

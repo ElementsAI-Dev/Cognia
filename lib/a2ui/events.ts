@@ -30,12 +30,37 @@ export class A2UIEventEmitter {
   private actionHandlers: Set<A2UIActionHandler> = new Set();
   private dataChangeHandlers: Set<A2UIDataChangeHandler> = new Set();
   private allHandlers: Set<(event: A2UIClientMessage) => void> = new Set();
+  private maxListeners = 50;
+
+  /**
+   * Check listener count and warn if exceeding threshold (dev only)
+   */
+  private checkListenerLeak(type: string): void {
+    if (process.env.NODE_ENV !== 'production') {
+      const count = this.listenerCount();
+      if (count > this.maxListeners) {
+        log.warn(
+          `A2UI EventEmitter: ${count} listeners registered (max: ${this.maxListeners}). ` +
+          `Possible memory leak after adding '${type}' handler. ` +
+          `Ensure event subscriptions are cleaned up on component unmount.`
+        );
+      }
+    }
+  }
+
+  /**
+   * Get total number of registered listeners
+   */
+  listenerCount(): number {
+    return this.actionHandlers.size + this.dataChangeHandlers.size + this.allHandlers.size;
+  }
 
   /**
    * Subscribe to user action events
    */
   onAction(handler: A2UIActionHandler): () => void {
     this.actionHandlers.add(handler);
+    this.checkListenerLeak('action');
     return () => this.actionHandlers.delete(handler);
   }
 
@@ -44,6 +69,7 @@ export class A2UIEventEmitter {
    */
   onDataChange(handler: A2UIDataChangeHandler): () => void {
     this.dataChangeHandlers.add(handler);
+    this.checkListenerLeak('dataChange');
     return () => this.dataChangeHandlers.delete(handler);
   }
 
@@ -52,6 +78,7 @@ export class A2UIEventEmitter {
    */
   onAny(handler: (event: A2UIClientMessage) => void): () => void {
     this.allHandlers.add(handler);
+    this.checkListenerLeak('any');
     return () => this.allHandlers.delete(handler);
   }
 

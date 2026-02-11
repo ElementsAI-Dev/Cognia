@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Badge
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { A2UIComponentProps, A2UIBadgeComponent } from '@/types/artifact/a2ui';
@@ -28,7 +28,7 @@ const colorStyles: Record<string, string> = {
   info: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
 };
 
-export function A2UIBadge({ component }: A2UIComponentProps<A2UIBadgeComponent>) {
+export const A2UIBadge = memo(function A2UIBadge({ component }: A2UIComponentProps<A2UIBadgeComponent>) {
   const { resolveString } = useA2UIContext();
 
   const text = resolveString(component.text, '');
@@ -45,4 +45,4 @@ export function A2UIBadge({ component }: A2UIComponentProps<A2UIBadgeComponent>)
       {text}
     </Badge>
   );
-}
+});

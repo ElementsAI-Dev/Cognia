@@ -5,13 +5,13 @@
  * Renders a clickable link
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 import type { A2UIComponentProps, A2UILinkComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../a2ui-context';
 
-export function A2UILink({ component, onAction }: A2UIComponentProps<A2UILinkComponent>) {
+export const A2UILink = memo(function A2UILink({ component, onAction }: A2UIComponentProps<A2UILinkComponent>) {
   const { resolveString } = useA2UIContext();
 
   const text = resolveString(component.text, '');
@@ -64,4 +64,4 @@ export function A2UILink({ component, onAction }: A2UIComponentProps<A2UILinkCom
       {external && <ExternalLink className="h-3 w-3" />}
     </a>
   );
-}
+});

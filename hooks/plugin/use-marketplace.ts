@@ -6,21 +6,11 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { PluginMarketplace, type PluginSearchOptions, type PluginRegistryEntry } from '@/lib/plugin';
+import { getPluginMarketplace, type PluginSearchOptions, type PluginRegistryEntry } from '@/lib/plugin';
 import type { MarketplacePlugin, InstallProgressInfo } from '@/components/plugin/marketplace/components/marketplace-types';
 import { MOCK_PLUGINS } from '@/components/plugin/marketplace/components/marketplace-constants';
 import { usePluginStore } from '@/stores/plugin';
 import { usePluginMarketplaceStore } from '@/stores/plugin/plugin-marketplace-store';
-
-// Singleton marketplace client
-let marketplaceClient: PluginMarketplace | null = null;
-
-function getMarketplaceClient(): PluginMarketplace {
-  if (!marketplaceClient) {
-    marketplaceClient = new PluginMarketplace();
-  }
-  return marketplaceClient;
-}
 
 /**
  * Convert PluginRegistryEntry to MarketplacePlugin format
@@ -72,6 +62,9 @@ interface UseMarketplaceResult {
   favoriteCount: number;
   // Categories
   categories: { id: string; name: string; count: number }[];
+  // Updates & Cache
+  checkForUpdates: () => Promise<{ id: string; currentVersion: string; latestVersion: string }[]>;
+  clearCache: () => void;
 }
 
 /**
@@ -126,7 +119,7 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
       }
 
       try {
-        const client = getMarketplaceClient();
+        const client = getPluginMarketplace();
         const result = await client.searchPlugins(searchOptions);
 
         if (result.plugins.length > 0) {
@@ -164,7 +157,7 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
   // Install plugin via marketplace API with progress tracking
   const installPluginFromMarketplace = useCallback(
     async (pluginId: string): Promise<{ success: boolean; error?: string }> => {
-      const client = getMarketplaceClient();
+      const client = getPluginMarketplace();
 
       // Set initial progress
       setInstallProgress(pluginId, {
@@ -232,13 +225,13 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
   );
 
   const getProgress = useCallback(
-    (pluginId: string) => installProgress.get(pluginId),
+    (pluginId: string) => installProgress[pluginId],
     [installProgress]
   );
 
   const checkIsInstalling = useCallback(
     (pluginId: string) => {
-      const progress = installProgress.get(pluginId);
+      const progress = installProgress[pluginId];
       if (!progress) return false;
       return !['idle', 'complete', 'error'].includes(progress.stage);
     },
@@ -274,6 +267,22 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
       .sort((a, b) => b.count - a.count);
   }, [plugins]);
 
+  // Check for plugin updates
+  const checkForUpdates = useCallback(async () => {
+    const client = getPluginMarketplace();
+    const installed = Object.entries(installedPlugins).map(([id, p]) => ({
+      id,
+      version: p.manifest?.version || '0.0.0',
+    }));
+    return client.checkForUpdates(installed);
+  }, [installedPlugins]);
+
+  // Clear marketplace cache
+  const clearCache = useCallback(() => {
+    const client = getPluginMarketplace();
+    client.clearCache();
+  }, []);
+
   return {
     plugins,
     featuredPlugins,
@@ -288,8 +297,10 @@ export function useMarketplace(options: UseMarketplaceOptions = {}): UseMarketpl
     isInstalling: checkIsInstalling,
     toggleFavorite,
     isFavorite,
-    favoriteCount: favorites.size,
+    favoriteCount: Object.keys(favorites).length,
     categories,
+    checkForUpdates,
+    clearCache,
   };
 }
 

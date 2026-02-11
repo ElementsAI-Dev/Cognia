@@ -91,8 +91,10 @@ export interface TaskExecutionConfig {
   timeout: number;
   /** Number of retry attempts on failure */
   maxRetries: number;
-  /** Delay between retries in milliseconds */
+  /** Base delay between retries in milliseconds (used with exponential backoff) */
   retryDelay: number;
+  /** Maximum retry delay in milliseconds (caps exponential backoff) */
+  maxRetryDelay?: number;
   /** Whether to run missed executions on startup */
   runMissedOnStartup: boolean;
   /** Maximum number of missed executions to run */
@@ -225,7 +227,8 @@ export interface TaskStatistics {
 export const DEFAULT_EXECUTION_CONFIG: TaskExecutionConfig = {
   timeout: 300000, // 5 minutes
   maxRetries: 3,
-  retryDelay: 5000, // 5 seconds
+  retryDelay: 5000, // 5 seconds base delay
+  maxRetryDelay: 60000, // 1 minute cap for exponential backoff
   runMissedOnStartup: false,
   maxMissedRuns: 1,
   allowConcurrent: false,
@@ -416,15 +419,32 @@ export function serializeTask(task: ScheduledTask): Record<string, unknown> {
 export function deserializeTask(data: Record<string, unknown>): ScheduledTask {
   const trigger = data.trigger as Record<string, unknown>;
   return {
-    ...(data as unknown as ScheduledTask),
+    id: data.id as string,
+    name: data.name as string,
+    description: data.description as string | undefined,
+    type: data.type as ScheduledTaskType,
+    trigger: {
+      type: trigger.type as TaskTrigger['type'],
+      cronExpression: trigger.cronExpression as string | undefined,
+      intervalMs: trigger.intervalMs as number | undefined,
+      runAt: trigger.runAt ? new Date(trigger.runAt as string) : undefined,
+      eventType: trigger.eventType as string | undefined,
+      eventSource: trigger.eventSource as string | undefined,
+      timezone: trigger.timezone as string | undefined,
+    } as TaskTrigger,
+    payload: data.payload as Record<string, unknown> | undefined,
+    config: data.config as TaskExecutionConfig,
+    notification: data.notification as TaskNotificationConfig,
+    status: data.status as ScheduledTaskStatus,
+    tags: data.tags as string[] | undefined,
     lastRunAt: data.lastRunAt ? new Date(data.lastRunAt as string) : undefined,
     nextRunAt: data.nextRunAt ? new Date(data.nextRunAt as string) : undefined,
+    runCount: data.runCount as number,
+    successCount: data.successCount as number,
+    failureCount: data.failureCount as number,
+    lastError: data.lastError as string | undefined,
     createdAt: new Date(data.createdAt as string),
     updatedAt: new Date(data.updatedAt as string),
-    trigger: {
-      ...(trigger as unknown as TaskTrigger),
-      runAt: trigger.runAt ? new Date(trigger.runAt as string) : undefined,
-    },
   };
 }
 
@@ -449,12 +469,24 @@ export function serializeExecution(execution: TaskExecution): Record<string, unk
 export function deserializeExecution(data: Record<string, unknown>): TaskExecution {
   const logs = data.logs as Array<Record<string, unknown>>;
   return {
-    ...(data as unknown as TaskExecution),
+    id: data.id as string,
+    taskId: data.taskId as string,
+    taskName: data.taskName as string,
+    taskType: data.taskType as ScheduledTaskType,
+    status: data.status as TaskExecutionStatus,
+    input: data.input as Record<string, unknown> | undefined,
+    output: data.output as Record<string, unknown> | undefined,
+    error: data.error as string | undefined,
+    retryAttempt: data.retryAttempt as number,
+    duration: data.duration as number | undefined,
     startedAt: new Date(data.startedAt as string),
     completedAt: data.completedAt ? new Date(data.completedAt as string) : undefined,
-    logs: logs.map((log) => ({
-      ...(log as unknown as TaskExecutionLog),
-      timestamp: new Date(log.timestamp as string),
+    logs: logs.map((entry) => ({
+      id: entry.id as string,
+      timestamp: new Date(entry.timestamp as string),
+      level: entry.level as TaskExecutionLog['level'],
+      message: entry.message as string,
+      data: entry.data,
     })),
   };
 }

@@ -5,7 +5,7 @@
  * Multi-line text input with data binding
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import type { A2UIComponentProps, A2UITextAreaComponent } from '@/types/artifact
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UITextArea({
+export const A2UITextArea = memo(function A2UITextArea({
   component,
   onDataChange,
 }: A2UIComponentProps<A2UITextAreaComponent>) {
@@ -69,4 +69,4 @@ export function A2UITextArea({
       )}
     </div>
   );
-}
+});

@@ -24,7 +24,7 @@ type AcademicTab = 'search' | 'library' | 'stats' | 'compare' | 'recommend' | 's
 export default function AcademicPage() {
   const t = useTranslations('academic');
   const { activeTab, setActiveTab, refreshLibrary, refreshCollections } = useAcademicStore();
-  const [selectedPaper, setSelectedPaper] = useState<LibraryPaper | null>(null);
+  const [selectedPaper, setSelectedPaper] = useState<Paper | LibraryPaper | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   
   // Load library and collections on mount
@@ -115,7 +115,7 @@ export default function AcademicPage() {
           <AcademicChatPanel 
             className="flex-1"
             onPaperSelect={(paper: Paper) => {
-              setSelectedPaper(paper as LibraryPaper);
+              setSelectedPaper(paper);
               setDetailOpen(true);
             }}
             onAddToLibrary={() => {

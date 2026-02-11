@@ -189,7 +189,7 @@ function getTransitionConfig(
 export const A2UIAnimation = memo(function A2UIAnimation({
   component,
   renderChild,
-}: A2UIComponentProps<A2UIAnimationComponentDef>) {
+}: A2UIComponentProps) {
   useA2UIContext();
   const prefersReducedMotion = useReducedMotion();
 

@@ -235,7 +235,7 @@ export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn
   const learningStore = useLearningStore();
   const sessionStore = useSessionStore();
   const a2ui = useA2UI();
-  const searchProviders = useSettingsStore((state) => state.searchProviders);
+  const _searchProviders = useSettingsStore((state) => state.searchProviders);
   const searchEnabled = useSettingsStore((state) => state.searchEnabled);
 
   const [lastSearchResult, setLastSearchResult] = useState<AcademicSearchResult | null>(null);
@@ -392,27 +392,15 @@ export function useAcademic(options: UseAcademicOptions = {}): UseAcademicReturn
     async (paper: Paper): Promise<void> => {
       if (!enableWebSearch || !searchEnabled) return;
 
-      const searchQuery = `${paper.title} ${paper.authors[0]?.name || ''} research paper`;
-
-      try {
-        const response = await fetch('/api/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: searchQuery,
-            providerSettings: searchProviders,
-            options: { maxResults: 5 },
-          }),
-        });
-
-        if (response.ok) {
-          const _data = await response.json();
-        }
-      } catch (error) {
-        console.error('Web search for paper failed:', error);
-      }
+      const searchQuery = encodeURIComponent(
+        `${paper.title} ${paper.authors[0]?.name || ''}`
+      );
+      window.open(
+        `https://www.semanticscholar.org/search?q=${searchQuery}`,
+        '_blank'
+      );
     },
-    [enableWebSearch, searchEnabled, searchProviders]
+    [enableWebSearch, searchEnabled]
   );
 
   /**

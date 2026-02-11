@@ -264,7 +264,7 @@
       "title": "热门推荐",
       "viewAll": "查看全部"
     },
-    "collections": {
+    "collectionsSection": {
       "title": "合集"
     },
     "recentlyViewed": {
@@ -307,6 +307,38 @@
     "results": {
       "count": "{count} 个插件",
       "loadMore": "加载更多"
+    },
+    "categories": {
+      "all": "全部",
+      "tools": "工具",
+      "components": "组件",
+      "modes": "模式",
+      "skills": "技能",
+      "themes": "主题",
+      "commands": "命令",
+      "hooks": "钩子",
+      "processors": "处理器",
+      "providers": "提供者",
+      "exporters": "导出器",
+      "importers": "导入器",
+      "a2ui": "A2UI",
+      "python": "Python",
+      "scheduler": "调度器"
+    },
+    "quickFilters": {
+      "all": "全部",
+      "verified": "已验证",
+      "free": "免费",
+      "new": "最新",
+      "popular": "热门"
+    },
+    "collections": {
+      "developerEssentials": "开发者必备",
+      "developerEssentialsDesc": "开发者必备插件",
+      "productivityBoost": "效率提升",
+      "productivityBoostDesc": "提升工作效率",
+      "creativeSuite": "创意套件",
+      "creativeSuiteDesc": "创意工作者的工具"
     }
   },
   "pluginDetail": {
@@ -341,6 +373,18 @@
     "changelog": {
       "title": "版本历史",
       "breaking": "不兼容"
+    },
+    "helpful": "有帮助 ({count})",
+    "verified": "已认证",
+    "links": {
+      "github": "GitHub",
+      "website": "网站",
+      "documentation": "文档"
+    },
+    "requirements": {
+      "cognia": "Cognia v1.0.0 或更高版本",
+      "python": "Python 3.9+",
+      "nodejs": "Node.js 18+"
     }
   },
   "pluginDevTools": {

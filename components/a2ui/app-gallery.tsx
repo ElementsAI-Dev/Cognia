@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +50,16 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'lastModified' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
-const CATEGORY_OPTIONS = [
+const CATEGORY_OPTIONS_EN = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'productivity', label: 'Productivity' },
+  { value: 'data', label: 'Data' },
+  { value: 'form', label: 'Forms' },
+  { value: 'utility', label: 'Utilities' },
+  { value: 'social', label: 'Social' },
+];
+
+const CATEGORY_OPTIONS_ZH = [
   { value: 'all', label: '全部分类' },
   { value: 'productivity', label: '效率工具' },
   { value: 'data', label: '数据分析' },
@@ -79,6 +89,8 @@ export function AppGallery({
   columns = 2,
   defaultViewMode = 'grid',
 }: AppGalleryProps) {
+  const t = useTranslations('a2ui');
+  const CATEGORY_OPTIONS = t('gallery') === '应用画廊' ? CATEGORY_OPTIONS_ZH : CATEGORY_OPTIONS_EN;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -287,7 +299,7 @@ export function AppGallery({
       <div className="flex items-center justify-between p-3 sm:p-4 border-b">
         <div className="flex items-center gap-2">
           <LayoutGrid className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold text-sm sm:text-base">应用库</h2>
+          <h2 className="font-semibold text-sm sm:text-base">{t('gallery')}</h2>
           <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
             {apps.length}
           </Badge>
@@ -305,7 +317,7 @@ export function AppGallery({
                 <LayoutGrid className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>网格视图</TooltipContent>
+            <TooltipContent>Grid</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -318,7 +330,7 @@ export function AppGallery({
                 <LayoutList className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>列表视图</TooltipContent>
+            <TooltipContent>List</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -331,7 +343,7 @@ export function AppGallery({
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索应用..."
+              placeholder={t('searchPlaceholder')}
               className="pl-9 text-sm sm:text-base"
             />
           </div>
@@ -352,15 +364,15 @@ export function AppGallery({
         </div>
         {/* Sort options */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>排序:</span>
+          <span>Sort:</span>
           <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
             <SelectTrigger className="h-7 w-24 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="lastModified">修改时间</SelectItem>
-              <SelectItem value="createdAt">创建时间</SelectItem>
-              <SelectItem value="name">名称</SelectItem>
+              <SelectItem value="lastModified">{t('lastModified')}</SelectItem>
+              <SelectItem value="createdAt">{t('created')}</SelectItem>
+              <SelectItem value="name">{t('sortByName')}</SelectItem>
             </SelectContent>
           </Select>
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={toggleSortOrder}>
@@ -382,8 +394,8 @@ export function AppGallery({
             {apps.length === 0 && (
               <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
                 <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
-                <p className="text-base sm:text-lg font-medium">还没有应用</p>
-                <p className="text-xs sm:text-sm">从模板创建你的第一个应用</p>
+                <p className="text-base sm:text-lg font-medium">{t('noAppsYet')}</p>
+                <p className="text-xs sm:text-sm">{t('tryCreating')}</p>
               </div>
             )}
           </div>
@@ -394,7 +406,7 @@ export function AppGallery({
           <div className="hidden sm:flex sm:w-1/2 border-l flex-col">
             <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
               <span className="text-sm font-medium px-2 truncate">
-                {appBuilder.getAppInstance(selectedAppId)?.name || '应用预览'}
+                {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
               </span>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <Button
@@ -404,7 +416,7 @@ export function AppGallery({
                   onClick={() => onAppOpen?.(selectedAppId)}
                 >
                   <ExternalLink className="h-4 w-4 mr-1" />
-                  打开
+                  {t('run')}
                 </Button>
                 <Button
                   size="icon"
@@ -432,7 +444,7 @@ export function AppGallery({
         <div className="sm:hidden border-t max-h-[50vh] flex flex-col">
           <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
             <span className="text-xs font-medium px-2 truncate flex-1">
-              {appBuilder.getAppInstance(selectedAppId)?.name || '应用预览'}
+              {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
             </span>
             <div className="flex items-center gap-1 flex-shrink-0">
               <Button
@@ -442,7 +454,7 @@ export function AppGallery({
                 onClick={() => onAppOpen?.(selectedAppId)}
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
-                打开
+                {t('run')}
               </Button>
               <Button
                 size="icon"
@@ -468,8 +480,8 @@ export function AppGallery({
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent className="max-w-[90vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>删除应用</DialogTitle>
-            <DialogDescription>确定要删除这个应用吗？此操作无法撤销。</DialogDescription>
+            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('deleteConfirmDescription')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
@@ -477,14 +489,14 @@ export function AppGallery({
               className="w-full sm:w-auto touch-manipulation"
               onClick={() => setDeleteConfirmId(null)}
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               variant="destructive"
               className="w-full sm:w-auto touch-manipulation"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
             >
-              删除
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -494,13 +506,13 @@ export function AppGallery({
       <Dialog open={!!renameDialogId} onOpenChange={() => setRenameDialogId(null)}>
         <DialogContent className="max-w-[90vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>重命名应用</DialogTitle>
-            <DialogDescription>输入新的应用名称。</DialogDescription>
+            <DialogTitle>{t('appName')}</DialogTitle>
+            <DialogDescription>{t('appDescription')}</DialogDescription>
           </DialogHeader>
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="应用名称"
+            placeholder={t('appName')}
             className="text-sm sm:text-base"
             onKeyDown={(e) => e.key === 'Enter' && handleRename()}
           />
@@ -510,14 +522,14 @@ export function AppGallery({
               className="w-full sm:w-auto touch-manipulation"
               onClick={() => setRenameDialogId(null)}
             >
-              取消
+              {t('cancel')}
             </Button>
             <Button
               className="w-full sm:w-auto touch-manipulation"
               onClick={handleRename}
               disabled={!newName.trim()}
             >
-              确定
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -204,8 +204,7 @@ function ArenaQuickBattleComponent({
                 className="h-6 text-xs gap-1 w-full"
                 onClick={() => {
                   // Force re-render to get new recommendations
-                  const models = getSmartModelPair();
-                  console.log('Shuffled models:', models);
+                  getSmartModelPair();
                 }}
               >
                 <Shuffle className="h-3 w-3" />

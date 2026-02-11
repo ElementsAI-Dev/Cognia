@@ -5,7 +5,7 @@
  * Vertical flex container for layout
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIColumnComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../a2ui-renderer';
@@ -17,7 +17,7 @@ const alignStyles: Record<string, string> = {
   stretch: 'items-stretch',
 };
 
-export function A2UIColumn({ component }: A2UIComponentProps<A2UIColumnComponent>) {
+export const A2UIColumn = memo(function A2UIColumn({ component }: A2UIComponentProps<A2UIColumnComponent>) {
   const { children = [], gap, align = 'stretch' } = component;
 
   // Convert gap to Tailwind class or inline style
@@ -40,4 +40,4 @@ export function A2UIColumn({ component }: A2UIComponentProps<A2UIColumnComponent
       <A2UIChildRenderer childIds={children} />
     </div>
   );
-}
+});

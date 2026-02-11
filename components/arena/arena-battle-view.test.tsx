@@ -66,6 +66,8 @@ jest.mock('@/stores/arena', () => ({
     };
     return selector(state);
   },
+  selectBattleById: (battleId: string) => (state: { battles: ArenaBattle[] }) =>
+    state.battles.find((b: ArenaBattle) => b.id === battleId),
 }));
 
 // Mock UI components
@@ -153,6 +155,7 @@ jest.mock('lucide-react', () => ({
   Send: () => <span data-testid="icon-send" />,
   RotateCcw: () => <span data-testid="icon-rotate" />,
   ThumbsDown: () => <span data-testid="icon-thumbsdown" />,
+  Diff: () => <span data-testid="icon-diff" />,
 }));
 
 // Mock chat utils (MarkdownRenderer)
@@ -160,6 +163,11 @@ jest.mock('@/components/chat/utils', () => ({
   MarkdownRenderer: ({ content }: { content: string }) => (
     <div data-testid="markdown-renderer">{content}</div>
   ),
+}));
+
+// Mock ArenaDiffView
+jest.mock('@/components/arena/arena-diff-view', () => ({
+  ArenaDiffView: () => <div data-testid="arena-diff-view" />,
 }));
 
 // Mock QuickVoteBar

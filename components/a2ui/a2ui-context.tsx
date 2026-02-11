@@ -3,6 +3,14 @@
 /**
  * A2UI React Context
  * Provides A2UI surface state and actions to child components
+ *
+ * Split into two contexts for performance:
+ * - A2UIActionsContext: Stable references (actions, helpers) that rarely change
+ * - A2UIDataContext: Frequently changing data (surface, dataModel, resolvers)
+ *
+ * Use useA2UIContext() for backward compatibility (merges both).
+ * Use useA2UIActions() when you only need stable actions (avoids data re-renders).
+ * Use useA2UIData() when you only need data/resolvers.
  */
 
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
@@ -18,33 +26,38 @@ import {
 import { getCatalog, DEFAULT_CATALOG_ID } from '@/lib/a2ui/catalog';
 
 /**
- * A2UI Context value
+ * Stable actions context — references rarely change
  */
-interface A2UIContextValue {
-  // Surface state
-  surface: A2UISurfaceState | null;
+interface A2UIActionsContextValue {
   surfaceId: string;
-  dataModel: Record<string, unknown>;
-  components: Record<string, A2UIComponent>;
   catalog: A2UIComponentCatalog | undefined;
-
-  // Actions
   emitAction: (action: string, componentId: string, data?: Record<string, unknown>) => void;
   setDataValue: (path: string, value: unknown) => void;
-
-  // Resolvers for data binding
-  resolveString: (value: string | { path: string }, defaultValue?: string) => string;
-  resolveNumber: (value: number | { path: string }, defaultValue?: number) => number;
-  resolveBoolean: (value: boolean | { path: string }, defaultValue?: boolean) => boolean;
-  resolveArray: <T>(value: T[] | { path: string }, defaultValue?: T[]) => T[];
   getBindingPath: (value: unknown) => string | null;
-
-  // Component helpers
   getComponent: (componentId: string) => A2UIComponent | undefined;
   renderChild: (componentId: string) => React.ReactNode;
 }
 
-const A2UIContext = createContext<A2UIContextValue | null>(null);
+/**
+ * Data context — changes when surface data/components update
+ */
+interface A2UIDataContextValue {
+  surface: A2UISurfaceState | null;
+  dataModel: Record<string, unknown>;
+  components: Record<string, A2UIComponent>;
+  resolveString: (value: string | { path: string }, defaultValue?: string) => string;
+  resolveNumber: (value: number | { path: string }, defaultValue?: number) => number;
+  resolveBoolean: (value: boolean | { path: string }, defaultValue?: boolean) => boolean;
+  resolveArray: <T>(value: T[] | { path: string }, defaultValue?: T[]) => T[];
+}
+
+/**
+ * Combined context value (backward-compatible)
+ */
+interface A2UIContextValue extends A2UIActionsContextValue, A2UIDataContextValue {}
+
+const A2UIActionsCtx = createContext<A2UIActionsContextValue | null>(null);
+const A2UIDataCtx = createContext<A2UIDataContextValue | null>(null);
 
 /**
  * Props for A2UI Provider
@@ -134,52 +147,73 @@ export function A2UIProvider({
     [components, renderComponent]
   );
 
-  const contextValue = useMemo<A2UIContextValue>(
+  // Actions context — stable references
+  const actionsValue = useMemo<A2UIActionsContextValue>(
     () => ({
-      surface: surface ?? null,
       surfaceId,
-      dataModel,
-      components,
       catalog,
       emitAction,
       setDataValue,
-      resolveString,
-      resolveNumber,
-      resolveBoolean,
-      resolveArray,
       getBindingPath,
       getComponent,
       renderChild,
     }),
-    [
-      surface,
-      surfaceId,
+    [surfaceId, catalog, emitAction, setDataValue, getComponent, renderChild]
+  );
+
+  // Data context — changes with surface state
+  const dataValue = useMemo<A2UIDataContextValue>(
+    () => ({
+      surface: surface ?? null,
       dataModel,
       components,
-      catalog,
-      emitAction,
-      setDataValue,
       resolveString,
       resolveNumber,
       resolveBoolean,
       resolveArray,
-      getComponent,
-      renderChild,
-    ]
+    }),
+    [surface, dataModel, components, resolveString, resolveNumber, resolveBoolean, resolveArray]
   );
 
-  return <A2UIContext.Provider value={contextValue}>{children}</A2UIContext.Provider>;
+  return (
+    <A2UIActionsCtx.Provider value={actionsValue}>
+      <A2UIDataCtx.Provider value={dataValue}>{children}</A2UIDataCtx.Provider>
+    </A2UIActionsCtx.Provider>
+  );
 }
 
 /**
- * Hook to access A2UI context
+ * Hook to access stable A2UI actions (won't re-render on data changes)
  */
-export function useA2UIContext(): A2UIContextValue {
-  const context = useContext(A2UIContext);
+export function useA2UIActions(): A2UIActionsContextValue {
+  const context = useContext(A2UIActionsCtx);
   if (!context) {
-    throw new Error('useA2UIContext must be used within an A2UIProvider');
+    throw new Error('useA2UIActions must be used within an A2UIProvider');
   }
   return context;
+}
+
+/**
+ * Hook to access A2UI data and resolvers (re-renders on data changes)
+ */
+export function useA2UIData(): A2UIDataContextValue {
+  const context = useContext(A2UIDataCtx);
+  if (!context) {
+    throw new Error('useA2UIData must be used within an A2UIProvider');
+  }
+  return context;
+}
+
+/**
+ * Hook to access full A2UI context (backward-compatible, merges both contexts)
+ */
+export function useA2UIContext(): A2UIContextValue {
+  const actions = useContext(A2UIActionsCtx);
+  const data = useContext(A2UIDataCtx);
+  if (!actions || !data) {
+    throw new Error('useA2UIContext must be used within an A2UIProvider');
+  }
+  return { ...actions, ...data };
 }
 
 /**

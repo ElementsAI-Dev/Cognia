@@ -5,7 +5,7 @@
  * Renders a dynamic list of items with templates
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../a2ui-context';
@@ -35,7 +35,7 @@ function getItemDisplayText(item: unknown): string {
   return String(item);
 }
 
-export function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
+export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
   const { dataModel, renderChild } = useA2UIContext();
 
   const templateDataPath = component.template?.dataPath;
@@ -155,4 +155,4 @@ export function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListCom
       ))}
     </ul>
   );
-}
+});

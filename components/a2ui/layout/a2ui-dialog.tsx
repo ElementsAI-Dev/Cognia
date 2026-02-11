@@ -5,7 +5,7 @@
  * Modal dialog with content and actions
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -19,7 +19,7 @@ import type { A2UIComponentProps, A2UIDialogComponent } from '@/types/artifact/a
 import { useA2UIContext } from '../a2ui-context';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
-export function A2UIDialog({
+export const A2UIDialog = memo(function A2UIDialog({
   component,
   onAction,
   onDataChange,
@@ -69,4 +69,4 @@ export function A2UIDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});

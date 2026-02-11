@@ -57,6 +57,13 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
+jest.mock('@/stores/plugin', () => ({
+  usePluginMarketplaceStore: () => ({
+    favorites: {},
+    toggleFavorite: jest.fn(),
+  }),
+}));
+
 jest.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onCheckedChange, disabled }: { checked: boolean; onCheckedChange: (v: boolean) => void; disabled?: boolean }) => (
     <button 

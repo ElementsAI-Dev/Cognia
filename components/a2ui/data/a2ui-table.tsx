@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Table
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -24,7 +24,7 @@ import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 type SortDirection = 'asc' | 'desc' | null;
 
-export function A2UITable({ component, onAction, onDataChange }: A2UIComponentProps<A2UITableComponent>) {
+export const A2UITable = memo(function A2UITable({ component, onAction, onDataChange }: A2UIComponentProps<A2UITableComponent>) {
   const { dataModel } = useA2UIContext();
 
   // Resolve data - can be static array or data-bound
@@ -321,4 +321,4 @@ export function A2UITable({ component, onAction, onDataChange }: A2UIComponentPr
       )}
     </div>
   );
-}
+});

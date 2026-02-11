@@ -8,10 +8,14 @@ import { useMarketplace } from './use-marketplace';
 // Stable mock data to prevent infinite re-renders
 const STABLE_PLUGINS_STORE = { plugins: {} };
 const mockSearchPlugins = jest.fn();
+const mockCheckForUpdates = jest.fn();
+const mockClearCache = jest.fn();
 
-jest.mock('@/lib/plugin/package/marketplace', () => ({
-  PluginMarketplace: jest.fn().mockImplementation(() => ({
+jest.mock('@/lib/plugin', () => ({
+  getPluginMarketplace: jest.fn(() => ({
     searchPlugins: mockSearchPlugins,
+    checkForUpdates: mockCheckForUpdates,
+    clearCache: mockClearCache,
   })),
 }));
 
@@ -275,6 +279,41 @@ describe('useMarketplace', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
+    });
+  });
+
+  describe('checkForUpdates', () => {
+    it('should call marketplace checkForUpdates with installed plugins', async () => {
+      mockCheckForUpdates.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useMarketplace({ useMockData: true }));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      await act(async () => {
+        const updates = await result.current.checkForUpdates();
+        expect(updates).toEqual([]);
+      });
+
+      expect(mockCheckForUpdates).toHaveBeenCalled();
+    });
+  });
+
+  describe('clearCache', () => {
+    it('should call marketplace clearCache', async () => {
+      const { result } = renderHook(() => useMarketplace({ useMockData: true }));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      act(() => {
+        result.current.clearCache();
+      });
+
+      expect(mockClearCache).toHaveBeenCalled();
     });
   });
 });

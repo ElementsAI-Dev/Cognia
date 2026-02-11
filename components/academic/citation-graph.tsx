@@ -298,7 +298,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
           <ScrollArea className="h-[400px]">
             {filteredCitations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {showInfluentialOnly ? t('noCitations') : t('noCitations')}
+                {showInfluentialOnly ? t('noInfluentialCitations') : t('noCitations')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">
@@ -312,7 +312,7 @@ export function CitationGraph({ paper, onPaperClick, className }: CitationGraphP
           <ScrollArea className="h-[400px]">
             {filteredReferences.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {showInfluentialOnly ? t('noReferences') : t('noReferences')}
+                {showInfluentialOnly ? t('noInfluentialReferences') : t('noReferences')}
               </div>
             ) : (
               <div className="space-y-3 pr-4">

@@ -5,7 +5,7 @@
  * Groups form fields with validation and layout options
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../a2ui-renderer';
@@ -21,7 +21,7 @@ export interface A2UIFormGroupComponent extends A2UIBaseComponent {
   required?: boolean;
 }
 
-export function A2UIFormGroup({ component }: A2UIComponentProps<A2UIFormGroupComponent>) {
+export const A2UIFormGroup = memo(function A2UIFormGroup({ component }: A2UIComponentProps<A2UIFormGroupComponent>) {
   const layout = component.layout || 'vertical';
   const columns = component.columns || 2;
   const gap = component.gap || 4;
@@ -57,4 +57,4 @@ export function A2UIFormGroup({ component }: A2UIComponentProps<A2UIFormGroupCom
       </div>
     </fieldset>
   );
-}
+});

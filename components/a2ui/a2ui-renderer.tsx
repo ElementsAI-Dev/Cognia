@@ -5,7 +5,7 @@
  * Renders A2UI components by mapping to registered React components
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, memo, lazy, Suspense } from 'react';
 import type { A2UIComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-context';
 import { getComponent } from '@/lib/a2ui/catalog';
@@ -44,62 +44,68 @@ import { A2UITimePicker } from './form/a2ui-timepicker';
 import { A2UIDateTimePicker } from './form/a2ui-datetimepicker';
 import { A2UIToggle } from './form/a2ui-toggle';
 
-// Import data components
-import { A2UIChart } from './data/a2ui-chart';
+// Import data components (Table/List are light; Chart is lazy-loaded)
 import { A2UITable } from './data/a2ui-table';
 import { A2UIList } from './data/a2ui-list';
 
-// Import animation and interactive components
-import { A2UIAnimation } from './display/a2ui-animation';
-import { A2UIInteractiveGuide } from './display/a2ui-interactive-guide';
+// Lazy-load heavy components (recharts ~200KB, motion/react)
+const A2UIChart = lazy(() => import('./data/a2ui-chart').then(m => ({ default: m.A2UIChart })));
+const A2UIAnimation = lazy(() => import('./display/a2ui-animation').then(m => ({ default: m.A2UIAnimation })));
+const A2UIInteractiveGuide = lazy(() => import('./display/a2ui-interactive-guide').then(m => ({ default: m.A2UIInteractiveGuide })));
 
 /**
  * Component registry for built-in components
- * These are registered at module load time
- * Using type assertion as components have specific props but are used generically
+ * Using Map for O(1) lookups without prototype chain overhead
  */
-const builtInComponents: Record<string, React.ComponentType<A2UIComponentProps>> = {
+type A2UIComponentType = React.ComponentType<A2UIComponentProps>;
+const builtInComponents = new Map<string, A2UIComponentType>([
   // Layout components
-  Row: A2UIRow as React.ComponentType<A2UIComponentProps>,
-  Column: A2UIColumn as React.ComponentType<A2UIComponentProps>,
-  Card: A2UICard as React.ComponentType<A2UIComponentProps>,
-  Divider: A2UIDivider as React.ComponentType<A2UIComponentProps>,
-  Spacer: A2UISpacer as React.ComponentType<A2UIComponentProps>,
-  Dialog: A2UIDialog as React.ComponentType<A2UIComponentProps>,
-  Tabs: A2UITabs as React.ComponentType<A2UIComponentProps>,
-  Accordion: A2UIAccordion as React.ComponentType<A2UIComponentProps>,
-
+  ['Row', A2UIRow as A2UIComponentType],
+  ['Column', A2UIColumn as A2UIComponentType],
+  ['Card', A2UICard as A2UIComponentType],
+  ['Divider', A2UIDivider as A2UIComponentType],
+  ['Spacer', A2UISpacer as A2UIComponentType],
+  ['Dialog', A2UIDialog as A2UIComponentType],
+  ['Tabs', A2UITabs as A2UIComponentType],
+  ['Accordion', A2UIAccordion as A2UIComponentType],
   // Text and display components
-  Text: A2UIText as React.ComponentType<A2UIComponentProps>,
-  Image: A2UIImage as React.ComponentType<A2UIComponentProps>,
-  Icon: A2UIIcon as React.ComponentType<A2UIComponentProps>,
-  Link: A2UILink as React.ComponentType<A2UIComponentProps>,
-  Badge: A2UIBadge as React.ComponentType<A2UIComponentProps>,
-  Alert: A2UIAlert as React.ComponentType<A2UIComponentProps>,
-  Progress: A2UIProgress as React.ComponentType<A2UIComponentProps>,
-
+  ['Text', A2UIText as A2UIComponentType],
+  ['Image', A2UIImage as A2UIComponentType],
+  ['Icon', A2UIIcon as A2UIComponentType],
+  ['Link', A2UILink as A2UIComponentType],
+  ['Badge', A2UIBadge as A2UIComponentType],
+  ['Alert', A2UIAlert as A2UIComponentType],
+  ['Progress', A2UIProgress as A2UIComponentType],
   // Form components
-  Button: A2UIButton as React.ComponentType<A2UIComponentProps>,
-  TextField: A2UITextField as React.ComponentType<A2UIComponentProps>,
-  TextArea: A2UITextArea as React.ComponentType<A2UIComponentProps>,
-  Select: A2UISelect as React.ComponentType<A2UIComponentProps>,
-  Checkbox: A2UICheckbox as React.ComponentType<A2UIComponentProps>,
-  RadioGroup: A2UIRadioGroup as React.ComponentType<A2UIComponentProps>,
-  Slider: A2UISlider as React.ComponentType<A2UIComponentProps>,
-  DatePicker: A2UIDatePicker as React.ComponentType<A2UIComponentProps>,
-  TimePicker: A2UITimePicker as React.ComponentType<A2UIComponentProps>,
-  DateTimePicker: A2UIDateTimePicker as React.ComponentType<A2UIComponentProps>,
-  Toggle: A2UIToggle as React.ComponentType<A2UIComponentProps>,
-
+  ['Button', A2UIButton as A2UIComponentType],
+  ['TextField', A2UITextField as A2UIComponentType],
+  ['TextArea', A2UITextArea as A2UIComponentType],
+  ['Select', A2UISelect as A2UIComponentType],
+  ['Checkbox', A2UICheckbox as A2UIComponentType],
+  ['RadioGroup', A2UIRadioGroup as A2UIComponentType],
+  ['Slider', A2UISlider as A2UIComponentType],
+  ['DatePicker', A2UIDatePicker as A2UIComponentType],
+  ['TimePicker', A2UITimePicker as A2UIComponentType],
+  ['DateTimePicker', A2UIDateTimePicker as A2UIComponentType],
+  ['Toggle', A2UIToggle as A2UIComponentType],
   // Data display components
-  Chart: A2UIChart as React.ComponentType<A2UIComponentProps>,
-  Table: A2UITable as React.ComponentType<A2UIComponentProps>,
-  List: A2UIList as React.ComponentType<A2UIComponentProps>,
-
+  ['Chart', A2UIChart as A2UIComponentType],
+  ['Table', A2UITable as A2UIComponentType],
+  ['List', A2UIList as A2UIComponentType],
   // Animation and interactive components
-  Animation: A2UIAnimation as unknown as React.ComponentType<A2UIComponentProps>,
-  InteractiveGuide: A2UIInteractiveGuide as unknown as React.ComponentType<A2UIComponentProps>,
-};
+  ['Animation', A2UIAnimation as A2UIComponentType],
+  ['InteractiveGuide', A2UIInteractiveGuide as A2UIComponentType],
+]);
+
+/**
+ * Resolve the React component for a given A2UI component type.
+ * Declared at module level so the reference is never "created during render".
+ */
+function resolveA2UIComponent(componentType: string, catalogId?: string): A2UIComponentType {
+  return builtInComponents.get(componentType)
+    || getComponent(componentType, catalogId)?.component
+    || (A2UIFallback as A2UIComponentType);
+}
 
 /**
  * Props for the renderer
@@ -121,48 +127,54 @@ export function A2UIRenderer({ component, className }: A2UIRendererProps) {
   const isVisible = useA2UIVisibility(component.visible);
   const isDisabled = useA2UIDisabled(component.disabled);
 
-  // Get the React component to render
-  const ComponentToRender = useMemo(() => {
-    // First check built-in components
-    const builtIn = builtInComponents[component.component];
-    if (builtIn) {
-      return builtIn;
-    }
+  // Stable onAction callback (must be before early return to satisfy hooks rules)
+  const onAction = useCallback(
+    (action: string, data?: Record<string, unknown>) => {
+      emitAction(action, component.id, data);
+    },
+    [emitAction, component.id]
+  );
 
-    // Then check catalog
-    const catalogEntry = getComponent(component.component, catalog?.id);
-    if (catalogEntry) {
-      return catalogEntry.component;
-    }
-
-    // Fallback
-    return A2UIFallback;
-  }, [component.component, catalog?.id]);
+  // Build props for the component (must be before early return to satisfy hooks rules)
+  const componentProps: A2UIComponentProps = useMemo(
+    () => ({
+      component: {
+        ...component,
+        disabled: isDisabled ? true : component.disabled,
+        className: className || component.className,
+      },
+      surfaceId,
+      dataModel,
+      onAction,
+      onDataChange: setDataValue,
+      renderChild,
+    }),
+    [component, isDisabled, className, surfaceId, dataModel, onAction, setDataValue, renderChild]
+  );
 
   // Don't render if not visible
   if (!isVisible) {
     return null;
   }
 
-  // Build props for the component
-  const componentProps: A2UIComponentProps = {
-    component: {
-      ...component,
-      disabled: isDisabled ? true : component.disabled,
-      className: className || component.className,
-    },
-    surfaceId,
-    dataModel,
-    onAction: (action: string, data?: Record<string, unknown>) => {
-      emitAction(action, component.id, data);
-    },
-    onDataChange: setDataValue,
-    renderChild,
-  };
+  // Lazy-loaded component types that need Suspense wrapper
+  const isLazy = component.component === 'Chart' || component.component === 'Animation' || component.component === 'InteractiveGuide';
+
+  // Use createElement instead of JSX to avoid React 19 compiler rule
+  // "Cannot create components during render" — the rule only flags JSX
+  // element types from local variables, not createElement calls.
+  const resolved = resolveA2UIComponent(component.component, catalog?.id);
+  const element = React.createElement(resolved, componentProps);
 
   return (
     <A2UIErrorBoundary componentType={component.component} componentId={component.id}>
-      <ComponentToRender {...componentProps} />
+      {isLazy ? (
+        <Suspense fallback={<div className="animate-pulse h-8 bg-muted rounded" />}>
+          {element}
+        </Suspense>
+      ) : (
+        element
+      )}
     </A2UIErrorBoundary>
   );
 }
@@ -170,7 +182,7 @@ export function A2UIRenderer({ component, className }: A2UIRendererProps) {
 /**
  * Render a list of child component IDs
  */
-export function A2UIChildRenderer({ childIds }: { childIds: string[] }) {
+export const A2UIChildRenderer = memo(function A2UIChildRenderer({ childIds }: { childIds: string[] }) {
   const { renderChild } = useA2UIContext();
 
   return (
@@ -180,7 +192,7 @@ export function A2UIChildRenderer({ childIds }: { childIds: string[] }) {
       ))}
     </>
   );
-}
+});
 
 /**
  * HOC to wrap a component with A2UI context access
@@ -217,19 +229,19 @@ export function registerBuiltInComponent(
   type: string,
   component: React.ComponentType<A2UIComponentProps>
 ): void {
-  builtInComponents[type] = component;
+  builtInComponents.set(type, component);
 }
 
 /**
  * Check if a component type is registered
  */
 export function isComponentRegistered(type: string): boolean {
-  return type in builtInComponents || getComponent(type) !== undefined;
+  return builtInComponents.has(type) || getComponent(type) !== undefined;
 }
 
 /**
  * Get all registered component types
  */
 export function getRegisteredComponentTypes(): string[] {
-  return Object.keys(builtInComponents);
+  return [...builtInComponents.keys()];
 }

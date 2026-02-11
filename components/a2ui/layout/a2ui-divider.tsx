@@ -5,12 +5,12 @@
  * Renders a horizontal or vertical divider line
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import type { A2UIComponentProps, A2UIDividerComponent } from '@/types/artifact/a2ui';
 
-export function A2UIDivider({ component }: A2UIComponentProps<A2UIDividerComponent>) {
+export const A2UIDivider = memo(function A2UIDivider({ component }: A2UIComponentProps<A2UIDividerComponent>) {
   const orientation = component.orientation || 'horizontal';
 
   if (component.text) {
@@ -52,4 +52,4 @@ export function A2UIDivider({ component }: A2UIComponentProps<A2UIDividerCompone
       style={component.style as React.CSSProperties}
     />
   );
-}
+});

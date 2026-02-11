@@ -677,7 +677,9 @@
         "references": "References"
       },
       "noCitations": "No citations found",
-      "noReferences": "No references found"
+      "noReferences": "No references found",
+      "noInfluentialCitations": "No influential citations found",
+      "noInfluentialReferences": "No influential references found"
     },
     "paperComparison": {
       "title": "Paper Comparison",
@@ -698,7 +700,9 @@
       "openAccess": "Open Access",
       "pdfAvailable": "PDF Available",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "inReadingList": "In Reading List",
+      "userRating": "User Rating"
     },
     "paperSearch": {
       "placeholder": "Search papers by title, author, or keywords...",
@@ -800,7 +804,29 @@
       "analyze": "Analyze",
       "analyzing": "Analyzing...",
       "noAnalysis": "No analysis available yet",
-      "analyzeHint": "Click 'Analyze' to get AI-powered insights about this paper"
+      "analyzeHint": "Click 'Analyze' to get AI-powered insights about this paper",
+      "analysisTypes": {
+        "summary": "Summary",
+        "summaryDesc": "Comprehensive paper summary",
+        "key-insights": "Key Insights",
+        "key-insightsDesc": "Main takeaways and findings",
+        "methodology": "Methodology",
+        "methodologyDesc": "Research methods analysis",
+        "findings": "Findings",
+        "findingsDesc": "Results and conclusions",
+        "limitations": "Limitations",
+        "limitationsDesc": "Study limitations",
+        "future-work": "Future Work",
+        "future-workDesc": "Suggested research directions",
+        "related-work": "Related Work",
+        "related-workDesc": "Connection to other research",
+        "technical-details": "Technical Details",
+        "technical-detailsDesc": "Implementation specifics",
+        "critique": "Critical Analysis",
+        "critiqueDesc": "Strengths and weaknesses",
+        "eli5": "ELI5",
+        "eli5Desc": "Simple explanation"
+      }
     },
     "paperLibrary": {
       "collections": "Collections",
@@ -833,7 +859,9 @@
       "markAsReading": "Mark as Reading",
       "markAsCompleted": "Mark as Completed",
       "downloadPDF": "Download PDF",
-      "removeFromLibrary": "Remove from Library"
+      "removeFromLibrary": "Remove from Library",
+      "removeConfirmTitle": "Remove paper from library?",
+      "removeConfirmDescription": "This will remove the paper from your library. This action cannot be undone."
     }
   },
   "flowChat": {

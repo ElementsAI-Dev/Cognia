@@ -390,7 +390,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                             ))}
                           </TableRow>
                           <TableRow>
-                            <TableCell className="pr-4">In Reading List</TableCell>
+                            <TableCell className="pr-4">{t('inReadingList')}</TableCell>
                             {selectedPapers.map((p) => (
                               <TableCell key={p.id} className="text-center">
                                 {p.readingStatus !== 'archived' ? (
@@ -402,7 +402,7 @@ export function PaperComparison({ className }: PaperComparisonProps) {
                             ))}
                           </TableRow>
                           <TableRow>
-                            <TableCell className="pr-4">User Rating</TableCell>
+                            <TableCell className="pr-4">{t('userRating')}</TableCell>
                             {selectedPapers.map((p) => (
                               <TableCell key={p.id} className="text-center">
                                 {p.userRating ? `${p.userRating}/5` : '-'}

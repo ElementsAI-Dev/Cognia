@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { useCopy } from '@/hooks/ui';
 import { useArena } from '@/hooks/arena';
-import { useArenaStore } from '@/stores/arena';
+import { useArenaStore, selectBattleById } from '@/stores/arena';
 import { MarkdownRenderer } from '@/components/chat/utils';
 import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
 import type { ArenaContestant, ArenaWinReason } from '@/types/arena';
@@ -222,7 +222,7 @@ function ArenaInlineBattleComponent({
 
   const [isRevealing, setIsRevealing] = useState(false);
 
-  const battle = useArenaStore((state) => state.battles.find((b) => b.id === battleId));
+  const battle = useArenaStore(selectBattleById(battleId));
   const selectWinner = useArenaStore((state) => state.selectWinner);
   const declareTie = useArenaStore((state) => state.declareTie);
   const declareBothBad = useArenaStore((state) => state.declareBothBad);

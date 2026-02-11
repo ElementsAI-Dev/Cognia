@@ -25,6 +25,9 @@ import { loggers } from '@/lib/logger';
 
 const log = loggers.store;
 
+// Deduplication guard for concurrent initialize() calls
+let initPromise: Promise<void> | null = null;
+
 // Scheduler system status
 export type SchedulerStatus = 'idle' | 'running' | 'stopped';
 
@@ -69,6 +72,11 @@ interface SchedulerActions {
   loadUpcomingTasks: (limit?: number) => Promise<void>;
   refreshAll: () => Promise<void>;
   
+  // Bulk Operations
+  bulkPause: (taskIds: string[]) => Promise<number>;
+  bulkResume: (taskIds: string[]) => Promise<number>;
+  bulkDelete: (taskIds: string[]) => Promise<number>;
+
   // Maintenance
   cleanupOldExecutions: (maxAgeDays?: number) => Promise<number>;
   
@@ -323,17 +331,31 @@ export const useSchedulerStore = create<SchedulerStore>()(
       refreshAll: async () => {
         set({ isLoading: true });
         try {
-          await Promise.all([
-            get().loadTasks(),
-            get().loadStatistics(),
+          const { filter, selectedTaskId } = get();
+          
+          // Fetch all data in parallel
+          const [tasks, statistics, executions] = await Promise.all([
+            Object.keys(filter).length > 0
+              ? schedulerDb.getFilteredTasks(filter)
+              : schedulerDb.getAllTasks(),
+            schedulerDb.getStatistics(),
+            selectedTaskId
+              ? schedulerDb.getTaskExecutions(selectedTaskId, 50)
+              : Promise.resolve(get().executions),
           ]);
           
-          const { selectedTaskId } = get();
-          if (selectedTaskId) {
-            await get().loadTaskExecutions(selectedTaskId);
-          }
-        } finally {
-          set({ isLoading: false });
+          // Sort tasks by next run time
+          tasks.sort((a, b) => {
+            if (!a.nextRunAt) return 1;
+            if (!b.nextRunAt) return -1;
+            return a.nextRunAt.getTime() - b.nextRunAt.getTime();
+          });
+          
+          // Single batched state update
+          set({ tasks, statistics, executions, isLoading: false });
+        } catch (error) {
+          log.error('SchedulerStore: Refresh all failed', error as Error);
+          set({ error: 'Failed to refresh scheduler data', isLoading: false });
         }
       },
 
@@ -372,6 +394,70 @@ export const useSchedulerStore = create<SchedulerStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      // ========== Bulk Operations ==========
+
+      bulkPause: async (taskIds) => {
+        let count = 0;
+        try {
+          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          for (const taskId of taskIds) {
+            const success = await scheduler.pauseTask(taskId);
+            if (success) count++;
+          }
+          if (count > 0) {
+            log.info(`SchedulerStore: Bulk paused ${count}/${taskIds.length} tasks`);
+            await get().refreshAll();
+          }
+        } catch (error) {
+          log.error('SchedulerStore: Bulk pause failed', error as Error);
+          set({ error: 'Failed to pause tasks' });
+        }
+        return count;
+      },
+
+      bulkResume: async (taskIds) => {
+        let count = 0;
+        try {
+          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          for (const taskId of taskIds) {
+            const success = await scheduler.resumeTask(taskId);
+            if (success) count++;
+          }
+          if (count > 0) {
+            log.info(`SchedulerStore: Bulk resumed ${count}/${taskIds.length} tasks`);
+            await get().refreshAll();
+          }
+        } catch (error) {
+          log.error('SchedulerStore: Bulk resume failed', error as Error);
+          set({ error: 'Failed to resume tasks' });
+        }
+        return count;
+      },
+
+      bulkDelete: async (taskIds) => {
+        let count = 0;
+        try {
+          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          for (const taskId of taskIds) {
+            const success = await scheduler.deleteTask(taskId);
+            if (success) count++;
+          }
+          if (count > 0) {
+            log.info(`SchedulerStore: Bulk deleted ${count}/${taskIds.length} tasks`);
+            // Clear selection if selected task was deleted
+            const { selectedTaskId } = get();
+            if (selectedTaskId && taskIds.includes(selectedTaskId)) {
+              set({ selectedTaskId: null, executions: [] });
+            }
+            await get().refreshAll();
+          }
+        } catch (error) {
+          log.error('SchedulerStore: Bulk delete failed', error as Error);
+          set({ error: 'Failed to delete tasks' });
+        }
+        return count;
       },
 
       // ========== Maintenance ==========
@@ -416,22 +502,29 @@ export const useSchedulerStore = create<SchedulerStore>()(
       initialize: async () => {
         if (get().isInitialized) return;
         
-        set({ isLoading: true });
-        try {
-          // Initialize scheduler system
-          const { initSchedulerSystem } = await import('@/lib/scheduler');
-          await initSchedulerSystem();
-          
-          // Load initial data
-          await get().refreshAll();
-          
-          set({ isInitialized: true });
-        } catch (error) {
-          log.error('SchedulerStore: Initialization failed', error as Error);
-          set({ error: 'Failed to initialize scheduler' });
-        } finally {
-          set({ isLoading: false });
-        }
+        // Deduplicate concurrent calls (SchedulerInitializer + useScheduler may both call)
+        if (initPromise) return initPromise;
+        
+        initPromise = (async () => {
+          set({ isLoading: true });
+          try {
+            const { initSchedulerSystem } = await import('@/lib/scheduler');
+            await initSchedulerSystem();
+            
+            // Load initial data
+            await get().refreshAll();
+            
+            set({ isInitialized: true });
+          } catch (error) {
+            log.error('SchedulerStore: Initialization failed', error as Error);
+            set({ error: 'Failed to initialize scheduler' });
+          } finally {
+            set({ isLoading: false });
+            initPromise = null;
+          }
+        })();
+        
+        return initPromise;
       },
 
       // ========== Reset ==========
@@ -464,44 +557,46 @@ export const selectIsInitialized = (state: SchedulerStore) => state.isInitialize
 export const selectSelectedTask = (state: SchedulerStore): ScheduledTask | undefined =>
   state.tasks.find((t) => t.id === state.selectedTaskId);
 
-// Memoized selectors to avoid infinite loops from getSnapshot
-// These cache results based on the source array reference
-let _activeTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
-export const selectActiveTasks = (state: SchedulerStore): ScheduledTask[] => {
-  if (_activeTasksCache.tasks !== state.tasks) {
-    _activeTasksCache = {
-      tasks: state.tasks,
-      result: state.tasks.filter((t) => t.status === 'active'),
-    };
-  }
-  return _activeTasksCache.result;
-};
+/**
+ * Generic memoized selector factory — caches derived result based on source array reference.
+ * Returns the same result array when the source hasn't changed, preventing infinite re-render loops.
+ */
+function createDerivedSelector<TSource, TResult>(
+  getSource: (state: SchedulerStore) => TSource[],
+  derive: (source: TSource[]) => TResult[]
+): (state: SchedulerStore) => TResult[] {
+  let cachedSource: TSource[] = [];
+  let cachedResult: TResult[] = [];
+  return (state: SchedulerStore) => {
+    const source = getSource(state);
+    if (source !== cachedSource) {
+      cachedSource = source;
+      cachedResult = derive(source);
+    }
+    return cachedResult;
+  };
+}
 
-let _pausedTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
-export const selectPausedTasks = (state: SchedulerStore): ScheduledTask[] => {
-  if (_pausedTasksCache.tasks !== state.tasks) {
-    _pausedTasksCache = {
-      tasks: state.tasks,
-      result: state.tasks.filter((t) => t.status === 'paused'),
-    };
-  }
-  return _pausedTasksCache.result;
-};
+export const selectActiveTasks = createDerivedSelector(
+  (s) => s.tasks,
+  (tasks) => tasks.filter((t) => t.status === 'active')
+);
 
-let _upcomingTasksCache: { tasks: ScheduledTask[]; result: ScheduledTask[] } = { tasks: [], result: [] };
-export const selectUpcomingTasks = (state: SchedulerStore): ScheduledTask[] => {
-  if (_upcomingTasksCache.tasks !== state.tasks) {
+export const selectPausedTasks = createDerivedSelector(
+  (s) => s.tasks,
+  (tasks) => tasks.filter((t) => t.status === 'paused')
+);
+
+export const selectUpcomingTasks = createDerivedSelector(
+  (s) => s.tasks,
+  (tasks) => {
     const now = new Date();
-    _upcomingTasksCache = {
-      tasks: state.tasks,
-      result: state.tasks
-        .filter((t) => t.status === 'active' && t.nextRunAt && t.nextRunAt > now)
-        .sort((a, b) => (a.nextRunAt?.getTime() || 0) - (b.nextRunAt?.getTime() || 0))
-        .slice(0, 5),
-    };
+    return tasks
+      .filter((t) => t.status === 'active' && t.nextRunAt && t.nextRunAt > now)
+      .sort((a, b) => (a.nextRunAt?.getTime() || 0) - (b.nextRunAt?.getTime() || 0))
+      .slice(0, 5);
   }
-  return _upcomingTasksCache.result;
-};
+);
 
 export const selectRecentExecutions = (state: SchedulerStore): TaskExecution[] =>
   state.recentExecutions;

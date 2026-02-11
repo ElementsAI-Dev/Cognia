@@ -89,7 +89,7 @@ export function PluginCard({
   const isError = status === 'error';
   const isLoading = status === 'loading' || status === 'enabling' || status === 'disabling';
   const { favorites, toggleFavorite } = usePluginMarketplaceStore();
-  const isFavorite = favorites.has(manifest.id);
+  const isFavorite = !!favorites[manifest.id];
   const backgroundSettings = useSettingsStore((state) => state.backgroundSettings);
   const isBackgroundActive = backgroundSettings.enabled && backgroundSettings.source !== 'none';
 

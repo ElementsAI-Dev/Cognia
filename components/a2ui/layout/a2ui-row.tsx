@@ -5,7 +5,7 @@
  * Horizontal flex container for layout
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIRowComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../a2ui-renderer';
@@ -26,7 +26,7 @@ const justifyStyles: Record<string, string> = {
   evenly: 'justify-evenly',
 };
 
-export function A2UIRow({ component }: A2UIComponentProps<A2UIRowComponent>) {
+export const A2UIRow = memo(function A2UIRow({ component }: A2UIComponentProps<A2UIRowComponent>) {
   const { children = [], gap, align = 'center', justify = 'start', wrap = false } = component;
 
   // Convert gap to Tailwind class or inline style
@@ -51,4 +51,4 @@ export function A2UIRow({ component }: A2UIComponentProps<A2UIRowComponent>) {
       <A2UIChildRenderer childIds={children} />
     </div>
   );
-}
+});

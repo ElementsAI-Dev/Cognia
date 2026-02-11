@@ -820,8 +820,12 @@ export const useAcademicStore = create<AcademicState>()(
       batchUpdateStatus: async (paperIds, status) => {
         set({ isLoading: true, error: null });
         try {
-          for (const paperId of paperIds) {
-            await get().updatePaper(paperId, { readingStatus: status });
+          const results = await Promise.allSettled(
+            paperIds.map((paperId) => get().updatePaper(paperId, { readingStatus: status }))
+          );
+          const failures = results.filter((r) => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.error(`Batch status update: ${failures.length}/${paperIds.length} failed`);
           }
           set({ isLoading: false });
         } catch (error) {
@@ -833,8 +837,12 @@ export const useAcademicStore = create<AcademicState>()(
       batchAddToCollection: async (paperIds, collectionId) => {
         set({ isLoading: true, error: null });
         try {
-          for (const paperId of paperIds) {
-            await get().addToCollection(paperId, collectionId);
+          const results = await Promise.allSettled(
+            paperIds.map((paperId) => get().addToCollection(paperId, collectionId))
+          );
+          const failures = results.filter((r) => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.error(`Batch add to collection: ${failures.length}/${paperIds.length} failed`);
           }
           set({ isLoading: false });
         } catch (error) {
@@ -846,8 +854,12 @@ export const useAcademicStore = create<AcademicState>()(
       batchRemoveFromLibrary: async (paperIds) => {
         set({ isLoading: true, error: null });
         try {
-          for (const paperId of paperIds) {
-            await get().removeFromLibrary(paperId);
+          const results = await Promise.allSettled(
+            paperIds.map((paperId) => get().removeFromLibrary(paperId))
+          );
+          const failures = results.filter((r) => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.error(`Batch remove: ${failures.length}/${paperIds.length} failed`);
           }
           set((state) => ({
             library: { ...state.library, selectedPaperIds: [] },

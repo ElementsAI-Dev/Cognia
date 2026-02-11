@@ -1,6 +1,8 @@
 /**
  * Plugin Marketplace Store
- * Persists favorites, recently viewed, install progress, and user preferences
+ * Persists favorites, recently viewed, install progress, and user preferences.
+ * 
+ * Uses plain objects (Record/Array) instead of Map/Set for robust JSON serialization.
  */
 
 import { create } from 'zustand';
@@ -19,8 +21,8 @@ interface UserReview {
 }
 
 interface PluginMarketplaceState {
-  // Favorites
-  favorites: Set<string>;
+  // Favorites (stored as Record for native JSON serialization)
+  favorites: Record<string, true>;
   toggleFavorite: (pluginId: string) => void;
   isFavorite: (pluginId: string) => boolean;
   getFavoriteIds: () => string[];
@@ -30,15 +32,15 @@ interface PluginMarketplaceState {
   addRecentlyViewed: (pluginId: string) => void;
   clearRecentlyViewed: () => void;
 
-  // Install progress tracking
-  installProgress: Map<string, InstallProgressInfo>;
+  // Install progress tracking (not persisted — transient state)
+  installProgress: Record<string, InstallProgressInfo>;
   setInstallProgress: (pluginId: string, progress: InstallProgressInfo) => void;
   clearInstallProgress: (pluginId: string) => void;
   getInstallProgress: (pluginId: string) => InstallProgressInfo | undefined;
   isInstalling: (pluginId: string) => boolean;
 
   // User reviews
-  userReviews: Map<string, UserReview>;
+  userReviews: Record<string, UserReview>;
   submitReview: (pluginId: string, rating: number, content: string) => void;
   getUserReview: (pluginId: string) => UserReview | undefined;
 
@@ -70,23 +72,23 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
   persist(
     (set, get) => ({
       // Favorites
-      favorites: new Set<string>(),
+      favorites: {},
 
       toggleFavorite: (pluginId) => {
         set((state) => {
-          const next = new Set(state.favorites);
-          if (next.has(pluginId)) {
-            next.delete(pluginId);
+          const next = { ...state.favorites };
+          if (next[pluginId]) {
+            delete next[pluginId];
           } else {
-            next.add(pluginId);
+            next[pluginId] = true;
           }
           return { favorites: next };
         });
       },
 
-      isFavorite: (pluginId) => get().favorites.has(pluginId),
+      isFavorite: (pluginId) => !!get().favorites[pluginId],
 
-      getFavoriteIds: () => Array.from(get().favorites),
+      getFavoriteIds: () => Object.keys(get().favorites),
 
       // Recently viewed
       recentlyViewed: [],
@@ -102,50 +104,49 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
 
       clearRecentlyViewed: () => set({ recentlyViewed: [] }),
 
-      // Install progress
-      installProgress: new Map(),
+      // Install progress (transient, not persisted)
+      installProgress: {},
 
       setInstallProgress: (pluginId, progress) => {
-        set((state) => {
-          const next = new Map(state.installProgress);
-          next.set(pluginId, progress);
-          return { installProgress: next };
-        });
+        set((state) => ({
+          installProgress: { ...state.installProgress, [pluginId]: progress },
+        }));
       },
 
       clearInstallProgress: (pluginId) => {
         set((state) => {
-          const next = new Map(state.installProgress);
-          next.delete(pluginId);
+          const next = { ...state.installProgress };
+          delete next[pluginId];
           return { installProgress: next };
         });
       },
 
-      getInstallProgress: (pluginId) => get().installProgress.get(pluginId),
+      getInstallProgress: (pluginId) => get().installProgress[pluginId],
 
       isInstalling: (pluginId) => {
-        const progress = get().installProgress.get(pluginId);
+        const progress = get().installProgress[pluginId];
         if (!progress) return false;
         return !['idle', 'complete', 'error'].includes(progress.stage);
       },
 
       // User reviews
-      userReviews: new Map(),
+      userReviews: {},
 
       submitReview: (pluginId, rating, content) => {
-        set((state) => {
-          const next = new Map(state.userReviews);
-          next.set(pluginId, {
-            pluginId,
-            rating,
-            content,
-            date: new Date().toISOString().split('T')[0],
-          });
-          return { userReviews: next };
-        });
+        set((state) => ({
+          userReviews: {
+            ...state.userReviews,
+            [pluginId]: {
+              pluginId,
+              rating,
+              content,
+              date: new Date().toISOString().split('T')[0],
+            },
+          },
+        }));
       },
 
-      getUserReview: (pluginId) => get().userReviews.get(pluginId),
+      getUserReview: (pluginId) => get().userReviews[pluginId],
 
       // Search history
       searchHistory: [],
@@ -169,10 +170,10 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
       // Reset
       reset: () =>
         set({
-          favorites: new Set(),
+          favorites: {},
           recentlyViewed: [],
-          installProgress: new Map(),
-          userReviews: new Map(),
+          installProgress: {},
+          userReviews: {},
           searchHistory: [],
           viewMode: 'grid',
         }),
@@ -181,29 +182,13 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
       name: 'cognia-plugin-marketplace',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        favorites: Array.from(state.favorites),
+        favorites: state.favorites,
         recentlyViewed: state.recentlyViewed,
-        userReviews: Array.from(state.userReviews.entries()),
+        userReviews: state.userReviews,
         searchHistory: state.searchHistory,
         viewMode: state.viewMode,
+        // installProgress is intentionally excluded (transient state)
       }),
-      merge: (persisted, current) => {
-        const persistedState = persisted as {
-          favorites?: string[];
-          recentlyViewed?: string[];
-          userReviews?: [string, UserReview][];
-          searchHistory?: string[];
-          viewMode?: 'grid' | 'list';
-        };
-        return {
-          ...current,
-          favorites: new Set(persistedState?.favorites || []),
-          recentlyViewed: persistedState?.recentlyViewed || [],
-          userReviews: new Map(persistedState?.userReviews || []),
-          searchHistory: persistedState?.searchHistory || [],
-          viewMode: persistedState?.viewMode || 'grid',
-        };
-      },
     }
   )
 );
@@ -212,12 +197,13 @@ export const usePluginMarketplaceStore = create<PluginMarketplaceState>()(
 // Selectors
 // =============================================================================
 
-export const selectFavoriteCount = (state: PluginMarketplaceState) => state.favorites.size;
+export const selectFavoriteCount = (state: PluginMarketplaceState) =>
+  Object.keys(state.favorites).length;
 
 export const selectIsInstalling = (pluginId: string) => (state: PluginMarketplaceState) =>
   state.isInstalling(pluginId);
 
 export const selectInstallStage = (pluginId: string) => (state: PluginMarketplaceState): InstallStage => {
-  const progress = state.installProgress.get(pluginId);
+  const progress = state.installProgress[pluginId];
   return progress?.stage || 'idle';
 };

@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Scale, Trophy, Grid3X3, History, Zap, Settings } from 'lucide-react';
+import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,15 @@ import {
   ArenaDialog,
   ArenaBattleView,
   ArenaQuickBattle,
+  ArenaErrorBoundary,
+  ArenaStats,
 } from '@/components/arena';
-import { useArenaStore } from '@/stores/arena';
+import {
+  useArenaStore,
+  selectActiveBattleId,
+  selectTotalBattleCount,
+  selectCompletedBattleCount,
+} from '@/stores/arena';
 import { useArena } from '@/hooks/arena';
 import Link from 'next/link';
 
@@ -32,13 +39,11 @@ export default function ArenaPage() {
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
   const [quickPrompt, setQuickPrompt] = useState('');
 
-  const battles = useArenaStore((state) => state.battles);
-  const activeBattleId = useArenaStore((state) => state.activeBattleId);
+  const totalBattles = useArenaStore(selectTotalBattleCount);
+  const completedBattleCount = useArenaStore(selectCompletedBattleCount);
+  const activeBattleId = useArenaStore(selectActiveBattleId);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
   const { continueTurn, canContinue } = useArena();
-
-  const completedBattles = battles.filter((b) => b.winnerId || b.isTie);
-  const totalBattles = battles.length;
 
   const currentBattleId = selectedBattleId || activeBattleId;
 
@@ -63,7 +68,7 @@ export default function ArenaPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="secondary">{t('battlesCount', { count: totalBattles })}</Badge>
-            <Badge variant="outline">{t('completedCount', { count: completedBattles.length })}</Badge>
+            <Badge variant="outline">{t('completedCount', { count: completedBattleCount })}</Badge>
           </div>
           <Button onClick={() => setShowArenaDialog(true)} className="gap-2">
             <Zap className="h-4 w-4" />
@@ -97,6 +102,10 @@ export default function ArenaPage() {
               <History className="h-4 w-4" />
               {t('history.title')}
             </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              {t('stats.title', { fallback: 'Stats' })}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="battle" className="h-[calc(100%-60px)]">
@@ -123,17 +132,29 @@ export default function ArenaPage() {
           </TabsContent>
 
           <TabsContent value="leaderboard" className="h-[calc(100%-60px)]">
-            <ArenaLeaderboard />
+            <ArenaErrorBoundary sectionName="Leaderboard">
+              <ArenaLeaderboard />
+            </ArenaErrorBoundary>
           </TabsContent>
 
           <TabsContent value="heatmap" className="h-[calc(100%-60px)]">
-            <ArenaHeatmap />
+            <ArenaErrorBoundary sectionName="Heatmap">
+              <ArenaHeatmap />
+            </ArenaErrorBoundary>
           </TabsContent>
 
           <TabsContent value="history" className="h-[calc(100%-60px)]">
-            <ArenaHistory
-              onViewBattle={(battleId) => setSelectedBattleId(battleId)}
-            />
+            <ArenaErrorBoundary sectionName="History">
+              <ArenaHistory
+                onViewBattle={(battleId) => setSelectedBattleId(battleId)}
+              />
+            </ArenaErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="stats" className="h-[calc(100%-60px)]">
+            <ArenaErrorBoundary sectionName="Stats">
+              <ArenaStats />
+            </ArenaErrorBoundary>
           </TabsContent>
         </Tabs>
       </div>

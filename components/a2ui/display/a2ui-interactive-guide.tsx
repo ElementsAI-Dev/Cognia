@@ -128,7 +128,7 @@ export const A2UIInteractiveGuide = memo(function A2UIInteractiveGuide({
   component,
   onAction,
   renderChild,
-}: A2UIComponentProps<A2UIInteractiveGuideComponentDef>) {
+}: A2UIComponentProps) {
   const { dataModel } = useA2UIContext();
   const t = useTranslations('learning.guide');
   const prefersReducedMotion = useReducedMotion();

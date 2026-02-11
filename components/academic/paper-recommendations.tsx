@@ -4,7 +4,7 @@
  * PaperRecommendations - Suggest related papers based on library
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Lightbulb,
@@ -24,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 import type { Paper } from '@/types/learning/academic';
 import {
   scoreRecommendations,
@@ -69,11 +70,27 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
       try {
         await addToLibrary(paper);
       } catch (error) {
-        console.error('Failed to add paper:', error);
+        toast({ type: 'error', title: 'Failed to add paper', description: error instanceof Error ? error.message : String(error) });
       }
     },
     [addToLibrary]
   );
+
+  // Auto-search on mount to fix cold start (#10)
+  useEffect(() => {
+    if (libraryPapers.length > 0 && searchResults.length === 0 && !isRefreshing) {
+      const topics = new Set<string>();
+      libraryPapers.forEach((paper) => {
+        paper.fieldsOfStudy?.forEach((field) => topics.add(field));
+        paper.keywords?.forEach((kw) => topics.add(kw));
+      });
+      const topTopic = Array.from(topics)[0];
+      if (topTopic) {
+        search(topTopic).catch(() => {});
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryPapers.length]);
 
   const handleRefresh = useCallback(async () => {
     if (libraryPapers.length === 0) return;
@@ -93,7 +110,7 @@ export function PaperRecommendations({ className }: PaperRecommendationsProps) {
         await search(topTopics[0]);
       }
     } catch (error) {
-      console.error('Failed to refresh recommendations:', error);
+      toast({ type: 'error', title: 'Failed to refresh recommendations', description: error instanceof Error ? error.message : String(error) });
     } finally {
       setIsRefreshing(false);
     }

@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Select
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Select,
@@ -19,7 +19,7 @@ import type { A2UIComponentProps, A2UISelectComponent, A2UISelectOption } from '
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath, resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
-export function A2UISelect({ component, onDataChange }: A2UIComponentProps<A2UISelectComponent>) {
+export const A2UISelect = memo(function A2UISelect({ component, onDataChange }: A2UIComponentProps<A2UISelectComponent>) {
   const { resolveString, resolveBoolean, dataModel } = useA2UIContext();
 
   const value = resolveString(component.value, '');
@@ -72,4 +72,4 @@ export function A2UISelect({ component, onDataChange }: A2UIComponentProps<A2UIS
       )}
     </div>
   );
-}
+});

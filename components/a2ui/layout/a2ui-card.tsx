@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Card
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -19,7 +19,7 @@ import type { A2UIComponentProps, A2UICardComponent } from '@/types/artifact/a2u
 import { useA2UIContext } from '../a2ui-context';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
-export function A2UICard({ component, onAction }: A2UIComponentProps<A2UICardComponent>) {
+export const A2UICard = memo(function A2UICard({ component, onAction }: A2UIComponentProps<A2UICardComponent>) {
   const { resolveString, resolveBoolean } = useA2UIContext();
 
   const title = component.title ? resolveString(component.title, '') : '';
@@ -72,4 +72,4 @@ export function A2UICard({ component, onAction }: A2UIComponentProps<A2UICardCom
       )}
     </Card>
   );
-}
+});

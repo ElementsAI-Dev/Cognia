@@ -224,46 +224,77 @@ class SchedulerDatabase extends Dexie {
     cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
     const cutoffStr = cutoffDate.toISOString();
 
-    const oldExecutions = await this.executions.filter((e) => e.startedAt < cutoffStr).toArray();
+    // Use indexed startedAt for efficient range query
+    const oldIds = await this.executions
+      .where('startedAt')
+      .below(cutoffStr)
+      .primaryKeys();
 
-    await this.executions.bulkDelete(oldExecutions.map((e) => e.id));
+    if (oldIds.length > 0) {
+      await this.executions.bulkDelete(oldIds);
+    }
 
-    return oldExecutions.length;
+    return oldIds.length;
   }
 
   // ========== Statistics ==========
 
   /**
-   * Get task statistics
+   * Get task statistics — uses indexed counts to avoid loading all records into memory
    */
   async getStatistics(): Promise<TaskStatistics> {
-    const allTasks = await this.tasks.toArray();
-    const allExecutions = await this.executions.toArray();
     const now = new Date().toISOString();
 
-    const activeTasks = allTasks.filter((t) => t.status === 'active');
-    const pausedTasks = allTasks.filter((t) => t.status === 'paused');
-    const successfulExecutions = allExecutions.filter((e) => e.status === 'completed');
-    const failedExecutions = allExecutions.filter((e) => e.status === 'failed');
-    const upcomingExecutions = activeTasks.filter(
-      (t) => t.nextRunAt !== undefined && t.nextRunAt > now
-    );
+    // Use indexed count queries instead of loading full arrays
+    const [
+      totalTasks,
+      activeTaskCount,
+      pausedTaskCount,
+      totalExecutions,
+      successfulCount,
+      failedCount,
+    ] = await Promise.all([
+      this.tasks.count(),
+      this.tasks.where('status').equals('active').count(),
+      this.tasks.where('status').equals('paused').count(),
+      this.executions.count(),
+      this.executions.where('status').equals('completed').count(),
+      this.executions.where('status').equals('failed').count(),
+    ]);
 
-    // Calculate average duration
-    const completedWithDuration = allExecutions.filter((e) => e.duration !== undefined);
-    const totalDuration = completedWithDuration.reduce((sum, e) => sum + (e.duration || 0), 0);
-    const averageDuration =
-      completedWithDuration.length > 0 ? totalDuration / completedWithDuration.length : 0;
+    // Count upcoming tasks using compound index
+    const upcomingCount = await this.tasks
+      .where('status')
+      .equals('active')
+      .filter((t) => t.nextRunAt !== undefined && t.nextRunAt > now)
+      .count();
+
+    // Calculate average duration — only load durations, not full records
+    let averageDuration = 0;
+    let durationCount = 0;
+    let durationSum = 0;
+    await this.executions
+      .where('status')
+      .equals('completed')
+      .each((e) => {
+        if (e.duration !== undefined) {
+          durationSum += e.duration;
+          durationCount++;
+        }
+      });
+    if (durationCount > 0) {
+      averageDuration = Math.round(durationSum / durationCount);
+    }
 
     return {
-      totalTasks: allTasks.length,
-      activeTasks: activeTasks.length,
-      pausedTasks: pausedTasks.length,
-      totalExecutions: allExecutions.length,
-      successfulExecutions: successfulExecutions.length,
-      failedExecutions: failedExecutions.length,
-      averageDuration: Math.round(averageDuration),
-      upcomingExecutions: upcomingExecutions.length,
+      totalTasks,
+      activeTasks: activeTaskCount,
+      pausedTasks: pausedTaskCount,
+      totalExecutions,
+      successfulExecutions: successfulCount,
+      failedExecutions: failedCount,
+      averageDuration,
+      upcomingExecutions: upcomingCount,
     };
   }
 

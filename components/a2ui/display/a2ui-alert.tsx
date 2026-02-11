@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Alert
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
@@ -31,7 +31,7 @@ const variantStyles = {
   destructive: '',
 };
 
-export function A2UIAlert({ component, onAction }: A2UIComponentProps<A2UIAlertComponent>) {
+export const A2UIAlert = memo(function A2UIAlert({ component, onAction }: A2UIComponentProps<A2UIAlertComponent>) {
   const { resolveString } = useA2UIContext();
 
   const title = component.title ? resolveString(component.title, '') : '';
@@ -75,4 +75,4 @@ export function A2UIAlert({ component, onAction }: A2UIComponentProps<A2UIAlertC
       )}
     </Alert>
   );
-}
+});

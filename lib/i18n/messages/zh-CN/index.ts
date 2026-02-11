@@ -48,6 +48,7 @@ import agentTeamSettings from './agentTeamSettings.json';
 import keyboardShortcuts from './keyboardShortcuts.json';
 import map from './map.json';
 import search from './search.json';
+import a2ui from './a2ui.json';
 
 const messages = {
   ...common,
@@ -97,6 +98,7 @@ const messages = {
   ...keyboardShortcuts,
   map,
   search,
+  a2ui,
 };
 
 export default messages;

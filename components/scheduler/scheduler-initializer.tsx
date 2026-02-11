@@ -1,49 +1,49 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
-import { initSchedulerSystem, stopSchedulerSystem } from '@/lib/scheduler';
+import { stopSchedulerSystem } from '@/lib/scheduler';
 import { useSchedulerStore } from '@/stores/scheduler';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.ui;
 
 /**
  * SchedulerInitializer Component
  *
  * Initializes the task scheduler system on app startup and handles graceful shutdown.
+ * Delegates to the store's initialize() to avoid duplicate initialization paths.
  * Should be placed in the app providers to ensure scheduler runs throughout the app lifecycle.
  */
 export function SchedulerInitializer() {
-  const hasInitialized = useRef(false);
+  const initialize = useSchedulerStore((state) => state.initialize);
+  const isInitialized = useSchedulerStore((state) => state.isInitialized);
   const setSchedulerStatus = useSchedulerStore((state) => state.setSchedulerStatus);
 
   useEffect(() => {
-    if (hasInitialized.current) return;
+    if (isInitialized) return;
 
-    const initialize = async () => {
-      hasInitialized.current = true;
-
-      try {
-        await initSchedulerSystem();
-        setSchedulerStatus?.('running');
-        console.log('[SchedulerInitializer] Scheduler system initialized');
-      } catch (error) {
-        console.error('[SchedulerInitializer] Failed to initialize scheduler:', error);
-        setSchedulerStatus?.('stopped');
-      }
-    };
-
-    initialize();
+    initialize()
+      .then(() => {
+        setSchedulerStatus('running');
+        log.info('[SchedulerInitializer] Scheduler system initialized');
+      })
+      .catch((error) => {
+        log.error('[SchedulerInitializer] Failed to initialize scheduler:', error);
+        setSchedulerStatus('stopped');
+      });
 
     // Cleanup on component unmount
     return () => {
       try {
         stopSchedulerSystem();
-        setSchedulerStatus?.('stopped');
-        console.log('[SchedulerInitializer] Scheduler system stopped');
+        setSchedulerStatus('stopped');
+        log.info('[SchedulerInitializer] Scheduler system stopped');
       } catch (error) {
-        console.error('[SchedulerInitializer] Error stopping scheduler:', error);
+        log.error('[SchedulerInitializer] Error stopping scheduler:', error as Error);
       }
     };
-  }, [setSchedulerStatus]);
+  }, [initialize, isInitialized, setSchedulerStatus]);
 
   // Handle beforeunload for graceful shutdown
   useEffect(() => {
@@ -51,7 +51,7 @@ export function SchedulerInitializer() {
       try {
         stopSchedulerSystem();
       } catch (error) {
-        console.error('[SchedulerInitializer] Error on beforeunload:', error);
+        log.error('[SchedulerInitializer] Error on beforeunload:', error as Error);
       }
     };
 

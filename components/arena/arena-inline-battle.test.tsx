@@ -155,6 +155,8 @@ jest.mock('@/stores/arena', () => ({
     };
     return typeof selector === 'function' ? selector(state) : state;
   }),
+  selectBattleById: (battleId: string) => (state: { battles: Array<{ id: string }> }) =>
+    state.battles.find((b: { id: string }) => b.id === battleId),
 }));
 
 describe('ArenaInlineBattle', () => {

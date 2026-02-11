@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Accordion for collapsible content sections
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Accordion,
@@ -16,7 +16,7 @@ import {
 import type { A2UIComponentProps, A2UIAccordionComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
-export function A2UIAccordion({ component }: A2UIComponentProps<A2UIAccordionComponent>) {
+export const A2UIAccordion = memo(function A2UIAccordion({ component }: A2UIComponentProps<A2UIAccordionComponent>) {
   const defaultOpenItems = component.items
     .filter((item) => item.defaultOpen)
     .map((item) => item.id);
@@ -59,4 +59,4 @@ export function A2UIAccordion({ component }: A2UIComponentProps<A2UIAccordionCom
       ))}
     </Accordion>
   );
-}
+});

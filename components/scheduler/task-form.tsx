@@ -114,8 +114,15 @@ export function TaskForm({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [cronError, setCronError] = useState<string | null>(null);
   const [payloadError, setPayloadError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
   const [notificationTestResult, setNotificationTestResult] = useState<{ channel: string; success: boolean; error?: string } | null>(null);
   const [isTestingNotification, setIsTestingNotification] = useState(false);
+
+  // Validation constants
+  const MAX_NAME_LENGTH = 100;
+  const MIN_INTERVAL_MINUTES = 1;
+  const MAX_PAYLOAD_SIZE = 64 * 1024; // 64KB
 
   // Validate cron expression
   const handleCronChange = useCallback((value: string) => {
@@ -171,20 +178,37 @@ export function TaskForm({
 
   // Validate and submit
   const handleSubmit = async () => {
+    let hasErrors = false;
+
     // Validate name
-    if (!name.trim()) {
-      return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError(t('nameRequired') || 'Task name is required');
+      hasErrors = true;
+    } else if (trimmedName.length > MAX_NAME_LENGTH) {
+      setNameError(t('nameTooLong') || `Name must be ${MAX_NAME_LENGTH} characters or less`);
+      hasErrors = true;
+    } else {
+      setNameError(null);
     }
 
-    // Validate payload JSON
+    // Validate payload JSON and size
     let payload: Record<string, unknown> = {};
     try {
       payload = JSON.parse(payloadJson);
-      setPayloadError(null);
+      if (payloadJson.length > MAX_PAYLOAD_SIZE) {
+        setPayloadError(t('payloadTooLarge') || 'Payload exceeds 64KB limit');
+        hasErrors = true;
+      } else {
+        setPayloadError(null);
+      }
     } catch {
-      setPayloadError('Invalid JSON');
-      return;
+      setPayloadError(t('invalidJson') || 'Invalid JSON');
+      hasErrors = true;
     }
+
+    // Validate trigger-specific fields
+    setTriggerError(null);
 
     // Build trigger
     const trigger: CreateScheduledTaskInput['trigger'] = {
@@ -194,24 +218,44 @@ export function TaskForm({
 
     switch (triggerType) {
       case 'cron':
-        if (cronError) return;
+        if (cronError) {
+          hasErrors = true;
+        }
         trigger.cronExpression = cronExpression;
         break;
       case 'interval':
+        if (intervalMinutes < MIN_INTERVAL_MINUTES) {
+          setTriggerError(t('intervalTooShort') || `Interval must be at least ${MIN_INTERVAL_MINUTES} minute(s)`);
+          hasErrors = true;
+        }
         trigger.intervalMs = intervalMinutes * 60 * 1000;
         break;
       case 'once':
-        if (runAtDate && runAtTime) {
-          trigger.runAt = new Date(`${runAtDate}T${runAtTime}`);
+        if (!runAtDate || !runAtTime) {
+          setTriggerError(t('dateTimeRequired') || 'Date and time are required');
+          hasErrors = true;
+        } else {
+          const runAt = new Date(`${runAtDate}T${runAtTime}`);
+          if (runAt <= new Date()) {
+            setTriggerError(t('dateInPast') || 'Scheduled time must be in the future');
+            hasErrors = true;
+          }
+          trigger.runAt = runAt;
         }
         break;
       case 'event':
+        if (!eventType.trim()) {
+          setTriggerError(t('eventTypeRequired') || 'Event type is required');
+          hasErrors = true;
+        }
         trigger.eventType = eventType;
         break;
     }
 
+    if (hasErrors) return;
+
     const input: CreateScheduledTaskInput = {
-      name: name.trim(),
+      name: trimmedName,
       description: description.trim() || undefined,
       type: taskType,
       trigger,
@@ -255,10 +299,20 @@ export function TaskForm({
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setNameError(null); }}
               placeholder={t('taskNamePlaceholder') || 'Enter task name'}
-              className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
+              maxLength={MAX_NAME_LENGTH}
+              className={cn(
+                'h-10 transition-all focus:ring-2 focus:ring-primary/20',
+                nameError && 'border-destructive focus:ring-destructive/20'
+              )}
             />
+            {nameError && (
+              <p className="text-xs text-destructive">{nameError}</p>
+            )}
+            {name.length > MAX_NAME_LENGTH * 0.8 && (
+              <p className="text-xs text-muted-foreground">{name.length}/{MAX_NAME_LENGTH}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -458,11 +512,16 @@ export function TaskForm({
               <Label className="text-sm">{t('eventType') || 'Event Type'}</Label>
               <Input
                 value={eventType}
-                onChange={(e) => setEventType(e.target.value)}
+                onChange={(e) => { setEventType(e.target.value); setTriggerError(null); }}
                 placeholder="e.g., message.created, workflow.completed"
                 className="h-10 transition-all focus:ring-2 focus:ring-primary/20"
               />
             </div>
+          )}
+
+          {/* Trigger validation error */}
+          {triggerError && (
+            <p className="text-xs text-destructive">{triggerError}</p>
           )}
         </div>
       </div>

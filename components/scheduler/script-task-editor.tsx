@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Play, Settings2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function ScriptTaskEditor({
   onTest,
   disabled = false,
 }: ScriptTaskEditorProps) {
+  const t = useTranslations('scheduler');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [validation, setValidation] = useState<{
     valid: boolean;
@@ -79,14 +81,14 @@ export function ScriptTaskEditor({
     <div className="space-y-4">
       {/* Language selector */}
       <div className="space-y-2">
-        <Label>脚本语言 / Script Language</Label>
+        <Label>{t('scriptLanguage') || 'Script Language'}</Label>
         <Select
           value={value.language}
           onValueChange={handleLanguageChange}
           disabled={disabled}
         >
           <SelectTrigger>
-            <SelectValue placeholder="选择语言 / Select language" />
+            <SelectValue placeholder={t('selectLanguage') || 'Select language'} />
           </SelectTrigger>
           <SelectContent>
             {SCRIPT_LANGUAGES.map((lang) => (
@@ -104,7 +106,7 @@ export function ScriptTaskEditor({
       {/* Code editor */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>脚本代码 / Script Code</Label>
+          <Label>{t('scriptCode') || 'Script Code'}</Label>
           {onTest && (
             <Button
               type="button"
@@ -114,7 +116,7 @@ export function ScriptTaskEditor({
               disabled={disabled || !value.code.trim()}
             >
               <Play className="mr-1 h-3 w-3" />
-              测试 / Test
+              {t('test') || 'Test'}
             </Button>
           )}
         </div>
@@ -150,9 +152,9 @@ export function ScriptTaskEditor({
         <CardHeader className="p-3 pb-0">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <CardTitle className="text-sm font-medium">沙盒执行 / Sandbox Execution</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('sandboxExecution') || 'Sandbox Execution'}</CardTitle>
               <CardDescription className="text-xs">
-                在隔离环境中运行脚本（更安全）/ Run script in isolated environment (safer)
+                {t('sandboxDescription') || 'Run script in isolated environment (safer)'}
               </CardDescription>
             </div>
             <Switch
@@ -169,14 +171,14 @@ export function ScriptTaskEditor({
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="w-full justify-start">
             <Settings2 className="mr-2 h-4 w-4" />
-            高级设置 / Advanced Settings
+            {t('advancedSettings') || 'Advanced Settings'}
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-4">
           {/* Timeout */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>超时时间 (秒) / Timeout (seconds)</Label>
+              <Label>{t('timeoutSeconds') || 'Timeout (seconds)'}</Label>
               <Input
                 type="number"
                 value={value.timeout_secs ?? DEFAULT_SCRIPT_SETTINGS.timeout_secs}
@@ -191,7 +193,7 @@ export function ScriptTaskEditor({
 
             {/* Memory limit */}
             <div className="space-y-2">
-              <Label>内存限制 (MB) / Memory Limit (MB)</Label>
+              <Label>{t('memoryLimitMB') || 'Memory Limit (MB)'}</Label>
               <Input
                 type="number"
                 value={value.memory_mb ?? DEFAULT_SCRIPT_SETTINGS.memory_mb}
@@ -207,18 +209,18 @@ export function ScriptTaskEditor({
 
           {/* Working directory */}
           <div className="space-y-2">
-            <Label>工作目录 / Working Directory</Label>
+            <Label>{t('workingDirectory') || 'Working Directory'}</Label>
             <Input
               value={value.working_dir || ''}
               onChange={(e) => handleSettingChange('working_dir', e.target.value || undefined)}
-              placeholder="(可选) 脚本执行目录 / (Optional) Script execution directory"
+              placeholder={t('workingDirPlaceholder') || '(Optional) Script execution directory'}
               disabled={disabled}
             />
           </div>
 
           {/* Arguments */}
           <div className="space-y-2">
-            <Label>命令行参数 / Command Line Arguments</Label>
+            <Label>{t('commandLineArgs') || 'Command Line Arguments'}</Label>
             <Input
               value={(value.args || []).join(' ')}
               onChange={(e) =>
@@ -231,7 +233,7 @@ export function ScriptTaskEditor({
               disabled={disabled}
             />
             <p className="text-muted-foreground text-xs">
-              空格分隔的参数列表 / Space-separated list of arguments
+              {t('argsDescription') || 'Space-separated list of arguments'}
             </p>
           </div>
         </CollapsibleContent>

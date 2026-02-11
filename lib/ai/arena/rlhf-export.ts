@@ -186,6 +186,7 @@ export function exportBattles(
     includeTies = false,
     minResponseLength = 10,
     filterCategory,
+    dateRange,
   } = options;
 
   // Filter battles
@@ -199,6 +200,14 @@ export function exportBattles(
     // Check category filter
     if (filterCategory && b.taskClassification?.category !== filterCategory) {
       return false;
+    }
+
+    // Check date range filter
+    if (dateRange) {
+      const battleTime = b.createdAt.getTime();
+      if (battleTime < dateRange.start || battleTime > dateRange.end) {
+        return false;
+      }
     }
 
     // Check for valid result
@@ -227,6 +236,7 @@ export function exportBattles(
       break;
 
     case 'openai':
+    case 'openai-comparison':
       data = battlesToOpenAIComparison(filteredBattles, { includeTies });
       break;
 

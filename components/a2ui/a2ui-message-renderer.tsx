@@ -5,7 +5,7 @@
  * Detects and renders A2UI content within chat messages
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
 import { detectA2UIContent, extractA2UIFromResponse } from '@/lib/a2ui/parser';
@@ -34,7 +34,8 @@ export function A2UIMessageRenderer({
   onAction,
   onDataChange,
 }: A2UIMessageRendererProps) {
-  const { extractAndProcess, getSurface } = useA2UI({ onAction, onDataChange });
+  const { processMessages, getSurface } = useA2UI({ onAction, onDataChange });
+  const processedContentRef = useRef<string | null>(null);
 
   // Detect if content has A2UI
   const hasA2UI = useMemo(() => detectA2UIContent(content), [content]);
@@ -65,12 +66,13 @@ export function A2UIMessageRenderer({
     return text.trim();
   }, [content, hasA2UI]);
 
-  // Process the A2UI messages when detected
+  // Process the A2UI messages when detected (using already-parsed result)
   useEffect(() => {
-    if (a2uiResult) {
-      extractAndProcess(content);
+    if (a2uiResult && content !== processedContentRef.current) {
+      processedContentRef.current = content;
+      processMessages(a2uiResult.messages);
     }
-  }, [a2uiResult, content, extractAndProcess]);
+  }, [a2uiResult, content, processMessages]);
 
   // Generate a surface ID based on message ID
   const surfaceId = a2uiResult?.surfaceId || `msg-${messageId}`;

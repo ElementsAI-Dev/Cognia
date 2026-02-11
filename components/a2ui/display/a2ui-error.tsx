@@ -5,7 +5,7 @@
  * Displays error states with retry functionality
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ export interface A2UIErrorComponent extends A2UIBaseComponent {
   variant?: 'inline' | 'card' | 'fullpage';
 }
 
-export function A2UIError({ component, onAction }: A2UIComponentProps<A2UIErrorComponent>) {
+export const A2UIError = memo(function A2UIError({ component, onAction }: A2UIComponentProps<A2UIErrorComponent>) {
   const variant = component.variant || 'inline';
 
   const handleRetry = () => {
@@ -114,4 +114,4 @@ export function A2UIError({ component, onAction }: A2UIComponentProps<A2UIErrorC
       {content}
     </div>
   );
-}
+});

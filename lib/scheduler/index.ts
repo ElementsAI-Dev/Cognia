@@ -3,9 +3,14 @@
  * Exports all scheduler-related functions and types
  */
 
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
+
 // Core scheduler
 export {
   getTaskScheduler,
+  createTaskScheduler,
   initTaskScheduler,
   stopTaskScheduler,
   registerTaskExecutor,
@@ -49,6 +54,15 @@ export {
   getSupportedLanguages,
 } from './script-executor';
 
+// Errors
+export { SchedulerError, type SchedulerErrorCode } from './errors';
+
+// Tab lock (multi-tab leader election)
+export { isLeaderTab, startLeaderElection, stopLeaderElection, onLeaderChange, getTabId } from './tab-lock';
+
+// Format utilities
+export { formatDuration, formatRelativeTime, formatNextRun } from './format-utils';
+
 // Event Integration
 export {
   emitSchedulerEvent,
@@ -72,7 +86,7 @@ export async function initSchedulerSystem(): Promise<void> {
   // Initialize the scheduler
   await initTaskScheduler();
   
-  console.info('[Scheduler] Scheduler system initialized');
+  log.info('[Scheduler] Scheduler system initialized');
 }
 
 /**
@@ -82,5 +96,5 @@ export async function initSchedulerSystem(): Promise<void> {
 export async function stopSchedulerSystem(): Promise<void> {
   const { stopTaskScheduler } = await import('./task-scheduler');
   stopTaskScheduler();
-  console.info('[Scheduler] Scheduler system stopped');
+  log.info('[Scheduler] Scheduler system stopped');
 }

@@ -39,6 +39,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { ScheduledTask, TaskExecution, TaskExecutionStatus } from '@/types/scheduler';
 import { describeCronExpression, getNextCronTimes, matchesCronExpression } from '@/lib/scheduler/cron-parser';
+import { formatDuration } from '@/lib/scheduler/format-utils';
 
 interface TaskDetailsProps {
   task: ScheduledTask;
@@ -115,13 +116,6 @@ export function TaskDetails({
     }
     return false;
   }, [task.trigger]);
-
-  const formatDuration = (ms: number | undefined): string => {
-    if (!ms) return '-';
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
-  };
 
   return (
     <div className="flex flex-col h-full">

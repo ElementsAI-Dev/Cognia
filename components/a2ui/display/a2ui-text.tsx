@@ -5,7 +5,7 @@
  * Renders text with various styling options
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UITextComponent } from '@/types/artifact/a2ui';
 import { useA2UIContext } from '../a2ui-context';
@@ -27,7 +27,7 @@ const alignStyles: Record<string, string> = {
   right: 'text-right',
 };
 
-export function A2UIText({ component }: A2UIComponentProps<A2UITextComponent>) {
+export const A2UIText = memo(function A2UIText({ component }: A2UIComponentProps<A2UITextComponent>) {
   const { resolveString } = useA2UIContext();
 
   const text = resolveString(component.text, '');
@@ -53,4 +53,4 @@ export function A2UIText({ component }: A2UIComponentProps<A2UITextComponent>) {
   };
 
   return getElement();
-}
+});

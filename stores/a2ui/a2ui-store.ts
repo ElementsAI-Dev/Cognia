@@ -35,11 +35,11 @@ interface A2UIState {
   eventHistory: (A2UIUserAction | A2UIDataModelChange)[];
   maxEventHistory: number;
 
-  // Loading states
-  loadingSurfaces: Set<string>;
+  // Loading states (Record instead of Set for JSON serialization compatibility)
+  loadingSurfaces: Record<string, true>;
 
-  // Streaming state
-  streamingSurfaces: Set<string>;
+  // Streaming state (Record instead of Set for JSON serialization compatibility)
+  streamingSurfaces: Record<string, true>;
 
   // Error tracking
   errors: Record<string, string>;
@@ -101,8 +101,8 @@ const initialState: A2UIState = {
   activeSurfaceId: null,
   eventHistory: [],
   maxEventHistory: 100,
-  loadingSurfaces: new Set(),
-  streamingSurfaces: new Set(),
+  loadingSurfaces: {},
+  streamingSurfaces: {},
   errors: {},
 };
 
@@ -110,8 +110,8 @@ const initialState: A2UIState = {
  * A2UI Store
  */
 export const useA2UIStore = create<A2UIState & A2UIActions>()(
-  persist(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector(
+  persist((set, get) => ({
     ...initialState,
 
     // Surface lifecycle
@@ -140,13 +140,12 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
       set((state) => {
         const { [surfaceId]: _, ...remainingSurfaces } = state.surfaces;
         const { [surfaceId]: __, ...remainingErrors } = state.errors;
-        const newLoadingSurfaces = new Set(state.loadingSurfaces);
-        newLoadingSurfaces.delete(surfaceId);
+        const { [surfaceId]: ___, ...remainingLoading } = state.loadingSurfaces;
 
         return {
           surfaces: remainingSurfaces,
           errors: remainingErrors,
-          loadingSurfaces: newLoadingSurfaces,
+          loadingSurfaces: remainingLoading,
           activeSurfaceId:
             state.activeSurfaceId === surfaceId
               ? (Object.keys(remainingSurfaces)[0] ?? null)
@@ -308,13 +307,11 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
 
     setSurfaceStreaming: (surfaceId, streaming) => {
       set((state) => {
-        const next = new Set(state.streamingSurfaces);
         if (streaming) {
-          next.add(surfaceId);
-        } else {
-          next.delete(surfaceId);
+          return { streamingSurfaces: { ...state.streamingSurfaces, [surfaceId]: true as const } };
         }
-        return { streamingSurfaces: next };
+        const { [surfaceId]: _, ...rest } = state.streamingSurfaces;
+        return { streamingSurfaces: rest };
       });
     },
 
@@ -351,8 +348,7 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
         const surface = state.surfaces[surfaceId];
         if (!surface) return state;
 
-        const newLoadingSurfaces = new Set(state.loadingSurfaces);
-        newLoadingSurfaces.delete(surfaceId);
+        const { [surfaceId]: _, ...remainingLoading } = state.loadingSurfaces;
 
         return {
           surfaces: {
@@ -363,20 +359,18 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
               updatedAt: Date.now(),
             },
           },
-          loadingSurfaces: newLoadingSurfaces,
+          loadingSurfaces: remainingLoading,
         };
       });
     },
 
     setSurfaceLoading: (surfaceId, loading) => {
       set((state) => {
-        const newLoadingSurfaces = new Set(state.loadingSurfaces);
         if (loading) {
-          newLoadingSurfaces.add(surfaceId);
-        } else {
-          newLoadingSurfaces.delete(surfaceId);
+          return { loadingSurfaces: { ...state.loadingSurfaces, [surfaceId]: true as const } };
         }
-        return { loadingSurfaces: newLoadingSurfaces };
+        const { [surfaceId]: _, ...rest } = state.loadingSurfaces;
+        return { loadingSurfaces: rest };
       });
     },
 
@@ -407,14 +401,13 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
     reset: () => {
       set(initialState);
     },
-  })),
-  {
+  }), {
     name: 'cognia-a2ui-surfaces',
     partialize: (state) => ({
       surfaces: state.surfaces,
       activeSurfaceId: state.activeSurfaceId,
     }),
-  }
+  })
   )
 );
 
@@ -433,7 +426,7 @@ export const selectSurfaceDataModel = (surfaceId: string) => (state: A2UIState) 
   state.surfaces[surfaceId]?.dataModel ?? {};
 
 export const selectIsSurfaceLoading = (surfaceId: string) => (state: A2UIState) =>
-  state.loadingSurfaces.has(surfaceId);
+  surfaceId in state.loadingSurfaces;
 
 export const selectSurfaceError = (surfaceId: string) => (state: A2UIState) =>
   state.errors[surfaceId];
@@ -444,4 +437,4 @@ export const selectRecentEvents = (count: number) => (state: A2UIState) =>
   state.eventHistory.slice(0, count);
 
 export const selectIsSurfaceStreaming = (surfaceId: string) => (state: A2UIState) =>
-  state.streamingSurfaces.has(surfaceId);
+  surfaceId in state.streamingSurfaces;

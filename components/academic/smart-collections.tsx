@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 
 interface SmartCollectionRule {
   id: string;
@@ -151,14 +152,13 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             rule.color
           );
 
-          // Add matching papers
-          for (const paper of libraryPapers) {
-            if (rule.criteria(paper)) {
-              await addToCollection(paper.id, collection.id);
-            }
-          }
+          // Add matching papers in parallel
+          const matchingPapers = libraryPapers.filter((paper) => rule.criteria(paper));
+          await Promise.allSettled(
+            matchingPapers.map((paper) => addToCollection(paper.id, collection.id))
+          );
         } catch {
-          console.error(`Failed to create collection for ${rule.name}`);
+          toast({ type: 'error', title: `Failed to create collection for ${rule.name}` });
         }
 
         completed++;
@@ -174,13 +174,13 @@ export function SmartCollections({ className }: SmartCollectionsProps) {
             '#6b7280'
           );
 
-          for (const paper of libraryPapers) {
-            if (paper.fieldsOfStudy?.includes(topic)) {
-              await addToCollection(paper.id, collection.id);
-            }
-          }
+          // Add matching papers in parallel
+          const matchingPapers = libraryPapers.filter((paper) => paper.fieldsOfStudy?.includes(topic));
+          await Promise.allSettled(
+            matchingPapers.map((paper) => addToCollection(paper.id, collection.id))
+          );
         } catch {
-          console.error(`Failed to create collection for ${topic}`);
+          toast({ type: 'error', title: `Failed to create collection for ${topic}` });
         }
 
         completed++;

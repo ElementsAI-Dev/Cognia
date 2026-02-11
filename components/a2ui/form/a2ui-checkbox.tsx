@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Checkbox
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import type { A2UIComponentProps, A2UICheckboxComponent } from '@/types/artifact
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UICheckbox({ component, onDataChange }: A2UIComponentProps<A2UICheckboxComponent>) {
+export const A2UICheckbox = memo(function A2UICheckbox({ component, onDataChange }: A2UIComponentProps<A2UICheckboxComponent>) {
   const { resolveBoolean } = useA2UIContext();
 
   const checked = resolveBoolean(component.checked, false);
@@ -57,4 +57,4 @@ export function A2UICheckbox({ component, onDataChange }: A2UIComponentProps<A2U
       )}
     </div>
   );
-}
+});

@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ScheduledTask, ScheduledTaskType, ScheduledTaskStatus } from '@/types/scheduler';
+import { formatNextRun } from '@/lib/scheduler/format-utils';
 
 interface TaskListProps {
   tasks: ScheduledTask[];
@@ -103,29 +104,10 @@ export function TaskList({
 }: TaskListProps) {
   const t = useTranslations('scheduler');
 
-  const formatNextRun = (date: Date | undefined): string => {
-    if (!date) return t('noSchedule') || 'No schedule';
-
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-
-    if (diff < 0) return t('overdue') || 'Overdue';
-    if (diff < 60000) return t('lessThanMinute') || '< 1 min';
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `${minutes}m`;
-    }
-    if (diff < 86400000) {
-      const hours = Math.floor(diff / 3600000);
-      return `${hours}h`;
-    }
-
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const nextRunLabels = {
+    noSchedule: t('noSchedule') || 'No schedule',
+    overdue: t('overdue') || 'Overdue',
+    lessThanMinute: t('lessThanMinute') || '< 1 min',
   };
 
   const sortedTasks = useMemo(() => {
@@ -213,7 +195,7 @@ export function TaskList({
                       <TooltipTrigger asChild>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {formatNextRun(task.nextRunAt)}
+                          {formatNextRun(task.nextRunAt, nextRunLabels)}
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">

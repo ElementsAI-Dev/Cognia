@@ -5,7 +5,7 @@
  * Maps to shadcn/ui Tabs for tabbed content
  */
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { A2UIComponentProps, A2UITabsComponent } from '@/types/artifact/a2ui';
@@ -13,7 +13,7 @@ import { useA2UIContext } from '../a2ui-context';
 import { resolveStringOrPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
-export function A2UITabs({ component, onAction }: A2UIComponentProps<A2UITabsComponent>) {
+export const A2UITabs = memo(function A2UITabs({ component, onAction }: A2UIComponentProps<A2UITabsComponent>) {
   const { dataModel } = useA2UIContext();
 
   const activeTabFromData = component.activeTab
@@ -51,4 +51,4 @@ export function A2UITabs({ component, onAction }: A2UIComponentProps<A2UITabsCom
       ))}
     </Tabs>
   );
-}
+});

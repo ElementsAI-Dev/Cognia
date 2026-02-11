@@ -5,12 +5,12 @@
  * Renders when component type is unknown or not registered
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { AlertTriangle } from 'lucide-react';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
-export function A2UIFallback({ component }: A2UIComponentProps<A2UIBaseComponent>) {
+export const A2UIFallback = memo(function A2UIFallback({ component }: A2UIComponentProps<A2UIBaseComponent>) {
   return (
     <div
       className={cn(
@@ -25,4 +25,4 @@ export function A2UIFallback({ component }: A2UIComponentProps<A2UIBaseComponent
       </span>
     </div>
   );
-}
+});

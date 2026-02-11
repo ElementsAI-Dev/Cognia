@@ -56,8 +56,8 @@ export function A2UISurface({
   loadingText = 'Loading...',
 }: A2UISurfaceContainerProps) {
   const surface = useA2UIStore((state) => state.surfaces[surfaceId]);
-  const isLoading = useA2UIStore((state) => state.loadingSurfaces.has(surfaceId));
-  const isStreaming = useA2UIStore((state) => state.streamingSurfaces.has(surfaceId));
+  const isLoading = useA2UIStore((state) => surfaceId in state.loadingSurfaces);
+  const isStreaming = useA2UIStore((state) => surfaceId in state.streamingSurfaces);
   const error = useA2UIStore((state) => state.errors[surfaceId]);
 
   // Subscribe to events
@@ -188,18 +188,41 @@ export function A2UIDialogSurface({
   onDataChange,
 }: A2UISurfaceProps) {
   const deleteSurface = useA2UIStore((state) => state.deleteSurface);
+  const surface = useA2UIStore((state) => state.surfaces[surfaceId]);
+
+  const handleClose = useCallback(() => {
+    deleteSurface(surfaceId);
+  }, [surfaceId, deleteSurface]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
-        deleteSurface(surfaceId);
+        handleClose();
       }
     },
-    [surfaceId, deleteSurface]
+    [handleClose]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleClose();
+      }
+    },
+    [handleClose]
   );
 
   return (
-    <div className={cn(surfaceStyles.dialog, className)} onClick={handleBackdropClick}>
+    <div
+      className={cn(surfaceStyles.dialog, className)}
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-label={surface?.title || 'A2UI Dialog'}
+      tabIndex={-1}
+    >
       <div className={contentStyles.dialog}>
         <A2UISurface surfaceId={surfaceId} onAction={onAction} onDataChange={onDataChange} />
       </div>

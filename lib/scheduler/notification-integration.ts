@@ -168,29 +168,48 @@ function sendToastNotification(title: string, body: string, eventType: TaskEvent
 }
 
 /**
- * Send webhook notification
+ * Send webhook notification with retry and timeout
  */
 async function sendWebhookNotification(
   url: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+  const MAX_RETRIES = 3;
+  const BASE_DELAY = 1000; // 1s
+  const TIMEOUT_MS = 10000; // 10s
 
-    if (!response.ok) {
-      throw new Error(`Webhook responded with status ${response.status}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        throw new Error(`Webhook responded with status ${response.status}`);
+      }
+
+      log.debug(`Webhook notification sent to: ${url}`);
+      return;
+    } catch (error) {
+      clearTimeout(timer);
+
+      if (attempt === MAX_RETRIES) {
+        log.error(`Failed to send webhook notification to ${url} after ${MAX_RETRIES + 1} attempts:`, error);
+        throw error;
+      }
+
+      const delay = BASE_DELAY * Math.pow(2, attempt) + Math.random() * 500;
+      log.warn(`Webhook attempt ${attempt + 1} failed for ${url}, retrying in ${Math.round(delay)}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-
-    log.debug(`Webhook notification sent to: ${url}`);
-  } catch (error) {
-    log.error(`Failed to send webhook notification to ${url}:`, error);
-    throw error;
   }
 }
 

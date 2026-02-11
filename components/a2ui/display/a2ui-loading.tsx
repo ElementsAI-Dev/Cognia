@@ -5,7 +5,7 @@
  * Displays loading states with various styles
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
@@ -29,7 +29,7 @@ const textSizeClasses = {
   lg: 'text-base',
 };
 
-export function A2UILoading({ component }: A2UIComponentProps<A2UILoadingComponent>) {
+export const A2UILoading = memo(function A2UILoading({ component }: A2UIComponentProps<A2UILoadingComponent>) {
   const size = component.size || 'md';
   const variant = component.variant || 'spinner';
 
@@ -92,4 +92,4 @@ export function A2UILoading({ component }: A2UIComponentProps<A2UILoadingCompone
       )}
     </div>
   );
-}
+});

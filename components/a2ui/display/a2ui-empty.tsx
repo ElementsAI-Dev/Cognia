@@ -5,7 +5,7 @@
  * Displays empty state with optional action
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Inbox, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ export interface A2UIEmptyComponent extends A2UIBaseComponent {
   action?: string;
 }
 
-export function A2UIEmpty({ component, onAction }: A2UIComponentProps<A2UIEmptyComponent>) {
+export const A2UIEmpty = memo(function A2UIEmpty({ component, onAction }: A2UIComponentProps<A2UIEmptyComponent>) {
   const handleAction = () => {
     if (component.action) {
       onAction(component.action, {});
@@ -58,4 +58,4 @@ export function A2UIEmpty({ component, onAction }: A2UIComponentProps<A2UIEmptyC
       )}
     </div>
   );
-}
+});

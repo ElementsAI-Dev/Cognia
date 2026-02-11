@@ -5,7 +5,7 @@
  * Combined date and time selection
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import type { A2UIComponentProps, A2UIDateTimePickerComponent } from '@/types/ar
 import { useA2UIContext } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
-export function A2UIDateTimePicker({
+export const A2UIDateTimePicker = memo(function A2UIDateTimePicker({
   component,
   onDataChange,
 }: A2UIComponentProps<A2UIDateTimePickerComponent>) {
@@ -62,4 +62,4 @@ export function A2UIDateTimePicker({
       </div>
     </div>
   );
-}
+});

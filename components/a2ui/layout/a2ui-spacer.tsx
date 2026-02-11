@@ -5,11 +5,11 @@
  * Renders empty space for layout purposes
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UISpacerComponent } from '@/types/artifact/a2ui';
 
-export function A2UISpacer({ component }: A2UIComponentProps<A2UISpacerComponent>) {
+export const A2UISpacer = memo(function A2UISpacer({ component }: A2UIComponentProps<A2UISpacerComponent>) {
   const size = component.size || 16;
   const sizeValue = typeof size === 'number' ? `${size}px` : size;
 
@@ -26,4 +26,4 @@ export function A2UISpacer({ component }: A2UIComponentProps<A2UISpacerComponent
       aria-hidden="true"
     />
   );
-}
+});

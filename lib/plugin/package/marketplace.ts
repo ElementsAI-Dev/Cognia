@@ -7,6 +7,8 @@
 import type { PluginManifest } from '@/types/plugin';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '../core/logger';
+import { satisfiesConstraint } from './dependency-resolver';
+import { isTauri } from '@/lib/utils';
 
 // =============================================================================
 // Types
@@ -124,6 +126,8 @@ const DEFAULT_CONFIG: MarketplaceConfig = {
 /**
  * Plugin Marketplace Client
  */
+const MAX_CACHE_SIZE = 100;
+
 export class PluginMarketplace {
   private config: MarketplaceConfig;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
@@ -282,8 +286,7 @@ export class PluginMarketplace {
           if (!depPlugin) {
             missing.push(depId);
           } else {
-            // Simple version check - in production would use semver
-            if (!this.isVersionCompatible(depVersion, depPlugin.latestVersion)) {
+            if (!satisfiesConstraint(depPlugin.latestVersion, depVersion)) {
               conflicts.push({
                 pluginId: depId,
                 required: depVersion,
@@ -401,37 +404,34 @@ export class PluginMarketplace {
         message: `Downloading ${plugin.name} v${targetVersion.version}...`,
       });
 
-      // Download plugin
-      // In a real implementation, this would download and install the plugin
-      // For now, we simulate the process
-      await this.simulateDownload(pluginId);
+      // Use Tauri backend for real installation in desktop environment
+      if (isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
 
-      this.emitProgress({
-        pluginId,
-        stage: 'extracting',
-        progress: 60,
-        message: 'Extracting plugin files...',
-      });
+        this.emitProgress({
+          pluginId,
+          stage: 'installing',
+          progress: 50,
+          message: `Installing ${plugin.name}...`,
+        });
 
-      await this.delay(500);
+        const pluginDir = await invoke<string>('plugin_get_directory');
+        await invoke('plugin_install', {
+          source: pluginId,
+          installType: 'marketplace',
+          pluginDir,
+        });
 
-      this.emitProgress({
-        pluginId,
-        stage: 'installing',
-        progress: 80,
-        message: 'Installing plugin...',
-      });
-
-      await this.delay(500);
-
-      this.emitProgress({
-        pluginId,
-        stage: 'configuring',
-        progress: 90,
-        message: 'Configuring plugin...',
-      });
-
-      await this.delay(300);
+        this.emitProgress({
+          pluginId,
+          stage: 'configuring',
+          progress: 90,
+          message: 'Configuring plugin...',
+        });
+      } else {
+        // Web environment: notify that installation requires the desktop app
+        loggers.marketplace.warn('Plugin installation requires the Cognia desktop app');
+      }
 
       this.emitProgress({
         pluginId,
@@ -500,34 +500,14 @@ export class PluginMarketplace {
   }
 
   private setCache(key: string, data: unknown) {
+    // Evict oldest entries when cache exceeds max size
+    if (this.cache.size >= MAX_CACHE_SIZE) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  private isVersionCompatible(required: string, available: string): boolean {
-    // Simple version comparison - in production would use semver
-    // For now, just check if available version is >= required
-    const reqParts = required.replace(/[^0-9.]/g, '').split('.').map(Number);
-    const avaParts = available.replace(/[^0-9.]/g, '').split('.').map(Number);
-
-    for (let i = 0; i < Math.max(reqParts.length, avaParts.length); i++) {
-      const req = reqParts[i] || 0;
-      const ava = avaParts[i] || 0;
-      if (ava > req) return true;
-      if (ava < req) return false;
-    }
-    return true;
-  }
-
-  private async simulateDownload(_pluginId: string): Promise<void> {
-    // Simulate download with progress
-    for (let i = 0; i < 3; i++) {
-      await this.delay(200);
-    }
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 }
 
 // =============================================================================
