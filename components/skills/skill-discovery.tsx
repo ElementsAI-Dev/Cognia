@@ -273,7 +273,7 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
   const {
     discoverable,
     isDiscovering,
-    isSyncing: _isSyncing,
+    isSyncing: _isSyncing, // Used for future sync status indicator
     syncError,
     discoverFromRepos,
     installFromRepo,

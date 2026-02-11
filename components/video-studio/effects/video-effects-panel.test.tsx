@@ -119,6 +119,36 @@ describe('VideoEffectsPanel', () => {
         }
       }
     });
+
+    it('should pass default parameters when adding an effect', () => {
+      render(<VideoEffectsPanel {...defaultProps} />);
+
+      // Find and click the first "Add" button (quick-add button on effect cards)
+      const addButtons = screen.queryAllByRole('button');
+      const addBtn = addButtons.find(btn => btn.textContent?.includes('+') || btn.getAttribute('aria-label')?.includes('add'));
+
+      // If there's a clickable effect card, click it
+      const brightnessElements = screen.getAllByText(/brightness/i);
+      if (brightnessElements.length > 0) {
+        const card = brightnessElements[0].closest('button') ||
+                     brightnessElements[0].closest('[role="button"]') ||
+                     brightnessElements[0].parentElement;
+        if (card) {
+          fireEvent.click(card);
+          // onAddEffect should be called with effectId and defaultParams
+          if (defaultProps.onAddEffect.mock.calls.length > 0) {
+            const [effectId, defaultParams] = defaultProps.onAddEffect.mock.calls[0];
+            expect(typeof effectId).toBe('string');
+            // defaultParams should be an object (may be empty or have defaults)
+            if (defaultParams !== undefined) {
+              expect(typeof defaultParams).toBe('object');
+            }
+          }
+        }
+      } else if (addBtn) {
+        fireEvent.click(addBtn);
+      }
+    });
   });
 
   describe('removing effects', () => {

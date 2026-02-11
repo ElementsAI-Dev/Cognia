@@ -118,7 +118,7 @@ export function CollaborationPanel({
             <Users className="h-5 w-5" />
             {t('collaboration')}
             <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 text-yellow-600 border-yellow-400">
-              Experimental
+              {t('experimental')}
             </Badge>
           </SheetTitle>
         </SheetHeader>
@@ -226,6 +226,7 @@ interface ParticipantItemProps {
 }
 
 function ParticipantItem({ participant }: ParticipantItemProps) {
+  const t = useTranslations('canvas');
   const initials = participant.name
     .split(' ')
     .map((n) => n[0])
@@ -249,10 +250,10 @@ function ParticipantItem({ participant }: ParticipantItemProps) {
           {participant.isOnline ? (
             <span className="flex items-center gap-1">
               <Circle className="h-2 w-2 fill-green-500 text-green-500" />
-              Online
+              {t('online')}
             </span>
           ) : (
-            'Offline'
+            t('offline')
           )}
         </p>
       </div>
@@ -260,4 +261,3 @@ function ParticipantItem({ participant }: ParticipantItemProps) {
   );
 }
 
-export default CollaborationPanel;

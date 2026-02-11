@@ -22,8 +22,8 @@ describe('Tour Configurations', () => {
     it('has required properties for each step', () => {
       chatTourSteps.forEach((step) => {
         expect(step.id).toBeDefined();
-        expect(step.title).toBeDefined();
-        expect(step.description).toBeDefined();
+        expect(step.titleKey).toBeDefined();
+        expect(step.descriptionKey).toBeDefined();
       });
     });
 
@@ -51,8 +51,8 @@ describe('Tour Configurations', () => {
     it('has required properties for each step', () => {
       settingsTourSteps.forEach((step) => {
         expect(step.id).toBeDefined();
-        expect(step.title).toBeDefined();
-        expect(step.description).toBeDefined();
+        expect(step.titleKey).toBeDefined();
+        expect(step.descriptionKey).toBeDefined();
       });
     });
 
@@ -81,8 +81,8 @@ describe('Tour Configurations', () => {
     it('has required properties for each step', () => {
       projectsTourSteps.forEach((step) => {
         expect(step.id).toBeDefined();
-        expect(step.title).toBeDefined();
-        expect(step.description).toBeDefined();
+        expect(step.titleKey).toBeDefined();
+        expect(step.descriptionKey).toBeDefined();
       });
     });
 
@@ -102,8 +102,8 @@ describe('Tour Configurations', () => {
     it('has required properties for each step', () => {
       designerTourSteps.forEach((step) => {
         expect(step.id).toBeDefined();
-        expect(step.title).toBeDefined();
-        expect(step.description).toBeDefined();
+        expect(step.titleKey).toBeDefined();
+        expect(step.descriptionKey).toBeDefined();
       });
     });
 
@@ -124,8 +124,8 @@ describe('Tour Configurations', () => {
     it('has required properties for each step', () => {
       academicTourSteps.forEach((step) => {
         expect(step.id).toBeDefined();
-        expect(step.title).toBeDefined();
-        expect(step.description).toBeDefined();
+        expect(step.titleKey).toBeDefined();
+        expect(step.descriptionKey).toBeDefined();
       });
     });
 

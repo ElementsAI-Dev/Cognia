@@ -7,6 +7,46 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AcademicAnalysisPanel } from './academic-analysis-panel';
 import type { PaperAnalysisType } from '@/types/learning/academic';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+// Mock lucide-react with forwardRef components (needed for Radix UI Slot compatibility)
+jest.mock('lucide-react', () => {
+  const createIcon = (name: string) => {
+    const IconComponent = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
+      <svg ref={ref} data-testid={`icon-${name}`} {...props} />
+    ));
+    IconComponent.displayName = name;
+    return IconComponent;
+  };
+  return {
+    Brain: createIcon('brain'), Copy: createIcon('copy'), Check: createIcon('check'),
+    CheckIcon: createIcon('check-icon'), RefreshCw: createIcon('refresh'),
+    MessageSquare: createIcon('message'), ChevronDown: createIcon('chevron-down'),
+    ChevronDownIcon: createIcon('chevron-down-icon'), ChevronUpIcon: createIcon('chevron-up-icon'),
+    Lightbulb: createIcon('lightbulb'), BookOpen: createIcon('book-open'),
+  };
+});
+
+// Mock Collapsible to avoid Radix Primitive.span.SlotClone issues
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+  CollapsibleTrigger: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
+  CollapsibleContent: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+}));
+
+// Mock ScrollArea
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+}));
+
+// Mock clipboard API
+Object.assign(navigator, {
+  clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
+});
+
 describe('AcademicAnalysisPanel', () => {
   const defaultProps = {
     paperTitle: 'Test Paper',
@@ -80,13 +120,15 @@ describe('AcademicAnalysisPanel', () => {
       }
     });
 
-    it('should call onCopy when copy button is clicked', () => {
+    it('should call onCopy when copy button is clicked', async () => {
       const onCopy = jest.fn();
       render(<AcademicAnalysisPanel {...defaultProps} onCopy={onCopy} />);
       
       const copyButton = screen.queryByRole('button', { name: /copy/i });
       if (copyButton) {
         fireEvent.click(copyButton);
+        // Wait for async clipboard.writeText to resolve
+        await new Promise(process.nextTick);
         expect(onCopy).toHaveBeenCalledWith('This is the analysis content.');
       }
     });

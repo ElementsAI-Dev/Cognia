@@ -276,7 +276,7 @@ export const usePresetStore = create<PresetState>()(
 
       getRecentPresets: (limit = 5) => {
         return [...get().presets]
-          .filter((p) => p.lastUsedAt)
+          .filter((p) => p.lastUsedAt instanceof Date && !isNaN(p.lastUsedAt.getTime()))
           .sort((a, b) => (b.lastUsedAt?.getTime() || 0) - (a.lastUsedAt?.getTime() || 0))
           .slice(0, limit);
       },
@@ -302,27 +302,36 @@ export const usePresetStore = create<PresetState>()(
     {
       name: 'cognia-presets',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        presets: state.presets.map((p) => ({
-          ...p,
-          createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
-          updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : p.updatedAt,
-          lastUsedAt: p.lastUsedAt
-            ? p.lastUsedAt instanceof Date
-              ? p.lastUsedAt.toISOString()
-              : p.lastUsedAt
-            : undefined,
-        })),
-        selectedPresetId: state.selectedPresetId,
-        isInitialized: state.isInitialized,
-      }),
+      partialize: (state) => {
+        const safeDateToISO = (d: Date | string | undefined): string | undefined => {
+          if (!d) return undefined;
+          if (d instanceof Date) {
+            return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+          }
+          return d as string;
+        };
+        return {
+          presets: state.presets.map((p) => ({
+            ...p,
+            createdAt: safeDateToISO(p.createdAt) ?? new Date().toISOString(),
+            updatedAt: safeDateToISO(p.updatedAt) ?? new Date().toISOString(),
+            lastUsedAt: safeDateToISO(p.lastUsedAt),
+          })),
+          selectedPresetId: state.selectedPresetId,
+          isInitialized: state.isInitialized,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         if (state?.presets) {
+          const safeDate = (v: unknown): Date => {
+            const d = new Date(v as string | number);
+            return isNaN(d.getTime()) ? new Date() : d;
+          };
           state.presets = state.presets.map((p) => ({
             ...p,
-            createdAt: new Date(p.createdAt),
-            updatedAt: new Date(p.updatedAt),
-            lastUsedAt: p.lastUsedAt ? new Date(p.lastUsedAt) : undefined,
+            createdAt: safeDate(p.createdAt),
+            updatedAt: safeDate(p.updatedAt),
+            lastUsedAt: p.lastUsedAt ? safeDate(p.lastUsedAt) : undefined,
           }));
         }
       },

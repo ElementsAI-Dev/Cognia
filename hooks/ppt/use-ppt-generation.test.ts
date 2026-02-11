@@ -19,6 +19,12 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   }),
+  useWorkflowStore: jest.fn((selector) => {
+    const state = {
+      addPresentation: jest.fn(),
+    };
+    return selector(state);
+  }),
 }));
 
 const mockLoadPresentation = jest.fn();
@@ -29,6 +35,30 @@ jest.mock('@/stores/tools/ppt-editor-store', () => ({
     };
     return selector(state);
   }),
+}));
+
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (params) return `${key} ${JSON.stringify(params)}`;
+    return key;
+  },
+}));
+
+// Mock ppt-ai-config
+jest.mock('@/lib/ai/utils/ppt-ai-config', () => ({
+  resolvePPTAIConfig: jest.fn(() => ({
+    provider: 'openai',
+    model: 'gpt-4o',
+    apiKey: 'test-api-key',
+    baseURL: undefined,
+  })),
+  createPPTModelInstance: jest.fn(() => 'mock-model-instance'),
+}));
+
+// Mock generateText from 'ai'
+jest.mock('ai', () => ({
+  generateText: jest.fn(),
 }));
 
 // Mock generation prompts

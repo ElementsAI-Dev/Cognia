@@ -3,6 +3,8 @@
  */
 
 export { useArena } from './use-arena';
+export { useSmartModelPair } from './use-smart-model-pair';
+export { useArenaVoting } from './use-arena-voting';
 export {
   useLeaderboardSync,
   useLeaderboardData,

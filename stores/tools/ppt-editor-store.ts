@@ -12,6 +12,8 @@ import type {
   PPTSlideLayout,
 } from '@/types/workflow';
 import { createEmptySlide, getDefaultPPTTheme } from '@/types/workflow';
+import { regenerateSlideContent } from '@/lib/ai/utils/regenerate-slide';
+import { loggers } from '@/lib/logger';
 import type { SlideshowSettings } from '@/components/ppt/types';
 
 // Debounce timer for history pushes during rapid operations (e.g. dragging)
@@ -978,97 +980,18 @@ export const usePPTEditorStore = create<PPTEditorState & PPTEditorActions>()(
         set({ isGenerating: true, generatingSlideId: slideId });
 
         try {
-          // Dynamic import to avoid circular dependencies
-          const { generateText } = await import('ai');
-          const { getProxyProviderModel } = await import('@/lib/ai/core/proxy-client');
-          const { useSettingsStore } = await import('@/stores');
-
-          const settingsState = useSettingsStore.getState();
-          const provider = settingsState.defaultProvider as import('@/types').ProviderName;
-          const providerSettings = settingsState.providerSettings[provider];
-          const apiKey = providerSettings?.apiKey || '';
-          const baseURL = providerSettings?.baseURL;
-          const model = providerSettings?.defaultModel || 'gpt-4o';
-
-          if (!apiKey) {
-            console.error('No API key configured for regeneration');
-            return;
+          const result = await regenerateSlideContent(slide, presentation);
+          if (result) {
+            updateSlide(slideId, {
+              title: result.title || slide.title,
+              subtitle: result.subtitle || slide.subtitle,
+              content: result.content,
+              bullets: result.bullets || slide.bullets,
+              notes: result.notes || slide.notes,
+            });
           }
-
-          const slideIndex = presentation.slides.findIndex((s) => s.id === slideId);
-          const prevSlide = slideIndex > 0 ? presentation.slides[slideIndex - 1] : undefined;
-          const nextSlide = slideIndex < presentation.slides.length - 1 ? presentation.slides[slideIndex + 1] : undefined;
-
-          const prompt = `Regenerate the content for this presentation slide.
-
-Current slide:
-- Layout: ${slide.layout}
-- Title: ${slide.title || 'None'}
-- Subtitle: ${slide.subtitle || 'None'}
-- Content: ${slide.content || 'None'}
-- Bullets: ${slide.bullets?.join(', ') || 'None'}
-
-Presentation context:
-- Title: ${presentation.title}
-- Description: ${presentation.subtitle || 'Not provided'}
-${prevSlide ? `- Previous slide: ${prevSlide.title}` : ''}
-${nextSlide ? `- Next slide: ${nextSlide.title}` : ''}
-
-Requirements:
-- Keep the same layout (${slide.layout})
-- Make the content clear, concise, and impactful
-- Follow the 6x6 rule (max 6 bullets, 6 words each)
-- Use professional language
-
-Respond in JSON format:
-{
-  "title": "new title",
-  "subtitle": "new subtitle (if applicable)",
-  "content": "new content (if applicable)",
-  "bullets": ["bullet 1", "bullet 2"],
-  "notes": "suggested speaker notes"
-}`;
-
-          const modelInstance = getProxyProviderModel(
-            provider,
-            model,
-            apiKey,
-            baseURL,
-            true
-          );
-
-          const { text } = await generateText({
-            model: modelInstance,
-            system: 'You are an expert presentation designer. Always respond with valid JSON.',
-            prompt,
-            temperature: 0.7,
-          });
-
-          // Parse response
-          const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-          const jsonStr = jsonMatch ? jsonMatch[1].trim() : text.trim();
-          let result;
-          try {
-            result = JSON.parse(jsonStr);
-          } catch {
-            const objectMatch = text.match(/\{[\s\S]*\}/);
-            if (objectMatch) {
-              result = JSON.parse(objectMatch[0]);
-            } else {
-              throw new Error('Failed to parse AI response');
-            }
-          }
-
-          // Update the slide with regenerated content
-          updateSlide(slideId, {
-            title: result.title || slide.title,
-            subtitle: result.subtitle || slide.subtitle,
-            content: result.content,
-            bullets: result.bullets || slide.bullets,
-            notes: result.notes || slide.notes,
-          });
         } catch (err) {
-          console.error('Failed to regenerate slide:', err);
+          loggers.ai.error('Failed to regenerate slide:', err instanceof Error ? err : undefined);
         } finally {
           set({ isGenerating: false, generatingSlideId: null });
         }

@@ -7,6 +7,7 @@
 
 import { useCallback, useState, useRef, useMemo } from 'react';
 import { useSettingsStore, useSkillStore, useMcpStore, useVectorStore } from '@/stores';
+import { useAgentObservabilityConfig } from '@/hooks/ai/use-agent-observability';
 import { useContext as useSystemContext } from '@/hooks/context';
 import type { ProviderName } from '@/types/provider';
 import type { Skill } from '@/types/system/skill';
@@ -123,7 +124,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
   const defaultProvider = defaultProviderRaw as ProviderName;
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultModel = providerSettings[defaultProvider]?.defaultModel || 'gpt-4o';
-  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const observabilityConfig = useAgentObservabilityConfig();
 
   // Get active skills from store
   const activeSkillIds = useSkillStore((state) => state.activeSkillIds);
@@ -381,9 +382,9 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
       maxSteps,
       tools: allTools,
       sessionId: `agent-${Date.now()}`, // Generate session ID for observability
-      enableObservability: observabilitySettings?.enabled ?? false,
-      enableLangfuse: observabilitySettings?.langfuseEnabled,
-      enableOpenTelemetry: observabilitySettings?.openTelemetryEnabled,
+      enableObservability: observabilityConfig.enableObservability,
+      enableLangfuse: observabilityConfig.enableLangfuse,
+      enableOpenTelemetry: observabilityConfig.enableOpenTelemetry,
       onStepStart: (step) => {
         setCurrentStep(step);
         onStepStart?.(step);
@@ -406,7 +407,7 @@ export function useAgent(options: UseAgentOptions = {}): UseAgentReturn {
     temperature,
     maxSteps,
     allTools,
-    observabilitySettings,
+    observabilityConfig,
     onStepStart,
     onStepComplete,
     onToolCall,

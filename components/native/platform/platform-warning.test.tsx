@@ -234,7 +234,7 @@ describe('DesktopOnly', () => {
     );
     expect(screen.queryByText('Desktop content')).not.toBeInTheDocument();
     expect(
-      screen.getByText('This feature is only available in the desktop app.')
+      screen.getByText('This feature requires the desktop app')
     ).toBeInTheDocument();
   });
 

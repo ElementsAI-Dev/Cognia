@@ -57,6 +57,11 @@ jest.mock('next-intl', () => ({
       'categories.business': 'Business',
       'categories.creative': 'Creative',
       'categories.productivity': 'Productivity',
+      defaultBadge: 'Default',
+      'errors.noApiKey': 'Please configure an API key in settings first.',
+      'errors.optimizeFailed': 'Failed to optimize prompt',
+      'errors.generatePresetFailed': 'Failed to generate preset',
+      'errors.generatePromptsFailed': 'Failed to generate prompts',
     };
     return translations[key] || key;
   },
@@ -94,14 +99,6 @@ jest.mock('@/stores', () => ({
     };
     return selector ? selector(state) : state;
   },
-  useSettingsStore: (selector: (state: unknown) => unknown) => {
-    const state = {
-      providerSettings: {
-        openai: { apiKey: 'test-key' },
-      },
-    };
-    return selector ? selector(state) : state;
-  },
 }));
 
 // Mock types
@@ -111,11 +108,16 @@ jest.mock('@/types/content/preset', () => ({
   PRESET_CATEGORIES: ['general', 'coding', 'writing', 'research', 'education', 'business', 'creative', 'productivity'],
 }));
 
-// Mock AI service
-jest.mock('@/lib/ai/presets', () => ({
-  generatePresetFromDescription: jest.fn(),
-  optimizePresetPrompt: jest.fn(),
-  generateBuiltinPrompts: jest.fn(),
+// Mock usePresetAI hook
+jest.mock('@/hooks/presets', () => ({
+  usePresetAI: () => ({
+    isGeneratingPreset: false,
+    isOptimizingPrompt: false,
+    isGeneratingPrompts: false,
+    handleGeneratePreset: jest.fn(),
+    handleOptimizePrompt: jest.fn(),
+    handleGenerateBuiltinPrompts: jest.fn(),
+  }),
 }));
 
 jest.mock('@/types/provider', () => ({

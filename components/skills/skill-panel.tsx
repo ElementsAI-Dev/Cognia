@@ -7,7 +7,7 @@
  * Features responsive layout with mobile filter sheet and adaptive grid
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles,
@@ -28,12 +28,13 @@ import {
   MessageSquare,
   Cog,
   FileText,
-  ChevronDown,
-  Check,
-  Loader2,
   ArrowLeft,
   MoreHorizontal,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Settings2,
+  Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,7 +58,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -72,13 +72,15 @@ import {
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
 import { downloadSkillAsMarkdown } from '@/lib/skills/packager';
-import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
+import { useSkillAI } from '@/hooks/skills/use-skill-ai';
 import { SkillCard } from './skill-card';
 import { SkillDetail } from './skill-detail';
 import { SkillEditor } from './skill-editor';
 import { SkillAnalytics } from './skill-analytics';
 import { SkillGeneratorPanel } from './skill-generator';
 import { SkillFilterSheet } from './skill-filter-sheet';
+import { SkillImportDialog } from './skill-import-dialog';
+import { SkillDeleteDialog } from './skill-delete-dialog';
 import type { Skill, SkillCategory, SkillStatus } from '@/types/system/skill';
 
 const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode; color: string }> = [
@@ -129,16 +131,15 @@ interface SkillPanelProps {
   className?: string;
   defaultView?: PanelView;
   onSkillSelect?: (skill: Skill) => void;
-  compact?: boolean;
 }
 
 export function SkillPanel({
   className,
   defaultView = 'browse',
   onSkillSelect,
-  compact: _compact = false,
 }: SkillPanelProps) {
   const t = useTranslations('skills');
+  const requestAI = useSkillAI();
   
   // Store
   const {
@@ -150,7 +151,6 @@ export function SkillPanel({
     deleteSkill,
     createSkill,
     updateSkill,
-    importSkill,
     exportSkill,
     searchSkills,
     getAllSkills,
@@ -163,17 +163,20 @@ export function SkillPanel({
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [categoryFilter, setCategoryFilter] = useState<SkillCategory | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<SkillStatus | 'all'>('all');
   const [sourceFilter, setSourceFilter] = useState<'all' | 'builtin' | 'custom' | 'imported'>('all');
   const [showActiveOnly, setShowActiveOnly] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 24;
+
   // Dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<Skill | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importData, setImportData] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
   const [showGeneratorDialog, setShowGeneratorDialog] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
 
@@ -181,9 +184,9 @@ export function SkillPanel({
   const filteredSkills = useMemo(() => {
     let result = Object.values(skills);
 
-    // Search
-    if (searchQuery.trim()) {
-      const searchResult = searchSkills(searchQuery);
+    // Search (uses deferred value for performance)
+    if (deferredSearchQuery.trim()) {
+      const searchResult = searchSkills(deferredSearchQuery);
       const searchIds = new Set(searchResult.skills.map((s: Skill) => s.id));
       result = result.filter(s => searchIds.has(s.id));
     }
@@ -212,7 +215,15 @@ export function SkillPanel({
     result.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
 
     return result;
-  }, [skills, searchQuery, categoryFilter, statusFilter, sourceFilter, showActiveOnly, searchSkills]);
+  }, [skills, deferredSearchQuery, categoryFilter, statusFilter, sourceFilter, showActiveOnly, searchSkills]);
+
+  // Pagination derived values
+  const totalPages = Math.max(1, Math.ceil(filteredSkills.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedSkills = useMemo(() => {
+    const start = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filteredSkills.slice(start, start + PAGE_SIZE);
+  }, [filteredSkills, safeCurrentPage]);
 
   // Category counts
   const categoryCounts = useMemo(() => {
@@ -296,25 +307,6 @@ export function SkillPanel({
     URL.revokeObjectURL(url);
   }, [getAllSkills, exportSkill]);
 
-  const handleImport = useCallback(async () => {
-    if (!importData.trim()) return;
-    
-    setIsImporting(true);
-    try {
-      const parsed = JSON.parse(importData);
-      const skillsToImport = Array.isArray(parsed) ? parsed : [parsed];
-      for (const skillData of skillsToImport) {
-        importSkill(skillData);
-      }
-      setShowImportDialog(false);
-      setImportData('');
-    } catch {
-      // Handle parse error
-    } finally {
-      setIsImporting(false);
-    }
-  }, [importData, importSkill]);
-
   const handleCreateNew = useCallback(() => {
     setSelectedSkillId(null);
     setCurrentView('create');
@@ -396,11 +388,7 @@ export function SkillPanel({
             onSave={handleSaveSkill}
             onCancel={handleBack}
             readOnly={selectedSkill.source === 'builtin'}
-            onRequestAI={async (prompt) => {
-              const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
-              if (result.success && result.result) return result.result;
-              throw new Error(result.error || 'AI request failed');
-            }}
+            onRequestAI={requestAI}
           />
         </div>
       </TooltipProvider>
@@ -415,11 +403,7 @@ export function SkillPanel({
           <SkillEditor
             onSave={handleSaveSkill}
             onCancel={handleBack}
-            onRequestAI={async (prompt) => {
-              const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
-              if (result.success && result.result) return result.result;
-              throw new Error(result.error || 'AI request failed');
-            }}
+            onRequestAI={requestAI}
           />
         </div>
       </TooltipProvider>
@@ -574,6 +558,7 @@ export function SkillPanel({
               size="icon"
               className="md:hidden h-9 w-9 shrink-0 relative"
               onClick={() => setShowFilterSheet(true)}
+              aria-label={t('filters')}
             >
               <Filter className="h-4 w-4" />
               {activeFilterCount > 0 && (
@@ -584,12 +569,14 @@ export function SkillPanel({
             </Button>
             
             {/* View Toggle */}
-            <div className="flex items-center border rounded-md shrink-0">
+            <div className="flex items-center border rounded-md shrink-0" role="radiogroup" aria-label={t('viewMode')}>
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon"
                 className="h-9 w-9 rounded-r-none"
                 onClick={() => setViewMode('grid')}
+                aria-label={t('gridView')}
+                aria-checked={viewMode === 'grid'}
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -598,6 +585,8 @@ export function SkillPanel({
                 size="icon"
                 className="h-9 w-9 rounded-l-none"
                 onClick={() => setViewMode('list')}
+                aria-label={t('listView')}
+                aria-checked={viewMode === 'list'}
               >
                 <List className="h-4 w-4" />
               </Button>
@@ -829,7 +818,7 @@ export function SkillPanel({
                 animate="visible"
               >
                 <AnimatePresence mode="popLayout">
-                  {filteredSkills.map((skill, index) => (
+                  {pagedSkills.map((skill, index) => (
                     <motion.div
                       key={skill.id}
                       custom={index}
@@ -861,7 +850,7 @@ export function SkillPanel({
                 animate="visible"
               >
                 <AnimatePresence mode="popLayout">
-                  {filteredSkills.map((skill, index) => (
+                  {pagedSkills.map((skill, index) => (
                     <motion.div
                       key={skill.id}
                       custom={index}
@@ -887,6 +876,40 @@ export function SkillPanel({
                 </AnimatePresence>
               </motion.div>
             )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t mt-4">
+                <span className="text-xs text-muted-foreground">
+                  {t('showingRange', { start: (currentPage - 1) * PAGE_SIZE + 1, end: Math.min(currentPage * PAGE_SIZE, filteredSkills.length), total: filteredSkills.length })}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    aria-label={t('previousPage')}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-2 tabular-nums">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    aria-label={t('nextPage')}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
@@ -907,24 +930,12 @@ export function SkillPanel({
         />
 
         {/* Delete Dialog */}
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('deleteSkill')}</DialogTitle>
-              <DialogDescription>
-                {t('deleteSkillConfirmation')}: &quot;{skillToDelete?.metadata.name}&quot;
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                {t('cancel')}
-              </Button>
-              <Button variant="destructive" onClick={confirmDelete}>
-                {t('delete')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <SkillDeleteDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          skill={skillToDelete}
+          onConfirm={confirmDelete}
+        />
 
         {/* Generator Dialog */}
         <Dialog open={showGeneratorDialog} onOpenChange={setShowGeneratorDialog}>
@@ -946,42 +957,10 @@ export function SkillPanel({
         </Dialog>
 
         {/* Import Dialog */}
-        <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{t('importSkills')}</DialogTitle>
-              <DialogDescription>
-                {t('importSkillsDescription')}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <textarea
-                className="w-full h-64 p-3 border rounded-md font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder={t('pasteSkillsJson')}
-                value={importData}
-                onChange={(e) => setImportData(e.target.value)}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowImportDialog(false)}>
-                {t('cancel')}
-              </Button>
-              <Button onClick={handleImport} disabled={!importData.trim() || isImporting}>
-                {isImporting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {t('importing')}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    {t('import')}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <SkillImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+        />
       </div>
     </TooltipProvider>
   );

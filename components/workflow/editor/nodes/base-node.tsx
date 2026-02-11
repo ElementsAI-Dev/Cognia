@@ -9,8 +9,8 @@ import { memo, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { cn } from '@/lib/utils';
-import { NodePreviewTooltip } from '../node-preview-tooltip';
-import { NodeQuickConfig } from '../node-quick-config';
+import { NodePreviewTooltip } from '../utils/node-preview-tooltip';
+import { NodeQuickConfig } from '../utils/node-quick-config';
 import {
   Workflow,
   AlertCircle,

@@ -506,9 +506,10 @@ describe('useArtifactStore', () => {
       expect(results[0].title).toBe('JavaScript Function');
     });
 
-    it('should search artifacts by content', () => {
-      const results = useArtifactStore.getState().searchArtifacts('Hello World');
-      expect(results.length).toBeGreaterThanOrEqual(2);
+    it('should search artifacts by type', () => {
+      const results = useArtifactStore.getState().searchArtifacts('html');
+      expect(results).toHaveLength(1);
+      expect(results[0].type).toBe('html');
     });
 
     it('should search case-insensitively', () => {
@@ -544,6 +545,41 @@ describe('useArtifactStore', () => {
     it('should get all recent artifacts with default limit', () => {
       const recent = useArtifactStore.getState().getRecentArtifacts();
       expect(recent.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe('search excludes content', () => {
+    it('should not match on content field', () => {
+      act(() => {
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'code',
+          title: 'My Function',
+          content: 'function uniqueContentString() { return 42; }',
+          language: 'javascript',
+        });
+      });
+
+      const results = useArtifactStore.getState().searchArtifacts('uniqueContentString');
+      expect(results).toHaveLength(0);
+    });
+
+    it('should match on title, type, and language', () => {
+      act(() => {
+        useArtifactStore.getState().createArtifact({
+          sessionId: 'session-1',
+          messageId: 'msg-1',
+          type: 'react',
+          title: 'Dashboard Widget',
+          content: 'function App() {}',
+          language: 'tsx',
+        });
+      });
+
+      expect(useArtifactStore.getState().searchArtifacts('Dashboard')).toHaveLength(1);
+      expect(useArtifactStore.getState().searchArtifacts('react')).toHaveLength(1);
+      expect(useArtifactStore.getState().searchArtifacts('tsx')).toHaveLength(1);
     });
   });
 

@@ -65,6 +65,19 @@ jest.mock('./slideshow-controls', () => ({
     isOpen ? <div data-testid="keyboard-help" onClick={onClose}>Keyboard Help</div> : null,
 }));
 
+jest.mock('../rendering/error-boundary', () => ({
+  PPTPreviewErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('./drawing-overlay', () => ({
+  DrawingOverlay: ({ pointerMode }: { pointerMode: string }) => (
+    <div data-testid="drawing-overlay" data-pointer-mode={pointerMode}>
+      {pointerMode === 'laser' && <span>laserPointer</span>}
+      {pointerMode === 'draw' && <span>drawMode</span>}
+    </div>
+  ),
+}));
+
 jest.mock('../rendering', () => ({
   SlideContent: ({ slide }: { slide: { title?: string; subtitle?: string; bullets?: string[] } }) => (
     <div data-testid="slide-content">
@@ -195,7 +208,7 @@ describe('SlideshowView', () => {
   });
 
   it('calls onPrev when prev button clicked', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={1}
@@ -208,16 +221,18 @@ describe('SlideshowView', () => {
 
     fireEvent.click(screen.getByTestId('prev-btn'));
     
-    // Wait for transition
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    // Fire transitionEnd to complete CSS transition in jsdom
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnPrev).toHaveBeenCalled();
   });
 
   it('calls onNext when next button clicked', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={0}
@@ -230,9 +245,11 @@ describe('SlideshowView', () => {
 
     fireEvent.click(screen.getByTestId('next-btn'));
     
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnNext).toHaveBeenCalled();
   });
@@ -254,7 +271,7 @@ describe('SlideshowView', () => {
   });
 
   it('handles keyboard navigation - ArrowRight', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={0}
@@ -267,15 +284,17 @@ describe('SlideshowView', () => {
 
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnNext).toHaveBeenCalled();
   });
 
   it('handles keyboard navigation - ArrowLeft', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={1}
@@ -288,9 +307,11 @@ describe('SlideshowView', () => {
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnPrev).toHaveBeenCalled();
   });
@@ -312,7 +333,7 @@ describe('SlideshowView', () => {
   });
 
   it('handles keyboard navigation - Home goes to first slide', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={2}
@@ -325,15 +346,17 @@ describe('SlideshowView', () => {
 
     fireEvent.keyDown(window, { key: 'Home' });
     
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnGoToSlide).toHaveBeenCalledWith(0);
   });
 
   it('handles keyboard navigation - End goes to last slide', () => {
-    render(
+    const { container } = render(
       <SlideshowView
         presentation={mockPresentation}
         currentIndex={0}
@@ -346,9 +369,11 @@ describe('SlideshowView', () => {
 
     fireEvent.keyDown(window, { key: 'End' });
     
-    act(() => {
-      jest.advanceTimersByTime(500);
-    });
+    const slideArea = container.querySelector('.flex-1.flex.flex-col');
+    if (slideArea) {
+      fireEvent.transitionEnd(slideArea);
+      fireEvent.transitionEnd(slideArea);
+    }
 
     expect(mockOnGoToSlide).toHaveBeenCalledWith(2);
   });
@@ -461,8 +486,9 @@ describe('SlideshowView', () => {
       // Press L to enable laser mode
       fireEvent.keyDown(window, { key: 'l' });
 
-      // Laser indicator should appear
-      expect(screen.getByText(/Laser|laserPointer/)).toBeInTheDocument();
+      // DrawingOverlay mock renders laserPointer text when pointerMode is laser
+      expect(screen.getByText('laserPointer')).toBeInTheDocument();
+      expect(screen.getByTestId('drawing-overlay')).toHaveAttribute('data-pointer-mode', 'laser');
     });
 
     it('toggles drawing mode with D key', () => {
@@ -480,8 +506,9 @@ describe('SlideshowView', () => {
       // Press D to enable draw mode
       fireEvent.keyDown(window, { key: 'd' });
 
-      // Draw mode indicator should appear
-      expect(screen.getByText(/Draw|drawMode/)).toBeInTheDocument();
+      // DrawingOverlay mock renders drawMode text when pointerMode is draw
+      expect(screen.getByText('drawMode')).toBeInTheDocument();
+      expect(screen.getByTestId('drawing-overlay')).toHaveAttribute('data-pointer-mode', 'draw');
     });
 
     it('exits laser mode when L is pressed again', () => {
@@ -500,8 +527,9 @@ describe('SlideshowView', () => {
       fireEvent.keyDown(window, { key: 'l' });
       fireEvent.keyDown(window, { key: 'l' });
 
-      // Indicator should be gone
-      expect(screen.queryByText(/Laser|laserPointer/)).not.toBeInTheDocument();
+      // Pointer mode should be back to 'none'
+      expect(screen.getByTestId('drawing-overlay')).toHaveAttribute('data-pointer-mode', 'none');
+      expect(screen.queryByText('laserPointer')).not.toBeInTheDocument();
     });
 
     it('does not navigate when in draw mode and slide is clicked', () => {
@@ -519,7 +547,7 @@ describe('SlideshowView', () => {
       // Enter draw mode
       fireEvent.keyDown(window, { key: 'd' });
 
-      // Click on slide content area should not navigate
+      // Click on slide content area should not navigate (onClick is undefined when pointerMode !== 'none')
       const slideArea = screen.getByText('First Slide').closest('div');
       if (slideArea) {
         fireEvent.click(slideArea);
@@ -533,8 +561,8 @@ describe('SlideshowView', () => {
       expect(mockOnNext).not.toHaveBeenCalled();
     });
 
-    it('uses cursor-none class when laser mode is active', () => {
-      const { container } = render(
+    it('passes laser pointer mode to DrawingOverlay', () => {
+      render(
         <SlideshowView
           presentation={mockPresentation}
           currentIndex={0}
@@ -548,13 +576,13 @@ describe('SlideshowView', () => {
       // Enable laser mode
       fireEvent.keyDown(window, { key: 'l' });
 
-      // Should have cursor-none class on the slide area
-      const cursorNone = container.querySelector('.cursor-none');
+      // Cursor-none class should be on the parent slide area
+      const cursorNone = screen.getByTestId('drawing-overlay').closest('.cursor-none');
       expect(cursorNone).toBeInTheDocument();
     });
 
-    it('uses cursor-crosshair class when draw mode is active', () => {
-      const { container } = render(
+    it('passes draw pointer mode to DrawingOverlay', () => {
+      render(
         <SlideshowView
           presentation={mockPresentation}
           currentIndex={0}
@@ -568,8 +596,8 @@ describe('SlideshowView', () => {
       // Enable draw mode
       fireEvent.keyDown(window, { key: 'd' });
 
-      // Should have cursor-crosshair class on the slide area
-      const crosshair = container.querySelector('.cursor-crosshair');
+      // Cursor-crosshair class should be on the parent slide area
+      const crosshair = screen.getByTestId('drawing-overlay').closest('.cursor-crosshair');
       expect(crosshair).toBeInTheDocument();
     });
   });

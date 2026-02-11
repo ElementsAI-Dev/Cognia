@@ -11,14 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarClock } from 'lucide-react';
 import type { A2UIComponentProps, A2UIDateTimePickerComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UIDateTimePicker = memo(function A2UIDateTimePicker({
   component,
   onDataChange,
 }: A2UIComponentProps<A2UIDateTimePickerComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
 
   const value = resolveString(component.value, '');
   const bindingPath = getBindingPath(component.value);

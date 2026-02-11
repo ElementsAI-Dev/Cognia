@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -30,7 +31,7 @@ import type { SortableSlideItemProps } from '../types';
 /**
  * SortableSlideItem - Draggable slide thumbnail in the slide panel
  */
-export function SortableSlideItem({
+export const SortableSlideItem = memo(function SortableSlideItem({
   slide,
   index,
   isSelected,
@@ -169,6 +170,6 @@ export function SortableSlideItem({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
 export default SortableSlideItem;

@@ -128,7 +128,7 @@
 
 ### Screenshot Editor (Enhanced)
 - Full annotation system with 9 tools: rectangle, ellipse, arrow, freehand, text, blur, highlight, marker
-- 8-point resize handles with magnifier loupe (toggle: M key)
+- 8-point resize handles with magnifier loupe (toggle: G key)
 - Undo/redo with 50 history depth
 - Keyboard shortcuts: R/E/A/F/T/B/H/M for tools, Ctrl+Z/Y for undo/redo
 - Components: `components/screenshot/`, `stores/screenshot/editor-store.ts`
@@ -193,8 +193,8 @@ if (isTauri()) {
 ## Keyboard Shortcuts Reference
 
 ### Screenshot Editor
-- **Tools**: R (Rectangle), E (Ellipse), A (Arrow), F (Freehand), T (Text), B (Blur), H (Highlight), M (Marker)
-- **Actions**: Ctrl+Z (Undo), Ctrl+Y (Redo), Delete (Remove selected), M (Toggle magnifier)
+- **Tools**: V/S (Select), R (Rectangle), O (Ellipse), A (Arrow), P (Freehand), T (Text), B (Blur), H (Highlight), N (Marker)
+- **Actions**: Ctrl+Z (Undo), Ctrl+Y (Redo), Delete (Remove selected), G (Toggle magnifier), Ctrl+C (Copy), Ctrl+S (Save), Ctrl+Enter (Confirm), Escape (Cancel)
 - **Colors**: 1-0 for preset colors (Red=1, Orange=2, Yellow=3, Green=4, Cyan=5, Blue=6, Purple=7, Pink=8, White=9, Black=0)
 
 ### Region Selector

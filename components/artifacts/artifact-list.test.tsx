@@ -152,6 +152,29 @@ jest.mock('@/components/ui/select', () => ({
   SelectValue: () => <span />,
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (
+    open ? <div data-testid="alert-dialog">{children}</div> : <>{children}</>
+  ),
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="alert-dialog-content">{children}</div>
+  ),
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => (
+    <h2 data-testid="alert-dialog-title">{children}</h2>
+  ),
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => (
+    <p data-testid="alert-dialog-description">{children}</p>
+  ),
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogCancel: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="alert-dialog-cancel" onClick={onClick}>{children}</button>
+  ),
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="alert-dialog-action" onClick={onClick}>{children}</button>
+  ),
+}));
+
 jest.mock('@/components/ui/context-menu', () => ({
   ContextMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ContextMenuContent: ({ children }: { children: React.ReactNode }) => (
@@ -260,6 +283,36 @@ describe('ArtifactList', () => {
     // CheckSquare icon button for batch mode
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  describe('delete confirmation dialog', () => {
+    it('shows confirmation dialog when delete context menu item is clicked', () => {
+      render(<ArtifactList />);
+      // Delete is in context menu items with text 'Delete' and destructive class
+      const deleteMenuItems = screen.getAllByText('Delete');
+      fireEvent.click(deleteMenuItems[0]);
+      // Dialog should appear
+      expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-dialog-title')).toBeInTheDocument();
+    });
+
+    it('confirms single artifact deletion', () => {
+      render(<ArtifactList />);
+      const deleteMenuItems = screen.getAllByText('Delete');
+      fireEvent.click(deleteMenuItems[0]);
+      // Click confirm button in alert dialog
+      fireEvent.click(screen.getByTestId('alert-dialog-action'));
+      expect(mockDeleteArtifact).toHaveBeenCalledWith('artifact-1');
+    });
+
+    it('cancels deletion when cancel is clicked', () => {
+      render(<ArtifactList />);
+      const deleteMenuItems = screen.getAllByText('Delete');
+      fireEvent.click(deleteMenuItems[0]);
+      // Click cancel button
+      fireEvent.click(screen.getByTestId('alert-dialog-cancel'));
+      expect(mockDeleteArtifact).not.toHaveBeenCalled();
+    });
   });
 });
 

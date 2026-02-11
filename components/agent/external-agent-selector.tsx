@@ -265,4 +265,3 @@ export function ExternalAgentSelector({
   );
 }
 
-export default ExternalAgentSelector;

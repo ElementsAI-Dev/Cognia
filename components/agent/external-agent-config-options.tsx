@@ -9,6 +9,8 @@
  */
 
 import { useCallback } from 'react';
+import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Settings2, Brain, Cpu, Sparkles } from 'lucide-react';
 import {
   Select,
@@ -155,15 +157,16 @@ export function ExternalAgentConfigOptions({
   className,
   compact = false,
 }: ExternalAgentConfigOptionsProps) {
+  const t = useTranslations('externalAgent');
   const handleSelect = useCallback(
     async (configId: string, value: string) => {
       try {
         await onSetConfigOption(configId, value);
-      } catch (error) {
-        console.error('Failed to set config option:', error);
+      } catch (_error) {
+        toast.error(t('setConfigOptionFailed'));
       }
     },
-    [onSetConfigOption]
+    [onSetConfigOption, t]
   );
 
   if (!configOptions.length) {
@@ -200,4 +203,3 @@ export function ExternalAgentConfigOptions({
   );
 }
 
-export default ExternalAgentConfigOptions;

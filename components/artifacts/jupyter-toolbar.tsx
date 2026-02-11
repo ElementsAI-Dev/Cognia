@@ -18,10 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { JupyterNotebook } from '@/types';
-
 interface NotebookToolbarProps {
-  notebook: JupyterNotebook;
   language: string;
   stats: { code: number; markdown: number; outputs: number };
   onExportScript: () => void;
@@ -132,5 +129,3 @@ export function NotebookToolbar({
     </div>
   );
 }
-
-export default NotebookToolbar;

@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UISliderComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UISlider = memo(function A2UISlider({ component, onDataChange }: A2UIComponentProps<A2UISliderComponent>) {
-  const { resolveNumber, resolveBoolean } = useA2UIContext();
+  const { resolveNumber, resolveBoolean } = useA2UIData();
 
   const value = resolveNumber(component.value, component.min ?? 0);
   const isDisabled = component.disabled ? resolveBoolean(component.disabled, false) : false;

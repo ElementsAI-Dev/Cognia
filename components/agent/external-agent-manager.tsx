@@ -582,4 +582,3 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
   );
 }
 
-export default ExternalAgentManager;

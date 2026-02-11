@@ -10,7 +10,7 @@ import React, { useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ImageIcon } from 'lucide-react';
 import type { A2UIComponentProps, A2UIImageComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 const DEFAULT_IMAGE_WIDTH = 800;
 const DEFAULT_IMAGE_HEIGHT = 600;
@@ -26,7 +26,7 @@ const isInlineSource = (value: string) =>
   value.startsWith('data:') || value.startsWith('blob:');
 
 export const A2UIImage = memo(function A2UIImage({ component }: A2UIComponentProps<A2UIImageComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
   const [hasError, setHasError] = useState(false);
 
   const src = resolveString(component.src, '');

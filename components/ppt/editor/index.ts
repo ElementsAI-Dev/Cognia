@@ -8,3 +8,5 @@ export { SlideEditor } from './slide-editor';
 export { SlideElement } from './slide-element';
 export { SortableSlideItem } from './sortable-slide-item';
 export { AlignmentToolbar, type AlignmentToolbarProps } from './alignment-toolbar';
+export { EditorToolbar, type EditorToolbarProps } from './editor-toolbar';
+export { EditorStatusBar, type EditorStatusBarProps } from './editor-status-bar';

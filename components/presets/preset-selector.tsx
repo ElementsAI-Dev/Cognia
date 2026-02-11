@@ -23,6 +23,8 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { COLOR_TINT_CLASS } from '@/lib/presets';
 import { usePresetStore } from '@/stores';
 import type { Preset } from '@/types/content/preset';
 
@@ -227,8 +229,10 @@ function PresetMenuItem({ preset, isSelected, onSelect }: PresetMenuItemProps) {
     >
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <span
-          className="flex h-6 w-6 items-center justify-center rounded text-sm"
-          style={{ backgroundColor: `${preset.color}20` }}
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded text-sm',
+            (preset.color && COLOR_TINT_CLASS[preset.color]) ?? 'bg-muted'
+          )}
         >
           {preset.icon || '💬'}
         </span>

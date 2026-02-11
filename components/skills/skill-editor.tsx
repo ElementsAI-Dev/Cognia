@@ -13,7 +13,6 @@ import dynamic from 'next/dynamic';
 import type { OnMount, Monaco } from '@monaco-editor/react';
 import {
   Save,
-  X,
   AlertCircle,
   CheckCircle2,
   Eye,
@@ -43,21 +42,11 @@ import {
   FileCode,
   Wand2,
   Loader2,
-  Pencil,
-  RefreshCw,
-  FileEdit,
-  Eraser,
-  Languages,
-  FileText as SummarizeIcon,
-  Briefcase,
-  MessageCircle,
-  Cpu,
   PanelRightClose,
   PanelRight,
   ChevronDown,
   Type,
   Folder,
-  Check,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -78,10 +67,10 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -97,6 +86,7 @@ import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/pa
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillAIAssistant } from './skill-ai-assistant';
+import { SkillEditorAIPopup } from './skill-editor-ai-popup';
 import type { Skill, SkillResource } from '@/types/system/skill';
 import { createEditorOptions } from '@/lib/monaco';
 
@@ -147,7 +137,6 @@ export function SkillEditor({
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedText, setOptimizedText] = useState('');
   const [optimizeMode, setOptimizeMode] = useState<'improve' | 'simplify' | 'expand' | 'fix' | 'translate' | 'summarize' | 'formal' | 'casual' | 'technical' | 'custom' | null>(null);
-  const [customPrompt, setCustomPrompt] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   
   // Get theme from settings store
@@ -414,20 +403,20 @@ export function SkillEditor({
   const insertText = useCallback((text: string, placeholder?: string) => {
     const editor = editorRef.current;
     if (!editor) {
-      console.warn('Editor not available');
+      loggers.ui.warn('Editor not available');
       return;
     }
     
     const model = editor.getModel();
     if (!model) {
-      console.warn('Model not available');
+      loggers.ui.warn('Model not available');
       return;
     }
 
     // Get current selection or cursor position
     const selection = editor.getSelection();
     if (!selection) {
-      console.warn('No selection available');
+      loggers.ui.warn('No selection available');
       return;
     }
 
@@ -609,7 +598,7 @@ Expected output here
       const result = await onRequestAI(prompts[mode]);
       setOptimizedText(result);
     } catch (error) {
-      console.error('AI optimization failed:', error);
+      loggers.ui.error('AI optimization failed:', error);
       setOptimizedText('');
     } finally {
       setIsOptimizing(false);
@@ -1003,138 +992,18 @@ Expected output here
                   })}
                 />
                 
-                {/* Modern AI Command Palette Popup */}
+                {/* AI Command Palette Popup */}
                 {showAIPopup && onRequestAI && (
-                  <div 
-                    className="ai-popup absolute z-50 bg-popover/95 backdrop-blur-sm border rounded-xl shadow-2xl overflow-hidden min-w-[320px] max-w-[380px] animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200"
-                    style={{ top: popupPosition.top, left: popupPosition.left }}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-3 py-2.5 border-b bg-muted/30">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <span className="text-sm font-medium">{t('aiOptimize')}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md" onClick={handleClosePopup}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    
-                    {!optimizeMode && !isOptimizing && (
-                      <div className="p-3 space-y-3">
-                        {/* Quick Actions */}
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('quickActions')}</div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {[
-                              { id: 'improve', icon: Pencil, labelKey: 'aiImprove' },
-                              { id: 'simplify', icon: Eraser, labelKey: 'aiSimplify' },
-                              { id: 'expand', icon: FileEdit, labelKey: 'aiExpand' },
-                              { id: 'fix', icon: RefreshCw, labelKey: 'aiFixGrammar' },
-                              { id: 'summarize', icon: SummarizeIcon, labelKey: 'aiSummarize' },
-                              { id: 'translate', icon: Languages, labelKey: 'aiTranslate' },
-                            ].map(({ id, icon: Icon, labelKey }) => (
-                              <Button 
-                                key={id}
-                                variant="ghost" 
-                                size="sm" 
-                                className="justify-start h-9 text-xs hover:bg-primary/5 hover:text-primary" 
-                                onClick={() => handleOptimizeText(id as 'improve' | 'simplify' | 'expand' | 'fix' | 'summarize' | 'translate')}
-                              >
-                                <Icon className="h-3.5 w-3.5 mr-2" />
-                                {t(labelKey)}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* Rewrite Style */}
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('rewriteStyle')}</div>
-                          <div className="flex gap-1.5">
-                            {[
-                              { id: 'formal', icon: Briefcase, labelKey: 'styleFormal' },
-                              { id: 'casual', icon: MessageCircle, labelKey: 'styleCasual' },
-                              { id: 'technical', icon: Cpu, labelKey: 'styleTechnical' },
-                            ].map(({ id, icon: Icon, labelKey }) => (
-                              <Button 
-                                key={id}
-                                variant="outline" 
-                                size="sm" 
-                                className="flex-1 h-8 text-xs"
-                                onClick={() => handleOptimizeText(id as 'formal' | 'casual' | 'technical')}
-                              >
-                                <Icon className="h-3.5 w-3.5 mr-1.5" />
-                                {t(labelKey)}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* Custom Prompt */}
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('customInstruction')}</div>
-                          <form 
-                            className="flex gap-1.5"
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              if (customPrompt.trim()) {
-                                handleOptimizeText('custom', customPrompt);
-                              }
-                            }}
-                          >
-                            <Input
-                              value={customPrompt}
-                              onChange={(e) => setCustomPrompt(e.target.value)}
-                              placeholder={t('customInstructionPlaceholder')}
-                              className="h-8 text-xs flex-1"
-                            />
-                            <Button 
-                              type="submit"
-                              size="sm" 
-                              className="h-8 px-3"
-                              disabled={!customPrompt.trim()}
-                            >
-                              <Sparkles className="h-3.5 w-3.5" />
-                            </Button>
-                          </form>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {isOptimizing && (
-                      <div className="flex flex-col items-center justify-center py-8 px-4">
-                        <div className="relative">
-                          <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                          <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
-                        </div>
-                        <span className="text-sm text-muted-foreground mt-3">{t('optimizingText')}</span>
-                      </div>
-                    )}
-                    
-                    {optimizedText && !isOptimizing && (
-                      <div className="p-3 space-y-3">
-                        <div>
-                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 px-1">{t('result')}</div>
-                          <ScrollArea className="h-[120px] rounded-lg border bg-muted/30 p-2">
-                            <p className="text-sm whitespace-pre-wrap">{optimizedText}</p>
-                          </ScrollArea>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" className="flex-1 h-9" onClick={handleApplyOptimization}>
-                            <Check className="h-3.5 w-3.5 mr-1.5" />
-                            {t('apply')}
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-9" onClick={() => { setOptimizedText(''); setOptimizeMode(null); }}>
-                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            {t('retry')}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <SkillEditorAIPopup
+                    position={popupPosition}
+                    isOptimizing={isOptimizing}
+                    optimizedText={optimizedText}
+                    optimizeMode={optimizeMode}
+                    onOptimize={handleOptimizeText}
+                    onApply={handleApplyOptimization}
+                    onRetry={() => { setOptimizedText(''); setOptimizeMode(null); }}
+                    onClose={handleClosePopup}
+                  />
                 )}
               </div>
             </div>

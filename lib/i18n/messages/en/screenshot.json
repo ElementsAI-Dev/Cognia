@@ -20,7 +20,10 @@
       "save": "Save",
       "cancel": "Cancel",
       "confirm": "Done",
-      "magnifier": "Magnifier"
+      "magnifier": "Magnifier",
+      "extractText": "Extract Text (OCR)",
+      "sendToChat": "Chat",
+      "sendToChatDesc": "Send screenshot to AI chat"
     },
     "shortcuts": {
       "undo": "Ctrl+Z",
@@ -45,8 +48,12 @@
       "textInputHint": "Enter to confirm, Shift+Enter for new line, Esc to cancel",
       "dimensions": "{width} × {height} px",
       "region": "Region",
-      "magnifierActive": "Magnifier active (G to toggle)",
-      "loading": "Loading..."
+      "magnifierActive": "Magnifier active",
+      "toToggle": "to toggle",
+      "loading": "Loading...",
+      "textInputHintConfirm": "confirm",
+      "textInputHintNewLine": "new line",
+      "textInputHintCancel": "cancel"
     }
   }
 }

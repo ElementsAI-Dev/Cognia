@@ -140,6 +140,18 @@ jest.mock('./display/a2ui-link', () => ({
   A2UILink: () => <a data-testid="a2ui-link" href="#" />,
 }));
 
+jest.mock('./display/a2ui-loading', () => ({
+  A2UILoading: () => <div data-testid="a2ui-loading" />,
+}));
+
+jest.mock('./display/a2ui-error', () => ({
+  A2UIError: () => <div data-testid="a2ui-error" />,
+}));
+
+jest.mock('./display/a2ui-empty', () => ({
+  A2UIEmpty: () => <div data-testid="a2ui-empty" />,
+}));
+
 // Mock form components
 jest.mock('./form/a2ui-button', () => ({
   A2UIButton: ({ component }: A2UIComponentProps) => (
@@ -272,8 +284,8 @@ describe('A2UIRenderer', () => {
   });
 
   it('should render data components', () => {
+    // Chart is lazy-loaded (React.lazy), tested separately
     const components = [
-      { id: 'chart1', component: 'Chart' },
       { id: 'table1', component: 'Table' },
       { id: 'list1', component: 'List' },
     ];
@@ -283,6 +295,13 @@ describe('A2UIRenderer', () => {
       expect(screen.getByTestId(`a2ui-${comp.component.toLowerCase()}`)).toBeInTheDocument();
       unmount();
     });
+  });
+
+  it('should render lazy Chart component with Suspense fallback', () => {
+    const component = { id: 'chart1', component: 'Chart' };
+    const { container } = render(<A2UIRenderer component={component} />);
+    // Lazy component shows Suspense fallback (animate-pulse div) until resolved
+    expect(container.querySelector('.animate-pulse') || screen.queryByTestId('a2ui-chart')).toBeTruthy();
   });
 });
 

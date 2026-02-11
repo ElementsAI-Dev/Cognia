@@ -95,7 +95,24 @@
     "materialGenerationDesc": "Upload documents or paste content to generate a presentation",
     "processingMaterials": "Processing materials...",
     "exportSuccess": "Export completed successfully",
-    "exportFailed": "Export failed"
+    "exportFailed": "Export failed",
+    "progressGeneratingOutline": "Generating presentation outline...",
+    "progressGeneratingSlides": "Generating slide content...",
+    "progressGeneratingSlide": "Generating slide {current}/{total}...",
+    "progressFinalizing": "Finalizing presentation...",
+    "progressComplete": "Presentation generated successfully!",
+    "progressError": "Generation failed: {message}",
+    "progressCancelled": "Generation cancelled",
+    "progressOutlineComplete": "Outline generated, confirm to generate full content",
+    "progressOutlineError": "Outline generation failed: {message}",
+    "progressProcessingMaterials": "Processing materials and generating presentation...",
+    "progressProcessing": "Processing...",
+    "progressMaterialError": "Material generation failed: {message}",
+    "exportFormatMarp": "Marp Markdown",
+    "exportFormatHtml": "HTML",
+    "exportFormatReveal": "Reveal.js",
+    "exportFormatPdf": "PDF",
+    "exportFormatPptx": "PowerPoint"
   },
   "pptEditor": {
     "noPresentation": "No presentation loaded",
@@ -212,7 +229,9 @@
     "addRow": "Add Row",
     "addColumn": "Add Column",
     "removeRow": "Remove Row",
-    "removeColumn": "Remove Column"
+    "removeColumn": "Remove Column",
+    "slideshowError": "Slideshow encountered an error",
+    "exitSlideshow": "Exit Slideshow"
   },
   "pptSlideshow": {
     "pauseAutoPlay": "Pause auto-play",

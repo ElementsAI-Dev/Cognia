@@ -18,6 +18,7 @@ import { ChatWidgetMessages } from './chat-widget-messages';
 import { ChatWidgetInput } from './chat-widget-input';
 import { ChatWidgetSettings } from './chat-widget-settings';
 import { ChatWidgetSuggestions } from './chat-widget-suggestions';
+import { exportChatMessages } from '@/lib/chat-widget/constants';
 import type { FabPosition, PanelExpandDirection } from '@/hooks/chat';
 
 interface ChatAssistantPanelProps {
@@ -265,21 +266,7 @@ export function ChatAssistantPanel({
         onExpandToFull={() => openMainWindow(true)}
         onProviderChange={(provider) => updateConfig({ provider })}
         onModelChange={(model) => updateConfig({ model })}
-        onExport={() => {
-          const content = messages
-            .map(
-              (m) =>
-                `${m.role === 'user' ? t('export.user') : t('export.assistant')}:\n${m.content}`
-            )
-            .join('\n\n---\n\n');
-          const blob = new Blob([content], { type: 'text/markdown' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `chat-export-${new Date().toISOString().slice(0, 10)}.md`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }}
+        onExport={() => exportChatMessages(messages, t)}
       />
 
       {/* Messages area */}

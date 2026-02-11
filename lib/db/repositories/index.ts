@@ -9,3 +9,4 @@ export { mcpServerRepository, type StoredMCPServer, type CreateMCPServerInput, t
 export { projectRepository, type CreateKnowledgeFileInput } from './project-repository';
 export { workflowRepository, type CreateWorkflowInput, type UpdateWorkflowInput } from './workflow-repository';
 export { agentTraceRepository, type SessionTraceSummary, type TraceStats, type LineAttribution } from './agent-trace-repository';
+export { videoProjectRepository, type VideoProjectData } from './video-project-repository';

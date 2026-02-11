@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { loggers } from '@/lib/logger';
 import {
   Play,
   Copy,
@@ -130,7 +131,7 @@ export function PromptPreviewDialog({
 
       setTestResult(result.text || 'No response received');
     } catch (error) {
-      console.error('AI test failed:', error);
+      loggers.ui.error('AI test failed:', error);
       toast.error(t('testing') + ' failed');
       setTestResult('Error: Failed to get AI response. Please check your API settings.');
     } finally {

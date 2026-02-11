@@ -6,6 +6,35 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ScriptTaskEditor } from './script-task-editor';
 import type { ExecuteScriptAction } from '@/types/scheduler';
 
+// Mock next/dynamic to render Monaco as a simple textarea fallback
+jest.mock('next/dynamic', () => {
+  return jest.fn((_loader: () => Promise<unknown>, _opts?: unknown) => {
+    const MockMonaco = (props: { value?: string; onChange?: (v: string) => void; options?: Record<string, unknown>; height?: string }) => (
+      <textarea
+        data-testid="monaco-editor"
+        value={props.value || ''}
+        onChange={(e) => props.onChange?.(e.target.value)}
+        disabled={props.options?.readOnly === true}
+        style={{ height: props.height }}
+      />
+    );
+    MockMonaco.displayName = 'MockMonacoEditor';
+    return MockMonaco;
+  });
+});
+
+// Mock theme provider
+jest.mock('@/components/providers/ui/theme-provider', () => ({
+  useTheme: () => ({ theme: 'dark', resolvedTheme: 'dark', setTheme: jest.fn() }),
+}));
+
+// Mock lib/monaco - createEditorOptions must forward overrides so readOnly reaches the mock
+jest.mock('@/lib/monaco', () => ({
+  createEditorOptions: jest.fn((_preset: string, overrides: Record<string, unknown> = {}) => overrides),
+  getMonacoLanguage: jest.fn((lang: string) => lang),
+  getMonacoTheme: jest.fn(() => 'vs-dark'),
+}));
+
 jest.mock('@/lib/scheduler/script-executor', () => ({
   validateScript: jest.fn(() => ({ valid: true, errors: [], warnings: [] })),
   getScriptTemplate: jest.fn((lang: string) => `# Template for ${lang}`),
@@ -49,10 +78,10 @@ describe('ScriptTaskEditor', () => {
       expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
-    it('should render code textarea', () => {
+    it('should render code editor', () => {
       render(<ScriptTaskEditor {...defaultProps} />);
 
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
     });
 
     it('should render sandbox toggle', () => {
@@ -125,14 +154,14 @@ describe('ScriptTaskEditor', () => {
 
       render(<ScriptTaskEditor {...defaultProps} value={actionWithCode} />);
 
-      expect(screen.getByRole('textbox')).toHaveValue('print("Hello")');
+      expect(screen.getByTestId('monaco-editor')).toHaveValue('print("Hello")');
     });
 
     it('should call onChange when code changes', () => {
       render(<ScriptTaskEditor {...defaultProps} />);
 
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: 'new code' } });
+      const editor = screen.getByTestId('monaco-editor');
+      fireEvent.change(editor, { target: { value: 'new code' } });
 
       expect(defaultProps.onChange).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -144,8 +173,8 @@ describe('ScriptTaskEditor', () => {
     it('should validate code on change', () => {
       render(<ScriptTaskEditor {...defaultProps} />);
 
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: 'print(1)' } });
+      const editor = screen.getByTestId('monaco-editor');
+      fireEvent.change(editor, { target: { value: 'print(1)' } });
 
       expect(validateScript).toHaveBeenCalledWith('python', 'print(1)');
     });
@@ -159,8 +188,8 @@ describe('ScriptTaskEditor', () => {
 
       render(<ScriptTaskEditor {...defaultProps} />);
 
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: 'rm -rf /' } });
+      const editor = screen.getByTestId('monaco-editor');
+      fireEvent.change(editor, { target: { value: 'rm -rf /' } });
 
       expect(screen.getByText('Dangerous pattern detected')).toBeInTheDocument();
     });
@@ -174,8 +203,8 @@ describe('ScriptTaskEditor', () => {
 
       render(<ScriptTaskEditor {...defaultProps} />);
 
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: 'import requests' } });
+      const editor = screen.getByTestId('monaco-editor');
+      fireEvent.change(editor, { target: { value: 'import requests' } });
 
       expect(screen.getByText('Uses network access')).toBeInTheDocument();
     });
@@ -277,8 +306,8 @@ describe('ScriptTaskEditor', () => {
       const advancedButton = screen.getByText(/Advanced/i);
       fireEvent.click(advancedButton);
 
-      // Should have memory limit text
-      expect(screen.getByText(/Memory Limit/i)).toBeInTheDocument();
+      // Should have memory limit text (i18n key)
+      expect(screen.getByText('memoryLimitMB')).toBeInTheDocument();
     });
 
     it('should have number inputs with correct values', () => {
@@ -315,7 +344,7 @@ describe('ScriptTaskEditor', () => {
       render(<ScriptTaskEditor {...defaultProps} disabled={true} />);
 
       expect(screen.getByRole('combobox')).toBeDisabled();
-      expect(screen.getByRole('textbox')).toBeDisabled();
+      expect(screen.getByTestId('monaco-editor')).toBeDisabled();
       expect(screen.getByRole('switch')).toBeDisabled();
     });
 

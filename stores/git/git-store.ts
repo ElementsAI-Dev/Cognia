@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { toast } from 'sonner';
 import type {
   GitStatus,
   GitRepoInfo,
@@ -237,6 +238,71 @@ const initialState: GitState = {
   checkpoints: [],
 };
 
+// ==================== Store Helpers ====================
+
+type StoreGet = () => GitState & GitActions;
+type StoreSet = (partial: Partial<GitState>) => void;
+
+function errMsg(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Execute a Git operation requiring currentRepoPath with operationStatus tracking.
+ * Eliminates the repetitive try/catch/set pattern used by ~28 store actions.
+ */
+async function runGitOp(
+  get: StoreGet,
+  set: StoreSet,
+  op: (repoPath: string) => Promise<{ success: boolean; error?: string | null }>,
+  failMsg: string,
+  onSuccess?: () => Promise<void> | void,
+): Promise<boolean> {
+  const { currentRepoPath } = get();
+  if (!currentRepoPath) return false;
+
+  set({ operationStatus: 'running' });
+  try {
+    const result = await op(currentRepoPath);
+    if (result.success) {
+      if (onSuccess) await onSuccess();
+      set({ operationStatus: 'success' });
+      return true;
+    }
+    const errorText = result.error || failMsg;
+    set({ lastError: errorText, operationStatus: 'error' });
+    toast.error(failMsg, { description: result.error || undefined });
+    return false;
+  } catch (error) {
+    const errorText = errMsg(error);
+    set({ lastError: errorText, operationStatus: 'error' });
+    toast.error(failMsg, { description: errorText });
+    return false;
+  }
+}
+
+/**
+ * Load Git data requiring currentRepoPath. No operationStatus tracking.
+ */
+async function loadGitData<T>(
+  get: StoreGet,
+  set: StoreSet,
+  op: (repoPath: string) => Promise<{ success: boolean; data?: T }>,
+  onData: (data: T) => Partial<GitState>,
+): Promise<void> {
+  const { currentRepoPath } = get();
+  if (!currentRepoPath) return;
+
+  try {
+    const result = await op(currentRepoPath);
+    if (result.success && result.data) {
+      set(onData(result.data));
+    }
+  } catch (error) {
+    set({ lastError: errMsg(error) });
+  }
+}
+
 export const useGitStore = create<GitState & GitActions>()(
   persist(
     (set, get) => ({
@@ -247,18 +313,10 @@ export const useGitStore = create<GitState & GitActions>()(
         set({ isCheckingGit: true });
         try {
           const status = await gitService.checkInstalled();
-          set({
-            gitStatus: status,
-            isCheckingGit: false,
-          });
+          set({ gitStatus: status, isCheckingGit: false });
         } catch (error) {
           set({
-            gitStatus: {
-              ...initialGitStatus,
-              status: 'error',
-              error: error instanceof Error ? error.message : String(error),
-              lastChecked: new Date().toISOString(),
-            },
+            gitStatus: { ...initialGitStatus, status: 'error', error: errMsg(error), lastChecked: new Date().toISOString() },
             isCheckingGit: false,
           });
         }
@@ -268,16 +326,9 @@ export const useGitStore = create<GitState & GitActions>()(
         set({ isInstallingGit: true, installProgress: null });
         try {
           const status = await gitService.install();
-          set({
-            gitStatus: status,
-            isInstallingGit: false,
-            installProgress: null,
-          });
+          set({ gitStatus: status, isInstallingGit: false, installProgress: null });
         } catch (error) {
-          set({
-            isInstallingGit: false,
-            lastError: error instanceof Error ? error.message : String(error),
-          });
+          set({ isInstallingGit: false, lastError: errMsg(error) });
         }
       },
 
@@ -287,7 +338,7 @@ export const useGitStore = create<GitState & GitActions>()(
           const config = await gitService.getConfig();
           set({ gitConfig: config });
         } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
+          set({ lastError: errMsg(error) });
         }
       },
 
@@ -297,7 +348,7 @@ export const useGitStore = create<GitState & GitActions>()(
           const { gitConfig } = get();
           set({ gitConfig: { ...gitConfig, ...config } as GitConfig });
         } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
+          set({ lastError: errMsg(error) });
         }
       },
 
@@ -317,21 +368,12 @@ export const useGitStore = create<GitState & GitActions>()(
         try {
           const result = await gitService.getStatus(repoPath);
           if (result.success && result.data) {
-            set({
-              currentRepoInfo: result.data,
-              operationStatus: 'idle',
-            });
+            set({ currentRepoInfo: result.data, operationStatus: 'idle' });
           } else {
-            set({
-              lastError: result.error || 'Failed to get repository status',
-              operationStatus: 'error',
-            });
+            set({ lastError: result.error || 'Failed to get repository status', operationStatus: 'error' });
           }
         } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
+          set({ lastError: errMsg(error), operationStatus: 'error' });
         }
       },
 
@@ -353,46 +395,26 @@ export const useGitStore = create<GitState & GitActions>()(
               operationStatus: 'idle',
             });
           } else {
-            set({
-              lastError: result.error || 'Failed to get full repository status',
-              operationStatus: 'error',
-            });
+            set({ lastError: result.error || 'Failed to get full repository status', operationStatus: 'error' });
           }
         } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
+          set({ lastError: errMsg(error), operationStatus: 'error' });
         }
       },
 
       initRepo: async (path, options) => {
         set({ operationStatus: 'running' });
         try {
-          const result = await gitService.init({
-            path,
-            initialBranch: options?.initialBranch || 'main',
-          });
+          const result = await gitService.init({ path, initialBranch: options?.initialBranch || 'main' });
           if (result.success) {
-            set({
-              currentRepoPath: path,
-              currentRepoInfo: result.data || null,
-              operationStatus: 'success',
-            });
+            set({ currentRepoPath: path, currentRepoInfo: result.data || null, operationStatus: 'success' });
             get().addTrackedRepo(path);
             return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to initialize repository',
-              operationStatus: 'error',
-            });
-            return false;
           }
+          set({ lastError: result.error || 'Failed to initialize repository', operationStatus: 'error' });
+          return false;
         } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
+          set({ lastError: errMsg(error), operationStatus: 'error' });
           return false;
         }
       },
@@ -400,1018 +422,262 @@ export const useGitStore = create<GitState & GitActions>()(
       cloneRepo: async (url, targetPath, options) => {
         set({ operationStatus: 'running' });
         try {
-          const result = await gitService.clone({
-            url,
-            targetPath,
-            branch: options?.branch,
-            depth: options?.depth,
-          });
+          const result = await gitService.clone({ url, targetPath, branch: options?.branch, depth: options?.depth });
           if (result.success) {
-            set({
-              currentRepoPath: targetPath,
-              currentRepoInfo: result.data || null,
-              operationStatus: 'success',
-            });
+            set({ currentRepoPath: targetPath, currentRepoInfo: result.data || null, operationStatus: 'success' });
             get().addTrackedRepo(targetPath);
             return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to clone repository',
-              operationStatus: 'error',
-            });
-            return false;
           }
+          set({ lastError: result.error || 'Failed to clone repository', operationStatus: 'error' });
+          return false;
         } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
+          set({ lastError: errMsg(error), operationStatus: 'error' });
           return false;
         }
       },
 
       // Staging
-      stageFiles: async (files) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      stageFiles: async (files) => runGitOp(get, set,
+        (rp) => gitService.stage(rp, files),
+        'Failed to stage files',
+        () => get().loadFileStatus(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stage(currentRepoPath, files);
-          if (result.success) {
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to stage files',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      stageAll: async () => runGitOp(get, set,
+        (rp) => gitService.stageAll(rp),
+        'Failed to stage all files',
+        () => get().loadFileStatus(),
+      ),
 
-      stageAll: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stageAll(currentRepoPath);
-          if (result.success) {
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to stage all files',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      unstageFiles: async (files) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.unstage(currentRepoPath, files);
-          if (result.success) {
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to unstage files',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      unstageFiles: async (files) => runGitOp(get, set,
+        (rp) => gitService.unstage(rp, files),
+        'Failed to unstage files',
+        () => get().loadFileStatus(),
+      ),
 
       // Commits
-      commit: async (message, options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      commit: async (message, options) => runGitOp(get, set,
+        (rp) => gitService.commit({ repoPath: rp, message, description: options?.description, amend: options?.amend }),
+        'Failed to commit',
+        async () => { await get().loadRepoStatus(); await get().loadCommitHistory(); },
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.commit({
-            repoPath: currentRepoPath,
-            message,
-            description: options?.description,
-            amend: options?.amend,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadCommitHistory();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to commit',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      loadCommitHistory: async (options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
-
-        try {
-          const result = await gitService.getLog({
-            repoPath: currentRepoPath,
-            maxCount: options?.maxCount || 50,
-          });
-          if (result.success && result.data) {
-            set({ commits: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      loadCommitHistory: async (options) => loadGitData(get, set,
+        (rp) => gitService.getLog({ repoPath: rp, maxCount: options?.maxCount || 50 }),
+        (data) => ({ commits: data }),
+      ),
 
       // Branches
-      loadBranches: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      loadBranches: async () => loadGitData(get, set,
+        (rp) => gitService.getBranches(rp, true),
+        (data) => ({ branches: data }),
+      ),
 
-        try {
-          const result = await gitService.getBranches(currentRepoPath, true);
-          if (result.success && result.data) {
-            set({ branches: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      createBranch: async (name, startPoint) => runGitOp(get, set,
+        (rp) => gitService.createBranch({ repoPath: rp, name, startPoint }),
+        'Failed to create branch',
+        () => get().loadBranches(),
+      ),
 
-      createBranch: async (name, startPoint) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      deleteBranch: async (name, force) => runGitOp(get, set,
+        (rp) => gitService.deleteBranch({ repoPath: rp, name, force }),
+        'Failed to delete branch',
+        () => get().loadBranches(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.createBranch({
-            repoPath: currentRepoPath,
-            name,
-            startPoint,
-          });
-          if (result.success) {
-            await get().loadBranches();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to create branch',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      checkout: async (target, createBranch) => runGitOp(get, set,
+        (rp) => gitService.checkout({ repoPath: rp, target, createBranch }),
+        'Failed to checkout',
+        async () => { await get().loadRepoStatus(); await get().loadBranches(); },
+      ),
 
-      deleteBranch: async (name, force) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.deleteBranch({
-            repoPath: currentRepoPath,
-            name,
-            force,
-          });
-          if (result.success) {
-            await get().loadBranches();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to delete branch',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      checkout: async (target, createBranch) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.checkout({
-            repoPath: currentRepoPath,
-            target,
-            createBranch,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadBranches();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to checkout',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      mergeBranch: async (branch, options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.merge({
-            repoPath: currentRepoPath,
-            branch,
-            noFf: options?.noFf,
-            squash: options?.squash,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadBranches();
-            await get().loadCommitHistory();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to merge branch',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      mergeBranch: async (branch, options) => runGitOp(get, set,
+        (rp) => gitService.merge({ repoPath: rp, branch, noFf: options?.noFf, squash: options?.squash }),
+        'Failed to merge branch',
+        async () => { await get().loadRepoStatus(); await get().loadBranches(); await get().loadCommitHistory(); },
+      ),
 
       getDiffBetween: async (fromRef, toRef) => {
         const { currentRepoPath } = get();
         if (!currentRepoPath) return null;
-
         try {
           const result = await gitService.getDiffBetween(currentRepoPath, fromRef, toRef);
-          if (result.success && result.data) {
-            return result.data;
-          }
-          return null;
-        } catch (error) {
-          console.error('Failed to get diff between refs:', error);
+          return (result.success && result.data) ? result.data : null;
+        } catch {
           return null;
         }
       },
 
       // Remote operations
-      push: async (options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      push: async (options) => runGitOp(get, set,
+        (rp) => gitService.push({ repoPath: rp, force: options?.force, setUpstream: options?.setUpstream }),
+        'Failed to push',
+        () => get().loadRepoStatus(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.push({
-            repoPath: currentRepoPath,
-            force: options?.force,
-            setUpstream: options?.setUpstream,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to push',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      pull: async (options) => runGitOp(get, set,
+        (rp) => gitService.pull({ repoPath: rp, rebase: options?.rebase }),
+        'Failed to pull',
+        async () => { await get().loadRepoStatus(); await get().loadCommitHistory(); },
+      ),
 
-      pull: async (options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.pull({
-            repoPath: currentRepoPath,
-            rebase: options?.rebase,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadCommitHistory();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to pull',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      fetch: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.fetch(currentRepoPath);
-          if (result.success) {
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to fetch',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      fetch: async () => runGitOp(get, set,
+        (rp) => gitService.fetch(rp),
+        'Failed to fetch',
+        () => get().loadRepoStatus(),
+      ),
 
       // File operations
-      loadFileStatus: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      loadFileStatus: async () => loadGitData(get, set,
+        (rp) => gitService.getFileStatus(rp),
+        (data) => ({ fileStatus: data }),
+      ),
 
-        try {
-          const result = await gitService.getFileStatus(currentRepoPath);
-          if (result.success && result.data) {
-            set({ fileStatus: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
-
-      discardChanges: async (files) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.discardChanges(currentRepoPath, files);
-          if (result.success) {
-            await get().loadFileStatus();
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to discard changes',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      discardChanges: async (files) => runGitOp(get, set,
+        (rp) => gitService.discardChanges(rp, files),
+        'Failed to discard changes',
+        async () => { await get().loadFileStatus(); await get().loadRepoStatus(); },
+      ),
 
       getDiffContent: async (filePath, staged) => {
         const { currentRepoPath } = get();
         if (!currentRepoPath) return null;
-
         try {
           const result = await gitService.getDiffFile(currentRepoPath, filePath, staged);
-          if (result.success && result.data) {
-            return result.data.content || null;
-          }
-          return null;
+          return (result.success && result.data) ? result.data.content || null : null;
         } catch {
           return null;
         }
       },
 
       // Stash operations
-      loadStashList: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      loadStashList: async () => loadGitData(get, set,
+        (rp) => gitService.getStashList(rp),
+        (data) => ({ stashList: data }),
+      ),
 
-        try {
-          const result = await gitService.getStashList(currentRepoPath);
-          if (result.success && result.data) {
-            set({ stashList: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      stashSave: async (message, includeUntracked) => runGitOp(get, set,
+        (rp) => gitService.stash({ repoPath: rp, action: 'save', message, includeUntracked }),
+        'Failed to stash changes',
+        async () => { await get().loadStashList(); await get().loadFileStatus(); await get().loadRepoStatus(); },
+      ),
 
-      stashSave: async (message, includeUntracked) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      stashPop: async (index) => runGitOp(get, set,
+        (rp) => gitService.stash({ repoPath: rp, action: 'pop', stashIndex: index }),
+        'Failed to pop stash',
+        async () => { await get().loadStashList(); await get().loadFileStatus(); await get().loadRepoStatus(); },
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stash({
-            repoPath: currentRepoPath,
-            action: 'save',
-            message,
-            includeUntracked,
-          });
-          if (result.success) {
-            await get().loadStashList();
-            await get().loadFileStatus();
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to stash changes',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      stashApply: async (index) => runGitOp(get, set,
+        (rp) => gitService.stash({ repoPath: rp, action: 'apply', stashIndex: index }),
+        'Failed to apply stash',
+        async () => { await get().loadFileStatus(); await get().loadRepoStatus(); },
+      ),
 
-      stashPop: async (index) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      stashDrop: async (index) => runGitOp(get, set,
+        (rp) => gitService.stash({ repoPath: rp, action: 'drop', stashIndex: index }),
+        'Failed to drop stash',
+        () => get().loadStashList(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stash({
-            repoPath: currentRepoPath,
-            action: 'pop',
-            stashIndex: index,
-          });
-          if (result.success) {
-            await get().loadStashList();
-            await get().loadFileStatus();
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to pop stash',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      stashApply: async (index) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stash({
-            repoPath: currentRepoPath,
-            action: 'apply',
-            stashIndex: index,
-          });
-          if (result.success) {
-            await get().loadFileStatus();
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to apply stash',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      stashDrop: async (index) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stash({
-            repoPath: currentRepoPath,
-            action: 'drop',
-            stashIndex: index,
-          });
-          if (result.success) {
-            await get().loadStashList();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to drop stash',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      stashClear: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.stash({
-            repoPath: currentRepoPath,
-            action: 'clear',
-          });
-          if (result.success) {
-            set({ stashList: [], operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to clear stash',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      stashClear: async () => runGitOp(get, set,
+        (rp) => gitService.stash({ repoPath: rp, action: 'clear' }),
+        'Failed to clear stash',
+        () => { set({ stashList: [] }); },
+      ),
 
       // Remote management
-      loadRemotes: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      loadRemotes: async () => loadGitData(get, set,
+        (rp) => gitService.getRemotes(rp),
+        (data) => ({ remotes: data }),
+      ),
 
-        try {
-          const result = await gitService.getRemotes(currentRepoPath);
-          if (result.success && result.data) {
-            set({ remotes: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      addRemote: async (name, url) => runGitOp(get, set,
+        (rp) => gitService.addRemote(rp, name, url),
+        'Failed to add remote',
+        () => get().loadRemotes(),
+      ),
 
-      addRemote: async (name, url) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.addRemote(currentRepoPath, name, url);
-          if (result.success) {
-            await get().loadRemotes();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to add remote',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      removeRemote: async (name) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.removeRemote(currentRepoPath, name);
-          if (result.success) {
-            await get().loadRemotes();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to remove remote',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      removeRemote: async (name) => runGitOp(get, set,
+        (rp) => gitService.removeRemote(rp, name),
+        'Failed to remove remote',
+        () => get().loadRemotes(),
+      ),
 
       // Tag operations
-      loadTags: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      loadTags: async () => loadGitData(get, set,
+        (rp) => gitService.getTagList(rp),
+        (data) => ({ tags: data }),
+      ),
 
-        try {
-          const result = await gitService.getTagList(currentRepoPath);
-          if (result.success && result.data) {
-            set({ tags: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      createTag: async (name, options) => runGitOp(get, set,
+        (rp) => gitService.createTag({ repoPath: rp, name, message: options?.message, target: options?.target, force: options?.force }),
+        'Failed to create tag',
+        () => get().loadTags(),
+      ),
 
-      createTag: async (name, options) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      deleteTag: async (name) => runGitOp(get, set,
+        (rp) => gitService.deleteTag(rp, name),
+        'Failed to delete tag',
+        () => get().loadTags(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.createTag({
-            repoPath: currentRepoPath,
-            name,
-            message: options?.message,
-            target: options?.target,
-            force: options?.force,
-          });
-          if (result.success) {
-            await get().loadTags();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to create tag',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      deleteTag: async (name) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.deleteTag(currentRepoPath, name);
-          if (result.success) {
-            await get().loadTags();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to delete tag',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      pushTag: async (name, remote) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.pushTag(currentRepoPath, name, remote);
-          if (result.success) {
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to push tag',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      pushTag: async (name, remote) => runGitOp(get, set,
+        (rp) => gitService.pushTag(rp, name, remote),
+        'Failed to push tag',
+      ),
 
       // Revert
-      revertCommit: async (commitHash, noCommit) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      revertCommit: async (commitHash, noCommit) => runGitOp(get, set,
+        (rp) => gitService.revert({ repoPath: rp, commitHash, noCommit }),
+        'Failed to revert commit',
+        async () => { await get().loadRepoStatus(); await get().loadCommitHistory(); await get().loadFileStatus(); },
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.revert({
-            repoPath: currentRepoPath,
-            commitHash,
-            noCommit,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadCommitHistory();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to revert commit',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      revertAbort: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.revertAbort(currentRepoPath);
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to abort revert',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      revertAbort: async () => runGitOp(get, set,
+        (rp) => gitService.revertAbort(rp),
+        'Failed to abort revert',
+        async () => { await get().loadRepoStatus(); await get().loadFileStatus(); },
+      ),
 
       // Cherry-pick
-      cherryPick: async (commitHash, noCommit) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      cherryPick: async (commitHash, noCommit) => runGitOp(get, set,
+        (rp) => gitService.cherryPick({ repoPath: rp, commitHash, noCommit }),
+        'Failed to cherry-pick commit',
+        async () => { await get().loadRepoStatus(); await get().loadCommitHistory(); await get().loadFileStatus(); },
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.cherryPick({
-            repoPath: currentRepoPath,
-            commitHash,
-            noCommit,
-          });
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadCommitHistory();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to cherry-pick commit',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      cherryPickAbort: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.cherryPickAbort(currentRepoPath);
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to abort cherry-pick',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      cherryPickAbort: async () => runGitOp(get, set,
+        (rp) => gitService.cherryPickAbort(rp),
+        'Failed to abort cherry-pick',
+        async () => { await get().loadRepoStatus(); await get().loadFileStatus(); },
+      ),
 
       // Branch rename
-      renameBranch: async (oldName, newName, force) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.renameBranch(currentRepoPath, oldName, newName, force);
-          if (result.success) {
-            await get().loadBranches();
-            await get().loadRepoStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to rename branch',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      renameBranch: async (oldName, newName, force) => runGitOp(get, set,
+        (rp) => gitService.renameBranch(rp, oldName, newName, force),
+        'Failed to rename branch',
+        async () => { await get().loadBranches(); await get().loadRepoStatus(); },
+      ),
 
       // Show commit detail
       showCommit: async (commitHash, maxLines) => {
         const { currentRepoPath } = get();
         if (!currentRepoPath) return null;
-
         try {
           const result = await gitService.showCommit(currentRepoPath, commitHash, maxLines);
-          if (result.success && result.data) {
-            return result.data;
-          }
-          return null;
-        } catch (error) {
-          console.error('Failed to show commit:', error);
+          return (result.success && result.data) ? result.data : null;
+        } catch {
           return null;
         }
       },
 
       // Merge abort
-      mergeAbort: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.mergeAbort(currentRepoPath);
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to abort merge',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      mergeAbort: async () => runGitOp(get, set,
+        (rp) => gitService.mergeAbort(rp),
+        'Failed to abort merge',
+        async () => { await get().loadRepoStatus(); await get().loadFileStatus(); },
+      ),
 
       // Project Git configuration
       getProjectConfig: (projectId) => {
@@ -1509,131 +775,40 @@ export const useGitStore = create<GitState & GitActions>()(
       },
 
       // Graph
-      loadGraphCommits: async (maxCount) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
-
-        try {
-          const result = await gitService.getLogGraph(currentRepoPath, maxCount);
-          if (result.success && result.data) {
-            set({ graphCommits: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      loadGraphCommits: async (maxCount) => loadGitData(get, set,
+        (rp) => gitService.getLogGraph(rp, maxCount),
+        (data) => ({ graphCommits: data }),
+      ),
 
       // Stats
-      loadRepoStats: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
-
-        try {
-          const result = await gitService.getRepoStats(currentRepoPath);
-          if (result.success && result.data) {
-            set({ repoStats: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
+      loadRepoStats: async () => loadGitData(get, set,
+        (rp) => gitService.getRepoStats(rp),
+        (data) => ({ repoStats: data }),
+      ),
 
       // Checkpoints
-      createCheckpoint: async (message) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
+      createCheckpoint: async (message) => runGitOp(get, set,
+        (rp) => gitService.checkpointCreate(rp, message),
+        'Failed to create checkpoint',
+        () => get().loadCheckpoints(),
+      ),
 
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.checkpointCreate(currentRepoPath, message);
-          if (result.success) {
-            await get().loadCheckpoints();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to create checkpoint',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      loadCheckpoints: async () => loadGitData(get, set,
+        (rp) => gitService.checkpointList(rp),
+        (data) => ({ checkpoints: data }),
+      ),
 
-      loadCheckpoints: async () => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return;
+      restoreCheckpoint: async (id) => runGitOp(get, set,
+        (rp) => gitService.checkpointRestore(rp, id),
+        'Failed to restore checkpoint',
+        async () => { await get().loadRepoStatus(); await get().loadFileStatus(); },
+      ),
 
-        try {
-          const result = await gitService.checkpointList(currentRepoPath);
-          if (result.success && result.data) {
-            set({ checkpoints: result.data });
-          }
-        } catch (error) {
-          set({ lastError: error instanceof Error ? error.message : String(error) });
-        }
-      },
-
-      restoreCheckpoint: async (id) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.checkpointRestore(currentRepoPath, id);
-          if (result.success) {
-            await get().loadRepoStatus();
-            await get().loadFileStatus();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to restore checkpoint',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
-
-      deleteCheckpoint: async (id) => {
-        const { currentRepoPath } = get();
-        if (!currentRepoPath) return false;
-
-        set({ operationStatus: 'running' });
-        try {
-          const result = await gitService.checkpointDelete(currentRepoPath, id);
-          if (result.success) {
-            await get().loadCheckpoints();
-            set({ operationStatus: 'success' });
-            return true;
-          } else {
-            set({
-              lastError: result.error || 'Failed to delete checkpoint',
-              operationStatus: 'error',
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            lastError: error instanceof Error ? error.message : String(error),
-            operationStatus: 'error',
-          });
-          return false;
-        }
-      },
+      deleteCheckpoint: async (id) => runGitOp(get, set,
+        (rp) => gitService.checkpointDelete(rp, id),
+        'Failed to delete checkpoint',
+        () => get().loadCheckpoints(),
+      ),
 
       // Repository tracking
       addTrackedRepo: (path) => {
@@ -1666,14 +841,25 @@ export const useGitStore = create<GitState & GitActions>()(
   )
 );
 
-// Selectors
+// ==================== Selectors ====================
+
+/** Select the full Git installation status object */
 export const selectGitStatus = (state: GitState & GitActions) => state.gitStatus;
+/** Select whether Git is installed */
 export const selectIsGitInstalled = (state: GitState & GitActions) => state.gitStatus.installed;
+/** Select the current repository info (used by agent-trace and sync stores) */
 export const selectCurrentRepo = (state: GitState & GitActions) => state.currentRepoInfo;
+/** Select the list of branches */
 export const selectBranches = (state: GitState & GitActions) => state.branches;
+/** Select the commit history */
 export const selectCommits = (state: GitState & GitActions) => state.commits;
+/** Select the file status list */
 export const selectFileStatus = (state: GitState & GitActions) => state.fileStatus;
+/** Select the list of remotes */
 export const selectRemotes = (state: GitState & GitActions) => state.remotes;
+/** Select the list of tags */
 export const selectTags = (state: GitState & GitActions) => state.tags;
+/** Select the current operation status */
 export const selectOperationStatus = (state: GitState & GitActions) => state.operationStatus;
+/** Select the last error message */
 export const selectLastError = (state: GitState & GitActions) => state.lastError;

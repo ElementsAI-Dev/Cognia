@@ -138,8 +138,8 @@ describe('LocationPanel', () => {
     });
 
     render(<LocationPanel />);
-    expect(screen.getByText('latitude')).toBeInTheDocument();
-    expect(screen.getByText('longitude')).toBeInTheDocument();
+    expect(screen.getByText(/latitude/)).toBeInTheDocument();
+    expect(screen.getByText(/longitude/)).toBeInTheDocument();
     expect(screen.getByText('39.904200')).toBeInTheDocument();
     expect(screen.getByText('116.407400')).toBeInTheDocument();
   });
@@ -157,8 +157,8 @@ describe('LocationPanel', () => {
 
   it('does not show location card when no position', () => {
     render(<LocationPanel />);
-    expect(screen.queryByText('latitude')).not.toBeInTheDocument();
-    expect(screen.queryByText('longitude')).not.toBeInTheDocument();
+    expect(screen.queryByText(/latitude/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/longitude/)).not.toBeInTheDocument();
   });
 
   it('updates location when map is clicked', () => {
@@ -168,7 +168,7 @@ describe('LocationPanel', () => {
     fireEvent.click(map);
 
     // After clicking map, location info should appear
-    expect(screen.getByText('latitude')).toBeInTheDocument();
+    expect(screen.getByText(/latitude/)).toBeInTheDocument();
     expect(screen.getByText('40.000000')).toBeInTheDocument();
     expect(screen.getByText('116.000000')).toBeInTheDocument();
   });
@@ -180,7 +180,7 @@ describe('LocationPanel', () => {
     fireEvent.change(searchInput, { target: { value: 'Beijing' } });
 
     // After address selection, location info should appear
-    expect(screen.getByText('latitude')).toBeInTheDocument();
+    expect(screen.getByText(/latitude/)).toBeInTheDocument();
     expect(screen.getByText('39.904200')).toBeInTheDocument();
   });
 
@@ -192,9 +192,13 @@ describe('LocationPanel', () => {
 
     render(<LocationPanel />);
 
-    // Find and click the copy button
+    // Find and click the copy button inside the location info card
     const copyButtons = screen.getAllByRole('button');
     const copyButton = copyButtons.find(
+      (btn) => btn.querySelector('svg')
+        && !btn.textContent?.includes('locateMe')
+        && btn.closest('[class*="CardTitle"]')
+    ) || copyButtons.find(
       (btn) => btn.querySelector('.lucide-copy')
     );
 

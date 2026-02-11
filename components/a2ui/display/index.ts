@@ -13,3 +13,5 @@ export { A2UIProgress } from './a2ui-progress';
 export { A2UILoading, type A2UILoadingComponent } from './a2ui-loading';
 export { A2UIError, type A2UIErrorComponent } from './a2ui-error';
 export { A2UIEmpty, type A2UIEmptyComponent } from './a2ui-empty';
+export { A2UIAnimation, type A2UIAnimationType, type A2UIAnimationComponentDef } from './a2ui-animation';
+export { A2UIInteractiveGuide, type A2UIInteractiveGuideComponentDef, type A2UIGuideStep } from './a2ui-interactive-guide';

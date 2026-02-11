@@ -61,16 +61,17 @@ export function LocationPanel({ className }: LocationPanelProps) {
     ]);
   }, []);
 
+  const displayPosition = selectedLocation || position;
+
   const handleCopyCoordinates = useCallback(async () => {
-    if (selectedLocation) {
-      const text = `${selectedLocation.latitude.toFixed(6)}, ${selectedLocation.longitude.toFixed(6)}`;
+    const pos = selectedLocation || position;
+    if (pos) {
+      const text = `${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}`;
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [selectedLocation]);
-
-  const displayPosition = selectedLocation || position;
+  }, [selectedLocation, position]);
 
   return (
     <div className={cn('flex h-full flex-col gap-4 p-4', className)}>

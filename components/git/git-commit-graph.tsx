@@ -315,6 +315,7 @@ export function GitCommitGraph({
           </svg>
 
           {/* Commit details column */}
+          <TooltipProvider delayDuration={300}>
           <div className="flex-1 min-w-0">
             {layoutCommits.map((commit, row) => {
               const isSelected = selectedCommit === commit.hash;
@@ -322,8 +323,7 @@ export function GitCommitGraph({
               const top = SVG_PADDING_TOP + row * ROW_HEIGHT;
 
               return (
-                <TooltipProvider key={commit.hash} delayDuration={300}>
-                  <Tooltip>
+                <Tooltip key={commit.hash}>
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
@@ -393,10 +393,10 @@ export function GitCommitGraph({
                       </div>
                     </TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
               );
             })}
           </div>
+          </TooltipProvider>
         </div>
       </ScrollArea>
     </div>

@@ -46,7 +46,9 @@ import { toast } from '@/components/ui/sonner';
 import type { Preset, CreatePresetInput, PresetCategory } from '@/types/content/preset';
 import { PRESET_CATEGORIES } from '@/types/content/preset';
 import { generatePresetFromDescription } from '@/lib/ai/presets';
+import { getPresetAIConfig } from '@/lib/presets';
 import { nanoid } from 'nanoid';
+import { loggers } from '@/lib/logger';
 
 interface PresetsManagerProps {
   onSelectPreset?: (preset: Preset) => void;
@@ -153,10 +155,12 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
     URL.revokeObjectURL(url);
   };
 
-  // Import presets from JSON file
+  // Import presets from JSON file with validation
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    const VALID_MODES: string[] = ['chat', 'agent', 'research', 'learning'];
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -164,31 +168,47 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         const data = JSON.parse(e.target?.result as string);
         if (data.presets && Array.isArray(data.presets)) {
           let imported = 0;
+          let skipped = 0;
           data.presets.forEach((p: CreatePresetInput & { isFavorite?: boolean; isDefault?: boolean }) => {
-            if (p.name && p.provider && p.model) {
-              const newPreset = createPreset({
-                name: p.name,
-                description: p.description,
-                icon: p.icon,
-                color: p.color,
-                provider: p.provider,
-                model: p.model,
-                mode: p.mode,
-                systemPrompt: p.systemPrompt,
-                builtinPrompts: p.builtinPrompts,
-                temperature: p.temperature,
-                maxTokens: p.maxTokens,
-                webSearchEnabled: p.webSearchEnabled,
-                thinkingEnabled: p.thinkingEnabled,
-                isDefault: p.isDefault,
-              });
-              if (p.isFavorite && newPreset) {
-                usePresetStore.getState().toggleFavorite(newPreset.id);
-              }
-              imported++;
+            // Validate required fields
+            if (!p.name || typeof p.name !== 'string') { skipped++; return; }
+            if (!p.provider || typeof p.provider !== 'string') { skipped++; return; }
+            if (!p.model || typeof p.model !== 'string') { skipped++; return; }
+
+            // Validate optional fields with safe defaults
+            const mode = (p.mode && VALID_MODES.includes(p.mode as string)) ? p.mode : 'chat';
+            const temperature = typeof p.temperature === 'number'
+              ? Math.max(0, Math.min(2, p.temperature))
+              : 0.7;
+            const maxTokens = typeof p.maxTokens === 'number' && p.maxTokens > 0
+              ? p.maxTokens
+              : undefined;
+
+            const newPreset = createPreset({
+              name: String(p.name).slice(0, 100),
+              description: typeof p.description === 'string' ? p.description.slice(0, 500) : undefined,
+              icon: p.icon,
+              color: p.color,
+              provider: p.provider,
+              model: p.model,
+              mode,
+              systemPrompt: typeof p.systemPrompt === 'string' ? p.systemPrompt : undefined,
+              builtinPrompts: Array.isArray(p.builtinPrompts) ? p.builtinPrompts : undefined,
+              temperature,
+              maxTokens,
+              webSearchEnabled: typeof p.webSearchEnabled === 'boolean' ? p.webSearchEnabled : false,
+              thinkingEnabled: typeof p.thinkingEnabled === 'boolean' ? p.thinkingEnabled : false,
+              isDefault: p.isDefault,
+            });
+            if (p.isFavorite && newPreset) {
+              usePresetStore.getState().toggleFavorite(newPreset.id);
             }
+            imported++;
           });
-          toast.success(t('importSuccess', { count: imported }));
+          const msg = skipped > 0
+            ? t('importSuccess', { count: imported }) + ` (${skipped} skipped)`
+            : t('importSuccess', { count: imported });
+          toast.success(msg);
         } else {
           toast.error(t('errors.invalidFileFormat'));
         }
@@ -208,23 +228,15 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
   const handleAIGenerate = async () => {
     if (!aiDescription.trim()) return;
     
-    const openaiSettings = providerSettings['openai'];
-    const anySettings = Object.entries(providerSettings).find(([, s]) => s?.apiKey);
-    const providerName = openaiSettings?.apiKey ? 'openai' : anySettings?.[0];
-    const settings = openaiSettings?.apiKey ? openaiSettings : anySettings?.[1];
-
-    if (!settings?.apiKey || !providerName) {
+    const aiConfig = getPresetAIConfig(providerSettings);
+    if (!aiConfig) {
       toast.warning(t('errors.noApiKey'));
       return;
     }
 
     setIsGenerating(true);
     try {
-      const result = await generatePresetFromDescription(aiDescription, {
-        provider: providerName as import('@/lib/ai/core/client').ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
+      const result = await generatePresetFromDescription(aiDescription, aiConfig);
 
       if (result.success && result.preset) {
         const preset = result.preset;
@@ -254,7 +266,7 @@ export function PresetsManager({ onSelectPreset }: PresetsManagerProps) {
         toast.error(result.error || t('errors.generateFailed'));
       }
     } catch (error) {
-      console.error('Failed to generate preset:', error);
+      loggers.ui.error('Failed to generate preset:', error);
       toast.error(t('errors.generateFailedRetry'));
     } finally {
       setIsGenerating(false);

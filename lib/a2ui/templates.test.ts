@@ -43,16 +43,10 @@ describe('A2UI Templates', () => {
       expect(id).toContain('app');
     });
 
-    it('should include timestamp', () => {
-      const before = Date.now();
+    it('should generate UUID-based IDs', () => {
       const id = generateTemplateId('test');
-      const after = Date.now();
-
-      // Extract timestamp from ID (format: prefix-timestamp-counter)
-      const parts = id.split('-');
-      const timestamp = parseInt(parts[1], 10);
-      expect(timestamp).toBeGreaterThanOrEqual(before);
-      expect(timestamp).toBeLessThanOrEqual(after);
+      // Format: prefix-uuid (uuid contains hyphens)
+      expect(id).toMatch(/^test-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
   });
 

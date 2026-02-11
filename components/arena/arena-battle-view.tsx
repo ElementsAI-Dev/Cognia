@@ -10,27 +10,17 @@ import { useTranslations } from 'next-intl';
 import {
   X,
   Trophy,
-  Clock,
-  Coins,
-  Hash,
-  Copy,
-  Check,
   Scale,
   Maximize2,
   Minimize2,
-  Loader2,
-  Ban,
   MessageSquare,
   Send,
   RotateCcw,
   Diff,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -47,13 +37,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useCopy } from '@/hooks/ui';
-import { useArena } from '@/hooks/arena';
-import { useArenaStore, selectBattleById } from '@/stores/arena';
-import { MarkdownRenderer } from '@/components/chat/utils';
+import { useArenaVoting } from '@/hooks/arena';
 import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
 import { ArenaDiffView } from '@/components/arena/arena-diff-view';
-import type { ArenaContestant, ArenaWinReason } from '@/types/arena';
+import { ArenaContestantCard } from '@/components/arena/arena-contestant-card';
+import type { ArenaWinReason } from '@/types/arena';
 import type { ArenaModelConfig } from '@/types/chat/multi-model';
 
 interface ArenaBattleViewProps {
@@ -76,174 +64,7 @@ const WIN_REASONS: ArenaWinReason[] = [
   'other',
 ];
 
-function ContestantCard({
-  contestant,
-  index,
-  isWinner,
-  blindMode,
-  isRevealed,
-  onCopy,
-  onCancel,
-  isCopying,
-}: {
-  contestant: ArenaContestant;
-  index: number;
-  isWinner: boolean;
-  blindMode: boolean;
-  isRevealed: boolean;
-  onCopy: () => void;
-  onCancel?: () => void;
-  isCopying: boolean;
-}) {
-  const t = useTranslations('arena');
-
-  const isStreaming = contestant.status === 'streaming';
-  const isCompleted = contestant.status === 'completed';
-  const isError = contestant.status === 'error';
-
-  // Get status badge
-  const getStatusBadge = () => {
-    if (isStreaming) {
-      return (
-        <Badge variant="outline" className="gap-1 text-blue-600 border-blue-300">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {t('streaming')}
-        </Badge>
-      );
-    }
-    if (isError) {
-      return (
-        <Badge variant="destructive" className="gap-1">
-          {t('error')}
-        </Badge>
-      );
-    }
-    if (isCompleted) {
-      return (
-        <Badge variant="outline" className="gap-1 text-green-600 border-green-300">
-          <Check className="h-3 w-3" />
-          {t('completed')}
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        {t('pending')}
-      </Badge>
-    );
-  };
-
-  return (
-    <Card
-      className={cn(
-        'flex flex-col h-full overflow-hidden transition-all py-0 gap-0',
-        isWinner && 'ring-2 ring-primary border-primary',
-        isError && 'border-destructive/50'
-      )}
-    >
-      <CardHeader className="flex flex-row items-center justify-between px-3 py-2 bg-muted/50 border-b gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-mono">
-            {String.fromCharCode(65 + index)}
-          </Badge>
-          {blindMode && !isRevealed ? (
-            <span className="text-xs text-muted-foreground italic">
-              {t('model')} {String.fromCharCode(65 + index)}
-            </span>
-          ) : (
-            <span
-              className={cn(
-                'text-xs text-muted-foreground',
-                isRevealed && 'animate-in fade-in slide-in-from-left-2 duration-500'
-              )}
-            >
-              {contestant.displayName}
-            </span>
-          )}
-          {isWinner && (
-            <Badge className="text-[10px] gap-1 bg-primary animate-in zoom-in duration-300">
-              <Trophy className="h-2.5 w-2.5" />
-              {t('winner')}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {getStatusBadge()}
-          {isStreaming && onCancel && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-destructive hover:text-destructive"
-                  onClick={onCancel}
-                >
-                  <Ban className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('cancel')}</TooltipContent>
-            </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={onCopy}
-                disabled={!contestant.response}
-              >
-                {isCopying ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('copy')}</TooltipContent>
-          </Tooltip>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-full p-3">
-          {isError ? (
-            <p className="text-sm text-destructive">{contestant.error}</p>
-          ) : contestant.response ? (
-            <MarkdownRenderer content={contestant.response} />
-          ) : (
-            <p className="text-sm text-muted-foreground italic">{t('waiting')}</p>
-          )}
-        </ScrollArea>
-      </CardContent>
-
-      <CardFooter className="flex items-center justify-between px-3 py-2 border-t bg-muted/30">
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          {contestant.latencyMs && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {(contestant.latencyMs / 1000).toFixed(1)}s
-            </div>
-          )}
-          {contestant.tokenCount && (
-            <div className="flex items-center gap-1">
-              <Hash className="h-3 w-3" />
-              {contestant.tokenCount.total}
-            </div>
-          )}
-          {contestant.estimatedCost && (
-            <div className="flex items-center gap-1">
-              <Coins className="h-3 w-3" />${contestant.estimatedCost.toFixed(4)}
-            </div>
-          )}
-        </div>
-
-        {isWinner && (
-          <Badge variant="secondary" className="text-[10px] gap-1">
-            <Trophy className="h-2.5 w-2.5" />
-            {t('selected')}
-          </Badge>
-        )}
-      </CardFooter>
-    </Card>
-  );
-}
+// ContestantCard is now imported from ./arena-contestant-card
 
 function ArenaBattleViewComponent({
   battleId,
@@ -254,81 +75,25 @@ function ArenaBattleViewComponent({
   canContinue = false,
 }: ArenaBattleViewProps) {
   const t = useTranslations('arena');
-  const tToasts = useTranslations('toasts');
-  const { copy, isCopying } = useCopy({ toastMessage: tToasts('messageCopied') });
-  const { cancelBattle } = useArena();
+
+  const {
+    battle,
+    allDone,
+    isRevealing,
+    selectedReason,
+    setSelectedReason,
+    isCopying,
+    handleVote,
+    handleDeclareTie,
+    handleDeclareBothBad,
+    handleCopy,
+    handleCancel,
+  } = useArenaVoting(battleId, { autoMarkViewed: open });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [selectedReason, setSelectedReason] = useState<ArenaWinReason>('quality');
   const [continueMessage, setContinueMessage] = useState('');
   const [isContinuing, setIsContinuing] = useState(false);
   const [showDiffView, setShowDiffView] = useState(false);
-
-  const battle = useArenaStore(selectBattleById(battleId));
-  const selectWinner = useArenaStore((state) => state.selectWinner);
-  const declareTie = useArenaStore((state) => state.declareTie);
-  const declareBothBad = useArenaStore((state) => state.declareBothBad);
-  const canVote = useArenaStore((state) => state.canVote);
-  const markBattleViewed = useArenaStore((state) => state.markBattleViewed);
-
-  // Track if reveal animation should be shown
-  const [isRevealing, setIsRevealing] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      markBattleViewed(battleId);
-    }
-  }, [battleId, markBattleViewed, open]);
-
-  // Check if all contestants are done
-  const allDone = battle?.contestants.every(
-    (c) => c.status === 'completed' || c.status === 'error' || c.status === 'cancelled'
-  );
-
-  const ensureVoteAllowed = useCallback(() => {
-    const result = canVote(battleId);
-    if (!result.allowed) {
-      const message =
-        result.reason === 'min-viewing-time'
-          ? tToasts('arenaMinViewingTime')
-          : tToasts('arenaRateLimit');
-      toast.error(message);
-      return false;
-    }
-    return true;
-  }, [battleId, canVote, tToasts]);
-
-  const handleDeclareTie = useCallback(() => {
-    if (!ensureVoteAllowed()) return;
-    setIsRevealing(true);
-    declareTie(battleId);
-  }, [battleId, declareTie, ensureVoteAllowed]);
-
-  const handleDeclareBothBad = useCallback(() => {
-    if (!ensureVoteAllowed()) return;
-    setIsRevealing(true);
-    declareBothBad(battleId);
-  }, [battleId, declareBothBad, ensureVoteAllowed]);
-
-  const handleVote = useCallback(
-    (contestantId: string) => {
-      if (!ensureVoteAllowed()) return;
-      setIsRevealing(true);
-      selectWinner(battleId, contestantId, { reason: selectedReason });
-    },
-    [battleId, ensureVoteAllowed, selectWinner, selectedReason]
-  );
-
-  const handleCopy = useCallback(
-    async (content: string) => {
-      await copy(content);
-    },
-    [copy]
-  );
-
-  const handleCancel = useCallback(() => {
-    cancelBattle(battleId);
-  }, [battleId, cancelBattle]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -382,14 +147,14 @@ function ArenaBattleViewComponent({
       switch (e.key.toLowerCase()) {
         case '1':
         case 'a':
-          if (battle.contestants[0]) {
-            handleVote(battle.contestants[0].id);
+          if (displayContestants[0]) {
+            handleVote(displayContestants[0].id);
           }
           break;
         case '2':
         case 'b':
-          if (battle.contestants[1]) {
-            handleVote(battle.contestants[1].id);
+          if (displayContestants[1]) {
+            handleVote(displayContestants[1].id);
           }
           break;
         case 't':
@@ -403,7 +168,7 @@ function ArenaBattleViewComponent({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, battle, handleVote, handleDeclareTie, handleClose]);
+  }, [open, battle, displayContestants, handleVote, handleDeclareTie, handleClose]);
 
   if (!battle) {
     return null;
@@ -517,7 +282,7 @@ function ArenaBattleViewComponent({
             }}
           >
             {displayContestants.map((contestant, index) => (
-              <ContestantCard
+              <ArenaContestantCard
                 key={contestant.id}
                 contestant={contestant}
                 index={index}

@@ -40,13 +40,25 @@ jest.mock('motion/react', () => ({
 }));
 
 // Mock the A2UI context
+const mockDataCtx = {
+  surface: null,
+  dataModel: {},
+  components: {},
+  resolveString: (value: string | { path: string }) =>
+    typeof value === 'string' ? value : '',
+  resolveNumber: (value: number | { path: string }) =>
+    typeof value === 'number' ? value : 0,
+  resolveBoolean: (value: boolean | { path: string }) =>
+    typeof value === 'boolean' ? value : false,
+  resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) =>
+    Array.isArray(value) ? value : d,
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: () => ({
-    dataModel: {},
-    resolveString: (value: string | { path: string }) =>
-      typeof value === 'string' ? value : '',
-    resolveNumber: (value: number | { path: string }) =>
-      typeof value === 'number' ? value : 0,
+  useA2UIContext: () => ({ ...mockDataCtx }),
+  useA2UIData: () => mockDataCtx,
+  useA2UIActions: () => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   }),
 }));
 

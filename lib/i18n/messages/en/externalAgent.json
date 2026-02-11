@@ -29,6 +29,7 @@
   "statusConnected": "Connected",
   "statusReconnecting": "Reconnecting",
   "statusError": "Error",
+  "setConfigOptionFailed": "Failed to set config option",
   "settings": {
     "title": "External Agents",
     "description": "Configure external AI agents to extend Cognia's capabilities",

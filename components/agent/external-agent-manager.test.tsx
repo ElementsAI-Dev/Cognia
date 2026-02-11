@@ -1,35 +1,34 @@
 /**
  * @jest-environment jsdom
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { ExternalAgentManager } from './external-agent-manager';
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => {
-  function Plus(props: any) {
+  function Plus(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-Plus" />;
   }
-  function RefreshCw(props: any) {
+  function RefreshCw(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-RefreshCw" />;
   }
-  function Settings(props: any) {
+  function Settings(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-Settings" />;
   }
-  function Power(props: any) {
+  function Power(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-Power" />;
   }
-  function PowerOff(props: any) {
+  function PowerOff(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-PowerOff" />;
   }
-  function Trash2(props: any) {
+  function Trash2(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-Trash2" />;
   }
-  function Activity(props: any) {
+  function Activity(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-Activity" />;
   }
-  function AlertCircle(props: any) {
+  function AlertCircle(props: React.SVGProps<SVGSVGElement>) {
     return <svg {...props} data-testid="icon-AlertCircle" />;
   }
 
@@ -38,7 +37,7 @@ jest.mock('lucide-react', () => {
 
 // Mock cn utility
 jest.mock('@/lib/utils', () => ({
-  cn: (...args: any[]) => args.filter(Boolean).join(' '),
+  cn: (...args: (string | boolean | undefined | null)[]) => args.filter(Boolean).join(' '),
 }));
 
 // Mock external agent presets
@@ -180,7 +179,7 @@ jest.mock('@/components/ui/input', () => ({
   }: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input
       id={id}
-      value={value as any}
+      value={value as string}
       onChange={onChange}
       placeholder={placeholder}
       required={required}
@@ -280,12 +279,14 @@ describe('ExternalAgentManager', () => {
     setActiveAgent: jest.fn(),
     refresh: jest.fn(),
     clearError: jest.fn(),
+    configOptions: [],
+    setConfigOption: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseExternalAgent.mockReturnValue({ ...baseHookReturn });
-    (global as any).confirm = jest.fn(() => true);
+    (global as unknown as { confirm: jest.Mock }).confirm = jest.fn(() => true);
   });
 
   it('renders header and empty state when there are no agents', () => {
@@ -437,7 +438,7 @@ describe('ExternalAgentManager', () => {
   it('remove button confirms before calling removeAgent', () => {
     const removeAgent = jest.fn();
     const confirmSpy = jest.fn(() => true);
-    (global as any).confirm = confirmSpy;
+    (global as unknown as { confirm: jest.Mock }).confirm = confirmSpy;
 
     mockUseExternalAgent.mockReturnValue({
       ...baseHookReturn,
@@ -470,7 +471,7 @@ describe('ExternalAgentManager', () => {
   it('remove button does nothing when confirm is cancelled', () => {
     const removeAgent = jest.fn();
     const confirmSpy = jest.fn(() => false);
-    (global as any).confirm = confirmSpy;
+    (global as unknown as { confirm: jest.Mock }).confirm = confirmSpy;
 
     mockUseExternalAgent.mockReturnValue({
       ...baseHookReturn,
@@ -501,7 +502,7 @@ describe('ExternalAgentManager', () => {
   });
 
   it('opens add dialog and submitting stdio form calls addAgent with process args split', async () => {
-    const addAgent = jest.fn(async (_config: any) => undefined);
+    const addAgent = jest.fn(async (_config: Record<string, unknown>) => undefined);
 
     mockUseExternalAgent.mockReturnValue({
       ...baseHookReturn,
@@ -541,7 +542,7 @@ describe('ExternalAgentManager', () => {
   it('preset selection populates form and shows env var hint', () => {
     mockUseExternalAgent.mockReturnValue({
       ...baseHookReturn,
-      addAgent: jest.fn(async (_config: any) => undefined),
+      addAgent: jest.fn(async (_config: Record<string, unknown>) => undefined),
     });
 
     render(<ExternalAgentManager />);
@@ -564,7 +565,7 @@ describe('ExternalAgentManager', () => {
   });
 
   it('submitting non-stdio form calls addAgent with network endpoint', () => {
-    const addAgent = jest.fn(async (_config: any) => undefined);
+    const addAgent = jest.fn(async (_config: Record<string, unknown>) => undefined);
 
     mockUseExternalAgent.mockReturnValue({
       ...baseHookReturn,

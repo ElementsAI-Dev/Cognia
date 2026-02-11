@@ -66,14 +66,14 @@ jest.mock('@/lib/ai/media/video-generation', () => ({
 const messages = {
   video: {
     preparing: 'Preparing...',
-    generating: 'Generating...',
+    generating: 'Generating video...',
     progressComplete: '{progress}% complete',
     jobId: 'Job ID',
     checkStatus: 'Check Status',
     generationFailed: 'Video generation failed',
     unknownError: 'Unknown error occurred',
     tryAgain: 'Try Again',
-    generatedSuccessfully: 'Video generated!',
+    generatedSuccessfully: 'Video generated successfully',
     urlNotAvailable: 'URL not available',
     failedToLoad: 'Failed to load video',
     streamingError: 'Streaming error',

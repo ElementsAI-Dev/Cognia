@@ -260,4 +260,3 @@ function StepItem({ step, index, compact = false, highlighted = false }: StepIte
 // Export AgentStep type for use in other components
 export type { AgentStep };
 
-export default AgentSteps;

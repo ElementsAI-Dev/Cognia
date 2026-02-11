@@ -1,11 +1,13 @@
 /**
  * Tests for ArenaInlineBattle component
- * Covers: rendering, status badges, blind mode, voting, result banner, metrics, copy, cancel
+ * Updated for useArenaVoting hook refactor and ArenaContestantCard extraction
+ * Covers: rendering, blind mode, voting, result banner, metrics, copy, cancel, grid layout
  */
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ArenaInlineBattle } from './arena-inline-battle';
+import type { ArenaContestant } from '@/types/arena';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -33,78 +35,14 @@ jest.mock('next-intl', () => ({
   },
 }));
 
-// Mock toast
-import { toast } from 'sonner';
-jest.mock('sonner', () => ({
-  toast: {
-    error: jest.fn(),
-    success: jest.fn(),
-  },
-}));
-const mockToast = toast as jest.Mocked<typeof toast>;
-
-// Mock useCopy hook
-const mockCopy = jest.fn();
-jest.mock('@/hooks/ui', () => ({
-  useCopy: () => ({
-    copy: mockCopy,
-    isCopying: false,
-  }),
-}));
-
-// Mock useArena hook
-const mockCancelBattle = jest.fn();
-jest.mock('@/hooks/arena', () => ({
-  useArena: () => ({
-    cancelBattle: mockCancelBattle,
-  }),
-}));
-
-// Mock MarkdownRenderer
-jest.mock('@/components/chat/utils', () => ({
-  MarkdownRenderer: ({ content }: { content: string }) => (
-    <div data-testid="markdown-renderer">{content}</div>
-  ),
-}));
-
-// Mock QuickVoteBar
-jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
-  QuickVoteBar: ({
-    onVote,
-    onTie,
-    onBothBad,
-  }: {
-    onVote: (id: string) => void;
-    onTie: () => void;
-    onBothBad?: () => void;
-  }) => (
-    <div data-testid="quick-vote-bar">
-      <button data-testid="vote-a" onClick={() => onVote('c1')}>
-        Vote A
-      </button>
-      <button data-testid="vote-tie" onClick={() => onTie()}>
-        Tie
-      </button>
-      {onBothBad && (
-        <button data-testid="vote-both-bad" onClick={() => onBothBad()}>
-          Both Bad
-        </button>
-      )}
-    </div>
-  ),
-}));
-
-// Mock cn utility
-jest.mock('@/lib/utils', () => ({
-  cn: (...classes: (string | undefined | false)[]) => classes.filter(Boolean).join(' '),
-}));
-
-// --- Store mock setup ---
-const mockSelectWinner = jest.fn();
-const mockDeclareTie = jest.fn();
-const mockDeclareBothBad = jest.fn();
-const mockCanVote = jest.fn().mockReturnValue({ allowed: true });
-const mockMarkBattleViewed = jest.fn();
+// --- useArenaVoting hook mock ---
+const mockHandleVote = jest.fn();
+const mockHandleDeclareTie = jest.fn();
+const mockHandleDeclareBothBad = jest.fn();
+const mockHandleCopy = jest.fn();
+const mockHandleCancel = jest.fn();
+let mockAllDone = true;
+let mockIsRevealing = false;
 
 const createBattle = (overrides: Record<string, unknown> = {}) => ({
   id: 'battle-1',
@@ -137,33 +75,126 @@ const createBattle = (overrides: Record<string, unknown> = {}) => ({
   winnerId: undefined as string | undefined,
   isTie: false,
   isBothBad: false,
+  conversationMode: 'single' as const,
   createdAt: new Date(),
   ...overrides,
 });
 
-let currentBattle = createBattle();
+let currentBattle: ReturnType<typeof createBattle> | undefined = createBattle();
 
-jest.mock('@/stores/arena', () => ({
-  useArenaStore: jest.fn((selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      battles: [currentBattle],
-      selectWinner: mockSelectWinner,
-      declareTie: mockDeclareTie,
-      declareBothBad: mockDeclareBothBad,
-      canVote: mockCanVote,
-      markBattleViewed: mockMarkBattleViewed,
-    };
-    return typeof selector === 'function' ? selector(state) : state;
+jest.mock('@/hooks/arena', () => ({
+  useArenaVoting: () => ({
+    battle: currentBattle,
+    allDone: mockAllDone,
+    isRevealing: mockIsRevealing,
+    isCopying: false,
+    handleVote: mockHandleVote,
+    handleDeclareTie: mockHandleDeclareTie,
+    handleDeclareBothBad: mockHandleDeclareBothBad,
+    handleCopy: mockHandleCopy,
+    handleCancel: mockHandleCancel,
   }),
-  selectBattleById: (battleId: string) => (state: { battles: Array<{ id: string }> }) =>
-    state.battles.find((b: { id: string }) => b.id === battleId),
+}));
+
+// Mock cn utility
+jest.mock('@/lib/utils', () => ({
+  cn: (...classes: (string | undefined | false)[]) => classes.filter(Boolean).join(' '),
+}));
+
+// Mock ArenaContestantCard (shared component)
+jest.mock('@/components/arena/arena-contestant-card', () => ({
+  ArenaContestantCard: ({
+    contestant,
+    index,
+    isWinner,
+    blindMode,
+    isRevealed,
+    onCopy,
+    onCancel,
+  }: {
+    contestant: ArenaContestant;
+    index: number;
+    isWinner: boolean;
+    blindMode: boolean;
+    isRevealed: boolean;
+    onCopy: () => void;
+    onCancel?: () => void;
+    isCopying: boolean;
+    variant?: string;
+  }) => (
+    <div data-testid={`contestant-card-${index}`}>
+      <span data-testid={`contestant-name-${index}`}>
+        {blindMode && !isRevealed ? `Model ${String.fromCharCode(65 + index)}` : contestant.displayName}
+      </span>
+      <span data-testid={`contestant-status-${index}`}>{contestant.status}</span>
+      {contestant.response && (
+        <span data-testid={`contestant-response-${index}`}>{contestant.response}</span>
+      )}
+      {contestant.error && <span data-testid={`contestant-error-${index}`}>{contestant.error}</span>}
+      {isWinner && <span data-testid={`contestant-winner-${index}`}>Winner</span>}
+      {contestant.latencyMs && <span>{(contestant.latencyMs / 1000).toFixed(1)}s</span>}
+      {contestant.tokenCount && <span>{contestant.tokenCount.total}</span>}
+      {contestant.estimatedCost && <span>${contestant.estimatedCost.toFixed(4)}</span>}
+      <button data-testid={`copy-btn-${index}`} onClick={onCopy}>copy</button>
+      {onCancel && <button data-testid={`cancel-btn-${index}`} onClick={onCancel}>cancel</button>}
+    </div>
+  ),
+}));
+
+// Mock QuickVoteBar
+jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
+  QuickVoteBar: ({
+    onVote,
+    onTie,
+    onBothBad,
+  }: {
+    onVote: (id: string) => void;
+    onTie: () => void;
+    onBothBad?: () => void;
+  }) => (
+    <div data-testid="quick-vote-bar">
+      <button data-testid="vote-a" onClick={() => onVote('c1')}>
+        Vote A
+      </button>
+      <button data-testid="vote-tie" onClick={() => onTie()}>
+        Tie
+      </button>
+      {onBothBad && (
+        <button data-testid="vote-both-bad" onClick={() => onBothBad()}>
+          Both Bad
+        </button>
+      )}
+    </div>
+  ),
+}));
+
+// Mock UI components
+jest.mock('@/components/ui/button', () => ({
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick} {...props}>{children}</button>
+  ),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}));
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Trophy: () => <span data-testid="icon-trophy" />,
+  MessageSquare: () => <span data-testid="icon-message" />,
 }));
 
 describe('ArenaInlineBattle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     currentBattle = createBattle();
-    mockCanVote.mockReturnValue({ allowed: true });
+    mockAllDone = true;
+    mockIsRevealing = false;
   });
 
   // --- Rendering ---
@@ -176,19 +207,18 @@ describe('ArenaInlineBattle', () => {
 
     it('renders contestant cards for each model', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
-      expect(screen.getByText('A')).toBeInTheDocument();
-      expect(screen.getByText('B')).toBeInTheDocument();
+      expect(screen.getByTestId('contestant-card-0')).toBeInTheDocument();
+      expect(screen.getByTestId('contestant-card-1')).toBeInTheDocument();
     });
 
-    it('renders markdown content for responses', () => {
+    it('renders responses via ArenaContestantCard', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
-      const renderers = screen.getAllByTestId('markdown-renderer');
-      expect(renderers).toHaveLength(2);
-      expect(renderers[0]).toHaveTextContent('Response from Model A');
-      expect(renderers[1]).toHaveTextContent('Response from Model B');
+      expect(screen.getByText('Response from Model A')).toBeInTheDocument();
+      expect(screen.getByText('Response from Model B')).toBeInTheDocument();
     });
 
     it('returns null when battle is not found', () => {
+      currentBattle = undefined;
       const { container } = render(<ArenaInlineBattle battleId="non-existent" />);
       expect(container.firstChild).toBeNull();
     });
@@ -198,11 +228,6 @@ describe('ArenaInlineBattle', () => {
         <ArenaInlineBattle battleId="battle-1" className="custom-class" />
       );
       expect(container.firstChild).toHaveClass('custom-class');
-    });
-
-    it('calls markBattleViewed on mount', () => {
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      expect(mockMarkBattleViewed).toHaveBeenCalledWith('battle-1');
     });
   });
 
@@ -224,52 +249,7 @@ describe('ArenaInlineBattle', () => {
     });
   });
 
-  // --- Status Badges ---
-  describe('status badges', () => {
-    it('shows Completed badge for completed contestants', () => {
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      const completedBadges = screen.getAllByText('Completed');
-      expect(completedBadges.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('shows Streaming badge for streaming contestants', () => {
-      currentBattle = createBattle({
-        contestants: [
-          { id: 'c1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', response: '', status: 'streaming' },
-          { id: 'c2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', response: '', status: 'pending' },
-        ],
-      });
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      expect(screen.getByText('Streaming')).toBeInTheDocument();
-      expect(screen.getByText('Pending')).toBeInTheDocument();
-    });
-
-    it('shows Error badge for errored contestants', () => {
-      currentBattle = createBattle({
-        contestants: [
-          { id: 'c1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', response: '', status: 'error', error: 'API failed' },
-          { id: 'c2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', response: 'ok', status: 'completed' },
-        ],
-      });
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      expect(screen.getByText('Error')).toBeInTheDocument();
-      expect(screen.getByText('API failed')).toBeInTheDocument();
-    });
-
-    it('shows waiting state when response is empty and not error', () => {
-      currentBattle = createBattle({
-        contestants: [
-          { id: 'c1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', response: '', status: 'pending' },
-          { id: 'c2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', response: '', status: 'pending' },
-        ],
-      });
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      const waitingTexts = screen.getAllByText('Waiting for response...');
-      expect(waitingTexts).toHaveLength(2);
-    });
-  });
-
-  // --- Metrics Footer ---
+  // --- Metrics ---
   describe('metrics', () => {
     it('shows latency in seconds', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
@@ -303,49 +283,34 @@ describe('ArenaInlineBattle', () => {
       expect(screen.queryByTestId('quick-vote-bar')).not.toBeInTheDocument();
     });
 
-    it('does not show QuickVoteBar when contestants are still streaming', () => {
-      currentBattle = createBattle({
-        contestants: [
-          { id: 'c1', provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o', response: 'partial', status: 'streaming' },
-          { id: 'c2', provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3', response: '', status: 'pending' },
-        ],
-      });
+    it('does not show QuickVoteBar when not all done', () => {
+      mockAllDone = false;
       render(<ArenaInlineBattle battleId="battle-1" />);
       expect(screen.queryByTestId('quick-vote-bar')).not.toBeInTheDocument();
     });
 
-    it('calls selectWinner when voting for a contestant', () => {
+    it('calls handleVote when voting for a contestant', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
       fireEvent.click(screen.getByTestId('vote-a'));
-      expect(mockSelectWinner).toHaveBeenCalledWith('battle-1', 'c1', { reason: 'quality' });
+      expect(mockHandleVote).toHaveBeenCalledWith('c1');
     });
 
-    it('calls declareTie when tie button is clicked', () => {
+    it('calls handleDeclareTie when tie button is clicked', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
       fireEvent.click(screen.getByTestId('vote-tie'));
-      expect(mockDeclareTie).toHaveBeenCalledWith('battle-1');
+      expect(mockHandleDeclareTie).toHaveBeenCalled();
     });
 
-    it('calls declareBothBad when both bad button is clicked', () => {
+    it('calls handleDeclareBothBad when both bad button is clicked', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
       fireEvent.click(screen.getByTestId('vote-both-bad'));
-      expect(mockDeclareBothBad).toHaveBeenCalledWith('battle-1');
+      expect(mockHandleDeclareBothBad).toHaveBeenCalled();
     });
 
-    it('shows error toast when voting is not allowed', () => {
-      mockCanVote.mockReturnValue({ allowed: false, reason: 'min-viewing-time' });
+    it('calls handleCopy via contestant card copy button', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
-      fireEvent.click(screen.getByTestId('vote-a'));
-      expect(mockSelectWinner).not.toHaveBeenCalled();
-      expect(mockToast.error).toHaveBeenCalled();
-    });
-
-    it('shows error toast when rate limited', () => {
-      mockCanVote.mockReturnValue({ allowed: false, reason: 'rate-limit' });
-      render(<ArenaInlineBattle battleId="battle-1" />);
-      fireEvent.click(screen.getByTestId('vote-tie'));
-      expect(mockDeclareTie).not.toHaveBeenCalled();
-      expect(mockToast.error).toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId('copy-btn-0'));
+      expect(mockHandleCopy).toHaveBeenCalledWith('Response from Model A');
     });
   });
 
@@ -372,7 +337,8 @@ describe('ArenaInlineBattle', () => {
     it('shows winner badge on winning contestant card', () => {
       currentBattle = createBattle({ winnerId: 'c1' });
       render(<ArenaInlineBattle battleId="battle-1" />);
-      expect(screen.getByText('Winner')).toBeInTheDocument();
+      expect(screen.getByTestId('contestant-winner-0')).toBeInTheDocument();
+      expect(screen.queryByTestId('contestant-winner-1')).not.toBeInTheDocument();
     });
 
     it('shows Done button when onClose provided and battle complete', () => {

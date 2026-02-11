@@ -109,6 +109,20 @@ export interface CompletionModelConfig {
   timeout_secs: number;
 }
 
+/** Adaptive debounce configuration */
+export interface AdaptiveDebounceConfig {
+  /** Enable adaptive debounce based on typing speed */
+  enabled: boolean;
+  /** Minimum debounce (ms) when typing fast */
+  min_debounce_ms: number;
+  /** Maximum debounce (ms) when typing slow */
+  max_debounce_ms: number;
+  /** Typing speed threshold (chars/sec) for fast typing */
+  fast_typing_threshold: number;
+  /** Typing speed threshold (chars/sec) for slow typing */
+  slow_typing_threshold: number;
+}
+
 /** Trigger configuration */
 export interface CompletionTriggerConfig {
   /** Debounce delay in milliseconds */
@@ -123,6 +137,8 @@ export interface CompletionTriggerConfig {
   skip_chars: string[];
   /** Whether to skip when modifier keys are held */
   skip_with_modifiers: boolean;
+  /** Adaptive debounce settings */
+  adaptive_debounce?: AdaptiveDebounceConfig;
 }
 
 /** UI configuration */

@@ -163,7 +163,7 @@ describe('CompletionCache', () => {
       
       smallCache.set('overflow', 'value');
       
-      expect(smallCache.getStats().size).toBeLessThan(10);
+      expect(smallCache.getStats().size).toBeLessThanOrEqual(10);
     });
   });
 

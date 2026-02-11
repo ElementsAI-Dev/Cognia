@@ -22,10 +22,9 @@ import Link from 'next/link';
 
 interface EmptyStateProps {
   type?: 'no-data' | 'disabled';
-  onEnableClick?: () => void;
 }
 
-export function EmptyState({ type = 'no-data', onEnableClick: _onEnableClick }: EmptyStateProps) {
+export function EmptyState({ type = 'no-data' }: EmptyStateProps) {
   const t = useTranslations('observability.emptyState');
 
   if (type === 'disabled') {

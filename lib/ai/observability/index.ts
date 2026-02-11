@@ -35,7 +35,7 @@ export async function initializeObservability(config?: {
 }): Promise<void> {
   // Initialize Langfuse
   const { getLangfuse } = await import('./langfuse-client');
-  getLangfuse(config?.langfuse);
+  await getLangfuse(config?.langfuse);
 
   // Initialize OpenTelemetry
   const { initializeOpenTelemetry } = await import('./tracing');

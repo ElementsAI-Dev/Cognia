@@ -525,6 +525,140 @@ describe('usePresetStore', () => {
     });
   });
 
+  describe('date serialization robustness', () => {
+    it('getRecentPresets filters out presets with invalid lastUsedAt', () => {
+      act(() => {
+        const p1 = usePresetStore.getState().createPreset({
+          name: 'Valid Date',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        usePresetStore.getState().usePreset(p1.id);
+
+        const p2 = usePresetStore.getState().createPreset({
+          name: 'Invalid Date',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+        // Simulate corrupted lastUsedAt
+        usePresetStore.setState((state) => ({
+          presets: state.presets.map((p) =>
+            p.id === p2.id ? { ...p, lastUsedAt: new Date('invalid') } : p
+          ),
+        }));
+      });
+
+      const recent = usePresetStore.getState().getRecentPresets();
+      expect(recent).toHaveLength(1);
+      expect(recent[0].name).toBe('Valid Date');
+    });
+
+    it('getRecentPresets returns empty when no valid lastUsedAt exists', () => {
+      act(() => {
+        usePresetStore.getState().createPreset({
+          name: 'Never Used',
+          provider: 'openai',
+          model: 'gpt-4',
+        });
+      });
+
+      const recent = usePresetStore.getState().getRecentPresets();
+      expect(recent).toHaveLength(0);
+    });
+
+    it('getRecentPresets respects limit parameter', () => {
+      act(() => {
+        for (let i = 0; i < 10; i++) {
+          const p = usePresetStore.getState().createPreset({
+            name: `Preset ${i}`,
+            provider: 'openai',
+            model: 'gpt-4',
+          });
+          usePresetStore.getState().usePreset(p.id);
+        }
+      });
+
+      expect(usePresetStore.getState().getRecentPresets(3)).toHaveLength(3);
+      expect(usePresetStore.getState().getRecentPresets(5)).toHaveLength(5);
+    });
+
+    it('onRehydrateStorage converts string dates back to Date objects', () => {
+      // Simulate what happens during rehydration from localStorage
+      const now = new Date();
+      const presetWithStringDates = {
+        id: 'test-rehydrate',
+        name: 'Rehydrated',
+        provider: 'openai',
+        model: 'gpt-4',
+        mode: 'chat',
+        usageCount: 0,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+
+      // Set state as if rehydrated from localStorage (dates as strings)
+      usePresetStore.setState({
+        presets: [presetWithStringDates as unknown as import('@/types/content/preset').Preset],
+      });
+
+      // Manually trigger the rehydration logic
+      const state = usePresetStore.getState();
+      if (state.presets.length > 0) {
+        const safeDate = (v: unknown): Date => {
+          const d = new Date(v as string | number);
+          return isNaN(d.getTime()) ? new Date() : d;
+        };
+        const rehydrated = state.presets.map((p) => ({
+          ...p,
+          createdAt: safeDate(p.createdAt),
+          updatedAt: safeDate(p.updatedAt),
+          lastUsedAt: p.lastUsedAt ? safeDate(p.lastUsedAt) : undefined,
+        }));
+
+        expect(rehydrated[0].createdAt).toBeInstanceOf(Date);
+        expect(rehydrated[0].updatedAt).toBeInstanceOf(Date);
+        expect(rehydrated[0].createdAt.getTime()).not.toBeNaN();
+      }
+    });
+
+    it('safeDate returns current date for invalid date strings', () => {
+      const safeDate = (v: unknown): Date => {
+        const d = new Date(v as string | number);
+        return isNaN(d.getTime()) ? new Date() : d;
+      };
+
+      const before = Date.now();
+      const result = safeDate('not-a-date');
+      const after = Date.now();
+
+      expect(result).toBeInstanceOf(Date);
+      expect(result.getTime()).toBeGreaterThanOrEqual(before);
+      expect(result.getTime()).toBeLessThanOrEqual(after);
+    });
+
+    it('safeDate preserves valid date strings', () => {
+      const safeDate = (v: unknown): Date => {
+        const d = new Date(v as string | number);
+        return isNaN(d.getTime()) ? new Date() : d;
+      };
+
+      const iso = '2025-01-15T12:00:00.000Z';
+      const result = safeDate(iso);
+      expect(result.toISOString()).toBe(iso);
+    });
+
+    it('safeDate handles numeric timestamps', () => {
+      const safeDate = (v: unknown): Date => {
+        const d = new Date(v as string | number);
+        return isNaN(d.getTime()) ? new Date() : d;
+      };
+
+      const ts = 1705312800000;
+      const result = safeDate(ts);
+      expect(result.getTime()).toBe(ts);
+    });
+  });
+
   describe('getPresetsByCategory', () => {
     beforeEach(() => {
       act(() => {

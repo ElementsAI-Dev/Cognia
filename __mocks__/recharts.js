@@ -37,4 +37,5 @@ module.exports = {
   Legend: createMockComponent('Legend'),
   ResponsiveContainer: ({ children }) => React.createElement('div', { 'data-testid': 'mock-responsive-container', style: { width: '100%', height: '100%' } }, children),
   Cell: createMockComponent('Cell'),
+  ReferenceLine: createMockComponent('ReferenceLine'),
 };

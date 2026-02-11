@@ -15,6 +15,7 @@ const mockGlobalStats = {
   averageAccuracy: 75,
   quizzesCompleted: 10,
   sessionsCompleted: 5,
+  tutorialsCompleted: 3,
   lastStudyDate: new Date().toISOString(),
 };
 
@@ -82,6 +83,31 @@ const mockTutorials: Record<string, { id: string; title: string }> = {
   tutorial1: { id: 'tutorial1', title: 'Test Tutorial' },
 };
 
+jest.mock('sonner', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
+}));
+
+jest.mock('@/lib/learning/speedpass/study-analyzer', () => ({
+  generateLearningInsights: jest.fn(() => ({
+    strengthAreas: [{ knowledgePointId: 'kp1', title: 'Point 1', accuracy: 90, confidence: 'high' }],
+    weakAreas: [{ knowledgePointId: 'kp3', title: 'Point 3', accuracy: 20, recommendedActions: ['复习'] }],
+    predictions: { examReadiness: 70, predictedScore: { min: 65, max: 85 }, confidence: 0.8 },
+    learningPatterns: { bestTimeOfDay: '上午', averageSessionLength: 30, consistency: 75 },
+  })),
+  generateRecommendations: jest.fn(() => [
+    { type: 'review', priority: 'high', description: '复习薄弱知识点', actionItems: ['回顾错题', '重做练习'], estimatedTime: 15 },
+  ]),
+  analyzeKnowledgePointMastery: jest.fn(() => new Map([
+    ['kp1', { mastery: 90, attempts: 10 }],
+    ['kp2', { mastery: 50, attempts: 5 }],
+    ['kp3', { mastery: 20, attempts: 2 }],
+  ])),
+  identifyWeakPoints: jest.fn(() => [
+    { id: 'kp3', title: 'Point 3', mastery: 0.2, importance: 'high' },
+  ]),
+  calculateStreak: jest.fn(() => 1),
+}));
+
 jest.mock('@/stores/learning/speedpass-store', () => ({
   useSpeedPassStore: () => ({
     globalStats: mockGlobalStats,
@@ -90,22 +116,30 @@ jest.mock('@/stores/learning/speedpass-store', () => ({
     wrongQuestions: mockWrongQuestions,
     textbookKnowledgePoints: mockTextbookKnowledgePoints,
     tutorials: mockTutorials,
+    studyReports: [],
+    generateStudyReport: jest.fn(() => ({ knowledgePointsCovered: 3, accuracy: 75 })),
   }),
 }));
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
+  AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
+  ArrowRight: () => <span data-testid="icon-arrow-right" />,
   BarChart3: () => <span data-testid="icon-bar-chart" />,
   BookOpen: () => <span data-testid="icon-book-open" />,
   Brain: () => <span data-testid="icon-brain" />,
   Calendar: () => <span data-testid="icon-calendar" />,
   CheckCircle2: () => <span data-testid="icon-check-circle" />,
   Clock: () => <span data-testid="icon-clock" />,
+  FileText: () => <span data-testid="icon-file-text" />,
   Flame: () => <span data-testid="icon-flame" />,
+  Lightbulb: () => <span data-testid="icon-lightbulb" />,
   Target: () => <span data-testid="icon-target" />,
+  TrendingDown: () => <span data-testid="icon-trending-down" />,
   TrendingUp: () => <span data-testid="icon-trending-up" />,
   Trophy: () => <span data-testid="icon-trophy" />,
   XCircle: () => <span data-testid="icon-x-circle" />,
+  Zap: () => <span data-testid="icon-zap" />,
 }));
 
 // Mock UI components
@@ -127,10 +161,26 @@ jest.mock('@/components/ui/card', () => ({
   ),
 }));
 
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+    <button data-testid="button" {...props}>{children}</button>
+  ),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+    <span data-testid="badge" {...props}>{children}</span>
+  ),
+}));
+
 jest.mock('@/components/ui/progress', () => ({
   Progress: ({ value }: { value: number }) => (
     <div data-testid="progress" data-value={value} role="progressbar" aria-valuenow={value} />
   ),
+}));
+
+jest.mock('@/components/ui/separator', () => ({
+  Separator: () => <hr data-testid="separator" />,
 }));
 
 describe('AnalyticsDashboard', () => {
@@ -147,9 +197,9 @@ describe('AnalyticsDashboard', () => {
 
   it('displays streak information', () => {
     render(<AnalyticsDashboard />);
-    // Current streak is calculated from sessions (1 day with current mock)
+    // Current streak is calculated via calculateStreak mock (returns 1)
     expect(screen.getAllByText(/1 天/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/最长记录/)).toBeInTheDocument();
+    expect(screen.getByText(/5 次学习/)).toBeInTheDocument();
   });
 
   it('displays study time', () => {

@@ -159,4 +159,3 @@ export function BlameSummary({ stats, className, compact = false }: BlameSummary
   );
 }
 
-export default BlameSummary;

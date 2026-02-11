@@ -8,7 +8,6 @@
 import { useState, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
-import * as Icons from 'lucide-react';
 import {
   Bot,
   Layout,
@@ -26,6 +25,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { LucideIcons } from '@/lib/agent/resolve-icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -72,7 +72,7 @@ const builtInIconMap: Record<string, LucideIcon> = {
 
 function ModeIcon({ name, className }: { name: string; className?: string }) {
   // First check built-in icons, then try to get from Icons namespace
-  const Icon = builtInIconMap[name] || (Icons[name as keyof typeof Icons] as LucideIcon) || Bot;
+  const Icon = builtInIconMap[name] || LucideIcons[name] || Bot;
   return <Icon className={className} />;
 }
 
@@ -428,4 +428,3 @@ export function AgentModeSelector({
   );
 }
 
-export default AgentModeSelector;

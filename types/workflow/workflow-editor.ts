@@ -547,6 +547,30 @@ export interface VisualWorkflow {
 }
 
 /**
+ * Trigger types for workflow automation
+ */
+export type TriggerType = 'manual' | 'schedule' | 'event' | 'webhook';
+
+export interface TriggerConfig {
+  cronExpression?: string;
+  timezone?: string;
+  eventType?: string;
+  eventSource?: string;
+  eventFilter?: Record<string, unknown>;
+  webhookPath?: string;
+  webhookMethod?: 'GET' | 'POST' | 'PUT';
+  webhookSecret?: string;
+}
+
+export interface WorkflowTrigger {
+  id: string;
+  type: TriggerType;
+  name: string;
+  enabled: boolean;
+  config: TriggerConfig;
+}
+
+/**
  * Workflow settings
  */
 export interface WorkflowSettings {
@@ -562,6 +586,7 @@ export interface WorkflowSettings {
   retryOnFailure: boolean;
   maxRetries: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  triggers?: WorkflowTrigger[];
 }
 
 /**

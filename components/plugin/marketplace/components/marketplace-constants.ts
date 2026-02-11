@@ -74,5 +74,12 @@ export const PLUGIN_COLLECTIONS: PluginCollection[] = [
   },
 ];
 
+export const MARKETPLACE_STATS = {
+  totalPlugins: 1250,
+  totalDownloads: 3500000,
+  totalDevelopers: 320,
+  weeklyNewPlugins: 12,
+};
+
 // Re-export mock data from isolated file for backward compatibility
 export { MOCK_PLUGINS, MOCK_REVIEWS, MOCK_CHANGELOG } from './marketplace-mock-data';

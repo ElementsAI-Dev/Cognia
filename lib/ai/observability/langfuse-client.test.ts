@@ -37,6 +37,7 @@ jest.mock('langfuse', () => {
   return {
     Langfuse: jest.fn().mockImplementation(() => ({
       trace: jest.fn(() => mockTrace),
+      flush: jest.fn().mockResolvedValue(undefined),
       flushAsync: jest.fn().mockResolvedValue(undefined),
       shutdownAsync: jest.fn().mockResolvedValue(undefined),
     })),
@@ -54,34 +55,34 @@ describe('langfuse-client', () => {
   });
 
   describe('getLangfuse', () => {
-    it('should create Langfuse instance with default config', () => {
-      const langfuse = getLangfuse();
+    it('should create Langfuse instance with default config', async () => {
+      const langfuse = await getLangfuse();
       expect(langfuse).toBeDefined();
     });
 
-    it('should return an instance on subsequent calls', () => {
-      const langfuse1 = getLangfuse();
-      const langfuse2 = getLangfuse();
+    it('should return an instance on subsequent calls', async () => {
+      const langfuse1 = await getLangfuse();
+      const langfuse2 = await getLangfuse();
       expect(langfuse1).toBeDefined();
       expect(langfuse2).toBeDefined();
     });
 
-    it('should create instance with custom config', () => {
+    it('should create instance with custom config', async () => {
       const config: LangfuseConfig = {
         publicKey: 'test-public-key',
         secretKey: 'test-secret-key',
         host: 'https://custom.langfuse.com',
         enabled: true,
       };
-      const langfuse = getLangfuse(config);
+      const langfuse = await getLangfuse(config);
       expect(langfuse).toBeDefined();
     });
 
-    it('should return no-op client when disabled', () => {
+    it('should return no-op client when disabled', async () => {
       const config: LangfuseConfig = {
         enabled: false,
       };
-      const langfuse = getLangfuse(config);
+      const langfuse = await getLangfuse(config);
       expect(langfuse).toBeDefined();
       // No-op client should have all methods
       const trace = langfuse.trace({});
@@ -90,16 +91,16 @@ describe('langfuse-client', () => {
   });
 
   describe('createChatTrace', () => {
-    it('should create a chat trace with session and user', () => {
-      const trace = createChatTrace({
+    it('should create a chat trace with session and user', async () => {
+      const trace = await createChatTrace({
         sessionId: 'session-123',
         userId: 'user-456',
       });
       expect(trace).toBeDefined();
     });
 
-    it('should create chat trace with metadata', () => {
-      const trace = createChatTrace({
+    it('should create chat trace with metadata', async () => {
+      const trace = await createChatTrace({
         sessionId: 'session-123',
         metadata: { key: 'value' },
         tags: ['tag1', 'tag2'],
@@ -109,8 +110,8 @@ describe('langfuse-client', () => {
   });
 
   describe('createGeneration', () => {
-    it('should create a generation within a trace', () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+    it('should create a generation within a trace', async () => {
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       const generation = createGeneration(trace, {
         model: 'gpt-4',
         input: 'test input',
@@ -120,8 +121,8 @@ describe('langfuse-client', () => {
       expect(typeof generation.end).toBe('function');
     });
 
-    it('should include usage data when provided', () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+    it('should include usage data when provided', async () => {
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       const generation = createGeneration(trace, {
         model: 'gpt-4',
         input: 'test input',
@@ -137,8 +138,8 @@ describe('langfuse-client', () => {
   });
 
   describe('createSpan', () => {
-    it('should create a span within a trace', () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+    it('should create a span within a trace', async () => {
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       const span = createSpan(trace, { name: 'test-span' });
       expect(span).toBeDefined();
       expect(typeof span.update).toBe('function');
@@ -147,8 +148,8 @@ describe('langfuse-client', () => {
   });
 
   describe('addScore', () => {
-    it('should add a score to a trace', () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+    it('should add a score to a trace', async () => {
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       // addScore calls trace.score internally
       // No error means success with no-op client
       addScore(trace, {
@@ -161,18 +162,18 @@ describe('langfuse-client', () => {
 
   describe('flushLangfuse', () => {
     it('should flush pending events', async () => {
-      const langfuse = getLangfuse({ enabled: true });
+      const langfuse = await getLangfuse({ enabled: true });
       await flushLangfuse();
-      expect(langfuse.flushAsync).toHaveBeenCalled();
+      expect(langfuse.flush).toHaveBeenCalled();
     });
   });
 
   describe('shutdownLangfuse', () => {
     it('should shutdown the client', async () => {
-      getLangfuse({ enabled: true });
+      await getLangfuse({ enabled: true });
       await shutdownLangfuse();
       // After shutdown, should be able to create new instance
-      const newLangfuse = getLangfuse();
+      const newLangfuse = await getLangfuse();
       expect(newLangfuse).toBeDefined();
     });
   });
@@ -195,7 +196,7 @@ describe('langfuse-client', () => {
 
   describe('createSpanWithErrorHandling', () => {
     it('should execute function and return result', async () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       
       const result = await createSpanWithErrorHandling(
         trace,
@@ -207,7 +208,7 @@ describe('langfuse-client', () => {
     });
 
     it('should handle errors and rethrow', async () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       
       await expect(
         createSpanWithErrorHandling(
@@ -223,7 +224,7 @@ describe('langfuse-client', () => {
 
   describe('createGenerationWithErrorHandling', () => {
     it('should execute function and return result', async () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       
       const result = await createGenerationWithErrorHandling(
         trace,
@@ -235,7 +236,7 @@ describe('langfuse-client', () => {
     });
 
     it('should handle errors', async () => {
-      const trace = createChatTrace({ sessionId: 'session-123' });
+      const trace = await createChatTrace({ sessionId: 'session-123' });
       
       await expect(
         createGenerationWithErrorHandling(

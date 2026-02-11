@@ -145,7 +145,6 @@ export const useInputCompletionStore = create<InputCompletionStore>()(
       name: 'cognia-input-completion',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        config: state.config,
         stats: state.stats,
       }),
     }

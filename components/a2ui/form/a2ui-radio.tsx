@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UIRadioGroupComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UIRadioGroup = memo(function A2UIRadioGroup({ component, onDataChange }: A2UIComponentProps<A2UIRadioGroupComponent>) {
-  const { resolveString, resolveBoolean } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
 
   const value = resolveString(component.value, '');
   const isDisabled = component.disabled ? resolveBoolean(component.disabled, false) : false;

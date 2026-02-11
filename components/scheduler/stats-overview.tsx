@@ -39,7 +39,7 @@ export function StatsOverview({
   pausedTasks,
   upcomingTasks,
   recentExecutions,
-  schedulerStatus: _schedulerStatus,
+  schedulerStatus,
   onSelectTask,
 }: StatsOverviewProps) {
   const t = useTranslations('scheduler');
@@ -55,6 +55,18 @@ export function StatsOverview({
 
   return (
     <div className="space-y-4">
+      {/* Scheduler Status Indicator */}
+      {schedulerStatus && schedulerStatus !== 'running' && (
+        <div className="flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs">
+          <div className={`h-2 w-2 shrink-0 rounded-full ${schedulerStatus === 'stopped' ? 'bg-red-500' : 'bg-gray-400'}`} />
+          <span className="text-muted-foreground">
+            {schedulerStatus === 'stopped'
+              ? (t('schedulerStopped') || 'Scheduler stopped')
+              : (t('schedulerIdle') || 'Scheduler idle')}
+          </span>
+        </div>
+      )}
+
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Total Tasks */}

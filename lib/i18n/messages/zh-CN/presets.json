@@ -67,8 +67,14 @@
     "aiGenerate": "AI 生成",
     "add": "添加",
     "noBuiltinPrompts": "没有内置提示词。添加一个以包含快捷访问提示词。",
-    "default": "默认",
+    "defaultBadge": "默认",
     "category": "分类",
+    "errors": {
+      "noApiKey": "请先在设置中配置 API 密钥。",
+      "optimizeFailed": "优化提示词失败",
+      "generatePresetFailed": "生成预设失败",
+      "generatePromptsFailed": "生成提示词失败"
+    },
     "selectCategory": "选择分类",
     "categories": {
       "general": "通用",

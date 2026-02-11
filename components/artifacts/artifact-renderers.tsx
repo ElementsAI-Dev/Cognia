@@ -5,45 +5,22 @@
  *
  * This module provides a unified interface for artifact rendering by:
  * 1. Re-exporting feature-rich renderers from chat/renderers for consistency
- * 2. Providing ChartRenderer (unique to artifacts, not in chat/renderers)
+ * 2. Lazy-loading ChartRenderer (unique to artifacts, ~200KB recharts bundle)
  * 3. Maintaining backward-compatible API through wrapper components
  *
  * Supports: Mermaid diagrams, Charts (Recharts), Math (KaTeX), Markdown, Code
  */
 
-import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Suspense, lazy } from 'react';
+import { Loader2 } from 'lucide-react';
 import { MermaidBlock } from '@/components/chat/renderers/mermaid-block';
 import { MathBlock } from '@/components/chat/renderers/math-block';
 import { CodeBlock } from '@/components/chat/renderers/code-block';
 import { MarkdownRenderer as ChatMarkdownRenderer } from '@/components/chat/utils';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  AreaChart,
-  Area,
-  ScatterChart,
-  Scatter,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
+import type { ChartDataPoint } from './chart-renderer';
+
+// Lazy-load ChartRenderer to avoid loading ~200KB recharts in initial bundle
+const LazyChartRenderer = lazy(() => import('./chart-renderer'));
 
 // Re-export feature-rich renderers from chat/renderers for unified usage
 // These provide full functionality: fullscreen, copy, export, etc.
@@ -54,219 +31,30 @@ export { CodeBlock as CodeRenderer } from '@/components/chat/renderers/code-bloc
 // Re-export MarkdownRenderer from chat module for full markdown support
 export { MarkdownRenderer } from '@/components/chat/utils';
 
-interface RendererProps {
-  content: string;
-  className?: string;
-}
+// Re-export ChartRenderer type for consumers
+export type { ChartDataPoint } from './chart-renderer';
 
-interface ChartRendererProps extends RendererProps {
-  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar';
-  chartData?: ChartDataPoint[];
+function ChartLoading() {
+  return (
+    <div className="flex items-center justify-center h-[300px] w-full">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
 }
-
-interface ChartDataPoint {
-  name: string;
-  value: number;
-  [key: string]: string | number;
-}
-
-const COLORS = [
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7300',
-  '#0088fe',
-  '#00C49F',
-  '#FFBB28',
-  '#FF8042',
-];
 
 /**
- * Chart Renderer using Recharts
+ * ChartRenderer - Lazy-loaded wrapper around the recharts-based chart renderer
  */
-export function ChartRenderer({
-  content,
-  chartType = 'line',
-  chartData,
-  className,
-}: ChartRendererProps) {
-  const t = useTranslations('renderer');
-  const [data, setData] = useState<ChartDataPoint[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [detectedType, setDetectedType] = useState<string>(chartType);
-
-  // Store translation strings to avoid dependency on unstable t function
-  const invalidChartFormatMsg = t('invalidChartFormat');
-  const failedToParseChartMsg = t('failedToParseChart');
-
-  useEffect(() => {
-    try {
-      if (chartData) {
-        setData(chartData);
-      } else {
-        // Try to parse content as JSON
-        const parsed = JSON.parse(content);
-
-        if (parsed.type) {
-          setDetectedType(parsed.type);
-        }
-
-        if (Array.isArray(parsed)) {
-          setData(parsed);
-        } else if (parsed.data && Array.isArray(parsed.data)) {
-          setData(parsed.data);
-        } else {
-          throw new Error(invalidChartFormatMsg);
-        }
-      }
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : failedToParseChartMsg);
-    }
-  }, [content, chartData, invalidChartFormatMsg, failedToParseChartMsg]);
-
-  if (error) {
-    return (
-      <Alert variant="destructive" className={cn('m-4', className)}>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className={cn('flex items-center justify-center p-8 text-muted-foreground', className)}>
-        {t('noData')}
-      </div>
-    );
-  }
-
-  // Get all numeric keys for multi-series charts
-  const numericKeys = Object.keys(data[0] || {}).filter(
-    (key) => key !== 'name' && typeof data[0][key] === 'number'
-  );
-
-  const renderChart = () => {
-    switch (detectedType) {
-      case 'bar':
-        return (
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {numericKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </BarChart>
-        );
-
-      case 'pie':
-        return (
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              label
-            >
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        );
-
-      case 'area':
-        return (
-          <AreaChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {numericKeys.map((key, index) => (
-              <Area
-                key={key}
-                type="monotone"
-                dataKey={key}
-                fill={COLORS[index % COLORS.length]}
-                stroke={COLORS[index % COLORS.length]}
-                fillOpacity={0.3}
-              />
-            ))}
-          </AreaChart>
-        );
-
-      case 'scatter':
-        return (
-          <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="x" type="number" name="X" />
-            <YAxis dataKey="y" type="number" name="Y" />
-            <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-            <Legend />
-            <Scatter name="Data" data={data} fill={COLORS[0]} />
-          </ScatterChart>
-        );
-
-      case 'radar':
-        return (
-          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="name" />
-            <PolarRadiusAxis />
-            <Tooltip />
-            <Legend />
-            {numericKeys.map((key, index) => (
-              <Radar
-                key={key}
-                name={key}
-                dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
-                fill={COLORS[index % COLORS.length]}
-                fillOpacity={0.3}
-              />
-            ))}
-          </RadarChart>
-        );
-
-      case 'line':
-      default:
-        return (
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {numericKeys.map((key, index) => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
-                strokeWidth={2}
-              />
-            ))}
-          </LineChart>
-        );
-    }
-  };
-
+export function ChartRenderer(props: {
+  content: string;
+  className?: string;
+  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar';
+  chartData?: ChartDataPoint[];
+}) {
   return (
-    <div className={cn('h-[300px] w-full p-4', className)}>
-      <ResponsiveContainer width="100%" height="100%">
-        {renderChart()}
-      </ResponsiveContainer>
-    </div>
+    <Suspense fallback={<ChartLoading />}>
+      <LazyChartRenderer {...props} />
+    </Suspense>
   );
 }
 
@@ -309,5 +97,3 @@ export function ArtifactRenderer({
       return <CodeBlock code={content} className={className} />;
   }
 }
-
-export default ArtifactRenderer;

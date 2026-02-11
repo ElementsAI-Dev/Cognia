@@ -4,7 +4,7 @@
  * VersionHistoryPanel - displays and manages canvas document versions
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   History,
@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { formatRelativeDate, getDateKey } from '@/lib/canvas/utils';
+import { formatRelativeDate, getDateKey, countLines } from '@/lib/canvas/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,7 +66,7 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
   const restoreCanvasVersion = useArtifactStore((state) => state.restoreCanvasVersion);
   const deleteCanvasVersionAction = useArtifactStore((state) => state.deleteCanvasVersion);
 
-  const document = canvasDocuments[documentId];
+  const canvasDoc = canvasDocuments[documentId];
   const versions = getCanvasVersions(documentId);
 
   const handleSaveVersion = () => {
@@ -116,13 +116,13 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
     }
   };
 
-  const getCompareVersions = () => {
+  const compareVersions = useMemo(() => {
     if (selectedVersions.length !== 2) return null;
     const v1 = versions.find((v) => v.id === selectedVersions[0]);
     const v2 = versions.find((v) => v.id === selectedVersions[1]);
     if (!v1 || !v2) return null;
     return { v1, v2 };
-  };
+  }, [selectedVersions, versions]);
 
   // Use shared date formatting utilities
   const formatDate = (date: Date) => formatRelativeDate(date, t);
@@ -211,7 +211,7 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
                           <VersionItem
                             key={version.id}
                             version={version}
-                            isCurrent={document?.currentVersionId === version.id}
+                            isCurrent={canvasDoc?.currentVersionId === version.id}
                             onPreview={() => setPreviewVersion(version)}
                             onRestore={() => handleRestoreVersion(version.id)}
                             onDelete={() => setDeleteVersion(version)}
@@ -325,17 +325,17 @@ export function VersionHistoryPanel({ documentId, trigger }: VersionHistoryPanel
               {t('versionComparison')}
             </DialogTitle>
           </DialogHeader>
-          {getCompareVersions() && (
+          {compareVersions && (
             <VersionDiffView
-              oldContent={getCompareVersions()!.v1.content}
-              newContent={getCompareVersions()!.v2.content}
+              oldContent={compareVersions.v1.content}
+              newContent={compareVersions.v2.content}
               oldLabel={
-                getCompareVersions()!.v1.description ||
-                formatDate(getCompareVersions()!.v1.createdAt)
+                compareVersions.v1.description ||
+                formatDate(compareVersions.v1.createdAt)
               }
               newLabel={
-                getCompareVersions()!.v2.description ||
-                formatDate(getCompareVersions()!.v2.createdAt)
+                compareVersions.v2.description ||
+                formatDate(compareVersions.v2.createdAt)
               }
               className="flex-1 min-h-[400px] border rounded-md overflow-hidden"
             />
@@ -408,7 +408,7 @@ function VersionItem({
             <p className="mt-1 text-sm text-muted-foreground truncate">{version.description}</p>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
-            {version.content.split('\n').length} {t('lines')}
+            {countLines(version.content)} {t('lines')}
           </p>
         </div>
       </div>
@@ -475,4 +475,3 @@ function VersionItem({
   );
 }
 
-export default VersionHistoryPanel;

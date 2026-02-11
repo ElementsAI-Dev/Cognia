@@ -125,17 +125,17 @@ export function suggestLayout(content: {
     return 'section';
   }
   
-  // Image layouts
+  // Full image - image only, no text content
+  if (images?.length === 1 && !bullets?.length && !hasChart && !hasTable) {
+    return 'full-image';
+  }
+  
+  // Image layouts - image with text
   if (images?.length === 1) {
     if (bullets && bullets.length > 3) {
       return 'image-left';
     }
     return 'image-right';
-  }
-  
-  // Full image
-  if (images?.length === 1 && !bullets?.length && !hasChart && !hasTable) {
-    return 'full-image';
   }
   
   // Comparison layout

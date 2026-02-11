@@ -35,8 +35,7 @@ import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-uni
 import { cn } from '@/lib/utils';
 import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
 import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
-import { CompletionOverlay } from '@/components/input-completion/completion-overlay';
-import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { useCompletionSettingsStore, selectGhostTextOpacity } from '@/stores/settings/completion-settings-store';
 import { getLanguageFlag } from '@/types/media/speech';
 import { nanoid } from 'nanoid';
 import { AttachmentsPreview } from './chat-input/attachments-preview';
@@ -268,7 +267,7 @@ export function ChatInput({
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
   // Completion settings
-  const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
+  const ghostTextOpacity = useCompletionSettingsStore(selectGhostTextOpacity);
 
   // Get recent messages for context-aware AI completion
   const chatMessages = useChatStore((s) => s.messages);
@@ -1131,21 +1130,6 @@ export function ChatInput({
                 opacity={ghostTextOpacity}
               />
             )}
-            {/* Multi-suggestion completion overlay (shown when multiple AI suggestions available) */}
-            <CompletionOverlay
-              visible={!!ghostText}
-              suggestions={ghostText ? [{
-                id: `ghost-${Date.now()}`,
-                text: ghostText,
-                display_text: ghostText,
-                confidence: 0.8,
-                completion_type: ghostText.includes('\n') ? 'Block' : 'Line',
-              }] : []}
-              onDismiss={dismissGhostTextFn}
-              ghostTextOpacity={ghostTextOpacity}
-              showAcceptHint={true}
-              className="absolute left-0 right-0 -bottom-10 z-10"
-            />
             {/* Character counter */}
             {value.length > 0 && (
               <span

@@ -5,7 +5,7 @@
 // Core agent components
 export { AgentSteps } from './agent-steps';
 export { AgentModeSelector } from './agent-mode-selector';
-export { CustomModeEditor } from './custom-mode-editor';
+export { CustomModeEditor } from './custom-mode-editor/index';
 export { AgentFlowVisualizer } from './agent-flow-visualizer';
 export { AgentSummaryDialog } from './agent-summary-dialog';
 
@@ -16,6 +16,9 @@ export { SubAgentTemplateSelector } from './sub-agent-template-selector';
 // Background agent components
 export { BackgroundAgentPanel } from './background-agent-panel';
 export { BackgroundAgentIndicator } from './background-agent-indicator';
+export { AgentCard } from './background-agent-card';
+export { AgentLogsViewer, PerformanceStatsCard, ResultPreview } from './background-agent-sub-components';
+export type { PerformanceStats } from './background-agent-sub-components';
 export { ProcessManagerPanel } from './process-manager-panel';
 
 // Tool components
@@ -47,6 +50,7 @@ export { AgentTeamConfigEditor, type AgentTeamConfigEditorProps } from './agent-
 // External agent components
 export { ExternalAgentSelector } from './external-agent-selector';
 export { ExternalAgentManager } from './external-agent-manager';
+export { ExternalAgentConfigOptions } from './external-agent-config-options';
 export { ExternalAgentCommands, type ExternalAgentCommandsProps } from './external-agent-commands';
 export { ExternalAgentPlan, type ExternalAgentPlanProps } from './external-agent-plan';
 

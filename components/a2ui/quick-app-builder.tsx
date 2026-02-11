@@ -18,14 +18,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -37,7 +29,8 @@ import {
   Download, Upload, MoreVertical, FileJson,
   RefreshCw, X,
 } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { resolveIcon } from '@/lib/a2ui/resolve-icon';
+import { loggers } from '@/lib/logger';
 import { useA2UIAppBuilder } from '@/hooks/a2ui/use-app-builder';
 import { A2UIInlineSurface } from './a2ui-surface';
 import { templateCategories, type A2UIAppTemplate } from '@/lib/a2ui/templates';
@@ -46,8 +39,9 @@ import { useA2UI } from '@/hooks/a2ui';
 import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
 import { TemplateCard } from './quick-app-builder/template-card';
-import { AppCard } from './quick-app-builder/app-card';
+import { QuickAppCard } from './quick-app-builder/app-card';
 import { FlashAppTab } from './quick-app-builder/flash-app-tab';
+import { DeleteConfirmDialog } from './delete-confirm-dialog';
 
 interface QuickAppBuilderProps {
   className?: string;
@@ -183,7 +177,7 @@ export function QuickAppBuilder({
         const appId = await appBuilder.importAppFromFile(file);
         if (appId) { setPreviewAppId(appId); setActiveTab('my-apps'); }
       } catch (error) {
-        console.error('[QuickAppBuilder] Import failed:', error);
+        loggers.ui.error('[QuickAppBuilder] Import failed:', error);
       }
       e.target.value = '';
     },
@@ -209,7 +203,7 @@ export function QuickAppBuilder({
       <div className="flex items-center justify-between p-3 sm:p-4 border-b">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold text-sm sm:text-base">Quick Apps</h2>
+          <h2 className="font-semibold text-sm sm:text-base">{t('quickApps')}</h2>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <Button
@@ -312,7 +306,7 @@ export function QuickAppBuilder({
                   {t('allCategories')}
                 </Button>
                 {templateCategories.map((cat) => {
-                  const CatIcon = icons[cat.icon as keyof typeof icons];
+                  const CatIcon = resolveIcon(cat.icon);
                   return (
                     <Button
                       key={cat.id}
@@ -336,7 +330,7 @@ export function QuickAppBuilder({
                   {t('allTemplates')}
                 </Button>
                 {templateCategories.map((cat) => {
-                  const CatIcon = icons[cat.icon as keyof typeof icons];
+                  const CatIcon = resolveIcon(cat.icon);
                   return (
                     <Button
                       key={cat.id}
@@ -389,7 +383,7 @@ export function QuickAppBuilder({
               )}
             >
               {myApps.map((app) => (
-                <AppCard
+                <QuickAppCard
                   key={app.id}
                   app={app}
                   template={appBuilder.getTemplate(app.templateId)}
@@ -458,27 +452,12 @@ export function QuickAppBuilder({
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete App</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this app? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
 
-export default QuickAppBuilder;

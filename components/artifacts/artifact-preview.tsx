@@ -11,6 +11,7 @@ import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import type { Artifact } from '@/types';
 import {
   MermaidRenderer,
@@ -51,7 +52,7 @@ class PreviewErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Artifact preview error:', error, errorInfo);
+    loggers.ui.error('Artifact preview error', { error: error.message, stack: errorInfo.componentStack });
     this.props.onError?.(error, errorInfo);
   }
 
@@ -110,19 +111,59 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-
   // Check if this type needs iframe rendering
   const needsIframe = ['html', 'svg', 'react'].includes(artifact.type);
+  const [isLoading, setIsLoading] = useState(needsIframe);
 
   useEffect(() => {
-    if (!needsIframe) {
-      setIsLoading(false);
-      return;
-    }
+    if (!needsIframe) return;
 
-    setError(null);
-    setIsLoading(true);
+    const rafId = requestAnimationFrame(() => {
+      setError(null);
+      setIsLoading(true);
+    });
+
+    const doRenderPreview = () => {
+      if (!iframeRef.current) return;
+
+      const iframe = iframeRef.current;
+
+      try {
+        switch (artifact.type) {
+          case 'html': {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+            renderHTML(doc, artifact.content);
+            break;
+          }
+          case 'svg': {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+            renderSVG(doc, artifact.content);
+            break;
+          }
+          case 'react':
+            // React uses srcdoc + postMessage for security
+            iframe.srcdoc = getReactShellHtml();
+            // Send content after iframe loads the shell
+            iframe.onload = () => {
+              iframe.contentWindow?.postMessage(
+                { type: 'render-component', code: artifact.content },
+                '*'
+              );
+            };
+            break;
+          default: {
+            const doc = iframe.contentDocument;
+            if (doc) {
+              doc.body.innerHTML = `<pre>${escapeHtml(artifact.content)}</pre>`;
+            }
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('previewError'));
+      }
+    };
 
     // Small delay to ensure iframe is ready
     const timer = setTimeout(() => {
@@ -130,35 +171,23 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
       setIsLoading(false);
     }, 100);
 
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artifact.content, artifact.type, key, needsIframe]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer);
+    };
+  }, [artifact.content, artifact.type, key, needsIframe, t]);
 
-  const doRenderPreview = () => {
-    if (!iframeRef.current) return;
-
-    const iframe = iframeRef.current;
-    const doc = iframe.contentDocument;
-    if (!doc) return;
-
-    try {
-      switch (artifact.type) {
-        case 'html':
-          renderHTML(doc, artifact.content);
-          break;
-        case 'svg':
-          renderSVG(doc, artifact.content);
-          break;
-        case 'react':
-          renderReact(doc, artifact.content);
-          break;
-        default:
-          doc.body.innerHTML = `<pre>${escapeHtml(artifact.content)}</pre>`;
+  // Listen for error messages from React preview iframe via postMessage
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      if (event.data?.type === 'artifact-preview-error') {
+        setError(event.data.message || t('previewError'));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('previewError'));
-    }
-  };
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [t]);
 
   const handleRefresh = () => {
     setKey((k) => k + 1);
@@ -285,64 +314,76 @@ function renderSVG(doc: Document, content: string) {
   doc.close();
 }
 
-function renderReact(doc: Document, content: string) {
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-      <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-      <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>
-        body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; }
-        * { box-sizing: border-box; }
-      </style>
-    </head>
-    <body>
-      <div id="root"></div>
-      <script>
-        // CDN load check with timeout
-        var _cdnTimeout = setTimeout(function() {
-          if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Babel === 'undefined') {
-            document.getElementById('root').innerHTML =
-              '<div style="color: #b45309; padding: 16px; background: #fef3c7; border-radius: 8px;">' +
-              '<strong>CDN Loading Failed</strong><p style="margin:8px 0 0">Unable to load React dependencies from CDN. Check your network connection.</p></div>';
-          }
-        }, 15000);
-      </script>
-      <script type="text/babel" data-presets="react">
-        clearTimeout(_cdnTimeout);
-        try {
-          ${content}
+/**
+ * Generate a static HTML shell for React preview.
+ * Content is received via postMessage to prevent XSS via template string injection.
+ * Uses React 19 CDN and CSP meta tag to restrict external requests.
+ */
+function getReactShellHtml(): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com; style-src 'unsafe-inline' https://cdn.tailwindcss.com; img-src data: blob:; font-src data:;">
+  <script src="https://unpkg.com/react@19/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@19/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    // CDN load check with timeout
+    var _cdnTimeout = setTimeout(function() {
+      if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof Babel === 'undefined') {
+        document.getElementById('root').innerHTML =
+          '<div style="color: #b45309; padding: 16px; background: #fef3c7; border-radius: 8px;">' +
+          '<strong>CDN Loading Failed</strong><p style="margin:8px 0 0">Unable to load React dependencies from CDN. Check your network connection.</p></div>';
+      }
+    }, 15000);
 
-          // Try to find and render the main component
-          const components = [
-            typeof App !== 'undefined' ? App : null,
-            typeof Component !== 'undefined' ? Component : null,
-            typeof Main !== 'undefined' ? Main : null,
-          ].filter(Boolean);
-
-          if (components.length > 0) {
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(React.createElement(components[0]));
-          } else {
-            document.getElementById('root').innerHTML = '<p style="color: #666;">No component found. Export an App, Component, or Main function.</p>';
-          }
-        } catch (error) {
-          document.getElementById('root').innerHTML = '<div style="color: red; padding: 16px; background: #fee; border-radius: 8px;"><strong>Error:</strong> ' + error.message + '</div>';
-          console.error(error);
+    // Receive component code via postMessage (secure: no template injection)
+    window.addEventListener('message', function(event) {
+      if (!event.data || event.data.type !== 'render-component') return;
+      clearTimeout(_cdnTimeout);
+      var code = event.data.code;
+      try {
+        // Create a script element with Babel transpilation
+        var scriptEl = document.createElement('script');
+        scriptEl.setAttribute('type', 'text/babel');
+        scriptEl.setAttribute('data-presets', 'react');
+        scriptEl.textContent = code + '\\n' +
+          ';(function() {' +
+          '  var components = [' +
+          '    typeof App !== "undefined" ? App : null,' +
+          '    typeof Component !== "undefined" ? Component : null,' +
+          '    typeof Main !== "undefined" ? Main : null,' +
+          '  ].filter(Boolean);' +
+          '  if (components.length > 0) {' +
+          '    var root = ReactDOM.createRoot(document.getElementById("root"));' +
+          '    root.render(React.createElement(components[0]));' +
+          '  } else {' +
+          '    document.getElementById("root").innerHTML = "<p style=\\"color: #666;\\">No component found. Export an App, Component, or Main function.</p>";' +
+          '  }' +
+          '})();';
+        document.body.appendChild(scriptEl);
+        // Trigger Babel to process the new script
+        if (typeof Babel !== 'undefined' && Babel.transformScriptTags) {
+          Babel.transformScriptTags();
         }
-      </script>
-    </body>
-    </html>
-  `;
-
-  doc.open();
-  doc.write(html);
-  doc.close();
+      } catch (error) {
+        document.getElementById('root').innerHTML = '<div style="color: red; padding: 16px; background: #fee; border-radius: 8px;"><strong>Error:</strong> ' + error.message + '</div>';
+        window.parent.postMessage({ type: 'artifact-preview-error', message: error.message }, '*');
+      }
+    });
+  </script>
+</body>
+</html>`;
 }
 
 function escapeHtml(text: string): string {
@@ -353,5 +394,3 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
-
-export default ArtifactPreview;

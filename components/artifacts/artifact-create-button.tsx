@@ -154,5 +154,3 @@ export function ArtifactCreateButton({
     </TooltipProvider>
   );
 }
-
-export default ArtifactCreateButton;

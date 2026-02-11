@@ -103,21 +103,6 @@ pub enum InputCompletionEvent {
     Started,
     /// System stopped
     Stopped,
-    /// Streaming chunk received (for progressive rendering)
-    StreamingChunk(StreamingChunk),
-    /// Streaming completed
-    StreamingComplete(CompletionSuggestion),
-}
-
-/// A chunk of streaming completion data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamingChunk {
-    /// Partial text received so far
-    pub text: String,
-    /// Whether this is the final chunk
-    pub is_final: bool,
-    /// Suggestion ID for correlation
-    pub suggestion_id: String,
 }
 
 /// Statistics for the completion system

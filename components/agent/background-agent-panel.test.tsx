@@ -1,5 +1,30 @@
+import React from 'react';
 import { render, screen, act } from '@testing-library/react';
-import BackgroundAgentPanel from './background-agent-panel';
+import { BackgroundAgentPanel } from './background-agent-panel';
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => {
+  const icon = (name: string) =>
+    function MockIcon(props: Record<string, unknown>) {
+      return <svg data-testid={`icon-${name}`} {...props} />;
+    };
+  return {
+    X: icon('X'),
+    Play: icon('Play'),
+    Pause: icon('Pause'),
+    StopCircle: icon('StopCircle'),
+    Trash2: icon('Trash2'),
+    Bell: icon('Bell'),
+    BellOff: icon('BellOff'),
+    Bot: icon('Bot'),
+    Terminal: icon('Terminal'),
+    BarChart3: icon('BarChart3'),
+    Search: icon('Search'),
+    Download: icon('Download'),
+    Filter: icon('Filter'),
+    CheckSquare: icon('CheckSquare'),
+  };
+});
 
 // Mock langfuse to avoid dynamic import issues in Jest
 jest.mock('langfuse', () => ({
@@ -95,6 +120,103 @@ jest.mock('./agent-flow-visualizer', () => ({
   AgentFlowVisualizer: () => <div data-testid="agent-flow-visualizer">Flow Visualizer</div>,
 }));
 
+// Mock AgentCard sub-component
+jest.mock('./background-agent-card', () => ({
+  AgentCard: ({ agent }: { agent: { name: string } }) => (
+    <div data-testid="agent-card">{agent.name}</div>
+  ),
+}));
+
+// Mock background-agent-sub-components
+jest.mock('./background-agent-sub-components', () => ({
+  AgentLogsViewer: ({ logs }: { logs: unknown[] }) => (
+    <div data-testid="agent-logs">{logs?.length ?? 0} logs</div>
+  ),
+  PerformanceStatsCard: () => <div data-testid="performance-stats" />,
+  ResultPreview: () => <div data-testid="result-preview" />,
+}));
+
+// Mock Sheet UI components
+jest.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open !== false ? <div data-testid="sheet">{children}</div> : null,
+  SheetContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-content">{children}</div>
+  ),
+  SheetHeader: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-header">{children}</div>
+  ),
+  SheetTitle: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="sheet-title">{children}</div>
+  ),
+}));
+
+// Mock DropdownMenu UI components
+jest.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button onClick={onClick}>{children}</button>
+  ),
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuCheckboxItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+// Mock Checkbox
+jest.mock('@/components/ui/checkbox', () => ({
+  Checkbox: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input type="checkbox" {...props} />
+  ),
+}));
+
+// Mock Input
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+}));
+
+// Mock Tabs
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children, defaultValue: _dv, ...props }: { children: React.ReactNode; defaultValue?: string; [key: string]: unknown }) => (
+    <div data-testid="tabs" {...props}>{children}</div>
+  ),
+  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
+  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <button data-testid={`tab-${value}`}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
+    <div data-testid={`tab-content-${value}`}>{children}</div>
+  ),
+}));
+
+// Mock Tooltip
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+// Mock Button
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick, disabled, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
+    <button onClick={onClick} disabled={disabled} className={className} {...props}>{children}</button>
+  ),
+}));
+
+// Mock Badge
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children, className }: { children: React.ReactNode; className?: string; variant?: string }) => (
+    <span className={className}>{children}</span>
+  ),
+}));
+
+// Mock ScrollArea
+jest.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
+}));
+
 describe('BackgroundAgentPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -104,31 +226,31 @@ describe('BackgroundAgentPanel', () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    expect(screen.getByText('Background Agents')).toBeInTheDocument();
+    expect(screen.getByText('backgroundAgents')).toBeInTheDocument();
   });
 
   it('displays running agents count in badge', async () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    expect(screen.getByText('1 running')).toBeInTheDocument();
+    expect(screen.getByText('nRunning')).toBeInTheDocument();
   });
 
   it('displays queue status', async () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    expect(screen.getByText(/Queue:/)).toBeInTheDocument();
+    expect(screen.getByText('queueStatus')).toBeInTheDocument();
   });
 
   it('has tabs for All, Running, and Completed', async () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    // Multiple elements may contain these texts, so use getAllByText
-    expect(screen.getAllByText(/All/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Running/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Completed/).length).toBeGreaterThan(0);
+    // Tab labels use i18n keys
+    expect(screen.getByText('allTab')).toBeInTheDocument();
+    expect(screen.getByText('runningTab')).toBeInTheDocument();
+    expect(screen.getByText('completedTab')).toBeInTheDocument();
   });
 
   it('displays agent cards', async () => {
@@ -145,7 +267,7 @@ describe('BackgroundAgentPanel - Queue Controls', () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    expect(screen.getByText('Pause Queue')).toBeInTheDocument();
+    expect(screen.getByText('pauseQueue')).toBeInTheDocument();
   });
 });
 
@@ -154,6 +276,6 @@ describe('BackgroundAgentPanel - Agent Selection', () => {
     await act(async () => {
       render(<BackgroundAgentPanel />);
     });
-    expect(screen.getByText('Select an agent to view details')).toBeInTheDocument();
+    expect(screen.getByText('selectAgentDetails')).toBeInTheDocument();
   });
 });

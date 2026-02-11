@@ -48,10 +48,6 @@ export function ChatAssistantContainer({
     // Check if running in Tauri
     const checkTauri = () => {
       const hasTauri = detectTauri();
-      console.log('[ChatAssistantContainer] Tauri check:', {
-        hasTauri,
-        pathname: window.location.pathname,
-      });
       setIsTauri(hasTauri);
     };
 
@@ -189,17 +185,6 @@ export function ChatAssistantContainer({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [config.shortcut, handleToggle]);
-
-  // Debug log render decision
-  useEffect(() => {
-    console.log('[ChatAssistantContainer] Render decision:', {
-      mounted,
-      isTauri,
-      tauriOnly,
-      shouldRender,
-      disabled,
-    });
-  }, [mounted, isTauri, tauriOnly, shouldRender, disabled]);
 
   // Don't render if conditions not met
   if (!shouldRender || disabled) {

@@ -249,4 +249,25 @@ describe('useInputCompletionStore', () => {
       expect(useInputCompletionStore.getState().config.ui.max_suggestions).toBe(5);
     });
   });
+
+  describe('persistence', () => {
+    it('should only persist stats, not config or runtime state', () => {
+      // Modify config and stats
+      useInputCompletionStore.getState().updateConfig({ enabled: false });
+      useInputCompletionStore.getState().setIsRunning(true);
+      useInputCompletionStore.getState().setError('test error');
+      useInputCompletionStore.getState().incrementAccepted();
+      useInputCompletionStore.getState().incrementRequests();
+
+      // After reset, config should be default (not persisted)
+      useInputCompletionStore.getState().reset();
+      const state = useInputCompletionStore.getState();
+
+      // Config should reset to defaults (not persisted)
+      expect(state.config).toEqual(DEFAULT_COMPLETION_CONFIG);
+      // Runtime state should reset
+      expect(state.isRunning).toBe(false);
+      expect(state.error).toBeNull();
+    });
+  });
 });

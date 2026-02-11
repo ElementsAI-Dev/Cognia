@@ -5,7 +5,7 @@
  * Redesigned with hero section, visual metrics, and timeline execution history
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Clock,
@@ -276,11 +276,11 @@ export function TaskDetails({
                 <Separator className="my-1" />
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t('nextRun') || 'Next Run'}</span>
-                  <span className="font-medium">{task.nextRunAt ? task.nextRunAt.toLocaleString() : 'Not scheduled'}</span>
+                  <span className="font-medium">{task.nextRunAt ? task.nextRunAt.toLocaleString() : (t('noSchedule') || 'Not scheduled')}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t('lastRun') || 'Last Run'}</span>
-                  <span className="font-medium">{task.lastRunAt ? task.lastRunAt.toLocaleString() : 'Never'}</span>
+                  <span className="font-medium">{task.lastRunAt ? task.lastRunAt.toLocaleString() : (t('never') || 'Never')}</span>
                 </div>
                 {isCurrentlyMatching && (
                   <div className="mt-1 flex items-center gap-1.5 rounded-lg bg-green-500/10 px-2.5 py-1.5 text-xs text-green-600 dark:text-green-400">
@@ -331,70 +331,13 @@ export function TaskDetails({
         </TabsContent>
 
         <TabsContent value="executions" className="flex-1 min-h-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 sm:p-6">
-              {executions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50">
-                    <History className="h-6 w-6 text-muted-foreground/40" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">{t('noExecutions') || 'No executions yet'}</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {executions.map((execution) => {
-                    const status = executionStatusConfig[execution.status];
-                    return (
-                      <div
-                        key={execution.id}
-                        className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/30"
-                      >
-                        {/* Status icon */}
-                        <div className="mt-0.5 shrink-0">{status.icon}</div>
-
-                        {/* Content */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={cn('text-xs font-medium', status.color.split(' ').find(c => c.startsWith('text-')))}>{status.label}</span>
-                            {execution.retryAttempt > 0 && (
-                              <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                                Retry #{execution.retryAttempt}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="mt-0.5 text-[11px] text-muted-foreground">
-                            {execution.startedAt.toLocaleString()}
-                          </div>
-                          {execution.error && (
-                            <div className="mt-1.5 rounded-md bg-destructive/5 px-2 py-1.5 font-mono text-[11px] text-destructive">
-                              {execution.error}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Duration + Actions */}
-                        <div className="flex shrink-0 items-center gap-2">
-                          {execution.status === 'running' && isPluginExecutionActive?.(execution.id) && onCancelPluginExecution && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-[11px] text-destructive hover:text-destructive"
-                              onClick={() => onCancelPluginExecution(execution.id)}
-                            >
-                              Cancel
-                            </Button>
-                          )}
-                          <span className="tabular-nums text-xs text-muted-foreground">
-                            {formatDuration(execution.duration)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+          <ExecutionHistory
+            executions={executions}
+            executionStatusConfig={executionStatusConfig}
+            isPluginExecutionActive={isPluginExecutionActive}
+            onCancelPluginExecution={onCancelPluginExecution}
+            t={t}
+          />
         </TabsContent>
 
         <TabsContent value="config" className="flex-1 overflow-auto">
@@ -407,21 +350,21 @@ export function TaskDetails({
               </h3>
               <div className="space-y-2.5 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Timeout</span>
+                  <span className="text-muted-foreground">{t('timeoutMs') || 'Timeout'}</span>
                   <span className="rounded-md bg-muted/50 px-2 py-0.5 font-mono text-xs">{task.config.timeout}ms</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Max Retries</span>
+                  <span className="text-muted-foreground">{t('maxRetries') || 'Max Retries'}</span>
                   <span className="font-medium">{task.config.maxRetries}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Retry Delay</span>
+                  <span className="text-muted-foreground">{t('retryDelayMs') || 'Retry Delay'}</span>
                   <span className="rounded-md bg-muted/50 px-2 py-0.5 font-mono text-xs">{task.config.retryDelay}ms</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Allow Concurrent</span>
+                  <span className="text-muted-foreground">{t('allowConcurrent') || 'Allow Concurrent'}</span>
                   <span className={cn('font-medium', task.config.allowConcurrent ? 'text-green-500' : 'text-muted-foreground')}>
-                    {task.config.allowConcurrent ? 'Yes' : 'No'}
+                    {task.config.allowConcurrent ? (t('yes') || 'Yes') : (t('no') || 'No')}
                   </span>
                 </div>
               </div>
@@ -435,9 +378,9 @@ export function TaskDetails({
               </h3>
               <div className="space-y-2.5 text-sm">
                 {[
-                  { label: 'On Start', value: task.notification.onStart },
-                  { label: 'On Complete', value: task.notification.onComplete },
-                  { label: 'On Error', value: task.notification.onError },
+                  { label: t('notifyOnStart') || 'On Start', value: task.notification.onStart },
+                  { label: t('notifyOnComplete') || 'On Complete', value: task.notification.onComplete },
+                  { label: t('notifyOnError') || 'On Error', value: task.notification.onError },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between">
                     <span className="text-muted-foreground">{item.label}</span>
@@ -448,7 +391,7 @@ export function TaskDetails({
                 ))}
                 <Separator className="my-1" />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Channels</span>
+                  <span className="text-muted-foreground">{t('notificationChannels') || 'Channels'}</span>
                   <div className="flex gap-1">
                     {(task.notification.channels ?? []).map((ch) => (
                       <Badge key={ch} variant="secondary" className="text-[10px] capitalize">
@@ -474,6 +417,105 @@ export function TaskDetails({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+const EXECUTIONS_PAGE_SIZE = 10;
+
+interface ExecutionHistoryProps {
+  executions: TaskExecution[];
+  executionStatusConfig: Record<string, { icon: React.ReactNode; label: string; color: string }>;
+  isPluginExecutionActive?: (id: string) => boolean;
+  onCancelPluginExecution?: (id: string) => void;
+  t: ReturnType<typeof useTranslations>;
+}
+
+function ExecutionHistory({
+  executions,
+  executionStatusConfig,
+  isPluginExecutionActive,
+  onCancelPluginExecution,
+  t,
+}: ExecutionHistoryProps) {
+  const [visibleCount, setVisibleCount] = useState(EXECUTIONS_PAGE_SIZE);
+
+  const visibleExecutions = executions.slice(0, visibleCount);
+  const hasMore = executions.length > visibleCount;
+
+  if (executions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50">
+          <History className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm text-muted-foreground">{t('noExecutions') || 'No executions yet'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-4 sm:p-6">
+        <div className="space-y-1">
+          {visibleExecutions.map((execution) => {
+            const status = executionStatusConfig[execution.status];
+            return (
+              <div
+                key={execution.id}
+                className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/30"
+              >
+                <div className="mt-0.5 shrink-0">{status.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={cn('text-xs font-medium', status.color.split(' ').find(c => c.startsWith('text-')))}>{status.label}</span>
+                    {execution.retryAttempt > 0 && (
+                      <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                        Retry #{execution.retryAttempt}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {execution.startedAt.toLocaleString()}
+                  </div>
+                  {execution.error && (
+                    <div className="mt-1.5 rounded-md bg-destructive/5 px-2 py-1.5 font-mono text-[11px] text-destructive">
+                      {execution.error}
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {execution.status === 'running' && isPluginExecutionActive?.(execution.id) && onCancelPluginExecution && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px] text-destructive hover:text-destructive"
+                      onClick={() => onCancelPluginExecution(execution.id)}
+                    >
+                      {t('cancel') || 'Cancel'}
+                    </Button>
+                  )}
+                  <span className="tabular-nums text-xs text-muted-foreground">
+                    {formatDuration(execution.duration)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {hasMore && (
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={() => setVisibleCount((c) => c + EXECUTIONS_PAGE_SIZE)}
+            >
+              {t('showMore') || 'Show more'} ({executions.length - visibleCount} {t('remaining') || 'remaining'})
+            </Button>
+          </div>
+        )}
+      </div>
+    </ScrollArea>
   );
 }
 

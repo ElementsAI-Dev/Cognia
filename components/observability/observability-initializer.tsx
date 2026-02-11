@@ -6,6 +6,7 @@
 
 import { useEffect } from 'react';
 import { useSettingsStore } from '@/stores';
+import { loggers } from '@/lib/logger';
 
 export function ObservabilityInitializer() {
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
@@ -33,9 +34,9 @@ export function ObservabilityInitializer() {
           },
         });
 
-        console.log('[Observability] Initialized successfully');
+        loggers.ai.info('[Observability] Initialized successfully');
       } catch (error) {
-        console.warn('[Observability] Failed to initialize:', error);
+        loggers.ai.warn('[Observability] Failed to initialize', { error });
       }
     };
 
@@ -44,7 +45,7 @@ export function ObservabilityInitializer() {
     return () => {
       // Cleanup on unmount
       import('@/lib/ai/observability').then(({ shutdownObservability }) => {
-        shutdownObservability().catch(console.warn);
+        shutdownObservability().catch((err) => loggers.ai.warn('[Observability] Shutdown error', { error: err }));
       });
     };
   }, [observabilitySettings]);

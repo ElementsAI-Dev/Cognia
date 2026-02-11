@@ -5,6 +5,16 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  EnhancedSnapConfig,
+  ElementInfo,
+  SelectionSnapResult,
+  WindowInfo,
+} from '@/types/screenshot';
+
+// Re-export types from canonical location (single source of truth)
+export type { ElementInfo, SnapGuide, SelectionSnapResult, WindowInfo } from '@/types/screenshot';
+export type SnapConfig = EnhancedSnapConfig;
 
 // ============== Types ==============
 
@@ -172,57 +182,6 @@ export interface AnnotatedScreenshotResult {
 export interface SelectionValidationResult {
   region: CaptureRegion;
   is_valid: boolean;
-}
-
-export interface SnapConfig {
-  snap_distance: number;
-  snap_to_screen: boolean;
-  snap_to_windows: boolean;
-  snap_to_elements: boolean;
-  show_guide_lines: boolean;
-  magnetic_edges: boolean;
-}
-
-export interface WindowInfo {
-  hwnd: number;
-  title: string;
-  process_name: string;
-  pid: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  is_minimized: boolean;
-  is_maximized: boolean;
-  is_visible: boolean;
-  thumbnail_base64?: string;
-}
-
-export interface ElementInfo {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  element_type: string;
-  name?: string;
-  parent_hwnd: number;
-}
-
-export interface SnapGuide {
-  orientation: 'horizontal' | 'vertical';
-  position: number;
-  start: number;
-  end: number;
-  source: string;
-}
-
-export interface SelectionSnapResult {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  snapped: boolean;
-  guides: SnapGuide[];
 }
 
 // ============== Basic Capture Functions ==============

@@ -67,15 +67,7 @@ jest.mock('@/components/chat/renderers/loading-animation', () => ({
   ),
 }));
 
-// Mock empty state
-jest.mock('@/components/layout/feedback/empty-state', () => ({
-  EmptyState: ({ title, description }: { title: string; description: string }) => (
-    <div data-testid="empty-state">
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
-  ),
-}));
+// EmptyState is no longer used in ChatWidgetMessages
 
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
@@ -145,21 +137,32 @@ describe('ChatWidgetMessages', () => {
     expect(screen.getByTestId('scroll-area')).toBeInTheDocument();
   });
 
-  it('displays empty state when no messages', () => {
-    render(<ChatWidgetMessages {...defaultProps} />);
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
-    expect(screen.getByText('有什么可以帮您的？')).toBeInTheDocument();
+  it('has ARIA role="log" and aria-live on message container', () => {
+    const messages = [createMessage()];
+    const { container } = render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
+    const logElement = container.querySelector('[role="log"]');
+    expect(logElement).toBeInTheDocument();
+    expect(logElement).toHaveAttribute('aria-live', 'polite');
+    expect(logElement).toHaveAttribute('aria-label', 'Chat messages');
   });
 
-  it('does not display empty state when messages exist', () => {
+  it('renders empty message list when no messages', () => {
+    const { container } = render(<ChatWidgetMessages {...defaultProps} />);
+    const logElement = container.querySelector('[role="log"]');
+    expect(logElement).toBeInTheDocument();
+    // No message bubbles rendered
+    expect(logElement?.children.length).toBeLessThanOrEqual(1); // only scroll anchor
+  });
+
+  it('renders messages when they exist', () => {
     const messages = [createMessage()];
     render(<ChatWidgetMessages {...defaultProps} messages={messages} />);
-    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    expect(screen.getByText('Hello')).toBeInTheDocument();
   });
 
-  it('does not display empty state when loading', () => {
+  it('renders loading state without crashing when no messages', () => {
     render(<ChatWidgetMessages {...defaultProps} isLoading={true} />);
-    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-animation')).toBeInTheDocument();
   });
 
   it('displays user message correctly', () => {

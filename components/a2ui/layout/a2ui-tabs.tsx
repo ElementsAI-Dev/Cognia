@@ -9,12 +9,12 @@ import React, { useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { A2UIComponentProps, A2UITabsComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { resolveStringOrPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
 export const A2UITabs = memo(function A2UITabs({ component, onAction }: A2UIComponentProps<A2UITabsComponent>) {
-  const { dataModel } = useA2UIContext();
+  const { dataModel } = useA2UIData();
 
   const activeTabFromData = component.activeTab
     ? resolveStringOrPath(component.activeTab, dataModel, '')

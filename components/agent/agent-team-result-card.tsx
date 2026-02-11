@@ -8,6 +8,8 @@
  */
 
 import { useMemo } from 'react';
+import { useTeamTeammates, useTeamTasks } from '@/hooks/agent/use-team-data';
+import { useTranslations } from 'next-intl';
 import {
   Users,
   CheckCircle,
@@ -48,23 +50,11 @@ export function AgentTeamResultCard({
   onOpenPanel,
 }: AgentTeamResultCardProps) {
   const team = useAgentTeamStore((s) => s.teams[teamId]);
-  const allTeammates = useAgentTeamStore((s) => s.teammates);
-  const allTasks = useAgentTeamStore((s) => s.tasks);
+  const t = useTranslations('agentTeam.result');
   const [showDetails, setShowDetails] = useState(false);
 
-  const teammates = useMemo(() => {
-    if (!team) return [];
-    return team.teammateIds
-      .map((id) => allTeammates[id])
-      .filter(Boolean);
-  }, [team, allTeammates]);
-
-  const tasks = useMemo(() => {
-    if (!team) return [];
-    return team.taskIds
-      .map((id) => allTasks[id])
-      .filter(Boolean);
-  }, [team, allTasks]);
+  const teammates = useTeamTeammates(teamId);
+  const tasks = useTeamTasks(teamId);
 
   const stats = useMemo(() => {
     const completedTasks = tasks.filter((t) => t.status === 'completed').length;
@@ -122,7 +112,7 @@ export function AgentTeamResultCard({
           )}
           {onOpenPanel && (
             <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={onOpenPanel}>
-              View Details
+              {t('viewDetails')}
             </Button>
           )}
         </div>
@@ -132,16 +122,16 @@ export function AgentTeamResultCard({
       <div className="px-3 py-2 flex items-center gap-4 text-xs text-muted-foreground border-b border-border/30">
         <span className="flex items-center gap-1">
           <Users className="h-3 w-3" />
-          {teammates.length} teammates
+          {t('teammatesCount', { count: teammates.length })}
         </span>
         <span className="flex items-center gap-1">
           <ListTodo className="h-3 w-3" />
-          {stats.completedTasks}/{stats.totalTasks} tasks
+          {t('tasksCount', { completed: stats.completedTasks, total: stats.totalTasks })}
         </span>
         {stats.totalTokens > 0 && (
           <span className="flex items-center gap-1">
             <Brain className="h-3 w-3" />
-            {stats.totalTokens.toLocaleString()} tokens
+            {t('tokensCount', { count: stats.totalTokens.toLocaleString() })}
           </span>
         )}
       </div>
@@ -150,10 +140,10 @@ export function AgentTeamResultCard({
       {stats.totalTasks > 0 && (
         <div className="px-3 py-2 border-b border-border/30">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>Task Progress</span>
+            <span>{t('taskProgress')}</span>
             <span>
               {stats.completedTasks}/{stats.totalTasks}
-              {stats.failedTasks > 0 && ` (${stats.failedTasks} failed)`}
+              {stats.failedTasks > 0 && ` ${t('failedCount', { count: stats.failedTasks })}`}
             </span>
           </div>
           <Progress
@@ -168,7 +158,7 @@ export function AgentTeamResultCard({
         <div className="px-3 py-2">
           {team.error && (
             <div className="text-sm text-destructive mb-2">
-              <span className="font-medium">Error: </span>
+              <span className="font-medium">{t('errorLabel')}</span>
               {team.error}
             </div>
           )}
@@ -185,12 +175,12 @@ export function AgentTeamResultCard({
                       {showDetails ? (
                         <>
                           <ChevronDown className="h-3 w-3" />
-                          Show less
+                          {t('showLess')}
                         </>
                       ) : (
                         <>
                           <ChevronRight className="h-3 w-3" />
-                          Show full result
+                          {t('showFullResult')}
                         </>
                       )}
                     </Button>
@@ -219,7 +209,7 @@ export function AgentTeamResultCard({
               className="w-full h-7 text-xs gap-1 rounded-none border-t border-border/30"
             >
               <Users className="h-3 w-3" />
-              Teammate Details ({teammates.length})
+              {t('teammateDetails', { count: teammates.length })}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -248,8 +238,8 @@ export function AgentTeamResultCard({
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <span>{tmCompleted}/{tmTasks.length} tasks</span>
-                      <span>{tm.tokenUsage?.totalTokens?.toLocaleString() || 0} tokens</span>
+                      <span>{t('tasksCount', { completed: tmCompleted, total: tmTasks.length })}</span>
+                      <span>{t('tokensCount', { count: tm.tokenUsage?.totalTokens?.toLocaleString() || '0' })}</span>
                     </div>
                   </div>
                 );
@@ -262,4 +252,3 @@ export function AgentTeamResultCard({
   );
 }
 
-export default AgentTeamResultCard;

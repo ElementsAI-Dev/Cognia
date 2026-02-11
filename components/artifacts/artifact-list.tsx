@@ -4,10 +4,10 @@
  * ArtifactList - Displays a list of artifacts for the current session
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
-import { Trash2, Code, Search, Filter, CheckSquare } from 'lucide-react';
+import { Trash2, Code, Search, Filter, CheckSquare, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,20 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact, ArtifactType } from '@/types';
-import { ARTIFACT_TYPE_KEYS, PREVIEWABLE_TYPES } from '@/lib/artifacts';
+import { ARTIFACT_TYPES, ARTIFACT_TYPE_KEYS, PREVIEWABLE_TYPES } from '@/lib/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactListProps {
@@ -36,8 +46,6 @@ interface ArtifactListProps {
 
 // Use centralized type label keys
 const TYPE_LABEL_KEYS = ARTIFACT_TYPE_KEYS;
-
-const ARTIFACT_TYPES: ArtifactType[] = ['code', 'document', 'svg', 'html', 'react', 'mermaid', 'chart', 'math', 'jupyter'];
 
 export function ArtifactList({
   sessionId,
@@ -58,6 +66,7 @@ export function ArtifactList({
   const getActiveSession = useSessionStore((state) => state.getActiveSession);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
@@ -69,8 +78,8 @@ export function ArtifactList({
 
     // All store methods (searchArtifacts, filterArtifactsByType, getSessionArtifacts)
     // already return results sorted by date descending, so no additional sorting needed
-    if (searchQuery.trim()) {
-      return searchArtifacts(searchQuery, currentSessionId);
+    if (deferredSearchQuery.trim()) {
+      return searchArtifacts(deferredSearchQuery, currentSessionId);
     }
 
     if (typeFilter !== 'all') {
@@ -78,7 +87,7 @@ export function ArtifactList({
     }
 
     return getSessionArtifacts(currentSessionId);
-  }, [currentSessionId, getSessionArtifacts, searchArtifacts, filterArtifactsByType, searchQuery, typeFilter]);
+  }, [currentSessionId, getSessionArtifacts, searchArtifacts, filterArtifactsByType, deferredSearchQuery, typeFilter]);
 
   const handleArtifactClick = (artifact: Artifact) => {
     if (batchMode) {
@@ -98,18 +107,30 @@ export function ArtifactList({
     onArtifactClick?.(artifact);
   };
 
+  const [pendingDelete, setPendingDelete] = useState<string | string[] | null>(null);
+
   const handleDelete = (artifactId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteArtifact(artifactId);
+    setPendingDelete(artifactId);
   };
 
   const handleBatchDelete = useCallback(() => {
     if (selectedIds.size > 0) {
-      deleteArtifacts(Array.from(selectedIds));
+      setPendingDelete(Array.from(selectedIds));
+    }
+  }, [selectedIds]);
+
+  const confirmDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    if (Array.isArray(pendingDelete)) {
+      deleteArtifacts(pendingDelete);
       setSelectedIds(new Set());
       setBatchMode(false);
+    } else {
+      deleteArtifact(pendingDelete);
     }
-  }, [selectedIds, deleteArtifacts]);
+    setPendingDelete(null);
+  }, [pendingDelete, deleteArtifact, deleteArtifacts]);
 
   if (sessionArtifacts.length === 0 && !searchQuery && typeFilter === 'all') {
     return (
@@ -209,8 +230,8 @@ export function ArtifactList({
                       {t(`types.${TYPE_LABEL_KEYS[artifact.type]}`)}
                     </Badge>
                     {PREVIEWABLE_TYPES.includes(artifact.type) && (
-                      <Badge variant="secondary" className="shrink-0 text-[10px] px-1">
-                        👁
+                      <Badge variant="secondary" className="shrink-0 px-1">
+                        <Eye className="h-3 w-3" />
                       </Badge>
                     )}
                   </div>
@@ -242,6 +263,26 @@ export function ArtifactList({
         })}
       </div>
     </ScrollArea>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {Array.isArray(pendingDelete)
+              ? t('deleteConfirmBatchDesc', { count: pendingDelete.length })
+              : t('deleteConfirmDesc')}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{tArtifacts('cancel')}</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {t('delete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
@@ -268,13 +309,8 @@ export function ArtifactListCompact({
 
   const sessionArtifacts = useMemo(() => {
     if (currentSessionId) {
-      return getSessionArtifacts(currentSessionId)
-        .sort((a, b) => {
-          const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
-          const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
-          return dateB.getTime() - dateA.getTime();
-        })
-        .slice(0, limit);
+      // getSessionArtifacts already returns results sorted by createdAt descending
+      return getSessionArtifacts(currentSessionId).slice(0, limit);
     }
     // Fallback to recent artifacts across all sessions
     return getRecentArtifacts(limit);
@@ -304,5 +340,3 @@ export function ArtifactListCompact({
     </div>
   );
 }
-
-export default ArtifactList;

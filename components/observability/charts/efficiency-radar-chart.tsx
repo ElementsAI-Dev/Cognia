@@ -6,7 +6,7 @@
  * Radar chart showing efficiency metrics across multiple dimensions.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   RadarChart,
@@ -34,7 +34,7 @@ interface EfficiencyRadarChartProps {
   height?: number;
 }
 
-export function EfficiencyRadarChart({ data, title, height = 280 }: EfficiencyRadarChartProps) {
+export const EfficiencyRadarChart = memo(function EfficiencyRadarChart({ data, title, height = 280 }: EfficiencyRadarChartProps) {
   const t = useTranslations('observability.charts');
 
   const chartData = useMemo(() => {
@@ -124,7 +124,7 @@ export function EfficiencyRadarChart({ data, title, height = 280 }: EfficiencyRa
       </CardContent>
     </Card>
   );
-}
+});
 
 /**
  * Calculate efficiency scores from raw metrics

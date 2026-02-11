@@ -5,7 +5,7 @@
  * Shows total battles, model usage, category distribution, voting patterns
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Swords,
@@ -80,26 +80,45 @@ function StatCard({
 }
 
 function computeStats(battles: ArenaBattle[], ratings: ArenaModelRating[]) {
-  const completedBattles = battles.filter((b) => b.winnerId || b.isTie || b.isBothBad);
   const totalBattles = battles.length;
-  const completedCount = completedBattles.length;
-  const tieCount = completedBattles.filter((b) => b.isTie).length;
-  const bothBadCount = completedBattles.filter((b) => b.isBothBad).length;
-  const decisiveCount = completedBattles.filter((b) => b.winnerId && !b.isTie && !b.isBothBad).length;
+  let completedCount = 0;
+  let tieCount = 0;
+  let bothBadCount = 0;
+  let decisiveCount = 0;
+  let blindModeCount = 0;
+  let multiTurnCount = 0;
+  let totalResponseTime = 0;
+  let responseTimeCount = 0;
 
-  // Average response time (ms between createdAt and completedAt)
-  const responseTimes = completedBattles
-    .filter((b) => b.completedAt && b.createdAt)
-    .map((b) => new Date(b.completedAt!).getTime() - new Date(b.createdAt).getTime());
-  const avgResponseTime = responseTimes.length > 0
-    ? Math.round(responseTimes.reduce((a, c) => a + c, 0) / responseTimes.length / 1000)
-    : 0;
-
-  // Model usage stats
   const modelUsage = new Map<string, { battleCount: number; winCount: number; provider: string; model: string; displayName: string }>();
+  const categoryCounts = new Map<string, number>();
+  const uniqueModels = new Set<string>();
+
+  // Single pass over all battles
   for (const battle of battles) {
+    const isCompleted = !!(battle.winnerId || battle.isTie || battle.isBothBad);
+
+    if (isCompleted) {
+      completedCount++;
+      if (battle.isTie) tieCount++;
+      if (battle.isBothBad) bothBadCount++;
+      if (battle.winnerId && !battle.isTie && !battle.isBothBad) decisiveCount++;
+
+      if (battle.completedAt && battle.createdAt) {
+        totalResponseTime += new Date(battle.completedAt).getTime() - new Date(battle.createdAt).getTime();
+        responseTimeCount++;
+      }
+    }
+
+    if (battle.mode === 'blind') blindModeCount++;
+    if (battle.conversationMode === 'multi') multiTurnCount++;
+
+    const cat = battle.taskClassification?.category || 'uncategorized';
+    categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+
     for (const c of battle.contestants) {
       const key = `${c.provider}:${c.model}`;
+      uniqueModels.add(key);
       const existing = modelUsage.get(key) || { battleCount: 0, winCount: 0, provider: c.provider, model: c.model, displayName: c.displayName };
       existing.battleCount++;
       if (battle.winnerId === c.id) {
@@ -109,6 +128,12 @@ function computeStats(battles: ArenaBattle[], ratings: ArenaModelRating[]) {
     }
   }
 
+  const avgResponseTime = responseTimeCount > 0
+    ? Math.round(totalResponseTime / responseTimeCount / 1000)
+    : 0;
+
+  const blindModePercent = totalBattles > 0 ? Math.round((blindModeCount / totalBattles) * 100) : 0;
+
   const modelStats: ModelUsageStats[] = Array.from(modelUsage.entries())
     .map(([modelId, stats]) => ({
       modelId,
@@ -117,12 +142,6 @@ function computeStats(battles: ArenaBattle[], ratings: ArenaModelRating[]) {
     }))
     .sort((a, b) => b.battleCount - a.battleCount);
 
-  // Category distribution
-  const categoryCounts = new Map<string, number>();
-  for (const battle of battles) {
-    const cat = battle.taskClassification?.category || 'uncategorized';
-    categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
-  }
   const categoryStats: CategoryStats[] = Array.from(categoryCounts.entries())
     .map(([category, count]) => ({
       category,
@@ -130,16 +149,6 @@ function computeStats(battles: ArenaBattle[], ratings: ArenaModelRating[]) {
       percentage: totalBattles > 0 ? Math.round((count / totalBattles) * 100) : 0,
     }))
     .sort((a, b) => b.count - a.count);
-
-  // Blind mode usage
-  const blindModeCount = battles.filter((b) => b.mode === 'blind').length;
-  const blindModePercent = totalBattles > 0 ? Math.round((blindModeCount / totalBattles) * 100) : 0;
-
-  // Multi-turn usage
-  const multiTurnCount = battles.filter((b) => b.conversationMode === 'multi').length;
-
-  // Unique models used
-  const uniqueModels = new Set(battles.flatMap((b) => b.contestants.map((c) => `${c.provider}:${c.model}`)));
 
   return {
     totalBattles,
@@ -171,8 +180,8 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
     return (
       <div className={cn('flex flex-col items-center justify-center py-16 text-muted-foreground', className)}>
         <BarChart3 className="h-12 w-12 mb-4 opacity-30" />
-        <p className="text-lg font-medium">{t('stats.noData', { fallback: 'No battle data yet' })}</p>
-        <p className="text-sm">{t('stats.startBattles', { fallback: 'Start some battles to see statistics here' })}</p>
+        <p className="text-lg font-medium">{t('stats.noData')}</p>
+        <p className="text-sm">{t('stats.startBattles')}</p>
       </div>
     );
   }
@@ -184,27 +193,27 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard
             icon={Swords}
-            label={t('stats.totalBattles', { fallback: 'Total Battles' })}
+            label={t('stats.totalBattles')}
             value={stats.totalBattles}
-            subValue={`${stats.completedCount} ${t('stats.completed', { fallback: 'completed' })}`}
+            subValue={`${stats.completedCount} ${t('stats.completed')}`}
           />
           <StatCard
             icon={Trophy}
-            label={t('stats.decisiveVotes', { fallback: 'Decisive Votes' })}
+            label={t('stats.decisiveVotes')}
             value={stats.decisiveCount}
-            subValue={`${stats.tieCount} ${t('stats.ties', { fallback: 'ties' })}, ${stats.bothBadCount} ${t('stats.bothBad', { fallback: 'both bad' })}`}
+            subValue={`${stats.tieCount} ${t('stats.ties')}, ${stats.bothBadCount} ${t('stats.bothBad')}`}
           />
           <StatCard
             icon={Users}
-            label={t('stats.uniqueModels', { fallback: 'Models Tested' })}
+            label={t('stats.uniqueModels')}
             value={stats.uniqueModelCount}
-            subValue={`${preferences.length} ${t('stats.preferences', { fallback: 'preferences' })}`}
+            subValue={`${preferences.length} ${t('stats.preferences')}`}
           />
           <StatCard
             icon={Clock}
-            label={t('stats.avgTime', { fallback: 'Avg. Battle Time' })}
+            label={t('stats.avgTime')}
             value={stats.avgResponseTime > 0 ? `${stats.avgResponseTime}s` : '—'}
-            subValue={`${stats.blindModePercent}% ${t('stats.blindMode', { fallback: 'blind mode' })}`}
+            subValue={`${stats.blindModePercent}% ${t('stats.blindMode')}`}
           />
         </div>
 
@@ -214,7 +223,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                {t('stats.topModels', { fallback: 'Most Battled Models' })}
+                {t('stats.topModels')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -224,7 +233,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium truncate">{model.displayName}</span>
                       <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                        {model.battleCount} {t('stats.battles', { fallback: 'battles' })}
+                        {model.battleCount} {t('stats.battles')}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -238,7 +247,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
               ))}
               {stats.modelStats.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {t('stats.noModels', { fallback: 'No model data' })}
+                  {t('stats.noModels')}
                 </p>
               )}
             </CardContent>
@@ -249,7 +258,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Hash className="h-4 w-4" />
-                {t('stats.categories', { fallback: 'Category Distribution' })}
+                {t('stats.categories')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -270,7 +279,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
               ))}
               {stats.categoryStats.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {t('stats.noCategories', { fallback: 'No category data' })}
+                  {t('stats.noCategories')}
                 </p>
               )}
             </CardContent>
@@ -282,7 +291,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Percent className="h-4 w-4" />
-              {t('stats.votingPatterns', { fallback: 'Voting Patterns' })}
+              {t('stats.votingPatterns')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -293,7 +302,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
                     ? Math.round((stats.decisiveCount / stats.completedCount) * 100)
                     : 0}%
                 </p>
-                <p className="text-xs text-muted-foreground">{t('stats.decisiveRate', { fallback: 'Decisive Rate' })}</p>
+                <p className="text-xs text-muted-foreground">{t('stats.decisiveRate')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">
@@ -301,15 +310,15 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
                     ? Math.round((stats.tieCount / stats.completedCount) * 100)
                     : 0}%
                 </p>
-                <p className="text-xs text-muted-foreground">{t('stats.tieRate', { fallback: 'Tie Rate' })}</p>
+                <p className="text-xs text-muted-foreground">{t('stats.tieRate')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">{stats.multiTurnCount}</p>
-                <p className="text-xs text-muted-foreground">{t('stats.multiTurn', { fallback: 'Multi-turn' })}</p>
+                <p className="text-xs text-muted-foreground">{t('stats.multiTurn')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">{stats.blindModeCount}</p>
-                <p className="text-xs text-muted-foreground">{t('stats.blindBattles', { fallback: 'Blind Battles' })}</p>
+                <p className="text-xs text-muted-foreground">{t('stats.blindBattles')}</p>
               </div>
             </div>
 
@@ -321,12 +330,12 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
                   <Trophy className="h-5 w-5 text-yellow-500" />
                   <div>
                     <p className="text-sm font-medium">
-                      {t('stats.topRated', { fallback: 'Top Rated' })}: {stats.topRating.model}
+                      {t('stats.topRated')}: {stats.topRating.model}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {t('stats.rating', { fallback: 'Rating' })}: {Math.round(stats.topRating.rating)} ·{' '}
-                      {t('stats.winRate', { fallback: 'Win rate' })}: {Math.round((stats.topRating.winRate || 0) * 100)}% ·{' '}
-                      {stats.topRating.totalBattles} {t('stats.battles', { fallback: 'battles' })}
+                      {t('stats.rating')}: {Math.round(stats.topRating.rating)} ·{' '}
+                      {t('stats.winRate')}: {Math.round((stats.topRating.winRate || 0) * 100)}% ·{' '}
+                      {stats.topRating.totalBattles} {t('stats.battles')}
                     </p>
                   </div>
                 </div>
@@ -339,5 +348,5 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
   );
 }
 
-export const ArenaStats = ArenaStatsComponent;
+export const ArenaStats = memo(ArenaStatsComponent);
 export default ArenaStats;

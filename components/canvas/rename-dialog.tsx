@@ -78,4 +78,3 @@ export function RenameDialog({ open, onOpenChange, currentTitle, onRename }: Ren
   );
 }
 
-export default RenameDialog;

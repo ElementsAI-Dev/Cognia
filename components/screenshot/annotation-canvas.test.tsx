@@ -7,7 +7,7 @@ import { AnnotationCanvas } from './annotation-canvas';
 import type { Annotation, AnnotationStyle } from '@/types/screenshot';
 
 // Mock canvas context
-const mockContext = {
+const mockContext: Record<string, unknown> = {
   clearRect: jest.fn(),
   drawImage: jest.fn(),
   save: jest.fn(),
@@ -25,10 +25,36 @@ const mockContext = {
   fillText: jest.fn(),
   measureText: jest.fn(() => ({ width: 100 })),
   setLineDash: jest.fn(),
+  getImageData: jest.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 })),
+  putImageData: jest.fn(),
+  imageSmoothingEnabled: true,
+  canvas: document.createElement('canvas'),
+  lineWidth: 1,
+  lineCap: 'round',
+  lineJoin: 'round',
+  strokeStyle: '',
+  fillStyle: '',
+  globalAlpha: 1,
+  font: '',
+  textAlign: '',
+  textBaseline: '',
 };
 
 // Mock HTMLCanvasElement.getContext
 HTMLCanvasElement.prototype.getContext = jest.fn(() => mockContext) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+// Mock getBoundingClientRect to return valid dimensions (JSDOM returns zeroes by default)
+HTMLCanvasElement.prototype.getBoundingClientRect = jest.fn(() => ({
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  bottom: 600,
+  right: 800,
+  width: 800,
+  height: 600,
+  toJSON: () => ({}),
+}));
 
 // Mock Image
 global.Image = class MockImage {
@@ -208,9 +234,10 @@ describe('AnnotationCanvas', () => {
     const overlay = container.querySelectorAll('canvas')[1];
 
     fireEvent.mouseDown(overlay, { clientX: 100, clientY: 100, button: 0 });
-    fireEvent.mouseMove(overlay, { clientX: 110, clientY: 110 });
-    fireEvent.mouseMove(overlay, { clientX: 120, clientY: 115 });
-    fireEvent.mouseMove(overlay, { clientX: 130, clientY: 120 });
+    // Points must be >2px apart (distance threshold) to be added
+    fireEvent.mouseMove(overlay, { clientX: 120, clientY: 120 });
+    fireEvent.mouseMove(overlay, { clientX: 140, clientY: 130 });
+    fireEvent.mouseMove(overlay, { clientX: 160, clientY: 140 });
     fireEvent.mouseUp(overlay);
 
     expect(onAnnotationAdd).toHaveBeenCalled();

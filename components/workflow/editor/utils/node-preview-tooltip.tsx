@@ -5,7 +5,7 @@
  * Shows a detailed preview of node configuration on hover
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
@@ -17,40 +17,14 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Play,
-  Square,
-  Sparkles,
   Wrench,
-  GitBranch,
-  GitFork,
-  User,
   Workflow,
-  Repeat,
-  Clock,
-  Globe,
-  Code,
-  Shuffle,
-  GitMerge,
   CheckCircle,
   AlertCircle,
   Info,
-  Group,
-  StickyNote,
-  BarChart2,
-  LineChart,
-  PieChart,
-  AreaChart,
-  ScatterChart,
-  Radar,
-  BookOpen,
-  ListChecks,
-  Combine,
-  MessageSquare,
-  FileCode,
 } from 'lucide-react';
 import type {
   WorkflowNodeData,
-  WorkflowNodeType,
   AINodeData,
   ToolNodeData,
   ConditionalNodeData,
@@ -61,37 +35,7 @@ import type {
   SubworkflowNodeData,
 } from '@/types/workflow/workflow-editor';
 import { NODE_TYPE_COLORS } from '@/types/workflow/workflow-editor';
-
-const NODE_ICONS: Record<WorkflowNodeType, React.ComponentType<{ className?: string }>> = {
-  start: Play,
-  end: Square,
-  ai: Sparkles,
-  tool: Wrench,
-  conditional: GitBranch,
-  parallel: GitFork,
-  human: User,
-  subworkflow: Workflow,
-  loop: Repeat,
-  delay: Clock,
-  webhook: Globe,
-  code: Code,
-  transform: Shuffle,
-  merge: GitMerge,
-  group: Group,
-  annotation: StickyNote,
-  knowledgeRetrieval: BookOpen,
-  parameterExtractor: ListChecks,
-  variableAggregator: Combine,
-  questionClassifier: MessageSquare,
-  templateTransform: FileCode,
-  chart: BarChart2,
-  lineChart: LineChart,
-  barChart: BarChart2,
-  pieChart: PieChart,
-  areaChart: AreaChart,
-  scatterChart: ScatterChart,
-  radarChart: Radar,
-};
+import { NODE_ICONS } from '@/lib/workflow-editor/constants';
 
 interface NodePreviewTooltipProps {
   data: WorkflowNodeData;
@@ -107,6 +51,7 @@ export function NodePreviewTooltip({
   align = 'start',
 }: NodePreviewTooltipProps) {
   const t = useTranslations('nodePreview');
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
   const nodeType = data.nodeType;
   const Icon = NODE_ICONS[nodeType] || Workflow;
   const color = NODE_TYPE_COLORS[nodeType];
@@ -273,100 +218,108 @@ export function NodePreviewTooltip({
   }, [nodeType, data, t]);
 
   return (
-    <HoverCard openDelay={300} closeDelay={100}>
+    <HoverCard
+      openDelay={300}
+      closeDelay={100}
+      onOpenChange={(open) => {
+        if (open && !hasBeenOpened) setHasBeenOpened(true);
+      }}
+    >
       <HoverCardTrigger asChild>
         {children}
       </HoverCardTrigger>
-      <HoverCardContent
-        side={side}
-        align={align}
-        className="w-72 p-0"
-        sideOffset={8}
-      >
-        <div className="p-3">
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-2">
-            <div
-              className="p-1.5 rounded"
-              style={{ backgroundColor: `${color}20`, color }}
-            >
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold truncate">{data.label}</h4>
-              <Badge variant="outline" className="text-xs">{nodeType}</Badge>
-            </div>
-          </div>
-
-          {/* Description */}
-          {data.description && (
-            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-              {data.description}
-            </p>
-          )}
-
-          <Separator className="my-2" />
-
-          {/* Status & IO */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {data.isConfigured ? (
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <CheckCircle className="h-3 w-3" />
-                <span>{t('configured')}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 text-xs text-yellow-600">
-                <AlertCircle className="h-3 w-3" />
-                <span>{t('notConfigured')}</span>
-              </div>
-            )}
-            {data.hasError && (
-              <div className="flex items-center gap-1 text-xs text-destructive">
-                <AlertCircle className="h-3 w-3" />
-                <span>{t('hasErrors')}</span>
-              </div>
-            )}
-            {data.executionStatus && data.executionStatus !== 'idle' && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[10px] h-4 px-1',
-                  data.executionStatus === 'running' && 'border-blue-500 text-blue-600',
-                  data.executionStatus === 'completed' && 'border-green-500 text-green-600',
-                  data.executionStatus === 'failed' && 'border-red-500 text-red-600',
-                  data.executionStatus === 'skipped' && 'border-gray-400 text-gray-500',
-                )}
+      {hasBeenOpened && (
+        <HoverCardContent
+          side={side}
+          align={align}
+          className="w-72 p-0"
+          sideOffset={8}
+        >
+          <div className="p-3">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className="p-1.5 rounded"
+                style={{ backgroundColor: `${color}20`, color }}
               >
-                {data.executionStatus}
-              </Badge>
-            )}
-            {data.inputs && Object.keys(data.inputs as Record<string, unknown>).length > 0 && (
-              <Badge variant="outline" className="text-[10px] h-4 px-1">
-                {Object.keys(data.inputs as Record<string, unknown>).length} in
-              </Badge>
-            )}
-            {data.outputs && Object.keys(data.outputs as Record<string, unknown>).length > 0 && (
-              <Badge variant="outline" className="text-[10px] h-4 px-1">
-                {Object.keys(data.outputs as Record<string, unknown>).length} out
-              </Badge>
-            )}
-          </div>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold truncate">{data.label}</h4>
+                <Badge variant="outline" className="text-xs">{nodeType}</Badge>
+              </div>
+            </div>
 
-          {/* Type-specific content */}
-          {previewContent && (
-            <ScrollArea className="max-h-[150px]">
-              {previewContent}
-            </ScrollArea>
-          )}
+            {/* Description */}
+            {data.description && (
+              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                {data.description}
+              </p>
+            )}
 
-          {/* Hint */}
-          <Separator className="my-2" />
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Info className="h-3 w-3" />
-            <span>{t('doubleClickToConfigure')}</span>
+            <Separator className="my-2" />
+
+            {/* Status & IO */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {data.isConfigured ? (
+                <div className="flex items-center gap-1 text-xs text-green-600">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>{t('configured')}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-xs text-yellow-600">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{t('notConfigured')}</span>
+                </div>
+              )}
+              {data.hasError && (
+                <div className="flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{t('hasErrors')}</span>
+                </div>
+              )}
+              {data.executionStatus && data.executionStatus !== 'idle' && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px] h-4 px-1',
+                    data.executionStatus === 'running' && 'border-blue-500 text-blue-600',
+                    data.executionStatus === 'completed' && 'border-green-500 text-green-600',
+                    data.executionStatus === 'failed' && 'border-red-500 text-red-600',
+                    data.executionStatus === 'skipped' && 'border-gray-400 text-gray-500',
+                  )}
+                >
+                  {data.executionStatus}
+                </Badge>
+              )}
+              {Boolean(data.inputs) && Object.keys(data.inputs as Record<string, unknown>).length > 0 && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1">
+                  {Object.keys(data.inputs as Record<string, unknown>).length} in
+                </Badge>
+              )}
+              {Boolean(data.outputs) && Object.keys(data.outputs as Record<string, unknown>).length > 0 && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1">
+                  {Object.keys(data.outputs as Record<string, unknown>).length} out
+                </Badge>
+              )}
+            </div>
+
+            {/* Type-specific content */}
+            {previewContent && (
+              <ScrollArea className="max-h-[150px]">
+                {previewContent}
+              </ScrollArea>
+            )}
+
+            {/* Hint */}
+            <Separator className="my-2" />
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Info className="h-3 w-3" />
+              <span>{t('doubleClickToConfigure')}</span>
+            </div>
           </div>
-        </div>
-      </HoverCardContent>
+        </HoverCardContent>
+      )}
     </HoverCard>
   );
 }

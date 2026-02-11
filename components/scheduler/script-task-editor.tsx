@@ -1,8 +1,10 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { AlertTriangle, Play, Settings2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useTheme } from '@/components/providers/ui/theme-provider';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -17,12 +19,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { createEditorOptions, getMonacoLanguage, getMonacoTheme } from '@/lib/monaco';
+
+const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[200px] items-center justify-center rounded-md border bg-muted/30">
+      <span className="text-xs text-muted-foreground">Loading editor...</span>
+    </div>
+  ),
+});
 import { validateScript, getScriptTemplate } from '@/lib/scheduler/script-executor';
 import type { ExecuteScriptAction } from '@/types/scheduler';
 import { SCRIPT_LANGUAGES, DEFAULT_SCRIPT_SETTINGS } from '@/types/scheduler';
@@ -41,6 +52,7 @@ export function ScriptTaskEditor({
   disabled = false,
 }: ScriptTaskEditorProps) {
   const t = useTranslations('scheduler');
+  const { theme } = useTheme();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [validation, setValidation] = useState<{
     valid: boolean;
@@ -120,13 +132,25 @@ export function ScriptTaskEditor({
             </Button>
           )}
         </div>
-        <Textarea
-          value={value.code}
-          onChange={(e) => handleCodeChange(e.target.value)}
-          placeholder={getScriptTemplate(value.language || 'python')}
-          className="min-h-[200px] font-mono text-sm"
-          disabled={disabled}
-        />
+        <div className="overflow-hidden rounded-md border">
+          <MonacoEditor
+            height="200px"
+            language={getMonacoLanguage(value.language || 'python')}
+            theme={getMonacoTheme(theme)}
+            value={value.code}
+            onChange={(v) => handleCodeChange(v || '')}
+            options={createEditorOptions('code', {
+              readOnly: disabled,
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              lineNumbers: 'on',
+              glyphMargin: false,
+              folding: false,
+              renderLineHighlight: 'line',
+              placeholder: getScriptTemplate(value.language || 'python'),
+            })}
+          />
+        </div>
 
         {/* Validation feedback */}
         {validation && (validation.errors.length > 0 || validation.warnings.length > 0) && (

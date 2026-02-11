@@ -9,10 +9,10 @@ import { useCallback, useState, useRef } from 'react';
 import { streamText } from 'ai';
 import { useSettingsStore } from '@/stores';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
-import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
-import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
+import { resolvePPTAIConfig, createPPTModelInstance } from '@/lib/ai/utils/ppt-ai-config';
 import type { ProviderName } from '@/types/provider';
 import type { PPTSlide, PPTPresentation, PPTSlideLayout, PPTOutlineItem } from '@/types/workflow';
+import { parseAIJSON } from '@/lib/ai/utils/parse-ai-json';
 
 export interface RegenerateSlideOptions {
   slide: PPTSlide;
@@ -198,38 +198,8 @@ Provide 3-5 specific, actionable suggestions in JSON format:
 }`;
 }
 
-/**
- * Safely parse JSON from AI response, handling markdown code blocks and malformed output
- */
-export function parseAIJSON(response: string): unknown {
-  // Try to extract JSON from markdown code blocks
-  const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonStr = jsonMatch ? jsonMatch[1].trim() : response.trim();
-
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    // Try to find JSON object in the response
-    const objectMatch = response.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
-      try {
-        return JSON.parse(objectMatch[0]);
-      } catch {
-        // ignore, fall through to array match
-      }
-    }
-    // Try to find JSON array in the response
-    const arrayMatch = response.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      try {
-        return JSON.parse(arrayMatch[0]);
-      } catch {
-        // ignore
-      }
-    }
-    throw new Error('Failed to parse AI response as JSON');
-  }
-}
+// Re-export parseAIJSON from shared utility for backward compatibility
+export { parseAIJSON };
 
 export function usePPTAI(): UsePPTAIReturn {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -247,36 +217,13 @@ export function usePPTAI(): UsePPTAIReturn {
    */
   const callAI = useCallback(
     async (prompt: string): Promise<string> => {
-      const settings = providerSettings[defaultProvider];
-      const model = settings?.defaultModel || 'gpt-4o';
-      let apiKey = settings?.apiKey || '';
+      const config = resolvePPTAIConfig(defaultProvider, providerSettings);
 
-      if (!apiKey) {
+      if (!config.apiKey) {
         throw new Error('API key not configured');
       }
 
-      // Support API key rotation
-      if (settings?.apiKeys && settings.apiKeys.length > 0 && settings.apiKeyRotationEnabled) {
-        const usageStats = settings.apiKeyUsageStats || {};
-        const rotationResult = getNextApiKey(
-          settings.apiKeys,
-          settings.apiKeyRotationStrategy || 'round-robin',
-          settings.currentKeyIndex || 0,
-          usageStats
-        );
-        apiKey = rotationResult.apiKey;
-        useSettingsStore.getState().updateProviderSettings(defaultProvider, {
-          currentKeyIndex: rotationResult.index,
-        });
-      }
-
-      const modelInstance = getProxyProviderModel(
-        defaultProvider,
-        model,
-        apiKey,
-        settings?.baseURL,
-        true
-      );
+      const modelInstance = createPPTModelInstance(config);
 
       // Use streaming for real-time progress feedback
       abortControllerRef.current = new AbortController();
@@ -320,12 +267,12 @@ export function usePPTAI(): UsePPTAIReturn {
         return {
           success: true,
           slide: {
-            title: result.title,
-            subtitle: result.subtitle,
-            content: result.content,
-            bullets: result.bullets,
+            title: result.title as string | undefined,
+            subtitle: result.subtitle as string | undefined,
+            content: result.content as string | undefined,
+            bullets: result.bullets as string[] | undefined,
             layout: result.layout as PPTSlideLayout,
-            notes: result.speakerNotes,
+            notes: result.speakerNotes as string | undefined,
           },
         };
       } catch (err) {
@@ -356,8 +303,8 @@ export function usePPTAI(): UsePPTAIReturn {
 
         return {
           success: true,
-          content: result.optimized,
-          alternatives: result.alternatives,
+          content: result.optimized as string | undefined,
+          alternatives: result.alternatives as string[] | undefined,
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to optimize content';
@@ -387,7 +334,11 @@ export function usePPTAI(): UsePPTAIReturn {
 
         return {
           success: true,
-          suggestions: result.suggestions,
+          suggestions: result.suggestions as Array<{
+            type: 'content' | 'layout' | 'design';
+            description: string;
+            action?: string;
+          }> | undefined,
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate suggestions';
@@ -437,17 +388,15 @@ Respond in JSON format:
         const response = await callAI(prompt);
         const result = parseAIJSON(response) as Record<string, unknown>;
 
-        const outline: PPTOutlineItem[] = (result.outline as Array<Record<string, unknown>>).map(
-          (
-            item: { title: string; description: string; keyPoints: string[]; type: string },
-            index: number
-          ) => ({
+        const rawOutline = result.outline as Array<Record<string, unknown>>;
+        const outline: PPTOutlineItem[] = rawOutline.map(
+          (item, index) => ({
             id: `outline-${index}`,
-            title: item.title,
-            description: item.description,
-            keyPoints: item.keyPoints || [],
+            title: (item.title as string) || '',
+            description: (item.description as string) || '',
+            suggestedLayout: ((item.type as string) || 'title-content') as PPTSlideLayout,
+            keyPoints: (item.keyPoints as string[]) || [],
             order: index,
-            type: item.type,
           })
         );
 
@@ -495,7 +444,7 @@ Respond in JSON format:
         const response = await callAI(prompt);
         const result = parseAIJSON(response) as Record<string, unknown>;
 
-        return { success: true, bullets: result.bullets };
+        return { success: true, bullets: result.bullets as string[] | undefined };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to expand bullets';
         setError(message);

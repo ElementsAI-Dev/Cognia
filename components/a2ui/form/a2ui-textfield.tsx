@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UITextFieldComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UITextField = memo(function A2UITextField({ component, onDataChange }: A2UIComponentProps<A2UITextFieldComponent>) {
-  const { resolveString, resolveBoolean } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
 
   const value = resolveString(component.value, '');
   const error = component.error ? resolveString(component.error, '') : '';

@@ -9,6 +9,7 @@ import {
   createChatObservabilityManager,
   type ChatObservabilityConfig,
 } from '@/lib/ai/observability/chat-observability';
+import { useSettingsStore } from '@/stores';
 import type { CoreMessage } from 'ai';
 
 /**
@@ -88,5 +89,21 @@ export function useChatObservability(config: ChatObservabilityConfig) {
     trackGeneration,
     trackStreamingGeneration,
     getTraceUrl,
+  };
+}
+
+/**
+ * Hook to get observability config for chat.
+ *
+ * Provides the observability settings formatted for ChatObservabilityManager,
+ * so callers don't need to access the settings store directly.
+ */
+export function useChatObservabilityConfig() {
+  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+
+  return {
+    enabled: observabilitySettings?.enabled ?? false,
+    enableLangfuse: observabilitySettings?.langfuseEnabled,
+    enableOpenTelemetry: observabilitySettings?.openTelemetryEnabled,
   };
 }

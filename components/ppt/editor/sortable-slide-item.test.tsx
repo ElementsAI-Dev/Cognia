@@ -182,7 +182,13 @@ describe('SortableSlideItem', () => {
 
   it('should be a valid React component', () => {
     expect(SortableSlideItem).toBeDefined();
-    expect(typeof SortableSlideItem).toBe('function');
+  });
+
+  it('should be wrapped with React.memo', () => {
+    // React.memo wraps the component — check via $$typeof or displayName
+    expect((SortableSlideItem as unknown as { $$typeof: symbol }).$$typeof).toBe(
+      Symbol.for('react.memo')
+    );
   });
 
   it('should render with default props', () => {

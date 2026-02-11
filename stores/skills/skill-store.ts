@@ -769,6 +769,7 @@ export const useSkillStore = create<SkillState>()(
       partialize: (state) => ({
         skills: state.skills,
         usageStats: state.usageStats,
+        activeSkillIds: state.activeSkillIds,
       }),
     }
   )

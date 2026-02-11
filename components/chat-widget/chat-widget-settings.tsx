@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import type { ChatWidgetConfig } from '@/stores/chat';
 import type { ProviderName } from '@/types';
+import { CHAT_WIDGET_PROVIDERS, CHAT_WIDGET_MODELS } from '@/lib/chat-widget/constants';
 
 interface ChatWidgetSettingsProps {
   open: boolean;
@@ -41,53 +42,6 @@ interface ChatWidgetSettingsProps {
   onResetConfig: () => void;
 }
 
-const PROVIDERS: { value: ProviderName; label: string }[] = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'google', label: 'Google' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'groq', label: 'Groq' },
-  { value: 'mistral', label: 'Mistral' },
-  { value: 'ollama', label: 'Ollama (Local)' },
-];
-
-const MODELS: Partial<Record<ProviderName, { value: string; label: string }[]>> = {
-  openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-  ],
-  anthropic: [
-    { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
-    { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
-    { value: 'claude-3-opus-latest', label: 'Claude 3 Opus' },
-  ],
-  google: [
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  ],
-  deepseek: [
-    { value: 'deepseek-chat', label: 'DeepSeek Chat' },
-    { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
-  ],
-  groq: [
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
-    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B' },
-    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
-  ],
-  mistral: [
-    { value: 'mistral-large-latest', label: 'Mistral Large' },
-    { value: 'mistral-small-latest', label: 'Mistral Small' },
-  ],
-  ollama: [
-    { value: 'llama3.2', label: 'Llama 3.2' },
-    { value: 'qwen2.5', label: 'Qwen 2.5' },
-    { value: 'deepseek-r1', label: 'DeepSeek R1' },
-  ],
-  openrouter: [],
-};
 
 export function ChatWidgetSettings({
   open,
@@ -128,13 +82,18 @@ function ChatWidgetSettingsContent({
   const t = useTranslations('chatWidget.settings');
   const [localConfig, setLocalConfig] = useState(config);
 
+  // Sync localConfig when external config changes (e.g. from Tauri events)
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
+
   const handleSave = () => {
     onUpdateConfig(localConfig);
     onClose();
   };
 
   const handleProviderChange = (provider: ProviderName) => {
-    const models = MODELS[provider];
+    const models = CHAT_WIDGET_MODELS[provider];
     const defaultModel = models?.[0]?.value || '';
     setLocalConfig((prev) => ({
       ...prev,
@@ -182,7 +141,7 @@ function ChatWidgetSettingsContent({
                     <SelectValue placeholder={t('selectProvider')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROVIDERS.map((p) => (
+                    {CHAT_WIDGET_PROVIDERS.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
                       </SelectItem>
@@ -201,7 +160,7 @@ function ChatWidgetSettingsContent({
                     <SelectValue placeholder={t('selectModel')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {MODELS[localConfig.provider]?.map((m) => (
+                    {CHAT_WIDGET_MODELS[localConfig.provider]?.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
                         {m.label}
                       </SelectItem>

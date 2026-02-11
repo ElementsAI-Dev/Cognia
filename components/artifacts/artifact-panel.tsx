@@ -5,9 +5,6 @@
  * Similar to Claude's artifact panel
  */
 
-import { useState, useCallback } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
   Copy,
@@ -20,7 +17,6 @@ import {
   Maximize2,
   Minimize2,
   History,
-  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ArtifactPanelLoading } from '@/components/ui/loading-states';
@@ -43,26 +39,21 @@ import {
   ArtifactClose,
 } from '@/components/ai-elements/artifact';
 import { CodeBlock } from '@/components/ai-elements/code-block';
-import { useArtifactStore, useSettingsStore, useNativeStore } from '@/stores';
 import { FileCode } from 'lucide-react';
-import { downloadFile } from '@/lib/utils/download';
-import { opener } from '@/lib/native';
-import { V0Designer } from '@/components/designer';
 import { Palette } from 'lucide-react';
 import type { BundledLanguage } from 'shiki';
-import type { Artifact as ArtifactType } from '@/types';
 import { ArtifactPreview } from './artifact-preview';
 import { ArtifactList } from './artifact-list';
+import { PanelVersionHistory } from './panel-version-history';
+import { ArtifactDesignerWrapper } from './panel-designer-wrapper';
 import { createEditorOptions, getMonacoTheme, getMonacoLanguage } from '@/lib/monaco';
 import {
   getShikiLanguage as getShikiLang,
-  getArtifactExtension,
-  canPreview,
-  canDesign,
   MERMAID_TYPE_NAMES,
   DESIGNABLE_TYPES,
 } from '@/lib/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
+import { useArtifactPanelState } from '@/hooks/artifacts';
 
 // Use centralized language mapping
 function getShikiLanguage(lang?: string): BundledLanguage {
@@ -70,168 +61,39 @@ function getShikiLanguage(lang?: string): BundledLanguage {
 }
 
 export function ArtifactPanel() {
-  const t = useTranslations('artifacts');
-  const tCommon = useTranslations('common');
-  // Store state - using useShallow for optimized subscriptions
   const {
+    t,
+    tCommon,
     panelOpen,
     panelView,
-    activeArtifactId,
-    artifacts,
-  } = useArtifactStore(
-    useShallow((state) => ({
-      panelOpen: state.panelOpen,
-      panelView: state.panelView,
-      activeArtifactId: state.activeArtifactId,
-      artifacts: state.artifacts,
-    }))
-  );
-
-  // Store actions - using useShallow for stable references
-  const {
+    activeArtifact,
+    theme,
+    isDesktop,
+    viewMode,
+    setViewMode,
+    copied,
+    designerOpen,
+    setDesignerOpen,
+    editContent,
+    hasChanges,
+    isFullscreen,
+    showVersionHistory,
+    setShowVersionHistory,
+    lastDownloadPath,
+    isPreviewable,
+    isDesignable,
+    panelWidth,
     closePanel,
-    updateArtifact,
-    saveArtifactVersion,
-    restoreArtifactVersion,
-    getArtifactVersions,
-    createCanvasDocument,
-    setActiveCanvas,
-    openPanel,
-  } = useArtifactStore(
-    useShallow((state) => ({
-      closePanel: state.closePanel,
-      updateArtifact: state.updateArtifact,
-      saveArtifactVersion: state.saveArtifactVersion,
-      restoreArtifactVersion: state.restoreArtifactVersion,
-      getArtifactVersions: state.getArtifactVersions,
-      createCanvasDocument: state.createCanvasDocument,
-      setActiveCanvas: state.setActiveCanvas,
-      openPanel: state.openPanel,
-    }))
-  );
-
-  const activeArtifact = activeArtifactId ? artifacts[activeArtifactId] : null;
-
-  const theme = useSettingsStore((state) => state.theme);
-
-  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'edit'>('code');
-  const [copied, setCopied] = useState(false);
-  const [designerOpen, setDesignerOpen] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showVersionHistory, setShowVersionHistory] = useState(false);
-
-  const versions = activeArtifact ? getArtifactVersions(activeArtifact.id) : [];
-
-  // Open artifact in Canvas for detailed editing
-  const handleOpenInCanvas = useCallback(() => {
-    if (activeArtifact) {
-      const docId = createCanvasDocument({
-        title: activeArtifact.title,
-        content: activeArtifact.content,
-        language: activeArtifact.language || 'javascript',
-        type: 'code',
-      });
-      setActiveCanvas(docId);
-      openPanel('canvas');
-    }
-  }, [activeArtifact, createCanvasDocument, setActiveCanvas, openPanel]);
-
-  // Initialize edit content when switching to edit mode
-  const handleEditMode = useCallback(() => {
-    if (activeArtifact) {
-      setEditContent(activeArtifact.content);
-      setHasChanges(false);
-      setViewMode('edit');
-    }
-  }, [activeArtifact]);
-
-  const handleSaveEdit = useCallback(() => {
-    if (activeArtifact && hasChanges) {
-      saveArtifactVersion(activeArtifact.id, 'Before edit');
-      updateArtifact(activeArtifact.id, { content: editContent });
-      setHasChanges(false);
-      setViewMode('code');
-    }
-  }, [activeArtifact, editContent, hasChanges, updateArtifact, saveArtifactVersion]);
-
-  const handleRestoreVersion = useCallback((versionId: string) => {
-    if (activeArtifact) {
-      restoreArtifactVersion(activeArtifact.id, versionId);
-      setShowVersionHistory(false);
-    }
-  }, [activeArtifact, restoreArtifactVersion]);
-
-  const handleSaveVersion = useCallback(() => {
-    if (activeArtifact) {
-      saveArtifactVersion(activeArtifact.id, `Manual save v${activeArtifact.version}`);
-    }
-  }, [activeArtifact, saveArtifactVersion]);
-
-  const handleCancelEdit = useCallback(() => {
-    setViewMode('code');
-    setHasChanges(false);
-  }, []);
-
-  const handleEditorChange = useCallback(
-    (value: string | undefined) => {
-      setEditContent(value || '');
-      setHasChanges(value !== activeArtifact?.content);
-    },
-    [activeArtifact?.content]
-  );
-
-  const toggleFullscreen = useCallback(() => {
-    setIsFullscreen((prev) => !prev);
-  }, []);
-
-  const handleCopy = async () => {
-    if (activeArtifact) {
-      await navigator.clipboard.writeText(activeArtifact.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const isDesktop = useNativeStore((state) => state.isDesktop);
-  const [lastDownloadPath, setLastDownloadPath] = useState<string | null>(null);
-
-  const handleDownload = () => {
-    if (activeArtifact) {
-      const filename = `${activeArtifact.title}.${getExtension(activeArtifact)}`;
-      downloadFile(activeArtifact.content, filename, 'text/plain');
-      if (isDesktop) {
-        setLastDownloadPath(filename);
-      }
-    }
-  };
-
-  const handleRevealInExplorer = async () => {
-    if (!isDesktop || !lastDownloadPath) return;
-    try {
-      const { downloadDir } = await import('@tauri-apps/api/path');
-      const downloadsPath = await downloadDir();
-      const fullPath = `${downloadsPath}${lastDownloadPath}`;
-      await opener.revealInFileExplorer(fullPath);
-    } catch {
-      // Fallback: open downloads folder
-      try {
-        const { downloadDir } = await import('@tauri-apps/api/path');
-        const downloadsPath = await downloadDir();
-        await opener.openPath(downloadsPath);
-      } catch (err) {
-        console.error('Failed to reveal in explorer:', err);
-      }
-    }
-  };
-
-  const isPreviewable = activeArtifact ? canPreview(activeArtifact.type) : false;
-  const isDesignable = activeArtifact ? canDesign(activeArtifact.type) : false;
-
-  const panelWidth = isFullscreen
-    ? 'w-full sm:w-full sm:max-w-full'
-    : 'w-full sm:w-[600px] sm:max-w-[600px]';
+    handleOpenInCanvas,
+    handleEditMode,
+    handleSaveEdit,
+    handleCancelEdit,
+    handleEditorChange,
+    toggleFullscreen,
+    handleCopy,
+    handleDownload,
+    handleRevealInExplorer,
+  } = useArtifactPanelState();
 
   return (
     <Sheet
@@ -393,45 +255,10 @@ export function ArtifactPanel() {
 
             {/* Version History Panel */}
             {showVersionHistory && (
-              <div className="border-t bg-muted/30 max-h-[200px] overflow-auto">
-                <div className="flex items-center justify-between px-4 py-2 border-b">
-                  <h4 className="text-sm font-medium flex items-center gap-1.5">
-                    <History className="h-3.5 w-3.5" />
-                    {t('versionHistory')}
-                  </h4>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleSaveVersion}>
-                    <Save className="h-3 w-3 mr-1" />
-                    {t('saveVersion')}
-                  </Button>
-                </div>
-                {versions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground px-4 py-3">{t('noVersions')}</p>
-                ) : (
-                  <div className="divide-y">
-                    {versions.map((version) => (
-                      <div key={version.id} className="flex items-center justify-between px-4 py-2 text-xs hover:bg-muted/50">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{version.changeDescription || `v${version.version}`}</p>
-                          <p className="text-muted-foreground">
-                            {version.createdAt instanceof Date
-                              ? version.createdAt.toLocaleString()
-                              : new Date(version.createdAt).toLocaleString()}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs shrink-0 ml-2"
-                          onClick={() => handleRestoreVersion(version.id)}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          {t('restoreVersion')}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <PanelVersionHistory
+                artifact={activeArtifact}
+                onVersionRestored={() => setShowVersionHistory(false)}
+              />
             )}
           </Artifact>
         ) : (
@@ -456,34 +283,3 @@ export function ArtifactPanel() {
   );
 }
 
-function getExtension(artifact: ArtifactType): string {
-  return getArtifactExtension(artifact.type, artifact.language);
-}
-
-// Designer Panel integration
-function ArtifactDesignerWrapper({
-  artifact,
-  open,
-  onOpenChange,
-}: {
-  artifact: ArtifactType;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const updateArtifact = useArtifactStore((state) => state.updateArtifact);
-
-  const handleCodeChange = (newCode: string) => {
-    updateArtifact(artifact.id, { content: newCode });
-  };
-
-  return (
-    <V0Designer
-      open={open}
-      onOpenChange={onOpenChange}
-      initialCode={artifact.content}
-      onCodeChange={handleCodeChange}
-    />
-  );
-}
-
-export default ArtifactPanel;

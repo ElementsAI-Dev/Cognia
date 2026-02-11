@@ -6,7 +6,7 @@
  * Pie chart showing usage distribution across providers.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,7 @@ interface ProviderChartProps {
   height?: number;
 }
 
-export function ProviderChart({
+export const ProviderChart = memo(function ProviderChart({
   data,
   title,
   dataKey = 'tokens',
@@ -103,4 +103,4 @@ export function ProviderChart({
       </CardContent>
     </Card>
   );
-}
+});

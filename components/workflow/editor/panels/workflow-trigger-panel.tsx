@@ -53,31 +53,13 @@ import {
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import type {
+  TriggerType,
+  WorkflowTrigger,
+  TriggerConfig,
+} from '@/types/workflow/workflow-editor';
 
-// Trigger types
-export type TriggerType = 'manual' | 'schedule' | 'event' | 'webhook';
-
-export interface WorkflowTrigger {
-  id: string;
-  type: TriggerType;
-  name: string;
-  enabled: boolean;
-  config: TriggerConfig;
-}
-
-export interface TriggerConfig {
-  // Schedule trigger
-  cronExpression?: string;
-  timezone?: string;
-  // Event trigger
-  eventType?: string;
-  eventSource?: string;
-  eventFilter?: Record<string, unknown>;
-  // Webhook trigger
-  webhookPath?: string;
-  webhookMethod?: 'GET' | 'POST' | 'PUT';
-  webhookSecret?: string;
-}
+export type { TriggerType, WorkflowTrigger, TriggerConfig };
 
 // Common cron presets
 const CRON_PRESETS = [
@@ -111,8 +93,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
 
   // Get triggers from workflow settings or initialize empty
   const triggers = useMemo<WorkflowTrigger[]>(() => {
-    const settings = currentWorkflow?.settings as unknown as Record<string, unknown> | undefined;
-    return (settings?.triggers as WorkflowTrigger[]) || [];
+    return currentWorkflow?.settings.triggers || [];
   }, [currentWorkflow?.settings]);
 
   const [expandedTrigger, setExpandedTrigger] = useState<string | null>(null);
@@ -128,7 +109,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
     };
 
     const updatedTriggers = [...triggers, newTrigger];
-    updateWorkflowSettings({ triggers: updatedTriggers } as never);
+    updateWorkflowSettings({ triggers: updatedTriggers });
     setExpandedTrigger(newTrigger.id);
   }, [triggers, updateWorkflowSettings]);
 
@@ -137,13 +118,13 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
     const updatedTriggers = triggers.map(t =>
       t.id === triggerId ? { ...t, ...updates } : t
     );
-    updateWorkflowSettings({ triggers: updatedTriggers } as never);
+    updateWorkflowSettings({ triggers: updatedTriggers });
   }, [triggers, updateWorkflowSettings]);
 
   // Delete trigger
   const handleDeleteTrigger = useCallback((triggerId: string) => {
     const updatedTriggers = triggers.filter(t => t.id !== triggerId);
-    updateWorkflowSettings({ triggers: updatedTriggers } as never);
+    updateWorkflowSettings({ triggers: updatedTriggers });
   }, [triggers, updateWorkflowSettings]);
 
   // Toggle trigger enabled

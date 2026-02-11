@@ -19,6 +19,13 @@ jest.mock('@/lib/scheduler/cron-parser', () => ({
     return { valid: true };
   }),
   describeCronExpression: jest.fn((expr) => `Runs: ${expr}`),
+  formatCronExpression: jest.fn((expr) => expr),
+  parseCronExpression: jest.fn((expr) => ({ expression: expr })),
+}));
+
+// Mock notification-integration
+jest.mock('@/lib/scheduler/notification-integration', () => ({
+  testNotificationChannel: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 describe('TaskForm', () => {
@@ -215,7 +222,7 @@ describe('TaskForm', () => {
     fireEvent.click(screen.getByText('save'));
     
     await waitFor(() => {
-      expect(screen.getByText('Invalid JSON')).toBeInTheDocument();
+      expect(screen.getByText('invalidJson')).toBeInTheDocument();
     });
   });
 

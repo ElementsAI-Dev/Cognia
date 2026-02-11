@@ -12,7 +12,8 @@
  * - Task detail popover with result, duration, token usage
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
+import { useTeamTeammates, useTeamTasks } from '@/hooks/agent/use-team-data';
 import { useTranslations } from 'next-intl';
 import {
   Plus,
@@ -73,12 +74,12 @@ interface TaskCreateForm {
 // Column Configuration
 // ============================================================================
 
-const COLUMNS: { id: string; statuses: TeamTaskStatus[]; label: string; color: string }[] = [
-  { id: 'blocked', statuses: ['blocked'], label: 'Blocked', color: 'border-orange-500/30' },
-  { id: 'pending', statuses: ['pending', 'claimed'], label: 'Pending', color: 'border-blue-500/30' },
-  { id: 'in_progress', statuses: ['in_progress'], label: 'In Progress', color: 'border-primary/30' },
-  { id: 'review', statuses: ['review'], label: 'Review', color: 'border-yellow-500/30' },
-  { id: 'done', statuses: ['completed', 'failed', 'cancelled'], label: 'Done', color: 'border-green-500/30' },
+const COLUMNS: { id: string; statuses: TeamTaskStatus[]; labelKey: string; color: string }[] = [
+  { id: 'blocked', statuses: ['blocked'], labelKey: 'taskBoard.columnBlocked', color: 'border-orange-500/30' },
+  { id: 'pending', statuses: ['pending', 'claimed'], labelKey: 'taskBoard.columnPending', color: 'border-blue-500/30' },
+  { id: 'in_progress', statuses: ['in_progress'], labelKey: 'taskBoard.columnInProgress', color: 'border-primary/30' },
+  { id: 'review', statuses: ['review'], labelKey: 'taskBoard.columnReview', color: 'border-yellow-500/30' },
+  { id: 'done', statuses: ['completed', 'failed', 'cancelled'], labelKey: 'taskBoard.columnDone', color: 'border-green-500/30' },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -104,27 +105,13 @@ export function AgentTeamTaskBoard({ teamId, className }: AgentTeamTaskBoardProp
   });
 
   const team = useAgentTeamStore((s) => s.teams[teamId]);
-  const allTasks = useAgentTeamStore((s) => s.tasks);
-  const allTeammates = useAgentTeamStore((s) => s.teammates);
   const createTask = useAgentTeamStore((s) => s.createTask);
   const setTaskStatus = useAgentTeamStore((s) => s.setTaskStatus);
   const claimTask = useAgentTeamStore((s) => s.claimTask);
   const assignTask = useAgentTeamStore((s) => s.assignTask);
 
-  const tasks = useMemo(() => {
-    if (!team) return [];
-    return team.taskIds
-      .map(id => allTasks[id])
-      .filter(Boolean)
-      .sort((a, b) => a.order - b.order);
-  }, [team, allTasks]);
-
-  const teammates = useMemo(() => {
-    if (!team) return [];
-    return team.teammateIds
-      .map(id => allTeammates[id])
-      .filter(Boolean);
-  }, [team, allTeammates]);
+  const tasks = useTeamTasks(teamId, true);
+  const teammates = useTeamTeammates(teamId);
 
   const getTasksByColumn = useCallback((statuses: TeamTaskStatus[]) => {
     return tasks.filter(task => statuses.includes(task.status));
@@ -187,7 +174,7 @@ export function AgentTeamTaskBoard({ teamId, className }: AgentTeamTaskBoardProp
               {/* Column Header */}
               <div className="flex items-center justify-between mb-2 px-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {column.label}
+                  {t(column.labelKey)}
                 </span>
                 <Badge variant="secondary" className="text-[10px] h-4 px-1">
                   {columnTasks.length}
@@ -328,7 +315,8 @@ interface TaskCardProps {
   onAssign: (taskId: string, teammateId: string) => void;
 }
 
-function TaskCard({ task, teammates, allTasks, onSetStatus, onClaim: _onClaim, onAssign }: TaskCardProps) {
+function TaskCard({ task, teammates, allTasks, onSetStatus, onClaim, onAssign }: TaskCardProps) {
+  const t = useTranslations('agentTeam');
   const statusConfig = TASK_STATUS_CONFIG[task.status];
   const assignee = task.claimedBy
     ? teammates.find(tm => tm.id === task.claimedBy)
@@ -454,13 +442,24 @@ function TaskCard({ task, teammates, allTasks, onSetStatus, onClaim: _onClaim, o
                   onClick={() => onSetStatus(task.id, 'cancelled')}
                 >
                   <Ban className="h-2.5 w-2.5 mr-1" />
-                  Cancel
+                  {t('taskBoard.cancel')}
                 </Button>
+                {!task.claimedBy && task.assignedTo && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() => onClaim(task.id, task.assignedTo!)}
+                  >
+                    <User className="h-2.5 w-2.5 mr-1" />
+                    {t('taskBoard.claim')}
+                  </Button>
+                )}
                 {teammates.filter(tm => tm.role !== 'lead').length > 0 && (
                   <Select onValueChange={(tmId) => onAssign(task.id, tmId)}>
                     <SelectTrigger className="h-6 text-[10px] w-auto px-2">
                       <User className="h-2.5 w-2.5 mr-1" />
-                      Assign
+                      {t('taskBoard.assign')}
                     </SelectTrigger>
                     <SelectContent>
                       {teammates
@@ -483,7 +482,7 @@ function TaskCard({ task, teammates, allTasks, onSetStatus, onClaim: _onClaim, o
                 onClick={() => onSetStatus(task.id, 'pending')}
               >
                 <RotateCcw className="h-2.5 w-2.5 mr-1" />
-                Retry
+                {t('taskBoard.retry')}
               </Button>
             )}
             {task.status === 'blocked' && (
@@ -494,7 +493,7 @@ function TaskCard({ task, teammates, allTasks, onSetStatus, onClaim: _onClaim, o
                 onClick={() => onSetStatus(task.id, 'cancelled')}
               >
                 <Ban className="h-2.5 w-2.5 mr-1" />
-                Cancel
+                {t('taskBoard.cancel')}
               </Button>
             )}
           </div>

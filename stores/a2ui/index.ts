@@ -8,4 +8,5 @@ export {
   selectSurfaceError,
   selectEventHistory,
   selectRecentEvents,
+  selectIsSurfaceStreaming,
 } from './a2ui-store';

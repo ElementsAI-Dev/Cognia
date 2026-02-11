@@ -70,6 +70,7 @@ const mockUseGit: Record<string, unknown> = {
   stashClear: jest.fn().mockResolvedValue(true),
   mergeBranch: jest.fn().mockResolvedValue(true),
   getDiffBetween: jest.fn().mockResolvedValue([]),
+  revertCommit: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('@/hooks/native/use-git', () => ({

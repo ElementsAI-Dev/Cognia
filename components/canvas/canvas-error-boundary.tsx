@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { loggers } from '@/lib/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -44,7 +45,7 @@ export class CanvasErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     this.setState({ errorInfo });
 
-    console.error('Canvas error:', error, errorInfo);
+    loggers.ui.error('Canvas error:', error, { errorInfo });
 
     this.props.onError?.(error, errorInfo);
   }
@@ -104,7 +105,7 @@ function CanvasErrorFallbackContent({ error, errorInfo, onReset }: ErrorFallback
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      loggers.ui.error('Failed to copy:', err);
     }
   };
 
@@ -181,4 +182,3 @@ function CanvasErrorFallback(props: ErrorFallbackProps) {
   return <CanvasErrorFallbackContent {...props} />;
 }
 
-export default CanvasErrorBoundary;

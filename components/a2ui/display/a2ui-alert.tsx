@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { A2UIComponentProps, A2UIAlertComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 const variantIcons = {
   default: Info,
@@ -32,7 +32,7 @@ const variantStyles = {
 };
 
 export const A2UIAlert = memo(function A2UIAlert({ component, onAction }: A2UIComponentProps<A2UIAlertComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
 
   const title = component.title ? resolveString(component.title, '') : '';
   const message = resolveString(component.message, '');

@@ -117,7 +117,12 @@ describe('CommentPanel', () => {
       reactions: [],
     });
 
-    render(<CommentPanel {...defaultProps} />);
+    render(
+      <CommentPanel
+        {...defaultProps}
+        selectedRange={{ startLine: 1, endLine: 5, startColumn: 0, endColumn: 0 }}
+      />
+    );
 
     const openButton = screen.getByText('Comments');
     await userEvent.click(openButton);

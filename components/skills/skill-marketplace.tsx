@@ -127,7 +127,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
   const handleSaveApiKey = useCallback(() => {
     setApiKey(apiKeyInput.trim() || null);
     setShowApiKeyDialog(false);
-    toast.success(t('marketplace.apiKeySaved') || 'API key saved');
+    toast.success(t('marketplace.apiKeySaved'));
   }, [apiKeyInput, setApiKey, t]);
 
   // Handle install
@@ -138,9 +138,9 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
 
       const success = await install(item);
       if (success) {
-        toast.success(t('marketplace.installSuccess') || 'Skill installed successfully');
+        toast.success(t('marketplace.installSuccess'));
       } else {
-        toast.error(t('marketplace.installFailed') || 'Failed to install skill');
+        toast.error(t('marketplace.installFailed'));
       }
     },
     [itemsWithStatus, install, t]
@@ -168,7 +168,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={t('marketplace.searchPlaceholder') || 'Search 112,000+ skills...'}
+              placeholder={t('marketplace.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -180,20 +180,20 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => setUseAiSearch(!useAiSearch)}
-                title={t('marketplace.aiSearchTooltip') || 'Use AI semantic search'}
+                title={t('marketplace.aiSearchTooltip')}
               >
                 <Sparkles className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
           <Button onClick={handleSearch} disabled={isLoading || !searchQuery.trim()}>
-            {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : t('marketplace.search') || 'Search'}
+            {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : t('marketplace.search')}
           </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setShowApiKeyDialog(true)}
-            title={t('marketplace.configureApiKey') || 'Configure API Key'}
+            title={t('marketplace.configureApiKey')}
           >
             <Key className={cn('h-4 w-4', hasApiKey && 'text-green-500')} />
           </Button>
@@ -207,11 +207,11 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
               <TabsList className="h-8">
                 <TabsTrigger value="stars" className="text-xs h-7 px-3">
                   <Star className="h-3 w-3 mr-1" />
-                  {t('marketplace.sortStars') || 'Stars'}
+                  {t('marketplace.sortStars')}
                 </TabsTrigger>
                 <TabsTrigger value="recent" className="text-xs h-7 px-3">
                   <Clock className="h-3 w-3 mr-1" />
-                  {t('marketplace.sortRecent') || 'Recent'}
+                  {t('marketplace.sortRecent')}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -219,7 +219,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
             {/* Result count */}
             {totalItems > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {totalItems.toLocaleString()} {t('marketplace.results') || 'results'}
+                {totalItems.toLocaleString()} {t('marketplace.results')}
               </Badge>
             )}
 
@@ -272,10 +272,10 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
         <Alert>
           <Key className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>{t('marketplace.apiKeyRequired') || 'API key required to search skills'}</span>
+            <span>{t('marketplace.apiKeyRequired')}</span>
             <Button variant="outline" size="sm" onClick={() => setShowApiKeyDialog(true)}>
               <Settings className="h-4 w-4 mr-1" />
-              {t('marketplace.configure') || 'Configure'}
+              {t('marketplace.configure')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -296,15 +296,15 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
         ) : itemsWithStatus.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="font-medium">{t('marketplace.noResults') || 'No skills found'}</p>
+            <p className="font-medium">{t('marketplace.noResults')}</p>
             <p className="text-sm mt-1">
               {searchQuery
-                ? t('marketplace.tryDifferentSearch') || 'Try a different search query'
-                : t('marketplace.startSearching') || 'Start by searching for skills'}
+                ? t('marketplace.tryDifferentSearch')
+                : t('marketplace.startSearching')}
             </p>
             {searchHistory.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs mb-2">{t('marketplace.recentSearches') || 'Recent searches:'}</p>
+                <p className="text-xs mb-2">{t('marketplace.recentSearches')}</p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {searchHistory.slice(0, 5).map((query) => (
                     <Button
@@ -350,7 +350,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage(currentPage - 1)}
           >
-            {t('marketplace.previous') || 'Previous'}
+            {t('marketplace.previous')}
           </Button>
           <span className="text-sm text-muted-foreground">
             {currentPage} / {totalPages}
@@ -361,7 +361,7 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
             disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage(currentPage + 1)}
           >
-            {t('marketplace.next') || 'Next'}
+            {t('marketplace.next')}
           </Button>
         </div>
       )}
@@ -382,15 +382,14 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
       <Dialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('marketplace.apiKeyTitle') || 'SkillsMP API Key'}</DialogTitle>
+            <DialogTitle>{t('marketplace.apiKeyTitle')}</DialogTitle>
             <DialogDescription>
-              {t('marketplace.apiKeyDescription') ||
-                'Enter your SkillsMP API key to search and install skills. Get your key at skillsmp.com'}
+              {t('marketplace.apiKeyDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="apiKey">{t('marketplace.apiKey') || 'API Key'}</Label>
+              <Label htmlFor="apiKey">{t('marketplace.apiKey')}</Label>
               <Input
                 id="apiKey"
                 type="password"
@@ -400,14 +399,14 @@ export function SkillMarketplace({ className }: SkillMarketplaceProps) {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {t('marketplace.apiKeyHelp') || 'Your API key is stored locally and never sent to our servers.'}
+              {t('marketplace.apiKeyHelp')}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowApiKeyDialog(false)}>
-              {t('common.cancel') || 'Cancel'}
+              {t('cancel')}
             </Button>
-            <Button onClick={handleSaveApiKey}>{t('common.save') || 'Save'}</Button>
+            <Button onClick={handleSaveApiKey}>{t('save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

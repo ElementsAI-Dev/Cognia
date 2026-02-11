@@ -32,12 +32,15 @@ jest.mock('next-intl', () => ({
   },
 }));
 
-// Mock framer-motion
-jest.mock('framer-motion', () => ({
+// Mock motion/react
+jest.mock('motion/react', () => ({
   motion: {
     div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
     span: ({ children, ...props }: React.ComponentProps<'span'>) => (
       <span {...props}>{children}</span>
+    ),
+    button: ({ children, ...props }: React.ComponentProps<'button'>) => (
+      <button {...props}>{children}</button>
     ),
   },
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -199,8 +202,8 @@ describe('ChatWidgetSuggestions', () => {
     expect(suggestionButtons).toHaveLength(4);
 
     suggestionButtons.forEach((button) => {
-      expect(button).toHaveClass('rounded-full');
-      expect(button).toHaveClass('text-xs');
+      expect(button).toHaveClass('rounded-xl');
+      expect(button).toHaveClass('text-left');
     });
   });
 

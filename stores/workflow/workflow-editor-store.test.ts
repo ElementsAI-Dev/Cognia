@@ -38,6 +38,21 @@ jest.mock('@/lib/workflow-editor', () => ({
   validateVisualWorkflow: jest.fn(() => []),
 }));
 
+jest.mock('@/lib/workflow-editor/layout', () => ({
+  autoLayout: jest.fn((nodes) => nodes),
+}));
+
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    store: {
+      error: jest.fn(),
+      warn: jest.fn(),
+      info: jest.fn(),
+      debug: jest.fn(),
+    },
+  },
+}));
+
 jest.mock('../settings/settings-store', () => ({
   useSettingsStore: {
     getState: () => ({
@@ -251,6 +266,94 @@ describe('useWorkflowEditorStore', () => {
       });
 
       expect(result.current.searchQuery).toBe('test query');
+    });
+  });
+
+  describe('recentNodes', () => {
+    it('should initialize with empty recentNodes', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(result.current.recentNodes).toEqual([]);
+    });
+
+    it('should add a recent node', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.addRecentNode('ai' as never);
+      });
+
+      expect(result.current.recentNodes).toContain('ai');
+    });
+
+    it('should move duplicate to front', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.addRecentNode('ai' as never);
+        result.current.addRecentNode('code' as never);
+        result.current.addRecentNode('ai' as never);
+      });
+
+      expect(result.current.recentNodes[0]).toBe('ai');
+      expect(result.current.recentNodes[1]).toBe('code');
+      expect(result.current.recentNodes).toHaveLength(2);
+    });
+
+    it('should cap at 8 entries', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      const types = ['ai', 'code', 'tool', 'conditional', 'parallel', 'human', 'loop', 'delay', 'webhook'];
+
+      act(() => {
+        types.forEach((t) => result.current.addRecentNode(t as never));
+      });
+
+      expect(result.current.recentNodes).toHaveLength(8);
+    });
+  });
+
+  describe('favoriteNodes', () => {
+    it('should initialize with empty favoriteNodes', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+      expect(result.current.favoriteNodes).toEqual([]);
+    });
+
+    it('should toggle favorite on', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleFavoriteNode('ai' as never);
+      });
+
+      expect(result.current.favoriteNodes).toContain('ai');
+    });
+
+    it('should toggle favorite off', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleFavoriteNode('ai' as never);
+      });
+
+      expect(result.current.favoriteNodes).toContain('ai');
+
+      act(() => {
+        result.current.toggleFavoriteNode('ai' as never);
+      });
+
+      expect(result.current.favoriteNodes).not.toContain('ai');
+    });
+
+    it('should handle multiple favorites', () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.toggleFavoriteNode('ai' as never);
+        result.current.toggleFavoriteNode('code' as never);
+        result.current.toggleFavoriteNode('tool' as never);
+      });
+
+      expect(result.current.favoriteNodes).toHaveLength(3);
+      expect(result.current.favoriteNodes).toEqual(expect.arrayContaining(['ai', 'code', 'tool']));
     });
   });
 

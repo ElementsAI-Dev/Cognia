@@ -3,12 +3,19 @@
 /**
  * CustomModeEditor - Comprehensive editor for creating and editing custom agent modes
  * Features: icon selection, tool selection, A2UI template integration, and more
+ *
+ * Sub-components extracted for maintainability:
+ * - TemplateSelector: Quick start template picker
+ * - IconSelector: Lucide icon browser with search
+ * - ToolSelector: Built-in tool category selector
+ * - McpToolSelector: MCP server tool selector
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import * as Icons from 'lucide-react';
-import { Bot, ChevronDown, ChevronRight, Plus, Wand2, Check, X, Settings } from 'lucide-react';
+import { Bot, ChevronDown, Plus, Wand2, X, Loader2, type LucideIcon } from 'lucide-react';
+import { LucideIcons } from '@/lib/agent/resolve-icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -34,7 +41,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useCustomModeStore,
@@ -42,15 +48,16 @@ import {
   type CustomModeCategory,
   type McpToolReference,
   type ModeTemplate,
-  TOOL_CATEGORIES,
-  AVAILABLE_MODE_ICONS,
-  MODE_TEMPLATES,
   PROMPT_TEMPLATE_VARIABLES,
   checkToolAvailability,
 } from '@/stores/agent/custom-mode-store';
-import { useMcpStore } from '@/stores/mcp/mcp-store';
 import { useSettingsStore } from '@/stores/settings/settings-store';
 import { AlertTriangle } from 'lucide-react';
+
+import { TemplateSelector } from './template-selector';
+import { IconSelector } from './icon-selector';
+import { ToolSelector } from './tool-selector';
+import { McpToolSelector } from './mcp-tool-selector';
 
 // =============================================================================
 // Types
@@ -61,405 +68,6 @@ interface CustomModeEditorProps {
   onOpenChange: (open: boolean) => void;
   mode?: CustomModeConfig;
   onSave?: (mode: CustomModeConfig) => void;
-}
-
-interface IconSelectorProps {
-  value: string;
-  onChange: (icon: string) => void;
-}
-
-interface ToolSelectorProps {
-  value: string[];
-  onChange: (tools: string[]) => void;
-}
-
-interface McpToolSelectorProps {
-  value: McpToolReference[];
-  onChange: (tools: McpToolReference[]) => void;
-}
-
-interface TemplateSelectorProps {
-  onSelect: (template: ModeTemplate) => void;
-}
-
-// =============================================================================
-// Template Selector Component
-// =============================================================================
-
-function TemplateSelector({ onSelect }: TemplateSelectorProps) {
-  const t = useTranslations('customMode');
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label>{t('templates') || 'Quick Start Templates'}</Label>
-        <Badge variant="outline">
-          {MODE_TEMPLATES.length} {t('available') || 'available'}
-        </Badge>
-      </div>
-      <ScrollArea className="h-[180px]">
-        <div className="grid grid-cols-2 gap-2 pr-4">
-          {MODE_TEMPLATES.map((template) => {
-            const Icon = (Icons[template.icon as keyof typeof Icons] as Icons.LucideIcon) || Bot;
-            return (
-              <Card
-                key={template.id}
-                className="cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => onSelect(template)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{template.name}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {template.description}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
-
-// =============================================================================
-// Icon Selector Component
-// =============================================================================
-
-function IconSelector({ value, onChange }: IconSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const t = useTranslations('customMode');
-
-  const filteredIcons = useMemo(() => {
-    if (!search) return AVAILABLE_MODE_ICONS;
-    const lowerSearch = search.toLowerCase();
-    return AVAILABLE_MODE_ICONS.filter((icon) => icon.toLowerCase().includes(lowerSearch));
-  }, [search]);
-
-  const CurrentIcon = (Icons[value as keyof typeof Icons] as Icons.LucideIcon) || Bot;
-
-  return (
-    <div className="space-y-2">
-      <Label>{t('icon')}</Label>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" className="w-full justify-between">
-            <div className="flex items-center gap-2">
-              <CurrentIcon className="h-4 w-4" />
-              <span>{value}</span>
-            </div>
-            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <div className="space-y-2">
-            <Input
-              placeholder={t('searchIcons')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <ScrollArea className="h-[200px] border rounded-md p-2">
-              <div className="grid grid-cols-8 gap-1">
-                {filteredIcons.map((iconName) => {
-                  const Icon = (Icons[iconName as keyof typeof Icons] as Icons.LucideIcon) || Bot;
-                  const isSelected = value === iconName;
-                  return (
-                    <Tooltip key={iconName}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={isSelected ? 'default' : 'ghost'}
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            onChange(iconName);
-                            setIsOpen(false);
-                          }}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>{iconName}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
-  );
-}
-
-// =============================================================================
-// Tool Selector Component
-// =============================================================================
-
-function ToolSelector({ value, onChange }: ToolSelectorProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const t = useTranslations('customMode');
-
-  const toggleCategory = (category: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(category)) {
-      newExpanded.delete(category);
-    } else {
-      newExpanded.add(category);
-    }
-    setExpandedCategories(newExpanded);
-  };
-
-  const toggleTool = (tool: string) => {
-    if (value.includes(tool)) {
-      onChange(value.filter((t) => t !== tool));
-    } else {
-      onChange([...value, tool]);
-    }
-  };
-
-  const toggleAllInCategory = (tools: readonly string[]) => {
-    const allSelected = tools.every((t) => value.includes(t));
-    if (allSelected) {
-      onChange(value.filter((t) => !tools.includes(t)));
-    } else {
-      const newTools = new Set([...value, ...tools]);
-      onChange(Array.from(newTools));
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>{t('tools')}</Label>
-        <Badge variant="secondary">
-          {value.length} {t('selected')}
-        </Badge>
-      </div>
-      <ScrollArea className="h-[300px] border rounded-md">
-        <div className="p-2 space-y-1">
-          {Object.entries(TOOL_CATEGORIES).map(([key, category]) => {
-            const isExpanded = expandedCategories.has(key);
-            const selectedCount = category.tools.filter((t) => value.includes(t)).length;
-            const Icon =
-              (Icons[category.icon as keyof typeof Icons] as Icons.LucideIcon) || Settings;
-
-            return (
-              <Collapsible key={key} open={isExpanded} onOpenChange={() => toggleCategory(key)}>
-                <div className="flex items-center gap-2">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="flex-1 justify-start gap-2">
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <Icon className="h-4 w-4" />
-                      <span className="flex-1 text-left">{category.name}</span>
-                      <Badge variant="outline" className="ml-2">
-                        {selectedCount}/{category.tools.length}
-                      </Badge>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleAllInCategory(category.tools)}
-                  >
-                    {selectedCount === category.tools.length ? (
-                      <X className="h-4 w-4" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <CollapsibleContent>
-                  <div className="ml-6 mt-1 space-y-1">
-                    {category.tools.map((tool) => {
-                      const isSelected = value.includes(tool);
-                      return (
-                        <Button
-                          key={tool}
-                          variant={isSelected ? 'secondary' : 'ghost'}
-                          size="sm"
-                          className="w-full justify-start text-xs"
-                          onClick={() => toggleTool(tool)}
-                        >
-                          {isSelected && <Check className="h-3 w-3 mr-2" />}
-                          {tool}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
-
-// =============================================================================
-// MCP Tool Selector Component
-// =============================================================================
-
-function McpToolSelector({ value, onChange }: McpToolSelectorProps) {
-  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
-  const t = useTranslations('customMode');
-  const mcpServers = useMcpStore((state) => state.servers);
-
-  const connectedServers = useMemo(
-    () => mcpServers.filter((s) => s.status.type === 'connected'),
-    [mcpServers]
-  );
-
-  const toggleServer = (serverId: string) => {
-    const newExpanded = new Set(expandedServers);
-    if (newExpanded.has(serverId)) {
-      newExpanded.delete(serverId);
-    } else {
-      newExpanded.add(serverId);
-    }
-    setExpandedServers(newExpanded);
-  };
-
-  const isToolSelected = (serverId: string, toolName: string) => {
-    return value.some((t) => t.serverId === serverId && t.toolName === toolName);
-  };
-
-  const toggleTool = (serverId: string, toolName: string, displayName?: string) => {
-    if (isToolSelected(serverId, toolName)) {
-      onChange(value.filter((t) => !(t.serverId === serverId && t.toolName === toolName)));
-    } else {
-      onChange([...value, { serverId, toolName, displayName }]);
-    }
-  };
-
-  const toggleAllInServer = (serverId: string, tools: Array<{ name: string }>) => {
-    const serverToolNames = tools.map((t) => t.name);
-    const allSelected = serverToolNames.every((name) => isToolSelected(serverId, name));
-
-    if (allSelected) {
-      onChange(value.filter((t) => t.serverId !== serverId));
-    } else {
-      const newTools = [...value.filter((t) => t.serverId !== serverId)];
-      for (const tool of tools) {
-        newTools.push({ serverId, toolName: tool.name, displayName: tool.name });
-      }
-      onChange(newTools);
-    }
-  };
-
-  if (connectedServers.length === 0) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>{t('mcpTools') || 'MCP Tools'}</Label>
-        </div>
-        <div className="flex items-center justify-center h-[100px] border rounded-md text-muted-foreground text-sm">
-          {t('noMcpServers') || 'No MCP servers connected'}
-        </div>
-      </div>
-    );
-  }
-
-  const selectedCount = value.length;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>{t('mcpTools') || 'MCP Tools'}</Label>
-        <Badge variant="secondary">
-          {selectedCount} {t('selected')}
-        </Badge>
-      </div>
-      <ScrollArea className="h-[200px] border rounded-md">
-        <div className="p-2 space-y-1">
-          {connectedServers.map((server) => {
-            const isExpanded = expandedServers.has(server.id);
-            const serverTools = server.tools || [];
-            const selectedInServer = serverTools.filter((t) =>
-              isToolSelected(server.id, t.name)
-            ).length;
-
-            return (
-              <Collapsible
-                key={server.id}
-                open={isExpanded}
-                onOpenChange={() => toggleServer(server.id)}
-              >
-                <div className="flex items-center gap-2">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="flex-1 justify-start gap-2">
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <Settings className="h-4 w-4" />
-                      <span className="flex-1 text-left truncate">{server.name}</span>
-                      <Badge variant="outline" className="ml-2">
-                        {selectedInServer}/{serverTools.length}
-                      </Badge>
-                    </Button>
-                  </CollapsibleTrigger>
-                  {serverTools.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleAllInServer(server.id, serverTools)}
-                    >
-                      {selectedInServer === serverTools.length ? (
-                        <X className="h-4 w-4" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-                <CollapsibleContent>
-                  <div className="ml-6 mt-1 space-y-1">
-                    {serverTools.map((tool) => {
-                      const isSelected = isToolSelected(server.id, tool.name);
-                      return (
-                        <Tooltip key={tool.name}>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant={isSelected ? 'secondary' : 'ghost'}
-                              size="sm"
-                              className="w-full justify-start text-xs"
-                              onClick={() => toggleTool(server.id, tool.name, tool.name)}
-                            >
-                              {isSelected && <Check className="h-3 w-3 mr-2" />}
-                              <span className="truncate">{tool.name}</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-[300px]">
-                            <p className="text-xs">{tool.description || 'No description'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
-  );
 }
 
 // =============================================================================
@@ -559,8 +167,8 @@ export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomMod
       if (result.mode.outputFormat) setOutputFormat(result.mode.outputFormat);
       if (result.mode.category) setCategory(result.mode.category);
       if (result.mode.previewEnabled !== undefined) setPreviewEnabled(result.mode.previewEnabled);
-    } catch (error) {
-      console.error('Generation failed:', error);
+    } catch (_error) {
+      toast.error(t('modeGenerationFailed'));
     }
   };
 
@@ -901,7 +509,7 @@ export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomMod
                   <div className="flex items-center gap-3">
                     {(() => {
                       const IconComp =
-                        (Icons[icon as keyof typeof Icons] as Icons.LucideIcon) || Bot;
+                        (LucideIcons[icon] as LucideIcon) || Bot;
                       return (
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                           <IconComp className="h-5 w-5 text-primary" />
@@ -978,7 +586,7 @@ export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomMod
                     >
                       {isGenerating ? (
                         <>
-                          <Icons.Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           {t('generating')}
                         </>
                       ) : (
@@ -1033,5 +641,3 @@ export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomMod
     </Dialog>
   );
 }
-
-export default CustomModeEditor;

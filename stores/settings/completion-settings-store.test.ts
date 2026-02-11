@@ -12,6 +12,7 @@ import {
   selectAICompletionProvider,
   selectMaxSuggestions,
   selectGhostTextOpacity,
+  selectEnablePartialAccept,
 } from './completion-settings-store';
 import { DEFAULT_COMPLETION_SETTINGS } from '@/types/chat/input-completion';
 
@@ -32,6 +33,8 @@ describe('useCompletionSettingsStore', () => {
       expect(state.aiCompletionProvider).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionProvider);
       expect(state.aiCompletionDebounce).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionDebounce);
       expect(state.aiCompletionMaxTokens).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionMaxTokens);
+      expect(state.aiCompletionEndpoint).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionEndpoint);
+      expect(state.aiCompletionApiKey).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionApiKey);
       expect(state.slashTriggerChar).toBe(DEFAULT_COMPLETION_SETTINGS.slashTriggerChar);
       expect(state.emojiTriggerChar).toBe(DEFAULT_COMPLETION_SETTINGS.emojiTriggerChar);
       expect(state.showInlinePreview).toBe(DEFAULT_COMPLETION_SETTINGS.showInlinePreview);
@@ -117,6 +120,40 @@ describe('useCompletionSettingsStore', () => {
 
       expect(useCompletionSettingsStore.getState().aiCompletionMaxTokens).toBe(100);
     });
+
+    it('should set AI completion endpoint', () => {
+      act(() => {
+        useCompletionSettingsStore.getState().setAICompletionEndpoint('https://api.example.com');
+      });
+
+      expect(useCompletionSettingsStore.getState().aiCompletionEndpoint).toBe('https://api.example.com');
+    });
+
+    it('should set AI completion API key', () => {
+      act(() => {
+        useCompletionSettingsStore.getState().setAICompletionApiKey('sk-test-key-123');
+      });
+
+      expect(useCompletionSettingsStore.getState().aiCompletionApiKey).toBe('sk-test-key-123');
+    });
+
+    it('should clear AI completion endpoint with empty string', () => {
+      act(() => {
+        useCompletionSettingsStore.getState().setAICompletionEndpoint('https://api.example.com');
+        useCompletionSettingsStore.getState().setAICompletionEndpoint('');
+      });
+
+      expect(useCompletionSettingsStore.getState().aiCompletionEndpoint).toBe('');
+    });
+
+    it('should clear AI completion API key with empty string', () => {
+      act(() => {
+        useCompletionSettingsStore.getState().setAICompletionApiKey('sk-key');
+        useCompletionSettingsStore.getState().setAICompletionApiKey('');
+      });
+
+      expect(useCompletionSettingsStore.getState().aiCompletionApiKey).toBe('');
+    });
   });
 
   describe('trigger settings', () => {
@@ -179,6 +216,8 @@ describe('useCompletionSettingsStore', () => {
           aiCompletionEnabled: true,
           aiCompletionProvider: 'groq',
           maxSuggestions: 20,
+          aiCompletionEndpoint: 'https://custom.api.com',
+          aiCompletionApiKey: 'test-key',
         });
       });
 
@@ -187,6 +226,8 @@ describe('useCompletionSettingsStore', () => {
       expect(state.aiCompletionEnabled).toBe(true);
       expect(state.aiCompletionProvider).toBe('groq');
       expect(state.maxSuggestions).toBe(20);
+      expect(state.aiCompletionEndpoint).toBe('https://custom.api.com');
+      expect(state.aiCompletionApiKey).toBe('test-key');
     });
 
     it('should preserve unaffected settings during update', () => {
@@ -212,6 +253,8 @@ describe('useCompletionSettingsStore', () => {
           aiCompletionProvider: 'groq',
           aiCompletionDebounce: 1000,
           aiCompletionMaxTokens: 200,
+          aiCompletionEndpoint: 'https://custom.api.com',
+          aiCompletionApiKey: 'sk-custom-key',
           slashTriggerChar: '\\',
           emojiTriggerChar: ';',
           showInlinePreview: false,
@@ -229,6 +272,8 @@ describe('useCompletionSettingsStore', () => {
       expect(state.emojiEnabled).toBe(DEFAULT_COMPLETION_SETTINGS.emojiEnabled);
       expect(state.aiCompletionEnabled).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionEnabled);
       expect(state.aiCompletionProvider).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionProvider);
+      expect(state.aiCompletionEndpoint).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionEndpoint);
+      expect(state.aiCompletionApiKey).toBe(DEFAULT_COMPLETION_SETTINGS.aiCompletionApiKey);
       expect(state.ghostTextOpacity).toBe(DEFAULT_COMPLETION_SETTINGS.ghostTextOpacity);
       expect(state.maxSuggestions).toBe(DEFAULT_COMPLETION_SETTINGS.maxSuggestions);
     });
@@ -281,6 +326,14 @@ describe('useCompletionSettingsStore', () => {
       });
 
       expect(selectGhostTextOpacity(useCompletionSettingsStore.getState())).toBe(0.6);
+    });
+
+    it('selectEnablePartialAccept returns correct value', () => {
+      act(() => {
+        useCompletionSettingsStore.getState().setEnablePartialAccept(false);
+      });
+
+      expect(selectEnablePartialAccept(useCompletionSettingsStore.getState())).toBe(false);
     });
   });
 });

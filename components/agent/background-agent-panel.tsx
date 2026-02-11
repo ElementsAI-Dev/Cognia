@@ -4,7 +4,7 @@
  * BackgroundAgentPanel - Panel for managing background agents
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   X,
@@ -13,34 +13,32 @@ import {
   StopCircle,
   Trash2,
   Bell,
-  ChevronRight,
-  Clock,
+  BellOff,
   Bot,
   Terminal,
   BarChart3,
-  Eye,
-  Zap,
-  TrendingUp,
-  Activity,
   Search,
   Download,
   Filter,
   CheckSquare,
 } from 'lucide-react';
-import { cn, formatDurationShort, formatTimeFromDate } from '@/lib/utils';
-import { BACKGROUND_AGENT_STATUS_CONFIG, LOG_LEVEL_CONFIG } from '@/lib/agent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useBackgroundAgent } from '@/hooks/agent';
 import { AgentFlowVisualizer } from './agent-flow-visualizer';
+import { AgentCard } from './background-agent-card';
+import {
+  AgentLogsViewer,
+  PerformanceStatsCard,
+  ResultPreview,
+  type PerformanceStats,
+} from './background-agent-sub-components';
 import type {
   BackgroundAgent,
-  BackgroundAgentLog,
   BackgroundAgentStatus,
 } from '@/types/agent/background-agent';
 import { Input } from '@/components/ui/input';
@@ -54,402 +52,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 
-// Use shared configs from lib/agent/constants.ts
-
-// Performance stats interface
-interface PerformanceStats {
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  averageDuration: number;
-  successRate: number;
-  activeSubAgents: number;
-  toolCallsTotal: number;
-  tokenUsage: number;
-}
-
-interface AgentCardProps {
-  agent: BackgroundAgent;
-  isSelected: boolean;
-  onSelect: () => void;
-  onStart: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onCancel: () => void;
-  onDelete: () => void;
-}
-
-function AgentCard({
-  agent,
-  isSelected,
-  onSelect,
-  onStart,
-  onPause,
-  onResume,
-  onCancel,
-  onDelete,
-}: AgentCardProps) {
-  const config = BACKGROUND_AGENT_STATUS_CONFIG[agent.status];
-  const Icon = config.icon;
-  const isRunning = agent.status === 'running';
-  const isPaused = agent.status === 'paused';
-  const isIdle = agent.status === 'idle';
-  const isCompleted = ['completed', 'failed', 'cancelled', 'timeout'].includes(agent.status);
-
-  return (
-    <div
-      className={cn(
-        'p-3 rounded-lg border cursor-pointer transition-all',
-        'bg-card/30 supports-[backdrop-filter]:bg-card/20 backdrop-blur-sm',
-        'hover:border-primary/50 hover:shadow-sm',
-        isSelected && 'border-primary bg-primary/5',
-        isRunning && 'border-primary/50 shadow-sm'
-      )}
-      onClick={onSelect}
-    >
-      <div className="flex items-start gap-3">
-        {/* Status icon */}
-        <div
-          className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-            isRunning && 'bg-primary/10',
-            isCompleted && agent.status === 'completed' && 'bg-green-50 dark:bg-green-950',
-            isCompleted && agent.status !== 'completed' && 'bg-destructive/10'
-          )}
-        >
-          <Icon className={cn('h-5 w-5', config.color, isRunning && 'animate-spin')} />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="font-medium text-sm truncate">{agent.name}</h4>
-            <Badge variant="outline" className="text-[10px] shrink-0">
-              {config.label}
-            </Badge>
-          </div>
-
-          {/* Task preview */}
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {agent.task.slice(0, 50)}...
-          </p>
-
-          {/* Progress */}
-          {isRunning && (
-            <div className="mt-2">
-              <Progress value={agent.progress} className="h-1" />
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] text-muted-foreground">{agent.progress}%</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {agent.subAgents.filter((sa) => sa.status === 'completed').length}/
-                  {agent.subAgents.length} sub-agents
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Time info */}
-          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
-            {agent.startedAt && <span>Started: {formatTimeFromDate(agent.startedAt)}</span>}
-            {agent.completedAt && agent.startedAt && (
-              <span>
-                Duration:{' '}
-                {formatDurationShort(agent.completedAt.getTime() - agent.startedAt.getTime())}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-1 mt-2 pt-2 border-t">
-        {isIdle && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStart();
-                }}
-              >
-                <Play className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Start</TooltipContent>
-          </Tooltip>
-        )}
-
-        {isRunning && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPause();
-                }}
-              >
-                <Pause className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Pause</TooltipContent>
-          </Tooltip>
-        )}
-
-        {isPaused && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onResume();
-                }}
-              >
-                <Play className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Resume</TooltipContent>
-          </Tooltip>
-        )}
-
-        {(isRunning || isPaused || agent.status === 'queued') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancel();
-                }}
-              >
-                <StopCircle className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Cancel</TooltipContent>
-          </Tooltip>
-        )}
-
-        {isCompleted && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Delete</TooltipContent>
-          </Tooltip>
-        )}
-
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-      </div>
-    </div>
-  );
-}
-
-// Agent logs viewer component
-function AgentLogsViewer({
-  logs,
-  maxHeight = 300,
-}: {
-  logs: BackgroundAgentLog[];
-  maxHeight?: number;
-}) {
-  const [filter, setFilter] = useState<string>('all');
-  const [_autoScroll, _setAutoScroll] = useState(true);
-
-  const filteredLogs = useMemo(() => {
-    if (filter === 'all') return logs;
-    return logs.filter((log) => log.level === filter);
-  }, [logs, filter]);
-
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 bg-muted/40 supports-[backdrop-filter]:bg-muted/30 border-b">
-        <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4" />
-          <span className="text-sm font-medium">Logs</span>
-          <Badge variant="outline" className="text-[10px]">
-            {logs.length}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-1">
-          {['all', 'info', 'warn', 'error'].map((level) => (
-            <Button
-              key={level}
-              variant={filter === level ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-6 text-xs px-2"
-              onClick={() => setFilter(level)}
-            >
-              {level}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <ScrollArea style={{ height: maxHeight }}>
-        <div className="p-2 space-y-1 font-mono text-xs">
-          <>
-            {filteredLogs.map((log, idx) => {
-              const config = LOG_LEVEL_CONFIG[log.level] || LOG_LEVEL_CONFIG.info;
-              const LogIcon = config.icon;
-              return (
-                <div
-                  key={log.id || idx}
-                  className="flex items-start gap-2 py-1 px-2 rounded hover:bg-muted/50 transition-opacity"
-                >
-                  <LogIcon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', config.color)} />
-                  <span className="text-muted-foreground shrink-0">
-                    {formatTimeFromDate(log.timestamp)}
-                  </span>
-                  {log.mcpServerId && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
-                      {log.mcpServerName || log.mcpServerId}
-                    </Badge>
-                  )}
-                  <span className="flex-1 break-all">{log.message}</span>
-                </div>
-              );
-            })}
-          </>
-          {filteredLogs.length === 0 && (
-            <div className="text-center py-4 text-muted-foreground">No logs to display</div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
-
-// Performance statistics component
-function PerformanceStatsCard({ stats }: { stats: PerformanceStats }) {
-  return (
-    <div className="border rounded-lg p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-4 w-4" />
-        <span className="text-sm font-medium">Performance Statistics</span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Activity className="h-3 w-3" />
-            <span>Tasks</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-lg font-semibold">{stats.completedTasks}</span>
-            <span className="text-xs text-muted-foreground">/ {stats.totalTasks}</span>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <TrendingUp className="h-3 w-3" />
-            <span>Success Rate</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span
-              className={cn(
-                'text-lg font-semibold',
-                stats.successRate >= 80
-                  ? 'text-green-500'
-                  : stats.successRate >= 50
-                    ? 'text-yellow-500'
-                    : 'text-destructive'
-              )}
-            >
-              {stats.successRate.toFixed(1)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            <span>Avg Duration</span>
-          </div>
-          <div className="text-lg font-semibold">{formatDurationShort(stats.averageDuration)}</div>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Zap className="h-3 w-3" />
-            <span>Tool Calls</span>
-          </div>
-          <div className="text-lg font-semibold">{stats.toolCallsTotal}</div>
-        </div>
-      </div>
-
-      <div className="pt-2 border-t">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Sub-agents active</span>
-          <span className="font-medium">{stats.activeSubAgents}</span>
-        </div>
-        {stats.tokenUsage > 0 && (
-          <div className="flex items-center justify-between text-xs mt-1">
-            <span className="text-muted-foreground">Token usage</span>
-            <span className="font-medium">{stats.tokenUsage.toLocaleString()}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Quick result preview component
-function ResultPreview({ agent }: { agent: BackgroundAgent }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasResult = agent.status === 'completed' && agent.result;
-
-  if (!hasResult) return null;
-
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        className="flex items-center justify-between w-full px-3 py-2 bg-green-50 dark:bg-green-950/30 border-b hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-2">
-          <Eye className="h-4 w-4 text-green-600" />
-          <span className="text-sm font-medium text-green-700 dark:text-green-400">
-            Result Preview
-          </span>
-        </div>
-        <ChevronRight
-          className={cn('h-4 w-4 text-green-600 transition-transform', expanded && 'rotate-90')}
-        />
-      </button>
-      {expanded && (
-        <div className="overflow-hidden transition-all">
-          <div className="p-3 text-sm max-h-48 overflow-auto">
-            {typeof agent.result === 'string' ? (
-              <p className="whitespace-pre-wrap">{agent.result}</p>
-            ) : (
-              <pre className="text-xs overflow-auto">{JSON.stringify(agent.result, null, 2)}</pre>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+// Sub-components extracted to background-agent-card.tsx and background-agent-sub-components.tsx
 
 // Utility function to download file
 function downloadFile(filename: string, content: string, mimeType: string = 'text/plain') {
@@ -490,10 +93,10 @@ function formatAgentAsMarkdown(agent: BackgroundAgent): string {
 }
 
 export function BackgroundAgentPanel() {
-  const _t = useTranslations('agent');
+  const t = useTranslations('agent');
   const [activeTab, setActiveTab] = useState<'all' | 'running' | 'completed'>('all');
   const [detailTab, setDetailTab] = useState<'flow' | 'logs' | 'stats'>('flow');
-  const [notificationsEnabled, _setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -570,22 +173,22 @@ export function BackgroundAgentPanel() {
     }
   }, []);
 
+  // Track already-notified agent IDs to prevent duplicate notifications
+  const notifiedAgentsRef = useRef<Set<string>>(new Set());
+
   // Watch for agent completion and send notifications
   useEffect(() => {
-    const handleAgentComplete = (agent: BackgroundAgent) => {
-      if (agent.status === 'completed') {
-        sendNotification('Agent Completed', `"${agent.name}" has finished successfully.`);
-      } else if (agent.status === 'failed') {
-        sendNotification('Agent Failed', `"${agent.name}" encountered an error.`);
-      }
-    };
-
     completedAgents.forEach((agent) => {
-      if (agent.completedAt && Date.now() - agent.completedAt.getTime() < 1000) {
-        handleAgentComplete(agent);
+      if (notifiedAgentsRef.current.has(agent.id)) return;
+      notifiedAgentsRef.current.add(agent.id);
+
+      if (agent.status === 'completed') {
+        sendNotification(t('agentCompleted'), t('agentCompletedBody', { name: agent.name }));
+      } else if (agent.status === 'failed') {
+        sendNotification(t('agentFailed'), t('agentFailedBody', { name: agent.name }));
       }
     });
-  }, [completedAgents, sendNotification]);
+  }, [completedAgents, sendNotification, t]);
 
   // Filter agents based on search and status
   const filteredAgents = useMemo(() => {
@@ -659,8 +262,7 @@ export function BackgroundAgentPanel() {
     clearSelection();
   }, [selectedIds, deleteAgent, clearSelection]);
 
-  // Export functions - prefix with underscore as it's available for future use
-  const _exportAgent = useCallback((agent: BackgroundAgent, format: 'json' | 'md') => {
+  const exportAgent = useCallback((agent: BackgroundAgent, format: 'json' | 'md') => {
     const filename = `${agent.name.replace(/[^a-z0-9]/gi, '-')}-${agent.id.slice(0, 8)}.${format}`;
     if (format === 'json') {
       downloadFile(filename, JSON.stringify(agent, null, 2), 'application/json');
@@ -690,14 +292,32 @@ export function BackgroundAgentPanel() {
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
-              Background Agents
+              {t('backgroundAgents')}
               {runningAgents.length > 0 && (
                 <Badge variant="default" className="ml-2">
-                  {runningAgents.length} running
+                  {t('nRunning', { count: runningAgents.length })}
                 </Badge>
               )}
             </SheetTitle>
             <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                  >
+                    {notificationsEnabled ? (
+                      <Bell className="h-4 w-4" />
+                    ) : (
+                      <BellOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {notificationsEnabled ? t('disableNotifications') : t('enableNotifications')}
+                </TooltipContent>
+              </Tooltip>
               {unreadNotificationCount > 0 && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -713,7 +333,7 @@ export function BackgroundAgentPanel() {
                       </span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Mark all as read</TooltipContent>
+                  <TooltipContent>{t('markAllRead')}</TooltipContent>
                 </Tooltip>
               )}
               <Button variant="ghost" size="sm" onClick={closePanel}>
@@ -725,19 +345,18 @@ export function BackgroundAgentPanel() {
           {/* Queue status */}
           <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
             <span>
-              Queue: {queueState.items} waiting, {queueState.currentlyRunning}/
-              {queueState.maxConcurrent} running
+              {t('queueStatus', { waiting: queueState.items, current: queueState.currentlyRunning, max: queueState.maxConcurrent })}
             </span>
             <div className="flex items-center gap-2">
               {queueState.isPaused ? (
                 <Button variant="outline" size="sm" className="h-6 text-xs" onClick={resumeQueue}>
                   <Play className="h-3 w-3 mr-1" />
-                  Resume Queue
+                  {t('resumeQueue')}
                 </Button>
               ) : (
                 <Button variant="outline" size="sm" className="h-6 text-xs" onClick={pauseQueue}>
                   <Pause className="h-3 w-3 mr-1" />
-                  Pause Queue
+                  {t('pauseQueue')}
                 </Button>
               )}
             </div>
@@ -753,19 +372,19 @@ export function BackgroundAgentPanel() {
                   value="all"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
                 >
-                  All ({agents.length})
+                  {t('allTab', { count: agents.length })}
                 </TabsTrigger>
                 <TabsTrigger
                   value="running"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
                 >
-                  Running ({runningAgents.length})
+                  {t('runningTab', { count: runningAgents.length })}
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary"
                 >
-                  Completed ({completedAgents.length})
+                  {t('completedTab', { count: completedAgents.length })}
                 </TabsTrigger>
               </TabsList>
 
@@ -774,7 +393,7 @@ export function BackgroundAgentPanel() {
                 <div className="relative flex-1">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search agents..."
+                    placeholder={t('searchAgents')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="h-7 pl-7 text-xs"
@@ -786,7 +405,7 @@ export function BackgroundAgentPanel() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
                         <Filter className="h-3 w-3" />
-                        {statusFilter === 'all' ? 'All' : statusFilter}
+                        {statusFilter === 'all' ? t('allStatuses') : statusFilter}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -794,7 +413,7 @@ export function BackgroundAgentPanel() {
                         checked={statusFilter === 'all'}
                         onCheckedChange={() => setStatusFilter('all')}
                       >
-                        All Statuses
+                        {t('allStatuses')}
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator />
                       {(
@@ -840,10 +459,10 @@ export function BackgroundAgentPanel() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => exportAllVisible('json')}>
-                      Export as JSON
+                      {t('exportAsJson')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => exportAllVisible('md')}>
-                      Export as Markdown
+                      {t('exportAsMarkdown')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -853,14 +472,14 @@ export function BackgroundAgentPanel() {
               {isMultiSelectMode && selectedIds.size > 0 && (
                 <div className="p-2 border-b bg-muted/50 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="font-medium">{selectedIds.size} selected</span>
+                    <span className="font-medium">{t('nSelected', { count: selectedIds.size })}</span>
                     <Button
                       variant="link"
                       size="sm"
                       className="h-5 text-xs p-0"
                       onClick={selectAllVisible}
                     >
-                      Select all
+                      {t('selectAll')}
                     </Button>
                     <Button
                       variant="link"
@@ -868,17 +487,17 @@ export function BackgroundAgentPanel() {
                       className="h-5 text-xs p-0"
                       onClick={clearSelection}
                     >
-                      Clear
+                      {t('clear')}
                     </Button>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={batchPause}>
                       <Pause className="h-3 w-3 mr-1" />
-                      Pause
+                      {t('pause')}
                     </Button>
                     <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={batchResume}>
                       <Play className="h-3 w-3 mr-1" />
-                      Resume
+                      {t('resume')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -887,7 +506,7 @@ export function BackgroundAgentPanel() {
                       onClick={batchCancel}
                     >
                       <StopCircle className="h-3 w-3 mr-1" />
-                      Cancel
+                      {t('cancel')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -896,7 +515,7 @@ export function BackgroundAgentPanel() {
                       onClick={batchDelete}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
+                      {t('delete')}
                     </Button>
                   </div>
                 </div>
@@ -908,7 +527,7 @@ export function BackgroundAgentPanel() {
                     {displayAgents.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                         <Bot className="h-12 w-12 mb-2 opacity-50" />
-                        <p className="text-sm">No agents</p>
+                        <p className="text-sm">{t('noAgents')}</p>
                       </div>
                     ) : (
                       displayAgents.map((agent) => (
@@ -930,6 +549,7 @@ export function BackgroundAgentPanel() {
                               onResume={() => resumeAgent(agent.id)}
                               onCancel={() => cancelAgent(agent.id)}
                               onDelete={() => deleteAgent(agent.id)}
+                              onExport={(format) => exportAgent(agent, format)}
                             />
                           </div>
                         </div>
@@ -944,13 +564,13 @@ export function BackgroundAgentPanel() {
                     {activeTab === 'completed' && (
                       <Button variant="outline" size="sm" onClick={clearCompleted}>
                         <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Clear All
+                        {t('clearAll')}
                       </Button>
                     )}
                     {activeTab === 'running' && runningAgents.length > 0 && (
                       <Button variant="destructive" size="sm" onClick={cancelAll}>
                         <StopCircle className="h-3.5 w-3.5 mr-1" />
-                        Cancel All
+                        {t('cancelAll')}
                       </Button>
                     )}
                   </div>
@@ -973,7 +593,7 @@ export function BackgroundAgentPanel() {
                       onClick={() => setDetailTab('flow')}
                     >
                       <Bot className="h-3.5 w-3.5 mr-1" />
-                      Flow
+                      {t('flow')}
                     </Button>
                     <Button
                       variant={detailTab === 'logs' ? 'secondary' : 'ghost'}
@@ -982,7 +602,7 @@ export function BackgroundAgentPanel() {
                       onClick={() => setDetailTab('logs')}
                     >
                       <Terminal className="h-3.5 w-3.5 mr-1" />
-                      Logs
+                      {t('logs')}
                       {selectedAgent.logs && selectedAgent.logs.length > 0 && (
                         <Badge variant="outline" className="ml-1 text-[10px] h-4">
                           {selectedAgent.logs.length}
@@ -996,7 +616,7 @@ export function BackgroundAgentPanel() {
                       onClick={() => setDetailTab('stats')}
                     >
                       <BarChart3 className="h-3.5 w-3.5 mr-1" />
-                      Stats
+                      {t('stats')}
                     </Button>
                   </div>
                 </div>
@@ -1020,7 +640,7 @@ export function BackgroundAgentPanel() {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <Bot className="h-16 w-16 mb-4 opacity-30" />
-                <p className="text-sm">Select an agent to view details</p>
+                <p className="text-sm">{t('selectAgentDetails')}</p>
               </div>
             )}
           </div>
@@ -1030,4 +650,3 @@ export function BackgroundAgentPanel() {
   );
 }
 
-export default BackgroundAgentPanel;

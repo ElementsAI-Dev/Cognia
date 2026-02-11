@@ -14,11 +14,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UIDatePickerComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UIDatePicker = memo(function A2UIDatePicker({ component, onDataChange }: A2UIComponentProps<A2UIDatePickerComponent>) {
-  const { resolveString, resolveBoolean } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
 
   const valueStr = resolveString(component.value, '');
   const isDisabled = component.disabled ? resolveBoolean(component.disabled, false) : false;

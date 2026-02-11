@@ -10,6 +10,11 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Mock zustand useShallow
+jest.mock('zustand/react/shallow', () => ({
+  useShallow: <T,>(fn: (state: unknown) => T) => fn,
+}));
+
 // Mock store
 jest.mock('@/stores/prompt/prompt-marketplace-store', () => ({
   usePromptMarketplaceStore: (selector: (state: Record<string, unknown>) => unknown) => {

@@ -79,8 +79,6 @@ interface ToolTimelineProps {
   onCheckpointRestore?: (executionId: string) => void;
   onCancelPending?: (toolId: string) => void;
   showStatistics?: boolean;
-  /** Group executions by MCP server */
-  groupByServer?: boolean;
   className?: string;
 }
 
@@ -137,8 +135,6 @@ export function ToolTimeline({
   onCheckpointRestore,
   onCancelPending,
   showStatistics = true,
-  // TODO: Implement groupByServer feature for server-grouped view
-  groupByServer: _groupByServer = false,
   className,
 }: ToolTimelineProps) {
   const t = useTranslations('agent');
@@ -508,4 +504,3 @@ export function ToolTimeline({
   );
 }
 
-export default ToolTimeline;

@@ -6,7 +6,7 @@
  * Donut chart showing input vs output token distribution.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,7 @@ interface TokenBreakdownChartProps {
 
 const COLORS = [TOKEN_COLORS.input, TOKEN_COLORS.output];
 
-export function TokenBreakdownChart({ data, title, height = 240 }: TokenBreakdownChartProps) {
+export const TokenBreakdownChart = memo(function TokenBreakdownChart({ data, title, height = 240 }: TokenBreakdownChartProps) {
   const t = useTranslations('observability.charts');
 
   const chartData = useMemo(() => {
@@ -118,4 +118,4 @@ export function TokenBreakdownChart({ data, title, height = 240 }: TokenBreakdow
       </CardContent>
     </Card>
   );
-}
+});

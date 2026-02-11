@@ -4,7 +4,7 @@
  * CanvasDocumentList - Full document management panel for Canvas
  */
 
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useDeferredValue } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FileCode,
@@ -50,7 +50,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { formatRelativeDate } from '@/lib/canvas/utils';
+import { formatRelativeDate, countLines } from '@/lib/canvas/utils';
+import { LANGUAGE_OPTIONS } from '@/lib/canvas/constants';
 import type { CanvasDocument, ArtifactLanguage } from '@/types';
 
 interface CanvasDocumentListProps {
@@ -72,21 +73,6 @@ interface CanvasDocumentListProps {
 type SortField = 'title' | 'updatedAt' | 'language';
 type SortOrder = 'asc' | 'desc';
 
-const LANGUAGE_OPTIONS: { value: ArtifactLanguage; label: string }[] = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'html', label: 'HTML' },
-  { value: 'css', label: 'CSS' },
-  { value: 'json', label: 'JSON' },
-  { value: 'markdown', label: 'Markdown' },
-  { value: 'jsx', label: 'JSX' },
-  { value: 'tsx', label: 'TSX' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'bash', label: 'Bash' },
-  { value: 'yaml', label: 'YAML' },
-];
-
 export const CanvasDocumentList = memo(function CanvasDocumentList({
   documents,
   activeDocumentId,
@@ -99,6 +85,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
 }: CanvasDocumentListProps) {
   const t = useTranslations('canvas');
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [filterLanguage, setFilterLanguage] = useState<string>('all');
@@ -117,11 +104,12 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
     let result = [...documents];
 
     // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    if (deferredSearchQuery) {
+      const query = deferredSearchQuery.toLowerCase();
       result = result.filter(
         (doc) =>
-          doc.title.toLowerCase().includes(query) || doc.content.toLowerCase().includes(query)
+          doc.title.toLowerCase().includes(query) ||
+          doc.content.slice(0, 1000).toLowerCase().includes(query)
       );
     }
 
@@ -148,7 +136,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
     });
 
     return result;
-  }, [documents, searchQuery, sortField, sortOrder, filterLanguage]);
+  }, [documents, deferredSearchQuery, sortField, sortOrder, filterLanguage]);
 
   const handleStartRename = (doc: CanvasDocument) => {
     setRenameDocId(doc.id);
@@ -289,7 +277,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
                           <span>{formatDate(doc.updatedAt)}</span>
                           <span className="mx-1">•</span>
                           <span>
-                            {doc.content.split('\n').length} {t('lines')}
+                            {countLines(doc.content)} {t('lines')}
                           </span>
                         </div>
                       </div>
@@ -419,4 +407,3 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
   );
 });
 
-export default CanvasDocumentList;

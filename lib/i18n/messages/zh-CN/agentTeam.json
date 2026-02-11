@@ -96,7 +96,17 @@
     "result": {
       "title": "最终结果",
       "error": "错误",
-      "totalTokens": "总 tokens: {count}"
+      "totalTokens": "总 tokens: {count}",
+      "viewDetails": "查看详情",
+      "teammatesCount": "{count} 名成员",
+      "tasksCount": "{completed}/{total} 个任务",
+      "tokensCount": "{count} tokens",
+      "taskProgress": "任务进度",
+      "failedCount": "（{count} 个失败）",
+      "errorLabel": "错误：",
+      "showLess": "收起",
+      "showFullResult": "展开完整结果",
+      "teammateDetails": "成员详情 ({count})"
     },
 
     "execution": {
@@ -127,7 +137,14 @@
       "create": "创建",
       "empty": "暂无任务",
       "retry": "重试",
-      "cancel": "取消"
+      "cancel": "取消",
+      "assign": "分配",
+      "claim": "认领",
+      "columnBlocked": "已阻塞",
+      "columnPending": "待处理",
+      "columnInProgress": "进行中",
+      "columnReview": "审查中",
+      "columnDone": "已完成"
     },
 
     "analytics": {
@@ -213,6 +230,10 @@
       "maxRetries": "最大重试次数"
     },
 
-    "cancel": "取消"
+    "cancel": "取消",
+    "remove": "移除",
+    "planning": "规划中...",
+    "executing": "执行中...",
+    "loadingGraph": "加载图表..."
   }
 }

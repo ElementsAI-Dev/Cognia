@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Brain,
   Copy,
@@ -51,17 +52,35 @@ export interface AcademicAnalysisPanelProps {
   className?: string;
 }
 
-const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; icon: string }[] = [
-  { value: 'summary', label: 'Summary', icon: '📝' },
-  { value: 'key-insights', label: 'Key Insights', icon: '💡' },
-  { value: 'methodology', label: 'Methodology', icon: '🔬' },
-  { value: 'findings', label: 'Findings', icon: '📊' },
-  { value: 'limitations', label: 'Limitations', icon: '⚠️' },
-  { value: 'future-work', label: 'Future Work', icon: '🚀' },
-  { value: 'related-work', label: 'Related Work', icon: '🔗' },
-  { value: 'technical-details', label: 'Technical Details', icon: '⚙️' },
-  { value: 'critique', label: 'Critical Analysis', icon: '🎯' },
-  { value: 'eli5', label: 'Simple Explanation', icon: '👶' },
+const ANALYSIS_TYPE_ICONS: Record<PaperAnalysisType, string> = {
+  'summary': '📝',
+  'key-insights': '💡',
+  'methodology': '🔬',
+  'findings': '📊',
+  'limitations': '⚠️',
+  'future-work': '🚀',
+  'related-work': '🔗',
+  'technical-details': '⚙️',
+  'critique': '🎯',
+  'eli5': '�',
+};
+
+const ANALYSIS_TYPE_I18N_KEYS: Record<PaperAnalysisType, string> = {
+  'summary': 'analysisSummary',
+  'key-insights': 'analysisKeyInsights',
+  'methodology': 'analysisMethodology',
+  'findings': 'analysisFindings',
+  'limitations': 'analysisLimitations',
+  'future-work': 'analysisFutureWork',
+  'related-work': 'analysisRelatedWork',
+  'technical-details': 'analysisTechnicalDetails',
+  'critique': 'analysisCritique',
+  'eli5': 'analysisEli5',
+};
+
+const ANALYSIS_TYPE_VALUES: PaperAnalysisType[] = [
+  'summary', 'key-insights', 'methodology', 'findings', 'limitations',
+  'future-work', 'related-work', 'technical-details', 'critique', 'eli5',
 ];
 
 export function AcademicAnalysisPanel({
@@ -78,6 +97,7 @@ export function AcademicAnalysisPanel({
   onCopy,
   className,
 }: AcademicAnalysisPanelProps) {
+  const t = useTranslations('a2ui');
   const [copied, setCopied] = useState(false);
   const [showQuestions, setShowQuestions] = useState(true);
 
@@ -88,13 +108,14 @@ export function AcademicAnalysisPanel({
     setTimeout(() => setCopied(false), 2000);
   }, [analysisContent, onCopy]);
 
-  const currentTypeInfo = ANALYSIS_TYPES.find(t => t.value === analysisType);
+  const currentIcon = ANALYSIS_TYPE_ICONS[analysisType];
+  const currentLabel = t(ANALYSIS_TYPE_I18N_KEYS[analysisType]);
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
       <div className="flex items-center gap-3 px-4 py-3 border-b">
         <Brain className="h-5 w-5 text-primary" />
-        <span className="font-semibold">AI Paper Analysis</span>
+        <span className="font-semibold">{t('aiPaperAnalysis')}</span>
       </div>
 
       <Card className="mx-4 mt-4 bg-muted/30">
@@ -111,7 +132,7 @@ export function AcademicAnalysisPanel({
       </Card>
 
       <div className="flex items-center gap-2 px-4 py-3">
-        <span className="text-sm text-muted-foreground">Analysis:</span>
+        <span className="text-sm text-muted-foreground">{t('analysisLabel')}</span>
         <Select
           value={analysisType}
           onValueChange={(v) => onAnalysisTypeChange?.(v as PaperAnalysisType)}
@@ -121,11 +142,11 @@ export function AcademicAnalysisPanel({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ANALYSIS_TYPES.map(type => (
-              <SelectItem key={type.value} value={type.value}>
+            {ANALYSIS_TYPE_VALUES.map(typeValue => (
+              <SelectItem key={typeValue} value={typeValue}>
                 <span className="flex items-center gap-2">
-                  <span>{type.icon}</span>
-                  <span>{type.label}</span>
+                  <span>{ANALYSIS_TYPE_ICONS[typeValue]}</span>
+                  <span>{t(ANALYSIS_TYPE_I18N_KEYS[typeValue])}</span>
                 </span>
               </SelectItem>
             ))}
@@ -140,7 +161,7 @@ export function AcademicAnalysisPanel({
           disabled={isLoading}
         >
           <RefreshCw className={cn('h-3 w-3 mr-1', isLoading && 'animate-spin')} />
-          Regenerate
+          {t('regenerate')}
         </Button>
       </div>
 
@@ -150,15 +171,15 @@ export function AcademicAnalysisPanel({
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Brain className="h-6 w-6 animate-pulse text-primary" />
-            <span className="ml-2 text-muted-foreground">Analyzing paper...</span>
+            <span className="ml-2 text-muted-foreground">{t('analyzingPaper')}</span>
           </div>
         ) : (
           <div className="space-y-4">
             <Card>
               <CardHeader className="py-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{currentTypeInfo?.icon}</span>
-                  <CardTitle className="text-sm">{currentTypeInfo?.label}</CardTitle>
+                  <span className="text-lg">{currentIcon}</span>
+                  <CardTitle className="text-sm">{currentLabel}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -178,7 +199,7 @@ export function AcademicAnalysisPanel({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Lightbulb className="h-4 w-4 text-yellow-500" />
-                          <CardTitle className="text-sm">Suggested Questions</CardTitle>
+                          <CardTitle className="text-sm">{t('suggestedQuestions')}</CardTitle>
                         </div>
                         <ChevronDown className={cn(
                           'h-4 w-4 transition-transform',
@@ -211,7 +232,7 @@ export function AcademicAnalysisPanel({
                 <CardHeader className="py-3">
                   <div className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-blue-500" />
-                    <CardTitle className="text-sm">Related Topics</CardTitle>
+                    <CardTitle className="text-sm">{t('relatedTopics')}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -241,12 +262,12 @@ export function AcademicAnalysisPanel({
           {copied ? (
             <>
               <Check className="h-3 w-3 mr-1" />
-              Copied!
+              {t('copiedExclamation')}
             </>
           ) : (
             <>
               <Copy className="h-3 w-3 mr-1" />
-              Copy Analysis
+              {t('copyAnalysis')}
             </>
           )}
         </Button>
@@ -259,11 +280,10 @@ export function AcademicAnalysisPanel({
           disabled={isLoading}
         >
           <MessageSquare className="h-3 w-3 mr-1" />
-          Ask Follow-up
+          {t('askFollowUp')}
         </Button>
       </div>
     </div>
   );
 }
 
-export default AcademicAnalysisPanel;

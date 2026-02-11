@@ -18,6 +18,9 @@ jest.mock('@/lib/skills/packager', () => ({
   downloadSkillAsMarkdown: jest.fn(),
   downloadSkillAsPackage: jest.fn(),
 }));
+jest.mock('@/hooks/skills/use-skill-ai', () => ({
+  useSkillAI: () => jest.fn().mockResolvedValue('AI result'),
+}));
 
 const mockSkill: Skill = {
   id: 'test-skill-1',
@@ -96,16 +99,21 @@ describe('SkillDetail', () => {
   });
 
   describe('rendering', () => {
-    it('renders skill not found when skill does not exist', () => {
-      renderWithProviders(<SkillDetail skillId="non-existent" />);
+    it('renders loading skeleton when skill does not exist', () => {
+      const { container } = renderWithProviders(<SkillDetail skillId="non-existent" />);
 
-      expect(screen.getByText('Skill not found')).toBeInTheDocument();
+      // Should render skeleton placeholders instead of "Skill not found"
+      const skeletons = container.querySelectorAll('[data-slot="skeleton"]');
+      expect(skeletons.length).toBeGreaterThan(0);
     });
 
-    it('renders Go Back button when skill not found and onClose provided', () => {
-      renderWithProviders(<SkillDetail skillId="non-existent" onClose={mockOnClose} />);
+    it('renders loading skeleton without Go Back button when skill not found', () => {
+      const { container } = renderWithProviders(<SkillDetail skillId="non-existent" onClose={mockOnClose} />);
 
-      expect(screen.getByRole('button', { name: /go back/i })).toBeInTheDocument();
+      // Should show skeleton, not a Go Back button
+      const skeletons = container.querySelectorAll('[data-slot="skeleton"]');
+      expect(skeletons.length).toBeGreaterThan(0);
+      expect(screen.queryByRole('button', { name: /go back/i })).not.toBeInTheDocument();
     });
 
     it('renders skill name in header', () => {

@@ -81,13 +81,16 @@ describe('SingleSlideView', () => {
 
   it('should render slide position', () => {
     render(<SingleSlideView {...defaultProps} slideIndex={2} totalSlides={10} />);
-    expect(screen.getByText(/slideOf/)).toBeInTheDocument();
+    // slideOf text appears in multiple places (buttons + status bar)
+    expect(screen.getAllByText(/slideOf/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('should call onPrev when prev button is clicked', async () => {
     render(<SingleSlideView {...defaultProps} slideIndex={1} />);
 
-    const prevButton = screen.getByLabelText('Previous slide');
+    // Navigation buttons use slideOf aria-labels; find the first nav button (prev)
+    const buttons = screen.getAllByRole('button');
+    const prevButton = buttons[0];
     await userEvent.click(prevButton);
 
     expect(defaultProps.onPrev).toHaveBeenCalled();
@@ -96,7 +99,8 @@ describe('SingleSlideView', () => {
   it('should call onNext when next button is clicked', async () => {
     render(<SingleSlideView {...defaultProps} />);
 
-    const nextButton = screen.getByLabelText('Next slide');
+    const buttons = screen.getAllByRole('button');
+    const nextButton = buttons[1];
     await userEvent.click(nextButton);
 
     expect(defaultProps.onNext).toHaveBeenCalled();
@@ -105,21 +109,23 @@ describe('SingleSlideView', () => {
   it('should disable prev button on first slide', () => {
     render(<SingleSlideView {...defaultProps} slideIndex={0} />);
 
-    const prevButton = screen.getByLabelText('Previous slide');
+    const buttons = screen.getAllByRole('button');
+    const prevButton = buttons[0];
     expect(prevButton).toBeDisabled();
   });
 
   it('should disable next button on last slide', () => {
     render(<SingleSlideView {...defaultProps} slideIndex={4} totalSlides={5} />);
 
-    const nextButton = screen.getByLabelText('Next slide');
+    const buttons = screen.getAllByRole('button');
+    const nextButton = buttons[1];
     expect(nextButton).toBeDisabled();
   });
 
   it('should call onEdit when edit button is clicked', async () => {
     render(<SingleSlideView {...defaultProps} />);
 
-    const editButton = screen.getByLabelText('Edit slide');
+    const editButton = screen.getByLabelText('openEditor');
     await userEvent.click(editButton);
 
     expect(defaultProps.onEdit).toHaveBeenCalled();
@@ -127,7 +133,7 @@ describe('SingleSlideView', () => {
 
   it('should not render edit button when onEdit is not provided', () => {
     render(<SingleSlideView {...defaultProps} onEdit={undefined} />);
-    expect(screen.queryByLabelText('Edit slide')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('openEditor')).not.toBeInTheDocument();
   });
 
   it('should render custom elements', () => {

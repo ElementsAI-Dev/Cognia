@@ -2,7 +2,7 @@
 
 import { memo, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { SuggestionCategory } from '@/components/ai-elements/suggestion';

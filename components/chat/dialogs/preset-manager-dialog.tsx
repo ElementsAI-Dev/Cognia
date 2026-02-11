@@ -43,7 +43,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { usePresetStore, useSettingsStore } from '@/stores';
+import { usePresetStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import {
   type Preset,
@@ -54,11 +54,12 @@ import {
   PRESET_ICONS,
   PRESET_CATEGORIES,
 } from '@/types/content/preset';
-import { PROVIDERS, type ProviderName } from '@/types/provider';
+import { PROVIDERS } from '@/types/provider';
 import type { ChatMode } from '@/types/core/session';
 import { cn } from '@/lib/utils';
+import { COLOR_TINT_CLASS } from '@/lib/presets';
 import { nanoid } from 'nanoid';
-import { generatePresetFromDescription, optimizePresetPrompt, generateBuiltinPrompts } from '@/lib/ai/presets';
+import { usePresetAI } from '@/hooks/presets';
 
 interface PresetManagerDialogProps {
   open: boolean;
@@ -83,23 +84,77 @@ export function PresetManagerDialog({
   const deletePreset = usePresetStore((state) => state.deletePreset);
   const duplicatePreset = usePresetStore((state) => state.duplicatePreset);
   const getPreset = usePresetStore((state) => state.getPreset);
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
 
   const [activeTab, setActiveTab] = useState<TabType>('list');
   const [editingPreset, setEditingPreset] = useState<Partial<Preset> | null>(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [isGeneratingPreset, setIsGeneratingPreset] = useState(false);
-  const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');  
   const [aiDescription, setAiDescription] = useState('');
+
+  // AI operations via shared hook
+  const {
+    isGeneratingPreset,
+    isOptimizingPrompt: isOptimizing,
+    isGeneratingPrompts,
+    handleGeneratePreset: aiGeneratePreset,
+    handleOptimizePrompt: aiOptimizePrompt,
+    handleGenerateBuiltinPrompts: aiGenerateBuiltinPrompts,
+  } = usePresetAI({
+    onGenerateSuccess: (preset) => {
+      setEditingPreset({
+        name: preset.name,
+        description: preset.description,
+        icon: preset.icon,
+        color: preset.color,
+        provider: 'auto',
+        model: 'gpt-4o',
+        mode: preset.mode,
+        systemPrompt: preset.systemPrompt,
+        temperature: preset.temperature,
+        webSearchEnabled: preset.webSearchEnabled,
+        thinkingEnabled: preset.thinkingEnabled,
+        category: preset.category as PresetCategory | undefined,
+        builtinPrompts: preset.builtinPrompts?.map((p) => ({
+          id: nanoid(),
+          ...p,
+        })) || [],
+      });
+      setActiveTab('edit');
+      setAiDescription('');
+    },
+    onOptimizeSuccess: (optimizedPrompt) => {
+      setEditingPreset((prev) => ({
+        ...prev,
+        systemPrompt: optimizedPrompt,
+      }));
+    },
+    onGeneratePromptsSuccess: (prompts) => {
+      const newPrompts = prompts.map((p) => ({
+        id: nanoid(),
+        name: p.name,
+        content: p.content,
+        description: p.description || '',
+      }));
+      setEditingPreset((prev) => ({
+        ...prev,
+        builtinPrompts: [...(prev?.builtinPrompts || []), ...newPrompts],
+      }));
+    },
+    onError: (error) => {
+      if (error === 'noApiKey') {
+        toast.warning(t('errors.noApiKey'));
+      }
+    },
+  });
 
   // Initialize editing preset when editPresetId changes
   useEffect(() => {
     if (editPresetId && open) {
       const preset = getPreset(editPresetId);
       if (preset) {
-        setEditingPreset({ ...preset });
-        setActiveTab('edit');
+        queueMicrotask(() => {
+          setEditingPreset({ ...preset });
+          setActiveTab('edit');
+        });
       }
     }
   }, [editPresetId, open, getPreset]);
@@ -107,9 +162,11 @@ export function PresetManagerDialog({
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setEditingPreset(null);
-      setActiveTab('list');
-      setSearchQuery('');
+      queueMicrotask(() => {
+        setEditingPreset(null);
+        setActiveTab('list');
+        setSearchQuery('');
+      });
     }
   }, [open]);
 
@@ -174,38 +231,8 @@ export function PresetManagerDialog({
 
   const handleOptimizePrompt = useCallback(async () => {
     if (!editingPreset?.systemPrompt) return;
-
-    const currentProvider = editingPreset.provider === 'auto' ? 'openai' : editingPreset.provider;
-    const settings = providerSettings[currentProvider as keyof typeof providerSettings];
-
-    if (!settings?.apiKey) {
-      toast.warning('Please configure API key for the selected provider first.');
-      return;
-    }
-
-    setIsOptimizing(true);
-
-    try {
-      const result = await optimizePresetPrompt(editingPreset.systemPrompt, {
-        provider: currentProvider as ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
-
-      if (result.success && result.optimizedPrompt) {
-        setEditingPreset((prev) => ({
-          ...prev,
-          systemPrompt: result.optimizedPrompt,
-        }));
-      } else {
-        toast.error(result.error || 'Failed to optimize prompt');
-      }
-    } catch (error) {
-      console.error('Failed to optimize prompt:', error);
-    } finally {
-      setIsOptimizing(false);
-    }
-  }, [editingPreset, providerSettings]);
+    await aiOptimizePrompt(editingPreset.systemPrompt, editingPreset.provider as string);
+  }, [editingPreset, aiOptimizePrompt]);
 
   const handleAddBuiltinPrompt = useCallback(() => {
     setEditingPreset((prev) => ({
@@ -225,107 +252,20 @@ export function PresetManagerDialog({
   // AI Generate Preset from description
   const handleAIGeneratePreset = useCallback(async () => {
     if (!aiDescription.trim()) return;
-
-    const openaiSettings = providerSettings['openai'];
-    const anySettings = Object.entries(providerSettings).find(([, s]) => s?.apiKey);
-    const providerName = openaiSettings?.apiKey ? 'openai' : anySettings?.[0];
-    const settings = openaiSettings?.apiKey ? openaiSettings : anySettings?.[1];
-
-    if (!settings?.apiKey || !providerName) {
-      toast.warning('Please configure an API key first.');
-      return;
-    }
-
-    setIsGeneratingPreset(true);
-
-    try {
-      const result = await generatePresetFromDescription(aiDescription, {
-        provider: providerName as ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
-
-      if (result.success && result.preset) {
-        const generatedPreset = result.preset;
-        setEditingPreset({
-          name: generatedPreset.name,
-          description: generatedPreset.description,
-          icon: generatedPreset.icon,
-          color: generatedPreset.color,
-          provider: 'auto',
-          model: 'gpt-4o',
-          mode: generatedPreset.mode,
-          systemPrompt: generatedPreset.systemPrompt,
-          temperature: generatedPreset.temperature,
-          webSearchEnabled: generatedPreset.webSearchEnabled,
-          thinkingEnabled: generatedPreset.thinkingEnabled,
-          category: generatedPreset.category as PresetCategory | undefined,
-          builtinPrompts: generatedPreset.builtinPrompts?.map((p) => ({
-            id: nanoid(),
-            ...p,
-          })) || [],
-        });
-        setActiveTab('edit');
-        setAiDescription('');
-      } else {
-        toast.error(result.error || 'Failed to generate preset');
-      }
-    } catch (error) {
-      console.error('Failed to generate preset:', error);
-    } finally {
-      setIsGeneratingPreset(false);
-    }
-  }, [aiDescription, providerSettings]);
+    await aiGeneratePreset(aiDescription);
+  }, [aiDescription, aiGeneratePreset]);
 
   // AI Generate Built-in Prompts
   const handleAIGenerateBuiltinPrompts = useCallback(async () => {
     if (!editingPreset?.name) return;
-
-    const currentProvider = editingPreset.provider === 'auto' ? 'openai' : editingPreset.provider;
-    const settings = providerSettings[currentProvider as keyof typeof providerSettings] || providerSettings['openai'];
-
-    if (!settings?.apiKey) {
-      toast.warning('Please configure an API key first.');
-      return;
-    }
-
-    setIsGeneratingPrompts(true);
-
-    try {
-      const result = await generateBuiltinPrompts(
-        editingPreset.name,
-        editingPreset.description || undefined,
-        editingPreset.systemPrompt || undefined,
-        (editingPreset.builtinPrompts || []).map(p => ({ name: p.name, content: p.content })),
-        {
-          provider: currentProvider as ProviderName,
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        },
-        3
-      );
-
-      if (result.success && result.prompts) {
-        const newPrompts = result.prompts.map((p) => ({
-          id: nanoid(),
-          name: p.name,
-          content: p.content,
-          description: p.description || '',
-        }));
-
-        setEditingPreset((prev) => ({
-          ...prev,
-          builtinPrompts: [...(prev?.builtinPrompts || []), ...newPrompts],
-        }));
-      } else {
-        toast.error(result.error || 'Failed to generate prompts');
-      }
-    } catch (error) {
-      console.error('Failed to generate prompts:', error);
-    } finally {
-      setIsGeneratingPrompts(false);
-    }
-  }, [editingPreset, providerSettings]);
+    await aiGenerateBuiltinPrompts(
+      editingPreset.name,
+      editingPreset.description || undefined,
+      editingPreset.systemPrompt || undefined,
+      (editingPreset.builtinPrompts || []).map(p => ({ name: p.name, content: p.content })),
+      editingPreset.provider as string,
+    );
+  }, [editingPreset, aiGenerateBuiltinPrompts]);
 
   const handleUpdateBuiltinPrompt = useCallback(
     (id: string, updates: Partial<BuiltinPrompt>) => {
@@ -496,14 +436,17 @@ function PresetListItem({
   onDelete,
   onSelect,
 }: PresetListItemProps) {
+  const t = useTranslations('presetManager');
   return (
     <div
       className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
       onClick={onSelect}
     >
       <span
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
-        style={{ backgroundColor: `${preset.color}20` }}
+        className={cn(
+          'flex h-10 w-10 items-center justify-center rounded-lg text-xl',
+          (preset.color && COLOR_TINT_CLASS[preset.color]) ?? 'bg-muted'
+        )}
       >
         {preset.icon}
       </span>
@@ -513,7 +456,7 @@ function PresetListItem({
           <span className="font-medium truncate">{preset.name}</span>
           {preset.isDefault && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-              Default
+              {t('defaultBadge')}
             </span>
           )}
           {preset.webSearchEnabled && (

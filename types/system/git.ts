@@ -486,6 +486,24 @@ export function getGitStatusColor(status: GitRepoStatus): string {
   }
 }
 
+/** Get file status CSS color classes for badges */
+export function getFileStatusColor(status: string): string {
+  switch (status) {
+    case 'added':
+      return 'text-green-600 border-green-600';
+    case 'deleted':
+      return 'text-red-600 border-red-600';
+    case 'modified':
+      return 'text-yellow-600 border-yellow-600';
+    case 'renamed':
+      return 'text-blue-600 border-blue-600';
+    case 'untracked':
+      return 'text-gray-600 border-gray-600';
+    default:
+      return 'text-muted-foreground';
+  }
+}
+
 /** Get file status icon */
 export function getFileStatusIcon(status: GitFileStatus['status']): string {
   switch (status) {

@@ -9,6 +9,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { downloadFile } from '@/lib/utils/download';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -55,7 +56,7 @@ export function JupyterRenderer({
     try {
       return parseNotebook(content);
     } catch (err) {
-      console.error('Failed to parse notebook:', err);
+      loggers.ui.error('Failed to parse notebook', { error: err instanceof Error ? err.message : String(err) });
       return null;
     }
   }, [content]);
@@ -224,7 +225,6 @@ export function JupyterRenderer({
       {/* Toolbar */}
       {showToolbar && (
         <NotebookToolbar
-          notebook={notebook}
           language={language}
           stats={stats}
           onExportScript={handleExportScript}
@@ -291,5 +291,3 @@ export function JupyterRenderer({
     </div>
   );
 }
-
-export default JupyterRenderer;

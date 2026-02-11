@@ -12,6 +12,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTeamTeammates, useTeamTasks } from '@/hooks/agent/use-team-data';
 import { useTranslations } from 'next-intl';
 import {
   Zap,
@@ -70,22 +71,9 @@ export function AgentTeamAnalytics({ teamId, className }: AgentTeamAnalyticsProp
   const t = useTranslations('agentTeam');
 
   const team = useAgentTeamStore((s) => s.teams[teamId]);
-  const allTeammates = useAgentTeamStore((s) => s.teammates);
-  const allTasks = useAgentTeamStore((s) => s.tasks);
 
-  const teammates = useMemo((): AgentTeammate[] => {
-    if (!team) return [];
-    return team.teammateIds
-      .map(id => allTeammates[id])
-      .filter(Boolean);
-  }, [team, allTeammates]);
-
-  const tasks = useMemo((): AgentTeamTask[] => {
-    if (!team) return [];
-    return team.taskIds
-      .map(id => allTasks[id])
-      .filter(Boolean);
-  }, [team, allTasks]);
+  const teammates = useTeamTeammates(teamId);
+  const tasks = useTeamTasks(teamId);
 
   // Compute analytics
   const analytics = useMemo(() => {

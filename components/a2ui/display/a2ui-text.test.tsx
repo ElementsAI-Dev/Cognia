@@ -8,12 +8,31 @@ import { A2UIText } from './a2ui-text';
 import type { A2UITextComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
+const mockDataContext = {
+  surface: null,
+  dataModel: {},
+  components: {},
+  resolveString: (value: string | { path: string }) => 
+    typeof value === 'string' ? value : '',
+  resolveNumber: (value: number | { path: string }) =>
+    typeof value === 'number' ? value : 0,
+  resolveBoolean: (value: boolean | { path: string }) =>
+    typeof value === 'boolean' ? value : false,
+  resolveArray: <T,>(value: T[] | { path: string }, defaultValue: T[] = []) =>
+    Array.isArray(value) ? value : defaultValue,
+};
+
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: () => ({
-    dataModel: {},
-    resolveString: (value: string | { path: string }) => 
-      typeof value === 'string' ? value : '',
-    resolveBoolean: () => false,
+  useA2UIContext: () => ({ ...mockDataContext }),
+  useA2UIData: () => mockDataContext,
+  useA2UIActions: () => ({
+    surfaceId: 'test-surface',
+    catalog: undefined,
+    emitAction: jest.fn(),
+    setDataValue: jest.fn(),
+    getBindingPath: jest.fn(),
+    getComponent: jest.fn(),
+    renderChild: jest.fn(),
   }),
 }));
 

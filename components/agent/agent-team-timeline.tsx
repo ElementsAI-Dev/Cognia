@@ -12,6 +12,7 @@
  */
 
 import { useMemo, useState, useEffect } from 'react';
+import { useTeamTeammates, useTeamTasks, useTeamMessages } from '@/hooks/agent/use-team-data';
 import { useTranslations } from 'next-intl';
 import {
   Clock,
@@ -77,10 +78,10 @@ export function AgentTeamTimeline({ teamId, className }: AgentTeamTimelineProps)
   const t = useTranslations('agentTeam');
 
   const team = useAgentTeamStore((s) => s.teams[teamId]);
-  const allTeammates = useAgentTeamStore((s) => s.teammates);
-  const allTasks = useAgentTeamStore((s) => s.tasks);
-  const allMessages = useAgentTeamStore((s) => s.messages);
   const allEvents = useAgentTeamStore((s) => s.events);
+  const teammates = useTeamTeammates(teamId);
+  const tasks = useTeamTasks(teamId);
+  const messages = useTeamMessages(teamId);
 
   // Tick state for live-updating timelines during execution
   const [tick, setTick] = useState(0);
@@ -96,18 +97,6 @@ export function AgentTeamTimeline({ teamId, className }: AgentTeamTimelineProps)
     // tick is referenced to trigger re-computation during execution
     void tick;
     if (!team) return { rows: [], timeRange: { start: 0, end: 0, duration: 0 } };
-
-    const teammates = team.teammateIds
-      .map((id) => allTeammates[id])
-      .filter(Boolean);
-
-    const tasks = team.taskIds
-      .map((id) => allTasks[id])
-      .filter(Boolean);
-
-    const messages = team.messageIds
-      .map((id) => allMessages[id])
-      .filter(Boolean);
 
     const teamEvents = allEvents.filter(
       (e) => e.teamId === teamId
@@ -157,7 +146,7 @@ export function AgentTeamTimeline({ teamId, className }: AgentTeamTimelineProps)
       rows,
       timeRange: { start: startTime, end: endTime, duration },
     };
-  }, [team, allTeammates, allTasks, allMessages, allEvents, teamId, tick]);
+  }, [team, teammates, tasks, messages, allEvents, teamId, tick]);
 
   if (!team) return null;
 

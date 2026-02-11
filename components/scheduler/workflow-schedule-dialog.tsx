@@ -31,6 +31,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useScheduler } from '@/hooks/scheduler';
 import type { TaskTriggerType } from '@/types/scheduler';
+import { CRON_PRESETS as CANONICAL_CRON_PRESETS } from '@/types/scheduler';
 
 interface WorkflowScheduleDialogProps {
   workflowId: string;
@@ -39,14 +40,11 @@ interface WorkflowScheduleDialogProps {
   onScheduled?: (taskId: string) => void;
 }
 
-// Common cron presets
-const CRON_PRESETS = [
-  { label: 'Every hour', value: '0 * * * *' },
-  { label: 'Every day at midnight', value: '0 0 * * *' },
-  { label: 'Every day at 9 AM', value: '0 9 * * *' },
-  { label: 'Every Monday', value: '0 9 * * 1' },
-  { label: 'Every month (1st)', value: '0 0 1 * *' },
-];
+// Use canonical presets, mapped to Select-compatible format
+const CRON_PRESETS = CANONICAL_CRON_PRESETS.slice(0, 10).map((p) => ({
+  label: p.label,
+  value: p.expression,
+}));
 
 export function WorkflowScheduleDialog({
   workflowId,

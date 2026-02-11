@@ -126,6 +126,17 @@ export interface VideoExportOptions {
   codec?: string;
   audioBitrate?: number;
   videoBitrate?: number;
+  onProgress?: (progress: ExportProgress) => void;
+}
+
+export interface ExportProgress {
+  phase: 'preparing' | 'rendering' | 'encoding' | 'finalizing' | 'complete' | 'error';
+  percent: number;
+  currentFrame?: number;
+  totalFrames?: number;
+  elapsedMs?: number;
+  estimatedRemainingMs?: number;
+  message?: string;
 }
 
 export interface MediaProcessingResult<T = unknown> {

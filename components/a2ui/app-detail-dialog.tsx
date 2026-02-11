@@ -5,8 +5,11 @@
  * Displays detailed app information and metadata editing
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { formatAbsoluteTime } from '@/lib/a2ui/format';
+import { CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/hooks/a2ui/use-app-gallery-filter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,14 +64,6 @@ export interface AppDetailDialogProps {
   className?: string;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: 'productivity', label: '效率工具' },
-  { value: 'data', label: '数据分析' },
-  { value: 'form', label: '表单' },
-  { value: 'utility', label: '实用工具' },
-  { value: 'social', label: '社交' },
-];
-
 export function AppDetailDialog({
   app,
   template,
@@ -83,6 +78,12 @@ export function AppDetailDialog({
   const [editedData, setEditedData] = useState<Partial<A2UIAppInstance>>({});
   const [publishCheck, setPublishCheck] = useState<{ valid: boolean; missing: string[] } | null>(
     null
+  );
+  const t = useTranslations('a2ui');
+
+  const categoryOptions = useMemo(
+    () => CATEGORY_KEYS.map((key) => ({ value: key, label: t(CATEGORY_I18N_MAP[key]) })),
+    [t]
   );
 
   // Reset state when dialog opens/closes
@@ -135,16 +136,7 @@ export function AppDetailDialog({
     }
   }, [app, onPreparePublish]);
 
-  // Format date
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = formatAbsoluteTime;
 
   // Update edited field
   const updateField = useCallback((field: keyof A2UIAppInstance, value: unknown) => {
@@ -179,16 +171,16 @@ export function AppDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Info className="h-5 w-5" />
-            应用详情
+            {t('appDetailTitle')}
           </DialogTitle>
-          <DialogDescription>查看和编辑应用的详细信息</DialogDescription>
+          <DialogDescription>{t('appDetailDescription')}</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="info" className="mt-4">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="info">基本信息</TabsTrigger>
-            <TabsTrigger value="metadata">元数据</TabsTrigger>
-            <TabsTrigger value="publish">发布准备</TabsTrigger>
+            <TabsTrigger value="info">{t('basicInfo')}</TabsTrigger>
+            <TabsTrigger value="metadata">{t('metadata')}</TabsTrigger>
+            <TabsTrigger value="publish">{t('publishPrep')}</TabsTrigger>
           </TabsList>
 
           {/* Basic Info Tab */}
@@ -209,19 +201,19 @@ export function AppDetailDialog({
                 {isEditing ? (
                   <>
                     <div>
-                      <Label>应用名称</Label>
+                      <Label>{t('appName')}</Label>
                       <Input
                         value={editedData.name || ''}
                         onChange={(e) => updateField('name', e.target.value)}
-                        placeholder="应用名称"
+                        placeholder={t('appName')}
                       />
                     </div>
                     <div>
-                      <Label>版本号</Label>
+                      <Label>{t('versionNumber')}</Label>
                       <Input
                         value={editedData.version || ''}
                         onChange={(e) => updateField('version', e.target.value)}
-                        placeholder="1.0.0"
+                        placeholder={t('versionPlaceholder')}
                       />
                     </div>
                   </>
@@ -229,7 +221,7 @@ export function AppDetailDialog({
                   <>
                     <h3 className="text-lg font-semibold">{app.name}</h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Badge variant="secondary">{template?.name || '自定义应用'}</Badge>
+                      <Badge variant="secondary">{template?.name || t('customApp')}</Badge>
                       {app.version && <Badge variant="outline">v{app.version}</Badge>}
                     </div>
                     <Button
@@ -238,7 +230,7 @@ export function AppDetailDialog({
                       onClick={() => onGenerateThumbnail?.(app.id)}
                     >
                       <RefreshCw className="h-3 w-3 mr-1" />
-                      刷新缩略图
+                      {t('refreshThumbnail')}
                     </Button>
                   </>
                 )}
@@ -249,35 +241,35 @@ export function AppDetailDialog({
 
             {/* Description */}
             <div>
-              <Label>应用描述</Label>
+              <Label>{t('appDescription')}</Label>
               {isEditing ? (
                 <Textarea
                   value={editedData.description || ''}
                   onChange={(e) => updateField('description', e.target.value)}
-                  placeholder="描述应用的功能和用途..."
+                  placeholder={t('descriptionPlaceholder')}
                   rows={3}
                   className="mt-1"
                 />
               ) : (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {app.description || '暂无描述'}
+                  {app.description || t('noDescription')}
                 </p>
               )}
             </div>
 
             {/* Category */}
             <div>
-              <Label>分类</Label>
+              <Label>{t('category')}</Label>
               {isEditing ? (
                 <Select
                   value={editedData.category || ''}
                   onValueChange={(value) => updateField('category', value)}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="选择分类" />
+                    <SelectValue placeholder={t('selectCategory')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORY_OPTIONS.map((opt) => (
+                    {categoryOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -288,8 +280,8 @@ export function AppDetailDialog({
                 <div className="flex items-center gap-2 mt-1">
                   <FolderOpen className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {CATEGORY_OPTIONS.find((c) => c.value === (app.category || template?.category))
-                      ?.label || '未分类'}
+                    {categoryOptions.find((c) => c.value === (app.category || template?.category))
+                      ?.label || t('uncategorized')}
                   </span>
                 </div>
               )}
@@ -297,12 +289,12 @@ export function AppDetailDialog({
 
             {/* Tags */}
             <div>
-              <Label>标签</Label>
+              <Label>{t('tags')}</Label>
               {isEditing ? (
                 <Input
                   value={(editedData.tags || []).join(', ')}
                   onChange={(e) => handleTagsChange(e.target.value)}
-                  placeholder="输入标签，用逗号分隔"
+                  placeholder={t('tagsPlaceholder')}
                   className="mt-1"
                 />
               ) : (
@@ -315,7 +307,7 @@ export function AppDetailDialog({
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-sm text-muted-foreground">暂无标签</span>
+                    <span className="text-sm text-muted-foreground">{t('noTags')}</span>
                   )}
                 </div>
               )}
@@ -326,14 +318,14 @@ export function AppDetailDialog({
               <div>
                 <Label className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  创建时间
+                  {t('createdAt')}
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">{formatDate(app.createdAt)}</p>
               </div>
               <div>
                 <Label className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  最后修改
+                  {t('lastModified')}
                 </Label>
                 <p className="text-sm text-muted-foreground mt-1">{formatDate(app.lastModified)}</p>
               </div>
@@ -346,21 +338,21 @@ export function AppDetailDialog({
             <div className="space-y-3">
               <Label className="flex items-center gap-1">
                 <User className="h-4 w-4" />
-                作者信息
+                {t('authorInfo')}
               </Label>
               {isEditing ? (
                 <div className="space-y-2 pl-5">
                   <div>
-                    <Label className="text-xs">名称</Label>
+                    <Label className="text-xs">{t('nameLabel')}</Label>
                     <Input
                       value={editedData.author?.name || ''}
                       onChange={(e) => updateAuthorField('name', e.target.value)}
-                      placeholder="作者名称"
+                      placeholder={t('namePlaceholder')}
                       className="h-8"
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">邮箱</Label>
+                    <Label className="text-xs">{t('emailLabel')}</Label>
                     <Input
                       value={editedData.author?.email || ''}
                       onChange={(e) => updateAuthorField('email', e.target.value)}
@@ -369,11 +361,11 @@ export function AppDetailDialog({
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">网站</Label>
+                    <Label className="text-xs">{t('urlLabel')}</Label>
                     <Input
                       value={editedData.author?.url || ''}
                       onChange={(e) => updateAuthorField('url', e.target.value)}
-                      placeholder="https://..."
+                      placeholder={t('urlPlaceholder')}
                       className="h-8"
                     />
                   </div>
@@ -382,12 +374,12 @@ export function AppDetailDialog({
                 <div className="text-sm text-muted-foreground pl-5 space-y-1">
                   {app.author?.name ? (
                     <>
-                      <p>名称: {app.author.name}</p>
-                      {app.author.email && <p>邮箱: {app.author.email}</p>}
-                      {app.author.url && <p>网站: {app.author.url}</p>}
+                      <p>{t('nameLabel')}: {app.author.name}</p>
+                      {app.author.email && <p>{t('emailLabel')}: {app.author.email}</p>}
+                      {app.author.url && <p>{t('urlLabel')}: {app.author.url}</p>}
                     </>
                   ) : (
-                    <p>暂无作者信息</p>
+                    <p>{t('noAuthorInfo')}</p>
                   )}
                 </div>
               )}
@@ -397,27 +389,27 @@ export function AppDetailDialog({
 
             {/* Statistics */}
             <div>
-              <Label>统计数据</Label>
+              <Label>{t('statistics')}</Label>
               <div className="grid grid-cols-4 gap-4 mt-2">
                 <div className="text-center p-3 rounded-lg bg-muted">
                   <Eye className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                   <p className="text-lg font-semibold">{app.stats?.views || 0}</p>
-                  <p className="text-xs text-muted-foreground">查看</p>
+                  <p className="text-xs text-muted-foreground">{t('statsViews')}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted">
                   <Play className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                   <p className="text-lg font-semibold">{app.stats?.uses || 0}</p>
-                  <p className="text-xs text-muted-foreground">使用</p>
+                  <p className="text-xs text-muted-foreground">{t('statsUses')}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted">
                   <Star className="h-5 w-5 mx-auto mb-1 text-yellow-500" />
                   <p className="text-lg font-semibold">{app.stats?.rating?.toFixed(1) || '-'}</p>
-                  <p className="text-xs text-muted-foreground">评分</p>
+                  <p className="text-xs text-muted-foreground">{t('statsRating')}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted">
                   <User className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                   <p className="text-lg font-semibold">{app.stats?.ratingCount || 0}</p>
-                  <p className="text-xs text-muted-foreground">评价</p>
+                  <p className="text-xs text-muted-foreground">{t('statsRatingCount')}</p>
                 </div>
               </div>
             </div>
@@ -426,13 +418,13 @@ export function AppDetailDialog({
 
             {/* Template Info */}
             <div>
-              <Label>模板信息</Label>
+              <Label>{t('templateInfo')}</Label>
               <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                <p>模板 ID: {app.templateId}</p>
+                <p>{t('templateId')}: {app.templateId}</p>
                 {template && (
                   <>
-                    <p>模板名称: {template.name}</p>
-                    <p>模板描述: {template.description}</p>
+                    <p>{t('templateName')}: {template.name}</p>
+                    <p>{t('templateDescription')}: {template.description}</p>
                   </>
                 )}
               </div>
@@ -442,13 +434,13 @@ export function AppDetailDialog({
           {/* Publish Tab */}
           <TabsContent value="publish" className="space-y-4 mt-4">
             <div className="text-center py-4">
-              <h4 className="font-medium mb-2">发布准备检查</h4>
+              <h4 className="font-medium mb-2">{t('publishReadyTitle')}</h4>
               <p className="text-sm text-muted-foreground mb-4">
-                检查应用是否满足发布到应用商店的要求
+                {t('publishReadyDescription')}
               </p>
               <Button onClick={handleCheckPublish}>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                检查发布要求
+                {t('checkPublish')}
               </Button>
             </div>
 
@@ -464,13 +456,13 @@ export function AppDetailDialog({
                 {publishCheck.valid ? (
                   <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                     <CheckCircle className="h-5 w-5" />
-                    <span className="font-medium">应用已准备好发布！</span>
+                    <span className="font-medium">{t('publishReady')}</span>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300 mb-2">
                       <AlertCircle className="h-5 w-5" />
-                      <span className="font-medium">需要补充以下信息：</span>
+                      <span className="font-medium">{t('publishMissing')}</span>
                     </div>
                     <ul className="list-disc list-inside text-sm text-yellow-600 dark:text-yellow-400 space-y-1">
                       {publishCheck.missing.map((item, index) => (
@@ -485,13 +477,13 @@ export function AppDetailDialog({
             {app.isPublished && (
               <div className="text-center p-4 bg-muted rounded-lg">
                 <Badge variant="default" className="mb-2">
-                  已发布
+                  {t('published')}
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  发布时间: {app.publishedAt ? formatDate(app.publishedAt) : '未知'}
+                  {t('publishedAt')}: {app.publishedAt ? formatDate(app.publishedAt) : '-'}
                 </p>
                 {app.storeId && (
-                  <p className="text-xs text-muted-foreground mt-1">商店 ID: {app.storeId}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('storeId')}: {app.storeId}</p>
                 )}
               </div>
             )}
@@ -503,21 +495,21 @@ export function AppDetailDialog({
             <>
               <Button variant="outline" onClick={handleCancelEdit}>
                 <X className="h-4 w-4 mr-1" />
-                取消
+                {t('cancel')}
               </Button>
               <Button onClick={handleSave}>
                 <Save className="h-4 w-4 mr-1" />
-                保存
+                {t('save')}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                关闭
+                {t('close')}
               </Button>
               <Button onClick={handleStartEdit}>
                 <Edit2 className="h-4 w-4 mr-1" />
-                编辑信息
+                {t('editInfo')}
               </Button>
             </>
           )}
@@ -527,4 +519,3 @@ export function AppDetailDialog({
   );
 }
 
-export default AppDetailDialog;

@@ -15,6 +15,17 @@ jest.mock('@/lib/ai/observability', () => ({
   shutdownObservability: () => mockShutdownObservability(),
 }));
 
+const mockLoggerInfo = jest.fn();
+const mockLoggerWarn = jest.fn();
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ai: {
+      info: (...args: unknown[]) => mockLoggerInfo(...args),
+      warn: (...args: unknown[]) => mockLoggerWarn(...args),
+    },
+  },
+}));
+
 const mockUseSettingsStore = jest.fn();
 jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: unknown) => unknown) => mockUseSettingsStore(selector),
@@ -119,7 +130,6 @@ describe('ObservabilityInitializer', () => {
   });
 
   it('should handle initialization error gracefully', async () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
     mockInitializeObservability.mockRejectedValueOnce(new Error('Init failed'));
 
     mockUseSettingsStore.mockImplementation((selector) => {
@@ -135,18 +145,14 @@ describe('ObservabilityInitializer', () => {
     render(<ObservabilityInitializer />);
 
     await waitFor(() => {
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        '[Observability] Failed to initialize:',
-        expect.any(Error)
+      expect(mockLoggerWarn).toHaveBeenCalledWith(
+        '[Observability] Failed to initialize',
+        expect.objectContaining({ error: expect.any(Error) })
       );
     });
-
-    consoleWarnSpy.mockRestore();
   });
 
   it('should log success on initialization', async () => {
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-
     mockUseSettingsStore.mockImplementation((selector) => {
       const state = {
         observabilitySettings: {
@@ -160,9 +166,7 @@ describe('ObservabilityInitializer', () => {
     render(<ObservabilityInitializer />);
 
     await waitFor(() => {
-      expect(consoleLogSpy).toHaveBeenCalledWith('[Observability] Initialized successfully');
+      expect(mockLoggerInfo).toHaveBeenCalledWith('[Observability] Initialized successfully');
     });
-
-    consoleLogSpy.mockRestore();
   });
 });

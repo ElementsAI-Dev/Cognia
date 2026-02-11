@@ -51,7 +51,7 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
 
   // Get top models by rating (limited to maxModels)
   const topModels = useMemo(() => {
-    return modelRatings
+    return [...modelRatings]
       .sort((a, b) => b.rating - a.rating)
       .slice(0, maxModels)
       .map((r) => ({

@@ -244,6 +244,38 @@ describe('Artifact API', () => {
       const both = api.listArtifacts({ offset: 1, limit: 1 });
       expect(both.length).toBe(1);
     });
+
+    it('should filter by type', () => {
+      const api = createArtifactAPI(testPluginId);
+      const result = api.listArtifacts({ type: 'code' });
+
+      expect(result.length).toBe(2);
+      expect(result.every(a => a.type === 'code')).toBe(true);
+    });
+
+    it('should sort by updatedAt descending', () => {
+      // Add timestamps to mock artifacts
+      const now = Date.now();
+      mockArtifacts['artifact-1'] = {
+        ...mockArtifacts['artifact-1'],
+        updatedAt: new Date(now - 2000),
+      } as typeof mockArtifacts['artifact-1'];
+      mockArtifacts['artifact-2'] = {
+        ...mockArtifacts['artifact-2'],
+        updatedAt: new Date(now - 1000),
+      } as typeof mockArtifacts['artifact-2'];
+      mockArtifacts['artifact-3'] = {
+        ...mockArtifacts['artifact-3'],
+        updatedAt: new Date(now),
+      } as typeof mockArtifacts['artifact-3'];
+
+      const api = createArtifactAPI(testPluginId);
+      const result = api.listArtifacts();
+
+      // Most recently updated should be first
+      expect(result[0].id).toBe('artifact-3');
+      expect(result[result.length - 1].id).toBe('artifact-1');
+    });
   });
 
   describe('openArtifact / closeArtifact', () => {

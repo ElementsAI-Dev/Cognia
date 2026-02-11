@@ -39,6 +39,7 @@ jest.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock lucide-react icons
@@ -67,7 +68,7 @@ describe('SymbolPicker', () => {
 
   it('renders scroll area for symbols', () => {
     render(<SymbolPicker {...defaultProps} />);
-    expect(screen.getByTestId('scroll-area')).toBeInTheDocument();
+    expect(screen.getAllByTestId('scroll-area').length).toBeGreaterThan(0);
   });
 
   it('filters symbols on search', async () => {
@@ -102,7 +103,7 @@ describe('SymbolPicker', () => {
     const searchInput = screen.getByTestId('search-input');
     await userEvent.type(searchInput, 'nonexistentsymbol12345');
     
-    // Should still render without errors
-    expect(screen.getByTestId('tabs')).toBeInTheDocument();
+    // When searching, Tabs is replaced by a standalone ScrollArea
+    expect(screen.getByTestId('scroll-area')).toBeInTheDocument();
   });
 });

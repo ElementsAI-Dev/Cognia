@@ -16,13 +16,6 @@ import {
   X,
   FileText,
   Wand2,
-  Code,
-  Palette,
-  Building2,
-  Zap,
-  BarChart3,
-  MessageSquare,
-  Cog,
   Loader2,
   Save,
   AlertCircle,
@@ -47,18 +40,8 @@ import { useSkillStore } from '@/stores/skills';
 import { getAllTemplates } from '@/lib/skills/templates';
 import { parseSkillMd } from '@/lib/skills/parser';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
+import { CATEGORY_OPTIONS } from './skill-constants';
 import type { SkillCategory, SkillTemplate, SkillResource } from '@/types/system/skill';
-
-const CATEGORY_OPTIONS: Array<{ value: SkillCategory; labelKey: string; icon: React.ReactNode; descKey: string }> = [
-  { value: 'creative-design', labelKey: 'categoryCreativeDesign', icon: <Palette className="h-5 w-5" />, descKey: 'categoryCreativeDesignDesc' },
-  { value: 'development', labelKey: 'categoryDevelopment', icon: <Code className="h-5 w-5" />, descKey: 'categoryDevelopmentDesc' },
-  { value: 'enterprise', labelKey: 'categoryEnterprise', icon: <Building2 className="h-5 w-5" />, descKey: 'categoryEnterpriseDesc' },
-  { value: 'productivity', labelKey: 'categoryProductivity', icon: <Zap className="h-5 w-5" />, descKey: 'categoryProductivityDesc' },
-  { value: 'data-analysis', labelKey: 'categoryDataAnalysis', icon: <BarChart3 className="h-5 w-5" />, descKey: 'categoryDataAnalysisDesc' },
-  { value: 'communication', labelKey: 'categoryCommunication', icon: <MessageSquare className="h-5 w-5" />, descKey: 'categoryCommunicationDesc' },
-  { value: 'meta', labelKey: 'categoryMeta', icon: <Cog className="h-5 w-5" />, descKey: 'categoryMetaDesc' },
-  { value: 'custom', labelKey: 'categoryCustom', icon: <FileText className="h-5 w-5" />, descKey: 'categoryCustomDesc' },
-];
 
 type WizardStep = 'start' | 'template' | 'basic' | 'content' | 'preview';
 

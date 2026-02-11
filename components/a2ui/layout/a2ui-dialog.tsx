@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { A2UIComponentProps, A2UIDialogComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData, useA2UIActions } from '../a2ui-context';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
 export const A2UIDialog = memo(function A2UIDialog({
@@ -24,7 +24,8 @@ export const A2UIDialog = memo(function A2UIDialog({
   onAction,
   onDataChange,
 }: A2UIComponentProps<A2UIDialogComponent>) {
-  const { resolveString, resolveBoolean, getBindingPath } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
+  const { getBindingPath } = useA2UIActions();
 
   const open = resolveBoolean(component.open, false);
   const title = component.title ? resolveString(component.title, '') : '';

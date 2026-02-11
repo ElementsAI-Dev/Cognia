@@ -6,6 +6,8 @@
 // Context
 export {
   A2UIProvider,
+  useA2UIActions,
+  useA2UIData,
   useA2UIContext,
   useA2UIComponent,
   useA2UIBinding,
@@ -94,6 +96,13 @@ export {
 } from './a2ui-message-renderer';
 
 export { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from './a2ui-tool-output';
+
+// Academic components
+export {
+  AcademicPaperCard,
+  AcademicSearchResults,
+  AcademicAnalysisPanel,
+} from './academic';
 
 // App Builder components
 export { QuickAppBuilder } from './quick-app-builder';

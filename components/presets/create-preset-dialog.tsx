@@ -45,8 +45,10 @@ import { PRESET_COLORS, PRESET_ICONS, PRESET_CATEGORIES, type Preset, type Built
 import { PROVIDERS, type ProviderName } from '@/types/provider';
 import { nanoid } from 'nanoid';
 import { cn } from '@/lib/utils';
+import { COLOR_BG_CLASS, COLOR_TINT_CLASS, getPresetAIConfig } from '@/lib/presets';
 import { PromptTemplateSelector } from '@/components/prompt';
 import { generatePresetFromDescription, optimizePresetPrompt, generateBuiltinPrompts as generateBuiltinPromptsAI } from '@/lib/ai/presets';
+import { loggers } from '@/lib/logger';
 
 interface CreatePresetDialogProps {
   open: boolean;
@@ -102,47 +104,6 @@ export function CreatePresetDialog({
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
   const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
 
-  // Map preset colors to CSS classes to avoid inline styles
-  const COLOR_BG_CLASS: Record<string, string> = {
-    '#6366f1': 'bg-preset-6366f1',
-    '#8b5cf6': 'bg-preset-8b5cf6',
-    '#a855f7': 'bg-preset-a855f7',
-    '#d946ef': 'bg-preset-d946ef',
-    '#ec4899': 'bg-preset-ec4899',
-    '#f43f5e': 'bg-preset-f43f5e',
-    '#ef4444': 'bg-preset-ef4444',
-    '#f97316': 'bg-preset-f97316',
-    '#f59e0b': 'bg-preset-f59e0b',
-    '#eab308': 'bg-preset-eab308',
-    '#84cc16': 'bg-preset-84cc16',
-    '#22c55e': 'bg-preset-22c55e',
-    '#10b981': 'bg-preset-10b981',
-    '#14b8a6': 'bg-preset-14b8a6',
-    '#06b6d4': 'bg-preset-06b6d4',
-    '#0ea5e9': 'bg-preset-0ea5e9',
-    '#3b82f6': 'bg-preset-3b82f6',
-  };
-
-  const COLOR_TINT_CLASS: Record<string, string> = {
-    '#6366f1': 'bg-preset-6366f1-20',
-    '#8b5cf6': 'bg-preset-8b5cf6-20',
-    '#a855f7': 'bg-preset-a855f7-20',
-    '#d946ef': 'bg-preset-d946ef-20',
-    '#ec4899': 'bg-preset-ec4899-20',
-    '#f43f5e': 'bg-preset-f43f5e-20',
-    '#ef4444': 'bg-preset-ef4444-20',
-    '#f97316': 'bg-preset-f97316-20',
-    '#f59e0b': 'bg-preset-f59e0b-20',
-    '#eab308': 'bg-preset-eab308-20',
-    '#84cc16': 'bg-preset-84cc16-20',
-    '#22c55e': 'bg-preset-22c55e-20',
-    '#10b981': 'bg-preset-10b981-20',
-    '#14b8a6': 'bg-preset-14b8a6-20',
-    '#06b6d4': 'bg-preset-06b6d4-20',
-    '#0ea5e9': 'bg-preset-0ea5e9-20',
-    '#3b82f6': 'bg-preset-3b82f6-20',
-  };
-
   // Populate form when editing
   useEffect(() => {
     queueMicrotask(() => {
@@ -186,32 +147,24 @@ export function CreatePresetDialog({
     initializePromptTemplates();
   }, [initializePromptTemplates]);
 
-  // Get API settings for AI features
-  const getApiSettings = useCallback(() => {
-    const currentProvider = provider === 'auto' ? 'openai' : provider;
-    const settings = providerSettings[currentProvider as keyof typeof providerSettings] 
-      || providerSettings['openai'];
-    return settings;
+  // Get AI config for AI features
+  const getAIConfig = useCallback(() => {
+    return getPresetAIConfig(providerSettings, provider);
   }, [provider, providerSettings]);
 
   // AI Generate preset from description
   const handleAIGeneratePreset = useCallback(async () => {
     if (!aiDescription.trim()) return;
     
-    const settings = getApiSettings();
-    if (!settings?.apiKey) {
+    const aiConfig = getAIConfig();
+    if (!aiConfig) {
       toast.warning(t('errors.noApiKey'));
       return;
     }
 
     setIsGeneratingPreset(true);
     try {
-      const providerName = provider === 'auto' ? 'openai' : provider;
-      const result = await generatePresetFromDescription(aiDescription, {
-        provider: providerName as ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
+      const result = await generatePresetFromDescription(aiDescription, aiConfig);
 
       if (result.success && result.preset) {
         const preset = result.preset;
@@ -240,31 +193,26 @@ export function CreatePresetDialog({
         toast.error(result.error || t('errors.generateFailed'));
       }
     } catch (error) {
-      console.error('Failed to generate preset:', error);
+      loggers.ui.error('Failed to generate preset:', error);
       toast.error(t('errors.generateFailedRetry'));
     } finally {
       setIsGeneratingPreset(false);
     }
-  }, [aiDescription, getApiSettings, provider, t]);
+  }, [aiDescription, getAIConfig, t]);
 
   // AI Optimize system prompt
   const handleOptimizePrompt = useCallback(async () => {
     if (!systemPrompt.trim()) return;
     
-    const settings = getApiSettings();
-    if (!settings?.apiKey) {
+    const aiConfig = getAIConfig();
+    if (!aiConfig) {
       toast.warning(t('errors.noApiKey'));
       return;
     }
 
     setIsOptimizingPrompt(true);
     try {
-      const providerName = provider === 'auto' ? 'openai' : provider;
-      const result = await optimizePresetPrompt(systemPrompt, {
-        provider: providerName as ProviderName,
-        apiKey: settings.apiKey,
-        baseURL: settings.baseURL,
-      });
+      const result = await optimizePresetPrompt(systemPrompt, aiConfig);
 
       if (result.success && result.optimizedPrompt) {
         setSystemPrompt(result.optimizedPrompt);
@@ -273,36 +221,31 @@ export function CreatePresetDialog({
         toast.error(result.error || t('errors.optimizeFailed'));
       }
     } catch (error) {
-      console.error('Failed to optimize prompt:', error);
+      loggers.ui.error('Failed to optimize prompt:', error);
       toast.error(t('errors.optimizeFailedRetry'));
     } finally {
       setIsOptimizingPrompt(false);
     }
-  }, [systemPrompt, provider, getApiSettings, t]);
+  }, [systemPrompt, getAIConfig, t]);
 
   // AI Generate builtin prompts
   const handleGenerateBuiltinPrompts = useCallback(async () => {
     if (!name.trim()) return;
     
-    const settings = getApiSettings();
-    if (!settings?.apiKey) {
+    const aiConfig = getAIConfig();
+    if (!aiConfig) {
       toast.warning(t('errors.noApiKey'));
       return;
     }
 
     setIsGeneratingPrompts(true);
     try {
-      const providerName = provider === 'auto' ? 'openai' : provider;
       const result = await generateBuiltinPromptsAI(
         name,
         description || undefined,
         systemPrompt || undefined,
         builtinPrompts.map(p => ({ name: p.name, content: p.content })),
-        {
-          provider: providerName as ProviderName,
-          apiKey: settings.apiKey,
-          baseURL: settings.baseURL,
-        },
+        aiConfig,
         3
       );
 
@@ -319,12 +262,12 @@ export function CreatePresetDialog({
         toast.error(result.error || t('errors.generatePromptsFailed'));
       }
     } catch (error) {
-      console.error('Failed to generate prompts:', error);
+      loggers.ui.error('Failed to generate prompts:', error);
       toast.error(t('errors.generatePromptsFailedRetry'));
     } finally {
       setIsGeneratingPrompts(false);
     }
-  }, [name, description, systemPrompt, builtinPrompts, provider, getApiSettings, t]);
+  }, [name, description, systemPrompt, builtinPrompts, getAIConfig, t]);
 
   const handleApplyTemplate = useCallback((template: import('@/types/content/prompt-template').PromptTemplate) => {
     setSystemPrompt(template.content);

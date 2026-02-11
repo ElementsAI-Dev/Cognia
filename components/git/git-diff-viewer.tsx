@@ -4,7 +4,7 @@
  * Git Diff Viewer - Shows visual diff for file changes
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FileText,
@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import type { GitDiffInfo, GitFileStatus } from '@/types/system/git';
+import { getFileStatusColor } from '@/types/system/git';
 
 type DiffViewMode = 'unified' | 'split';
 
@@ -52,6 +53,95 @@ interface GitDiffViewerProps {
   className?: string;
 }
 
+function parseDiffContent(content: string): DiffLine[] {
+  if (!content) return [];
+
+  const lines = content.split('\n');
+  const result: DiffLine[] = [];
+  let oldLine = 0;
+  let newLine = 0;
+
+  for (const line of lines) {
+    if (line.startsWith('@@')) {
+      // Parse hunk header
+      const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
+      if (match) {
+        oldLine = parseInt(match[1], 10);
+        newLine = parseInt(match[2], 10);
+      }
+      result.push({ type: 'header', content: line });
+    } else if (line.startsWith('+') && !line.startsWith('+++')) {
+      result.push({
+        type: 'add',
+        content: line.slice(1),
+        newLineNumber: newLine++,
+      });
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      result.push({
+        type: 'remove',
+        content: line.slice(1),
+        oldLineNumber: oldLine++,
+      });
+    } else if (
+      !line.startsWith('diff ') &&
+      !line.startsWith('index ') &&
+      !line.startsWith('---') &&
+      !line.startsWith('+++')
+    ) {
+      result.push({
+        type: 'context',
+        content: line.startsWith(' ') ? line.slice(1) : line,
+        oldLineNumber: oldLine++,
+        newLineNumber: newLine++,
+      });
+    }
+  }
+
+  return result;
+}
+
+function buildSplitRows(lines: DiffLine[]): SplitRow[] {
+  const rows: SplitRow[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.type === 'header') {
+      rows.push({ left: line, right: line });
+      i++;
+    } else if (line.type === 'context') {
+      rows.push({ left: line, right: line });
+      i++;
+    } else if (line.type === 'remove') {
+      // Collect consecutive removes
+      const removes: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === 'remove') {
+        removes.push(lines[i]);
+        i++;
+      }
+      // Collect consecutive adds
+      const adds: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === 'add') {
+        adds.push(lines[i]);
+        i++;
+      }
+      // Pair them up
+      const maxLen = Math.max(removes.length, adds.length);
+      for (let j = 0; j < maxLen; j++) {
+        rows.push({
+          left: j < removes.length ? removes[j] : null,
+          right: j < adds.length ? adds[j] : null,
+        });
+      }
+    } else if (line.type === 'add') {
+      rows.push({ left: null, right: line });
+      i++;
+    } else {
+      i++;
+    }
+  }
+  return rows;
+}
+
 export function GitDiffViewer({
   diffs,
   fileStatus = [],
@@ -65,6 +155,16 @@ export function GitDiffViewer({
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [fullscreenDiff, setFullscreenDiff] = useState<GitDiffInfo | null>(null);
   const [viewMode, setViewMode] = useState<DiffViewMode>('unified');
+
+  const parsedDiffs = useMemo(() => {
+    const map = new Map<string, DiffLine[]>();
+    for (const diff of diffs) {
+      if (diff.content) {
+        map.set(diff.path, parseDiffContent(diff.content));
+      }
+    }
+    return map;
+  }, [diffs]);
 
   const toggleFile = (path: string) => {
     setExpandedFiles((prev) => {
@@ -92,113 +192,10 @@ export function GitDiffViewer({
     setTimeout(() => setCopiedPath(null), 2000);
   }, []);
 
-  const parseDiffContent = (content: string): DiffLine[] => {
-    if (!content) return [];
-
-    const lines = content.split('\n');
-    const result: DiffLine[] = [];
-    let oldLine = 0;
-    let newLine = 0;
-
-    for (const line of lines) {
-      if (line.startsWith('@@')) {
-        // Parse hunk header
-        const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
-        if (match) {
-          oldLine = parseInt(match[1], 10);
-          newLine = parseInt(match[2], 10);
-        }
-        result.push({ type: 'header', content: line });
-      } else if (line.startsWith('+') && !line.startsWith('+++')) {
-        result.push({
-          type: 'add',
-          content: line.slice(1),
-          newLineNumber: newLine++,
-        });
-      } else if (line.startsWith('-') && !line.startsWith('---')) {
-        result.push({
-          type: 'remove',
-          content: line.slice(1),
-          oldLineNumber: oldLine++,
-        });
-      } else if (
-        !line.startsWith('diff ') &&
-        !line.startsWith('index ') &&
-        !line.startsWith('---') &&
-        !line.startsWith('+++')
-      ) {
-        result.push({
-          type: 'context',
-          content: line.startsWith(' ') ? line.slice(1) : line,
-          oldLineNumber: oldLine++,
-          newLineNumber: newLine++,
-        });
-      }
-    }
-
-    return result;
-  };
-
   const getFileStatus = (path: string): GitFileStatus | undefined => {
     return fileStatus.find((f) => f.path === path);
   };
 
-  const buildSplitRows = (lines: DiffLine[]): SplitRow[] => {
-    const rows: SplitRow[] = [];
-    let i = 0;
-    while (i < lines.length) {
-      const line = lines[i];
-      if (line.type === 'header') {
-        rows.push({ left: line, right: line });
-        i++;
-      } else if (line.type === 'context') {
-        rows.push({ left: line, right: line });
-        i++;
-      } else if (line.type === 'remove') {
-        // Collect consecutive removes
-        const removes: DiffLine[] = [];
-        while (i < lines.length && lines[i].type === 'remove') {
-          removes.push(lines[i]);
-          i++;
-        }
-        // Collect consecutive adds
-        const adds: DiffLine[] = [];
-        while (i < lines.length && lines[i].type === 'add') {
-          adds.push(lines[i]);
-          i++;
-        }
-        // Pair them up
-        const maxLen = Math.max(removes.length, adds.length);
-        for (let j = 0; j < maxLen; j++) {
-          rows.push({
-            left: j < removes.length ? removes[j] : null,
-            right: j < adds.length ? adds[j] : null,
-          });
-        }
-      } else if (line.type === 'add') {
-        rows.push({ left: null, right: line });
-        i++;
-      } else {
-        i++;
-      }
-    }
-    return rows;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'added':
-        return 'text-green-600 border-green-600';
-      case 'deleted':
-        return 'text-red-600 border-red-600';
-      case 'modified':
-        return 'text-yellow-600 border-yellow-600';
-      case 'renamed':
-        return 'text-blue-600 border-blue-600';
-      default:
-        return 'text-muted-foreground';
-    }
-  };
 
   if (diffs.length === 0) {
     return (
@@ -289,7 +286,7 @@ export function GitDiffViewer({
                       {status && (
                         <Badge
                           variant="outline"
-                          className={cn('text-xs', getStatusColor(status.status))}
+                          className={cn('text-xs', getFileStatusColor(status.status))}
                         >
                           {status.status.charAt(0).toUpperCase()}
                         </Badge>
@@ -403,7 +400,7 @@ export function GitDiffViewer({
                         viewMode === 'split' ? (
                           /* Split (side-by-side) view */
                           <div className="font-mono text-xs overflow-x-auto">
-                            {buildSplitRows(parseDiffContent(diff.content)).map((row, idx) => {
+                            {buildSplitRows(parsedDiffs.get(diff.path) || []).map((row, idx) => {
                               if (row.left?.type === 'header') {
                                 return (
                                   <div key={idx} className="flex bg-blue-500/10 text-blue-600">
@@ -451,7 +448,7 @@ export function GitDiffViewer({
                         ) : (
                           /* Unified view (original) */
                           <div className="font-mono text-xs overflow-x-auto">
-                            {parseDiffContent(diff.content).map((line, idx) => (
+                            {(parsedDiffs.get(diff.path) || []).map((line, idx) => (
                               <div
                                 key={idx}
                                 className={cn(
@@ -513,7 +510,7 @@ export function GitDiffViewer({
           <ScrollArea className="h-[70vh]">
             {fullscreenDiff?.content && (
               <div className="font-mono text-xs">
-                {parseDiffContent(fullscreenDiff.content).map((line, idx) => (
+                {(fullscreenDiff.content ? parseDiffContent(fullscreenDiff.content) : []).map((line, idx) => (
                   <div
                     key={idx}
                     className={cn(
@@ -555,5 +552,3 @@ export function GitDiffViewer({
     </div>
   );
 }
-
-export default GitDiffViewer;

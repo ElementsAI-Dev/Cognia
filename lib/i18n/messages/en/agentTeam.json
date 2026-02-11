@@ -96,7 +96,17 @@
     "result": {
       "title": "Final Result",
       "error": "Error",
-      "totalTokens": "Total tokens: {count}"
+      "totalTokens": "Total tokens: {count}",
+      "viewDetails": "View Details",
+      "teammatesCount": "{count} teammates",
+      "tasksCount": "{completed}/{total} tasks",
+      "tokensCount": "{count} tokens",
+      "taskProgress": "Task Progress",
+      "failedCount": "({count} failed)",
+      "errorLabel": "Error: ",
+      "showLess": "Show less",
+      "showFullResult": "Show full result",
+      "teammateDetails": "Teammate Details ({count})"
     },
 
     "execution": {
@@ -127,7 +137,14 @@
       "create": "Create",
       "empty": "No tasks",
       "retry": "Retry",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "assign": "Assign",
+      "claim": "Claim",
+      "columnBlocked": "Blocked",
+      "columnPending": "Pending",
+      "columnInProgress": "In Progress",
+      "columnReview": "Review",
+      "columnDone": "Done"
     },
 
     "analytics": {
@@ -213,6 +230,10 @@
       "maxRetries": "Max Retries"
     },
 
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "planning": "Planning...",
+    "executing": "Executing...",
+    "loadingGraph": "Loading graph..."
   }
 }

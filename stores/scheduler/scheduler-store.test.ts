@@ -79,12 +79,7 @@ describe('useSchedulerStore', () => {
     it('should have default filter', () => {
       const { result } = renderHook(() => useSchedulerStore());
 
-      expect(result.current.filter).toEqual({
-        types: [],
-        statuses: [],
-        tags: [],
-        search: '',
-      });
+      expect(result.current.filter).toEqual({});
     });
   });
 
@@ -225,12 +220,7 @@ describe('useSchedulerStore', () => {
         result.current.clearFilter();
       });
 
-      expect(result.current.filter).toEqual({
-        types: [],
-        statuses: [],
-        tags: [],
-        search: '',
-      });
+      expect(result.current.filter).toEqual({});
     });
   });
 
@@ -363,7 +353,7 @@ describe('useSchedulerStore', () => {
 
       expect(result.current.selectedTaskId).toBeNull();
       expect(result.current.error).toBeNull();
-      expect(result.current.filter.types).toEqual([]);
+      expect(result.current.filter).toEqual({});
     });
   });
 });

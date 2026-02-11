@@ -180,7 +180,7 @@ describe('executeWebhookStep', () => {
       });
 
       await expect(executeWebhookStep(step, {})).rejects.toThrow(
-        'Invalid protocol'
+        /Invalid webhook URL/
       );
     });
   });

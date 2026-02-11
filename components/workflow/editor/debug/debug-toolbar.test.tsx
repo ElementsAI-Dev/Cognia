@@ -5,6 +5,11 @@ import { DebugToolbar } from './debug-toolbar';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { NextIntlClientProvider } from 'next-intl';
 
+// Mock zustand/react/shallow
+jest.mock('zustand/react/shallow', () => ({
+  useShallow: (fn: (...args: unknown[]) => unknown) => fn,
+}));
+
 jest.mock('@/stores/workflow');
 
 const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<typeof useWorkflowEditorStore>;
@@ -113,9 +118,8 @@ describe('DebugToolbar', () => {
 
     renderWithProviders(<DebugToolbar />);
     
-    // The component displays the translation key when not found
-    expect(screen.getByText('debugMode')).toBeInTheDocument();
-    expect(screen.getByText('exitDebug')).toBeInTheDocument();
+    expect(screen.getByText('Debug')).toBeInTheDocument();
+    expect(screen.getByText('Exit Debug')).toBeInTheDocument();
   });
 
   it('shows breakpoint count', () => {
@@ -180,8 +184,7 @@ describe('DebugToolbar', () => {
 
     renderWithProviders(<DebugToolbar />);
     
-    // The component displays the translation key when not found
-    expect(screen.getByText('running')).toBeInTheDocument();
+    expect(screen.getByText('Running')).toBeInTheDocument();
   });
 
   it('shows paused status when paused at breakpoint', () => {
@@ -202,8 +205,7 @@ describe('DebugToolbar', () => {
 
     renderWithProviders(<DebugToolbar />);
     
-    // The component displays the translation key when not found
-    expect(screen.getByText('paused')).toBeInTheDocument();
+    expect(screen.getByText('Paused')).toBeInTheDocument();
   });
 
   it('calls stepOver when step over button clicked', async () => {
@@ -274,7 +276,7 @@ describe('DebugToolbar', () => {
 
     renderWithProviders(<DebugToolbar />);
     
-    await userEvent.click(screen.getByText('exitDebug'));
+    await userEvent.click(screen.getByText('Exit Debug'));
     expect(mockToggleDebugMode).toHaveBeenCalled();
   });
 

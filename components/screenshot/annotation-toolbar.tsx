@@ -281,7 +281,7 @@ export function AnnotationToolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t('actions.extractText') || 'Extract Text (OCR)'}</p>
+              <p>{t('actions.extractText')}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -291,11 +291,11 @@ export function AnnotationToolbar({
             <TooltipTrigger asChild>
               <Button variant="secondary" size="sm" className="h-8 px-2" onClick={onSendToChat}>
                 <MessageSquare className="h-4 w-4 mr-1" />
-                {t('actions.sendToChat') || 'Chat'}
+                {t('actions.sendToChat')}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{t('actions.sendToChatDesc') || 'Send screenshot to AI chat'}</p>
+              <p>{t('actions.sendToChatDesc')}</p>
             </TooltipContent>
           </Tooltip>
         )}

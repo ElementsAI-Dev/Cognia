@@ -5,7 +5,7 @@
  * Allows users to select models and start multi-model comparison
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Swords,
@@ -82,6 +82,7 @@ export function ArenaDialog({
   const tCommon = useTranslations('common');
 
   const [prompt, setPrompt] = useState(initialPrompt);
+  useEffect(() => { setPrompt(initialPrompt); }, [initialPrompt]);
   const [selectedModels, setSelectedModels] = useState<ModelOption[]>([]);
   const [blindMode, setBlindMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'models' | 'presets'>('models');

@@ -17,7 +17,7 @@ import {
   Share2, Link, FileJson, Check,
   Twitter, Facebook, Mail, MessageCircle,
 } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { resolveIcon } from '@/lib/a2ui/resolve-icon';
 import type { A2UIAppInstance } from '@/hooks/a2ui/app-builder/types';
 import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
 
@@ -35,7 +35,7 @@ interface AppCardProps {
   onSocialShare: (appId: string, platform: string) => void;
 }
 
-export const AppCard = memo(function AppCard({
+export const QuickAppCard = memo(function QuickAppCard({
   app, template, isActive, viewMode,
   onSelect, onDuplicate, onDownload, onDelete,
   onCopyToClipboard, onNativeShare, onSocialShare,
@@ -44,7 +44,7 @@ export const AppCard = memo(function AppCard({
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
 
-  const IconComponent = template?.icon ? icons[template.icon as keyof typeof icons] : null;
+  const IconComponent = resolveIcon(template?.icon);
 
   const handleCopy = useCallback(async (format: 'json' | 'code' | 'url') => {
     const success = await onCopyToClipboard(app.id, format);
@@ -68,11 +68,10 @@ export const AppCard = memo(function AppCard({
       >
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-            {IconComponent ? (
-              <IconComponent className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <Sparkles className="h-5 w-5 text-muted-foreground" />
-            )}
+            {IconComponent
+              ? React.createElement(IconComponent, { className: 'h-5 w-5 text-muted-foreground' })
+              : <Sparkles className="h-5 w-5 text-muted-foreground" />
+            }
           </div>
           <div className="flex-1 min-w-0">
             <CardTitle className="text-sm">{app.name}</CardTitle>

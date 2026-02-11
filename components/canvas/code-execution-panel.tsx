@@ -199,4 +199,3 @@ export const CodeExecutionPanel = memo(function CodeExecutionPanel({
   );
 });
 
-export default CodeExecutionPanel;

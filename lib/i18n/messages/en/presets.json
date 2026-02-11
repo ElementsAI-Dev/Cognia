@@ -67,8 +67,14 @@
     "aiGenerate": "AI Generate",
     "add": "Add",
     "noBuiltinPrompts": "No built-in prompts. Add one to include quick-access prompts with this preset.",
-    "default": "Default",
+    "defaultBadge": "Default",
     "category": "Category",
+    "errors": {
+      "noApiKey": "Please configure an API key in settings first.",
+      "optimizeFailed": "Failed to optimize prompt",
+      "generatePresetFailed": "Failed to generate preset",
+      "generatePromptsFailed": "Failed to generate prompts"
+    },
     "selectCategory": "Select category",
     "categories": {
       "general": "General",

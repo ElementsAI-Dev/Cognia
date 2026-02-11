@@ -189,4 +189,3 @@ export function AcademicPaperCard({
   );
 }
 
-export default AcademicPaperCard;

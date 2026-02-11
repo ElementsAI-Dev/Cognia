@@ -23,7 +23,7 @@ import type {
   A2UINumberOrPath,
 } from '@/types/artifact/a2ui';
 import { isPathValue } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 /**
  * A single guide step definition
@@ -129,7 +129,7 @@ export const A2UIInteractiveGuide = memo(function A2UIInteractiveGuide({
   onAction,
   renderChild,
 }: A2UIComponentProps) {
-  const { dataModel } = useA2UIContext();
+  const { dataModel } = useA2UIData();
   const t = useTranslations('learning.guide');
   const prefersReducedMotion = useReducedMotion();
 
@@ -348,4 +348,3 @@ export const A2UIInteractiveGuide = memo(function A2UIInteractiveGuide({
   );
 });
 
-export default A2UIInteractiveGuide;

@@ -296,20 +296,22 @@ describe('MessageAnalysisResults', () => {
     expect(screen.getByText('Quadratic')).toBeInTheDocument();
   });
 
-  it('renders type emoji for math results', () => {
+  it('renders Lucide icon for math results', () => {
     mockGetMessageAnalysis.mockReturnValue([
       { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: {}, createdAt: new Date() },
     ]);
-    render(<MessageAnalysisResults messageId="msg-1" />);
-    expect(screen.getByText('📐')).toBeInTheDocument();
+    const { container } = render(<MessageAnalysisResults messageId="msg-1" />);
+    // Lucide Ruler icon renders as an SVG element
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('renders type emoji for chart results', () => {
+  it('renders Lucide icon for chart results', () => {
     mockGetMessageAnalysis.mockReturnValue([
       { id: 'a2', sessionId: 's1', messageId: 'msg-1', type: 'chart' as const, content: '{}', output: {}, createdAt: new Date() },
     ]);
-    render(<MessageAnalysisResults messageId="msg-1" />);
-    expect(screen.getByText('📊')).toBeInTheDocument();
+    const { container } = render(<MessageAnalysisResults messageId="msg-1" />);
+    // Lucide BarChart3 icon renders as an SVG element
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
   it('calls openPanel when analysis result is clicked', () => {

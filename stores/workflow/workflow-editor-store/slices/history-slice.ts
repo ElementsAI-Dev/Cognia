@@ -4,6 +4,7 @@
  */
 
 import type { SliceCreator, HistorySliceActions, HistorySliceState } from '../types';
+import { deepClone } from '../utils/deep-clone';
 
 export const historySliceInitialState: HistorySliceState = {
   history: [],
@@ -42,7 +43,7 @@ export const createHistorySlice: SliceCreator<HistorySliceActions> = (set, get) 
       if (!currentWorkflow) return;
 
       const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push({ ...currentWorkflow });
+      newHistory.push(deepClone(currentWorkflow));
 
       if (newHistory.length > maxHistorySize) {
         newHistory.shift();
@@ -57,7 +58,7 @@ export const createHistorySlice: SliceCreator<HistorySliceActions> = (set, get) 
     clearHistory: () => {
       const { currentWorkflow } = get();
       set({
-        history: currentWorkflow ? [currentWorkflow] : [],
+        history: currentWorkflow ? [deepClone(currentWorkflow)] : [],
         historyIndex: currentWorkflow ? 0 : -1,
       });
     },

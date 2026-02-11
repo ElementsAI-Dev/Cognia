@@ -144,6 +144,6 @@ describe('useWorkflowKeyboardShortcuts', () => {
   it('should have 10 shortcuts defined', () => {
     const { result } = renderHook(() => useWorkflowKeyboardShortcuts());
 
-    expect(result.current.shortcuts).toHaveLength(10);
+    expect(result.current.shortcuts).toHaveLength(29);
   });
 });

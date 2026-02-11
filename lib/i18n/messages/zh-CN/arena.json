@@ -70,6 +70,21 @@
     "both-bad": "都不好",
     "other": "其他"
   },
+  "diffView": {
+    "title": "响应对比",
+    "similar": "相似",
+    "hideDiff": "隐藏差异",
+    "showDiff": "显示差异",
+    "toggleTooltip": "切换差异高亮"
+  },
+  "showDiff": "对比",
+  "hideDiff": "隐藏对比",
+  "errorBoundary": {
+    "failedToLoad": "{section} 加载失败",
+    "somethingWrong": "出了点问题",
+    "unexpectedError": "发生了意外错误。",
+    "tryAgain": "重试"
+  },
   "newBattle": "新对战",
   "viewBattle": "查看对战",
   "history": {
@@ -100,12 +115,32 @@
     "delete": "删除"
   },
   "stats": {
-    "title": "竞技场统计",
+    "title": "统计",
     "totalBattles": "总对战数",
     "completedBattles": "已完成",
+    "completed": "已完成",
     "ties": "平局",
     "winRate": "胜率",
-    "topModels": "热门模型"
+    "topModels": "最常对战模型",
+    "noData": "暂无对战数据",
+    "startBattles": "开始一些对战以查看统计数据",
+    "decisiveVotes": "决定性投票",
+    "uniqueModels": "已测试模型",
+    "preferences": "偏好",
+    "avgTime": "平均对战时间",
+    "blindMode": "盲选模式",
+    "battles": "对战",
+    "noModels": "暂无模型数据",
+    "categories": "类别分布",
+    "noCategories": "暂无类别数据",
+    "votingPatterns": "投票模式",
+    "decisiveRate": "决定性率",
+    "tieRate": "平局率",
+    "multiTurn": "多轮对话",
+    "blindBattles": "盲选对战",
+    "topRated": "最高评分",
+    "rating": "评分",
+    "bothBad": "都不好"
   },
   "settings": {
     "title": "竞技场设置",

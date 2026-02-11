@@ -212,5 +212,3 @@ export function GitignoreTemplateSelector({
     </Dialog>
   );
 }
-
-export default GitignoreTemplateSelector;

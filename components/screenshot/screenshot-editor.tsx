@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Kbd } from '@/components/ui/kbd';
@@ -16,7 +17,13 @@ import { AnnotationCanvas } from './annotation-canvas';
 import { AnnotationToolbar } from './annotation-toolbar';
 import { Magnifier } from './magnifier';
 import { QuickColorBar } from './color-picker';
-import { useEditorStore, selectCanUndo, selectCanRedo } from '@/stores/screenshot';
+import {
+  useEditorStore,
+  selectCanUndo,
+  selectCanRedo,
+  selectHasAnnotations,
+  selectAnnotationCount,
+} from '@/stores/screenshot';
 import type { Annotation, SelectionRegion } from '@/types/screenshot';
 import { PRESET_COLORS } from '@/types/screenshot';
 
@@ -70,6 +77,8 @@ export function ScreenshotEditor({
 
   const canUndo = useEditorStore(selectCanUndo);
   const canRedo = useEditorStore(selectCanRedo);
+  const hasAnnotations = useEditorStore(selectHasAnnotations);
+  const annotationCount = useEditorStore(selectAnnotationCount);
 
   // Load image dimensions
   useEffect(() => {
@@ -108,7 +117,7 @@ export function ScreenshotEditor({
         new ClipboardItem({ 'image/png': blob }),
       ]);
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+      loggers.ui.error('Failed to copy to clipboard:', err);
     }
   }, [getFinalImageData]);
 
@@ -338,12 +347,12 @@ export function ScreenshotEditor({
           <span>{t('dimensions', { width: imageDimensions.width, height: imageDimensions.height })}</span>
           {region && (
             <span>
-              {t('region') || 'Region'}: {Math.round(region.x)}, {Math.round(region.y)}
+              {t('region')}: {Math.round(region.x)}, {Math.round(region.y)}
             </span>
           )}
-          {annotations.length > 0 && (
+          {hasAnnotations && (
             <Badge variant="secondary">
-              {t('annotationCount', { count: annotations.length })}
+              {t('annotationCount', { count: annotationCount })}
             </Badge>
           )}
         </div>
@@ -390,9 +399,9 @@ export function ScreenshotEditor({
       {showMagnifier && (
         <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg px-3 py-1 shadow-lg">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{t('magnifierActive') || 'Magnifier active'}</span>
+            <span>{t('magnifierActive')}</span>
             <Kbd>G</Kbd>
-            <span>{t('toToggle') || 'to toggle'}</span>
+            <span>{t('toToggle')}</span>
           </div>
         </div>
       )}

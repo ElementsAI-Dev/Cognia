@@ -237,7 +237,7 @@ export function GitStatsDashboard({
                           width: 12,
                           height: 12,
                         }}
-                        title={`${day}: ${count} ${count === 1 ? 'commit' : 'commits'}`}
+                        title={t('stats.dayCommits', { day, count })}
                       />
                     );
                   })}

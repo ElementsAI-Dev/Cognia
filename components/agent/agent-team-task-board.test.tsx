@@ -58,6 +58,15 @@ jest.mock('next-intl', () => ({
       'taskBoard.assignTo': 'Assign To',
       'taskBoard.create': 'Create',
       'taskBoard.empty': 'No tasks',
+      'taskBoard.columnBlocked': 'Blocked',
+      'taskBoard.columnPending': 'Pending',
+      'taskBoard.columnInProgress': 'In Progress',
+      'taskBoard.columnReview': 'Review',
+      'taskBoard.columnDone': 'Done',
+      'taskBoard.cancel': 'Cancel',
+      'taskBoard.claim': 'Claim',
+      'taskBoard.assign': 'Assign',
+      'taskBoard.retry': 'Retry',
       'cancel': 'Cancel',
     };
     return translations[key] || key;

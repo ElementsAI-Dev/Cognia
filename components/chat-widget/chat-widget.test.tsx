@@ -17,6 +17,38 @@ jest.mock('next-intl', () => ({
   },
 }));
 
+// Mock @/stores (useSettingsStore)
+jest.mock('@/stores', () => ({
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      language: 'en',
+      welcomeSettings: { userName: '' },
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
+// Mock exportChatMessages
+jest.mock('@/lib/chat-widget/constants', () => ({
+  exportChatMessages: jest.fn(),
+}));
+
+// Mock welcome types
+jest.mock('@/types/settings/welcome', () => ({
+  getCurrentTimePeriod: () => 'morning',
+  DEFAULT_TIME_GREETINGS: {
+    morning: { en: 'Good morning', 'zh-CN': '早上好' },
+    afternoon: { en: 'Good afternoon', 'zh-CN': '下午好' },
+    evening: { en: 'Good evening', 'zh-CN': '晚上好' },
+    night: { en: 'Good night', 'zh-CN': '晚安' },
+  },
+}));
+
+// Mock @/lib/native/utils
+jest.mock('@/lib/native/utils', () => ({
+  isTauri: () => false,
+}));
+
 // Mock useChatWidget hook
 const mockHide = jest.fn();
 const mockSetInputValue = jest.fn();
@@ -304,8 +336,15 @@ describe('ChatWidget', () => {
   it('renders without crashing', () => {
     render(<ChatWidget />);
     expect(screen.getByTestId('chat-widget-header')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-widget-messages')).toBeInTheDocument();
+    // When no messages, welcome area is shown instead of ChatWidgetMessages
+    expect(screen.getByTestId('chat-widget-suggestions')).toBeInTheDocument();
     expect(screen.getByTestId('chat-widget-input')).toBeInTheDocument();
+  });
+
+  it('renders messages area when messages exist', () => {
+    mockUseChatWidget.messages = [{ id: '1', role: 'user', content: 'Hello' }];
+    render(<ChatWidget />);
+    expect(screen.getByTestId('chat-widget-messages')).toBeInTheDocument();
   });
 
   it('applies custom className', () => {
@@ -387,18 +426,21 @@ describe('ChatWidget', () => {
   });
 
   it('calls regenerate when regenerate button is clicked', () => {
+    mockUseChatWidget.messages = [{ id: 'msg-1', role: 'assistant', content: 'Hi' }];
     render(<ChatWidget />);
     fireEvent.click(screen.getByTestId('regenerate-btn'));
     expect(mockRegenerate).toHaveBeenCalledWith('msg-1');
   });
 
   it('calls setFeedback when feedback button is clicked', () => {
+    mockUseChatWidget.messages = [{ id: 'msg-1', role: 'assistant', content: 'Hi' }];
     render(<ChatWidget />);
     fireEvent.click(screen.getByTestId('feedback-btn'));
     expect(mockSetFeedback).toHaveBeenCalledWith('msg-1', 'like');
   });
 
   it('calls editMessage and handleSubmit when edit is performed', () => {
+    mockUseChatWidget.messages = [{ id: 'msg-1', role: 'user', content: 'Hello' }];
     render(<ChatWidget />);
     fireEvent.click(screen.getByTestId('edit-btn'));
     expect(mockEditMessage).toHaveBeenCalledWith('msg-1', 'new content');
@@ -406,6 +448,7 @@ describe('ChatWidget', () => {
   });
 
   it('handles continue action correctly', () => {
+    mockUseChatWidget.messages = [{ id: 'msg-1', role: 'assistant', content: 'Hi' }];
     render(<ChatWidget />);
     fireEvent.click(screen.getByTestId('continue-btn'));
     expect(mockSetInputValue).toHaveBeenCalledWith('请继续');
@@ -422,6 +465,7 @@ describe('ChatWidget', () => {
   });
 
   it('displays error state in messages', () => {
+    mockUseChatWidget.messages = [{ id: 'msg-1', role: 'user', content: 'Hello' }];
     mockUseChatWidget.error = 'Something went wrong';
     render(<ChatWidget />);
     expect(screen.getByTestId('error-state')).toHaveTextContent('Something went wrong');

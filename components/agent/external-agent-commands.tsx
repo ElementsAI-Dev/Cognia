@@ -142,4 +142,3 @@ export function ExternalAgentCommands({
   );
 }
 
-export default ExternalAgentCommands;

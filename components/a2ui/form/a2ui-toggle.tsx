@@ -9,11 +9,11 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Toggle } from '@/components/ui/toggle';
 import type { A2UIComponentProps, A2UIToggleComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { resolveStringOrPath, resolveBooleanOrPath } from '@/lib/a2ui/data-model';
 
 export const A2UIToggle = memo(function A2UIToggle({ component, onAction, onDataChange }: A2UIComponentProps<A2UIToggleComponent>) {
-  const { dataModel } = useA2UIContext();
+  const { dataModel } = useA2UIData();
 
   const label = component.label ? resolveStringOrPath(component.label, dataModel, '') : '';
   const pressed = component.pressed ? resolveBooleanOrPath(component.pressed, dataModel, false) : false;

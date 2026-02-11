@@ -6,8 +6,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CompletionOverlay } from './completion-overlay';
 import type { CompletionSuggestion } from '@/types/input-completion';
 
-// Mock framer-motion
-jest.mock('framer-motion', () => ({
+// Mock motion/react
+jest.mock('motion/react', () => ({
   motion: {
     div: ({ children, className, style, ...props }: Record<string, unknown>) => (
       <div className={className as string} style={style as React.CSSProperties} {...props}>
@@ -18,21 +18,12 @@ jest.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// Mock the useInputCompletion hook with dynamic mock
-const mockAccept = jest.fn();
-const mockDismiss = jest.fn();
-const mockConfig = {
-  ui: {
-    show_inline_preview: true,
-    max_suggestions: 3,
-    font_size: 14,
-    ghost_text_opacity: 0.5,
-    auto_dismiss_ms: 5000,
-    show_accept_hint: true,
-  },
-};
+// Mock cn utility
+jest.mock('@/lib/utils', () => ({
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
+}));
 
-const mockCurrentSuggestion: CompletionSuggestion = {
+const mockSuggestion: CompletionSuggestion = {
   id: 'test-suggestion-1',
   text: 'console.log("Hello, World!");',
   display_text: 'console.log("Hello, World!");',
@@ -40,31 +31,11 @@ const mockCurrentSuggestion: CompletionSuggestion = {
   completion_type: 'Line',
 };
 
-let mockHookState: {
-  currentSuggestion: CompletionSuggestion | null;
-  config: typeof mockConfig;
-  accept: typeof mockAccept;
-  dismiss: typeof mockDismiss;
-} = {
-  currentSuggestion: mockCurrentSuggestion,
-  config: mockConfig,
-  accept: mockAccept,
-  dismiss: mockDismiss,
-};
-
-jest.mock('@/hooks/input-completion', () => ({
-  useInputCompletion: jest.fn(() => mockHookState),
-}));
-
-// Mock cn utility
-jest.mock('@/lib/utils', () => ({
-  cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
-}));
-
 describe('CompletionOverlay', () => {
   const defaultProps = {
     position: { x: 100, y: 200 },
     visible: true,
+    suggestions: [mockSuggestion],
     onAccept: jest.fn(),
     onDismiss: jest.fn(),
   };
@@ -72,13 +43,6 @@ describe('CompletionOverlay', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    // Reset mock hook state
-    mockHookState = {
-      currentSuggestion: mockCurrentSuggestion,
-      config: mockConfig,
-      accept: mockAccept,
-      dismiss: mockDismiss,
-    };
   });
 
   afterEach(() => {
@@ -97,18 +61,13 @@ describe('CompletionOverlay', () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders null when no current suggestion', () => {
-      mockHookState = { ...mockHookState, currentSuggestion: null };
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
+    it('renders null when no suggestions provided', () => {
+      const { container } = render(<CompletionOverlay {...defaultProps} suggestions={[]} />);
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders null when show_inline_preview is false', () => {
-      mockHookState = {
-        ...mockHookState,
-        config: { ...mockConfig, ui: { ...mockConfig.ui, show_inline_preview: false } },
-      };
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
+    it('renders null when suggestions is undefined', () => {
+      const { container } = render(<CompletionOverlay {...defaultProps} suggestions={undefined} />);
       expect(container.firstChild).toBeNull();
     });
 
@@ -142,24 +101,20 @@ describe('CompletionOverlay', () => {
   });
 
   describe('Accept Hint', () => {
-    it('shows accept hint when show_accept_hint is true', () => {
+    it('shows accept hint by default', () => {
       render(<CompletionOverlay {...defaultProps} />);
       expect(screen.getByText('Tab')).toBeInTheDocument();
       expect(screen.getByText('to accept')).toBeInTheDocument();
     });
 
-    it('shows dismiss hint when show_accept_hint is true', () => {
+    it('shows dismiss hint by default', () => {
       render(<CompletionOverlay {...defaultProps} />);
       expect(screen.getByText('Esc')).toBeInTheDocument();
       expect(screen.getByText('to dismiss')).toBeInTheDocument();
     });
 
-    it('does not show accept hint when show_accept_hint is false', () => {
-      mockHookState = {
-        ...mockHookState,
-        config: { ...mockConfig, ui: { ...mockConfig.ui, show_accept_hint: false } },
-      };
-      render(<CompletionOverlay {...defaultProps} />);
+    it('does not show accept hint when showAcceptHint is false', () => {
+      render(<CompletionOverlay {...defaultProps} showAcceptHint={false} />);
       expect(screen.queryByText('Tab')).not.toBeInTheDocument();
       expect(screen.queryByText('Esc')).not.toBeInTheDocument();
     });
@@ -176,168 +131,71 @@ describe('CompletionOverlay', () => {
     it('applies border and background classes', () => {
       const { container } = render(<CompletionOverlay {...defaultProps} />);
       const overlay = container.firstChild as HTMLElement;
-      // Check that border, bg-popover, and backdrop-blur classes are applied
-      // Tailwind v4 may combine these with opacity modifiers like /50
       const classNames = Array.from(overlay.classList);
       expect(classNames.some((c) => c.includes('border'))).toBe(true);
       expect(classNames.some((c) => c.includes('bg-popover'))).toBe(true);
       expect(classNames.some((c) => c.includes('backdrop-blur'))).toBe(true);
     });
 
-    it('applies custom font size from config', () => {
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
+    it('applies custom font size', () => {
+      const { container } = render(<CompletionOverlay {...defaultProps} fontSize={16} />);
       const suggestionText = container.querySelector('.font-mono') as HTMLElement;
-      expect(suggestionText.style.fontSize).toBe('14px');
+      expect(suggestionText.style.fontSize).toBe('16px');
     });
 
-    it('applies custom ghost text opacity from config', () => {
+    it('uses default font size of 13', () => {
+      const { container } = render(<CompletionOverlay {...defaultProps} />);
+      const suggestionText = container.querySelector('.font-mono') as HTMLElement;
+      expect(suggestionText.style.fontSize).toBe('13px');
+    });
+
+    it('applies custom ghost text opacity', () => {
+      const { container } = render(<CompletionOverlay {...defaultProps} ghostTextOpacity={0.8} />);
+      const suggestionText = container.querySelector('.font-mono') as HTMLElement;
+      expect(suggestionText.style.opacity).toBe('0.8');
+    });
+
+    it('uses default ghost text opacity of 0.5', () => {
       const { container } = render(<CompletionOverlay {...defaultProps} />);
       const suggestionText = container.querySelector('.font-mono') as HTMLElement;
       expect(suggestionText.style.opacity).toBe('0.5');
     });
   });
 
-  describe('Keyboard Shortcuts', () => {
-    it('calls accept when Tab key is pressed', () => {
-      render(<CompletionOverlay {...defaultProps} />);
-
-      fireEvent.keyDown(window, { key: 'Tab' });
-
-      expect(mockAccept).toHaveBeenCalled();
-    });
-
-    it('calls dismiss when Escape key is pressed', () => {
-      render(<CompletionOverlay {...defaultProps} />);
-
-      fireEvent.keyDown(window, { key: 'Escape' });
-
-      expect(mockDismiss).toHaveBeenCalled();
-    });
-
-    it('prevents default when Tab key is pressed', () => {
-      render(<CompletionOverlay {...defaultProps} />);
-
-      const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
-      jest.spyOn(event, 'preventDefault');
-      window.dispatchEvent(event);
-
-      expect(event.preventDefault).toHaveBeenCalled();
-    });
-
-    it('prevents default when Escape key is pressed', () => {
-      render(<CompletionOverlay {...defaultProps} />);
-
-      const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
-      jest.spyOn(event, 'preventDefault');
-      window.dispatchEvent(event);
-
-      expect(event.preventDefault).toHaveBeenCalled();
-    });
-
-    it('does not handle keys when overlay is not visible', () => {
-      render(<CompletionOverlay {...defaultProps} visible={false} />);
-
-      fireEvent.keyDown(window, { key: 'Tab' });
-      fireEvent.keyDown(window, { key: 'Escape' });
-
-      expect(mockAccept).not.toHaveBeenCalled();
-      expect(mockDismiss).not.toHaveBeenCalled();
-    });
-
-    it('does not handle other keys', () => {
-      render(<CompletionOverlay {...defaultProps} />);
-
-      fireEvent.keyDown(window, { key: 'Enter' });
-      fireEvent.keyDown(window, { key: 'Space' });
-
-      expect(mockAccept).not.toHaveBeenCalled();
-      expect(mockDismiss).not.toHaveBeenCalled();
-    });
-  });
-
   describe('Auto-Dismiss', () => {
     it('auto-dismisses after configured timeout', async () => {
-      render(<CompletionOverlay {...defaultProps} />);
+      const onDismiss = jest.fn();
+      render(<CompletionOverlay {...defaultProps} onDismiss={onDismiss} autoDismissMs={3000} />);
 
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(3000);
 
       await waitFor(() => {
-        expect(mockDismiss).toHaveBeenCalled();
+        expect(onDismiss).toHaveBeenCalled();
       });
     });
 
-    it('does not auto-dismiss when auto_dismiss_ms is 0', () => {
-      mockHookState = {
-        ...mockHookState,
-        config: { ...mockConfig, ui: { ...mockConfig.ui, auto_dismiss_ms: 0 } },
-      };
-      render(<CompletionOverlay {...defaultProps} />);
+    it('does not auto-dismiss when autoDismissMs is 0 (default)', () => {
+      const onDismiss = jest.fn();
+      render(<CompletionOverlay {...defaultProps} onDismiss={onDismiss} />);
 
       jest.advanceTimersByTime(10000);
 
-      expect(mockDismiss).not.toHaveBeenCalled();
+      expect(onDismiss).not.toHaveBeenCalled();
     });
 
     it('clears timeout when overlay becomes invisible', () => {
-      const { rerender } = render(<CompletionOverlay {...defaultProps} visible={true} />);
+      const onDismiss = jest.fn();
+      const { rerender } = render(
+        <CompletionOverlay {...defaultProps} onDismiss={onDismiss} autoDismissMs={3000} visible={true} />
+      );
 
-      rerender(<CompletionOverlay {...defaultProps} visible={false} />);
+      rerender(
+        <CompletionOverlay {...defaultProps} onDismiss={onDismiss} autoDismissMs={3000} visible={false} />
+      );
 
       jest.advanceTimersByTime(5000);
 
-      expect(mockDismiss).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Callbacks', () => {
-    it('calls onAccept callback when suggestion is accepted', () => {
-      const onAccept = jest.fn();
-      const acceptMock = jest.fn();
-
-      mockHookState = { ...mockHookState, accept: acceptMock };
-
-      render(<CompletionOverlay {...defaultProps} onAccept={onAccept} />);
-
-      // Simulate the internal accept calling onAccept
-      acceptMock.mockImplementation((suggestion) => {
-        onAccept?.(suggestion);
-      });
-
-      fireEvent.keyDown(window, { key: 'Tab' });
-
-      expect(acceptMock).toHaveBeenCalled();
-    });
-
-    it('calls onDismiss callback when suggestion is dismissed', () => {
-      const onDismiss = jest.fn();
-      const dismissMock = jest.fn();
-
-      mockHookState = { ...mockHookState, dismiss: dismissMock };
-
-      render(<CompletionOverlay {...defaultProps} onDismiss={onDismiss} />);
-
-      // Simulate the internal dismiss calling onDismiss
-      dismissMock.mockImplementation(() => {
-        onDismiss?.();
-      });
-
-      fireEvent.keyDown(window, { key: 'Escape' });
-
-      expect(dismissMock).toHaveBeenCalled();
-    });
-
-    it('works without callbacks', () => {
-      const { container } = render(
-        <CompletionOverlay position={defaultProps.position} visible={true} />
-      );
-
-      expect(container.firstChild).toBeInTheDocument();
-
-      fireEvent.keyDown(window, { key: 'Tab' });
-      fireEvent.keyDown(window, { key: 'Escape' });
-
-      expect(mockAccept).toHaveBeenCalled();
-      expect(mockDismiss).toHaveBeenCalled();
+      expect(onDismiss).not.toHaveBeenCalled();
     });
   });
 
@@ -351,10 +209,9 @@ describe('CompletionOverlay', () => {
         completion_type: 'Line',
       };
 
-      mockHookState = { ...mockHookState, currentSuggestion: emptySuggestion };
-
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
-      // Check that the suggestion text element exists (even if empty)
+      const { container } = render(
+        <CompletionOverlay {...defaultProps} suggestions={[emptySuggestion]} />
+      );
       const suggestionText = container.querySelector('.font-mono');
       expect(suggestionText).toBeInTheDocument();
       expect(suggestionText?.textContent).toBe('');
@@ -369,11 +226,10 @@ describe('CompletionOverlay', () => {
         completion_type: 'Block',
       };
 
-      mockHookState = { ...mockHookState, currentSuggestion: multilineSuggestion };
-
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
+      const { container } = render(
+        <CompletionOverlay {...defaultProps} suggestions={[multilineSuggestion]} />
+      );
       const suggestionText = container.querySelector('.font-mono') as HTMLElement;
-      // Multi-line text now includes line break indicators (↵)
       expect(suggestionText.textContent).toContain('line1');
       expect(suggestionText.textContent).toContain('line2');
       expect(suggestionText.textContent).toContain('line3');
@@ -389,9 +245,9 @@ describe('CompletionOverlay', () => {
         completion_type: 'Line',
       };
 
-      mockHookState = { ...mockHookState, currentSuggestion: longSuggestion };
-
-      const { container } = render(<CompletionOverlay {...defaultProps} />);
+      const { container } = render(
+        <CompletionOverlay {...defaultProps} suggestions={[longSuggestion]} />
+      );
       const suggestionText = container.querySelector('.font-mono') as HTMLElement;
       expect(suggestionText.textContent).toBe(longText);
     });
@@ -405,10 +261,19 @@ describe('CompletionOverlay', () => {
         completion_type: 'Line',
       };
 
-      mockHookState = { ...mockHookState, currentSuggestion: specialSuggestion };
-
-      render(<CompletionOverlay {...defaultProps} />);
+      render(<CompletionOverlay {...defaultProps} suggestions={[specialSuggestion]} />);
       expect(screen.getByText(/<script>/)).toBeInTheDocument();
+    });
+
+    it('works without callbacks', () => {
+      const { container } = render(
+        <CompletionOverlay
+          position={defaultProps.position}
+          visible={true}
+          suggestions={[mockSuggestion]}
+        />
+      );
+      expect(container.firstChild).toBeInTheDocument();
     });
   });
 
@@ -439,15 +304,11 @@ describe('CompletionOverlay', () => {
 
     it('renders with multiple suggestions', () => {
       render(<CompletionOverlay {...defaultProps} suggestions={multipleSuggestions} />);
-
-      // Should show first suggestion by default
       expect(screen.getByText(/First/)).toBeInTheDocument();
     });
 
     it('shows navigation indicator for multiple suggestions', () => {
       render(<CompletionOverlay {...defaultProps} suggestions={multipleSuggestions} />);
-
-      // Should show 1/3 indicator
       expect(screen.getByText('1/3')).toBeInTheDocument();
     });
 
@@ -476,9 +337,7 @@ describe('CompletionOverlay', () => {
         />
       );
 
-      // First go to second suggestion
       fireEvent.keyDown(window, { key: ']', altKey: true });
-      // Then go back to first
       fireEvent.keyDown(window, { key: '[', altKey: true });
 
       expect(onIndexChange).toHaveBeenLastCalledWith(0);
@@ -494,7 +353,6 @@ describe('CompletionOverlay', () => {
         />
       );
 
-      // Navigate through all suggestions
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 0 -> 1
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 1 -> 2
       fireEvent.keyDown(window, { key: ']', altKey: true }); // 2 -> 0 (wrap)
@@ -504,8 +362,23 @@ describe('CompletionOverlay', () => {
 
     it('does not show navigation indicator for single suggestion', () => {
       render(<CompletionOverlay {...defaultProps} suggestions={[multipleSuggestions[0]]} />);
-
       expect(screen.queryByText('1/1')).not.toBeInTheDocument();
+    });
+
+    it('does not navigate when only one suggestion', () => {
+      const onIndexChange = jest.fn();
+      render(
+        <CompletionOverlay
+          {...defaultProps}
+          suggestions={[multipleSuggestions[0]]}
+          onIndexChange={onIndexChange}
+        />
+      );
+
+      fireEvent.keyDown(window, { key: ']', altKey: true });
+      fireEvent.keyDown(window, { key: '[', altKey: true });
+
+      expect(onIndexChange).not.toHaveBeenCalled();
     });
   });
 
@@ -531,7 +404,9 @@ describe('CompletionOverlay', () => {
     it('cleans up auto-dismiss timer on unmount', () => {
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
 
-      const { unmount } = render(<CompletionOverlay {...defaultProps} />);
+      const { unmount } = render(
+        <CompletionOverlay {...defaultProps} autoDismissMs={5000} />
+      );
 
       unmount();
 

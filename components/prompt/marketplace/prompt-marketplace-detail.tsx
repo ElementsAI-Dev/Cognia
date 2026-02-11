@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
+import { loggers } from '@/lib/logger';
 import {
   Star,
   Download,
@@ -111,7 +112,7 @@ export function PromptMarketplaceDetail({
       toast.success(t('installSuccess'));
     } catch (error) {
       toast.error(t('installFailed'));
-      console.error(error);
+      loggers.ui.error('Failed to install prompt:', error);
     } finally {
       setIsInstalling(false);
     }
@@ -126,7 +127,7 @@ export function PromptMarketplaceDetail({
       setShowUninstallConfirm(false);
     } catch (error) {
       toast.error(t('uninstallFailed'));
-      console.error(error);
+      loggers.ui.error('Failed to uninstall prompt:', error);
     } finally {
       setIsUninstalling(false);
     }
@@ -156,9 +157,9 @@ export function PromptMarketplaceDetail({
     toast.success(t('shareLinkCopied'));
   }, [prompt, t]);
 
-  const loadReviews = useCallback(async () => {
+  const loadReviews = useCallback(() => {
     if (!prompt) return;
-    const reviewsList = await fetchPromptReviews(prompt.id);
+    const reviewsList = fetchPromptReviews(prompt.id);
     setReviews(reviewsList);
   }, [prompt, fetchPromptReviews]);
 
@@ -173,7 +174,7 @@ export function PromptMarketplaceDetail({
       loadReviews();
     } catch (error) {
       toast.error(t('reviewFailed'));
-      console.error(error);
+      loggers.ui.error('Failed to submit review:', error);
     } finally {
       setIsSubmittingReview(false);
     }

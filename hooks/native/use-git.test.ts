@@ -62,6 +62,19 @@ const mockPullStore = jest.fn().mockResolvedValue(true);
 const mockFetchStore = jest.fn().mockResolvedValue(true);
 const mockDiscardChangesStore = jest.fn().mockResolvedValue(true);
 const mockLoadStashListStore = jest.fn().mockResolvedValue(undefined);
+const mockLoadRemotesStore = jest.fn().mockResolvedValue(undefined);
+const mockLoadTagsStore = jest.fn().mockResolvedValue(undefined);
+const mockAddRemoteStore = jest.fn().mockResolvedValue(true);
+const mockRemoveRemoteStore = jest.fn().mockResolvedValue(true);
+const mockCreateTagStore = jest.fn().mockResolvedValue(true);
+const mockDeleteTagStore = jest.fn().mockResolvedValue(true);
+const mockPushTagStore = jest.fn().mockResolvedValue(true);
+const mockStashStore = jest.fn().mockResolvedValue(true);
+const mockResetStore = jest.fn().mockResolvedValue(true);
+const mockMergeStore = jest.fn().mockResolvedValue(true);
+const mockRenameBranchStore = jest.fn().mockResolvedValue(true);
+const mockMergeAbortStore = jest.fn().mockResolvedValue(true);
+const mockLoadFullStatusStore = jest.fn().mockResolvedValue(undefined);
 const mockClearError = jest.fn();
 const mockGetProjectConfig = jest.fn().mockReturnValue(null);
 const mockSetProjectConfig = jest.fn();
@@ -106,11 +119,27 @@ jest.mock('@/stores/git', () => ({
       fetch: mockFetchStore,
       discardChanges: mockDiscardChangesStore,
       loadStashList: mockLoadStashListStore,
+      loadRemotes: mockLoadRemotesStore,
+      loadTags: mockLoadTagsStore,
+      addRemote: mockAddRemoteStore,
+      removeRemote: mockRemoveRemoteStore,
+      createTag: mockCreateTagStore,
+      deleteTag: mockDeleteTagStore,
+      pushTag: mockPushTagStore,
+      stash: mockStashStore,
+      reset: mockResetStore,
+      merge: mockMergeStore,
+      renameBranch: mockRenameBranchStore,
+      mergeAbort: mockMergeAbortStore,
+      loadFullStatus: mockLoadFullStatusStore,
       getProjectConfig: mockGetProjectConfig,
       setProjectConfig: mockSetProjectConfig,
       enableGitForProject: mockEnableGitForProject,
       disableGitForProject: mockDisableGitForProject,
       clearError: mockClearError,
+      remotes: [],
+      tags: [],
+      stashList: [],
     };
     return selector(state);
   }),

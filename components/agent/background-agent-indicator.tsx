@@ -181,4 +181,3 @@ export function BackgroundAgentIndicator({ className }: BackgroundAgentIndicator
   );
 }
 
-export default BackgroundAgentIndicator;

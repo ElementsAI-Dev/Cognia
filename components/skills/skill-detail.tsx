@@ -15,14 +15,7 @@ import {
   Play,
   Clock,
   Tag,
-  FileText,
-  Code,
-  Palette,
-  Building2,
-  Zap,
   BarChart3,
-  MessageSquare,
-  Cog,
   CheckCircle2,
   AlertCircle,
   X,
@@ -49,6 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-preview';
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
@@ -56,30 +50,9 @@ import { SkillSecurityScanner } from './skill-security-scanner';
 import { useSkillStore } from '@/stores/skills';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
-import { processSelectionWithAI } from '@/lib/ai/generation/selection-ai';
-import type { Skill, SkillCategory } from '@/types/system/skill';
-
-const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
-  'creative-design': <Palette className="h-4 w-4" />,
-  'development': <Code className="h-4 w-4" />,
-  'enterprise': <Building2 className="h-4 w-4" />,
-  'productivity': <Zap className="h-4 w-4" />,
-  'data-analysis': <BarChart3 className="h-4 w-4" />,
-  'communication': <MessageSquare className="h-4 w-4" />,
-  'meta': <Cog className="h-4 w-4" />,
-  'custom': <FileText className="h-4 w-4" />,
-};
-
-const CATEGORY_LABEL_KEYS: Record<SkillCategory, string> = {
-  'creative-design': 'categoryCreativeDesign',
-  'development': 'categoryDevelopment',
-  'enterprise': 'categoryEnterprise',
-  'productivity': 'categoryProductivity',
-  'data-analysis': 'categoryDataAnalysis',
-  'communication': 'categoryCommunication',
-  'meta': 'categoryMeta',
-  'custom': 'categoryCustom',
-};
+import { useSkillAI } from '@/hooks/skills/use-skill-ai';
+import { CATEGORY_ICONS, CATEGORY_LABEL_KEYS } from './skill-constants';
+import type { Skill } from '@/types/system/skill';
 
 interface SkillDetailProps {
   skillId: string;
@@ -89,6 +62,7 @@ interface SkillDetailProps {
 
 export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailProps) {
   const t = useTranslations('skills');
+  const requestAI = useSkillAI();
   const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'security' | 'edit'>('overview');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
@@ -177,14 +151,23 @@ Status: ${skill.status}
 
   if (!skill) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">{t('skillNotFound')}</p>
-        {onClose && (
-          <Button variant="outline" onClick={onClose} className="mt-4">
-            {t('goBack')}
-          </Button>
-        )}
+      <div className="flex flex-col h-full p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-5 w-16 ml-auto" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <Skeleton className="h-20 rounded-lg" />
+          <Skeleton className="h-20 rounded-lg" />
+          <Skeleton className="h-20 rounded-lg" />
+        </div>
+        <Skeleton className="h-48 rounded-lg" />
       </div>
     );
   }
@@ -425,11 +408,7 @@ Status: ${skill.status}
               onCancel={() => setActiveTab('overview')}
               readOnly={skill.source === 'builtin'}
               hideHeader
-              onRequestAI={async (prompt) => {
-                const result = await processSelectionWithAI({ action: 'rewrite', text: prompt, customPrompt: prompt });
-                if (result.success && result.result) return result.result;
-                throw new Error(result.error || 'AI request failed');
-              }}
+              onRequestAI={requestAI}
             />
           </TabsContent>
         </Tabs>

@@ -206,6 +206,14 @@ const config: Config = {
     
     // Mock artifact-icons for component tests
     "(.*)components/artifacts/artifact-icons(.*)$": "<rootDir>/__mocks__/artifact-icons.js",
+    
+    // Mock leaflet and react-leaflet ESM modules
+    "^leaflet$": "<rootDir>/__mocks__/leaflet.js",
+    "^react-leaflet$": "<rootDir>/__mocks__/react-leaflet.js",
+    
+    // Mock dagre-d3-es ESM module (pnpm nested node_modules breaks transformIgnorePatterns)
+    "^dagre-d3-es$": "<rootDir>/__mocks__/dagre-d3-es.js",
+    "^dagre-d3-es/(.*)$": "<rootDir>/__mocks__/dagre-d3-es.js",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

@@ -6,7 +6,7 @@
  * Analytics (leaderboard/heatmap/history) are on the dedicated /arena page
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Scale,
@@ -30,7 +30,7 @@ import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui
 import { ArenaInlineBattle } from './arena-inline-battle';
 import { ArenaDialog } from './arena-dialog';
 import { useArenaStore } from '@/stores/arena';
-import { useArena } from '@/hooks/arena';
+import { useArena, useSmartModelPair } from '@/hooks/arena';
 import { cn } from '@/lib/utils';
 
 interface ArenaChatViewProps {
@@ -56,9 +56,9 @@ export function ArenaChatView({
   const activeBattleId = useArenaStore((state) => state.activeBattleId);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
 
-  const { isExecuting, startBattle, getAvailableModels } = useArena();
+  const { isExecuting, startBattle } = useArena();
 
-  const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
+  const { selectedModels, availableModels } = useSmartModelPair();
 
   // Get the most recent battles to display inline (active first, then recent completed)
   const activeBattles = battles.filter(
@@ -75,40 +75,6 @@ export function ArenaChatView({
 
   // Show the current active battle or most recent one
   const displayBattleId = activeBattleId || (activeBattles.length > 0 ? activeBattles[0].id : null);
-
-  // Smart model pair selection (reuse logic from ArenaQuickBattle)
-  const modelRatings = useArenaStore((state) => state.modelRatings);
-  const getRecommendedMatchup = useArenaStore((state) => state.getRecommendedMatchup);
-
-  const getSmartModelPair = useCallback(() => {
-    const recommendation = getRecommendedMatchup();
-    if (recommendation) {
-      const modelA = availableModels.find(
-        (m) => `${m.provider}:${m.model}` === recommendation.modelA
-      );
-      const modelB = availableModels.find(
-        (m) => `${m.provider}:${m.model}` === recommendation.modelB
-      );
-      if (modelA && modelB) return [modelA, modelB];
-    }
-
-    if (availableModels.length >= 2) {
-      const sortedByRating = [...availableModels].sort((a, b) => {
-        const ratingA =
-          modelRatings.find((r) => r.modelId === `${a.provider}:${a.model}`)?.rating || 1500;
-        const ratingB =
-          modelRatings.find((r) => r.modelId === `${b.provider}:${b.model}`)?.rating || 1500;
-        return ratingB - ratingA;
-      });
-      const first = sortedByRating[0];
-      const second = sortedByRating.find((m) => m.provider !== first.provider) || sortedByRating[1];
-      return [first, second];
-    }
-
-    return availableModels.slice(0, 2);
-  }, [availableModels, modelRatings, getRecommendedMatchup]);
-
-  const selectedModels = useMemo(() => getSmartModelPair(), [getSmartModelPair]);
 
   // Quick send: start battle with smart model pair
   const handleQuickSend = useCallback(async () => {

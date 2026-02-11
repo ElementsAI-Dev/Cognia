@@ -22,17 +22,6 @@ export function formatRelativeDate(date: Date, t: (key: string, params?: any) =>
 }
 
 /**
- * Format a date with full locale options
- */
-export function formatDateFull(date: Date): string {
-  return new Date(date).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-/**
  * Get date key for grouping (uses local date)
  */
 export function getDateKey(date: Date): string {
@@ -128,6 +117,14 @@ export function calculateDocumentStats(content: string): {
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
   const chars = content.length;
   return { lines, words, chars };
+}
+
+/**
+ * Count lines in content without allocating a temporary array
+ */
+export function countLines(content: string): number {
+  if (!content) return 0;
+  return (content.match(/\n/g) || []).length + 1;
 }
 
 /**

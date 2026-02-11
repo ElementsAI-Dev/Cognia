@@ -51,3 +51,4 @@ export {
 
 // Agent team
 export { useAgentTeam, type UseAgentTeamOptions, type UseAgentTeamReturn } from './use-agent-team';
+export { useTeamTeammates, useTeamTasks, useTeamMessages } from './use-team-data';

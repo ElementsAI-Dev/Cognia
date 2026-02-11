@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
+import { loggers } from '@/lib/logger';
 import {
   Save,
   Eye,
@@ -188,7 +189,7 @@ export function PromptTemplateAdvancedEditor({
       toast.success(t('promptOptimized'));
     } catch (error) {
       toast.error(t('optimizeFailed'));
-      console.error(error);
+      loggers.ui.error('Failed to optimize prompt:', error);
     } finally {
       setIsOptimizing(false);
     }

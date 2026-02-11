@@ -60,7 +60,7 @@ export interface AppliedEffect {
 
 export interface VideoEffectsPanelProps {
   appliedEffects: AppliedEffect[];
-  onAddEffect: (effectId: string) => void;
+  onAddEffect: (effectId: string, defaultParams?: Record<string, unknown>) => void;
   onRemoveEffect: (id: string) => void;
   onToggleEffect: (id: string, enabled: boolean) => void;
   onUpdateParams: (id: string, params: Record<string, unknown>) => void;
@@ -382,7 +382,11 @@ export function VideoEffectsPanel({
                         'cursor-pointer transition-all hover:ring-1 hover:ring-muted-foreground/50',
                         isApplied && 'ring-1 ring-primary'
                       )}
-                      onClick={() => onAddEffect(effect.id)}
+                      onClick={() => {
+                        const defaults: Record<string, unknown> = {};
+                        effect.parameters?.forEach((p) => { if (p.default !== undefined) defaults[p.id] = p.default; });
+                        onAddEffect(effect.id, defaults);
+                      }}
                     >
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between">
@@ -411,7 +415,9 @@ export function VideoEffectsPanel({
                                   className="h-6 w-6"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onAddEffect(effect.id);
+                                    const defaults: Record<string, unknown> = {};
+                                    effect.parameters?.forEach((p) => { if (p.default !== undefined) defaults[p.id] = p.default; });
+                                    onAddEffect(effect.id, defaults);
                                   }}
                                 >
                                   <Plus className="h-3 w-3" />

@@ -21,6 +21,16 @@ export {
   type UseA2UIFormOptions,
 } from './use-a2ui-form';
 
+// Gallery filter hook
+export {
+  useAppGalleryFilter,
+  CATEGORY_KEYS,
+  CATEGORY_I18N_MAP,
+  type ViewMode,
+  type SortField,
+  type SortOrder,
+} from './use-app-gallery-filter';
+
 // Keyboard navigation hooks
 export {
   useA2UIKeyboard,

@@ -12,6 +12,8 @@ export const uiSliceInitialState: UISliceState = {
   showMinimap: true,
   activeConfigTab: 'properties',
   searchQuery: '',
+  recentNodes: [],
+  favoriteNodes: [],
 };
 
 export const createUISlice: SliceCreator<UISliceActions> = (set) => {
@@ -38,6 +40,20 @@ export const createUISlice: SliceCreator<UISliceActions> = (set) => {
 
     setSearchQuery: (query) => {
       set({ searchQuery: query });
+    },
+
+    addRecentNode: (type) => {
+      set((state) => ({
+        recentNodes: [type, ...state.recentNodes.filter((t) => t !== type)].slice(0, 8),
+      }));
+    },
+
+    toggleFavoriteNode: (type) => {
+      set((state) => ({
+        favoriteNodes: state.favoriteNodes.includes(type)
+          ? state.favoriteNodes.filter((t) => t !== type)
+          : [...state.favoriteNodes, type],
+      }));
     },
   };
 };

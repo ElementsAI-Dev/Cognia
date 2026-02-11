@@ -16,11 +16,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { A2UIComponentProps, A2UICardComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
 export const A2UICard = memo(function A2UICard({ component, onAction }: A2UIComponentProps<A2UICardComponent>) {
-  const { resolveString, resolveBoolean } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
 
   const title = component.title ? resolveString(component.title, '') : '';
   const description = component.description ? resolveString(component.description, '') : '';

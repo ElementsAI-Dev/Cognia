@@ -50,6 +50,7 @@ export {
 // Optimization components
 export {
   PromptOptimizerDialog,
+  McpPrivacyDialog,
   PromptSelfOptimizerDialog,
   PromptFeedbackDialog,
   PromptABTestPanel,

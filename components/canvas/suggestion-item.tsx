@@ -150,4 +150,3 @@ export const SuggestionItem = memo(function SuggestionItem({
   );
 });
 
-export default SuggestionItem;

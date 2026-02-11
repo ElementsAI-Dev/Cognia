@@ -16,6 +16,7 @@ export type {
   DBAgentTrace,
   DBAsset,
   DBFolder,
+  DBVideoProject,
 } from './schema';
 
 export {
@@ -25,10 +26,12 @@ export {
   mcpServerRepository,
   projectRepository,
   agentTraceRepository,
+  videoProjectRepository,
   type CreateDocumentInput,
   type UpdateDocumentInput,
   type StoredMCPServer,
   type CreateMCPServerInput,
   type UpdateMCPServerInput,
   type CreateKnowledgeFileInput,
+  type VideoProjectData,
 } from './repositories';

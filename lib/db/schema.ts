@@ -201,6 +201,19 @@ export interface DBCheckpoint {
   createdAt: Date;
 }
 
+export interface DBVideoProject {
+  id: string;
+  name: string;
+  resolution: string; // JSON serialized { width, height }
+  frameRate: number;
+  aspectRatio: string;
+  tracks: string; // JSON serialized VideoTrack[]
+  duration: number;
+  thumbnailUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -216,6 +229,7 @@ class CogniaDB extends Dexie {
   checkpoints!: EntityTable<DBCheckpoint, 'id'>;
   assets!: EntityTable<DBAsset, 'id'>;
   folders!: EntityTable<DBFolder, 'id'>;
+  videoProjects!: EntityTable<DBVideoProject, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -345,6 +359,24 @@ class CogniaDB extends Dexie {
       checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
       assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
+    });
+
+    // Version 11: Add videoProjects table for video editor persistence
+    this.version(11).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
+      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+      videoProjects: 'id, name, createdAt, updatedAt',
     });
   }
 }

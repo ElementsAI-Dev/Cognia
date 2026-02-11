@@ -17,14 +17,6 @@ import {
   Copy,
   Download,
   Eye,
-  Code,
-  Palette,
-  Building2,
-  Zap,
-  BarChart3,
-  MessageSquare,
-  Cog,
-  FileText,
   CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,29 +42,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { Skill, SkillCategory } from '@/types/system/skill';
-
-const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
-  'creative-design': <Palette className="h-4 w-4" />,
-  'development': <Code className="h-4 w-4" />,
-  'enterprise': <Building2 className="h-4 w-4" />,
-  'productivity': <Zap className="h-4 w-4" />,
-  'data-analysis': <BarChart3 className="h-4 w-4" />,
-  'communication': <MessageSquare className="h-4 w-4" />,
-  'meta': <Cog className="h-4 w-4" />,
-  'custom': <FileText className="h-4 w-4" />,
-};
-
-const CATEGORY_COLORS: Record<SkillCategory, string> = {
-  'creative-design': 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  'development': 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  'enterprise': 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  'productivity': 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-  'data-analysis': 'bg-green-500/10 text-green-600 dark:text-green-400',
-  'communication': 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  'meta': 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
-  'custom': 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
-};
+import { CATEGORY_ICONS, CATEGORY_COLORS } from './skill-constants';
+import type { Skill } from '@/types/system/skill';
 
 export interface SkillCardProps {
   skill: Skill;

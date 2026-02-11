@@ -6,7 +6,7 @@
  * Bar chart showing latency percentiles (p50, p90, p99) distribution.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BarChart,
@@ -36,7 +36,7 @@ interface LatencyDistributionChartProps {
   averageLatency?: number;
 }
 
-export function LatencyDistributionChart({
+export const LatencyDistributionChart = memo(function LatencyDistributionChart({
   data,
   title,
   height = 200,
@@ -123,4 +123,4 @@ export function LatencyDistributionChart({
       </CardContent>
     </Card>
   );
-}
+});

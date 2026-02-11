@@ -88,9 +88,10 @@ describe('ThumbnailNavigator', () => {
       />
     );
 
-    expect(screen.getByText('Introduction')).toBeInTheDocument();
-    expect(screen.getByText('Main Content')).toBeInTheDocument();
-    expect(screen.getByText('Summary')).toBeInTheDocument();
+    // Titles appear in both button content and tooltip, so use getAllByText
+    expect(screen.getAllByText('Introduction').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Main Content').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Summary').length).toBeGreaterThanOrEqual(1);
   });
 
   it('highlights the current slide', () => {

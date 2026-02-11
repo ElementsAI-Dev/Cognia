@@ -269,6 +269,12 @@ jest.mock('../monitoring/plugin-updates', () => ({
     <div data-testid="plugin-updates" data-auto-check={autoCheck}>Updates</div>,
 }));
 
+jest.mock('@/components/ui/collapsible', () => ({
+  Collapsible: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible">{children}</div>,
+  CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible-trigger">{children}</div>,
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible-content">{children}</div>,
+}));
+
 const mockPlugin: Plugin = {
   manifest: {
     id: 'test-plugin',
@@ -357,7 +363,8 @@ describe('PluginSettingsPage', () => {
     it('should render import dropdown', () => {
       render(<PluginSettingsPage />);
       
-      expect(screen.getAllByText('Import').length).toBeGreaterThan(0);
+      const triggers = screen.getAllByTestId('dropdown-trigger');
+      expect(triggers.length).toBeGreaterThan(0);
     });
   });
 

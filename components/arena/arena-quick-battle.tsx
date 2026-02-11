@@ -5,7 +5,7 @@
  * Streamlined battle experience with auto-selected models
  */
 
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Zap, Shuffle, Settings2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useArena } from '@/hooks/arena';
-import { useArenaStore } from '@/stores/arena';
+import { loggers } from '@/lib/logger';
+import { useArena, useSmartModelPair } from '@/hooks/arena';
 
 interface ArenaQuickBattleProps {
   prompt: string;
@@ -44,7 +44,7 @@ function ArenaQuickBattleComponent({
   const [blindMode, setBlindMode] = useState(true);
   const [multiTurn, setMultiTurn] = useState(false);
 
-  const { isExecuting, error, startBattle, getAvailableModels } = useArena({
+  const { isExecuting, error, startBattle } = useArena({
     onBattleStart: () => {
       onBattleStart?.();
     },
@@ -53,51 +53,14 @@ function ArenaQuickBattleComponent({
     },
   });
 
-  const modelRatings = useArenaStore((state) => state.modelRatings);
-  const getRecommendedMatchup = useArenaStore((state) => state.getRecommendedMatchup);
-  const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
-
-  // Get smart model selection based on ratings and recommendations
-  const getSmartModelPair = useCallback(() => {
-    // First try recommended matchup from BT model
-    const recommendation = getRecommendedMatchup();
-    if (recommendation) {
-      const modelA = availableModels.find(
-        (m) => `${m.provider}:${m.model}` === recommendation.modelA
-      );
-      const modelB = availableModels.find(
-        (m) => `${m.provider}:${m.model}` === recommendation.modelB
-      );
-      if (modelA && modelB) {
-        return [modelA, modelB];
-      }
-    }
-
-    // Fallback: select top 2 rated models from different providers
-    if (availableModels.length >= 2) {
-      const sortedByRating = [...availableModels].sort((a, b) => {
-        const ratingA =
-          modelRatings.find((r) => r.modelId === `${a.provider}:${a.model}`)?.rating || 1500;
-        const ratingB =
-          modelRatings.find((r) => r.modelId === `${b.provider}:${b.model}`)?.rating || 1500;
-        return ratingB - ratingA;
-      });
-
-      // Try to pick from different providers
-      const first = sortedByRating[0];
-      const second = sortedByRating.find((m) => m.provider !== first.provider) || sortedByRating[1];
-      return [first, second];
-    }
-
-    return availableModels.slice(0, 2);
-  }, [availableModels, modelRatings, getRecommendedMatchup]);
+  const { getSmartModelPair, selectedModels, availableModels } = useSmartModelPair();
 
   const handleQuickBattle = useCallback(async () => {
     if (!prompt.trim() || isExecuting || disabled) return;
 
     const models = getSmartModelPair();
     if (models.length < 2) {
-      console.error('Not enough models available for quick battle');
+      loggers.ui.error('Not enough models available for quick battle');
       return;
     }
 
@@ -127,8 +90,6 @@ function ArenaQuickBattleComponent({
     blindMode,
     multiTurn,
   ]);
-
-  const selectedModels = useMemo(() => getSmartModelPair(), [getSmartModelPair]);
 
   if (availableModels.length < 2) {
     return null;

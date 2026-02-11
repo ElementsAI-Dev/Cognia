@@ -76,8 +76,27 @@ function cleanupStaleExecutions(): void {
 }
 
 // Set up periodic cleanup (only in browser environment)
+let cleanupIntervalId: ReturnType<typeof setInterval> | undefined;
+
+function startCleanupInterval(): void {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+  }
+  cleanupIntervalId = setInterval(cleanupStaleExecutions, CLEANUP_INTERVAL);
+}
+
 if (typeof window !== 'undefined') {
-  setInterval(cleanupStaleExecutions, CLEANUP_INTERVAL);
+  startCleanupInterval();
+}
+
+/**
+ * Dispose the periodic cleanup interval (useful for HMR / tests)
+ */
+export function disposeExecutorCleanup(): void {
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = undefined;
+  }
 }
 
 /**

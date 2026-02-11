@@ -190,4 +190,3 @@ export function AcademicSearchResults({
   );
 }
 
-export default AcademicSearchResults;

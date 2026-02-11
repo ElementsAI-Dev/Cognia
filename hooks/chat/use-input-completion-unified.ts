@@ -15,6 +15,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useMention } from '@/hooks/ui/use-mention';
 import { isTauri } from '@/lib/utils';
+import { createLogger } from '@/lib/logger';
 import * as nativeCompletion from '@/lib/native/input-completion';
 import { triggerWebCompletion, cancelWebCompletion, type ConversationMessage } from '@/lib/ai/completion/web-completion-provider';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
@@ -30,6 +31,8 @@ import type {
 import type { MentionItem } from '@/types/mcp';
 import { searchCommands } from '@/lib/chat/slash-command-registry';
 import { searchEmojis } from '@/lib/chat/emoji-data';
+
+const logger = createLogger('input-completion');
 
 /** Initial completion state */
 const INITIAL_STATE: UnifiedCompletionState = {
@@ -235,7 +238,7 @@ export function useInputCompletionUnified(
           }
           setAiCompletionActive(true);
         } catch (error) {
-          console.error('Failed to initialize native AI completion:', error);
+          logger.error('Failed to initialize native AI completion', { error });
           setAiCompletionActive(false);
         }
       };
@@ -289,6 +292,8 @@ export function useInputCompletionUnified(
           const result = await triggerWebCompletion(text, {
             provider: (settingsStore.aiCompletionProvider as 'openai' | 'groq' | 'ollama' | 'custom') || 'ollama',
             maxTokens: settingsStore.aiCompletionMaxTokens || 64,
+            endpoint: settingsStore.aiCompletionEndpoint || undefined,
+            apiKey: settingsStore.aiCompletionApiKey || undefined,
             conversationContext,
           });
           if (result && result.suggestions.length > 0) {
@@ -305,11 +310,11 @@ export function useInputCompletionUnified(
         }
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          console.error('AI completion error:', error);
+          logger.error('AI completion error', { error });
         }
       }
     },
-    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, conversationContext]
+    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, settingsStore.aiCompletionEndpoint, settingsStore.aiCompletionApiKey, conversationContext]
   );
 
   // Detect trigger and update state
@@ -534,7 +539,7 @@ export function useInputCompletionUnified(
           time_to_accept_ms: timeToAccept,
         }).catch(() => { /* best-effort */ });
       } catch (error) {
-        console.error('Failed to accept suggestion:', error);
+        logger.error('Failed to accept suggestion', { error });
       }
     } else {
       cancelWebCompletion();
@@ -644,7 +649,7 @@ export function useInputCompletionUnified(
           time_to_dismiss_ms: timeToDismiss,
         }).catch(() => { /* best-effort */ });
       } catch (error) {
-        console.error('Failed to dismiss suggestion:', error);
+        logger.error('Failed to dismiss suggestion', { error });
       }
     } else {
       cancelWebCompletion();

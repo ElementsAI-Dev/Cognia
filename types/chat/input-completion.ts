@@ -58,13 +58,6 @@ export interface EmojiCompletionItem extends CompletionItem {
   keywords: string[];
 }
 
-/** Quick insert completion item */
-export interface QuickInsertCompletionItem extends CompletionItem {
-  type: 'quick-insert';
-  template: string;
-  category: string;
-}
-
 /** AI text completion result */
 export interface AITextCompletionResult {
   text: string;
@@ -154,6 +147,8 @@ export interface CompletionSettings {
   aiCompletionProvider: 'ollama' | 'openai' | 'groq' | 'auto';
   aiCompletionDebounce: number;
   aiCompletionMaxTokens: number;
+  aiCompletionEndpoint: string;
+  aiCompletionApiKey: string;
 
   // Trigger settings
   slashTriggerChar: string;
@@ -177,6 +172,8 @@ export const DEFAULT_COMPLETION_SETTINGS: CompletionSettings = {
   aiCompletionProvider: 'auto',
   aiCompletionDebounce: 400,
   aiCompletionMaxTokens: 50,
+  aiCompletionEndpoint: '',
+  aiCompletionApiKey: '',
 
   slashTriggerChar: '/',
   emojiTriggerChar: ':',
@@ -188,35 +185,3 @@ export const DEFAULT_COMPLETION_SETTINGS: CompletionSettings = {
   enablePartialAccept: true,
 };
 
-/** Completion event types */
-export type CompletionEventType =
-  | 'trigger'
-  | 'select'
-  | 'dismiss'
-  | 'accept-ghost'
-  | 'reject-ghost';
-
-/** Completion event payload */
-export interface CompletionEvent {
-  type: CompletionEventType;
-  provider: CompletionProviderType;
-  item?: CompletionItem;
-  text?: string;
-  timestamp: number;
-}
-
-/** Completion context for AI suggestions */
-export interface ChatCompletionContext {
-  input: string;
-  cursorPosition: number;
-  previousMessages?: string[];
-  currentMode?: string;
-}
-
-/** Platform capabilities for completion */
-export interface PlatformCapabilities {
-  isDesktop: boolean;
-  hasNativeCompletion: boolean;
-  hasKeyboardHooks: boolean;
-  platform: 'windows' | 'macos' | 'linux' | 'web';
-}

@@ -34,7 +34,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDurationShort } from '@/lib/utils';
 import { formatCost } from '@/lib/agent-trace/cost-estimator';
 import type { DBAgentTrace } from '@/lib/db';
 import type { AgentTraceRecord, AgentTraceEventType } from '@/types/agent-trace';
@@ -209,7 +209,7 @@ export function SessionReplay({ traces, className }: SessionReplayProps) {
         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {formatElapsed(elapsed)}
+            {formatDurationShort(elapsed)}
           </span>
           <span className="flex items-center gap-1">
             <Zap className="h-3 w-3" />
@@ -396,7 +396,7 @@ function EventDetail({ event }: { event: ReplayEvent }) {
 
       {event.duration !== undefined && (
         <div className="text-muted-foreground">
-          Duration: {formatElapsed(event.duration)}
+          Duration: {formatDurationShort(event.duration)}
         </div>
       )}
 
@@ -431,13 +431,6 @@ function EventDetail({ event }: { event: ReplayEvent }) {
   );
 }
 
-function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  const mins = Math.floor(ms / 60000);
-  const secs = ((ms % 60000) / 1000).toFixed(0);
-  return `${mins}m ${secs}s`;
-}
 
 function formatTokens(count: number): string {
   if (count < 1000) return `${count}`;
@@ -445,4 +438,3 @@ function formatTokens(count: number): string {
   return `${(count / 1_000_000).toFixed(2)}M`;
 }
 
-export default SessionReplay;

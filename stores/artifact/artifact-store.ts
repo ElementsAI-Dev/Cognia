@@ -19,6 +19,11 @@ import type {
   DetectedArtifact,
 } from '@/types';
 
+/** Maximum content size to persist per artifact (100KB) */
+const MAX_PERSISTED_CONTENT_SIZE = 100 * 1024;
+/** Maximum total artifacts to persist (LRU eviction beyond this) */
+const MAX_PERSISTED_ARTIFACTS = 200;
+
 /**
  * Helper to ensure Date objects are properly parsed from storage
  */
@@ -738,9 +743,9 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         return Object.values(get().artifacts)
           .filter((a) => {
             if (sessionId && a.sessionId !== sessionId) return false;
+            // Search title, type, and language only (skip content for performance)
             return (
               a.title.toLowerCase().includes(lowerQuery) ||
-              a.content.toLowerCase().includes(lowerQuery) ||
               a.type.toLowerCase().includes(lowerQuery) ||
               (a.language && a.language.toLowerCase().includes(lowerQuery))
             );
@@ -817,12 +822,39 @@ export const useArtifactStore = create<ArtifactState & ArtifactActions>()(
         }
         return state;
       },
-      partialize: (state) => ({
-        artifacts: state.artifacts,
-        artifactVersions: state.artifactVersions,
-        canvasDocuments: state.canvasDocuments,
-        analysisResults: state.analysisResults,
-      }),
+      partialize: (state) => {
+        // LRU eviction: keep only the most recently updated artifacts
+        const sortedArtifacts = Object.values(state.artifacts)
+          .sort((a, b) => {
+            const dateA = a.updatedAt instanceof Date ? a.updatedAt.getTime() : new Date(a.updatedAt).getTime();
+            const dateB = b.updatedAt instanceof Date ? b.updatedAt.getTime() : new Date(b.updatedAt).getTime();
+            return dateB - dateA;
+          })
+          .slice(0, MAX_PERSISTED_ARTIFACTS);
+
+        // Truncate oversized content to prevent localStorage overflow
+        const artifacts: Record<string, Artifact> = {};
+        for (const artifact of sortedArtifacts) {
+          artifacts[artifact.id] = artifact.content.length > MAX_PERSISTED_CONTENT_SIZE
+            ? { ...artifact, content: artifact.content.slice(0, MAX_PERSISTED_CONTENT_SIZE) }
+            : artifact;
+        }
+
+        // Only keep versions for artifacts that are being persisted
+        const artifactVersions: Record<string, ArtifactVersion[]> = {};
+        for (const [id, versions] of Object.entries(state.artifactVersions)) {
+          if (artifacts[id]) {
+            artifactVersions[id] = versions;
+          }
+        }
+
+        return {
+          artifacts,
+          artifactVersions,
+          canvasDocuments: state.canvasDocuments,
+          analysisResults: state.analysisResults,
+        };
+      },
     }
   )
 );

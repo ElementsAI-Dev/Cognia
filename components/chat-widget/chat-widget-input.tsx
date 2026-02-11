@@ -143,6 +143,7 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
             onKeyDown={handleKeyDownWithCompletion}
             placeholder={placeholderProp || t('placeholder')}
             disabled={disabled}
+            aria-label={placeholderProp || t('placeholder')}
             className={cn(
               'min-h-[40px] max-h-[120px] py-2.5 px-3 pr-12',
               'resize-none overflow-y-auto rounded-xl',

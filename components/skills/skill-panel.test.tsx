@@ -14,6 +14,9 @@ jest.mock('@/stores/skills', () => ({
 jest.mock('@/lib/skills/packager', () => ({
   downloadSkillAsMarkdown: jest.fn(),
 }));
+jest.mock('@/hooks/skills/use-skill-ai', () => ({
+  useSkillAI: () => jest.fn().mockResolvedValue('AI result'),
+}));
 jest.mock('@/components/layout/feedback/empty-state', () => ({
   EmptyState: ({ title, description, actions }: { title?: string; description?: string; actions?: Array<{ label: string }> }) => (
     <div data-testid="empty-state">
@@ -125,7 +128,7 @@ describe('SkillPanel', () => {
     it('displays skill count badge', () => {
       renderWithProviders(<SkillPanel />);
 
-      expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.getByText(/3\s*total/)).toBeInTheDocument();
     });
 
     it('renders New Skill button', () => {
@@ -211,7 +214,7 @@ describe('SkillPanel', () => {
     it('renders active only toggle', () => {
       renderWithProviders(<SkillPanel />);
 
-      expect(screen.getByText(/active only/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/active only/i)[0]).toBeInTheDocument();
     });
 
     it('shows clear filters button when filters active', () => {
@@ -220,7 +223,7 @@ describe('SkillPanel', () => {
       const searchInput = screen.getByPlaceholderText(/search skills/i);
       fireEvent.change(searchInput, { target: { value: 'code' } });
 
-      expect(screen.getByText(/clear filters/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/clear filters/i)[0]).toBeInTheDocument();
     });
 
     it('renders category filter button', () => {
@@ -232,10 +235,10 @@ describe('SkillPanel', () => {
     it('toggles active only filter', () => {
       renderWithProviders(<SkillPanel />);
 
-      fireEvent.click(screen.getByText(/active only/i));
+      fireEvent.click(screen.getAllByText(/active only/i)[0]);
 
       // After toggle, button should have different styling
-      const activeOnlyButton = screen.getByText(/active only/i).closest('button');
+      const activeOnlyButton = screen.getAllByText(/active only/i)[0].closest('button');
       expect(activeOnlyButton).toHaveClass('bg-primary');
     });
   });

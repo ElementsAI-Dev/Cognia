@@ -2,8 +2,6 @@
  * Tests for Artifact Tools
  */
 
-// Jest globals are auto-imported
-const vi = { fn: jest.fn, spyOn: jest.spyOn, mock: jest.mock, clearAllMocks: jest.clearAllMocks };
 import {
   artifactTools,
   artifactCreateTool,
@@ -14,47 +12,63 @@ import {
   executeArtifactDelete,
 } from './artifact-tool';
 
-// Mock the artifact store
-vi.mock('@/stores', () => ({
+const mockArtifacts = {
+  'test-artifact-1': {
+    id: 'test-artifact-1',
+    title: 'Test Code',
+    type: 'code',
+    language: 'typescript',
+    content: 'console.log("hello");',
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  },
+  'test-artifact-2': {
+    id: 'test-artifact-2',
+    title: 'Test Diagram',
+    type: 'mermaid',
+    content: 'graph TD; A-->B;',
+    createdAt: new Date('2024-01-02'),
+    updatedAt: new Date('2024-01-02'),
+  },
+};
+
+// Mock the artifact store and session store
+jest.mock('@/stores', () => ({
   useArtifactStore: {
-    getState: vi.fn(() => ({
-      artifacts: {
-        'test-artifact-1': {
-          id: 'test-artifact-1',
-          title: 'Test Code',
-          type: 'code',
-          language: 'typescript',
-          content: 'console.log("hello");',
-          createdAt: new Date('2024-01-01'),
-          updatedAt: new Date('2024-01-01'),
-        },
-        'test-artifact-2': {
-          id: 'test-artifact-2',
-          title: 'Test Diagram',
-          type: 'mermaid',
-          content: 'graph TD; A-->B;',
-          createdAt: new Date('2024-01-02'),
-          updatedAt: new Date('2024-01-02'),
-        },
-      },
-      createArtifact: vi.fn((params: Record<string, unknown>) => ({
+    getState: jest.fn(() => ({
+      artifacts: mockArtifacts,
+      createArtifact: jest.fn((params: Record<string, unknown>) => ({
         id: 'new-artifact-id',
         ...params,
         createdAt: new Date(),
         updatedAt: new Date(),
         version: 1,
       })),
-      updateArtifact: vi.fn(),
-      deleteArtifact: vi.fn(),
-      setActiveArtifact: vi.fn(),
-      openPanel: vi.fn(),
+      updateArtifact: jest.fn(),
+      deleteArtifact: jest.fn(),
+      setActiveArtifact: jest.fn(),
+      openPanel: jest.fn(),
+      searchArtifacts: jest.fn((query: string) => {
+        const all = Object.values(mockArtifacts);
+        return all.filter((a: { title: string; type: string }) =>
+          a.title.toLowerCase().includes(query.toLowerCase()) || a.type.includes(query.toLowerCase())
+        );
+      }),
+      getRecentArtifacts: jest.fn((limit: number) => {
+        return Object.values(mockArtifacts).slice(0, limit);
+      }),
+    })),
+  },
+  useSessionStore: {
+    getState: jest.fn(() => ({
+      getActiveSession: jest.fn(() => ({ id: 'active-session-1' })),
     })),
   },
 }));
 
 describe('Artifact Tools', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('artifactTools', () => {

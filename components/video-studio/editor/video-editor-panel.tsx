@@ -17,6 +17,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,31 +26,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Scissors,
   Sparkles,
   Film,
-  Undo,
-  Redo,
   FolderOpen,
-  Type,
-  ArrowRight,
-  Download,
   Palette,
-  Timer,
-  Flag,
-  Settings,
-  Keyboard,
   Layers,
   Music,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Separator } from '@/components/ui/separator';
+import { EditorToolbar } from './editor-toolbar';
 
 import { VideoTimeline } from '../timeline/video-timeline';
 import { VideoPreview } from '../preview/video-preview';
@@ -71,6 +57,8 @@ import { useVideoEditor, type VideoClip } from '@/hooks/video-studio/use-video-e
 import { useVideoTimeline } from '@/hooks/video-studio/use-video-timeline';
 import { useVideoSubtitles } from '@/hooks/video-studio/use-video-subtitles';
 import { useVideoEditorStore } from '@/stores/media';
+import type { ExportProgress } from '@/lib/plugin/api/media-api';
+import { Progress } from '@/components/ui/progress';
 
 export interface VideoEditorPanelProps {
   initialVideoUrl?: string;
@@ -123,6 +111,7 @@ export function VideoEditorPanel({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [masterVolume, setMasterVolume] = useState(1);
   const [masterMuted, setMasterMuted] = useState(false);
@@ -159,7 +148,7 @@ export function VideoEditorPanel({
   const subtitles = useVideoSubtitles({
     language: 'en',
     onSubtitlesLoaded: (tracks) => {
-      console.log('Subtitles loaded:', tracks.length);
+      loggers.media.debug('Subtitles loaded', { count: tracks.length });
     },
   });
 
@@ -252,7 +241,7 @@ export function VideoEditorPanel({
 
   // Handle effects
   const handleAddEffect = useCallback(
-    (effectId: string) => {
+    (effectId: string, defaultParams?: Record<string, unknown>) => {
       if (!selectedClip) return;
 
       const newEffect: AppliedEffect = {
@@ -260,7 +249,7 @@ export function VideoEditorPanel({
         effectId,
         name: effectId.split(':').pop() || effectId,
         enabled: true,
-        params: {},
+        params: defaultParams ?? {},
       };
 
       setAppliedEffects((prev) => [...prev, newEffect]);
@@ -310,17 +299,25 @@ export function VideoEditorPanel({
     const exportFormat = settings.format === 'mov' ? 'mp4' : settings.format;
     const exportResolution = settings.resolution === 'custom' ? '1080p' : settings.resolution;
     const exportQuality = settings.quality === 'ultra' ? 'maximum' : settings.quality;
+    setShowExportDialog(false);
+    setExportProgress({ phase: 'preparing', percent: 0, message: 'Starting export...' });
+
     const blob = await editor.exportVideo({
       format: exportFormat,
       resolution: exportResolution,
       fps: settings.fps,
       quality: exportQuality,
+      onProgress: (progress) => {
+        setExportProgress(progress);
+        if (progress.phase === 'complete' || progress.phase === 'error') {
+          setTimeout(() => setExportProgress(null), 3000);
+        }
+      },
     });
 
     if (blob && onExport) {
       onExport(blob);
     }
-    setShowExportDialog(false);
   }, [editor, onExport]);
 
   // Handle markers
@@ -374,209 +371,51 @@ export function VideoEditorPanel({
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between p-2 border-b gap-2">
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleImportVideo}>
-                <FolderOpen className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('importVideo')}</TooltipContent>
-          </Tooltip>
+      <EditorToolbar
+        editorMode={editorMode}
+        setEditorMode={setEditorMode}
+        showSidePanel={showSidePanel}
+        sidePanelTab={sidePanelTab}
+        onToggleSidePanel={handleToggleSidePanel}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onImportVideo={handleImportVideo}
+        onOpenTrim={handleOpenTrim}
+        hasSelectedClip={!!selectedClip}
+        zoom={editor.state.zoom}
+        onZoomChange={editor.setZoom}
+        onFitToView={() => editor.setZoom(1)}
+        onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+        onShowProjectSettings={() => setShowProjectSettings(true)}
+        onShowExportDialog={() => setShowExportDialog(true)}
+      />
 
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                disabled={!canUndo()}
-                onClick={handleUndo}
-              >
-                <Undo className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('undo')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                disabled={!canRedo()}
-                onClick={handleRedo}
-              >
-                <Redo className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('redo')}</TooltipContent>
-          </Tooltip>
-
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'trim' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={handleOpenTrim}
-                disabled={!selectedClip}
-              >
-                <Scissors className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('trimClip')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'effects' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setEditorMode('effects')}
-              >
-                <Sparkles className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('effects')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'transitions' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setEditorMode('transitions')}
-              >
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('transitions')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'subtitles' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setEditorMode('subtitles')}
-              >
-                <Type className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('subtitles')}</TooltipContent>
-          </Tooltip>
-
-          <Separator orientation="vertical" className="h-6 hidden sm:block" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showSidePanel && sidePanelTab === 'color' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => handleToggleSidePanel('color')}
-              >
-                <Palette className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('colorCorrection')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'speed' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setEditorMode(editorMode === 'speed' ? 'timeline' : 'speed')}
-              >
-                <Timer className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('speedControls')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={editorMode === 'markers' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => setEditorMode(editorMode === 'markers' ? 'timeline' : 'markers')}
-              >
-                <Flag className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('markers')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showSidePanel && sidePanelTab === 'audio' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => handleToggleSidePanel('audio')}
-              >
-                <Music className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('audioMixer')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showSidePanel && sidePanelTab === 'layers' ? 'secondary' : 'ghost'}
-                size="icon"
-                onClick={() => handleToggleSidePanel('layers')}
-              >
-                <Layers className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('layers')}</TooltipContent>
-          </Tooltip>
-        </div>
-
-        <div className="flex items-center gap-1 sm:gap-2">
-          <ZoomControls
-            zoom={editor.state.zoom}
-            minZoom={0.1}
-            maxZoom={10}
-            step={0.25}
-            onZoomChange={editor.setZoom}
-            onFitToView={() => editor.setZoom(1)}
-            compact
+      {/* Export Progress Bar */}
+      {exportProgress && (
+        <div className="px-3 py-2 border-b bg-muted/50 space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium capitalize">
+              {exportProgress.phase === 'error' ? '❌ ' : ''}
+              {exportProgress.message || exportProgress.phase}
+            </span>
+            <span className="text-muted-foreground">{exportProgress.percent}%</span>
+          </div>
+          <Progress
+            value={exportProgress.percent}
+            className={cn('h-1.5', exportProgress.phase === 'error' && '[&>div]:bg-destructive', exportProgress.phase === 'complete' && '[&>div]:bg-green-500')}
           />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => setShowKeyboardShortcuts(true)}>
-                <Keyboard className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('keyboardShortcuts')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => setShowProjectSettings(true)}>
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('projectSettings')}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="default" size="icon" onClick={() => setShowExportDialog(true)}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('export')}</TooltipContent>
-          </Tooltip>
+          {exportProgress.currentFrame !== undefined && exportProgress.totalFrames !== undefined && (
+            <div className="text-xs text-muted-foreground">
+              Frame {exportProgress.currentFrame}/{exportProgress.totalFrames}
+              {exportProgress.estimatedRemainingMs !== undefined && (
+                <span className="ml-2">~{Math.ceil(exportProgress.estimatedRemainingMs / 1000)}s remaining</span>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
@@ -832,7 +671,7 @@ export function VideoEditorPanel({
       <Dialog open={showTrimDialog} onOpenChange={setShowTrimDialog}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Trim Clip</DialogTitle>
+            <DialogTitle>{t('videoEditor.trimClip')}</DialogTitle>
           </DialogHeader>
           {selectedClipForTrim && (
             <VideoTrimmer
@@ -853,7 +692,7 @@ export function VideoEditorPanel({
       <Dialog open={showTransitionsDialog} onOpenChange={setShowTransitionsDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Transition</DialogTitle>
+            <DialogTitle>{t('addTransition')}</DialogTitle>
           </DialogHeader>
           <VideoTransitions
             selectedTransitionId={selectedTransitionId}
@@ -897,7 +736,7 @@ export function VideoEditorPanel({
         settings={projectSettings}
         onSettingsChange={(updates) => setProjectSettings(prev => ({ ...prev, ...updates }))}
         onSave={() => {
-          console.log('Project settings saved:', projectSettings);
+          loggers.media.info('Project settings saved', { settings: projectSettings });
           setShowProjectSettings(false);
         }}
         onReset={() => setProjectSettings(DEFAULT_PROJECT_SETTINGS)}

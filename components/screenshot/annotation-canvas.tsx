@@ -10,6 +10,12 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TextInput } from './text-input';
 import { ResizeHandles } from './resize-handles';
+import {
+  drawAnnotation,
+  getAnnotationBounds,
+  getAnnotationPosition,
+  moveAnnotation,
+} from '@/lib/screenshot/draw-utils';
 import type {
   Annotation,
   AnnotationTool,
@@ -17,255 +23,6 @@ import type {
   Point,
   ResizeHandle,
 } from '@/types/screenshot';
-
-// ============== Helper Functions ==============
-
-function drawArrow(
-  ctx: CanvasRenderingContext2D,
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-  strokeWidth: number
-) {
-  const headLength = strokeWidth * 4;
-  const angle = Math.atan2(toY - fromY, toX - fromX);
-
-  ctx.beginPath();
-  ctx.moveTo(fromX, fromY);
-  ctx.lineTo(toX, toY);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(toX, toY);
-  ctx.lineTo(
-    toX - headLength * Math.cos(angle - Math.PI / 6),
-    toY - headLength * Math.sin(angle - Math.PI / 6)
-  );
-  ctx.lineTo(
-    toX - headLength * Math.cos(angle + Math.PI / 6),
-    toY - headLength * Math.sin(angle + Math.PI / 6)
-  );
-  ctx.closePath();
-  ctx.fill();
-}
-
-function getAnnotationBounds(annotation: Annotation) {
-  switch (annotation.type) {
-    case 'rectangle':
-    case 'blur':
-    case 'highlight':
-      return {
-        x: annotation.x,
-        y: annotation.y,
-        width: annotation.width,
-        height: annotation.height,
-      };
-    case 'ellipse':
-      return {
-        x: annotation.cx - annotation.rx,
-        y: annotation.cy - annotation.ry,
-        width: annotation.rx * 2,
-        height: annotation.ry * 2,
-      };
-    case 'arrow':
-      return {
-        x: Math.min(annotation.startX, annotation.endX),
-        y: Math.min(annotation.startY, annotation.endY),
-        width: Math.abs(annotation.endX - annotation.startX),
-        height: Math.abs(annotation.endY - annotation.startY),
-      };
-    case 'freehand':
-      if (annotation.points.length === 0) {
-        return { x: 0, y: 0, width: 0, height: 0 };
-      }
-      const xs = annotation.points.map((p) => p[0]);
-      const ys = annotation.points.map((p) => p[1]);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      return {
-        x: minX,
-        y: minY,
-        width: Math.max(...xs) - minX,
-        height: Math.max(...ys) - minY,
-      };
-    case 'text':
-      return {
-        x: annotation.x,
-        y: annotation.y - (annotation.style.fontSize || 16),
-        width: 100,
-        height: annotation.style.fontSize || 16,
-      };
-    case 'marker':
-      const size = annotation.size || 24;
-      return {
-        x: annotation.x - size / 2,
-        y: annotation.y - size / 2,
-        width: size,
-        height: size,
-      };
-  }
-}
-
-function drawAnnotation(
-  ctx: CanvasRenderingContext2D,
-  annotation: Annotation,
-  isSelected: boolean
-) {
-  ctx.save();
-  ctx.strokeStyle = annotation.style.color;
-  ctx.fillStyle = annotation.style.color;
-  ctx.lineWidth = annotation.style.strokeWidth;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  switch (annotation.type) {
-    case 'rectangle':
-      if (annotation.style.filled) {
-        ctx.globalAlpha = annotation.style.opacity;
-        ctx.fillRect(annotation.x, annotation.y, annotation.width, annotation.height);
-      } else {
-        ctx.strokeRect(annotation.x, annotation.y, annotation.width, annotation.height);
-      }
-      break;
-
-    case 'ellipse':
-      ctx.beginPath();
-      ctx.ellipse(
-        annotation.cx,
-        annotation.cy,
-        annotation.rx,
-        annotation.ry,
-        0,
-        0,
-        Math.PI * 2
-      );
-      if (annotation.style.filled) {
-        ctx.globalAlpha = annotation.style.opacity;
-        ctx.fill();
-      } else {
-        ctx.stroke();
-      }
-      break;
-
-    case 'arrow':
-      drawArrow(
-        ctx,
-        annotation.startX,
-        annotation.startY,
-        annotation.endX,
-        annotation.endY,
-        annotation.style.strokeWidth
-      );
-      break;
-
-    case 'freehand':
-      if (annotation.points.length < 2) break;
-      ctx.beginPath();
-      ctx.moveTo(annotation.points[0][0], annotation.points[0][1]);
-      for (let i = 1; i < annotation.points.length; i++) {
-        ctx.lineTo(annotation.points[i][0], annotation.points[i][1]);
-      }
-      ctx.stroke();
-      break;
-
-    case 'text':
-      ctx.font = `${annotation.style.fontSize || 16}px sans-serif`;
-      if (annotation.background) {
-        const metrics = ctx.measureText(annotation.text);
-        const padding = 4;
-        ctx.fillStyle = annotation.background;
-        ctx.fillRect(
-          annotation.x - padding,
-          annotation.y - (annotation.style.fontSize || 16) - padding,
-          metrics.width + padding * 2,
-          (annotation.style.fontSize || 16) + padding * 2
-        );
-      }
-      ctx.fillStyle = annotation.style.color;
-      ctx.fillText(annotation.text, annotation.x, annotation.y);
-      break;
-
-    case 'blur':
-      // Real pixelation effect using actual image data
-      const blurBlockSize = Math.max(4, Math.round(annotation.intensity * 12));
-      const blurX = Math.floor(annotation.x);
-      const blurY = Math.floor(annotation.y);
-      const blurW = Math.ceil(annotation.width);
-      const blurH = Math.ceil(annotation.height);
-      
-      // Get the image data for the blur region
-      const blurImageData = ctx.getImageData(blurX, blurY, blurW, blurH);
-      const blurData = blurImageData.data;
-      
-      // Apply pixelation by averaging colors in blocks
-      for (let by = 0; by < blurH; by += blurBlockSize) {
-        for (let bx = 0; bx < blurW; bx += blurBlockSize) {
-          let totalR = 0, totalG = 0, totalB = 0, count = 0;
-          
-          // Calculate average color in block
-          for (let py = by; py < Math.min(by + blurBlockSize, blurH); py++) {
-            for (let px = bx; px < Math.min(bx + blurBlockSize, blurW); px++) {
-              const idx = (py * blurW + px) * 4;
-              totalR += blurData[idx];
-              totalG += blurData[idx + 1];
-              totalB += blurData[idx + 2];
-              count++;
-            }
-          }
-          
-          if (count > 0) {
-            const avgR = Math.round(totalR / count);
-            const avgG = Math.round(totalG / count);
-            const avgB = Math.round(totalB / count);
-            
-            // Apply average color to all pixels in block
-            for (let py = by; py < Math.min(by + blurBlockSize, blurH); py++) {
-              for (let px = bx; px < Math.min(bx + blurBlockSize, blurW); px++) {
-                const idx = (py * blurW + px) * 4;
-                blurData[idx] = avgR;
-                blurData[idx + 1] = avgG;
-                blurData[idx + 2] = avgB;
-              }
-            }
-          }
-        }
-      }
-      
-      // Put the pixelated data back
-      ctx.putImageData(blurImageData, blurX, blurY);
-      break;
-
-    case 'highlight':
-      ctx.globalAlpha = annotation.style.opacity;
-      ctx.fillStyle = annotation.style.color;
-      ctx.fillRect(annotation.x, annotation.y, annotation.width, annotation.height);
-      break;
-
-    case 'marker':
-      const markerSize = annotation.size || 24;
-      ctx.beginPath();
-      ctx.arc(annotation.x, annotation.y, markerSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = annotation.style.color;
-      ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = `bold ${markerSize * 0.6}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(annotation.number), annotation.x, annotation.y);
-      break;
-  }
-
-  if (isSelected) {
-    ctx.strokeStyle = '#0066FF';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    const bounds = getAnnotationBounds(annotation);
-    ctx.strokeRect(bounds.x - 4, bounds.y - 4, bounds.width + 8, bounds.height + 8);
-  }
-
-  ctx.restore();
-}
 
 // ============== Component ==============
 
@@ -305,6 +62,7 @@ export function AnnotationCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const cachedImageDataRef = useRef<ImageData | null>(null);
 
   // Dragging state
   const [isDragging, setIsDragging] = useState(false);
@@ -350,7 +108,8 @@ export function AnnotationCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [currentPoint, setCurrentPoint] = useState<Point | null>(null);
-  const [freehandPoints, setFreehandPoints] = useState<Array<[number, number]>>([]);
+  const freehandPointsRef = useRef<Array<[number, number]>>([]);
+  const [freehandVersion, setFreehandVersion] = useState(0);
 
   // Render main canvas
   const renderCanvas = useCallback(() => {
@@ -367,6 +126,9 @@ export function AnnotationCanvas({
     annotations.forEach((annotation) => {
       drawAnnotation(ctx, annotation, annotation.id === selectedAnnotationId);
     });
+
+    // Cache ImageData for magnifier (avoids expensive getImageData on every mouse move)
+    cachedImageDataRef.current = ctx.getImageData(0, 0, width, height);
   }, [annotations, width, height, selectedAnnotationId]);
 
   // Load image
@@ -427,13 +189,13 @@ export function AnnotationCanvas({
           endY: currentPoint.y,
         };
       case 'freehand':
-        if (freehandPoints.length < 2) return null;
+        if (freehandPointsRef.current.length < 2) return null;
         return {
           id,
           type: 'freehand',
           style: baseStyle,
           timestamp,
-          points: freehandPoints,
+          points: [...freehandPointsRef.current],
         };
       case 'blur':
         return {
@@ -461,7 +223,8 @@ export function AnnotationCanvas({
       default:
         return null;
     }
-  }, [startPoint, currentPoint, currentTool, style, freehandPoints]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startPoint, currentPoint, currentTool, style, freehandVersion]);
 
   // Draw preview on overlay
   useEffect(() => {
@@ -479,7 +242,7 @@ export function AnnotationCanvas({
     if (previewAnnotation) {
       drawAnnotation(ctx, previewAnnotation, false);
     }
-  }, [isDrawing, startPoint, currentPoint, freehandPoints, width, height, createPreviewAnnotation]);
+  }, [isDrawing, startPoint, currentPoint, freehandVersion, width, height, createPreviewAnnotation]);
 
   const getMousePosition = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
@@ -493,58 +256,6 @@ export function AnnotationCanvas({
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
     };
-  };
-
-  // Get the position of an annotation (for dragging)
-  const getAnnotationPosition = (annotation: Annotation): { x: number; y: number } => {
-    switch (annotation.type) {
-      case 'rectangle':
-      case 'blur':
-      case 'highlight':
-      case 'text':
-        return { x: annotation.x, y: annotation.y };
-      case 'ellipse':
-        return { x: annotation.cx - annotation.rx, y: annotation.cy - annotation.ry };
-      case 'arrow':
-        return { x: annotation.startX, y: annotation.startY };
-      case 'marker':
-        return { x: annotation.x, y: annotation.y };
-      case 'freehand':
-        if (annotation.points.length > 0) {
-          return { x: annotation.points[0][0], y: annotation.points[0][1] };
-        }
-        return { x: 0, y: 0 };
-      default:
-        return { x: 0, y: 0 };
-    }
-  };
-
-  // Move an annotation by delta
-  const moveAnnotation = (annotation: Annotation, dx: number, dy: number): Partial<Annotation> => {
-    switch (annotation.type) {
-      case 'rectangle':
-      case 'blur':
-      case 'highlight':
-      case 'text':
-        return { x: annotation.x + dx, y: annotation.y + dy };
-      case 'ellipse':
-        return { cx: annotation.cx + dx, cy: annotation.cy + dy };
-      case 'arrow':
-        return {
-          startX: annotation.startX + dx,
-          startY: annotation.startY + dy,
-          endX: annotation.endX + dx,
-          endY: annotation.endY + dy,
-        };
-      case 'marker':
-        return { x: annotation.x + dx, y: annotation.y + dy };
-      case 'freehand':
-        return {
-          points: annotation.points.map(([px, py]) => [px + dx, py + dy] as [number, number]),
-        };
-      default:
-        return {};
-    }
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -616,20 +327,17 @@ export function AnnotationCanvas({
     setCurrentPoint(point);
 
     if (currentTool === 'freehand') {
-      setFreehandPoints([[point.x, point.y]]);
+      freehandPointsRef.current = [[point.x, point.y]];
+      setFreehandVersion(0);
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const point = getMousePosition(e);
 
-    // Notify parent about cursor position for magnifier
-    if (onCursorMove && canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        const imgData = ctx.getImageData(0, 0, width, height);
-        onCursorMove(Math.round(point.x), Math.round(point.y), imgData);
-      }
+    // Notify parent about cursor position for magnifier (uses cached ImageData)
+    if (onCursorMove) {
+      onCursorMove(Math.round(point.x), Math.round(point.y), cachedImageDataRef.current);
     }
 
     // Handle dragging
@@ -651,17 +359,19 @@ export function AnnotationCanvas({
 
     if (currentTool === 'freehand') {
       // Throttle freehand updates - only add point if distance > 2px from last point
-      setFreehandPoints((prev) => {
-        if (prev.length === 0) return [[point.x, point.y]];
-        const lastPoint = prev[prev.length - 1];
-        const dx = point.x - lastPoint[0];
-        const dy = point.y - lastPoint[1];
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > 2) {
-          return [...prev, [point.x, point.y]];
+      const pts = freehandPointsRef.current;
+      if (pts.length === 0) {
+        pts.push([point.x, point.y]);
+        setFreehandVersion((v) => v + 1);
+      } else {
+        const lastPt = pts[pts.length - 1];
+        const dx = point.x - lastPt[0];
+        const dy = point.y - lastPt[1];
+        if (dx * dx + dy * dy > 4) {
+          pts.push([point.x, point.y]);
+          setFreehandVersion((v) => v + 1);
         }
-        return prev;
-      });
+      }
     }
   };
 
@@ -691,7 +401,7 @@ export function AnnotationCanvas({
     setIsDrawing(false);
     setStartPoint(null);
     setCurrentPoint(null);
-    setFreehandPoints([]);
+    freehandPointsRef.current = [];
   };
 
   // Handle text input confirmation

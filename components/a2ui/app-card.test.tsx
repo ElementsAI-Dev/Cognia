@@ -39,6 +39,16 @@ jest.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
+jest.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
+    asChild ? <>{children}</> : <button>{children}</button>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown-content">{children}</div>,
+  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void; className?: string }) =>
+    <button onClick={onClick}>{children}</button>,
+  DropdownMenuSeparator: () => <hr />,
+}));
+
 const createMockApp = (overrides: Partial<A2UIAppInstance> = {}): A2UIAppInstance => ({
   id: 'test-app-1',
   templateId: 'template-1',
@@ -96,10 +106,10 @@ describe('AppCard', () => {
       expect(screen.getByText('This is a test app description')).toBeInTheDocument();
     });
 
-    it('should render "自定义应用" when no template', () => {
+    it('should render custom app badge when no template', () => {
       renderAppCard({ template: undefined });
 
-      expect(screen.getByText('自定义应用')).toBeInTheDocument();
+      expect(screen.getByText('Custom App')).toBeInTheDocument();
     });
 
     it('should show version badge when version is set', () => {
@@ -225,15 +235,9 @@ describe('AppCard', () => {
       const onOpen = jest.fn();
       renderAppCard({ onOpen });
 
-      // Open dropdown
-      const moreButton = screen.getByRole('button', { name: '' }); // More button has no text
-      fireEvent.click(moreButton);
-
-      // Click open option
-      await waitFor(() => {
-        const openButton = screen.getByText('打开');
-        fireEvent.click(openButton);
-      });
+      // With mock, menu items are always visible
+      const openButton = screen.getByText('Run');
+      fireEvent.click(openButton);
 
       expect(onOpen).toHaveBeenCalledWith('test-app-1');
     });
@@ -242,15 +246,9 @@ describe('AppCard', () => {
       const onRename = jest.fn();
       renderAppCard({ onRename });
 
-      // Open dropdown
-      const moreButton = screen.getByRole('button', { name: '' });
-      fireEvent.click(moreButton);
-
-      // Click rename option
-      await waitFor(() => {
-        const renameButton = screen.getByText('重命名');
-        fireEvent.click(renameButton);
-      });
+      // With mock, menu items are always visible
+      const renameButton = screen.getByText('App Name');
+      fireEvent.click(renameButton);
 
       expect(onRename).toHaveBeenCalled();
     });
@@ -259,15 +257,9 @@ describe('AppCard', () => {
       const onDuplicate = jest.fn();
       renderAppCard({ onDuplicate });
 
-      // Open dropdown
-      const moreButton = screen.getByRole('button', { name: '' });
-      fireEvent.click(moreButton);
-
-      // Click duplicate option
-      await waitFor(() => {
-        const duplicateButton = screen.getByText('复制');
-        fireEvent.click(duplicateButton);
-      });
+      // With mock, menu items are always visible
+      const duplicateButton = screen.getByText('Duplicate');
+      fireEvent.click(duplicateButton);
 
       expect(onDuplicate).toHaveBeenCalledWith('test-app-1');
     });
@@ -276,15 +268,9 @@ describe('AppCard', () => {
       const onDelete = jest.fn();
       renderAppCard({ onDelete });
 
-      // Open dropdown
-      const moreButton = screen.getByRole('button', { name: '' });
-      fireEvent.click(moreButton);
-
-      // Click delete option
-      await waitFor(() => {
-        const deleteButton = screen.getByText('删除');
-        fireEvent.click(deleteButton);
-      });
+      // With mock, menu items are always visible
+      const deleteButton = screen.getByText('Delete');
+      fireEvent.click(deleteButton);
 
       expect(onDelete).toHaveBeenCalledWith('test-app-1');
     });
@@ -312,12 +298,12 @@ describe('AppCard', () => {
   });
 
   describe('date formatting', () => {
-    it('should show "刚刚" for recent modifications', () => {
+    it('should show "just now" for recent modifications', () => {
       renderAppCard({
         app: createMockApp({ lastModified: Date.now() - 30000 }), // 30 seconds ago
       });
 
-      expect(screen.getByText('刚刚')).toBeInTheDocument();
+      expect(screen.getByText('just now')).toBeInTheDocument();
     });
 
     it('should show minutes for recent modifications', () => {
@@ -325,7 +311,7 @@ describe('AppCard', () => {
         app: createMockApp({ lastModified: Date.now() - 300000 }), // 5 minutes ago
       });
 
-      expect(screen.getByText('5分钟前')).toBeInTheDocument();
+      expect(screen.getByText('5m ago')).toBeInTheDocument();
     });
 
     it('should show hours for older modifications', () => {
@@ -333,7 +319,7 @@ describe('AppCard', () => {
         app: createMockApp({ lastModified: Date.now() - 7200000 }), // 2 hours ago
       });
 
-      expect(screen.getByText('2小时前')).toBeInTheDocument();
+      expect(screen.getByText('2h ago')).toBeInTheDocument();
     });
 
     it('should show days for much older modifications', () => {
@@ -341,7 +327,7 @@ describe('AppCard', () => {
         app: createMockApp({ lastModified: Date.now() - 172800000 }), // 2 days ago
       });
 
-      expect(screen.getByText('2天前')).toBeInTheDocument();
+      expect(screen.getByText('2d ago')).toBeInTheDocument();
     });
   });
 });

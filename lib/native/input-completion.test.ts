@@ -2,12 +2,10 @@
  * Tests for input completion native API
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-
 // Mock Tauri invoke
-const mockInvoke = jest.fn<(cmd: string, args?: unknown) => Promise<unknown>>();
+const mockInvoke = jest.fn();
 jest.mock('@tauri-apps/api/core', () => ({
-  invoke: (cmd: string, args?: unknown) => mockInvoke(cmd, args),
+  invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
 import * as api from './input-completion';
@@ -232,7 +230,7 @@ describe('input-completion API', () => {
 
       const { isInputCompletionRunning } = await import('./input-completion');
       const result = await isInputCompletionRunning();
-      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running', undefined);
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running');
       expect(result).toBe(true);
     });
 
@@ -241,7 +239,7 @@ describe('input-completion API', () => {
 
       const { isInputCompletionRunning } = await import('./input-completion');
       const result = await isInputCompletionRunning();
-      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running', undefined);
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running');
       expect(result).toBe(false);
     });
   });

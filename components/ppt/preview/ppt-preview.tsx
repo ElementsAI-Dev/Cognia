@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { loggers } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { generateMarpMarkdown } from '@/lib/ai/workflows/ppt-workflow';
@@ -148,7 +149,7 @@ export function PPTPreview({
         });
         if (!pptxResult.success) {
           setExportError(pptxResult.error || 'PPTX export failed');
-          console.error('PPTX export failed:', pptxResult.error);
+          loggers.ui.error('PPTX export failed:', undefined, { error: pptxResult.error });
         }
         return;
       }
@@ -166,7 +167,7 @@ export function PPTPreview({
 
       if (!result.success || !result.data) {
         setExportError(result.error || 'Export failed');
-        console.error('Export failed:', result.error);
+        loggers.ui.error('Export failed:', undefined, { error: result.error });
         return;
       }
 
@@ -195,7 +196,7 @@ export function PPTPreview({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Export failed';
       setExportError(errorMessage);
-      console.error('Export error:', error);
+      loggers.ui.error('Export error:', error instanceof Error ? error : undefined, { raw: error });
     } finally {
       setIsExporting(false);
     }

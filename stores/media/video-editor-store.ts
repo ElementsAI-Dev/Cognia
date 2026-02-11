@@ -5,8 +5,15 @@
  */
 
 import { create } from 'zustand';
+import { nanoid } from 'nanoid';
 import { persist } from 'zustand/middleware';
+import { loggers } from '@/lib/logger';
+import { videoProjectRepository } from '@/lib/db/repositories/video-project-repository';
 import type { VideoTrack } from '@/hooks/video-studio/use-video-editor';
+import {
+  DEFAULT_VIDEO_PROCESSING_SETTINGS,
+  type VideoProcessingSettings,
+} from '@/types/media/video-processing';
 
 // Project settings
 export interface VideoProject {
@@ -41,6 +48,7 @@ export interface EditorPreferences {
   timelineHeight: number;
   sidePanelWidth: number;
   theme: 'light' | 'dark' | 'system';
+  processing: VideoProcessingSettings;
 }
 
 // History entry for undo/redo
@@ -75,9 +83,9 @@ interface VideoEditorState {
 interface VideoEditorActions {
   // Project management
   createProject: (name: string, resolution?: { width: number; height: number }, frameRate?: number) => string;
-  loadProject: (projectId: string) => void;
-  saveProject: () => void;
-  deleteProject: (projectId: string) => void;
+  loadProject: (projectId: string) => Promise<void>;
+  saveProject: () => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
   updateProjectName: (name: string) => void;
   updateProjectSettings: (settings: Partial<Pick<VideoProject, 'resolution' | 'frameRate' | 'aspectRatio'>>) => void;
 
@@ -119,6 +127,7 @@ const DEFAULT_PREFERENCES: EditorPreferences = {
   timelineHeight: 200,
   sidePanelWidth: 320,
   theme: 'system',
+  processing: DEFAULT_VIDEO_PROCESSING_SETTINGS,
 };
 
 const DEFAULT_RESOLUTION = { width: 1920, height: 1080 };
@@ -127,7 +136,7 @@ const MAX_RECENT_PROJECTS = 10;
 const MAX_HISTORY_SIZE = 50;
 
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return nanoid();
 }
 
 export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>()(
@@ -171,54 +180,96 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
         return id;
       },
 
-      loadProject: (projectId) => {
-        // In a real implementation, this would load from IndexedDB or file system
-        const recentProject = get().recentProjects.find((p) => p.id === projectId);
-        if (recentProject) {
-          set({ isLoading: true });
-          // Simulate loading - in reality, you'd fetch the full project data
-          set({
-            currentProject: {
-              id: projectId,
-              name: recentProject.name,
-              createdAt: recentProject.updatedAt,
-              updatedAt: recentProject.updatedAt,
-              resolution: DEFAULT_RESOLUTION,
-              frameRate: DEFAULT_FRAME_RATE,
-              aspectRatio: '16:9',
-              tracks: [],
-              duration: 0,
-            },
-            isLoading: false,
-            history: [],
-            historyIndex: -1,
-          });
+      loadProject: async (projectId) => {
+        set({ isLoading: true });
+
+        try {
+          const data = await videoProjectRepository.getById(projectId);
+          if (data) {
+            set({
+              currentProject: {
+                id: data.id,
+                name: data.name,
+                createdAt: data.createdAt.getTime(),
+                updatedAt: data.updatedAt.getTime(),
+                resolution: data.resolution,
+                frameRate: data.frameRate,
+                aspectRatio: data.aspectRatio,
+                tracks: data.tracks,
+                duration: data.duration,
+              },
+              isLoading: false,
+              history: [],
+              historyIndex: -1,
+            });
+          } else {
+            loggers.media.warn('Video project not found', { projectId });
+            set({ isLoading: false, error: 'Project not found' });
+          }
+        } catch (error) {
+          loggers.media.error('Failed to load video project', error);
+          set({ isLoading: false, error: 'Failed to load project' });
         }
       },
 
-      saveProject: () => {
+      saveProject: async () => {
         const { currentProject } = get();
         if (!currentProject) return;
 
         const now = Date.now();
-        set({
-          currentProject: { ...currentProject, updatedAt: now },
-        });
+        const updatedProject = { ...currentProject, updatedAt: now };
+        set({ currentProject: updatedProject });
 
-        // Update in recent projects
-        get().addRecentProject({
-          id: currentProject.id,
-          name: currentProject.name,
-          updatedAt: now,
-        });
+        try {
+          const existing = await videoProjectRepository.getById(currentProject.id);
+          if (existing) {
+            await videoProjectRepository.update(currentProject.id, {
+              name: updatedProject.name,
+              resolution: updatedProject.resolution,
+              frameRate: updatedProject.frameRate,
+              aspectRatio: updatedProject.aspectRatio,
+              tracks: updatedProject.tracks,
+              duration: updatedProject.duration,
+            });
+          } else {
+            await videoProjectRepository.create({
+              id: updatedProject.id,
+              name: updatedProject.name,
+              resolution: updatedProject.resolution,
+              frameRate: updatedProject.frameRate,
+              aspectRatio: updatedProject.aspectRatio,
+              tracks: updatedProject.tracks,
+              duration: updatedProject.duration,
+              createdAt: new Date(updatedProject.createdAt),
+              updatedAt: new Date(now),
+            });
+          }
+
+          // Update in recent projects
+          get().addRecentProject({
+            id: currentProject.id,
+            name: currentProject.name,
+            updatedAt: now,
+          });
+
+          loggers.media.debug('Video project saved', { id: currentProject.id });
+        } catch (error) {
+          loggers.media.error('Failed to save video project', error);
+          set({ error: 'Failed to save project' });
+        }
       },
 
-      deleteProject: (projectId) => {
+      deleteProject: async (projectId) => {
         const { currentProject } = get();
         if (currentProject?.id === projectId) {
           set({ currentProject: null, history: [], historyIndex: -1 });
         }
         get().removeRecentProject(projectId);
+        try {
+          await videoProjectRepository.delete(projectId);
+        } catch (error) {
+          loggers.media.error('Failed to delete video project', error);
+        }
       },
 
       updateProjectName: (name) => {
@@ -296,7 +347,7 @@ export const useVideoEditorStore = create<VideoEditorState & VideoEditorActions>
           id: generateId(),
           timestamp: Date.now(),
           action,
-          tracks: JSON.parse(JSON.stringify(tracks)), // Deep clone
+          tracks: structuredClone(tracks),
           duration,
         };
 

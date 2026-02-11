@@ -52,6 +52,41 @@ jest.mock('@/lib/chat/emoji-data', () => ({
   }),
 }));
 
+// Mock logger
+jest.mock('@/lib/logger', () => {
+  const mockLogger = {
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  };
+  return {
+    createLogger: jest.fn(() => mockLogger),
+    logger: mockLogger,
+    loggers: new Proxy({}, { get: () => mockLogger }),
+    log: {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    },
+    logContext: { newTraceId: jest.fn(), getTraceId: jest.fn() },
+    generateTraceId: jest.fn(),
+    traced: jest.fn(),
+    logSampler: { shouldSample: jest.fn(() => true) },
+    initLogger: jest.fn(),
+    addTransport: jest.fn(),
+    removeTransport: jest.fn(),
+    updateLoggerConfig: jest.fn(),
+    getLoggerConfig: jest.fn(),
+    flushLogs: jest.fn(),
+    shutdownLogger: jest.fn(),
+  };
+});
+
 describe('useInputCompletionUnified', () => {
   beforeEach(() => {
     jest.clearAllMocks();

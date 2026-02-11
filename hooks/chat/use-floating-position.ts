@@ -163,10 +163,9 @@ export function useFloatingPosition(config: FloatingPositionConfig): FloatingPos
     // Update on resize
     const handleResize = () => updatePosition();
 
-    // Update when window moves (for multi-monitor)
+    // Poll for window moves (multi-monitor) at a reasonable interval
     let lastScreenX = window.screenX;
     let lastScreenY = window.screenY;
-    let animationFrameId: number;
 
     const checkWindowMove = () => {
       if (window.screenX !== lastScreenX || window.screenY !== lastScreenY) {
@@ -174,15 +173,14 @@ export function useFloatingPosition(config: FloatingPositionConfig): FloatingPos
         lastScreenY = window.screenY;
         updatePosition();
       }
-      animationFrameId = requestAnimationFrame(checkWindowMove);
     };
 
     window.addEventListener('resize', handleResize);
-    animationFrameId = requestAnimationFrame(checkWindowMove);
+    const intervalId = setInterval(checkWindowMove, 500);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
+      clearInterval(intervalId);
     };
   }, [updatePosition]);
 

@@ -39,7 +39,7 @@ export function CellOutput({ output, cell }: CellOutputProps) {
             'text-sm font-mono p-2 rounded overflow-x-auto whitespace-pre-wrap',
             isError ? 'bg-destructive/10' : 'bg-muted'
           )}
-          dangerouslySetInnerHTML={{ __html: parseAnsiToHtml(text) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseAnsiToHtml(text)) }}
         />
       );
     }
@@ -73,7 +73,7 @@ export function CellOutput({ output, cell }: CellOutputProps) {
           <pre
             className="text-xs mt-2 overflow-x-auto whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
-              __html: hasAnsi ? parseAnsiToHtml(traceback) : traceback,
+              __html: DOMPurify.sanitize(hasAnsi ? parseAnsiToHtml(traceback) : traceback),
             }}
           />
         )}
@@ -156,7 +156,7 @@ export function CellOutput({ output, cell }: CellOutputProps) {
         return (
           <pre
             className="text-sm font-mono p-2 bg-muted rounded overflow-x-auto whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{ __html: parseAnsiToHtml(textOutput) }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseAnsiToHtml(textOutput)) }}
           />
         );
       }
@@ -170,5 +170,3 @@ export function CellOutput({ output, cell }: CellOutputProps) {
 
   return null;
 }
-
-export default CellOutput;

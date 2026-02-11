@@ -40,6 +40,16 @@ jest.mock('@/stores/workflow', () => ({
     startExecution: mockStartExecution,
     isExecuting: mockIsExecuting,
   }),
+  useWorkflowStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      activeExecution: null,
+      executionProgress: null,
+    };
+    if (typeof selector === 'function') return selector(state);
+    return state;
+  },
+  selectActiveExecution: (state: Record<string, unknown>) => state.activeExecution,
+  selectExecutionProgress: (state: Record<string, unknown>) => state.executionProgress,
 }));
 
 // Mock UI components
@@ -206,8 +216,7 @@ describe('SidebarWorkflows', () => {
   it('shows View All link', async () => {
     render(<SidebarWorkflows />);
     await waitFor(() => {
-      // Translation returns the key 'viewAll'
-      expect(screen.getByText(/viewAll/i)).toBeInTheDocument();
+      expect(screen.getByText(/View All/i)).toBeInTheDocument();
     });
   });
 

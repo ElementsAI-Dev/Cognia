@@ -359,5 +359,3 @@ export function GitStatusPanel({
     </div>
   );
 }
-
-export default GitStatusPanel;

@@ -396,5 +396,3 @@ export function GitBranchManager({
     </div>
   );
 }
-
-export default GitBranchManager;

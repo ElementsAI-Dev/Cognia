@@ -438,4 +438,3 @@ function HunkView({ hunk }: { hunk: DiffHunk }) {
   );
 }
 
-export default CheckpointPanel;

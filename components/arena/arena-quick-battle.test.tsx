@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ArenaQuickBattle } from './arena-quick-battle';
-import type { ArenaModelRating } from '@/types/arena';
 
 type ProviderName = 'openai' | 'anthropic' | 'google';
 
@@ -18,6 +17,7 @@ jest.mock('next-intl', () => ({
 const mockStartBattle = jest.fn().mockResolvedValue(undefined);
 
 let mockAvailableModels: ModelOption[] = [];
+let mockSelectedModels: ModelOption[] = [];
 
 jest.mock('@/hooks/arena', () => ({
   useArena: () => ({
@@ -26,23 +26,19 @@ jest.mock('@/hooks/arena', () => ({
     startBattle: mockStartBattle,
     getAvailableModels: () => mockAvailableModels,
   }),
+  useSmartModelPair: () => ({
+    getSmartModelPair: () => mockSelectedModels.length > 0 ? mockSelectedModels : mockAvailableModels.slice(0, 2),
+    selectedModels: mockSelectedModels.length > 0 ? mockSelectedModels : mockAvailableModels.slice(0, 2),
+    availableModels: mockAvailableModels,
+  }),
 }));
 
-let mockModelRatings: ArenaModelRating[] = [];
-let mockRecommended: { modelA: string; modelB: string; reason: string } | null = null;
-
-jest.mock('@/stores/arena', () => ({
-  useArenaStore: (
-    selector: (state: {
-      modelRatings: ArenaModelRating[];
-      getRecommendedMatchup: () => typeof mockRecommended;
-    }) => unknown
-  ) => {
-    const state = {
-      modelRatings: mockModelRatings,
-      getRecommendedMatchup: () => mockRecommended,
-    };
-    return selector(state);
+// Mock loggers (used by quick-battle for error logging)
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ui: {
+      error: jest.fn(),
+    },
   },
 }));
 
@@ -108,28 +104,11 @@ jest.mock('lucide-react', () => ({
   Loader2: () => <span data-testid="icon-loader" />,
 }));
 
-function makeRating(modelId: string, rating: number): ArenaModelRating {
-  const [provider, model] = modelId.split(':') as [ProviderName, string];
-  return {
-    modelId,
-    provider,
-    model,
-    rating,
-    categoryRatings: {},
-    totalBattles: 0,
-    wins: 0,
-    losses: 0,
-    ties: 0,
-    updatedAt: new Date(),
-  };
-}
-
 describe('ArenaQuickBattle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAvailableModels = [];
-    mockModelRatings = [];
-    mockRecommended = null;
+    mockSelectedModels = [];
   });
 
   it('renders null when fewer than two models are available', () => {
@@ -146,12 +125,11 @@ describe('ArenaQuickBattle', () => {
       { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o mini' },
       { provider: 'anthropic', model: 'claude-3-5-sonnet', displayName: 'Claude 3.5 Sonnet' },
     ];
-
-    mockRecommended = {
-      modelA: 'openai:gpt-4o-mini',
-      modelB: 'anthropic:claude-3-5-sonnet',
-      reason: 'test',
-    };
+    // useSmartModelPair handles recommended matchup internally
+    mockSelectedModels = [
+      { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o mini' },
+      { provider: 'anthropic', model: 'claude-3-5-sonnet', displayName: 'Claude 3.5 Sonnet' },
+    ];
 
     render(<ArenaQuickBattle prompt="Prompt" />);
 
@@ -177,11 +155,10 @@ describe('ArenaQuickBattle', () => {
       { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
       { provider: 'google', model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro' },
     ];
-
-    mockModelRatings = [
-      makeRating('openai:gpt-4o', 1900),
-      makeRating('google:gemini-1.5-pro', 1800),
-      makeRating('openai:gpt-4o-mini', 1500),
+    // useSmartModelPair selects top rated from different providers internally
+    mockSelectedModels = [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'google', model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro' },
     ];
 
     render(<ArenaQuickBattle prompt="Prompt" />);

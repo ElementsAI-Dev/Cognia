@@ -69,9 +69,22 @@ export function createArtifactAPI(pluginId: string): PluginArtifactAPI {
         if (filter.sessionId) {
           artifacts = artifacts.filter(a => a.sessionId === filter.sessionId);
         }
+        if (filter.type) {
+          artifacts = artifacts.filter(a => a.type === filter.type);
+        }
         if (filter.language) {
           artifacts = artifacts.filter(a => a.language === filter.language);
         }
+      }
+
+      // Sort by updatedAt descending before applying pagination
+      artifacts.sort((a, b) => {
+        const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
+        const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      if (filter) {
         if (filter.offset) {
           artifacts = artifacts.slice(filter.offset);
         }

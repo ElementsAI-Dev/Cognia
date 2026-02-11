@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Sparkles } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { resolveIcon } from '@/lib/a2ui/resolve-icon';
 import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
 
 interface TemplateCardProps {
@@ -16,7 +16,7 @@ interface TemplateCardProps {
 }
 
 export const TemplateCard = memo(function TemplateCard({ template, viewMode, onSelect }: TemplateCardProps) {
-  const IconComponent = icons[template.icon as keyof typeof icons];
+  const IconComponent = resolveIcon(template.icon);
 
   return (
     <Card
@@ -29,11 +29,10 @@ export const TemplateCard = memo(function TemplateCard({ template, viewMode, onS
       <CardHeader className={cn(viewMode === 'list' && 'flex-1 py-3')}>
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            {IconComponent ? (
-              <IconComponent className="h-5 w-5 text-primary" />
-            ) : (
-              <Sparkles className="h-5 w-5 text-primary" />
-            )}
+            {IconComponent
+              ? React.createElement(IconComponent, { className: 'h-5 w-5 text-primary' })
+              : <Sparkles className="h-5 w-5 text-primary" />
+            }
           </div>
           <div className="flex-1 min-w-0">
             <CardTitle className="text-sm">{template.name}</CardTitle>

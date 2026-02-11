@@ -4,7 +4,7 @@
  * Git Panel - Main sidebar panel integrating all Git features
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   GitBranch,
@@ -48,13 +48,20 @@ import { GitStashPanel } from './git-stash-panel';
 import { formatCommitDate, formatCommitMessage, type GitCommitInfo } from '@/types/system/git';
 import { cn } from '@/lib/utils';
 
+export interface GitPanelRef {
+  stageAll: () => Promise<void>;
+  commit: () => void;
+  push: () => Promise<void>;
+  pull: () => Promise<void>;
+}
+
 interface GitPanelProps {
   repoPath?: string;
   projectId?: string;
   className?: string;
 }
 
-export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
+export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel({ repoPath, projectId, className }, ref) {
   const t = useTranslations('git');
   const tCommon = useTranslations('common');
 
@@ -115,8 +122,8 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
         const diffs = await getDiffBetween('HEAD', staged ? '--staged' : '');
         setCurrentDiffs(diffs || []);
         setShowDiffView(true);
-      } catch (error) {
-        console.error('Failed to load diffs:', error);
+      } catch (err) {
+        console.error('Failed to load diffs:', err);
       } finally {
         setIsLoadingDiffs(false);
       }
@@ -131,6 +138,13 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
       return () => clearInterval(interval);
     }
   }, [isInstalled, repoPath, refreshStatus]);
+
+  useImperativeHandle(ref, () => ({
+    stageAll: async () => { await stageAll(); },
+    commit: () => { setShowCommitDialog(true); },
+    push: async () => { await push(); },
+    pull: async () => { await pull(); },
+  }), [stageAll, push, pull]);
 
   const handleCommit = async () => {
     if (!commitMessage.trim()) return;
@@ -149,55 +163,6 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     }
   };
 
-  const handleStageFiles = useCallback(
-    async (files: string[]) => {
-      return stage(files);
-    },
-    [stage]
-  );
-
-  const handleUnstageFiles = useCallback(
-    async (files: string[]) => {
-      return unstage(files);
-    },
-    [unstage]
-  );
-
-  const handleDiscardFiles = useCallback(
-    async (files: string[]) => {
-      return discardChanges(files);
-    },
-    [discardChanges]
-  );
-
-  const handleCheckout = useCallback(
-    async (target: string, createNew?: boolean) => {
-      return checkout(target, createNew);
-    },
-    [checkout]
-  );
-
-  const handleCreateBranch = useCallback(
-    async (name: string, startPoint?: string) => {
-      return createBranch(name, startPoint);
-    },
-    [createBranch]
-  );
-
-  const handleDeleteBranch = useCallback(
-    async (name: string, force?: boolean) => {
-      return deleteBranch(name, force);
-    },
-    [deleteBranch]
-  );
-
-  const handleMergeBranch = useCallback(
-    async (branch: string) => {
-      return mergeBranch(branch);
-    },
-    [mergeBranch]
-  );
-
   const handleViewCommitDiff = useCallback(
     async (commit: GitCommitInfo) => {
       const diffs = await getDiffBetween(`${commit.hash}^`, commit.hash);
@@ -205,24 +170,6 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
     },
     [getDiffBetween]
   );
-
-  const handleCheckoutCommit = useCallback(
-    async (commitHash: string) => {
-      return checkout(commitHash);
-    },
-    [checkout]
-  );
-
-  const handleRevertCommit = useCallback(
-    async (commitHash: string) => {
-      return revertCommit(commitHash);
-    },
-    [revertCommit]
-  );
-
-  const loadBranches = useCallback(async () => {
-    await refreshStatus();
-  }, [refreshStatus]);
 
   // Desktop not available (web mode)
   if (!isDesktopAvailable) {
@@ -313,7 +260,7 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
           <div className="flex items-center gap-2 min-w-0">
             <FolderGit2 className="h-4 w-4 shrink-0" />
             <span className="font-medium text-sm truncate">
-              {currentRepo?.path?.split(/[\/]/).pop() || t('repository')}
+              {currentRepo?.path?.split(/[/\\]/).pop() || t('repository')}
             </span>
           </div>
           <Button
@@ -441,9 +388,9 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
             <GitFileTree
               files={fileStatus}
               isLoading={isOperating}
-              onStageFiles={handleStageFiles}
-              onUnstageFiles={handleUnstageFiles}
-              onDiscardFiles={handleDiscardFiles}
+              onStageFiles={stage}
+              onUnstageFiles={unstage}
+              onDiscardFiles={discardChanges}
               onRefresh={refreshStatus}
             />
 
@@ -476,9 +423,9 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
                     <GitDiffViewer
                       diffs={currentDiffs}
                       fileStatus={fileStatus}
-                      onStageFile={(path) => handleStageFiles([path])}
-                      onUnstageFile={(path) => handleUnstageFiles([path])}
-                      onDiscardFile={(path) => handleDiscardFiles([path])}
+                      onStageFile={(path) => stage([path])}
+                      onUnstageFile={(path) => unstage([path])}
+                      onDiscardFile={(path) => discardChanges([path])}
                     />
                   </div>
                 )}
@@ -491,11 +438,11 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               branches={branches}
               currentBranch={currentRepo?.branch || undefined}
               isLoading={isOperating}
-              onCheckout={handleCheckout}
-              onCreateBranch={handleCreateBranch}
-              onDeleteBranch={handleDeleteBranch}
-              onMergeBranch={handleMergeBranch}
-              onRefresh={loadBranches}
+              onCheckout={checkout}
+              onCreateBranch={createBranch}
+              onDeleteBranch={deleteBranch}
+              onMergeBranch={mergeBranch}
+              onRefresh={refreshStatus}
             />
           </TabsContent>
 
@@ -506,8 +453,8 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               isLoading={isOperating}
               onRefresh={refreshStatus}
               onViewDiff={handleViewCommitDiff}
-              onCheckout={handleCheckoutCommit}
-              onRevert={handleRevertCommit}
+              onCheckout={(hash: string) => checkout(hash)}
+              onRevert={revertCommit}
             />
           </TabsContent>
 
@@ -561,6 +508,31 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
               </div>
             </div>
 
+            {/* Staged Files Review */}
+            {fileStatus.length > 0 && (
+              <div className="space-y-1">
+                <Label>{t('commitDialog.review') ?? 'Files to commit'}</Label>
+                <ScrollArea className="h-32 rounded-md border bg-muted/20">
+                  <div className="p-2 space-y-0.5">
+                    {fileStatus.map((f) => (
+                      <div key={f.path} className="flex items-center gap-2 text-xs font-mono">
+                        <span className={cn(
+                          'w-4 text-center font-bold',
+                          f.status === 'added' && 'text-green-500',
+                          f.status === 'modified' && 'text-yellow-500',
+                          f.status === 'deleted' && 'text-red-500',
+                          f.status === 'renamed' && 'text-blue-500',
+                        )}>
+                          {f.status === 'added' ? 'A' : f.status === 'modified' ? 'M' : f.status === 'deleted' ? 'D' : f.status === 'renamed' ? 'R' : '?'}
+                        </span>
+                        <span className="truncate">{f.path}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
             {/* Commit Message */}
             <div className="space-y-2">
               <Label htmlFor="commitMessage">{t('commitDialog.message')}</Label>
@@ -594,6 +566,4 @@ export function GitPanel({ repoPath, projectId, className }: GitPanelProps) {
       </Dialog>
     </div>
   );
-}
-
-export default GitPanel;
+});

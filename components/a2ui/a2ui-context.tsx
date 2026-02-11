@@ -24,6 +24,7 @@ import {
   getBindingPath,
 } from '@/lib/a2ui/data-model';
 import { getCatalog, DEFAULT_CATALOG_ID } from '@/lib/a2ui/catalog';
+import { loggers } from '@/lib/logger';
 
 /**
  * Stable actions context — references rarely change
@@ -139,7 +140,7 @@ export function A2UIProvider({
     (componentId: string): React.ReactNode => {
       const component = components[componentId];
       if (!component) {
-        console.warn(`[A2UI] Component not found: ${componentId}`);
+        loggers.ui.warn(`[A2UI] Component not found: ${componentId}`);
         return null;
       }
       return renderComponent(component);
@@ -206,6 +207,9 @@ export function useA2UIData(): A2UIDataContextValue {
 
 /**
  * Hook to access full A2UI context (backward-compatible, merges both contexts)
+ *
+ * @deprecated Prefer useA2UIActions() + useA2UIData() for better performance.
+ * useA2UIContext() re-renders on both action and data changes.
  */
 export function useA2UIContext(): A2UIContextValue {
   const actions = useContext(A2UIActionsCtx);
@@ -213,14 +217,14 @@ export function useA2UIContext(): A2UIContextValue {
   if (!actions || !data) {
     throw new Error('useA2UIContext must be used within an A2UIProvider');
   }
-  return { ...actions, ...data };
+  return useMemo(() => ({ ...actions, ...data }), [actions, data]);
 }
 
 /**
  * Hook to get a specific component from context
  */
 export function useA2UIComponent(componentId: string): A2UIComponent | undefined {
-  const { getComponent } = useA2UIContext();
+  const { getComponent } = useA2UIActions();
   return getComponent(componentId);
 }
 
@@ -228,7 +232,8 @@ export function useA2UIComponent(componentId: string): A2UIComponent | undefined
  * Hook for data binding - returns value and setter
  */
 export function useA2UIBinding<T>(path: string, defaultValue: T): [T, (value: T) => void] {
-  const { dataModel, setDataValue } = useA2UIContext();
+  const { dataModel } = useA2UIData();
+  const { setDataValue } = useA2UIActions();
 
   const value = useMemo(() => {
     const segments = path.split('/').filter(Boolean);
@@ -262,7 +267,7 @@ export function useA2UIBinding<T>(path: string, defaultValue: T): [T, (value: T)
  * Hook for component visibility based on data binding
  */
 export function useA2UIVisibility(visible?: boolean | { path: string }): boolean {
-  const { resolveBoolean } = useA2UIContext();
+  const { resolveBoolean } = useA2UIData();
 
   if (visible === undefined) {
     return true;
@@ -275,7 +280,7 @@ export function useA2UIVisibility(visible?: boolean | { path: string }): boolean
  * Hook for component disabled state based on data binding
  */
 export function useA2UIDisabled(disabled?: boolean | { path: string }): boolean {
-  const { resolveBoolean } = useA2UIContext();
+  const { resolveBoolean } = useA2UIData();
 
   if (disabled === undefined) {
     return false;

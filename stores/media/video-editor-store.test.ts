@@ -3,10 +3,30 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
+
+// Mock the video project repository
+jest.mock('@/lib/db/repositories/video-project-repository', () => ({
+  videoProjectRepository: {
+    getById: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    getAll: jest.fn(),
+  },
+}));
+
 import { useVideoEditorStore } from './video-editor-store';
+import { videoProjectRepository } from '@/lib/db/repositories/video-project-repository';
+
+const mockRepo = videoProjectRepository as jest.Mocked<typeof videoProjectRepository>;
 
 // Reset store state before each test
 beforeEach(() => {
+  jest.clearAllMocks();
+  mockRepo.getById.mockResolvedValue(undefined);
+  mockRepo.create.mockResolvedValue({} as never);
+  mockRepo.update.mockResolvedValue({} as never);
+  mockRepo.delete.mockResolvedValue(undefined);
   const { result } = renderHook(() => useVideoEditorStore());
   act(() => {
     result.current.reset();
@@ -74,7 +94,7 @@ describe('useVideoEditorStore', () => {
       expect(result.current.currentProject?.frameRate).toBe(24);
     });
 
-    it('should delete project', () => {
+    it('should delete project', async () => {
       const { result } = renderHook(() => useVideoEditorStore());
 
       let projectId: string;
@@ -82,14 +102,15 @@ describe('useVideoEditorStore', () => {
         projectId = result.current.createProject('To Delete');
       });
 
-      act(() => {
-        result.current.deleteProject(projectId!);
+      await act(async () => {
+        await result.current.deleteProject(projectId!);
       });
 
       expect(result.current.currentProject).toBeNull();
+      expect(mockRepo.delete).toHaveBeenCalledWith(projectId!);
     });
 
-    it('should save project and update timestamp', () => {
+    it('should save project and update timestamp', async () => {
       const { result } = renderHook(() => useVideoEditorStore());
 
       act(() => {
@@ -98,14 +119,92 @@ describe('useVideoEditorStore', () => {
 
       const originalUpdatedAt = result.current.currentProject?.updatedAt;
 
-      // Wait a bit to ensure timestamp changes
-      jest.advanceTimersByTime(100);
-
-      act(() => {
-        result.current.saveProject();
+      await act(async () => {
+        await result.current.saveProject();
       });
 
       expect(result.current.currentProject?.updatedAt).toBeGreaterThanOrEqual(originalUpdatedAt!);
+      // First save creates a new entry in the repository
+      expect(mockRepo.create).toHaveBeenCalled();
+    });
+
+    it('should update existing project on save', async () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+
+      act(() => {
+        result.current.createProject('Test');
+      });
+
+      const projectId = result.current.currentProject!.id;
+      mockRepo.getById.mockResolvedValue({
+        id: projectId,
+        name: 'Test',
+        resolution: { width: 1920, height: 1080 },
+        frameRate: 30,
+        aspectRatio: '16:9',
+        tracks: [],
+        duration: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await act(async () => {
+        await result.current.saveProject();
+      });
+
+      expect(mockRepo.update).toHaveBeenCalledWith(projectId, expect.objectContaining({ name: 'Test' }));
+    });
+
+    it('should load project from IndexedDB', async () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+      const now = new Date();
+
+      mockRepo.getById.mockResolvedValue({
+        id: 'proj-123',
+        name: 'Loaded Project',
+        resolution: { width: 1920, height: 1080 },
+        frameRate: 30,
+        aspectRatio: '16:9',
+        tracks: [],
+        duration: 60,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await act(async () => {
+        await result.current.loadProject('proj-123');
+      });
+
+      expect(result.current.currentProject).not.toBeNull();
+      expect(result.current.currentProject?.name).toBe('Loaded Project');
+      expect(result.current.currentProject?.duration).toBe(60);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should handle load of non-existent project', async () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+      mockRepo.getById.mockResolvedValue(undefined);
+
+      await act(async () => {
+        await result.current.loadProject('nonexistent');
+      });
+
+      expect(result.current.currentProject).toBeNull();
+      expect(result.current.error).toBe('Project not found');
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should handle load error gracefully', async () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+      mockRepo.getById.mockRejectedValue(new Error('DB error'));
+
+      await act(async () => {
+        await result.current.loadProject('proj-err');
+      });
+
+      expect(result.current.currentProject).toBeNull();
+      expect(result.current.error).toBe('Failed to load project');
+      expect(result.current.isLoading).toBe(false);
     });
   });
 
@@ -199,6 +298,38 @@ describe('useVideoEditorStore', () => {
       });
 
       expect(result.current.preferences.snapEnabled).toBe(true);
+    });
+
+    it('should have default processing settings', () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+
+      const { processing } = result.current.preferences;
+      expect(processing).toBeDefined();
+      expect(processing.timeline.snapToGrid).toBe(true);
+      expect(processing.codec.preferredVideoCodec).toBe('auto');
+      expect(processing.export.defaultPresetId).toBe('youtube-1080p');
+      expect(processing.worker.enabled).toBe(true);
+      expect(processing.gpu.enabled).toBe(true);
+      expect(processing.progressiveLoading.enabled).toBe(true);
+      expect(processing.keyframeEditor.defaultInterpolation).toBe('linear');
+    });
+
+    it('should update processing preferences', () => {
+      const { result } = renderHook(() => useVideoEditorStore());
+
+      act(() => {
+        result.current.updatePreferences({
+          processing: {
+            ...result.current.preferences.processing,
+            codec: {
+              ...result.current.preferences.processing.codec,
+              preferredVideoCodec: 'h265',
+            },
+          },
+        });
+      });
+
+      expect(result.current.preferences.processing.codec.preferredVideoCodec).toBe('h265');
     });
   });
 

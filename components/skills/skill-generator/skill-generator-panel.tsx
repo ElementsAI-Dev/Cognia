@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 import { useSkillSeekersStore, selectActiveJob, selectPresetsByCategory } from '@/stores/skill-seekers';
 import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { EnhanceProvider } from '@/lib/native/skill-seekers';
@@ -101,8 +102,8 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
   const handleInstall = useCallback(async () => {
     try {
       await install(['gemini', 'openai']);
-    } catch {
-      // Error handled by store
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Installation failed');
     }
   }, [install]);
 
@@ -126,8 +127,8 @@ export function SkillGeneratorPanel({ className, onComplete, onCancel }: SkillGe
           break;
       }
       setStep('progress');
-    } catch {
-      // Error handled by store
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Generation failed');
     }
   }, [
     sourceTab,

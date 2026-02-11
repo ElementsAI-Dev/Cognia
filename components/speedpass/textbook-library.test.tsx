@@ -188,7 +188,7 @@ describe('TextbookLibrary', () => {
     // Check page renders with title
     expect(screen.getAllByText('我的教材').length).toBeGreaterThan(0);
     // Empty state has icon and buttons
-    expect(screen.getByTestId('icon-book-open')).toBeInTheDocument();
+    expect(screen.getAllByTestId('icon-book-open').length).toBeGreaterThan(0);
     // Multiple add buttons exist (header + empty state)
     expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });

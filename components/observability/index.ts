@@ -14,13 +14,17 @@ export { ObservabilityButton } from './observability-button';
 export { ObservabilityInitializer } from './observability-initializer';
 export { LogPanel as UnifiedLogPanel } from '@/components/logging';
 
-// New components
+// Sub-components
 export { StatCard } from './stat-card';
 export { EmptyState } from './empty-state';
 export { RecommendationsPanel } from './recommendations-panel';
 export { SessionAnalyticsPanel } from './session-analytics-panel';
 export { EfficiencyMetricsCard } from './efficiency-metrics-card';
 export { PerformanceMetricsPanel } from './performance-metrics-panel';
+export { DashboardHeader } from './dashboard-header';
+export { OverviewTab } from './overview-tab';
+export { TracesTab } from './traces-tab';
+export { DashboardSkeleton } from './dashboard-skeleton';
 
 // Charts
 export {
@@ -35,4 +39,4 @@ export {
 } from './charts';
 
 // Types
-export type { TraceData, SpanData, MetricsData, TimeRange } from './observability-dashboard';
+export type { TraceData, SpanData, MetricsData, TimeRange } from '@/types/observability';

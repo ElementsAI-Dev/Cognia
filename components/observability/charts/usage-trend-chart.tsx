@@ -6,7 +6,7 @@
  * Area chart showing token usage and cost trends over time.
  */
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   AreaChart,
@@ -30,7 +30,7 @@ interface UsageTrendChartProps {
   height?: number;
 }
 
-export function UsageTrendChart({
+export const UsageTrendChart = memo(function UsageTrendChart({
   data,
   title,
   showCost = true,
@@ -129,4 +129,4 @@ export function UsageTrendChart({
       </CardContent>
     </Card>
   );
-}
+});

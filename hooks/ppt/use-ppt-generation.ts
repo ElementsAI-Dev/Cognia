@@ -6,12 +6,14 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { generateText } from 'ai';
 import { useSettingsStore, useWorkflowStore } from '@/stores';
 import { usePPTEditorStore } from '@/stores/tools/ppt-editor-store';
-import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
-import { getNextApiKey } from '@/lib/ai/infrastructure/api-key-rotation';
+import { resolvePPTAIConfig, createPPTModelInstance } from '@/lib/ai/utils/ppt-ai-config';
 import type { ProviderName } from '@/types/provider';
+import { parseAIJSON } from '@/lib/ai/utils/parse-ai-json';
+import { loggers } from '@/lib/logger';
 import type { PPTPresentation, PPTSlide, PPTTheme, PPTMaterial, PPTEnhancedGenerationOptions, PPTImageStyle } from '@/types/workflow';
 import { DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { PPTWorkflowExecutor, type PPTExecutorConfig } from '@/lib/ai/workflows/ppt-executor';
@@ -86,6 +88,7 @@ export interface UsePPTGenerationReturn {
 }
 
 export function usePPTGeneration(): UsePPTGenerationReturn {
+  const t = useTranslations('pptGenerator');
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<PPTGenerationProgress>({
     stage: 'idle',
@@ -111,45 +114,14 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
   // Get API configuration
   const getAPIConfig = useCallback(() => {
-    const settings = providerSettings[defaultProvider];
-    return {
-      provider: defaultProvider,
-      model: settings?.defaultModel || 'gpt-4o',
-      apiKey: settings?.apiKey || '',
-      baseURL: settings?.baseURL,
-    };
+    return resolvePPTAIConfig(defaultProvider, providerSettings);
   }, [defaultProvider, providerSettings]);
 
   // Call AI API for generation using direct client (works in static export/desktop)
   const callAI = useCallback(
     async (systemPrompt: string, userPrompt: string, signal?: AbortSignal): Promise<string> => {
-      const config = getAPIConfig();
-      const settings = providerSettings[defaultProvider];
-
-      // Support API key rotation
-      let activeApiKey = config.apiKey;
-      if (settings?.apiKeys && settings.apiKeys.length > 0 && settings.apiKeyRotationEnabled) {
-        const usageStats = settings.apiKeyUsageStats || {};
-        const rotationResult = getNextApiKey(
-          settings.apiKeys,
-          settings.apiKeyRotationStrategy || 'round-robin',
-          settings.currentKeyIndex || 0,
-          usageStats
-        );
-        activeApiKey = rotationResult.apiKey;
-        useSettingsStore.getState().updateProviderSettings(defaultProvider, {
-          currentKeyIndex: rotationResult.index,
-        });
-      }
-
-      // Get model instance directly (bypasses /api/chat for static export compatibility)
-      const modelInstance = getProxyProviderModel(
-        defaultProvider,
-        config.model,
-        activeApiKey,
-        settings?.baseURL,
-        true // Enable proxy support
-      );
+      const config = resolvePPTAIConfig(defaultProvider, providerSettings);
+      const modelInstance = createPPTModelInstance(config);
 
       const { text } = await generateText({
         model: modelInstance,
@@ -161,25 +133,12 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
 
       return text;
     },
-    [getAPIConfig, defaultProvider, providerSettings]
+    [defaultProvider, providerSettings]
   );
 
-  // Parse JSON from AI response
+  // Parse JSON from AI response — delegates to shared utility
   const parseJSONResponse = useCallback((response: string): unknown => {
-    // Try to extract JSON from markdown code blocks
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonStr = jsonMatch ? jsonMatch[1].trim() : response.trim();
-
-    try {
-      return JSON.parse(jsonStr);
-    } catch {
-      // Try to find JSON object in the response
-      const objectMatch = response.match(/\{[\s\S]*\}/);
-      if (objectMatch) {
-        return JSON.parse(objectMatch[0]);
-      }
-      throw new Error('Failed to parse JSON response');
-    }
+    return parseAIJSON(response);
   }, []);
 
   // Generate presentation
@@ -193,7 +152,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         stage: 'outline',
         currentSlide: 0,
         totalSlides: config.slideCount,
-        message: '正在生成演示文稿大纲...',
+        message: t('progressGeneratingOutline'),
       });
 
       try {
@@ -236,7 +195,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'content',
           currentSlide: 0,
           totalSlides: outlineData.outline.length,
-          message: '正在生成幻灯片内容...',
+          message: t('progressGeneratingSlides'),
         });
 
         const slides: PPTSlide[] = [];
@@ -252,7 +211,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'content',
             currentSlide: i + 1,
             totalSlides: outlineData.outline.length,
-            message: `正在生成第 ${i + 1}/${outlineData.outline.length} 张幻灯片...`,
+            message: t('progressGeneratingSlide', { current: i + 1, total: outlineData.outline.length }),
           });
 
           // Generate content for this slide
@@ -308,7 +267,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'finalizing',
           currentSlide: slides.length,
           totalSlides: slides.length,
-          message: '正在完成演示文稿...',
+          message: t('progressFinalizing'),
         });
 
         const newPresentation: PPTPresentation = {
@@ -335,7 +294,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'complete',
           currentSlide: slides.length,
           totalSlides: slides.length,
-          message: '演示文稿生成完成！',
+          message: t('progressComplete'),
         });
 
         return newPresentation;
@@ -347,7 +306,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'error',
             currentSlide: 0,
             totalSlides: config.slideCount,
-            message: `生成失败: ${message}`,
+            message: t('progressError', { message }),
           });
         }
         return null;
@@ -356,7 +315,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation, addPresentation]
+    [callAI, parseJSONResponse, loadPresentation, addPresentation, t]
   );
 
   // Cancel generation
@@ -368,10 +327,10 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         stage: 'idle',
         currentSlide: 0,
         totalSlides: 0,
-        message: '生成已取消',
+        message: t('progressCancelled'),
       });
     }
-  }, [abortController]);
+  }, [abortController, t]);
 
   // Generate outline only (first stage)
   const generateOutline = useCallback(
@@ -385,7 +344,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         stage: 'outline',
         currentSlide: 0,
         totalSlides: config.slideCount,
-        message: '正在生成演示文稿大纲...',
+        message: t('progressGeneratingOutline'),
       });
 
       try {
@@ -415,7 +374,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'idle',
           currentSlide: 0,
           totalSlides: outlineData.outline.length,
-          message: '大纲生成完成，请确认后继续生成完整内容',
+          message: t('progressOutlineComplete'),
         });
 
         return outlineData;
@@ -427,7 +386,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'error',
             currentSlide: 0,
             totalSlides: config.slideCount,
-            message: `大纲生成失败: ${message}`,
+            message: t('progressOutlineError', { message }),
           });
         }
         return null;
@@ -436,7 +395,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse]
+    [callAI, parseJSONResponse, t]
   );
 
   // Generate full presentation from existing outline (second stage)
@@ -453,7 +412,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         stage: 'content',
         currentSlide: 0,
         totalSlides: outlineData.outline.length,
-        message: '正在生成幻灯片内容...',
+        message: t('progressGeneratingSlides'),
       });
 
       try {
@@ -482,7 +441,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'content',
             currentSlide: i + 1,
             totalSlides: outlineData.outline.length,
-            message: `正在生成第 ${i + 1}/${outlineData.outline.length} 张幻灯片...`,
+            message: t('progressGeneratingSlide', { current: i + 1, total: outlineData.outline.length }),
           });
 
           const contentPrompt = buildSlideContentPrompt(
@@ -532,7 +491,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'finalizing',
           currentSlide: slides.length,
           totalSlides: slides.length,
-          message: '正在完成演示文稿...',
+          message: t('progressFinalizing'),
         });
 
         const newPresentation: PPTPresentation = {
@@ -557,7 +516,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'complete',
           currentSlide: slides.length,
           totalSlides: slides.length,
-          message: '演示文稿生成完成！',
+          message: t('progressComplete'),
         });
 
         return newPresentation;
@@ -569,7 +528,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'error',
             currentSlide: 0,
             totalSlides: outlineData.outline.length,
-            message: `生成失败: ${message}`,
+            message: t('progressError', { message }),
           });
         }
         return null;
@@ -578,7 +537,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, parseJSONResponse, loadPresentation, addPresentation]
+    [callAI, parseJSONResponse, loadPresentation, addPresentation, t]
   );
 
   // Generate presentation from materials using PPTWorkflowExecutor
@@ -592,7 +551,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         stage: 'outline',
         currentSlide: 0,
         totalSlides: config.slideCount,
-        message: '正在处理素材并生成演示文稿...',
+        message: t('progressProcessingMaterials'),
       });
 
       try {
@@ -607,11 +566,11 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
                 : 'finalizing',
               currentSlide: workflowProgress.completedSteps,
               totalSlides: workflowProgress.totalSteps,
-              message: workflowProgress.currentStepName || '处理中...',
+              message: workflowProgress.currentStepName || t('progressProcessing'),
             });
           },
           onError: (err) => {
-            console.error('Workflow step error:', err.message);
+            loggers.ai.error('Workflow step error:', err);
           },
           generateAIContent: async (prompt: string) => {
             const systemPrompt = 'You are a professional presentation content creator. Generate high-quality content in the requested format.';
@@ -656,7 +615,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
           stage: 'complete',
           currentSlide: newPresentation.slides.length,
           totalSlides: newPresentation.slides.length,
-          message: '演示文稿生成完成！',
+          message: t('progressComplete'),
         });
 
         return newPresentation;
@@ -668,7 +627,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
             stage: 'error',
             currentSlide: 0,
             totalSlides: config.slideCount,
-            message: `素材生成失败: ${message}`,
+            message: t('progressMaterialError', { message }),
           });
         }
         return null;
@@ -677,7 +636,7 @@ export function usePPTGeneration(): UsePPTGenerationReturn {
         setAbortController(null);
       }
     },
-    [callAI, getAPIConfig, loadPresentation, addPresentation]
+    [callAI, getAPIConfig, loadPresentation, addPresentation, t]
   );
 
   // Reset state

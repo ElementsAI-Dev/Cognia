@@ -8,6 +8,7 @@
 import React, { Component } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { loggers } from '@/lib/logger';
 
 interface A2UIErrorBoundaryProps {
   componentType: string;
@@ -31,7 +32,7 @@ export class A2UIErrorBoundary extends Component<A2UIErrorBoundaryProps, A2UIErr
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error(
+    loggers.ui.error(
       `A2UI Component Error [${this.props.componentType}#${this.props.componentId}]:`,
       error,
       errorInfo

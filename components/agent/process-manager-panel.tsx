@@ -414,4 +414,3 @@ export function ProcessManagerPanel({ open, onOpenChange }: ProcessManagerPanelP
   );
 }
 
-export default ProcessManagerPanel;

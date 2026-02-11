@@ -11,6 +11,7 @@ import type {
   AnnotationStyle,
   SelectionRegion,
 } from '@/types/screenshot';
+import { DEFAULT_STYLE } from '@/types/screenshot';
 
 // ============== Types ==============
 
@@ -91,14 +92,6 @@ type EditorStore = EditorState & EditorActions;
 
 // ============== Initial State ==============
 
-const defaultStyle: AnnotationStyle = {
-  color: '#FF0000',
-  strokeWidth: 2,
-  filled: false,
-  opacity: 1,
-  fontSize: 16,
-};
-
 const initialState: EditorState = {
   mode: 'idle',
   selection: null,
@@ -107,7 +100,7 @@ const initialState: EditorState = {
   screenshotData: null,
   screenshotDimensions: null,
   currentTool: 'select',
-  style: defaultStyle,
+  style: DEFAULT_STYLE,
   annotations: [],
   selectedAnnotationId: null,
   undoStack: [],
@@ -133,7 +126,7 @@ const loadPersistedStyle = (): Partial<StylePreferences> => {
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
-        style: parsed.style || defaultStyle,
+        style: parsed.style || DEFAULT_STYLE,
         currentTool: parsed.currentTool || 'select',
       };
     }

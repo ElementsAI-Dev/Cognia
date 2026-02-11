@@ -28,7 +28,8 @@ jest.mock('@/stores/a2ui', () => ({
   useA2UIStore: jest.fn((selector) => {
     const state = {
       surfaces: { 'test-surface': mockSurface },
-      loadingSurfaces: mockLoadingSurfaces,
+      loadingSurfaces: Object.fromEntries([...mockLoadingSurfaces].map(k => [k, true])),
+      streamingSurfaces: {} as Record<string, boolean>,
       errors: mockErrors,
       deleteSurface: mockDeleteSurface,
     };

@@ -5,7 +5,7 @@
  * Modern design with improved responsive layout and better space utilization
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Plus,
@@ -56,6 +56,37 @@ export function PromptTemplateManager() {
   const [importPayload, setImportPayload] = useState('');
   const [useAdvancedEditor, setUseAdvancedEditor] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Ignore if inside an input/textarea/contenteditable
+    const target = e.target as HTMLElement;
+    const isEditable = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      setEditing(null);
+      setIsEditorOpen(true);
+    } else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    } else if (e.key === 'Escape') {
+      if (isEditorOpen) {
+        setIsEditorOpen(false);
+      } else if (isImportOpen) {
+        setIsImportOpen(false);
+      } else if (search && isEditable) {
+        setSearch('');
+        searchInputRef.current?.blur();
+      }
+    }
+  }, [isEditorOpen, isImportOpen, search]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const filtered = useMemo(() => {
     const list = search ? searchTemplates(search) : templates;
@@ -153,6 +184,7 @@ export function PromptTemplateManager() {
           <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}

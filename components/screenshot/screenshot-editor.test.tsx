@@ -20,6 +20,21 @@ jest.mock('@/stores/screenshot/editor-store', () => ({
   useEditorStore: jest.fn(),
   selectCanUndo: jest.fn((state) => state.undoStack.length > 0),
   selectCanRedo: jest.fn((state) => state.redoStack.length > 0),
+  selectHasAnnotations: jest.fn((state) => state.annotations.length > 0),
+  selectAnnotationCount: jest.fn((state) => state.annotations.length),
+}));
+
+// Mock loggers
+const mockLoggerError = jest.fn();
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ui: {
+      error: (...args: unknown[]) => mockLoggerError(...args),
+      warn: jest.fn(),
+      info: jest.fn(),
+      debug: jest.fn(),
+    },
+  },
 }));
 
 // Mock Image constructor
@@ -150,7 +165,7 @@ global.fetch = jest.fn(() =>
 ) as jest.Mock;
 
 // Import the mocked store after defining the mock
-import { useEditorStore, selectCanUndo, selectCanRedo } from '@/stores/screenshot';
+import { useEditorStore, selectCanUndo, selectCanRedo, selectHasAnnotations, selectAnnotationCount } from '@/stores/screenshot';
 
 const mockUseEditorStore = useEditorStore as jest.MockedFunction<typeof useEditorStore>;
 
@@ -206,6 +221,8 @@ describe('ScreenshotEditor', () => {
     mockUseEditorStore.mockImplementation((selector) => {
       if (selector === selectCanUndo) return false;
       if (selector === selectCanRedo) return false;
+      if (selector === selectHasAnnotations) return false;
+      if (selector === selectAnnotationCount) return 0;
       return defaultMockState as unknown as ReturnType<typeof useEditorStore>;
     });
     // Reset window dimensions
@@ -324,7 +341,13 @@ describe('ScreenshotEditor', () => {
         ...defaultMockState,
         annotations: [testAnnotation],
       };
-      mockUseEditorStore.mockReturnValue(stateWithAnnotations as unknown as ReturnType<typeof useEditorStore>);
+      mockUseEditorStore.mockImplementation((selector) => {
+        if (selector === selectCanUndo) return false;
+        if (selector === selectCanRedo) return false;
+        if (selector === selectHasAnnotations) return true;
+        if (selector === selectAnnotationCount) return 1;
+        return stateWithAnnotations as unknown as ReturnType<typeof useEditorStore>;
+      });
 
       const { container } = render(
         <ScreenshotEditor
@@ -783,8 +806,6 @@ describe('ScreenshotEditor', () => {
       const mockFetchError = global.fetch as jest.MockedFunction<typeof fetch>;
       mockFetchError.mockRejectedValueOnce(new Error('Clipboard error'));
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
       mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
 
       render(
@@ -804,13 +825,11 @@ describe('ScreenshotEditor', () => {
       });
 
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(mockLoggerError).toHaveBeenCalledWith(
           'Failed to copy to clipboard:',
           expect.any(Error)
         );
       });
-
-      consoleSpy.mockRestore();
     });
   });
 
@@ -1041,7 +1060,13 @@ describe('ScreenshotEditor', () => {
         ...defaultMockState,
         annotations: multipleAnnotations,
       };
-      mockUseEditorStore.mockReturnValue(stateWithMultipleAnnotations as unknown as ReturnType<typeof useEditorStore>);
+      mockUseEditorStore.mockImplementation((selector) => {
+        if (selector === selectCanUndo) return false;
+        if (selector === selectCanRedo) return false;
+        if (selector === selectHasAnnotations) return true;
+        if (selector === selectAnnotationCount) return 3;
+        return stateWithMultipleAnnotations as unknown as ReturnType<typeof useEditorStore>;
+      });
 
       const { container } = render(
         <ScreenshotEditor

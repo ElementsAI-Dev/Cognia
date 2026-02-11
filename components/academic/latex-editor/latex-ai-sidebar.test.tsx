@@ -18,9 +18,9 @@ jest.mock('@/components/ui/button', () => ({
   ),
 }));
 
-jest.mock('@/components/ui/textarea', () => ({
-  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea data-testid="textarea" {...props} />
+jest.mock('@/components/ui/input', () => ({
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input data-testid="input" {...props} />
   ),
 }));
 
@@ -28,19 +28,44 @@ jest.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div data-testid="scroll-area">{children}</div>,
 }));
 
-jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+jest.mock('@/components/ui/separator', () => ({
+  Separator: () => <hr data-testid="separator" />,
+}));
+
+jest.mock('@/components/ui/tabs', () => ({
+  Tabs: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs">{children}</div>,
+  TabsList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TabsTrigger: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+}));
+
+// Mock stores and hooks
+jest.mock('@/stores/settings', () => ({
+  useSettingsStore: (selector: (s: Record<string, unknown>) => unknown) => selector({
+    defaultProvider: 'openai',
+    providerSettings: { openai: { enabled: true, apiKey: 'test', defaultModel: 'gpt-4o-mini' } },
+  }),
+}));
+
+jest.mock('@/lib/ai/generation/use-ai-chat', () => ({
+  useAIChat: () => ({
+    sendMessage: jest.fn().mockResolvedValue('AI response'),
+    stop: jest.fn(),
+  }),
+}));
+
+jest.mock('./latex-equation-analysis', () => ({
+  LatexEquationAnalysis: () => <div data-testid="equation-analysis" />,
 }));
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
   Send: () => <span data-testid="icon-send" />,
   Sparkles: () => <span data-testid="icon-sparkles" />,
-  X: () => <span data-testid="icon-x" />,
-  Loader2: () => <span data-testid="icon-loader" />,
-  Copy: () => <span data-testid="icon-copy" />,
-  Check: () => <span data-testid="icon-check" />,
+  PanelRightClose: () => <span data-testid="icon-close" />,
+  MessageSquare: () => <span data-testid="icon-message" />,
+  Lightbulb: () => <span data-testid="icon-lightbulb" />,
+  History: () => <span data-testid="icon-history" />,
+  Calculator: () => <span data-testid="icon-calculator" />,
 }));
 
 describe('LaTeXAISidebar', () => {
@@ -65,16 +90,16 @@ describe('LaTeXAISidebar', () => {
     expect(container.querySelector('[data-testid="scroll-area"]')).toBeNull();
   });
 
-  it('renders input textarea', () => {
+  it('renders input field', () => {
     render(<LaTeXAISidebar {...defaultProps} />);
-    expect(screen.getByTestId('textarea')).toBeInTheDocument();
+    expect(screen.getByTestId('input')).toBeInTheDocument();
   });
 
   it('calls onClose when close button clicked', async () => {
     render(<LaTeXAISidebar {...defaultProps} />);
     
     const closeButton = screen.getAllByRole('button').find(
-      btn => btn.querySelector('[data-testid="icon-x"]')
+      btn => btn.querySelector('[data-testid="icon-close"]')
     );
     
     if (closeButton) {
@@ -91,10 +116,10 @@ describe('LaTeXAISidebar', () => {
   it('handles text input', async () => {
     render(<LaTeXAISidebar {...defaultProps} />);
     
-    const textarea = screen.getByTestId('textarea');
-    await userEvent.type(textarea, 'Generate a formula');
+    const input = screen.getByTestId('input');
+    await userEvent.type(input, 'Generate a formula');
     
-    expect(textarea).toHaveValue('Generate a formula');
+    expect(input).toHaveValue('Generate a formula');
   });
 
   it('renders AI sparkles icon', () => {

@@ -50,6 +50,9 @@ describe('FFmpegStatus', () => {
     ffmpegAvailable: true,
     isInitialized: true,
     checkFfmpeg: jest.fn().mockResolvedValue(true),
+    refreshFFmpegInfo: jest.fn().mockResolvedValue(undefined),
+    refreshHardwareAcceleration: jest.fn().mockResolvedValue(undefined),
+    refreshFFmpegInstallGuide: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(() => {

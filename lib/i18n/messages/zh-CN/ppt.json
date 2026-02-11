@@ -95,7 +95,24 @@
     "materialGenerationDesc": "上传文档或粘贴内容以生成演示文稿",
     "processingMaterials": "正在处理素材...",
     "exportSuccess": "导出成功",
-    "exportFailed": "导出失败"
+    "exportFailed": "导出失败",
+    "progressGeneratingOutline": "正在生成演示文稿大纲...",
+    "progressGeneratingSlides": "正在生成幻灯片内容...",
+    "progressGeneratingSlide": "正在生成第 {current}/{total} 张幻灯片...",
+    "progressFinalizing": "正在完成演示文稿...",
+    "progressComplete": "演示文稿生成完成！",
+    "progressError": "生成失败: {message}",
+    "progressCancelled": "生成已取消",
+    "progressOutlineComplete": "大纲生成完成，请确认后继续生成完整内容",
+    "progressOutlineError": "大纲生成失败: {message}",
+    "progressProcessingMaterials": "正在处理素材并生成演示文稿...",
+    "progressProcessing": "处理中...",
+    "progressMaterialError": "素材生成失败: {message}",
+    "exportFormatMarp": "Marp Markdown",
+    "exportFormatHtml": "HTML",
+    "exportFormatReveal": "Reveal.js",
+    "exportFormatPdf": "PDF",
+    "exportFormatPptx": "PowerPoint"
   },
   "pptEditor": {
     "noPresentation": "未加载演示文稿",
@@ -212,7 +229,9 @@
     "addRow": "添加行",
     "addColumn": "添加列",
     "removeRow": "删除行",
-    "removeColumn": "删除列"
+    "removeColumn": "删除列",
+    "slideshowError": "幻灯片播放遇到错误",
+    "exitSlideshow": "退出幻灯片"
   },
   "pptSlideshow": {
     "pauseAutoPlay": "暂停自动播放",

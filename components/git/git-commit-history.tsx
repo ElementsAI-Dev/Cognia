@@ -4,7 +4,7 @@
  * Git Commit History - Detailed commit history viewer
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   GitCommit,
@@ -59,25 +59,24 @@ export function GitCommitHistory({
   const [selectedCommit, setSelectedCommit] = useState<GitCommitInfo | null>(null);
   const [commitDiffs, setCommitDiffs] = useState<Record<string, GitDiffInfo[]>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Set<string>>(new Set());
+  const loadingDiffsRef = useRef<Set<string>>(new Set());
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
   const loadDiff = useCallback(
     async (commit: GitCommitInfo) => {
-      if (!onViewDiff || loadingDiffs.has(commit.hash)) return;
+      if (!onViewDiff || loadingDiffsRef.current.has(commit.hash)) return;
 
-      setLoadingDiffs((prev) => new Set(prev).add(commit.hash));
+      loadingDiffsRef.current.add(commit.hash);
+      setLoadingDiffs(new Set(loadingDiffsRef.current));
       try {
         const diffs = await onViewDiff(commit);
         setCommitDiffs((prev) => ({ ...prev, [commit.hash]: diffs }));
       } finally {
-        setLoadingDiffs((prev) => {
-          const next = new Set(prev);
-          next.delete(commit.hash);
-          return next;
-        });
+        loadingDiffsRef.current.delete(commit.hash);
+        setLoadingDiffs(new Set(loadingDiffsRef.current));
       }
     },
-    [onViewDiff, loadingDiffs]
+    [onViewDiff]
   );
 
   const toggleCommit = useCallback(
@@ -383,5 +382,3 @@ export function GitCommitHistory({
     </div>
   );
 }
-
-export default GitCommitHistory;

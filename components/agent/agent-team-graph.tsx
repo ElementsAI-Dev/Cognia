@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
+import { useTeamTeammates, useTeamTasks, useTeamMessages } from '@/hooks/agent/use-team-data';
 import {
   ReactFlow,
   Background,
@@ -504,30 +505,9 @@ function AgentTeamGraphInner({ teamId, className, onTeammateClick, onTaskClick }
   const [viewMode, setViewMode] = useState<GraphViewMode>('team');
 
   const team = useAgentTeamStore((s) => s.teams[teamId]);
-  const allTeammates = useAgentTeamStore((s) => s.teammates);
-  const allTasks = useAgentTeamStore((s) => s.tasks);
-  const allMessages = useAgentTeamStore((s) => s.messages);
-
-  const teammates = useMemo(() => {
-    if (!team) return [];
-    return team.teammateIds
-      .map((id) => allTeammates[id])
-      .filter(Boolean);
-  }, [team, allTeammates]);
-
-  const tasks = useMemo(() => {
-    if (!team) return [];
-    return team.taskIds
-      .map((id) => allTasks[id])
-      .filter(Boolean);
-  }, [team, allTasks]);
-
-  const messages = useMemo(() => {
-    if (!team) return [];
-    return team.messageIds
-      .map((id) => allMessages[id])
-      .filter(Boolean);
-  }, [team, allMessages]);
+  const teammates = useTeamTeammates(teamId);
+  const tasks = useTeamTasks(teamId);
+  const messages = useTeamMessages(teamId);
 
   const { nodes, edges } = useMemo(() => {
     if (!team) return { nodes: [], edges: [] };

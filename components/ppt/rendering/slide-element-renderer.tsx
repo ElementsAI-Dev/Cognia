@@ -1,10 +1,11 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
-import { ChartElement } from '../elements';
 import type { SlideElementRendererProps } from '../types';
 import type { ChartData, ChartType } from '../elements';
+
+const ChartElement = lazy(() => import('../elements/chart-element'));
 
 /**
  * SlideElementRenderer - Renders different slide element types
@@ -98,24 +99,30 @@ export const SlideElementRenderer = memo(function SlideElementRenderer({ element
 
       return (
         <div style={baseStyle} className="overflow-hidden">
-          <ChartElement
-            type={chartType}
-            data={chartData}
-            options={{
-              title: element.metadata?.title as string,
-              showLegend: element.metadata?.showLegend as boolean,
-              showGrid: element.metadata?.showGrid as boolean,
-              showDataLabels: element.metadata?.showDataLabels as boolean,
-              colors: element.metadata?.colors as string[],
-            }}
-            theme={{
-              primaryColor: theme.primaryColor,
-              textColor: theme.textColor,
-              backgroundColor: theme.backgroundColor,
-            }}
-            width="100%"
-            height="100%"
-          />
+          <Suspense fallback={
+            <div className="flex items-center justify-center w-full h-full text-muted-foreground">
+              <div className="text-sm">Loading chart...</div>
+            </div>
+          }>
+            <ChartElement
+              type={chartType}
+              data={chartData}
+              options={{
+                title: element.metadata?.title as string,
+                showLegend: element.metadata?.showLegend as boolean,
+                showGrid: element.metadata?.showGrid as boolean,
+                showDataLabels: element.metadata?.showDataLabels as boolean,
+                colors: element.metadata?.colors as string[],
+              }}
+              theme={{
+                primaryColor: theme.primaryColor,
+                textColor: theme.textColor,
+                backgroundColor: theme.backgroundColor,
+              }}
+              width="100%"
+              height="100%"
+            />
+          </Suspense>
         </div>
       );
     }

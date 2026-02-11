@@ -1,5 +1,6 @@
 /**
  * Unit tests for ArenaBattleView component
+ * Updated for useArenaVoting hook refactor and ArenaContestantCard extraction
  */
 
 import { render, screen } from '@testing-library/react';
@@ -12,62 +13,31 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-// Mock hooks
-jest.mock('@/hooks/ui', () => ({
-  useCopy: () => ({
-    copy: jest.fn().mockResolvedValue(undefined),
-    isCopying: false,
-  }),
-}));
-
-// Mock arena store
-const mockSelectWinner = jest.fn();
-const mockDeclareTie = jest.fn();
-const mockDeclareBothBad = jest.fn();
-const mockCanVote = jest.fn(() => ({ allowed: true }));
-const mockMarkBattleViewed = jest.fn();
+// --- useArenaVoting hook mock ---
+const mockHandleVote = jest.fn();
+const mockHandleDeclareTie = jest.fn();
+const mockHandleDeclareBothBad = jest.fn();
+const mockHandleCopy = jest.fn();
+const mockHandleCancel = jest.fn();
+const mockSetSelectedReason = jest.fn();
 let mockBattle: ArenaBattle | undefined;
-
-const mockCancelBattle = jest.fn();
+let mockAllDone = true;
 
 jest.mock('@/hooks/arena', () => ({
-  useArena: () => ({
-    cancelBattle: mockCancelBattle,
+  useArenaVoting: () => ({
+    battle: mockBattle,
+    allDone: mockAllDone,
+    isRevealing: false,
+    selectedReason: 'quality' as const,
+    setSelectedReason: mockSetSelectedReason,
+    isCopying: false,
+    handleVote: mockHandleVote,
+    handleDeclareTie: mockHandleDeclareTie,
+    handleDeclareBothBad: mockHandleDeclareBothBad,
+    handleCopy: mockHandleCopy,
+    handleCancel: mockHandleCancel,
+    ensureVoteAllowed: jest.fn(() => true),
   }),
-}));
-
-jest.mock('sonner', () => ({
-  toast: {
-    error: jest.fn(),
-    success: jest.fn(),
-  },
-}));
-
-jest.mock('@/stores/arena', () => ({
-  useArenaStore: (
-    selector: (state: {
-      battles: ArenaBattle[];
-      selectWinner: typeof mockSelectWinner;
-      declareTie: typeof mockDeclareTie;
-      declareBothBad: typeof mockDeclareBothBad;
-      canVote: typeof mockCanVote;
-      recordVoteAttempt: jest.Mock;
-      markBattleViewed: typeof mockMarkBattleViewed;
-    }) => unknown
-  ) => {
-    const state = {
-      battles: mockBattle ? [mockBattle] : [],
-      selectWinner: mockSelectWinner,
-      declareTie: mockDeclareTie,
-      declareBothBad: mockDeclareBothBad,
-      canVote: mockCanVote,
-      recordVoteAttempt: jest.fn(),
-      markBattleViewed: mockMarkBattleViewed,
-    };
-    return selector(state);
-  },
-  selectBattleById: (battleId: string) => (state: { battles: ArenaBattle[] }) =>
-    state.battles.find((b: ArenaBattle) => b.id === battleId),
 }));
 
 // Mock UI components
@@ -158,10 +128,40 @@ jest.mock('lucide-react', () => ({
   Diff: () => <span data-testid="icon-diff" />,
 }));
 
-// Mock chat utils (MarkdownRenderer)
-jest.mock('@/components/chat/utils', () => ({
-  MarkdownRenderer: ({ content }: { content: string }) => (
-    <div data-testid="markdown-renderer">{content}</div>
+// Mock ArenaContestantCard (shared component)
+jest.mock('@/components/arena/arena-contestant-card', () => ({
+  ArenaContestantCard: ({
+    contestant,
+    index,
+    isWinner,
+    blindMode,
+    isRevealed,
+    onCopy,
+    onCancel,
+  }: {
+    contestant: ArenaContestant;
+    index: number;
+    isWinner: boolean;
+    blindMode: boolean;
+    isRevealed: boolean;
+    onCopy: () => void;
+    onCancel?: () => void;
+    isCopying: boolean;
+    variant?: string;
+  }) => (
+    <div data-testid={`contestant-card-${index}`}>
+      <span data-testid={`contestant-name-${index}`}>
+        {blindMode && !isRevealed ? `Model ${String.fromCharCode(65 + index)}` : contestant.displayName}
+      </span>
+      <span data-testid={`contestant-status-${index}`}>{contestant.status}</span>
+      <span data-testid={`contestant-response-${index}`}>{contestant.response}</span>
+      {contestant.error && <span data-testid={`contestant-error-${index}`}>{contestant.error}</span>}
+      {isWinner && <span data-testid={`contestant-winner-${index}`}>winner</span>}
+      {contestant.latencyMs && <span>{(contestant.latencyMs / 1000).toFixed(1)}s</span>}
+      {contestant.tokenCount && <span>{contestant.tokenCount.total}</span>}
+      <button data-testid={`copy-btn-${index}`} onClick={onCopy}>copy</button>
+      {onCancel && <button data-testid={`cancel-btn-${index}`} onClick={onCancel}>cancel</button>}
+    </div>
   ),
 }));
 
@@ -182,10 +182,10 @@ jest.mock('@/components/chat/ui/quick-vote-bar', () => ({
     onBothBad?: () => void;
   }) => (
     <div data-testid="quick-vote-bar">
-      <button onClick={() => onVote('a')}>Vote A</button>
-      <button onClick={() => onVote('b')}>Vote B</button>
-      <button onClick={onTie}>Tie</button>
-      {onBothBad && <button onClick={onBothBad}>Both Bad</button>}
+      <button data-testid="vote-a" onClick={() => onVote('a')}>Vote A</button>
+      <button data-testid="vote-b" onClick={() => onVote('b')}>Vote B</button>
+      <button data-testid="vote-tie" onClick={onTie}>Tie</button>
+      {onBothBad && <button data-testid="vote-both-bad" onClick={onBothBad}>Both Bad</button>}
     </div>
   ),
 }));
@@ -226,23 +226,7 @@ describe('ArenaBattleView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBattle = createMockBattle();
-  });
-
-  it('calls cancelBattle when cancel button clicked', async () => {
-    mockBattle = createMockBattle({
-      contestants: [createMockContestant('a', 'streaming'), createMockContestant('b', 'completed')],
-    });
-
-    render(<ArenaBattleView {...defaultProps} />);
-
-    const cancelButton = screen
-      .getAllByRole('button')
-      .find((button) => button.querySelector('[data-testid="icon-ban"]'));
-
-    if (cancelButton) {
-      await userEvent.click(cancelButton);
-      expect(mockCancelBattle).toHaveBeenCalledWith('battle-1');
-    }
+    mockAllDone = true;
   });
 
   it('renders nothing when battle not found', () => {
@@ -264,6 +248,8 @@ describe('ArenaBattleView', () => {
 
   it('displays contestant cards', () => {
     render(<ArenaBattleView {...defaultProps} />);
+    expect(screen.getByTestId('contestant-card-0')).toBeInTheDocument();
+    expect(screen.getByTestId('contestant-card-1')).toBeInTheDocument();
     expect(screen.getByText('Response from a')).toBeInTheDocument();
     expect(screen.getByText('Response from b')).toBeInTheDocument();
   });
@@ -277,17 +263,18 @@ describe('ArenaBattleView', () => {
   it('hides model names in blind mode', () => {
     mockBattle = createMockBattle({ mode: 'blind' });
     render(<ArenaBattleView {...defaultProps} />);
-    expect(screen.queryByText('Model a')).not.toBeInTheDocument();
-    // Should show "Model A" and "Model B" instead
-    expect(screen.getByText(/model A/i)).toBeInTheDocument();
+    // In blind mode, the ArenaContestantCard mock shows "Model A" / "Model B"
+    expect(screen.getByText('Model A')).toBeInTheDocument();
+    expect(screen.getByText('Model B')).toBeInTheDocument();
   });
 
   it('calls onOpenChange when close button clicked', async () => {
     const onOpenChange = jest.fn();
     render(<ArenaBattleView {...defaultProps} onOpenChange={onOpenChange} />);
 
-    const closeButtons = screen.getAllByRole('button');
-    const closeButton = closeButtons.find((btn) => btn.querySelector('[data-testid="icon-x"]'));
+    const closeButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.querySelector('[data-testid="icon-x"]'));
 
     if (closeButton) {
       await userEvent.click(closeButton);
@@ -295,17 +282,40 @@ describe('ArenaBattleView', () => {
     }
   });
 
-  it('allows selecting a winner', async () => {
+  it('shows QuickVoteBar when all done and no winner', () => {
+    mockAllDone = true;
+    render(<ArenaBattleView {...defaultProps} />);
+    expect(screen.getByTestId('quick-vote-bar')).toBeInTheDocument();
+  });
+
+  it('calls handleVote via QuickVoteBar', async () => {
+    render(<ArenaBattleView {...defaultProps} />);
+    await userEvent.click(screen.getByTestId('vote-a'));
+    expect(mockHandleVote).toHaveBeenCalledWith('a');
+  });
+
+  it('calls handleDeclareTie via QuickVoteBar', async () => {
+    render(<ArenaBattleView {...defaultProps} />);
+    await userEvent.click(screen.getByTestId('vote-tie'));
+    expect(mockHandleDeclareTie).toHaveBeenCalled();
+  });
+
+  it('calls handleDeclareBothBad via QuickVoteBar', async () => {
+    render(<ArenaBattleView {...defaultProps} />);
+    await userEvent.click(screen.getByTestId('vote-both-bad'));
+    expect(mockHandleDeclareBothBad).toHaveBeenCalled();
+  });
+
+  it('calls handleCancel when cancel button clicked on streaming contestant', async () => {
+    mockBattle = createMockBattle({
+      contestants: [createMockContestant('a', 'streaming'), createMockContestant('b', 'completed')],
+    });
     render(<ArenaBattleView {...defaultProps} />);
 
-    // Find select winner buttons
-    const selectButtons = screen
-      .getAllByRole('button')
-      .filter((btn) => btn.textContent?.includes('selectWinner'));
-
-    if (selectButtons.length > 0) {
-      await userEvent.click(selectButtons[0]);
-      expect(mockSelectWinner).toHaveBeenCalledWith('battle-1', 'a', { reason: 'quality' });
+    const cancelBtn = screen.queryByTestId('cancel-btn-0');
+    if (cancelBtn) {
+      await userEvent.click(cancelBtn);
+      expect(mockHandleCancel).toHaveBeenCalled();
     }
   });
 
@@ -321,24 +331,27 @@ describe('ArenaBattleView', () => {
     expect(screen.getByText('tie')).toBeInTheDocument();
   });
 
-  it('shows declare tie button when all contestants are done', async () => {
+  it('shows bothBad badge when both bad declared', () => {
+    mockBattle = createMockBattle({ isBothBad: true });
     render(<ArenaBattleView {...defaultProps} />);
-
-    const tieButton = screen
-      .getAllByRole('button')
-      .find((btn) => btn.textContent?.includes('declareTie'));
-
-    if (tieButton) {
-      await userEvent.click(tieButton);
-      expect(mockDeclareTie).toHaveBeenCalledWith('battle-1');
-    }
+    expect(screen.getByText('bothBad')).toBeInTheDocument();
   });
 
-  it('displays contestant stats', () => {
+  it('hides QuickVoteBar when battle has a winner', () => {
+    mockBattle = createMockBattle({ winnerId: 'a' });
     render(<ArenaBattleView {...defaultProps} />);
-    // Latency
+    expect(screen.queryByTestId('quick-vote-bar')).not.toBeInTheDocument();
+  });
+
+  it('hides QuickVoteBar when not all done', () => {
+    mockAllDone = false;
+    render(<ArenaBattleView {...defaultProps} />);
+    expect(screen.queryByTestId('quick-vote-bar')).not.toBeInTheDocument();
+  });
+
+  it('displays contestant stats (latency and tokens)', () => {
+    render(<ArenaBattleView {...defaultProps} />);
     expect(screen.getAllByText(/1\.5s/).length).toBeGreaterThan(0);
-    // Token count
     expect(screen.getAllByText('300').length).toBeGreaterThan(0);
   });
 
@@ -350,7 +363,7 @@ describe('ArenaBattleView', () => {
     expect(screen.getByText('streaming')).toBeInTheDocument();
   });
 
-  it('shows error status for error contestants', () => {
+  it('shows error status and error message for error contestants', () => {
     mockBattle = createMockBattle({
       contestants: [
         { ...createMockContestant('a', 'error'), error: 'API error' },
@@ -372,13 +385,18 @@ describe('ArenaBattleView', () => {
     expect(screen.getByText('multiTurn')).toBeInTheDocument();
   });
 
-  it('toggles fullscreen mode', async () => {
+  it('has fullscreen toggle button', () => {
     render(<ArenaBattleView {...defaultProps} />);
-
     const fullscreenButton = screen
       .getAllByRole('button')
       .find((btn) => btn.querySelector('[data-testid="icon-maximize"]'));
-
     expect(fullscreenButton).toBeDefined();
+  });
+
+  it('marks winner on the correct contestant card', () => {
+    mockBattle = createMockBattle({ winnerId: 'a' });
+    render(<ArenaBattleView {...defaultProps} />);
+    expect(screen.getByTestId('contestant-winner-0')).toBeInTheDocument();
+    expect(screen.queryByTestId('contestant-winner-1')).not.toBeInTheDocument();
   });
 });

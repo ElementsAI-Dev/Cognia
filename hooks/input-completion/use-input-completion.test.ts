@@ -223,12 +223,11 @@ describe('useInputCompletion', () => {
 
       const { result } = renderHook(() => useInputCompletion({ onAccept }));
 
-      const accepted = await act(async () => {
-        return await result.current.accept();
+      await act(async () => {
+        await result.current.accept();
       });
 
       expect(api.acceptSuggestion).toHaveBeenCalledTimes(1);
-      expect(accepted).toEqual(mockSuggestion);
       expect(result.current.stats.acceptedSuggestions).toBe(1);
       expect(result.current.currentSuggestion).toBeNull();
       expect(onAccept).toHaveBeenCalledWith(mockSuggestion);

@@ -108,6 +108,7 @@ export const loggers = {
   network: createLogger('network'),
   auth: createLogger('auth'),
   error: createLogger('error'),
+  media: createLogger('media'),
 };
 
 /**

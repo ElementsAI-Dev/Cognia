@@ -17,62 +17,23 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { usePPTEditorStore, selectCurrentSlide, selectSelectedElements, selectSlideCount, selectIsDirty } from '@/stores/tools/ppt-editor-store';
 import { useWindowControls } from '@/hooks';
 import type { PPTSlideLayout } from '@/types/workflow';
-import { SLIDE_LAYOUT_INFO, DEFAULT_PPT_THEMES } from '@/types/workflow';
 import { SlideEditor } from './slide-editor';
 import { SortableSlideItem } from './sortable-slide-item';
-import { AlignmentToolbar } from './alignment-toolbar';
+import { EditorToolbar } from './editor-toolbar';
+import { EditorStatusBar } from './editor-status-bar';
 import { AIToolbar } from './ai-toolbar';
 import { SlideshowView } from '../slideshow';
-import { ThemeCustomizer } from '../theme';
 import { alignElements, distributeElements, autoArrangeElements } from '../utils';
 import type { PPTEditorProps } from '../types';
-import {
-  Plus,
-  Undo2,
-  Redo2,
-  Save,
-  Download,
-  Grid3X3,
-  AlignLeft,
-  Play,
-  Palette,
-  Layout,
-  FileText,
-  Maximize2,
-  Minimize2,
-  ZoomIn,
-  ZoomOut,
-  Loader2,
-  Settings,
-} from 'lucide-react';
+import { PPTPreviewErrorBoundary } from '../rendering/error-boundary';
+import { FileText } from 'lucide-react';
 
 /**
  * PPTEditor - Full-featured presentation editor
@@ -387,21 +348,28 @@ export function PPTEditor({
         'fixed inset-0 z-50 bg-black flex flex-col',
         effectiveFullscreen && 'cursor-none'
       )}>
-        <SlideshowView
-          presentation={presentation}
-          currentIndex={currentSlideIndex}
-          onPrev={prevSlide}
-          onNext={nextSlide}
-          onGoToSlide={setCurrentSlide}
-          onExit={async () => {
-            setMode('edit');
-            if (isTauri && isNativeFullscreen) {
-              await toggleNativeFullscreen();
-            } else {
-              setIsFullscreen(false);
-            }
+        <PPTPreviewErrorBoundary
+          labels={{
+            failedToLoad: t('slideshowError'),
+            tryAgain: t('exitSlideshow'),
           }}
-        />
+        >
+          <SlideshowView
+            presentation={presentation}
+            currentIndex={currentSlideIndex}
+            onPrev={prevSlide}
+            onNext={nextSlide}
+            onGoToSlide={setCurrentSlide}
+            onExit={async () => {
+              setMode('edit');
+              if (isTauri && isNativeFullscreen) {
+                await toggleNativeFullscreen();
+              } else {
+                setIsFullscreen(false);
+              }
+            }}
+          />
+        </PPTPreviewErrorBoundary>
       </div>
     );
   }
@@ -413,284 +381,39 @@ export function PPTEditor({
       className
     )}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-2">
-          {/* File operations */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={handleSave}>
-                  <Save className={cn('h-4 w-4', isDirty && 'text-primary')} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('save')} (Ctrl+S)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Undo/Redo */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={undo}
-                  disabled={!canUndo()}
-                >
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('undo')} (Ctrl+Z)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={redo}
-                  disabled={!canRedo()}
-                >
-                  <Redo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('redo')} (Ctrl+Y)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Add slide dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                {t('addSlide')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              {Object.entries(SLIDE_LAYOUT_INFO).map(([layout, info]) => (
-                <DropdownMenuItem
-                  key={layout}
-                  onClick={() => handleAddSlide(layout as PPTSlideLayout)}
-                >
-                  <Layout className="h-4 w-4 mr-2" />
-                  {info.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Theme selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Palette className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
-              {DEFAULT_PPT_THEMES.map((theme) => (
-                <DropdownMenuItem
-                  key={theme.id}
-                  onClick={() => setThemeById(theme.id)}
-                >
-                  <div
-                    className="h-4 w-4 rounded-full mr-2"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  />
-                  {theme.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Theme Customizer */}
-          <Popover open={showThemeCustomizer} onOpenChange={setShowThemeCustomizer}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              {presentation && (
-                <ThemeCustomizer
-                  theme={presentation.theme}
-                  onChange={handleThemeChange}
-                  onReset={() => setThemeById('modern-light')}
-                />
-              )}
-            </PopoverContent>
-          </Popover>
-
-          {/* Aspect ratio selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs h-8 px-2">
-                {presentation.aspectRatio || '16:9'}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {(['16:9', '4:3', '16:10'] as const).map(ratio => (
-                <DropdownMenuItem
-                  key={ratio}
-                  onClick={() => {
-                    const store = usePPTEditorStore.getState();
-                    if (store.presentation) {
-                      usePPTEditorStore.setState({
-                        presentation: { ...store.presentation, aspectRatio: ratio },
-                        isDirty: true,
-                      });
-                    }
-                  }}
-                >
-                  <span className={presentation.aspectRatio === ratio ? 'font-semibold' : ''}>
-                    {ratio}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Alignment Toolbar - shown when elements are selected */}
-          {selectedElements.length > 0 && (
-            <AlignmentToolbar
-              onAlign={handleAlign}
-              onDistribute={handleDistribute}
-              onAutoArrange={handleAutoArrange}
-              onBringToFront={handleBringToFront}
-              onSendToBack={handleSendToBack}
-              disabled={selectedElements.length < 2}
-            />
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Zoom controls */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setZoom(zoom - 10)}
-              disabled={zoom <= 25}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-sm w-12 text-center">{zoom}%</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setZoom(zoom + 10)}
-              disabled={zoom >= 200}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* View toggles */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showSlidePanel ? 'secondary' : 'ghost'}
-                  size="icon"
-                  onClick={() => setShowSlidePanel(!showSlidePanel)}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('toggleSlidePanel')}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showNotes ? 'secondary' : 'ghost'}
-                  size="icon"
-                  onClick={toggleNotes}
-                >
-                  <AlignLeft className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('toggleNotes')}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Slideshow */}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => {
-              setMode('slideshow');
-              handleToggleFullscreen();
-            }}
-          >
-            <Play className="h-4 w-4 mr-1" />
-            {t('present')}
-          </Button>
-
-          {/* Export */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                {t('export')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onExport?.('marp')}>
-                📝 Marp Markdown
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('html')}>
-                🌐 HTML
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('reveal')}>
-                🎭 Reveal.js
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onExport?.('pdf')}>
-                📄 PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport?.('pptx')}>
-                📊 PowerPoint
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Fullscreen toggle */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleToggleFullscreen}
-                >
-                  {effectiveFullscreen ? (
-                    <Minimize2 className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {effectiveFullscreen ? t('exitFullscreen') : t('fullscreen')}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
+      <EditorToolbar
+        presentation={presentation}
+        selectedElements={selectedElements}
+        isDirty={isDirty}
+        zoom={zoom}
+        showSlidePanel={showSlidePanel}
+        showNotes={showNotes}
+        showThemeCustomizer={showThemeCustomizer}
+        effectiveFullscreen={effectiveFullscreen}
+        onSave={handleSave}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
+        onAddSlide={handleAddSlide}
+        onSetThemeById={setThemeById}
+        onThemeChange={handleThemeChange}
+        onSetShowThemeCustomizer={setShowThemeCustomizer}
+        onSetZoom={setZoom}
+        onSetShowSlidePanel={setShowSlidePanel}
+        onToggleNotes={toggleNotes}
+        onStartPresentation={() => {
+          setMode('slideshow');
+          handleToggleFullscreen();
+        }}
+        onExport={onExport}
+        onToggleFullscreen={handleToggleFullscreen}
+        onAlign={handleAlign}
+        onDistribute={handleDistribute}
+        onAutoArrange={handleAutoArrange}
+        onBringToFront={handleBringToFront}
+        onSendToBack={handleSendToBack}
+      />
 
       {/* Main editor area */}
       <div className="flex-1 flex overflow-hidden">
@@ -812,26 +535,13 @@ export function PPTEditor({
       </div>
 
       {/* Status bar */}
-      <div className="flex items-center justify-between border-t px-4 py-1 text-xs text-muted-foreground bg-muted/30">
-        <div className="flex items-center gap-4">
-          <span>
-            {t('slideOf', {
-              current: currentSlideIndex + 1,
-              total: slideCount,
-            })}
-          </span>
-          <span>{SLIDE_LAYOUT_INFO[currentSlide?.layout || 'title-content'].name}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {isDirty && <Badge variant="outline">{t('unsaved')}</Badge>}
-          {isGenerating && (
-            <div className="flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>{t('generating')}</span>
-            </div>
-          )}
-        </div>
-      </div>
+      <EditorStatusBar
+        currentSlideIndex={currentSlideIndex}
+        slideCount={slideCount}
+        currentSlide={currentSlide}
+        isDirty={isDirty}
+        isGenerating={isGenerating}
+      />
     </div>
   );
 }

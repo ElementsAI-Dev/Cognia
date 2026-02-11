@@ -122,6 +122,7 @@ export interface OptimizationRecommendation {
 export interface PromptABTest {
   id: string;
   templateId: string;
+  hypothesis?: string;
   variantA: {
     content: string;
     uses: number;

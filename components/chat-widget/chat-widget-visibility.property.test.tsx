@@ -96,6 +96,38 @@ jest.mock('@/stores/chat', () => ({
   },
 }));
 
+// Mock @/stores (useSettingsStore)
+jest.mock('@/stores', () => ({
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      language: 'en',
+      welcomeSettings: { userName: '' },
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
+// Mock exportChatMessages
+jest.mock('@/lib/chat-widget/constants', () => ({
+  exportChatMessages: jest.fn(),
+}));
+
+// Mock welcome types
+jest.mock('@/types/settings/welcome', () => ({
+  getCurrentTimePeriod: () => 'morning',
+  DEFAULT_TIME_GREETINGS: {
+    morning: { en: 'Good morning', 'zh-CN': '早上好' },
+    afternoon: { en: 'Good afternoon', 'zh-CN': '下午好' },
+    evening: { en: 'Good evening', 'zh-CN': '晚上好' },
+    night: { en: 'Good night', 'zh-CN': '晚安' },
+  },
+}));
+
+// Mock @/lib/native/utils
+jest.mock('@/lib/native/utils', () => ({
+  isTauri: () => false,
+}));
+
 // Mock child components for isolation
 jest.mock('./chat-widget-header', () => ({
   ChatWidgetHeader: () => <div data-testid="chat-widget-header">Header</div>,
@@ -181,8 +213,8 @@ describe('Property Test: Window Content Visibility', () => {
         const chatContainer = container.firstChild as HTMLElement;
         expect(chatContainer).toBeTruthy();
 
-        // Property 1.2: Container should have opaque background class (bg-background, not bg-background/95)
-        expect(chatContainer.className).toContain('bg-background');
+        // Property 1.2: Container should have background gradient from background color
+        expect(chatContainer.className).toContain('from-background');
         expect(chatContainer.className).not.toContain('backdrop-blur');
 
         // Property 1.3: Container should have proper text color for contrast
@@ -193,7 +225,12 @@ describe('Property Test: Window Content Visibility', () => {
 
         // Property 1.5: Core components should be rendered
         expect(screen.getByTestId('chat-widget-header')).toBeInTheDocument();
-        expect(screen.getByTestId('chat-widget-messages')).toBeInTheDocument();
+        // When no messages, welcome area with suggestions is shown instead of ChatWidgetMessages
+        if (config.messages.length > 0 || config.isLoading) {
+          expect(screen.getByTestId('chat-widget-messages')).toBeInTheDocument();
+        } else {
+          expect(screen.getByTestId('chat-widget-suggestions')).toBeInTheDocument();
+        }
         expect(screen.getByTestId('chat-widget-input')).toBeInTheDocument();
 
         // Cleanup for next iteration

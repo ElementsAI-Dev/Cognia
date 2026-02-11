@@ -47,7 +47,7 @@ import { CustomConnectionLine } from '../edges/custom-connection-line';
 import { NodeSearchCommand } from '../search/node-search-command';
 import { CanvasContextMenu } from './canvas-context-menu';
 import { HelperLines, getHelperLines } from './helper-lines';
-import type { WorkflowNodeType, WorkflowNode } from '@/types/workflow/workflow-editor';
+import type { WorkflowNodeType, WorkflowNode, WorkflowEdge } from '@/types/workflow/workflow-editor';
 
 // Define edge types for React Flow
 const edgeTypes = {
@@ -171,8 +171,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
 
   // Handle edge changes
   const handleEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      onEdgesChange(changes as never);
+    (changes: EdgeChange<WorkflowEdge>[]) => {
+      onEdgesChange(changes);
     },
     [onEdgesChange]
   );
@@ -322,12 +322,13 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
   );
 
   // Compute nodes with execution state className applied
+  const nodeStates = executionState?.nodeStates;
   const nodesWithExecState = useMemo(() => {
     if (!currentWorkflow) return [];
-    if (!executionState) return currentWorkflow.nodes as Node[];
+    if (!nodeStates) return currentWorkflow.nodes as Node[];
 
     return currentWorkflow.nodes.map((node) => {
-      const nodeState = executionState.nodeStates[node.id];
+      const nodeState = nodeStates[node.id];
       if (!nodeState) return node as Node;
 
       let execClassName = '';
@@ -349,7 +350,23 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
         className: cn(node.className, execClassName),
       } as Node;
     });
-  }, [currentWorkflow, executionState]);
+  }, [currentWorkflow, nodeStates]);
+
+  // Stable handler refs — these don't change between renders
+  const handleNodeDragStartRef = useCallback(() => {
+    isDragHistoryPendingRef.current = true;
+  }, []);
+
+  const handleMoveEndRef = useCallback(
+    (_event: unknown, viewport: { x: number; y: number; zoom: number }) => {
+      setViewport(viewport);
+    },
+    [setViewport]
+  );
+
+  // Extract specific settings to avoid re-creating memo on unrelated settings changes
+  const snapToGrid = currentWorkflow?.settings.snapToGrid;
+  const gridSize = currentWorkflow?.settings.gridSize ?? 20;
 
   // Shared ReactFlow props — avoids duplicating config between mobile & desktop
   const sharedReactFlowProps = useMemo(() => ({
@@ -363,14 +380,10 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     isValidConnection,
     onPaneContextMenu: handlePaneContextMenu,
     onSelectionChange: handleSelectionChange,
-    onNodeDragStart: () => {
-      isDragHistoryPendingRef.current = true;
-    },
+    onNodeDragStart: handleNodeDragStartRef,
     onNodeDrag: handleNodeDrag,
     onNodeDragStop: handleNodeDragStop,
-    onMoveEnd: (_event: unknown, viewport: { x: number; y: number; zoom: number }) => {
-      setViewport(viewport);
-    },
+    onMoveEnd: handleMoveEndRef,
     nodeTypes,
     edgeTypes,
     edgesReconnectable: true,
@@ -378,8 +391,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     fitView: true,
     fitViewOptions: { padding: 0.2 },
     defaultViewport: currentWorkflow?.viewport,
-    snapToGrid: currentWorkflow?.settings.snapToGrid,
-    snapGrid: [currentWorkflow?.settings.gridSize ?? 20, currentWorkflow?.settings.gridSize ?? 20] as [number, number],
+    snapToGrid,
+    snapGrid: [gridSize, gridSize] as [number, number],
     deleteKeyCode: ['Backspace', 'Delete'],
     multiSelectionKeyCode: ['Shift', 'Meta', 'Control'],
     selectionOnDrag: true,
@@ -393,7 +406,8 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     nodesWithExecState,
     currentWorkflow?.edges,
     currentWorkflow?.viewport,
-    currentWorkflow?.settings,
+    snapToGrid,
+    gridSize,
     handleNodesChange,
     handleEdgesChange,
     handleConnect,
@@ -402,9 +416,10 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     isValidConnection,
     handlePaneContextMenu,
     handleSelectionChange,
+    handleNodeDragStartRef,
     handleNodeDrag,
     handleNodeDragStop,
-    setViewport,
+    handleMoveEndRef,
   ]);
 
   // Derive mobile panel visibility - close when switching to desktop

@@ -278,4 +278,3 @@ export function SubAgentTemplateSelector({
   );
 }
 
-export default SubAgentTemplateSelector;

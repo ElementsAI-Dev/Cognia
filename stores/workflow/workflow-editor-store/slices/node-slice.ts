@@ -251,7 +251,9 @@ export const createNodeSlice: SliceCreator<NodeSliceActions> = (set, get) => {
 
       set({ currentWorkflow: updated, isDirty: true });
 
-      const shouldValidate = changes.some((c) => c.type !== 'select');
+      const shouldValidate = changes.some(
+        (c) => c.type !== 'select' && c.type !== 'position' && c.type !== 'dimensions'
+      );
       if (shouldValidate) {
         scheduleWorkflowValidation(get);
       }

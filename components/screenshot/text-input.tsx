@@ -147,13 +147,13 @@ export function TextInput({
       />
       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 bg-background/80 px-1 rounded">
         <Kbd>Enter</Kbd>
-        <span>{t('textInputHintConfirm') || 'confirm'}</span>
+        <span>{t('textInputHintConfirm')}</span>
         <span className="mx-1">·</span>
         <Kbd>Shift+Enter</Kbd>
-        <span>{t('textInputHintNewLine') || 'new line'}</span>
+        <span>{t('textInputHintNewLine')}</span>
         <span className="mx-1">·</span>
         <Kbd>Esc</Kbd>
-        <span>{t('textInputHintCancel') || 'cancel'}</span>
+        <span>{t('textInputHintCancel')}</span>
       </div>
     </div>
   );

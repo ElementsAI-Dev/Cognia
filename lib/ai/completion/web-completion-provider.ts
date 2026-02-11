@@ -8,6 +8,16 @@
 
 import type { CompletionSuggestion, InputCompletionResult } from '@/types/input-completion';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
+import { CompletionCache } from './completion-cache';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('web-completion');
+
+/** Cache for web completion results to reduce redundant API calls */
+const webCompletionCache = new CompletionCache<InputCompletionResult>({
+  maxSize: 100,
+  ttlMs: 3 * 60 * 1000, // 3 minutes
+});
 
 export interface WebCompletionConfig {
   provider: 'openai' | 'groq' | 'ollama' | 'custom';
@@ -48,6 +58,13 @@ export function cancelWebCompletion(): void {
 }
 
 /**
+ * Clear the web completion cache (useful for testing and manual cache invalidation)
+ */
+export function clearWebCompletionCache(): void {
+  webCompletionCache.clear();
+}
+
+/**
  * Trigger a web-based AI completion
  */
 export async function triggerWebCompletion(
@@ -58,6 +75,14 @@ export async function triggerWebCompletion(
   cancelWebCompletion();
 
   const cfg = { ...DEFAULT_CONFIG, ...config };
+
+  // Check cache first
+  const cacheKey = CompletionCache.generateKey(text, cfg.modelId);
+  const cached = webCompletionCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   currentController = new AbortController();
   const { signal } = currentController;
 
@@ -67,17 +92,24 @@ export async function triggerWebCompletion(
     const result = await requestCompletion(text, cfg, signal);
     const latencyMs = Date.now() - startTime;
 
-    return {
+    const completionResult: InputCompletionResult = {
       suggestions: result ? [result] : [],
       latency_ms: latencyMs,
       model: cfg.modelId || 'unknown',
       cached: false,
     };
+
+    // Cache successful results with suggestions
+    if (completionResult.suggestions.length > 0) {
+      webCompletionCache.set(cacheKey, completionResult);
+    }
+
+    return completionResult;
   } catch (error) {
     if ((error as Error).name === 'AbortError') {
       return { suggestions: [], latency_ms: 0, model: cfg.modelId || 'unknown', cached: false };
     }
-    console.error('Web completion error:', error);
+    logger.error('Web completion error', { error });
     return { suggestions: [], latency_ms: Date.now() - startTime, model: cfg.modelId || 'unknown', cached: false };
   } finally {
     currentController = null;

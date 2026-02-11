@@ -64,6 +64,11 @@ export const ARTIFACT_COLORS: Record<ArtifactType, string> = {
 };
 
 /**
+ * All artifact types as an array (single source of truth)
+ */
+export const ARTIFACT_TYPES: ArtifactType[] = ['code', 'document', 'svg', 'html', 'react', 'mermaid', 'chart', 'math', 'jupyter'];
+
+/**
  * i18n keys for artifact type labels
  */
 export const ARTIFACT_TYPE_KEYS: Record<ArtifactType, string> = {

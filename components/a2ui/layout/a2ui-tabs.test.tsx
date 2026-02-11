@@ -3,14 +3,25 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { A2UITabs } from './a2ui-tabs';
 import type { A2UITabsComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
+const mockDataCtx = {
+  surface: null, dataModel: {}, components: {},
+  resolveString: (value: string | { path: string }) => typeof value === 'string' ? value : '',
+  resolveNumber: (value: number | { path: string }) => typeof value === 'number' ? value : 0,
+  resolveBoolean: (value: boolean | { path: string }) => typeof value === 'boolean' ? value : false,
+  resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) => Array.isArray(value) ? value : d,
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: () => ({
-    dataModel: {},
+  useA2UIContext: () => ({ ...mockDataCtx }),
+  useA2UIData: () => mockDataCtx,
+  useA2UIActions: () => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   }),
 }));
 
@@ -89,7 +100,7 @@ describe('A2UITabs', () => {
     expect(screen.getByRole('tab', { name: 'Tab B' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('should fire tabChangeAction when switching tabs', () => {
+  it('should fire tabChangeAction when switching tabs', async () => {
     const component: A2UITabsComponent = {
       id: 'tabs-4',
       component: 'Tabs',
@@ -101,7 +112,7 @@ describe('A2UITabs', () => {
     };
 
     render(<A2UITabs {...createProps(component)} />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Tab B' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Tab B' }));
 
     expect(mockOnAction).toHaveBeenCalledWith('tab_changed', { tab: 'tab2' });
   });

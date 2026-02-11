@@ -6,6 +6,8 @@
 export * from './use-video-editor';
 export * from './use-video-timeline';
 export * from './use-video-subtitles';
+export * from './use-recording-mode';
+export * from './use-ai-generation-mode';
 export {
   useWorkerProcessor as useVideoWorkerProcessor,
   type UseWorkerProcessorOptions as UseVideoWorkerProcessorOptions,

@@ -195,4 +195,3 @@ export function ToolApprovalDialog({
   );
 }
 
-export default ToolApprovalDialog;

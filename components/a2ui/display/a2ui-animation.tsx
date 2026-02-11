@@ -11,7 +11,6 @@ import React, { memo, useMemo } from 'react';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
 
 /**
  * Animation types supported by A2UI
@@ -190,7 +189,6 @@ export const A2UIAnimation = memo(function A2UIAnimation({
   component,
   renderChild,
 }: A2UIComponentProps) {
-  useA2UIContext();
   const prefersReducedMotion = useReducedMotion();
 
   const animationComponent = component as A2UIAnimationComponentDef;
@@ -243,4 +241,3 @@ export const A2UIAnimation = memo(function A2UIAnimation({
   );
 });
 
-export default A2UIAnimation;

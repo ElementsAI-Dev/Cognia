@@ -1,76 +1,16 @@
 /**
  * Tests for workflow auto layout using dagre
+ *
+ * The global mock at __mocks__/dagre-d3-es.js is used via moduleNameMapper.
+ * We import `layout` from the same mapped module and configure its
+ * implementation to simulate dagre positioning for each test.
  */
 
-// Mock dagre-d3-es to avoid ESM transform issues
-const mockNodes = new Map<string, { width: number; height: number; x: number; y: number }>();
-const mockEdges: Array<{ v: string; w: string }> = [];
-let mockGraphConfig: Record<string, unknown> = {};
-
-jest.mock('dagre-d3-es/src/graphlib/index.js', () => ({
-  Graph: jest.fn().mockImplementation(() => ({
-    setGraph: jest.fn((config: Record<string, unknown>) => { mockGraphConfig = config; }),
-    setDefaultEdgeLabel: jest.fn(),
-    setNode: jest.fn((id: string, data: { width: number; height: number }) => {
-      mockNodes.set(id, { ...data, x: 0, y: 0 });
-    }),
-    setEdge: jest.fn((source: string, target: string) => {
-      mockEdges.push({ v: source, w: target });
-    }),
-    hasNode: jest.fn((id: string) => mockNodes.has(id)),
-    node: jest.fn((id: string) => mockNodes.get(id)),
-    nodes: jest.fn(() => Array.from(mockNodes.keys())),
-  })),
-}));
-
-jest.mock('dagre-d3-es/src/dagre/index.js', () => ({
-  layout: jest.fn((_g: unknown, _opts: unknown) => {
-    // Simulate dagre layout: position nodes in a simple grid based on topology
-    const nodeIds = Array.from(mockNodes.keys());
-    const isVertical = mockGraphConfig.rankdir === 'TB' || mockGraphConfig.rankdir === 'BT';
-
-    // Build simple levels from edges
-    const inDegree = new Map<string, number>();
-    nodeIds.forEach((id) => inDegree.set(id, 0));
-    mockEdges.forEach((e) => {
-      inDegree.set(e.w, (inDegree.get(e.w) || 0) + 1);
-    });
-
-    const levels: string[][] = [];
-    const visited = new Set<string>();
-    let queue = nodeIds.filter((id) => inDegree.get(id) === 0);
-
-    while (queue.length > 0) {
-      levels.push([...queue]);
-      queue.forEach((id) => visited.add(id));
-      const next: string[] = [];
-      queue.forEach((id) => {
-        mockEdges.filter((e) => e.v === id).forEach((e) => {
-          const deg = (inDegree.get(e.w) || 1) - 1;
-          inDegree.set(e.w, deg);
-          if (deg === 0 && !visited.has(e.w)) next.push(e.w);
-        });
-      });
-      queue = next;
-    }
-    // Add unvisited
-    const unvisited = nodeIds.filter((id) => !visited.has(id));
-    if (unvisited.length) levels.push(unvisited);
-
-    levels.forEach((level, li) => {
-      level.forEach((id, ni) => {
-        const node = mockNodes.get(id)!;
-        if (isVertical) {
-          node.x = 100 + ni * 250;
-          node.y = 100 + li * 180;
-        } else {
-          node.x = 100 + li * 250;
-          node.y = 100 + ni * 180;
-        }
-      });
-    });
-  }),
-}));
+// Both dagre-d3-es/src/graphlib/index.js and dagre-d3-es/src/dagre/index.js
+// are mapped to __mocks__/dagre-d3-es.js by moduleNameMapper.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const dagreMock = require('dagre-d3-es');
+const mockedLayout = dagreMock.layout as jest.Mock;
 
 import { applyDagreLayout } from './layout';
 import type { WorkflowNode, WorkflowEdge } from '@/types/workflow/workflow-editor';
@@ -103,9 +43,59 @@ function createEdge(source: string, target: string): WorkflowEdge {
 
 describe('applyDagreLayout', () => {
   beforeEach(() => {
-    mockNodes.clear();
-    mockEdges.length = 0;
-    mockGraphConfig = {};
+    jest.clearAllMocks();
+    // Configure layout mock to simulate dagre positioning
+    mockedLayout.mockImplementation((g: { _nodes: Record<string, { width: number; height: number; x?: number; y?: number }>; _edges: Record<string, unknown>; _label?: { rankdir?: string } }) => {
+      const nodeIds = Object.keys(g._nodes);
+      const isVertical = g._label?.rankdir === 'TB' || g._label?.rankdir === 'BT' || !g._label?.rankdir;
+
+      // Parse edges from the keys like "a->b"
+      const edgePairs = Object.keys(g._edges).map((key) => {
+        const [v, w] = key.split('->');
+        return { v, w };
+      });
+
+      // Build topological levels
+      const inDegree = new Map<string, number>();
+      nodeIds.forEach((id) => inDegree.set(id, 0));
+      edgePairs.forEach((e) => {
+        inDegree.set(e.w, (inDegree.get(e.w) || 0) + 1);
+      });
+
+      const levels: string[][] = [];
+      const visited = new Set<string>();
+      let queue = nodeIds.filter((id) => inDegree.get(id) === 0);
+
+      while (queue.length > 0) {
+        levels.push([...queue]);
+        queue.forEach((id) => visited.add(id));
+        const next: string[] = [];
+        queue.forEach((id) => {
+          edgePairs.filter((e) => e.v === id).forEach((e) => {
+            const deg = (inDegree.get(e.w) || 1) - 1;
+            inDegree.set(e.w, deg);
+            if (deg === 0 && !visited.has(e.w)) next.push(e.w);
+          });
+        });
+        queue = next;
+      }
+      const unvisited = nodeIds.filter((id) => !visited.has(id));
+      if (unvisited.length) levels.push(unvisited);
+
+      // Assign center positions (dagre convention)
+      levels.forEach((level, li) => {
+        level.forEach((id, ni) => {
+          const node = g._nodes[id];
+          if (isVertical) {
+            node.x = 200 + ni * 300;
+            node.y = 200 + li * 200;
+          } else {
+            node.x = 200 + li * 300;
+            node.y = 200 + ni * 200;
+          }
+        });
+      });
+    });
   });
 
   it('should return empty array for empty input', () => {

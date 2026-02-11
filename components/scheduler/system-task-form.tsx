@@ -4,7 +4,7 @@
  * SystemTaskForm - Create or edit a system scheduled task
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useReducer } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,77 @@ const defaultScriptAction: ExecuteScriptAction = {
   use_sandbox: DEFAULT_SCRIPT_SETTINGS.use_sandbox,
 };
 
+interface SystemFormState {
+  name: string;
+  description: string;
+  runLevel: RunLevel;
+  triggerType: SystemTriggerType;
+  actionType: SystemActionType;
+  cronExpression: string;
+  cronTimezone: string;
+  intervalSeconds: number;
+  runAtDate: string;
+  runAtTime: string;
+  bootDelaySeconds: number;
+  logonUser: string;
+  eventSource: string;
+  eventId: number;
+  scriptAction: ExecuteScriptAction;
+  command: string;
+  commandArgs: string;
+  commandWorkingDir: string;
+  appPath: string;
+  appArgs: string;
+}
+
+function systemFormReducer(state: SystemFormState, update: Partial<SystemFormState>): SystemFormState {
+  return { ...state, ...update };
+}
+
+function createSystemInitialState(iv?: Partial<CreateSystemTaskInput>): SystemFormState {
+  const cronTrigger = iv?.trigger?.type === 'cron' ? iv.trigger : null;
+  const intervalTrigger = iv?.trigger?.type === 'interval' ? iv.trigger : null;
+  const bootTrigger = iv?.trigger?.type === 'on_boot' ? iv.trigger : null;
+  const logonTrigger = iv?.trigger?.type === 'on_logon' ? iv.trigger : null;
+  const eventTrigger = iv?.trigger?.type === 'on_event' ? iv.trigger : null;
+  const initialActionType = iv?.action?.type || 'execute_script';
+
+  let initialRunAtDate = '';
+  let initialRunAtTime = '';
+  if (iv?.trigger?.type === 'once') {
+    const date = new Date(iv.trigger.run_at);
+    if (!Number.isNaN(date.getTime())) {
+      initialRunAtDate = date.toISOString().split('T')[0];
+      initialRunAtTime = date.toISOString().split('T')[1]?.slice(0, 5) || '';
+    }
+  }
+
+  return {
+    name: iv?.name || '',
+    description: iv?.description || '',
+    runLevel: iv?.run_level || 'user',
+    triggerType: iv?.trigger?.type || 'cron',
+    actionType: initialActionType,
+    cronExpression: cronTrigger?.expression || '0 9 * * *',
+    cronTimezone: cronTrigger?.timezone || 'UTC',
+    intervalSeconds: intervalTrigger?.seconds || 3600,
+    runAtDate: initialRunAtDate,
+    runAtTime: initialRunAtTime,
+    bootDelaySeconds: bootTrigger?.delay_seconds || 0,
+    logonUser: logonTrigger?.user || '',
+    eventSource: eventTrigger?.source || '',
+    eventId: eventTrigger?.event_id || 0,
+    scriptAction: initialActionType === 'execute_script'
+      ? { ...defaultScriptAction, ...(iv?.action as ExecuteScriptAction) }
+      : defaultScriptAction,
+    command: initialActionType === 'run_command' ? (iv?.action as RunCommandAction).command || '' : '',
+    commandArgs: initialActionType === 'run_command' ? ((iv?.action as RunCommandAction).args || []).join(' ') : '',
+    commandWorkingDir: initialActionType === 'run_command' ? (iv?.action as RunCommandAction).working_dir || '' : '',
+    appPath: initialActionType === 'launch_app' ? (iv?.action as LaunchAppAction).path || '' : '',
+    appArgs: initialActionType === 'launch_app' ? ((iv?.action as LaunchAppAction).args || []).join(' ') : '',
+  };
+}
+
 export function SystemTaskForm({
   initialValues,
   onSubmit,
@@ -55,87 +126,7 @@ export function SystemTaskForm({
   isSubmitting,
 }: SystemTaskFormProps) {
   const t = useTranslations('scheduler');
-
-  const [name, setName] = useState(initialValues?.name || '');
-  const [description, setDescription] = useState(initialValues?.description || '');
-  const [runLevel, setRunLevel] = useState<RunLevel>(initialValues?.run_level || 'user');
-
-  const initialTriggerType = initialValues?.trigger?.type || 'cron';
-  const cronTrigger = initialValues?.trigger?.type === 'cron' ? initialValues.trigger : null;
-  const intervalTrigger = initialValues?.trigger?.type === 'interval' ? initialValues.trigger : null;
-  const bootTrigger = initialValues?.trigger?.type === 'on_boot' ? initialValues.trigger : null;
-  const logonTrigger = initialValues?.trigger?.type === 'on_logon' ? initialValues.trigger : null;
-  const eventTrigger = initialValues?.trigger?.type === 'on_event' ? initialValues.trigger : null;
-  const initialActionType = initialValues?.action?.type || 'execute_script';
-
-  const [triggerType, setTriggerType] = useState<SystemTriggerType>(initialTriggerType);
-  const [actionType, setActionType] = useState<SystemActionType>(initialActionType);
-
-  const [cronExpression, setCronExpression] = useState(
-    cronTrigger?.expression || '0 9 * * *'
-  );
-  const [cronTimezone, setCronTimezone] = useState(
-    cronTrigger?.timezone || 'UTC'
-  );
-  const [intervalSeconds, setIntervalSeconds] = useState<number>(
-    intervalTrigger?.seconds || 3600
-  );
-  const initialRunAt = useMemo(() => {
-    if (initialTriggerType !== 'once') return null;
-    const trigger = initialValues?.trigger;
-    if (!trigger || trigger.type !== 'once') return null;
-    const date = new Date(trigger.run_at);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }, [initialTriggerType, initialValues?.trigger]);
-  const [runAtDate, setRunAtDate] = useState(
-    initialRunAt ? initialRunAt.toISOString().split('T')[0] : ''
-  );
-  const [runAtTime, setRunAtTime] = useState(
-    initialRunAt ? initialRunAt.toISOString().split('T')[1]?.slice(0, 5) || '' : ''
-  );
-  const [bootDelaySeconds, setBootDelaySeconds] = useState<number>(
-    bootTrigger?.delay_seconds || 0
-  );
-  const [logonUser, setLogonUser] = useState(logonTrigger?.user || '');
-  const [eventSource, setEventSource] = useState(eventTrigger?.source || '');
-  const [eventId, setEventId] = useState<number>(eventTrigger?.event_id || 0);
-
-  const [scriptAction, setScriptAction] = useState<ExecuteScriptAction>(() => {
-    if (initialActionType === 'execute_script') {
-      return {
-        ...defaultScriptAction,
-        ...(initialValues?.action as ExecuteScriptAction),
-      };
-    }
-    return defaultScriptAction;
-  });
-
-  const [command, setCommand] = useState(
-    initialActionType === 'run_command'
-      ? (initialValues?.action as RunCommandAction).command || ''
-      : ''
-  );
-  const [commandArgs, setCommandArgs] = useState(
-    initialActionType === 'run_command'
-      ? ((initialValues?.action as RunCommandAction).args || []).join(' ')
-      : ''
-  );
-  const [commandWorkingDir, setCommandWorkingDir] = useState(
-    initialActionType === 'run_command'
-      ? (initialValues?.action as RunCommandAction).working_dir || ''
-      : ''
-  );
-
-  const [appPath, setAppPath] = useState(
-    initialActionType === 'launch_app'
-      ? (initialValues?.action as LaunchAppAction).path || ''
-      : ''
-  );
-  const [appArgs, setAppArgs] = useState(
-    initialActionType === 'launch_app'
-      ? ((initialValues?.action as LaunchAppAction).args || []).join(' ')
-      : ''
-  );
+  const [f, updateForm] = useReducer(systemFormReducer, initialValues, createSystemInitialState);
 
   const triggerTypeOptions = useMemo(
     () => [
@@ -159,119 +150,69 @@ export function SystemTaskForm({
   );
 
   const buildTrigger = useCallback((): SystemTaskTrigger | null => {
-    switch (triggerType) {
+    switch (f.triggerType) {
       case 'cron':
-        if (!cronExpression.trim()) return null;
-        return {
-          type: 'cron',
-          expression: cronExpression.trim(),
-          timezone: cronTimezone || undefined,
-        };
+        if (!f.cronExpression.trim()) return null;
+        return { type: 'cron', expression: f.cronExpression.trim(), timezone: f.cronTimezone || undefined };
       case 'interval':
-        if (intervalSeconds <= 0) return null;
-        return {
-          type: 'interval',
-          seconds: intervalSeconds,
-        };
+        if (f.intervalSeconds <= 0) return null;
+        return { type: 'interval', seconds: f.intervalSeconds };
       case 'once':
-        if (!runAtDate || !runAtTime) return null;
-        return {
-          type: 'once',
-          run_at: new Date(`${runAtDate}T${runAtTime}`).toISOString(),
-        };
+        if (!f.runAtDate || !f.runAtTime) return null;
+        return { type: 'once', run_at: new Date(`${f.runAtDate}T${f.runAtTime}`).toISOString() };
       case 'on_boot':
-        return {
-          type: 'on_boot',
-          delay_seconds: bootDelaySeconds || 0,
-        };
+        return { type: 'on_boot', delay_seconds: f.bootDelaySeconds || 0 };
       case 'on_logon':
-        return {
-          type: 'on_logon',
-          user: logonUser.trim() || undefined,
-        };
+        return { type: 'on_logon', user: f.logonUser.trim() || undefined };
       case 'on_event':
-        if (!eventSource.trim() || !eventId) return null;
-        return {
-          type: 'on_event',
-          source: eventSource.trim(),
-          event_id: eventId,
-        };
+        if (!f.eventSource.trim() || !f.eventId) return null;
+        return { type: 'on_event', source: f.eventSource.trim(), event_id: f.eventId };
       default:
         return null;
     }
-  }, [
-    triggerType,
-    cronExpression,
-    cronTimezone,
-    intervalSeconds,
-    runAtDate,
-    runAtTime,
-    bootDelaySeconds,
-    logonUser,
-    eventSource,
-    eventId,
-  ]);
+  }, [f]);
 
   const buildAction = useCallback((): SystemTaskAction | null => {
-    switch (actionType) {
+    switch (f.actionType) {
       case 'execute_script':
-        if (!scriptAction.code.trim()) return null;
-        return scriptAction;
+        if (!f.scriptAction.code.trim()) return null;
+        return f.scriptAction;
       case 'run_command':
-        if (!command.trim()) return null;
-        return {
-          type: 'run_command',
-          command: command.trim(),
-          args: commandArgs.split(' ').filter(Boolean),
-          working_dir: commandWorkingDir.trim() || undefined,
-        };
+        if (!f.command.trim()) return null;
+        return { type: 'run_command', command: f.command.trim(), args: f.commandArgs.split(' ').filter(Boolean), working_dir: f.commandWorkingDir.trim() || undefined };
       case 'launch_app':
-        if (!appPath.trim()) return null;
-        return {
-          type: 'launch_app',
-          path: appPath.trim(),
-          args: appArgs.split(' ').filter(Boolean),
-        };
+        if (!f.appPath.trim()) return null;
+        return { type: 'launch_app', path: f.appPath.trim(), args: f.appArgs.split(' ').filter(Boolean) };
       default:
         return null;
     }
-  }, [actionType, scriptAction, command, commandArgs, commandWorkingDir, appPath, appArgs]);
+  }, [f]);
 
   const handleSubmit = useCallback(async () => {
     const trigger = buildTrigger();
     const action = buildAction();
+    if (!f.name.trim() || !trigger || !action) return;
 
-    if (!name.trim() || !trigger || !action) {
-      return;
-    }
-
-    const input: CreateSystemTaskInput = {
-      name: name.trim(),
-      description: description.trim() || undefined,
+    await onSubmit({
+      name: f.name.trim(),
+      description: f.description.trim() || undefined,
       trigger,
       action,
-      run_level: runLevel,
-    };
-
-    await onSubmit(input);
-  }, [buildTrigger, buildAction, name, description, runLevel, onSubmit]);
+      run_level: f.runLevel,
+    });
+  }, [buildTrigger, buildAction, f.name, f.description, f.runLevel, onSubmit]);
 
   const isSubmitDisabled = useMemo(() => {
-    return (
-      isSubmitting ||
-      !name.trim() ||
-      buildTrigger() === null ||
-      buildAction() === null
-    );
-  }, [isSubmitting, name, buildTrigger, buildAction]);
+    return isSubmitting || !f.name.trim() || buildTrigger() === null || buildAction() === null;
+  }, [isSubmitting, f.name, buildTrigger, buildAction]);
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>{t('systemTaskName') || 'Task Name'}</Label>
         <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={f.name}
+          onChange={(e) => updateForm({ name: e.target.value })}
           placeholder={t('taskNamePlaceholder') || 'Enter task name'}
           disabled={isSubmitting}
         />
@@ -280,8 +221,8 @@ export function SystemTaskForm({
       <div className="space-y-2">
         <Label>{t('systemTaskDescription') || 'Task Description'}</Label>
         <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={f.description}
+          onChange={(e) => updateForm({ description: e.target.value })}
           placeholder={t('descriptionPlaceholder') || 'Describe what this task does'}
           rows={2}
           disabled={isSubmitting}
@@ -291,7 +232,7 @@ export function SystemTaskForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>{t('systemRunLevel') || 'Run Level'}</Label>
-          <Select value={runLevel} onValueChange={(value) => setRunLevel(value as RunLevel)}>
+          <Select value={f.runLevel} onValueChange={(value) => updateForm({ runLevel: value as RunLevel })}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -303,7 +244,7 @@ export function SystemTaskForm({
         </div>
         <div className="space-y-2">
           <Label>{t('systemTriggerType') || 'Trigger Type'}</Label>
-          <Select value={triggerType} onValueChange={(value) => setTriggerType(value as SystemTriggerType)}>
+          <Select value={f.triggerType} onValueChange={(value) => updateForm({ triggerType: value as SystemTriggerType })}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -318,13 +259,13 @@ export function SystemTaskForm({
         </div>
       </div>
 
-      {triggerType === 'cron' && (
+      {f.triggerType === 'cron' && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('systemCronExpression') || 'Cron Expression'}</Label>
             <Input
-              value={cronExpression}
-              onChange={(e) => setCronExpression(e.target.value)}
+              value={f.cronExpression}
+              onChange={(e) => updateForm({ cronExpression: e.target.value })}
               placeholder="0 9 * * *"
               disabled={isSubmitting}
             />
@@ -332,8 +273,8 @@ export function SystemTaskForm({
           <div className="space-y-2">
             <Label>{t('timezone') || 'Timezone'}</Label>
             <Input
-              value={cronTimezone}
-              onChange={(e) => setCronTimezone(e.target.value)}
+              value={f.cronTimezone}
+              onChange={(e) => updateForm({ cronTimezone: e.target.value })}
               placeholder="UTC"
               disabled={isSubmitting}
             />
@@ -341,27 +282,27 @@ export function SystemTaskForm({
         </div>
       )}
 
-      {triggerType === 'interval' && (
+      {f.triggerType === 'interval' && (
         <div className="space-y-2">
           <Label>{t('intervalSeconds') || 'Interval (seconds)'}</Label>
           <Input
             type="number"
             min={1}
-            value={intervalSeconds}
-            onChange={(e) => setIntervalSeconds(parseInt(e.target.value) || 0)}
+            value={f.intervalSeconds}
+            onChange={(e) => updateForm({ intervalSeconds: parseInt(e.target.value) || 0 })}
             disabled={isSubmitting}
           />
         </div>
       )}
 
-      {triggerType === 'once' && (
+      {f.triggerType === 'once' && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('date') || 'Date'}</Label>
             <Input
               type="date"
-              value={runAtDate}
-              onChange={(e) => setRunAtDate(e.target.value)}
+              value={f.runAtDate}
+              onChange={(e) => updateForm({ runAtDate: e.target.value })}
               disabled={isSubmitting}
             />
           </div>
@@ -369,46 +310,46 @@ export function SystemTaskForm({
             <Label>{t('time') || 'Time'}</Label>
             <Input
               type="time"
-              value={runAtTime}
-              onChange={(e) => setRunAtTime(e.target.value)}
+              value={f.runAtTime}
+              onChange={(e) => updateForm({ runAtTime: e.target.value })}
               disabled={isSubmitting}
             />
           </div>
         </div>
       )}
 
-      {triggerType === 'on_boot' && (
+      {f.triggerType === 'on_boot' && (
         <div className="space-y-2">
           <Label>{t('onBootDelaySeconds') || 'Boot Delay (seconds)'}</Label>
           <Input
             type="number"
             min={0}
-            value={bootDelaySeconds}
-            onChange={(e) => setBootDelaySeconds(parseInt(e.target.value) || 0)}
+            value={f.bootDelaySeconds}
+            onChange={(e) => updateForm({ bootDelaySeconds: parseInt(e.target.value) || 0 })}
             disabled={isSubmitting}
           />
         </div>
       )}
 
-      {triggerType === 'on_logon' && (
+      {f.triggerType === 'on_logon' && (
         <div className="space-y-2">
           <Label>{t('onLogonUser') || 'Logon User (optional)'}</Label>
           <Input
-            value={logonUser}
-            onChange={(e) => setLogonUser(e.target.value)}
+            value={f.logonUser}
+            onChange={(e) => updateForm({ logonUser: e.target.value })}
             placeholder="username"
             disabled={isSubmitting}
           />
         </div>
       )}
 
-      {triggerType === 'on_event' && (
+      {f.triggerType === 'on_event' && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>{t('onEventSource') || 'Event Source'}</Label>
             <Input
-              value={eventSource}
-              onChange={(e) => setEventSource(e.target.value)}
+              value={f.eventSource}
+              onChange={(e) => updateForm({ eventSource: e.target.value })}
               placeholder="Source"
               disabled={isSubmitting}
             />
@@ -418,8 +359,8 @@ export function SystemTaskForm({
             <Input
               type="number"
               min={0}
-              value={eventId}
-              onChange={(e) => setEventId(parseInt(e.target.value) || 0)}
+              value={f.eventId}
+              onChange={(e) => updateForm({ eventId: parseInt(e.target.value) || 0 })}
               disabled={isSubmitting}
             />
           </div>
@@ -428,7 +369,7 @@ export function SystemTaskForm({
 
       <div className="space-y-2">
         <Label>{t('systemActionType') || 'Action Type'}</Label>
-        <Select value={actionType} onValueChange={(value) => setActionType(value as SystemActionType)}>
+        <Select value={f.actionType} onValueChange={(value) => updateForm({ actionType: value as SystemActionType })}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -442,17 +383,17 @@ export function SystemTaskForm({
         </Select>
       </div>
 
-      {actionType === 'execute_script' && (
-        <ScriptTaskEditor value={scriptAction} onChange={setScriptAction} disabled={isSubmitting} />
+      {f.actionType === 'execute_script' && (
+        <ScriptTaskEditor value={f.scriptAction} onChange={(v) => updateForm({ scriptAction: v })} disabled={isSubmitting} />
       )}
 
-      {actionType === 'run_command' && (
+      {f.actionType === 'run_command' && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>{t('command') || 'Command'}</Label>
             <Input
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
+              value={f.command}
+              onChange={(e) => updateForm({ command: e.target.value })}
               placeholder="/usr/bin/echo"
               disabled={isSubmitting}
             />
@@ -460,8 +401,8 @@ export function SystemTaskForm({
           <div className="space-y-2">
             <Label>{t('commandArgs') || 'Command Arguments'}</Label>
             <Input
-              value={commandArgs}
-              onChange={(e) => setCommandArgs(e.target.value)}
+              value={f.commandArgs}
+              onChange={(e) => updateForm({ commandArgs: e.target.value })}
               placeholder="arg1 arg2"
               disabled={isSubmitting}
             />
@@ -469,8 +410,8 @@ export function SystemTaskForm({
           <div className="space-y-2">
             <Label>{t('workingDir') || 'Working Directory'}</Label>
             <Input
-              value={commandWorkingDir}
-              onChange={(e) => setCommandWorkingDir(e.target.value)}
+              value={f.commandWorkingDir}
+              onChange={(e) => updateForm({ commandWorkingDir: e.target.value })}
               placeholder="/path/to/dir"
               disabled={isSubmitting}
             />
@@ -478,13 +419,13 @@ export function SystemTaskForm({
         </div>
       )}
 
-      {actionType === 'launch_app' && (
+      {f.actionType === 'launch_app' && (
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>{t('appPath') || 'Application Path'}</Label>
             <Input
-              value={appPath}
-              onChange={(e) => setAppPath(e.target.value)}
+              value={f.appPath}
+              onChange={(e) => updateForm({ appPath: e.target.value })}
               placeholder="/Applications/MyApp.app"
               disabled={isSubmitting}
             />
@@ -492,8 +433,8 @@ export function SystemTaskForm({
           <div className="space-y-2">
             <Label>{t('appArgs') || 'Application Arguments'}</Label>
             <Input
-              value={appArgs}
-              onChange={(e) => setAppArgs(e.target.value)}
+              value={f.appArgs}
+              onChange={(e) => updateForm({ appArgs: e.target.value })}
               placeholder="--flag value"
               disabled={isSubmitting}
             />

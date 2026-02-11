@@ -12,16 +12,32 @@ jest.mock('@/lib/scheduler', () => ({
   stopSchedulerSystem: jest.fn(),
 }));
 
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    ui: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  },
+}));
+
 // Mock the scheduler store
+const mockInitialize = jest.fn().mockResolvedValue(undefined);
 const mockSetSchedulerStatus = jest.fn();
+let mockIsInitialized = false;
+
 jest.mock('@/stores/scheduler', () => ({
   useSchedulerStore: jest.fn((selector) => {
     if (typeof selector === 'function') {
       return selector({
+        initialize: mockInitialize,
+        isInitialized: mockIsInitialized,
         setSchedulerStatus: mockSetSchedulerStatus,
       });
     }
-    return { setSchedulerStatus: mockSetSchedulerStatus };
+    return {
+      initialize: mockInitialize,
+      isInitialized: mockIsInitialized,
+      setSchedulerStatus: mockSetSchedulerStatus,
+    };
   }),
 }));
 
@@ -30,6 +46,8 @@ const mockedSchedulerModule = schedulerModule as jest.Mocked<typeof schedulerMod
 describe('SchedulerInitializer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsInitialized = false;
+    mockInitialize.mockResolvedValue(undefined);
   });
 
   it('should render nothing (null)', () => {
@@ -41,7 +59,7 @@ describe('SchedulerInitializer', () => {
     render(<SchedulerInitializer />);
     
     await waitFor(() => {
-      expect(mockedSchedulerModule.initSchedulerSystem).toHaveBeenCalledTimes(1);
+      expect(mockInitialize).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -54,7 +72,7 @@ describe('SchedulerInitializer', () => {
   });
 
   it('should set scheduler status to stopped on error', async () => {
-    mockedSchedulerModule.initSchedulerSystem.mockRejectedValueOnce(new Error('Init failed'));
+    mockInitialize.mockRejectedValueOnce(new Error('Init failed'));
     
     render(<SchedulerInitializer />);
     
@@ -77,17 +95,12 @@ describe('SchedulerInitializer', () => {
     expect(mockedSchedulerModule.stopSchedulerSystem).toHaveBeenCalled();
   });
 
-  it('should only initialize once even if re-rendered', async () => {
-    const { rerender } = render(<SchedulerInitializer />);
+  it('should not initialize when already initialized', async () => {
+    mockIsInitialized = true;
     
-    await waitFor(() => {
-      expect(mockedSchedulerModule.initSchedulerSystem).toHaveBeenCalledTimes(1);
-    });
+    render(<SchedulerInitializer />);
     
-    // Re-render
-    rerender(<SchedulerInitializer />);
-    
-    // Should still only be called once
-    expect(mockedSchedulerModule.initSchedulerSystem).toHaveBeenCalledTimes(1);
+    // Should not call initialize when already initialized
+    expect(mockInitialize).not.toHaveBeenCalled();
   });
 });

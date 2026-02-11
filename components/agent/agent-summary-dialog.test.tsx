@@ -67,7 +67,8 @@ const mockGenerateAgentSummaryWithDiagram = jest.fn();
 const mockExportSummary = jest.fn();
 const mockReset = jest.fn();
 
-jest.mock('@/hooks/chat/use-summary', () => ({
+// Mock @/hooks/chat barrel to prevent dagre-d3-es ESM chain via use-workflow-command
+jest.mock('@/hooks/chat', () => ({
   useSummary: () => ({
     isGenerating: false,
     progress: null,
@@ -86,8 +87,8 @@ jest.mock('@/hooks/chat/use-summary', () => ({
   }),
 }));
 
-// Mock useCopy hook
-jest.mock('@/hooks/ui/use-copy', () => ({
+// Mock @/hooks/ui barrel for useCopy
+jest.mock('@/hooks/ui', () => ({
   useCopy: () => ({
     copy: jest.fn(),
     isCopying: false,
@@ -99,6 +100,30 @@ jest.mock('@/components/chat/renderers/mermaid-block', () => ({
   MermaidBlock: ({ content }: { content: string }) => (
     <div data-testid="mermaid-block">{content}</div>
   ),
+}));
+
+// Mock VegaLiteBlock to prevent react-vega ESM import chain
+jest.mock('@/components/chat/renderers/vegalite-block', () => ({
+  VegaLiteBlock: ({ content }: { content: string }) => (
+    <div data-testid="vegalite-block">{content}</div>
+  ),
+}));
+
+// Mock MarkdownRenderer to avoid transitive ESM dependencies
+jest.mock('@/components/chat/utils/markdown-renderer', () => ({
+  MarkdownRenderer: ({ content }: { content: string }) => (
+    <div data-testid="markdown-renderer">{content}</div>
+  ),
+}));
+
+// Mock AgentDemoPreview from export barrel
+jest.mock('@/components/export', () => ({
+  AgentDemoPreview: () => <div data-testid="agent-demo-preview" />,
+}));
+
+// Mock LoadingSpinner
+jest.mock('@/components/ui/loading-states', () => ({
+  LoadingSpinner: () => <div data-testid="loading-spinner" />,
 }));
 
 // Mock sonner

@@ -1,7 +1,6 @@
 /**
  * @jest-environment jsdom
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import _userEvent from '@testing-library/user-event';
@@ -228,8 +227,8 @@ jest.mock('./custom-mode-editor', () => ({
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    mode?: any;
-    onSave: (mode: any) => void;
+    mode?: Record<string, unknown>;
+    onSave: (mode: Record<string, unknown>) => void;
   }) =>
     open ? (
       <div data-testid="custom-mode-editor">

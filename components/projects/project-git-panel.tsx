@@ -50,6 +50,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useGit } from '@/hooks/native/use-git';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 import { isTauri } from '@/lib/utils';
+import { GitignoreTemplateSelector } from '@/components/git/gitignore-template-selector';
 
 interface ProjectGitPanelProps {
   projectId: string;
@@ -91,6 +92,7 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
   const [commitMessage, setCommitMessage] = useState('');
   const [isInitializing, setIsInitializing] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [gitignoreContent, setGitignoreContent] = useState('');
 
   // Load repo path from project config
   useEffect(() => {
@@ -209,6 +211,20 @@ export function ProjectGitPanel({ projectId }: ProjectGitPanelProps) {
                   <p className="text-xs text-muted-foreground">
                     {t('initDialog.repoPathHint')}
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('initDialog.gitignore') ?? '.gitignore Template'}</Label>
+                  <div className="flex items-center gap-2">
+                    <GitignoreTemplateSelector
+                      onSelect={setGitignoreContent}
+                    />
+                    {gitignoreContent && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Check className="h-3 w-3 mr-1" />
+                        {t('initDialog.gitignoreSelected') ?? 'Template selected'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               <DialogFooter>

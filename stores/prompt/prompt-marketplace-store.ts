@@ -16,7 +16,7 @@ import type {
   PromptCollection,
   PromptReview,
 } from '@/types/content/prompt-marketplace';
-import { SAMPLE_MARKETPLACE_PROMPTS, SAMPLE_MARKETPLACE_COLLECTIONS } from '@/types/content/prompt-marketplace';
+import { SAMPLE_MARKETPLACE_PROMPTS, SAMPLE_MARKETPLACE_COLLECTIONS } from '@/lib/prompts/marketplace-samples';
 import { usePromptTemplateStore } from './prompt-template-store';
 
 interface PromptMarketplaceState {
@@ -36,13 +36,13 @@ interface PromptMarketplaceState {
   lastSyncedAt: Date | null;
 
   // Actions - Fetching
-  fetchFeatured: () => Promise<void>;
-  fetchTrending: () => Promise<void>;
-  fetchByCategory: (category: MarketplaceCategory) => Promise<MarketplacePrompt[]>;
-  searchPrompts: (filters: MarketplaceSearchFilters) => Promise<MarketplaceSearchResult>;
+  fetchFeatured: () => void;
+  fetchTrending: () => void;
+  fetchByCategory: (category: MarketplaceCategory) => MarketplacePrompt[];
+  searchPrompts: (filters: MarketplaceSearchFilters) => MarketplaceSearchResult;
   getPromptById: (id: string) => MarketplacePrompt | undefined;
-  fetchPromptDetails: (id: string) => Promise<MarketplacePrompt | null>;
-  fetchPromptReviews: (promptId: string, page?: number) => Promise<PromptReview[]>;
+  fetchPromptDetails: (id: string) => MarketplacePrompt | null;
+  fetchPromptReviews: (promptId: string, page?: number) => PromptReview[];
 
   // Actions - Installation
   installPrompt: (prompt: MarketplacePrompt) => Promise<string>;
@@ -102,37 +102,21 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
       lastSyncedAt: null,
 
       // Fetching Actions
-      fetchFeatured: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // In production, this would be an API call
-          const featured = Object.values(get().prompts).filter((p) => p.isFeatured);
-          set({ featuredIds: featured.map((p) => p.id), isLoading: false });
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch featured',
-            isLoading: false,
-          });
-        }
+      // In production, these would be API calls
+      fetchFeatured: () => {
+        const featured = Object.values(get().prompts).filter((p) => p.isFeatured);
+        set({ featuredIds: featured.map((p) => p.id) });
       },
 
-      fetchTrending: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          const prompts = Object.values(get().prompts);
-          const trending = prompts
-            .sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads)
-            .slice(0, 20);
-          set({ trendingIds: trending.map((p) => p.id), isLoading: false });
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Failed to fetch trending',
-            isLoading: false,
-          });
-        }
+      fetchTrending: () => {
+        const prompts = Object.values(get().prompts);
+        const trending = prompts
+          .sort((a, b) => b.stats.weeklyDownloads - a.stats.weeklyDownloads)
+          .slice(0, 20);
+        set({ trendingIds: trending.map((p) => p.id) });
       },
 
-      fetchByCategory: async (category: MarketplaceCategory) => {
+      fetchByCategory: (category: MarketplaceCategory) => {
         const prompts = Object.values(get().prompts);
         if (category === 'featured') {
           return prompts.filter((p) => p.isFeatured);
@@ -150,7 +134,7 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         return prompts.filter((p) => p.category === category);
       },
 
-      searchPrompts: async (filters: MarketplaceSearchFilters) => {
+      searchPrompts: (filters: MarketplaceSearchFilters) => {
         const allPrompts = Object.values(get().prompts);
         let filtered = allPrompts;
 
@@ -242,12 +226,11 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
         return get().prompts[id];
       },
 
-      fetchPromptDetails: async (id: string) => {
+      fetchPromptDetails: (id: string) => {
         return get().prompts[id] || null;
       },
 
-      fetchPromptReviews: async (promptId: string, _page = 1) => {
-        // Return locally stored reviews
+      fetchPromptReviews: (promptId: string, _page = 1) => {
         return get().reviews[promptId] || [];
       },
 
@@ -693,28 +676,9 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
               i.lastSyncedAt instanceof Date ? i.lastSyncedAt.toISOString() : i.lastSyncedAt,
           })),
         },
-        prompts: state.prompts,
-        collections: state.collections,
-        featuredIds: state.featuredIds,
-        trendingIds: state.trendingIds,
-        reviews: Object.fromEntries(
-          Object.entries(state.reviews).map(([promptId, reviews]) => [
-            promptId,
-            reviews.map((r) => ({
-              ...r,
-              createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-              updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : r.updatedAt,
-            })),
-          ])
-        ),
-        lastSyncedAt: state.lastSyncedAt?.toISOString(),
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Rehydrate dates
-          if (state.lastSyncedAt) {
-            state.lastSyncedAt = new Date(state.lastSyncedAt);
-          }
           if (state.userActivity.recentlyViewed) {
             state.userActivity.recentlyViewed = state.userActivity.recentlyViewed.map((v) => ({
               promptId: v.promptId,
@@ -727,29 +691,6 @@ export const usePromptMarketplaceStore = create<PromptMarketplaceState>()(
               installedAt: new Date(i.installedAt),
               lastSyncedAt: i.lastSyncedAt ? new Date(i.lastSyncedAt) : undefined,
             }));
-          }
-          // Rehydrate prompt dates
-          Object.values(state.prompts).forEach((p) => {
-            p.createdAt = new Date(p.createdAt);
-            p.updatedAt = new Date(p.updatedAt);
-            if (p.publishedAt) p.publishedAt = new Date(p.publishedAt);
-          });
-          // Rehydrate collection dates
-          if (state.collections) {
-            Object.values(state.collections).forEach((c) => {
-              c.createdAt = new Date(c.createdAt);
-              c.updatedAt = new Date(c.updatedAt);
-            });
-          }
-          // Rehydrate review dates
-          if (state.reviews) {
-            Object.keys(state.reviews).forEach((promptId) => {
-              state.reviews[promptId] = state.reviews[promptId].map((r) => ({
-                ...r,
-                createdAt: new Date(r.createdAt),
-                updatedAt: r.updatedAt ? new Date(r.updatedAt) : undefined,
-              }));
-            });
           }
         }
       },

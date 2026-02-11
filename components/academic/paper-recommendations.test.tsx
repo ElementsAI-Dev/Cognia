@@ -67,7 +67,7 @@ describe('PaperRecommendations', () => {
     activeTab: 'search' as const,
     isLoading: false,
     error: null,
-    search: jest.fn(),
+    search: jest.fn().mockResolvedValue(undefined),
     setSearchQuery: jest.fn(),
     setSearchFilter: jest.fn(),
     addToLibrary: jest.fn(),

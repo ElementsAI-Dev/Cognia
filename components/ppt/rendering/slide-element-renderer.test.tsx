@@ -2,7 +2,7 @@
  * Slide Element Renderer Component Tests
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { SlideElementRenderer } from './slide-element-renderer';
 import type { PPTSlideElement, PPTTheme } from '@/types/workflow';
 
@@ -108,7 +108,7 @@ describe('SlideElementRenderer', () => {
     expect(screen.getByText(/Chart/)).toBeInTheDocument();
   });
 
-  it('should render ChartElement when chart data is provided', () => {
+  it('should render ChartElement when chart data is provided', async () => {
     const chartData = {
       labels: ['Jan', 'Feb', 'Mar'],
       datasets: [{ label: 'Sales', data: [10, 20, 30] }],
@@ -119,12 +119,14 @@ describe('SlideElementRenderer', () => {
     });
     const { container } = render(<SlideElementRenderer element={element} theme={mockTheme} />);
 
-    // ChartElement renders a canvas
-    const canvas = container.querySelector('canvas');
-    expect(canvas).toBeInTheDocument();
+    // ChartElement is lazy loaded — wait for canvas to appear
+    await waitFor(() => {
+      const canvas = container.querySelector('canvas');
+      expect(canvas).toBeInTheDocument();
+    });
   });
 
-  it('should render pie chart with data', () => {
+  it('should render pie chart with data', async () => {
     const chartData = {
       labels: ['A', 'B', 'C'],
       datasets: [{ label: 'Distribution', data: [30, 50, 20] }],
@@ -135,8 +137,10 @@ describe('SlideElementRenderer', () => {
     });
     const { container } = render(<SlideElementRenderer element={element} theme={mockTheme} />);
 
-    const canvas = container.querySelector('canvas');
-    expect(canvas).toBeInTheDocument();
+    await waitFor(() => {
+      const canvas = container.querySelector('canvas');
+      expect(canvas).toBeInTheDocument();
+    });
   });
 
   it('should render table element', () => {
@@ -156,10 +160,12 @@ describe('SlideElementRenderer', () => {
     expect(screen.getByText('🚀')).toBeInTheDocument();
   });
 
-  it('should render video placeholder', () => {
+  it('should render video element', () => {
     const element = createMockElement({ type: 'video', content: 'video.mp4' });
-    render(<SlideElementRenderer element={element} theme={mockTheme} />);
-    expect(screen.getByText(/Video/)).toBeInTheDocument();
+    const { container } = render(<SlideElementRenderer element={element} theme={mockTheme} />);
+    // video.mp4 matches the video file extension pattern, so a <video> tag is rendered
+    const video = container.querySelector('video');
+    expect(video).toBeInTheDocument();
   });
 
   it('should render unknown element gracefully', () => {

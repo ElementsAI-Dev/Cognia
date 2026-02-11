@@ -247,4 +247,3 @@ export function SubAgentNode({
   );
 }
 
-export default SubAgentNode;

@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { useArtifactStore } from '@/stores';
+import { useArtifactStore, useSessionStore } from '@/stores';
 import type { Artifact, ArtifactType, ArtifactLanguage } from '@/types';
 import type { ToolDefinition } from './registry';
 
@@ -154,8 +154,9 @@ export async function executeArtifactCreate(input: ArtifactCreateInput): Promise
   try {
     const store = useArtifactStore.getState();
 
+    const activeSession = useSessionStore.getState().getActiveSession();
     const artifact = store.createArtifact({
-      sessionId: `agent-session-${Date.now()}`,
+      sessionId: activeSession?.id || `agent-session-${Date.now()}`,
       messageId: `agent-${Date.now()}`,
       type: input.type as ArtifactType,
       title: input.title,
@@ -244,11 +245,7 @@ export async function executeArtifactRead(input: ArtifactReadInput): Promise<Art
       };
     }
 
-    const allArtifacts = Object.values(store.artifacts);
-    const sorted = allArtifacts.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-    );
-    const limited = sorted.slice(0, input.limit || 10);
+    const limited = store.getRecentArtifacts(input.limit || 10);
 
     return {
       success: true,

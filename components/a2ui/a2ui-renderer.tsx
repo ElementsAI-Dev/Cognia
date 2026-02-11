@@ -5,7 +5,7 @@
  * Renders A2UI components by mapping to registered React components
  */
 
-import React, { useMemo, useCallback, memo, lazy, Suspense } from 'react';
+import React, { useMemo, useCallback, memo, lazy, Suspense, type ComponentType } from 'react';
 import type { A2UIComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-context';
 import { getComponent } from '@/lib/a2ui/catalog';
@@ -30,6 +30,9 @@ import { A2UIBadge } from './display/a2ui-badge';
 import { A2UIImage } from './display/a2ui-image';
 import { A2UIIcon } from './display/a2ui-icon';
 import { A2UILink } from './display/a2ui-link';
+import { A2UILoading } from './display/a2ui-loading';
+import { A2UIError } from './display/a2ui-error';
+import { A2UIEmpty } from './display/a2ui-empty';
 
 // Import form components
 import { A2UIButton } from './form/a2ui-button';
@@ -76,6 +79,9 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   ['Badge', A2UIBadge as A2UIComponentType],
   ['Alert', A2UIAlert as A2UIComponentType],
   ['Progress', A2UIProgress as A2UIComponentType],
+  ['Loading', A2UILoading as A2UIComponentType],
+  ['Error', A2UIError as A2UIComponentType],
+  ['Empty', A2UIEmpty as A2UIComponentType],
   // Form components
   ['Button', A2UIButton as A2UIComponentType],
   ['TextField', A2UITextField as A2UIComponentType],
@@ -119,7 +125,7 @@ interface A2UIRendererProps {
  * A2UI Component Renderer
  * Looks up the appropriate React component and renders it
  */
-export function A2UIRenderer({ component, className }: A2UIRendererProps) {
+export const A2UIRenderer = memo(function A2UIRenderer({ component, className }: A2UIRendererProps) {
   const context = useA2UIContext();
   const { surfaceId, dataModel, emitAction, setDataValue, renderChild, catalog } = context;
 
@@ -177,7 +183,7 @@ export function A2UIRenderer({ component, className }: A2UIRendererProps) {
       )}
     </A2UIErrorBoundary>
   );
-}
+});
 
 /**
  * Render a list of child component IDs
@@ -198,22 +204,27 @@ export const A2UIChildRenderer = memo(function A2UIChildRenderer({ childIds }: {
  * HOC to wrap a component with A2UI context access
  */
 export function withA2UIContext<P extends A2UIComponentProps>(
-  WrappedComponent: React.ComponentType<P>
-): React.ComponentType<Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }> {
+  WrappedComponent: ComponentType<P>
+): ComponentType<Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }> {
   return function A2UIContextWrapper(
     props: Omit<P, keyof A2UIComponentProps> & { component: A2UIComponent }
   ) {
-    const context = useA2UIContext();
+    const { surfaceId, dataModel, emitAction, setDataValue, renderChild } = useA2UIContext();
+
+    const onAction = useCallback(
+      (action: string, data?: Record<string, unknown>) => {
+        emitAction(action, props.component.id, data);
+      },
+      [emitAction, props.component.id]
+    );
 
     const componentProps = {
       ...props,
-      surfaceId: context.surfaceId,
-      dataModel: context.dataModel,
-      onAction: (action: string, data?: Record<string, unknown>) => {
-        context.emitAction(action, props.component.id, data);
-      },
-      onDataChange: context.setDataValue,
-      renderChild: context.renderChild,
+      surfaceId,
+      dataModel,
+      onAction,
+      onDataChange: setDataValue,
+      renderChild,
     } as P;
 
     return <WrappedComponent {...componentProps} />;

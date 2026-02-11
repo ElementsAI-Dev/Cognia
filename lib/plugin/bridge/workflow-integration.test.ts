@@ -111,7 +111,7 @@ describe('PluginWorkflowIntegration', () => {
         const message: PluginMessage = { id: 'msg-1', role: 'user', content: 'test' };
         const result = await integration.processMessageBeforeSend(message, 'gpt-4');
 
-        expect(result).toEqual([{ id: 'msg-1', role: 'user', content: 'transformed' }]);
+        expect(result).toEqual([{ role: 'user', content: 'transformed' }]);
       });
 
       it('should skip disabled plugins', async () => {

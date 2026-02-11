@@ -20,15 +20,9 @@ import {
   Search,
   X,
   Trash2,
-  Pause,
-  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Tooltip,
@@ -37,37 +31,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  AdminElevationDialog,
   BackupScheduleDialog,
   StatsOverview,
-  SystemTaskForm,
-  TaskConfirmationDialog,
   TaskDetails,
-  TaskForm,
   TaskList,
   WorkflowScheduleDialog,
 } from '@/components/scheduler';
@@ -76,9 +48,9 @@ import type {
   CreateScheduledTaskInput,
   CreateSystemTaskInput,
   SystemTask,
-  SystemTaskAction,
-  SystemTaskTrigger,
 } from '@/types/scheduler';
+import { SystemSchedulerView } from './system-scheduler-view';
+import { SchedulerDialogs } from './scheduler-dialogs';
 
 export default function SchedulerPage() {
   const t = useTranslations('scheduler');
@@ -184,11 +156,6 @@ export default function SchedulerPage() {
     () => systemTasks.find((task) => task.id === systemEditTaskId) || null,
     [systemTasks, systemEditTaskId]
   );
-  const sortedSystemTasks = useMemo(
-    () => [...systemTasks].sort((a, b) => a.name.localeCompare(b.name)),
-    [systemTasks]
-  );
-
   // Handlers
   const handleCreateTask = useCallback(
     async (input: CreateScheduledTaskInput) => {
@@ -338,43 +305,42 @@ export default function SchedulerPage() {
     }
   }, [isSystemView]);
 
-  const formatSystemTrigger = useCallback(
-    (trigger: SystemTaskTrigger) => {
-      switch (trigger.type) {
-        case 'cron':
-          return `${t('systemCronExpression') || 'Cron'}: ${trigger.expression}`;
-        case 'interval':
-          return `${t('intervalSeconds') || 'Interval'}: ${trigger.seconds}s`;
-        case 'once':
-          return `${t('systemRunAt') || 'Run At'}: ${trigger.run_at}`;
-        case 'on_boot':
-          return `${t('triggerOnBoot') || 'On Boot'}: ${trigger.delay_seconds || 0}s`;
-        case 'on_logon':
-          return `${t('triggerOnLogon') || 'On Logon'}${trigger.user ? ` (${trigger.user})` : ''}`;
-        case 'on_event':
-          return `${t('triggerOnEvent') || 'On Event'}: ${trigger.source} (${trigger.event_id})`;
-        default:
-          return t('systemTrigger') || 'Trigger';
-      }
-    },
-    [t]
-  );
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Skip if typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-  const formatSystemAction = useCallback(
-    (action: SystemTaskAction) => {
-      switch (action.type) {
-        case 'execute_script':
-          return `${t('actionScript') || 'Script'}: ${action.language}`;
-        case 'run_command':
-          return `${t('actionCommand') || 'Command'}: ${action.command}`;
-        case 'launch_app':
-          return `${t('actionApp') || 'App'}: ${action.path}`;
-        default:
-          return t('systemAction') || 'Action';
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleCreateClick();
+      } else if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        handleRefresh();
+      } else if (e.key === 'Escape') {
+        setShowCreateSheet(false);
+        setShowEditSheet(false);
+        setShowSystemCreateSheet(false);
+        setShowSystemEditSheet(false);
       }
-    },
-    [t]
-  );
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleCreateClick, handleRefresh]);
+
+  const handleSystemEditOpen = useCallback((taskId: string) => {
+    setSystemEditTaskId(taskId);
+    setShowSystemEditSheet(true);
+  }, []);
+
+  const handleRequestElevation = useCallback(async () => {
+    setSystemSubmitting(true);
+    await requestElevation();
+    setSystemSubmitting(false);
+    setShowAdminDialog(false);
+    refreshSystem();
+  }, [requestElevation, refreshSystem]);
 
   if (!isInitialized && !isSystemView) {
     return (
@@ -701,292 +667,51 @@ export default function SchedulerPage() {
 
       {isSystemView && (
         <div className="flex-1 min-h-0">
-          {!isSystemAvailable ? (
-            <div className="flex h-full items-center justify-center p-8 text-center">
-              <div className="max-w-[280px]">
-                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
-                  <Settings className="h-8 w-8 text-muted-foreground/40" />
-                </div>
-                <h3 className="text-base font-medium">{t('systemSchedulerUnavailable') || 'System scheduler is unavailable'}</h3>
-                {capabilities?.can_elevate && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-4 gap-1.5"
-                    onClick={() => setShowAdminDialog(true)}
-                  >
-                    {t('requestElevation') || 'Request Elevation'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <ScrollArea className="h-full">
-              <div className="space-y-3 p-4 sm:p-6">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline" className="capitalize">
-                    {isElevated ? t('runLevelAdmin') || 'Administrator' : t('runLevelUser') || 'User'}
-                  </Badge>
-                  <span>{t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}</span>
-                </div>
-                {systemError && (
-                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                    {systemError}
-                  </div>
-                )}
-                {sortedSystemTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50">
-                      <Settings className="h-7 w-7 text-muted-foreground/40" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">{t('noSystemTasks') || 'No system tasks'}</p>
-                  </div>
-                ) : (
-                  sortedSystemTasks.map((task) => (
-                    <Card key={task.id} className="overflow-hidden border-border/50 transition-all hover:-translate-y-0.5 hover:shadow-md">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <div className={`h-2 w-2 shrink-0 rounded-full ${
-                                task.status === 'disabled' ? 'bg-gray-400' : 'bg-green-500'
-                              }`} />
-                              <span className="truncate text-sm font-medium">{task.name}</span>
-                            </div>
-                            {task.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2 pl-4">{task.description}</p>
-                            )}
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 pl-4 text-[11px] text-muted-foreground">
-                              <span>{formatSystemTrigger(task.trigger)}</span>
-                              <span>{formatSystemAction(task.action)}</span>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className={`shrink-0 capitalize ${
-                            task.status === 'disabled' ? 'text-gray-500' : 'text-green-500'
-                          }`}>
-                            {task.status}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 pl-4">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleSystemRunNow(task.id)} disabled={systemLoading}>
-                                  <Play className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t('runNow') || 'Run Now'}</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleSystemToggle(task)} disabled={systemLoading}>
-                                  {task.status === 'disabled' ? <Activity className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{task.status === 'disabled' ? t('enableTask') || 'Enable' : t('disableTask') || 'Disable'}</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setSystemEditTaskId(task.id); setShowSystemEditSheet(true); }}>
-                                  <Settings className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t('edit') || 'Edit'}</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => setSystemDeleteTaskId(task.id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>{t('delete') || 'Delete'}</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          )}
+          <SystemSchedulerView
+            capabilities={capabilities}
+            isAvailable={isSystemAvailable}
+            isElevated={isElevated}
+            systemTasks={systemTasks}
+            loading={systemLoading}
+            error={systemError}
+            onRunNow={handleSystemRunNow}
+            onToggle={handleSystemToggle}
+            onEdit={handleSystemEditOpen}
+            onDelete={setSystemDeleteTaskId}
+            onRequestElevation={() => setShowAdminDialog(true)}
+          />
         </div>
       )}
 
-      {/* Create Task Sheet */}
-      <Sheet open={showCreateSheet} onOpenChange={setShowCreateSheet}>
-        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
-          <SheetHeader className="space-y-1">
-            <SheetTitle className="flex items-center gap-2.5 text-lg">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-                <Plus className="h-5 w-5 text-primary" />
-              </div>
-              {t('createTask') || 'Create Task'}
-            </SheetTitle>
-            <SheetDescription className="text-sm">
-              {t('createTaskDescription') || 'Set up a new scheduled task with triggers, notifications and more'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6">
-            <TaskForm
-              onSubmit={handleCreateTask}
-              onCancel={() => setShowCreateSheet(false)}
-              isSubmitting={isSubmitting}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Edit System Task Sheet */}
-      <Sheet open={showSystemEditSheet} onOpenChange={setShowSystemEditSheet}>
-        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
-          <SheetHeader className="space-y-1">
-            <SheetTitle className="flex items-center gap-2.5 text-lg">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10">
-                <Settings className="h-5 w-5 text-blue-500" />
-              </div>
-              {t('editSystemTask') || 'Edit System Task'}
-            </SheetTitle>
-            <SheetDescription className="text-sm">
-              {t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6">
-            {selectedSystemTask && (
-              <SystemTaskForm
-                initialValues={{
-                  name: selectedSystemTask.name,
-                  description: selectedSystemTask.description,
-                  trigger: selectedSystemTask.trigger,
-                  action: selectedSystemTask.action,
-                  run_level: selectedSystemTask.run_level,
-                  tags: selectedSystemTask.tags,
-                }}
-                onSubmit={handleEditSystemTask}
-                onCancel={() => setShowSystemEditSheet(false)}
-                isSubmitting={systemSubmitting}
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Create System Task Sheet */}
-      <Sheet open={showSystemCreateSheet} onOpenChange={setShowSystemCreateSheet}>
-        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
-          <SheetHeader className="space-y-1">
-            <SheetTitle className="flex items-center gap-2.5 text-lg">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-                <Plus className="h-5 w-5 text-primary" />
-              </div>
-              {t('createSystemTask') || 'Create System Task'}
-            </SheetTitle>
-            <SheetDescription className="text-sm">
-              {t('systemSchedulerDescription') || 'Manage OS-level scheduled tasks'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6">
-            <SystemTaskForm
-              onSubmit={handleCreateSystemTask}
-              onCancel={() => setShowSystemCreateSheet(false)}
-              isSubmitting={systemSubmitting}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Edit Task Sheet */}
-      <Sheet open={showEditSheet} onOpenChange={setShowEditSheet}>
-        <SheetContent className="w-full sm:w-[540px] sm:max-w-[540px] overflow-y-auto border-l bg-gradient-to-b from-background to-muted/20">
-          <SheetHeader className="space-y-1">
-            <SheetTitle className="flex items-center gap-2.5 text-lg">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10">
-                <Settings className="h-5 w-5 text-blue-500" />
-              </div>
-              {t('editTask') || 'Edit Task'}
-            </SheetTitle>
-            <SheetDescription className="text-sm">
-              {t('editTaskDescription') || 'Modify task settings and configurations'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="mt-6">
-            {selectedTask && (
-              <TaskForm
-                initialValues={{
-                  name: selectedTask.name,
-                  description: selectedTask.description,
-                  type: selectedTask.type,
-                  trigger: selectedTask.trigger,
-                  payload: selectedTask.payload,
-                  config: selectedTask.config,
-                  notification: selectedTask.notification,
-                }}
-                onSubmit={handleEditTask}
-                onCancel={() => setShowEditSheet(false)}
-                isSubmitting={isSubmitting}
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTaskId} onOpenChange={() => setDeleteTaskId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteTask') || 'Delete Task'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteTaskConfirm') ||
-                'Are you sure you want to delete this task? This action cannot be undone.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
-              {t('delete') || 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete System Task Confirmation */}
-      <AlertDialog open={!!systemDeleteTaskId} onOpenChange={() => setSystemDeleteTaskId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteTask') || 'Delete Task'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('deleteTaskConfirm') ||
-                'Are you sure you want to delete this task? This action cannot be undone.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSystemDeleteConfirm} className="bg-destructive text-destructive-foreground">
-              {t('delete') || 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <TaskConfirmationDialog
-        open={!!pendingConfirmation}
-        confirmation={pendingConfirmation}
-        loading={systemSubmitting}
-        onConfirm={confirmPending}
-        onCancel={cancelPending}
-      />
-
-      <AdminElevationDialog
-        open={showAdminDialog}
-        loading={systemSubmitting}
-        onCancel={() => setShowAdminDialog(false)}
-        onRequestElevation={async () => {
-          setSystemSubmitting(true);
-          await requestElevation();
-          setSystemSubmitting(false);
-          setShowAdminDialog(false);
-          refreshSystem();
-        }}
+      <SchedulerDialogs
+        showCreateSheet={showCreateSheet}
+        onShowCreateSheetChange={setShowCreateSheet}
+        onCreateTask={handleCreateTask}
+        isSubmitting={isSubmitting}
+        showEditSheet={showEditSheet}
+        onShowEditSheetChange={setShowEditSheet}
+        onEditTask={handleEditTask}
+        selectedTask={selectedTask}
+        showSystemCreateSheet={showSystemCreateSheet}
+        onShowSystemCreateSheetChange={setShowSystemCreateSheet}
+        onCreateSystemTask={handleCreateSystemTask}
+        systemSubmitting={systemSubmitting}
+        showSystemEditSheet={showSystemEditSheet}
+        onShowSystemEditSheetChange={setShowSystemEditSheet}
+        onEditSystemTask={handleEditSystemTask}
+        selectedSystemTask={selectedSystemTask}
+        deleteTaskId={deleteTaskId}
+        onDeleteTaskIdChange={setDeleteTaskId}
+        onDeleteConfirm={handleDeleteConfirm}
+        systemDeleteTaskId={systemDeleteTaskId}
+        onSystemDeleteTaskIdChange={setSystemDeleteTaskId}
+        onSystemDeleteConfirm={handleSystemDeleteConfirm}
+        pendingConfirmation={pendingConfirmation}
+        onConfirmPending={confirmPending}
+        onCancelPending={cancelPending}
+        showAdminDialog={showAdminDialog}
+        onShowAdminDialogChange={setShowAdminDialog}
+        onRequestElevation={handleRequestElevation}
       />
     </div>
   );

@@ -18,6 +18,7 @@ import {
   resumeVisualWorkflow,
   cancelVisualWorkflow,
 } from '@/lib/workflow-editor';
+import { loggers } from '@/lib/logger';
 import { useSettingsStore } from '@/stores/settings';
 import { workflowRepository } from '@/lib/db/repositories';
 import type { WorkflowExecutionHistoryRecord } from '@/types/workflow/workflow-editor';
@@ -407,7 +408,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           });
         }
       } catch (error) {
-        console.error('Failed to persist execution:', error);
+        loggers.store.error('Failed to persist execution', error as Error);
       }
     },
 
@@ -434,7 +435,7 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
         get().startExecution(record.input || {});
         toast.info('Replaying execution with saved input');
       } catch (error) {
-        console.error('Failed to replay execution:', error);
+        loggers.store.error('Failed to replay execution', error as Error);
         toast.error('Failed to replay execution');
       }
     },

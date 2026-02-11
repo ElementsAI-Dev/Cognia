@@ -81,3 +81,6 @@ export * from './import';
 
 // Map types
 export * from './map';
+
+// Observability types
+export * from './observability';

@@ -403,10 +403,27 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
     },
   }), {
     name: 'cognia-a2ui-surfaces',
-    partialize: (state) => ({
-      surfaces: state.surfaces,
-      activeSurfaceId: state.activeSurfaceId,
-    }),
+    partialize: (state) => {
+      // LRU: only persist the 20 most recently used surfaces (metadata only)
+      const MAX_PERSISTED_SURFACES = 20;
+      const entries = Object.entries(state.surfaces);
+      const sorted = entries
+        .filter(([, s]) => s.ready)
+        .sort(([, a], [, b]) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+        .slice(0, MAX_PERSISTED_SURFACES);
+
+      const lightSurfaces: Record<string, unknown> = {};
+      for (const [id, surface] of sorted) {
+        // Strip heavy data — components and dataModel are regenerated from templates
+        const { components: _c, dataModel: _d, ...metadata } = surface;
+        lightSurfaces[id] = metadata;
+      }
+
+      return {
+        surfaces: lightSurfaces,
+        activeSurfaceId: state.activeSurfaceId,
+      };
+    },
   })
   )
 );

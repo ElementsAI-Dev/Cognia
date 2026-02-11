@@ -22,6 +22,8 @@ export interface CompletionSettingsState extends CompletionSettings {
   setAICompletionProvider: (provider: CompletionSettings['aiCompletionProvider']) => void;
   setAICompletionDebounce: (ms: number) => void;
   setAICompletionMaxTokens: (tokens: number) => void;
+  setAICompletionEndpoint: (endpoint: string) => void;
+  setAICompletionApiKey: (apiKey: string) => void;
   setSlashTriggerChar: (char: string) => void;
   setEmojiTriggerChar: (char: string) => void;
   setShowInlinePreview: (show: boolean) => void;
@@ -47,6 +49,8 @@ export const useCompletionSettingsStore = create<CompletionSettingsState>()(
       setAICompletionProvider: (provider) => set({ aiCompletionProvider: provider }),
       setAICompletionDebounce: (ms) => set({ aiCompletionDebounce: ms }),
       setAICompletionMaxTokens: (tokens) => set({ aiCompletionMaxTokens: tokens }),
+      setAICompletionEndpoint: (endpoint) => set({ aiCompletionEndpoint: endpoint }),
+      setAICompletionApiKey: (apiKey) => set({ aiCompletionApiKey: apiKey }),
       setSlashTriggerChar: (char) => set({ slashTriggerChar: char }),
       setEmojiTriggerChar: (char) => set({ emojiTriggerChar: char }),
       setShowInlinePreview: (show) => set({ showInlinePreview: show }),

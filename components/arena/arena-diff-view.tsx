@@ -38,7 +38,7 @@ function computeWordDiff(textA: string, textB: string): { diffA: DiffSegment[]; 
   const m = wordsA.length;
   const n = wordsB.length;
 
-  // Build LCS table (optimized for reasonable sizes)
+  // Build LCS table - O(min(m,n)) memory using two-row approach
   const maxLen = 2000;
   if (m > maxLen || n > maxLen) {
     // Fallback for very long texts: show full text without diff
@@ -48,7 +48,8 @@ function computeWordDiff(textA: string, textB: string): { diffA: DiffSegment[]; 
     };
   }
 
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  // Full DP table needed for backtracking, but allocate typed arrays for better memory efficiency
+  const dp: Uint16Array[] = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (wordsA[i - 1] === wordsB[j - 1]) {
@@ -167,9 +168,9 @@ export function ArenaDiffView({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Diff className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{t('diffView.title', { fallback: 'Response Comparison' })}</span>
+          <span className="text-sm font-medium">{t('diffView.title')}</span>
           <Badge variant="outline" className={cn('text-xs', similarityColor)}>
-            {similarity}% {t('diffView.similar', { fallback: 'similar' })}
+            {similarity}% {t('diffView.similar')}
           </Badge>
         </div>
         <Tooltip>
@@ -182,13 +183,13 @@ export function ArenaDiffView({
             >
               {showDiff ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               {showDiff
-                ? t('diffView.hideDiff', { fallback: 'Hide diff' })
-                : t('diffView.showDiff', { fallback: 'Show diff' })}
+                ? t('diffView.hideDiff')
+                : t('diffView.showDiff')}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             <ArrowLeftRight className="h-3 w-3 inline mr-1" />
-            {t('diffView.toggleTooltip', { fallback: 'Toggle diff highlighting' })}
+            {t('diffView.toggleTooltip')}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -200,7 +201,7 @@ export function ArenaDiffView({
           <div className="px-3 py-2 border-b bg-muted/50">
             <span className="text-xs font-medium text-muted-foreground">{labelA}</span>
           </div>
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-[300px] md:h-[400px] lg:h-[500px]">
             <div className="p-3">
               {showDiff ? (
                 <DiffText segments={diffA} />
@@ -216,7 +217,7 @@ export function ArenaDiffView({
           <div className="px-3 py-2 border-b bg-muted/50">
             <span className="text-xs font-medium text-muted-foreground">{labelB}</span>
           </div>
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-[300px] md:h-[400px] lg:h-[500px]">
             <div className="p-3">
               {showDiff ? (
                 <DiffText segments={diffB} />

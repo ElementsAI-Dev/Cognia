@@ -124,7 +124,7 @@ describe('PluginDevTools', () => {
   it('should show message to select plugin when none selected', () => {
     render(<PluginDevTools />);
     
-    expect(screen.getByText('Select a Python plugin to use dev tools')).toBeInTheDocument();
+    expect(screen.getByText('Select an enabled plugin to inspect and debug')).toBeInTheDocument();
   });
 
   it('should only show Python and hybrid plugins in selector', () => {

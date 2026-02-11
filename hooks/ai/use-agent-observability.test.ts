@@ -28,6 +28,12 @@ jest.mock('@/lib/ai/observability/agent-observability', () => ({
   createAgentObservabilityManager: jest.fn(() => mockManager),
 }));
 
+jest.mock('@/stores', () => ({
+  useSettingsStore: jest.fn((selector: (state: Record<string, unknown>) => unknown) =>
+    selector({ observabilitySettings: { enabled: false } })
+  ),
+}));
+
 // Mock React hooks
 jest.mock('react', () => ({
   ...jest.requireActual('react'),
@@ -323,30 +329,17 @@ describe('useAgentObservability', () => {
 
   describe('getTraceUrl', () => {
     beforeEach(() => {
-      // Reset mock to default implementation
-      (createAgentObservabilityManager as jest.Mock).mockImplementation(() => ({
-        startAgentExecution: jest.fn(),
-        trackAgentExecution: jest.fn(async (fn) => fn()),
-        trackToolCall: jest.fn(async (_name, _args, fn) => fn()),
-        trackToolCalls: jest.fn(async (_toolCalls, executeTool) => {
-          for (const toolCall of _toolCalls) {
-            await executeTool(toolCall);
-          }
-        }),
-        trackPlanning: jest.fn(async (fn) => fn()),
-        endAgentExecution: jest.fn(),
-        getTraceUrl: jest.fn(() => 'https://langfuse.com/trace/123'),
-      }));
+      // Use the shared mockManager so assertions work correctly
+      (createAgentObservabilityManager as jest.Mock).mockImplementation(() => mockManager);
     });
 
     it('should return trace URL from manager', () => {
+      mockManager.getTraceUrl.mockReturnValue('https://langfuse.com/trace/123');
       const { result } = renderHook(() => useAgentObservability(mockConfig));
-      const expectedUrl = 'https://langfuse.com/trace/123';
-      mockManager.getTraceUrl.mockReturnValue(expectedUrl);
 
       const actualUrl = result.current.getTraceUrl();
 
-      expect(actualUrl).toBe(expectedUrl);
+      expect(actualUrl).toBe('https://langfuse.com/trace/123');
       expect(mockManager.getTraceUrl).toHaveBeenCalled();
     });
 
@@ -357,8 +350,8 @@ describe('useAgentObservability', () => {
     });
 
     it('should return null when manager returns null', () => {
-      const { result } = renderHook(() => useAgentObservability(mockConfig));
       mockManager.getTraceUrl.mockReturnValue(null);
+      const { result } = renderHook(() => useAgentObservability(mockConfig));
 
       const actualUrl = result.current.getTraceUrl();
 

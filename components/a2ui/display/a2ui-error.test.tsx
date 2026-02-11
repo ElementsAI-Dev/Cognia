@@ -188,7 +188,7 @@ describe('A2UIError', () => {
         />
       );
       
-      expect(container.firstChild).toHaveStyle({ backgroundColor: 'red' });
+      expect(container.firstChild).toHaveStyle({ backgroundColor: 'rgb(255, 0, 0)' });
     });
   });
 });

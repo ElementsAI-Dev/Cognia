@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
+import { loggers } from '@/lib/logger';
 import { useSettingsStore } from '@/stores';
 import {
   generateVideo,
@@ -335,7 +336,7 @@ export function useVideoGeneration(
         saveVideoToFile(blob, name);
       }
     } catch (err) {
-      console.error('Download error:', err);
+      loggers.media.error('Download error', err);
       setError('Failed to download video');
     }
   }, []);

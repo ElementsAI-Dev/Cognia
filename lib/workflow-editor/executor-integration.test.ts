@@ -14,6 +14,7 @@ import {
   getActiveExecutions,
   getActiveExecutionCount,
   removeActiveExecution,
+  disposeExecutorCleanup,
 } from './executor-integration';
 import * as converter from './converter';
 import * as workflows from '@/lib/ai/workflows';
@@ -657,6 +658,39 @@ describe('executor-integration', () => {
       });
 
       expect(getActiveExecutionCount()).toBe(1);
+    });
+  });
+
+  describe('disposeExecutorCleanup', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should be a function', () => {
+      expect(typeof disposeExecutorCleanup).toBe('function');
+    });
+
+    it('should not throw when called multiple times', () => {
+      expect(() => {
+        disposeExecutorCleanup();
+        disposeExecutorCleanup();
+      }).not.toThrow();
+    });
+
+    it('should clear the cleanup interval', () => {
+      const clearSpy = jest.spyOn(global, 'clearInterval');
+      disposeExecutorCleanup();
+      // After first dispose, calling again should not call clearInterval
+      // since the interval is already cleared
+      const callCount = clearSpy.mock.calls.length;
+      disposeExecutorCleanup();
+      // Second call should not invoke clearInterval again (intervalId is undefined)
+      expect(clearSpy.mock.calls.length).toBe(callCount);
+      clearSpy.mockRestore();
     });
   });
 

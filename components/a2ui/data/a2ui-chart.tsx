@@ -33,7 +33,7 @@ import {
   Label,
 } from 'recharts';
 import type { A2UIComponentProps, A2UIChartComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 const DEFAULT_COLORS = [
@@ -44,8 +44,37 @@ const DEFAULT_COLORS = [
   '#00C49F',
 ];
 
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '6px',
+};
+
+function ChartAxes({ xKey, xAxisLabel, yAxisLabel }: { xKey: string; xAxisLabel?: string; yAxisLabel?: string }) {
+  return (
+    <>
+      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+      <XAxis dataKey={xKey} className="text-xs">
+        {xAxisLabel && <Label value={xAxisLabel} offset={-5} position="insideBottom" />}
+      </XAxis>
+      <YAxis className="text-xs">
+        {yAxisLabel && <Label value={yAxisLabel} angle={-90} position="insideLeft" />}
+      </YAxis>
+    </>
+  );
+}
+
+function ChartExtras({ showLegend }: { showLegend: boolean }) {
+  return (
+    <>
+      <Tooltip contentStyle={TOOLTIP_STYLE} />
+      {showLegend && <Legend />}
+    </>
+  );
+}
+
 export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UIComponentProps<A2UIChartComponent>) {
-  const { dataModel } = useA2UIContext();
+  const { dataModel } = useA2UIData();
 
   // Resolve data - can be static array or data-bound
   const data = useMemo(() => {
@@ -67,37 +96,23 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
     }
   };
 
+  const showLegend = component.showLegend !== false;
+  const cursorStyle = component.clickAction ? 'pointer' : 'default';
+
   const renderChart = () => {
     switch (chartType) {
       case 'bar':
         return (
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs">
-              {component.xAxisLabel && (
-                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
-              )}
-            </XAxis>
-            <YAxis className="text-xs">
-              {component.yAxisLabel && (
-                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
-              )}
-            </YAxis>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartAxes xKey={xKey} xAxisLabel={component.xAxisLabel} yAxisLabel={component.yAxisLabel} />
+            <ChartExtras showLegend={showLegend} />
             {yKeys.map((yKey: string, idx: number) => (
               <Bar
                 key={yKey}
                 dataKey={yKey}
                 fill={colors[idx % colors.length]}
                 onClick={(barData) => handleDataPointClick(barData as unknown as Record<string, unknown>, idx)}
-                cursor={component.clickAction ? 'pointer' : 'default'}
+                cursor={cursorStyle}
               />
             ))}
           </BarChart>
@@ -114,45 +129,21 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
               cy="50%"
               outerRadius={height / 3}
               label={component.showLabels !== false}
-              cursor={component.clickAction ? 'pointer' : 'default'}
+              cursor={cursorStyle}
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartExtras showLegend={showLegend} />
           </PieChart>
         );
 
       case 'area':
         return (
           <AreaChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs">
-              {component.xAxisLabel && (
-                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
-              )}
-            </XAxis>
-            <YAxis className="text-xs">
-              {component.yAxisLabel && (
-                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
-              )}
-            </YAxis>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartAxes xKey={xKey} xAxisLabel={component.xAxisLabel} yAxisLabel={component.yAxisLabel} />
+            <ChartExtras showLegend={showLegend} />
             {yKeys.map((yKey: string, idx: number) => (
               <Area
                 key={yKey}
@@ -161,7 +152,7 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
                 stroke={colors[idx % colors.length]}
                 fill={colors[idx % colors.length]}
                 fillOpacity={0.3}
-                cursor={component.clickAction ? 'pointer' : 'default'}
+                cursor={cursorStyle}
               />
             ))}
           </AreaChart>
@@ -172,31 +163,20 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey={xKey} className="text-xs" name={component.xAxisLabel || xKey}>
-              {component.xAxisLabel && (
-                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
-              )}
+              {component.xAxisLabel && <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />}
             </XAxis>
             <YAxis className="text-xs" name={component.yAxisLabel || yKeys[0]}>
-              {component.yAxisLabel && (
-                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
-              )}
+              {component.yAxisLabel && <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />}
             </YAxis>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-              cursor={{ strokeDasharray: '3 3' }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ strokeDasharray: '3 3' }} />
+            {showLegend && <Legend />}
             {yKeys.map((yKey: string, idx: number) => (
               <Scatter
                 key={yKey}
                 name={yKey}
                 data={data}
                 fill={colors[idx % colors.length]}
-                cursor={component.clickAction ? 'pointer' : 'default'}
+                cursor={cursorStyle}
               />
             ))}
           </ScatterChart>
@@ -208,14 +188,7 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
             <PolarGrid />
             <PolarAngleAxis dataKey={xKey} className="text-xs" />
             <PolarRadiusAxis className="text-xs" />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartExtras showLegend={showLegend} />
             {yKeys.map((yKey: string, idx: number) => (
               <Radar
                 key={yKey}
@@ -241,20 +214,13 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
               innerRadius={height / 5}
               outerRadius={height / 3}
               label={component.showLabels !== false}
-              cursor={component.clickAction ? 'pointer' : 'default'}
+              cursor={cursorStyle}
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartExtras showLegend={showLegend} />
           </PieChart>
         );
 
@@ -262,25 +228,8 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
       default:
         return (
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis dataKey={xKey} className="text-xs">
-              {component.xAxisLabel && (
-                <Label value={component.xAxisLabel} offset={-5} position="insideBottom" />
-              )}
-            </XAxis>
-            <YAxis className="text-xs">
-              {component.yAxisLabel && (
-                <Label value={component.yAxisLabel} angle={-90} position="insideLeft" />
-              )}
-            </YAxis>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            {component.showLegend !== false && <Legend />}
+            <ChartAxes xKey={xKey} xAxisLabel={component.xAxisLabel} yAxisLabel={component.yAxisLabel} />
+            <ChartExtras showLegend={showLegend} />
             {yKeys.map((yKey: string, idx: number) => (
               <Line
                 key={yKey}
@@ -291,7 +240,7 @@ export const A2UIChart = memo(function A2UIChart({ component, onAction }: A2UICo
                 dot={{ r: 4 }}
                 activeDot={{
                   r: 6,
-                  cursor: component.clickAction ? 'pointer' : 'default',
+                  cursor: cursorStyle,
                 }}
               />
             ))}

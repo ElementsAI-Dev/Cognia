@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { loggers } from '@/lib/logger';
 import {
   Upload,
   Tag,
@@ -116,7 +117,7 @@ export function PromptPublishDialog({ templateId, trigger }: PromptPublishDialog
       setOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Publish failed:', error);
+      loggers.ui.error('Publish failed:', error);
       toast.error(t('publish.failed'));
     } finally {
       setIsPublishing(false);

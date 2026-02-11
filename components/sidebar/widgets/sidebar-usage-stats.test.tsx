@@ -15,7 +15,12 @@ jest.mock('@/stores', () => ({
       getTotalUsage: mockGetTotalUsage,
       getDailyUsage: mockGetDailyUsage,
       records: [],
+      quotaLimits: {},
     };
+    return selector(state);
+  },
+  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = { language: 'en' };
     return selector(state);
   },
 }));
@@ -66,6 +71,7 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       usageStats: 'Usage Stats',
       todayTokens: 'Today: {count} tokens',
+      viewFullReport: 'View Full Report',
     };
     return translations[key] || key;
   },
@@ -151,8 +157,8 @@ describe('SidebarUsageStats', () => {
     const { container } = render(<SidebarUsageStats />);
     const trigger = container.querySelector('[data-slot="collapsible-trigger"]');
     fireEvent.click(trigger!);
-    // Very small cost shows as "< $0.01"
-    expect(screen.getByText('< $0.01')).toBeInTheDocument();
+    // Very small cost shows as "<$0.01" (formatCostInCurrency)
+    expect(screen.getByText('<$0.01')).toBeInTheDocument();
   });
 
   it('handles zero usage gracefully', () => {

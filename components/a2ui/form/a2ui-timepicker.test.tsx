@@ -8,9 +8,19 @@ import { A2UITimePicker } from './a2ui-timepicker';
 import type { A2UITimePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
+const mockDataCtx = {
+  surface: null, dataModel: {}, components: {},
+  resolveString: jest.fn((value: unknown) => (typeof value === 'string' ? value : '')),
+  resolveNumber: jest.fn((value: unknown) => (typeof value === 'number' ? value : 0)),
+  resolveBoolean: jest.fn((value: unknown, d: unknown) => (typeof value === 'boolean' ? value : d)),
+  resolveArray: jest.fn((value: unknown, d: unknown[] = []) => (Array.isArray(value) ? value : d)),
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: jest.fn(() => ({
-    resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
+  useA2UIContext: jest.fn(() => ({ ...mockDataCtx })),
+  useA2UIData: jest.fn(() => mockDataCtx),
+  useA2UIActions: jest.fn(() => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   })),
 }));
 
@@ -48,7 +58,8 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      const input = document.querySelector('input[type="time"]');
+      expect(input).toBeInTheDocument();
     });
 
     it('should render label when provided', () => {
@@ -84,14 +95,16 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveAttribute('type', 'time');
+      const input = document.querySelector('input[type="time"]');
+      expect(input).toHaveAttribute('type', 'time');
     });
   });
 
   describe('value handling', () => {
     it('should display provided value', () => {
-      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
-      mockUseA2UIContext.mockReturnValue({
+      const mockUseA2UIData = jest.requireMock('../a2ui-context').useA2UIData;
+      mockUseA2UIData.mockReturnValue({
+        ...mockDataCtx,
         resolveString: jest.fn(() => '14:30'),
       });
 
@@ -103,7 +116,8 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveValue('14:30');
+      const input = document.querySelector('input[type="time"]');
+      expect(input).toHaveValue('14:30');
     });
 
     it('should call onDataChange when value changes', () => {
@@ -120,7 +134,7 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: '15:00' } });
+      fireEvent.change(document.querySelector('input[type="time"]')!, { target: { value: '15:00' } });
       
       expect(onDataChange).toHaveBeenCalledWith('/time', '15:00');
     });
@@ -162,7 +176,8 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toBeDisabled();
+      const input = document.querySelector('input[type="time"]');
+      expect(input).toBeDisabled();
     });
   });
 
@@ -176,7 +191,8 @@ describe('A2UITimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Enter time');
+      const input = document.querySelector('input[type="time"]');
+      expect(input).toHaveAttribute('placeholder', 'Enter time');
     });
   });
 });

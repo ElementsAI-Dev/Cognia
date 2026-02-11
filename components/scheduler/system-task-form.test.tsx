@@ -11,6 +11,33 @@ jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// Mock next/dynamic for Monaco editor
+jest.mock('next/dynamic', () => {
+  return jest.fn(() => {
+    const MockMonaco = (props: { value?: string; onChange?: (v: string) => void; options?: { readOnly?: boolean }; height?: string }) => (
+      <textarea
+        data-testid="monaco-editor"
+        value={props.value || ''}
+        onChange={(e) => props.onChange?.(e.target.value)}
+        disabled={props.options?.readOnly}
+        style={{ height: props.height }}
+      />
+    );
+    MockMonaco.displayName = 'MockMonacoEditor';
+    return MockMonaco;
+  });
+});
+
+jest.mock('@/components/providers/ui/theme-provider', () => ({
+  useTheme: () => ({ theme: 'dark', resolvedTheme: 'dark', setTheme: jest.fn() }),
+}));
+
+jest.mock('@/lib/monaco', () => ({
+  createEditorOptions: jest.fn(() => ({})),
+  getMonacoLanguage: jest.fn((lang: string) => lang),
+  getMonacoTheme: jest.fn(() => 'vs-dark'),
+}));
+
 jest.mock('@/lib/scheduler/script-executor', () => ({
   validateScript: jest.fn(() => ({ valid: true, errors: [], warnings: [] })),
   getScriptTemplate: jest.fn(() => '# Template'),
@@ -41,7 +68,7 @@ describe('SystemTaskForm', () => {
   it('should render script editor by default', () => {
     render(<SystemTaskForm {...defaultProps} />);
 
-    expect(screen.getByText('脚本语言 / Script Language')).toBeInTheDocument();
+    expect(screen.getByText('scriptLanguage')).toBeInTheDocument();
   });
 
   it('should disable submit when required fields are missing', () => {
@@ -58,9 +85,8 @@ describe('SystemTaskForm', () => {
     const nameInput = screen.getByPlaceholderText('taskNamePlaceholder');
     await userEvent.type(nameInput, 'System Task');
 
-    const textareas = screen.getAllByRole('textbox');
-    const scriptTextarea = textareas[textareas.length - 1];
-    fireEvent.change(scriptTextarea, { target: { value: 'print("hello")' } });
+    const editor = screen.getByTestId('monaco-editor');
+    fireEvent.change(editor, { target: { value: 'print("hello")' } });
 
     fireEvent.click(screen.getByText('save'));
 

@@ -416,7 +416,7 @@ describe('usePPTAI', () => {
         description: 'Opening',
         keyPoints: ['Welcome'],
         order: 0,
-        type: 'title',
+        suggestedLayout: 'title',
       });
     });
 

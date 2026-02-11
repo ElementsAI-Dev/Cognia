@@ -70,6 +70,21 @@
     "both-bad": "Both Bad",
     "other": "Other"
   },
+  "diffView": {
+    "title": "Response Comparison",
+    "similar": "similar",
+    "hideDiff": "Hide diff",
+    "showDiff": "Show diff",
+    "toggleTooltip": "Toggle diff highlighting"
+  },
+  "showDiff": "Compare",
+  "hideDiff": "Hide Diff",
+  "errorBoundary": {
+    "failedToLoad": "{section} failed to load",
+    "somethingWrong": "Something went wrong",
+    "unexpectedError": "An unexpected error occurred.",
+    "tryAgain": "Try again"
+  },
   "newBattle": "New Battle",
   "viewBattle": "View Battle",
   "history": {
@@ -100,12 +115,32 @@
     "delete": "Delete"
   },
   "stats": {
-    "title": "Arena Statistics",
+    "title": "Stats",
     "totalBattles": "Total Battles",
     "completedBattles": "Completed",
+    "completed": "completed",
     "ties": "Ties",
-    "winRate": "Win Rate",
-    "topModels": "Top Models"
+    "winRate": "Win rate",
+    "topModels": "Most Battled Models",
+    "noData": "No battle data yet",
+    "startBattles": "Start some battles to see statistics here",
+    "decisiveVotes": "Decisive Votes",
+    "uniqueModels": "Models Tested",
+    "preferences": "preferences",
+    "avgTime": "Avg. Battle Time",
+    "blindMode": "blind mode",
+    "battles": "battles",
+    "noModels": "No model data",
+    "categories": "Category Distribution",
+    "noCategories": "No category data",
+    "votingPatterns": "Voting Patterns",
+    "decisiveRate": "Decisive Rate",
+    "tieRate": "Tie Rate",
+    "multiTurn": "Multi-turn",
+    "blindBattles": "Blind Battles",
+    "topRated": "Top Rated",
+    "rating": "Rating",
+    "bothBad": "both bad"
   },
   "settings": {
     "title": "Arena Settings",

@@ -34,13 +34,13 @@ jest.mock('@xyflow/react', () => ({
   },
 }));
 
-jest.mock('../node-preview-tooltip', () => ({
+jest.mock('../utils/node-preview-tooltip', () => ({
   NodePreviewTooltip: ({ children, _data }: { children?: React.ReactNode; _data?: unknown }) => (
     <>{children}</>
   ),
 }));
 
-jest.mock('../node-quick-config', () => ({
+jest.mock('../utils/node-quick-config', () => ({
   NodeQuickConfig: ({
     children,
     _nodeId,

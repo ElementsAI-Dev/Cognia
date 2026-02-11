@@ -86,8 +86,10 @@ interface UsageState {
   totalTokens: number;
   totalCost: number;
   quotaLimits: Record<string, QuotaLimits>;
+  refreshTrigger: number;
 
   // Actions
+  triggerRefresh: () => void;
   addUsageRecord: (record: Omit<UsageRecord, 'id' | 'cost' | 'createdAt'>) => void;
   /** Add a record from AI SDK token counts (inputTokens/outputTokens) */
   addUsageFromTokens: (params: {
@@ -143,6 +145,10 @@ export const useUsageStore = create<UsageState>()(
       totalTokens: 0,
       totalCost: 0,
       quotaLimits: {},
+      refreshTrigger: 0,
+
+      triggerRefresh: () =>
+        set((state) => ({ refreshTrigger: state.refreshTrigger + 1 })),
 
       addUsageRecord: (record) => {
         const cost = calculateCost(record.model, record.tokens);
@@ -543,6 +549,7 @@ export const useUsageStore = create<UsageState>()(
         totalTokens: state.totalTokens,
         totalCost: state.totalCost,
         quotaLimits: state.quotaLimits,
+        // refreshTrigger intentionally excluded from persistence
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.records) {

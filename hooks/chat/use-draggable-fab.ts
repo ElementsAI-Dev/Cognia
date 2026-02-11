@@ -172,22 +172,6 @@ export function useDraggableFab(config: DraggableFabConfig = {}): DraggableFabRe
   const hasDraggedRef = useRef(false);
   const DRAG_THRESHOLD = 5; // Minimum pixels to move before considering it a drag
 
-  // Handle pointer down - prepare for potential drag
-  const handleDragStart = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      // Don't prevent default here - allow click to work
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-      dragStartRef.current = { x: clientX, y: clientY };
-      initialOffsetRef.current = { ...state.offset };
-      hasDraggedRef.current = false;
-
-      // Don't set isDragging yet - wait for movement threshold
-    },
-    [state.offset]
-  );
-
   // Handle drag move
   const handleDrag = useCallback(
     (e: MouseEvent | TouchEvent) => {
@@ -317,49 +301,69 @@ export function useDraggableFab(config: DraggableFabConfig = {}): DraggableFabRe
     persistPosition(mergedConfig.persistKey, newState);
   }, [mergedConfig]);
 
-  // Add global mouse/touch event listeners when pointer is down (dragStartRef is set)
+  // Refs for stable event handler references (avoids re-binding on every render)
+  const handleDragRef = useRef(handleDrag);
+  const handleDragEndRef = useRef(handleDragEnd);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (dragStartRef.current) handleDrag(e);
-    };
-    const handleTouchMove = (e: TouchEvent) => {
-      if (dragStartRef.current) handleDrag(e);
-    };
-    const handleMouseUp = () => {
-      if (dragStartRef.current) {
-        // Only trigger drag end if we actually dragged
-        if (hasDraggedRef.current) {
-          handleDragEnd();
-        } else {
-          // Just cleanup refs for a click
-          dragStartRef.current = null;
-        }
-      }
-    };
-    const handleTouchEnd = () => {
-      if (dragStartRef.current) {
-        if (hasDraggedRef.current) {
-          handleDragEnd();
-        } else {
-          dragStartRef.current = null;
-        }
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('touchmove', handleTouchMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchend', handleTouchEnd);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
+    handleDragRef.current = handleDrag;
+    handleDragEndRef.current = handleDragEnd;
   }, [handleDrag, handleDragEnd]);
+
+  // Bind global listeners only when drag starts, unbind on drag end
+  const cleanupListenersRef = useRef<(() => void) | null>(null);
+
+  const bindDragListeners = useCallback(() => {
+    if (typeof window === 'undefined' || cleanupListenersRef.current) return;
+
+    const onMove = (e: MouseEvent | TouchEvent) => handleDragRef.current(e as MouseEvent & TouchEvent);
+    const onEnd = () => {
+      if (hasDraggedRef.current) {
+        handleDragEndRef.current();
+      } else {
+        dragStartRef.current = null;
+      }
+      // Unbind after drag ends
+      cleanupListenersRef.current?.();
+      cleanupListenersRef.current = null;
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchend', onEnd);
+
+    cleanupListenersRef.current = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchend', onEnd);
+    };
+  }, []);
+
+  // Handle pointer down - prepare for potential drag
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      // Don't prevent default here - allow click to work
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+      dragStartRef.current = { x: clientX, y: clientY };
+      initialOffsetRef.current = { ...state.offset };
+      hasDraggedRef.current = false;
+
+      // Bind global listeners only when drag starts
+      bindDragListeners();
+    },
+    [state.offset, bindDragListeners]
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupListenersRef.current?.();
+    };
+  }, []);
 
   return {
     position: state.position,

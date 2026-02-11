@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import type { A2UIComponentProps, A2UIButtonComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 const variantMap: Record<string, 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'> = {
   default: 'default',
@@ -23,7 +23,7 @@ const variantMap: Record<string, 'default' | 'destructive' | 'outline' | 'second
 };
 
 export const A2UIButton = memo(function A2UIButton({ component, onAction }: A2UIComponentProps<A2UIButtonComponent>) {
-  const { resolveString, resolveBoolean } = useA2UIContext();
+  const { resolveString, resolveBoolean } = useA2UIData();
 
   const text = resolveString(component.text, '');
   const isLoading = component.loading ? resolveBoolean(component.loading, false) : false;

@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/context-menu';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
+import { getFileStatusColor } from '@/types/system/git';
 import type { GitFileStatus } from '@/types/system/git';
 
 interface TreeNode {
@@ -226,18 +227,10 @@ export function GitFileTree({
   };
 
   const getStatusBadge = (status: string, staged: boolean) => {
-    const colors: Record<string, string> = {
-      added: 'text-green-600 border-green-600',
-      modified: 'text-yellow-600 border-yellow-600',
-      deleted: 'text-red-600 border-red-600',
-      renamed: 'text-blue-600 border-blue-600',
-      untracked: 'text-gray-600 border-gray-600',
-    };
-
     return (
       <Badge
         variant="outline"
-        className={cn('text-xs h-5', colors[status] || '', staged && 'bg-green-500/10')}
+        className={cn('text-xs h-5', getFileStatusColor(status), staged && 'bg-green-500/10')}
       >
         {status.charAt(0).toUpperCase()}
         {staged && <Check className="h-2 w-2 ml-0.5" />}
@@ -490,5 +483,3 @@ export function GitFileTree({
     </div>
   );
 }
-
-export default GitFileTree;

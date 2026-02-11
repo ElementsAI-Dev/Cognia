@@ -14,13 +14,6 @@ import {
   ChevronUp,
   ChevronDown,
   Zap,
-  Code,
-  Palette,
-  Building2,
-  BarChart3,
-  MessageSquare,
-  Cog,
-  FileText,
   Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,18 +26,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
 import { findMatchingSkills } from '@/lib/skills/executor';
-import type { Skill, SkillCategory } from '@/types/system/skill';
-
-const CATEGORY_ICONS: Record<SkillCategory, React.ReactNode> = {
-  'creative-design': <Palette className="h-3.5 w-3.5" />,
-  'development': <Code className="h-3.5 w-3.5" />,
-  'enterprise': <Building2 className="h-3.5 w-3.5" />,
-  'productivity': <Zap className="h-3.5 w-3.5" />,
-  'data-analysis': <BarChart3 className="h-3.5 w-3.5" />,
-  'communication': <MessageSquare className="h-3.5 w-3.5" />,
-  'meta': <Cog className="h-3.5 w-3.5" />,
-  'custom': <FileText className="h-3.5 w-3.5" />,
-};
+import { CATEGORY_ICONS_SM } from './skill-constants';
+import type { Skill } from '@/types/system/skill';
 
 interface SkillSuggestionsProps {
   query: string;
@@ -78,25 +61,11 @@ export function SkillSuggestions({
 
   const activeSkills = useMemo(() => getActiveSkills(), [getActiveSkills]);
 
-  // Track query prefix to reset dismissed state
-  const queryPrefix = query.slice(0, 10);
-  const [lastQueryPrefix, setLastQueryPrefix] = useState(queryPrefix);
-  
-  // Reset dismissed when query prefix changes
-  const effectiveDismissed = useMemo(() => {
-    if (queryPrefix !== lastQueryPrefix) {
-      return false;
-    }
-    return isDismissed;
-  }, [queryPrefix, lastQueryPrefix, isDismissed]);
+  // Track which query prefix was dismissed, so changing the query resets dismissal
+  const [dismissedForPrefix, setDismissedForPrefix] = useState<string | null>(null);
 
-  // Update last query prefix when it changes
-  if (queryPrefix !== lastQueryPrefix) {
-    setLastQueryPrefix(queryPrefix);
-    if (isDismissed) {
-      setIsDismissed(false);
-    }
-  }
+  const queryPrefix = query.slice(0, 10);
+  const effectiveDismissed = isDismissed && dismissedForPrefix === queryPrefix;
 
   // Find matching skills based on query
   const suggestedSkills = useMemo(() => {
@@ -123,7 +92,8 @@ export function SkillSuggestions({
 
   const handleDismiss = useCallback(() => {
     setIsDismissed(true);
-  }, []);
+    setDismissedForPrefix(queryPrefix);
+  }, [queryPrefix]);
 
   // Don't render if nothing to show
   if (suggestedSkills.length === 0 && activeSkills.length === 0) {
@@ -147,7 +117,7 @@ export function SkillSuggestions({
                   className="text-xs cursor-pointer hover:bg-destructive/20"
                   onClick={() => handleDeactivate(skill)}
                 >
-                  {CATEGORY_ICONS[skill.category]}
+                  {CATEGORY_ICONS_SM[skill.category]}
                   <span className="ml-1">{skill.metadata.name}</span>
                   <X className="h-3 w-3 ml-1" />
                 </Badge>
@@ -217,7 +187,7 @@ export function SkillSuggestions({
             >
               <div className="flex items-center gap-2 min-w-0">
                 <div className="shrink-0 text-muted-foreground">
-                  {CATEGORY_ICONS[skill.category]}
+                  {CATEGORY_ICONS_SM[skill.category]}
                 </div>
                 <div className="min-w-0">
                   <div className="font-medium text-xs truncate">

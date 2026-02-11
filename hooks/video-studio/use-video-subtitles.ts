@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { nanoid } from 'nanoid';
 import { useSettingsStore } from '@/stores';
 import type {
   SubtitleTrack,
@@ -111,7 +112,7 @@ export interface UseVideoSubtitlesReturn {
 
 // Generate unique ID
 function generateId(): string {
-  return `subtitle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return nanoid();
 }
 
 export function useVideoSubtitles(options: UseVideoSubtitlesOptions = {}): UseVideoSubtitlesReturn {

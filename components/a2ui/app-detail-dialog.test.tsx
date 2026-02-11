@@ -15,6 +15,18 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }));
 
+// Mock Dialog so content renders in JSDOM without Portal
+jest.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
+    open ? <div data-testid="dialog">{children}</div> : null,
+  DialogContent: ({ children }: { children: React.ReactNode; className?: string }) =>
+    <div data-testid="dialog-content">{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode; className?: string }) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: { children: React.ReactNode; className?: string }) => <p>{children}</p>,
+  DialogFooter: ({ children }: { children: React.ReactNode; className?: string }) => <div data-testid="dialog-footer">{children}</div>,
+}));
+
 // Mock Tabs with stateful tab switching
 jest.mock('@/components/ui/tabs', () => {
   const TabsContext = React.createContext<{ active: string; setActive: (v: string) => void }>({ active: 'info', setActive: () => {} });
@@ -91,13 +103,13 @@ describe('AppDetailDialog', () => {
     it('should render dialog when open', () => {
       renderDialog();
 
-      expect(screen.getByText('应用详情')).toBeInTheDocument();
+      expect(screen.getByText('App Details')).toBeInTheDocument();
     });
 
     it('should not render when app is null', () => {
       renderDialog({ app: null });
 
-      expect(screen.queryByText('应用详情')).not.toBeInTheDocument();
+      expect(screen.queryByText('App Details')).not.toBeInTheDocument();
     });
 
     it('should show app name', () => {
@@ -124,12 +136,12 @@ describe('AppDetailDialog', () => {
       expect(screen.getByText('This is a test application')).toBeInTheDocument();
     });
 
-    it('should show "暂无描述" when no description', () => {
+    it('should show "No description" when no description', () => {
       renderDialog({
         app: createMockApp({ description: undefined }),
       });
 
-      expect(screen.getByText('暂无描述')).toBeInTheDocument();
+      expect(screen.getByText('No description')).toBeInTheDocument();
     });
   });
 
@@ -137,28 +149,28 @@ describe('AppDetailDialog', () => {
     it('should render all tabs', () => {
       renderDialog();
 
-      expect(screen.getByText('基本信息')).toBeInTheDocument();
-      expect(screen.getByText('元数据')).toBeInTheDocument();
-      expect(screen.getByText('发布准备')).toBeInTheDocument();
+      expect(screen.getByText(/Basic Info/)).toBeInTheDocument();
+      expect(screen.getByText(/Metadata/)).toBeInTheDocument();
+      expect(screen.getByText(/Publish Prep/)).toBeInTheDocument();
     });
 
     it('should switch to metadata tab when clicked', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('元数据'));
+      fireEvent.click(screen.getByText('Metadata'));
 
       await waitFor(() => {
-        expect(screen.getByText('作者信息')).toBeInTheDocument();
+        expect(screen.getByText('Author Info')).toBeInTheDocument();
       });
     });
 
     it('should switch to publish tab when clicked', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        expect(screen.getByText('发布准备检查')).toBeInTheDocument();
+        expect(screen.getByText('Publish Readiness Check')).toBeInTheDocument();
       });
     });
   });
@@ -167,7 +179,7 @@ describe('AppDetailDialog', () => {
     it('should show category', () => {
       renderDialog();
 
-      expect(screen.getByText('效率工具')).toBeInTheDocument();
+      expect(screen.getByText('Productivity')).toBeInTheDocument();
     });
 
     it('should show tags', () => {
@@ -180,8 +192,8 @@ describe('AppDetailDialog', () => {
     it('should show creation and modification dates', () => {
       renderDialog();
 
-      expect(screen.getByText('创建时间')).toBeInTheDocument();
-      expect(screen.getByText('最后修改')).toBeInTheDocument();
+      expect(screen.getByText('Created At')).toBeInTheDocument();
+      expect(screen.getByText('Last Modified')).toBeInTheDocument();
     });
   });
 
@@ -189,31 +201,31 @@ describe('AppDetailDialog', () => {
     it('should show author information', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('元数据'));
+      fireEvent.click(screen.getByText('Metadata'));
 
       await waitFor(() => {
-        expect(screen.getByText('名称: Test Author')).toBeInTheDocument();
-        expect(screen.getByText('邮箱: test@example.com')).toBeInTheDocument();
-        expect(screen.getByText('网站: https://example.com')).toBeInTheDocument();
+        expect(screen.getByText('Name: Test Author')).toBeInTheDocument();
+        expect(screen.getByText('Email: test@example.com')).toBeInTheDocument();
+        expect(screen.getByText('Website: https://example.com')).toBeInTheDocument();
       });
     });
 
-    it('should show "暂无作者信息" when no author', async () => {
+    it('should show "No author info" when no author', async () => {
       renderDialog({
         app: createMockApp({ author: undefined }),
       });
 
-      fireEvent.click(screen.getByText('元数据'));
+      fireEvent.click(screen.getByText('Metadata'));
 
       await waitFor(() => {
-        expect(screen.getByText('暂无作者信息')).toBeInTheDocument();
+        expect(screen.getByText('No author info')).toBeInTheDocument();
       });
     });
 
     it('should show statistics', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('元数据'));
+      fireEvent.click(screen.getByText('Metadata'));
 
       await waitFor(() => {
         expect(screen.getByText('100')).toBeInTheDocument(); // views
@@ -226,11 +238,11 @@ describe('AppDetailDialog', () => {
     it('should show template info', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('元数据'));
+      fireEvent.click(screen.getByText('Metadata'));
 
       await waitFor(() => {
-        expect(screen.getByText('模板 ID: template-1')).toBeInTheDocument();
-        expect(screen.getByText('模板名称: Test Template')).toBeInTheDocument();
+        expect(screen.getByText('Template ID: template-1')).toBeInTheDocument();
+        expect(screen.getByText('Template Name: Test Template')).toBeInTheDocument();
       });
     });
   });
@@ -239,10 +251,10 @@ describe('AppDetailDialog', () => {
     it('should show check publish button', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        expect(screen.getByText('检查发布要求')).toBeInTheDocument();
+        expect(screen.getByText('Check Publish Requirements')).toBeInTheDocument();
       });
     });
 
@@ -250,10 +262,10 @@ describe('AppDetailDialog', () => {
       const onPreparePublish = jest.fn(() => ({ valid: true, missing: [] }));
       renderDialog({ onPreparePublish });
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        const checkButton = screen.getByText('检查发布要求');
+        const checkButton = screen.getByText('Check Publish Requirements');
         fireEvent.click(checkButton);
       });
 
@@ -264,15 +276,15 @@ describe('AppDetailDialog', () => {
       const onPreparePublish = jest.fn(() => ({ valid: true, missing: [] }));
       renderDialog({ onPreparePublish });
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        const checkButton = screen.getByText('检查发布要求');
+        const checkButton = screen.getByText('Check Publish Requirements');
         fireEvent.click(checkButton);
       });
 
       await waitFor(() => {
-        expect(screen.getByText('应用已准备好发布！')).toBeInTheDocument();
+        expect(screen.getByText('App is ready to publish!')).toBeInTheDocument();
       });
     });
 
@@ -283,15 +295,15 @@ describe('AppDetailDialog', () => {
       }));
       renderDialog({ onPreparePublish });
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        const checkButton = screen.getByText('检查发布要求');
+        const checkButton = screen.getByText('Check Publish Requirements');
         fireEvent.click(checkButton);
       });
 
       await waitFor(() => {
-        expect(screen.getByText('需要补充以下信息：')).toBeInTheDocument();
+        expect(screen.getByText('The following information is required:')).toBeInTheDocument();
         expect(screen.getByText('description (at least 10 characters)')).toBeInTheDocument();
         expect(screen.getByText('thumbnail')).toBeInTheDocument();
       });
@@ -306,11 +318,11 @@ describe('AppDetailDialog', () => {
         }),
       });
 
-      fireEvent.click(screen.getByText('发布准备'));
+      fireEvent.click(screen.getByText('Publish Prep'));
 
       await waitFor(() => {
-        expect(screen.getByText('已发布')).toBeInTheDocument();
-        expect(screen.getByText('商店 ID: store-123')).toBeInTheDocument();
+        expect(screen.getByText('Published')).toBeInTheDocument();
+        expect(screen.getByText('Store ID: store-123')).toBeInTheDocument();
       });
     });
   });
@@ -319,22 +331,22 @@ describe('AppDetailDialog', () => {
     it('should enter edit mode when edit button clicked', async () => {
       renderDialog();
 
-      const editButton = screen.getByText('编辑信息');
+      const editButton = screen.getByText(/Edit Info/);
       fireEvent.click(editButton);
 
       await waitFor(() => {
-        expect(screen.getByText('取消')).toBeInTheDocument();
-        expect(screen.getByText('保存')).toBeInTheDocument();
+        expect(screen.getByText(/Cancel/)).toBeInTheDocument();
+        expect(screen.getByText(/Save/)).toBeInTheDocument();
       });
     });
 
     it('should show input fields in edit mode', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('编辑信息'));
+      fireEvent.click(screen.getByText('Edit Info'));
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('应用名称')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('App Name')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('1.0.0')).toBeInTheDocument();
       });
     });
@@ -342,14 +354,14 @@ describe('AppDetailDialog', () => {
     it('should cancel edit mode', async () => {
       renderDialog();
 
-      fireEvent.click(screen.getByText('编辑信息'));
+      fireEvent.click(screen.getByText('Edit Info'));
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText('取消'));
+        fireEvent.click(screen.getByText('Cancel'));
       });
 
       await waitFor(() => {
-        expect(screen.getByText('编辑信息')).toBeInTheDocument();
+        expect(screen.getByText('Edit Info')).toBeInTheDocument();
       });
     });
 
@@ -357,14 +369,14 @@ describe('AppDetailDialog', () => {
       const onSave = jest.fn();
       renderDialog({ onSave });
 
-      fireEvent.click(screen.getByText('编辑信息'));
+      fireEvent.click(screen.getByText(/Edit Info/));
 
       await waitFor(() => {
-        const nameInput = screen.getByPlaceholderText('应用名称');
+        const nameInput = screen.getByPlaceholderText('App Name');
         fireEvent.change(nameInput, { target: { value: 'Updated Name' } });
       });
 
-      fireEvent.click(screen.getByText('保存'));
+      fireEvent.click(screen.getByText(/Save/));
 
       expect(onSave).toHaveBeenCalledWith(
         'test-app-1',
@@ -389,7 +401,7 @@ describe('AppDetailDialog', () => {
       const onGenerateThumbnail = jest.fn();
       renderDialog({ onGenerateThumbnail });
 
-      const refreshButton = screen.getByText('刷新缩略图');
+      const refreshButton = screen.getByText('Refresh Thumbnail');
       fireEvent.click(refreshButton);
 
       expect(onGenerateThumbnail).toHaveBeenCalledWith('test-app-1');
@@ -401,7 +413,7 @@ describe('AppDetailDialog', () => {
       const onOpenChange = jest.fn();
       renderDialog({ onOpenChange });
 
-      const closeButton = screen.getByText('关闭');
+      const closeButton = screen.getByText('Close');
       fireEvent.click(closeButton);
 
       expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -412,16 +424,16 @@ describe('AppDetailDialog', () => {
       renderDialog({ onOpenChange });
 
       // Enter edit mode
-      fireEvent.click(screen.getByText('编辑信息'));
+      fireEvent.click(screen.getByText('Edit Info'));
 
       // Click cancel to exit edit mode
       await waitFor(() => {
-        fireEvent.click(screen.getByText('取消'));
+        fireEvent.click(screen.getByText('Cancel'));
       });
 
       // Click close button
       await waitFor(() => {
-        fireEvent.click(screen.getByText('关闭'));
+        fireEvent.click(screen.getByText('Close'));
       });
 
       // onOpenChange should have been called with false

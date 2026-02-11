@@ -60,8 +60,8 @@ export const EXTENDED_COLORS = [
   '#FFBB28',
   '#FF8042',
   '#0088FE',
-  '#00C49F',
-  '#FFBB28',
+  '#a855f7',
+  '#ec4899',
 ];
 
 /**

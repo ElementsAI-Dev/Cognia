@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export interface A2UISwitchComponent extends A2UIBaseComponent {
@@ -22,7 +22,7 @@ export interface A2UISwitchComponent extends A2UIBaseComponent {
 }
 
 export const A2UISwitch = memo(function A2UISwitch({ component, onDataChange }: A2UIComponentProps<A2UISwitchComponent>) {
-  const { resolveBoolean } = useA2UIContext();
+  const { resolveBoolean } = useA2UIData();
 
   const checked = resolveBoolean(component.checked, false);
   const isDisabled = component.disabled ? resolveBoolean(component.disabled, false) : false;

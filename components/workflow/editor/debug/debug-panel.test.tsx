@@ -59,7 +59,7 @@ describe('DebugPanel', () => {
 
   it('renders debug mode switch', () => {
     renderWithProviders(<DebugPanel />);
-    expect(screen.getByText('Debug Mode')).toBeInTheDocument();
+    expect(screen.getByText('enableDebugMode')).toBeInTheDocument();
   });
 
   it('renders breakpoints section', () => {

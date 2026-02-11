@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
@@ -81,24 +82,21 @@ export function AgentFlowVisualizer({
   const displaySubAgents = managedSubAgents.length > 0 ? managedSubAgents : agent.subAgents;
 
   // Handlers for sub-agent operations
-  const handleExecuteAll = useCallback(async () => {
+  const handleExecuteAll = async () => {
     try {
       await executeAll(executionMode);
-    } catch (error) {
-      console.error('Failed to execute sub-agents:', error);
+    } catch (_error) {
+      toast.error(t('executeSubAgentsFailed'));
     }
-  }, [executeAll, executionMode]);
+  };
 
-  const handleExecuteOne = useCallback(
-    async (subAgent: SubAgent) => {
-      try {
-        await executeOne(subAgent.id);
-      } catch (error) {
-        console.error('Failed to execute sub-agent:', error);
-      }
-    },
-    [executeOne]
-  );
+  const handleExecuteOne = async (subAgent: SubAgent) => {
+    try {
+      await executeOne(subAgent.id);
+    } catch (_error) {
+      toast.error(t('executeSubAgentFailed'));
+    }
+  };
 
   const handleCancelOne = useCallback(
     (subAgent: SubAgent) => {
@@ -443,4 +441,3 @@ export function AgentFlowVisualizer({
   );
 }
 
-export default AgentFlowVisualizer;

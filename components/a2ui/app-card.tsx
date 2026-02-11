@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { resolveIcon } from '@/lib/a2ui/resolve-icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,10 +35,11 @@ import {
   Share2,
   Sparkles,
 } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { loggers } from '@/lib/logger';
 import type { A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
 import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
 import { generatePlaceholderThumbnail, captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
+import { formatRelativeTime } from '@/lib/a2ui/format';
 
 export interface AppCardProps {
   app: A2UIAppInstance;
@@ -83,21 +85,8 @@ export function AppCard({
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false);
   const thumbnailGenerated = useRef(false);
 
-  const IconComponent = template?.icon ? icons[template.icon as keyof typeof icons] : null;
+  const IconComponent = resolveIcon(template?.icon);
 
-  // Format date - localized
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-
-    return date.toLocaleDateString();
-  };
 
   // Generate placeholder thumbnail if needed
   useEffect(() => {
@@ -120,7 +109,7 @@ export function AppCard({
         onThumbnailGenerated?.(app.id, result.dataUrl);
       }
     } catch (error) {
-      console.error('[AppCard] Failed to generate thumbnail:', error);
+      loggers.ui.error('[AppCard] Failed to generate thumbnail:', error);
     } finally {
       setIsGeneratingThumbnail(false);
     }
@@ -268,11 +257,11 @@ export function AppCard({
                   isSelected ? 'bg-primary/20' : 'bg-muted'
                 )}
               >
-                {IconComponent ? (
-                  <IconComponent
-                    className={cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground')}
-                  />
-                ) : (
+                {IconComponent
+                  ? React.createElement(IconComponent, {
+                      className: cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground'),
+                    })
+                  : (
                   <Sparkles
                     className={cn('h-4 w-4', isSelected ? 'text-primary' : 'text-muted-foreground')}
                   />
@@ -351,7 +340,7 @@ export function AppCard({
         <div className="flex items-center justify-between w-full gap-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{formatDate(app.lastModified)}</span>
+            <span className="truncate">{formatRelativeTime(app.lastModified)}</span>
           </div>
 
           {/* Stats or category badge */}
@@ -369,4 +358,3 @@ export function AppCard({
   );
 }
 
-export default AppCard;

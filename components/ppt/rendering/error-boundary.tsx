@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Presentation, AlertCircle } from 'lucide-react';
+import { loggers } from '@/lib/logger';
 
 /**
  * PPTPreviewErrorBoundary - Error boundary for PPT Preview components
@@ -45,7 +46,7 @@ export class PPTPreviewErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('PPT Preview Error:', error, errorInfo);
+    loggers.ui.error('PPT Preview Error:', error, { componentStack: errorInfo.componentStack });
   }
 
   render(): ReactNode {

@@ -262,4 +262,3 @@ function EventRow({ event, compact }: EventRowProps) {
   );
 }
 
-export default LiveTracePanel;

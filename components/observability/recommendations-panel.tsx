@@ -33,8 +33,8 @@ export function RecommendationsPanel({ recommendations, className }: Recommendat
   };
 
   const getVariant = (recommendation: string): 'default' | 'destructive' => {
-    if (recommendation.includes('healthy') || recommendation.includes('good')) {
-      return 'default';
+    if (recommendation.includes('increased') || recommendation.includes('high') || recommendation.includes('error')) {
+      return 'destructive';
     }
     return 'default';
   };

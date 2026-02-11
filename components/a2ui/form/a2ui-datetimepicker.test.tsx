@@ -8,9 +8,19 @@ import { A2UIDateTimePicker } from './a2ui-datetimepicker';
 import type { A2UIDateTimePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
+const mockDataCtx = {
+  surface: null, dataModel: {}, components: {},
+  resolveString: jest.fn((value: unknown) => (typeof value === 'string' ? value : '')),
+  resolveNumber: jest.fn((value: unknown) => (typeof value === 'number' ? value : 0)),
+  resolveBoolean: jest.fn((value: unknown, d: unknown) => (typeof value === 'boolean' ? value : d)),
+  resolveArray: jest.fn((value: unknown, d: unknown[] = []) => (Array.isArray(value) ? value : d)),
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: jest.fn(() => ({
-    resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
+  useA2UIContext: jest.fn(() => ({ ...mockDataCtx })),
+  useA2UIData: jest.fn(() => mockDataCtx),
+  useA2UIActions: jest.fn(() => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   })),
 }));
 
@@ -48,7 +58,8 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toBeInTheDocument();
     });
 
     it('should render label when provided', () => {
@@ -84,14 +95,16 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveAttribute('type', 'datetime-local');
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toHaveAttribute('type', 'datetime-local');
     });
   });
 
   describe('value handling', () => {
     it('should format ISO value for datetime-local input', () => {
-      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
-      mockUseA2UIContext.mockReturnValue({
+      const mockUseA2UIData = jest.requireMock('../a2ui-context').useA2UIData;
+      mockUseA2UIData.mockReturnValue({
+        ...mockDataCtx,
         resolveString: jest.fn(() => '2024-01-15T14:30:00.000Z'),
       });
 
@@ -103,7 +116,8 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveValue('2024-01-15T14:30');
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toHaveValue('2024-01-15T14:30');
     });
 
     it('should call onDataChange when value changes', () => {
@@ -120,7 +134,7 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      fireEvent.change(screen.getByRole('textbox'), { target: { value: '2024-01-20T10:00' } });
+      fireEvent.change(document.querySelector('input[type="datetime-local"]')!, { target: { value: '2024-01-20T10:00' } });
       
       expect(onDataChange).toHaveBeenCalled();
     });
@@ -162,7 +176,8 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toBeDisabled();
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toBeDisabled();
     });
   });
 
@@ -176,7 +191,8 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveAttribute('min', '2024-01-01T00:00');
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toHaveAttribute('min', '2024-01-01T00:00');
     });
 
     it('should set max attribute', () => {
@@ -188,7 +204,8 @@ describe('A2UIDateTimePicker', () => {
         />
       );
       
-      expect(screen.getByRole('textbox')).toHaveAttribute('max', '2024-12-31T23:59');
+      const input = document.querySelector('input[type="datetime-local"]');
+      expect(input).toHaveAttribute('max', '2024-12-31T23:59');
     });
   });
 });

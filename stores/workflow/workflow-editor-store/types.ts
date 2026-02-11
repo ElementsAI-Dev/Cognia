@@ -97,6 +97,8 @@ export interface UISliceState {
   showMinimap: boolean;
   activeConfigTab: string;
   searchQuery: string;
+  recentNodes: WorkflowNodeType[];
+  favoriteNodes: WorkflowNodeType[];
 }
 
 export interface TemplateSliceState {
@@ -225,6 +227,8 @@ export interface UISliceActions {
   toggleMinimap: () => void;
   setActiveConfigTab: (tab: string) => void;
   setSearchQuery: (query: string) => void;
+  addRecentNode: (type: WorkflowNodeType) => void;
+  toggleFavoriteNode: (type: WorkflowNodeType) => void;
 }
 
 export interface TemplateSliceActions {

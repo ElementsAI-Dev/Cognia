@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,7 +127,7 @@ export function WorkflowSelector({
   const { getFilteredTemplates, initialize, isInitialized } = useTemplateMarketStore();
 
   // Initialize template store on mount
-  useMemo(() => {
+  useEffect(() => {
     if (!isInitialized) {
       initialize();
     }
@@ -636,4 +636,3 @@ function PPTConfigForm({
   );
 }
 
-export default WorkflowSelector;

@@ -4,7 +4,7 @@
  * KeybindingSettings - Customizable keyboard shortcuts settings for Canvas
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Keyboard, RotateCcw, AlertTriangle, Download, Upload, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import {
   useKeybindingStore,
   formatKeybinding,
@@ -159,7 +160,7 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
         const text = await file.text();
         const success = importBindings(text);
         if (!success) {
-          console.error('Failed to import keybindings');
+          loggers.ui.error('Failed to import keybindings');
         }
       }
     };
@@ -182,8 +183,10 @@ export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
 
   const hasConflicts = Object.keys(conflicts).length > 0;
 
-  // Check conflicts on mount
-  checkConflicts();
+  // Check conflicts on mount and when bindings change
+  useEffect(() => {
+    checkConflicts();
+  }, [bindings, checkConflicts]);
 
   return (
     <>

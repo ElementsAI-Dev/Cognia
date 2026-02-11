@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Info, Shield, ShieldAlert, ShieldCheck, Terminal } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ export function TaskConfirmationDialog({
   onCancel,
   loading = false,
 }: TaskConfirmationDialogProps) {
+  const t = useTranslations('scheduler');
   const [understood, setUnderstood] = useState(false);
 
   if (!confirmation) return null;
@@ -44,24 +46,14 @@ export function TaskConfirmationDialog({
   const isCritical = confirmation.risk_level === 'critical';
   const isHighRisk = confirmation.risk_level === 'high' || isCritical;
 
-  const getOperationLabel = () => {
-    switch (confirmation.operation) {
-      case 'create':
-        return { en: 'Create Task', zh: '创建任务' };
-      case 'update':
-        return { en: 'Update Task', zh: '更新任务' };
-      case 'delete':
-        return { en: 'Delete Task', zh: '删除任务' };
-      case 'enable':
-        return { en: 'Enable Task', zh: '启用任务' };
-      case 'run_now':
-        return { en: 'Run Task Now', zh: '立即运行任务' };
-      default:
-        return { en: 'Task Operation', zh: '任务操作' };
-    }
+  const operationLabelMap: Record<string, string> = {
+    create: t('operationCreate') || 'Create Task',
+    update: t('operationUpdate') || 'Update Task',
+    delete: t('operationDelete') || 'Delete Task',
+    enable: t('operationEnable') || 'Enable Task',
+    run_now: t('operationRunNow') || 'Run Task Now',
   };
-
-  const operationLabel = getOperationLabel();
+  const operationLabel = operationLabelMap[confirmation.operation] || t('operationDefault') || 'Task Operation';
 
   const getRiskIcon = () => {
     switch (confirmation.risk_level) {
@@ -84,9 +76,7 @@ export function TaskConfirmationDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             {getRiskIcon()}
-            <span>
-              {operationLabel.zh} / {operationLabel.en}
-            </span>
+            <span>{operationLabel}</span>
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-4">
@@ -101,7 +91,7 @@ export function TaskConfirmationDialog({
               {/* Action summary */}
               {confirmation.details.action_summary && (
                 <div className="space-y-1">
-                  <span className="text-muted-foreground text-xs">操作 / Action</span>
+                  <span className="text-muted-foreground text-xs">{t('action') || 'Action'}</span>
                   <p className="text-sm">{confirmation.details.action_summary}</p>
                 </div>
               )}
@@ -109,7 +99,7 @@ export function TaskConfirmationDialog({
               {/* Trigger summary */}
               {confirmation.details.trigger_summary && (
                 <div className="space-y-1">
-                  <span className="text-muted-foreground text-xs">触发器 / Trigger</span>
+                  <span className="text-muted-foreground text-xs">{t('trigger') || 'Trigger'}</span>
                   <p className="text-sm">{confirmation.details.trigger_summary}</p>
                 </div>
               )}
@@ -119,7 +109,7 @@ export function TaskConfirmationDialog({
                 <div className="space-y-1">
                   <span className="text-muted-foreground flex items-center gap-1 text-xs">
                     <Terminal className="h-3 w-3" />
-                    脚本预览 / Script Preview
+                    {t('scriptPreview') || 'Script Preview'}
                   </span>
                   <ScrollArea className="h-24 rounded-md border">
                     <pre className="bg-muted p-2 font-mono text-xs">
@@ -132,7 +122,7 @@ export function TaskConfirmationDialog({
               {/* Warnings */}
               {confirmation.warnings.length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-muted-foreground text-xs">警告 / Warnings</span>
+                  <span className="text-muted-foreground text-xs">{t('warnings') || 'Warnings'}</span>
                   <ul className="space-y-1">
                     {confirmation.warnings.map((warning, i) => (
                       <li
@@ -160,7 +150,7 @@ export function TaskConfirmationDialog({
                 <div className="bg-destructive/10 flex items-center gap-2 rounded-md p-2">
                   <ShieldAlert className="text-destructive h-4 w-4" />
                   <span className="text-xs">
-                    需要管理员权限 / Administrator privileges required
+                    {t('adminRequired') || 'Administrator privileges required'}
                   </span>
                 </div>
               )}
@@ -174,7 +164,7 @@ export function TaskConfirmationDialog({
                     onCheckedChange={(checked) => setUnderstood(checked === true)}
                   />
                   <span className="text-xs">
-                    我理解此操作的风险并确认继续 / I understand the risks and confirm to proceed
+                    {t('understandRisks') || 'I understand the risks and confirm to proceed'}
                   </span>
                 </label>
               )}
@@ -183,14 +173,14 @@ export function TaskConfirmationDialog({
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>取消 / Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{t('cancel') || 'Cancel'}</AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button
               variant={isHighRisk ? 'destructive' : 'default'}
               onClick={onConfirm}
               disabled={loading || (isCritical && !understood)}
             >
-              {loading ? '处理中... / Processing...' : '确认 / Confirm'}
+              {loading ? (t('processing') || 'Processing...') : (t('confirm') || 'Confirm')}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -212,31 +202,26 @@ export function AdminElevationDialog({
   onCancel,
   loading = false,
 }: AdminElevationDialogProps) {
+  const t = useTranslations('scheduler');
+
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-orange-500" />
-            需要管理员权限 / Administrator Privileges Required
+            {t('adminElevationTitle') || 'Administrator Privileges Required'}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-4">
               <p>
-                此操作需要管理员权限。请以管理员身份重新启动应用程序，或点击下方按钮请求权限提升。
-              </p>
-              <p className="text-muted-foreground text-sm">
-                This operation requires administrator privileges. Please restart the application as
-                administrator, or click the button below to request elevation.
+                {t('adminElevationDesc') || 'This operation requires administrator privileges. Please restart the application as administrator, or click the button below to request elevation.'}
               </p>
 
               <div className="bg-muted space-y-2 rounded-lg p-3">
                 <p className="text-xs font-medium">Windows:</p>
                 <p className="text-muted-foreground text-xs">
-                  右键点击 Cognia 图标 → 以管理员身份运行
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  Right-click Cognia icon → Run as administrator
+                  {t('adminElevationWindows') || 'Right-click Cognia icon → Run as administrator'}
                 </p>
               </div>
             </div>
@@ -244,10 +229,10 @@ export function AdminElevationDialog({
         </AlertDialogHeader>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>取消 / Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>{t('cancel') || 'Cancel'}</AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button onClick={onRequestElevation} disabled={loading} variant="default">
-              {loading ? '请求中... / Requesting...' : '请求权限 / Request Elevation'}
+              {loading ? (t('requesting') || 'Requesting...') : (t('requestElevation') || 'Request Elevation')}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>

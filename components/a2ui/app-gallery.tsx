@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DeleteConfirmDialog } from './delete-confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -39,34 +40,16 @@ import {
   SortAsc,
   SortDesc,
 } from 'lucide-react';
+import { loggers } from '@/lib/logger';
 import { useA2UIAppBuilder, type A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
+import { useAppGalleryFilter, CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/hooks/a2ui/use-app-gallery-filter';
+import type { SortField, ViewMode } from '@/hooks/a2ui/use-app-gallery-filter';
 import { A2UIInlineSurface } from './a2ui-surface';
 import { AppCard } from './app-card';
 import { AppDetailDialog } from './app-detail-dialog';
 import { captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
 import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
-type ViewMode = 'grid' | 'list';
-type SortField = 'name' | 'lastModified' | 'createdAt';
-type SortOrder = 'asc' | 'desc';
-
-const CATEGORY_OPTIONS_EN = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'productivity', label: 'Productivity' },
-  { value: 'data', label: 'Data' },
-  { value: 'form', label: 'Forms' },
-  { value: 'utility', label: 'Utilities' },
-  { value: 'social', label: 'Social' },
-];
-
-const CATEGORY_OPTIONS_ZH = [
-  { value: 'all', label: '全部分类' },
-  { value: 'productivity', label: '效率工具' },
-  { value: 'data', label: '数据分析' },
-  { value: 'form', label: '表单' },
-  { value: 'utility', label: '实用工具' },
-  { value: 'social', label: '社交' },
-];
 
 interface AppGalleryProps {
   className?: string;
@@ -90,17 +73,18 @@ export function AppGallery({
   defaultViewMode = 'grid',
 }: AppGalleryProps) {
   const t = useTranslations('a2ui');
-  const CATEGORY_OPTIONS = t('gallery') === '应用画廊' ? CATEGORY_OPTIONS_ZH : CATEGORY_OPTIONS_EN;
-  const [searchQuery, setSearchQuery] = useState('');
+  const CATEGORY_OPTIONS = useMemo(
+    () => [
+      { value: 'all', label: t('allCategoriesFilter') },
+      ...CATEGORY_KEYS.map((key) => ({ value: key, label: t(CATEGORY_I18N_MAP[key]) })),
+    ],
+    [t]
+  );
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [renameDialogId, setRenameDialogId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [detailApp, setDetailApp] = useState<A2UIAppInstance | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortField, setSortField] = useState<SortField>('lastModified');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const appBuilder = useA2UIAppBuilder({
     onAction: (action) => {
@@ -110,52 +94,18 @@ export function AppGallery({
     onDataChange,
   });
 
-  // Get and filter apps
-  const apps = useMemo(() => {
-    let filteredApps = appBuilder.getAllApps();
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filteredApps = filteredApps.filter((app) => {
-        const template = appBuilder.getTemplate(app.templateId);
-        return (
-          app.name.toLowerCase().includes(query) ||
-          app.description?.toLowerCase().includes(query) ||
-          template?.name.toLowerCase().includes(query) ||
-          template?.tags.some((t) => t.toLowerCase().includes(query)) ||
-          app.tags?.some((t) => t.toLowerCase().includes(query))
-        );
-      });
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      filteredApps = filteredApps.filter((app) => {
-        const template = appBuilder.getTemplate(app.templateId);
-        return app.category === categoryFilter || template?.category === categoryFilter;
-      });
-    }
-
-    // Sort
-    filteredApps.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'lastModified':
-          comparison = a.lastModified - b.lastModified;
-          break;
-        case 'createdAt':
-          comparison = a.createdAt - b.createdAt;
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return filteredApps;
-  }, [appBuilder, searchQuery, categoryFilter, sortField, sortOrder]);
+  const {
+    searchQuery, setSearchQuery,
+    viewMode, setViewMode,
+    categoryFilter, setCategoryFilter,
+    sortField, setSortField,
+    sortOrder,
+    toggleSortOrder,
+    filteredApps: apps,
+  } = useAppGalleryFilter(appBuilder.getAllApps(), {
+    defaultViewMode,
+    getTemplate: appBuilder.getTemplate,
+  });
 
   // Handle app selection
   const handleSelectApp = useCallback(
@@ -195,7 +145,7 @@ export function AppGallery({
           appBuilder.setAppThumbnail(appId, result.dataUrl);
         }
       } catch (error) {
-        console.error('[AppGallery] Failed to generate thumbnail:', error);
+        loggers.ui.error('[AppGallery] Failed to generate thumbnail:', error);
       }
     },
     [appBuilder]
@@ -217,11 +167,6 @@ export function AppGallery({
     },
     [appBuilder]
   );
-
-  // Toggle sort order
-  const toggleSortOrder = useCallback(() => {
-    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-  }, []);
 
   // Handle duplicate
   const handleDuplicate = useCallback(
@@ -317,7 +262,7 @@ export function AppGallery({
                 <LayoutGrid className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Grid</TooltipContent>
+            <TooltipContent>{t('gridView')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -330,7 +275,7 @@ export function AppGallery({
                 <LayoutList className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>List</TooltipContent>
+            <TooltipContent>{t('listView')}</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -401,106 +346,80 @@ export function AppGallery({
           </div>
         </ScrollArea>
 
-        {/* Preview panel - Hidden on mobile, shown on desktop when selected */}
+        {/* Preview panel - Desktop: side panel, Mobile: bottom sheet */}
         {showPreview && selectedAppId && (
-          <div className="hidden sm:flex sm:w-1/2 border-l flex-col">
-            <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
-              <span className="text-sm font-medium px-2 truncate">
-                {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
-              </span>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="touch-manipulation"
-                  onClick={() => onAppOpen?.(selectedAppId)}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  {t('run')}
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 touch-manipulation"
-                  onClick={() => setSelectedAppId(null)}
-                >
-                  ×
-                </Button>
+          <>
+            {/* Desktop side panel */}
+            <div className="hidden sm:flex sm:w-1/2 border-l flex-col">
+              <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
+                <span className="text-sm font-medium px-2 truncate">
+                  {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
+                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="touch-manipulation"
+                    onClick={() => onAppOpen?.(selectedAppId)}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    {t('run')}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 touch-manipulation"
+                    onClick={() => setSelectedAppId(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
               </div>
+              <ScrollArea className="flex-1">
+                <A2UIInlineSurface
+                  surfaceId={selectedAppId}
+                  onAction={onAction}
+                  onDataChange={onDataChange}
+                />
+              </ScrollArea>
             </div>
-            <ScrollArea className="flex-1">
-              <A2UIInlineSurface
-                surfaceId={selectedAppId}
-                onAction={onAction}
-                onDataChange={onDataChange}
-              />
-            </ScrollArea>
-          </div>
+            {/* Mobile bottom sheet */}
+            <div className="sm:hidden border-t max-h-[50vh] flex flex-col">
+              <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
+                <span className="text-xs font-medium px-2 truncate flex-1">
+                  {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
+                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs touch-manipulation"
+                    onClick={() => onAppOpen?.(selectedAppId)}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    {t('run')}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 touch-manipulation"
+                    onClick={() => setSelectedAppId(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+              {/* Surface rendered only in mobile container — desktop uses its own above */}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Mobile preview - Bottom sheet style */}
-      {showPreview && selectedAppId && (
-        <div className="sm:hidden border-t max-h-[50vh] flex flex-col">
-          <div className="flex items-center justify-between p-2 bg-muted/50 border-b">
-            <span className="text-xs font-medium px-2 truncate flex-1">
-              {appBuilder.getAppInstance(selectedAppId)?.name || t('appPreview')}
-            </span>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 text-xs touch-manipulation"
-                onClick={() => onAppOpen?.(selectedAppId)}
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                {t('run')}
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 touch-manipulation"
-                onClick={() => setSelectedAppId(null)}
-              >
-                ×
-              </Button>
-            </div>
-          </div>
-          <ScrollArea className="flex-1">
-            <A2UIInlineSurface
-              surfaceId={selectedAppId}
-              onAction={onAction}
-              onDataChange={onDataChange}
-            />
-          </ScrollArea>
-        </div>
-      )}
-
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="max-w-[90vw] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('deleteConfirmTitle')}</DialogTitle>
-            <DialogDescription>{t('deleteConfirmDescription')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto touch-manipulation"
-              onClick={() => setDeleteConfirmId(null)}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              className="w-full sm:w-auto touch-manipulation"
-              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-            >
-              {t('delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={() => setDeleteConfirmId(null)}
+        onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+      />
 
       {/* Rename dialog */}
       <Dialog open={!!renameDialogId} onOpenChange={() => setRenameDialogId(null)}>
@@ -549,4 +468,3 @@ export function AppGallery({
   );
 }
 
-export default AppGallery;

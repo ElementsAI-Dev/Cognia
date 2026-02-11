@@ -240,4 +240,3 @@ export function A2UITemplatePreview({
   );
 }
 
-export default A2UITemplatePreview;

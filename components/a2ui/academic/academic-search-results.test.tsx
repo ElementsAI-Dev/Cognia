@@ -33,7 +33,7 @@ describe('AcademicSearchResults', () => {
     it('should render result count', () => {
       render(<AcademicSearchResults {...defaultProps} totalResults={42} />);
       
-      expect(screen.getByText('42')).toBeInTheDocument();
+      expect(screen.getByText('42 papers')).toBeInTheDocument();
     });
 
     it('should render papers when provided', () => {

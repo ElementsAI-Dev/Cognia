@@ -25,9 +25,14 @@ interface ChatRequest {
 }
 
 export async function POST(request: NextRequest) {
+  let validProvider: ProviderName = 'openai';
+
   try {
     const body: ChatRequest = await request.json();
-    const { messages, provider, model, apiKey, baseURL } = body;
+    const { messages, provider: rawProvider, model, apiKey, baseURL } = body;
+
+    // Validate provider early so error handler can use it
+    validProvider = isValidProvider(rawProvider) ? rawProvider as ProviderName : 'openai';
 
     if (!messages || messages.length === 0) {
       return new Response(
@@ -35,9 +40,6 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-
-    // Validate provider and get model
-    const validProvider = isValidProvider(provider) ? provider as ProviderName : 'openai';
 
     // Check circuit breaker - if provider is failing, reject early
     if (!isProviderAvailable(validProvider)) {
@@ -79,9 +81,6 @@ export async function POST(request: NextRequest) {
     console.error('Chat widget API error:', error);
 
     // Record failure in circuit breaker
-    const validProvider = isValidProvider((await request.clone().json()).provider) 
-      ? (await request.clone().json()).provider as ProviderName 
-      : 'openai';
     circuitBreakerRegistry.get(validProvider).recordFailure(error as Error);
 
     return new Response(

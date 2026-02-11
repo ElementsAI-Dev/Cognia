@@ -118,7 +118,7 @@ describe('KeybindingSettings', () => {
     const openButton = screen.getByText('Keybindings');
     await userEvent.click(openButton);
 
-    const closeButton = screen.getByText('Close');
+    const closeButton = screen.getAllByText('Close')[0];
     await userEvent.click(closeButton);
 
     // Dialog should be closed (title no longer visible)
@@ -135,7 +135,7 @@ describe('KeybindingSettings', () => {
     await userEvent.type(searchInput, 'save');
 
     // Should show save-related actions
-    expect(screen.getByText('save')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
   });
 
   it('should render custom trigger if provided', () => {

@@ -16,6 +16,12 @@ jest.mock('./utils', () => ({
   isTauri: jest.fn(),
 }));
 
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    native: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+  },
+}));
+
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from './utils';
@@ -39,6 +45,9 @@ import {
   getFileStatus,
   getDiff,
   getDiffBetween,
+  getDiffFile,
+  getStashList,
+  getFullStatus,
   push,
   pull,
   fetch,
@@ -50,6 +59,8 @@ import {
   deleteBranch,
   checkout,
   merge,
+  renameBranch,
+  mergeAbort,
   stash,
   reset,
   discardChanges,
@@ -57,6 +68,42 @@ import {
   onGitInstallProgress,
   initProjectRepo,
   autoCommit,
+  exportChatToGit,
+  exportDesignerToGit,
+  restoreChatFromGit,
+  restoreDesignerFromGit,
+  revertCommit,
+  revertAbort,
+  cherryPick,
+  cherryPickAbort,
+  showCommit,
+  getBlame,
+  getBlameLine,
+  recordOperation,
+  getOperationHistory,
+  undoLastOperation,
+  clearOperationHistory,
+  getReflog,
+  recoverToReflog,
+  listCredentials,
+  setCredential,
+  removeCredential,
+  detectSshKeys,
+  testCredential,
+  getTagList,
+  createTag,
+  deleteTag,
+  pushTag,
+  git2IsAvailable,
+  git2IsRepo,
+  git2GetStatus,
+  git2GetFileStatus,
+  git2GetBranches,
+  git2StageFiles,
+  git2StageAll,
+  git2CreateCommit,
+  git2InitRepo,
+  git2FetchRemote,
   getLogGraph,
   getRepoStats,
   checkpointCreate,
@@ -827,5 +874,852 @@ describe('Git - Service Object', () => {
     expect(gitService.checkpointList).toBe(checkpointList);
     expect(gitService.checkpointRestore).toBe(checkpointRestore);
     expect(gitService.checkpointDelete).toBe(checkpointDelete);
+  });
+
+  it('should expose advanced operation functions', () => {
+    expect(gitService.revert).toBe(revertCommit);
+    expect(gitService.revertAbort).toBe(revertAbort);
+    expect(gitService.cherryPick).toBe(cherryPick);
+    expect(gitService.cherryPickAbort).toBe(cherryPickAbort);
+    expect(gitService.showCommit).toBe(showCommit);
+    expect(gitService.blame).toBe(getBlame);
+    expect(gitService.blameLine).toBe(getBlameLine);
+    expect(gitService.renameBranch).toBe(renameBranch);
+    expect(gitService.mergeAbort).toBe(mergeAbort);
+  });
+
+  it('should expose history & credential functions', () => {
+    expect(gitService.recordOperation).toBe(recordOperation);
+    expect(gitService.getHistory).toBe(getOperationHistory);
+    expect(gitService.undoLast).toBe(undoLastOperation);
+    expect(gitService.clearHistory).toBe(clearOperationHistory);
+    expect(gitService.getReflog).toBe(getReflog);
+    expect(gitService.recoverToReflog).toBe(recoverToReflog);
+    expect(gitService.listCredentials).toBe(listCredentials);
+    expect(gitService.setCredential).toBe(setCredential);
+    expect(gitService.removeCredential).toBe(removeCredential);
+    expect(gitService.detectSshKeys).toBe(detectSshKeys);
+    expect(gitService.testCredential).toBe(testCredential);
+  });
+
+  it('should expose tag functions', () => {
+    expect(gitService.getTagList).toBe(getTagList);
+    expect(gitService.createTag).toBe(createTag);
+    expect(gitService.deleteTag).toBe(deleteTag);
+    expect(gitService.pushTag).toBe(pushTag);
+  });
+
+  it('should expose git2 sub-object', () => {
+    expect(gitService.git2.isAvailable).toBe(git2IsAvailable);
+    expect(gitService.git2.isRepo).toBe(git2IsRepo);
+    expect(gitService.git2.getStatus).toBe(git2GetStatus);
+    expect(gitService.git2.getFileStatus).toBe(git2GetFileStatus);
+    expect(gitService.git2.getBranches).toBe(git2GetBranches);
+    expect(gitService.git2.stageFiles).toBe(git2StageFiles);
+    expect(gitService.git2.stageAll).toBe(git2StageAll);
+    expect(gitService.git2.createCommit).toBe(git2CreateCommit);
+    expect(gitService.git2.initRepo).toBe(git2InitRepo);
+    expect(gitService.git2.fetchRemote).toBe(git2FetchRemote);
+  });
+
+  it('should expose project integration functions', () => {
+    expect(gitService.initProjectRepo).toBe(initProjectRepo);
+    expect(gitService.autoCommit).toBe(autoCommit);
+    expect(gitService.exportChatToGit).toBe(exportChatToGit);
+    expect(gitService.exportDesignerToGit).toBe(exportDesignerToGit);
+    expect(gitService.restoreChatFromGit).toBe(restoreChatFromGit);
+    expect(gitService.restoreDesignerFromGit).toBe(restoreDesignerFromGit);
+  });
+});
+
+describe('Git - Diff File', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getDiffFile', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getDiffFile('/repo', 'file.ts')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getDiffFile('/repo', 'file.ts', true, 1000);
+      expect(mockInvoke).toHaveBeenCalledWith('git_diff_file', {
+        repoPath: '/repo',
+        filePath: 'file.ts',
+        staged: true,
+        maxLines: 1000,
+      });
+    });
+
+    it('should default maxLines to 5000', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getDiffFile('/repo', 'file.ts');
+      expect(mockInvoke).toHaveBeenCalledWith('git_diff_file', expect.objectContaining({
+        maxLines: 5000,
+      }));
+    });
+  });
+});
+
+describe('Git - Stash List', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getStashList', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getStashList('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with repo path', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await getStashList('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_stash_list', { repoPath: '/repo' });
+    });
+  });
+});
+
+describe('Git - Full Status', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getFullStatus', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getFullStatus('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getFullStatus('/repo', 50);
+      expect(mockInvoke).toHaveBeenCalledWith('git_full_status', { repoPath: '/repo', maxCommits: 50 });
+    });
+  });
+});
+
+describe('Git - Branch Rename & Merge Abort', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('renameBranch', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await renameBranch('/repo', 'old', 'new');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await renameBranch('/repo', 'old-name', 'new-name', true);
+      expect(mockInvoke).toHaveBeenCalledWith('git_rename_branch', {
+        repoPath: '/repo',
+        oldName: 'old-name',
+        newName: 'new-name',
+        force: true,
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Rename failed'));
+      const result = await renameBranch('/repo', 'old', 'new');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Rename failed');
+    });
+  });
+
+  describe('mergeAbort', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await mergeAbort('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await mergeAbort('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_merge_abort', { repoPath: '/repo' });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Abort failed'));
+      const result = await mergeAbort('/repo');
+      expect(result.success).toBe(false);
+    });
+  });
+});
+
+describe('Git - Revert Operations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('revertCommit', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await revertCommit({ repoPath: '/repo', commitHash: 'abc123' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with options', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      const options = { repoPath: '/repo', commitHash: 'abc123', noCommit: true };
+      await revertCommit(options);
+      expect(mockInvoke).toHaveBeenCalledWith('git_revert', { options });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Revert failed'));
+      const result = await revertCommit({ repoPath: '/repo', commitHash: 'abc' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('revertAbort', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await revertAbort('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await revertAbort('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_revert_abort', { repoPath: '/repo' });
+    });
+  });
+});
+
+describe('Git - Cherry-pick Operations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('cherryPick', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await cherryPick({ repoPath: '/repo', commitHash: 'abc123' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with options', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      const options = { repoPath: '/repo', commitHash: 'abc123' };
+      await cherryPick(options);
+      expect(mockInvoke).toHaveBeenCalledWith('git_cherry_pick', { options });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Cherry-pick failed'));
+      const result = await cherryPick({ repoPath: '/repo', commitHash: 'abc' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('cherryPickAbort', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await cherryPickAbort('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await cherryPickAbort('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_cherry_pick_abort', { repoPath: '/repo' });
+    });
+  });
+});
+
+describe('Git - Show Commit', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('showCommit', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await showCommit('/repo', 'abc123');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await showCommit('/repo', 'abc123', 500);
+      expect(mockInvoke).toHaveBeenCalledWith('git_show_commit', {
+        repoPath: '/repo',
+        commitHash: 'abc123',
+        maxLines: 500,
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Show failed'));
+      const result = await showCommit('/repo', 'abc');
+      expect(result.success).toBe(false);
+    });
+  });
+});
+
+describe('Git - Blame', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getBlame', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getBlame('/repo', 'file.ts')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getBlame('/repo', 'file.ts', { startLine: 10, endLine: 20 });
+      expect(mockInvoke).toHaveBeenCalledWith('git_blame', {
+        repoPath: '/repo',
+        filePath: 'file.ts',
+        startLine: 10,
+        endLine: 20,
+      });
+    });
+  });
+
+  describe('getBlameLine', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getBlameLine('/repo', 'file.ts', 5)).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await getBlameLine('/repo', 'file.ts', 42);
+      expect(mockInvoke).toHaveBeenCalledWith('git_blame_line', {
+        repoPath: '/repo',
+        filePath: 'file.ts',
+        lineNumber: 42,
+      });
+    });
+  });
+});
+
+describe('Git - Export/Restore', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('exportChatToGit', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(exportChatToGit('/repo', 'sess-1', {})).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with serialized data', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      const chatData = { messages: ['hello'] };
+      await exportChatToGit('/repo', 'sess-1', chatData, 'Export chat');
+      expect(mockInvoke).toHaveBeenCalledWith('git_export_chat', {
+        repoPath: '/repo',
+        sessionId: 'sess-1',
+        chatData: JSON.stringify(chatData),
+        commitMessage: 'Export chat',
+      });
+    });
+  });
+
+  describe('exportDesignerToGit', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(exportDesignerToGit('/repo', 'proj-1', {})).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with serialized data', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await exportDesignerToGit('/repo', 'proj-1', { design: true });
+      expect(mockInvoke).toHaveBeenCalledWith('git_export_designer', expect.objectContaining({
+        repoPath: '/repo',
+        projectId: 'proj-1',
+      }));
+    });
+  });
+
+  describe('restoreChatFromGit', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(restoreChatFromGit('/repo', 'sess-1', 'abc123')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await restoreChatFromGit('/repo', 'sess-1', 'abc123');
+      expect(mockInvoke).toHaveBeenCalledWith('git_restore_chat', {
+        repoPath: '/repo',
+        sessionId: 'sess-1',
+        commitHash: 'abc123',
+      });
+    });
+  });
+
+  describe('restoreDesignerFromGit', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(restoreDesignerFromGit('/repo', 'proj-1', 'abc123')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await restoreDesignerFromGit('/repo', 'proj-1', 'abc123');
+      expect(mockInvoke).toHaveBeenCalledWith('git_restore_designer', {
+        repoPath: '/repo',
+        projectId: 'proj-1',
+        commitHash: 'abc123',
+      });
+    });
+  });
+});
+
+describe('Git - History & Undo', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('recordOperation', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(recordOperation('commit', '/repo', 'test')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ id: 'op-1' });
+      await recordOperation('commit', '/repo', 'Made a commit', {
+        beforeRef: 'abc',
+        afterRef: 'def',
+        affectedFiles: ['file.ts'],
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('git_record_operation', {
+        operationType: 'commit',
+        repoPath: '/repo',
+        description: 'Made a commit',
+        beforeRef: 'abc',
+        afterRef: 'def',
+        affectedFiles: ['file.ts'],
+      });
+    });
+  });
+
+  describe('getOperationHistory', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getOperationHistory('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue([]);
+      await getOperationHistory('/repo', 20);
+      expect(mockInvoke).toHaveBeenCalledWith('git_get_history', { repoPath: '/repo', limit: 20 });
+    });
+  });
+
+  describe('undoLastOperation', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(undoLastOperation('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await undoLastOperation('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_undo_last', { repoPath: '/repo' });
+    });
+  });
+
+  describe('clearOperationHistory', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(clearOperationHistory('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await clearOperationHistory('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_clear_history', { repoPath: '/repo' });
+    });
+  });
+
+  describe('getReflog', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(getReflog('/repo')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await getReflog('/repo', 50);
+      expect(mockInvoke).toHaveBeenCalledWith('git_reflog', { repoPath: '/repo', maxCount: 50 });
+    });
+  });
+
+  describe('recoverToReflog', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(recoverToReflog('/repo', 'HEAD@{1}')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await recoverToReflog('/repo', 'HEAD@{1}');
+      expect(mockInvoke).toHaveBeenCalledWith('git_recover_to_reflog', {
+        repoPath: '/repo',
+        selector: 'HEAD@{1}',
+      });
+    });
+  });
+});
+
+describe('Git - Credentials', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('listCredentials', () => {
+    it('should return empty array when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await listCredentials();
+      expect(result).toEqual([]);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue([{ id: 'cred-1', host: 'github.com' }]);
+      const result = await listCredentials();
+      expect(mockInvoke).toHaveBeenCalledWith('git_list_credentials');
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array on error', async () => {
+      mockInvoke.mockRejectedValue(new Error('Failed'));
+      const result = await listCredentials();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('setCredential', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(setCredential({ credentialType: 'https', host: 'github.com' })).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke with input', async () => {
+      const input = { credentialType: 'https' as const, host: 'github.com', username: 'user' };
+      mockInvoke.mockResolvedValue({ id: 'cred-1' });
+      await setCredential(input);
+      expect(mockInvoke).toHaveBeenCalledWith('git_set_credential', { input });
+    });
+  });
+
+  describe('removeCredential', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(removeCredential('github.com')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(true);
+      await removeCredential('github.com');
+      expect(mockInvoke).toHaveBeenCalledWith('git_remove_credential', { host: 'github.com' });
+    });
+  });
+
+  describe('detectSshKeys', () => {
+    it('should return empty array when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await detectSshKeys();
+      expect(result).toEqual([]);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue([{ path: '~/.ssh/id_rsa', name: 'id_rsa' }]);
+      const result = await detectSshKeys();
+      expect(mockInvoke).toHaveBeenCalledWith('git_detect_ssh_keys');
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array on error', async () => {
+      mockInvoke.mockRejectedValue(new Error('SSH error'));
+      const result = await detectSshKeys();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('testCredential', () => {
+    it('should throw when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      await expect(testCredential('github.com')).rejects.toThrow('Tauri');
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await testCredential('github.com');
+      expect(mockInvoke).toHaveBeenCalledWith('git_test_credential', { host: 'github.com' });
+      expect(result).toBe(true);
+    });
+  });
+});
+
+describe('Git - Tags', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('getTagList', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await getTagList('/repo');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await getTagList('/repo');
+      expect(mockInvoke).toHaveBeenCalledWith('git_tag_list', { repoPath: '/repo' });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Tag list failed'));
+      const result = await getTagList('/repo');
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('createTag', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await createTag({ repoPath: '/repo', name: 'v1.0' });
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with options', async () => {
+      const options = { repoPath: '/repo', name: 'v1.0', message: 'Release 1.0' };
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await createTag(options);
+      expect(mockInvoke).toHaveBeenCalledWith('git_tag_create', { options });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockInvoke.mockRejectedValue(new Error('Create tag failed'));
+      const result = await createTag({ repoPath: '/repo', name: 'v1.0' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('deleteTag', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await deleteTag('/repo', 'v1.0');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await deleteTag('/repo', 'v1.0');
+      expect(mockInvoke).toHaveBeenCalledWith('git_tag_delete', { repoPath: '/repo', name: 'v1.0' });
+    });
+  });
+
+  describe('pushTag', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await pushTag('/repo', 'v1.0');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke with parameters', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await pushTag('/repo', 'v1.0', 'origin');
+      expect(mockInvoke).toHaveBeenCalledWith('git_tag_push', {
+        repoPath: '/repo',
+        name: 'v1.0',
+        remote: 'origin',
+      });
+    });
+  });
+});
+
+describe('Git - Git2 Native Library', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(true);
+  });
+
+  describe('git2IsAvailable', () => {
+    it('should return false when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2IsAvailable();
+      expect(result).toBe(false);
+    });
+
+    it('should return result from invoke', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await git2IsAvailable();
+      expect(mockInvoke).toHaveBeenCalledWith('git2_is_available');
+      expect(result).toBe(true);
+    });
+
+    it('should return false on error', async () => {
+      mockInvoke.mockRejectedValue(new Error('Not available'));
+      const result = await git2IsAvailable();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('git2IsRepo', () => {
+    it('should return false when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2IsRepo('/path');
+      expect(result).toBe(false);
+    });
+
+    it('should return result from invoke', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await git2IsRepo('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_is_repo', { path: '/path' });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('git2GetStatus', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2GetStatus('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await git2GetStatus('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_get_status', { path: '/path' });
+    });
+  });
+
+  describe('git2GetFileStatus', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2GetFileStatus('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await git2GetFileStatus('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_get_file_status', { path: '/path' });
+    });
+  });
+
+  describe('git2GetBranches', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2GetBranches('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: [] });
+      await git2GetBranches('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_get_branches', { path: '/path' });
+    });
+  });
+
+  describe('git2StageFiles', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2StageFiles('/path', ['file.ts']);
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await git2StageFiles('/path', ['file1.ts', 'file2.ts']);
+      expect(mockInvoke).toHaveBeenCalledWith('git2_stage_files', {
+        path: '/path',
+        files: ['file1.ts', 'file2.ts'],
+      });
+    });
+  });
+
+  describe('git2StageAll', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2StageAll('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await git2StageAll('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_stage_all', { path: '/path' });
+    });
+  });
+
+  describe('git2CreateCommit', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2CreateCommit('/path', 'msg');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true, data: {} });
+      await git2CreateCommit('/path', 'test commit');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_create_commit', {
+        path: '/path',
+        message: 'test commit',
+      });
+    });
+  });
+
+  describe('git2InitRepo', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2InitRepo('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await git2InitRepo('/path');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_init_repo', { path: '/path' });
+    });
+  });
+
+  describe('git2FetchRemote', () => {
+    it('should return error when not in Tauri', async () => {
+      mockIsTauri.mockReturnValue(false);
+      const result = await git2FetchRemote('/path');
+      expect(result.success).toBe(false);
+    });
+
+    it('should call invoke', async () => {
+      mockInvoke.mockResolvedValue({ success: true });
+      await git2FetchRemote('/path', 'origin');
+      expect(mockInvoke).toHaveBeenCalledWith('git2_fetch_remote', {
+        path: '/path',
+        remote: 'origin',
+      });
+    });
   });
 });

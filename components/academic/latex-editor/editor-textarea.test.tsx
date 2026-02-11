@@ -269,7 +269,7 @@ describe('EditorTextarea', () => {
     expect(textarea).toHaveClass('whitespace-pre-wrap');
   });
 
-  it('applies overflow-x-auto class when word wrap is disabled', () => {
+  it('applies whitespace-pre class when word wrap is disabled', () => {
     render(
       <EditorTextarea
         value=""
@@ -283,11 +283,11 @@ describe('EditorTextarea', () => {
     );
 
     const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveClass('overflow-x-auto');
+    expect(textarea).toHaveClass('whitespace-pre');
   });
 
   it('applies custom className', () => {
-    render(
+    const { container } = render(
       <EditorTextarea
         value=""
         onChange={mockOnChange}
@@ -300,7 +300,7 @@ describe('EditorTextarea', () => {
       />
     );
 
-    const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveClass('custom-class');
+    // className is applied to the wrapper div, not the textarea directly
+    expect(container.firstChild).toHaveClass('custom-class');
   });
 });

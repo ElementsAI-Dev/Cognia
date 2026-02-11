@@ -7,7 +7,9 @@
  * Follows the existing component patterns (BackgroundAgentPanel, ProcessManagerPanel).
  */
 
-import { useState, useCallback, lazy, Suspense } from 'react';
+import { useState, useCallback, lazy, Suspense, useMemo } from 'react';
+import { useTeamTeammates, useTeamTasks, useTeamMessages } from '@/hooks/agent/use-team-data';
+import { useTranslations } from 'next-intl';
 import {
   Users,
   Plus,
@@ -63,7 +65,6 @@ import {
   type AgentTeam,
   type AgentTeammate,
   type AgentTeamTask,
-  type AgentTeamMessage,
   type TeamDisplayMode,
 } from '@/types/agent/agent-team';
 
@@ -123,6 +124,7 @@ interface TeammateCardProps {
 }
 
 function TeammateCard({ teammate, isSelected, onClick }: TeammateCardProps) {
+  const t = useTranslations('agentTeam');
   const statusConfig = TEAMMATE_STATUS_CONFIG[teammate.status];
 
   return (
@@ -148,7 +150,7 @@ function TeammateCard({ teammate, isSelected, onClick }: TeammateCardProps) {
           })} />
           <span className="text-sm font-medium">{teammate.name}</span>
           {teammate.role === 'lead' && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Lead</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{t('teammate.lead')}</Badge>
           )}
         </div>
         <span className={cn('text-xs', statusConfig.color)}>
@@ -174,7 +176,7 @@ function TeammateCard({ teammate, isSelected, onClick }: TeammateCardProps) {
 
       {teammate.tokenUsage.totalTokens > 0 && (
         <p className="mt-1 text-[10px] text-muted-foreground">
-          {teammate.tokenUsage.totalTokens.toLocaleString()} tokens
+          {t('teammate.tokens', { count: teammate.tokenUsage.totalTokens.toLocaleString() })}
         </p>
       )}
     </button>
@@ -191,6 +193,7 @@ interface TaskItemProps {
 }
 
 function TaskItem({ task, teammates }: TaskItemProps) {
+  const t = useTranslations('agentTeam');
   const statusConfig = TASK_STATUS_CONFIG[task.status];
   const assignee = task.claimedBy ? teammates[task.claimedBy] : task.assignedTo ? teammates[task.assignedTo] : undefined;
 
@@ -236,7 +239,7 @@ function TaskItem({ task, teammates }: TaskItemProps) {
         {task.dependencies.length > 0 && (
           <span className="flex items-center gap-0.5">
             <Lock className="size-2.5" />
-            {task.dependencies.length} dep{task.dependencies.length > 1 ? 's' : ''}
+            {task.dependencies.length > 1 ? t('task.dependenciesPlural', { count: task.dependencies.length }) : t('task.dependencies', { count: task.dependencies.length })}
           </span>
         )}
         {task.actualDuration && (
@@ -246,41 +249,6 @@ function TaskItem({ task, teammates }: TaskItemProps) {
           <span>{task.tags.join(', ')}</span>
         )}
       </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// MessageItem
-// ============================================================================
-
-interface MessageItemProps {
-  message: AgentTeamMessage;
-}
-
-function _MessageItem({ message }: MessageItemProps) {
-  return (
-    <div className={cn(
-      'rounded-md p-2 text-xs',
-      message.type === 'system' ? 'bg-muted/50' : 'bg-muted/30',
-    )}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium">
-          {message.senderName}
-          {message.recipientName && (
-            <span className="text-muted-foreground"> → {message.recipientName}</span>
-          )}
-          {message.type === 'broadcast' && (
-            <span className="text-muted-foreground"> (broadcast)</span>
-          )}
-        </span>
-        <span className="text-[10px] text-muted-foreground shrink-0">
-          {new Date(message.timestamp).toLocaleTimeString()}
-        </span>
-      </div>
-      <p className="mt-1 text-muted-foreground whitespace-pre-wrap line-clamp-3">
-        {message.content}
-      </p>
     </div>
   );
 }
@@ -296,6 +264,7 @@ function DisplayModeSelector({
   mode: TeamDisplayMode;
   onChange: (mode: TeamDisplayMode) => void;
 }) {
+  const t = useTranslations('agentTeam');
   return (
     <div className="flex items-center gap-0.5 rounded-md border p-0.5">
       <Tooltip>
@@ -309,7 +278,7 @@ function DisplayModeSelector({
             <LayoutList className="size-3" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Compact</TooltipContent>
+        <TooltipContent side="bottom">{t('display.compact')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -322,7 +291,7 @@ function DisplayModeSelector({
             <LayoutGrid className="size-3" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Expanded</TooltipContent>
+        <TooltipContent side="bottom">{t('display.expanded')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -335,7 +304,7 @@ function DisplayModeSelector({
             <Columns className="size-3" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">Split</TooltipContent>
+        <TooltipContent side="bottom">{t('display.split')}</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -364,6 +333,7 @@ export function AgentTeamPanel({
   onDeleteTeam,
   onCreateTeam,
 }: AgentTeamPanelProps) {
+  const t = useTranslations('agentTeam');
   const [expandedSections, setExpandedSections] = useState({
     teammates: true,
     tasks: true,
@@ -371,9 +341,7 @@ export function AgentTeamPanel({
   });
 
   const teams = useAgentTeamStore((s) => s.teams);
-  const teammates = useAgentTeamStore((s) => s.teammates);
-  const tasks = useAgentTeamStore((s) => s.tasks);
-  const messages = useAgentTeamStore((s) => s.messages);
+  const teammatesRecord = useAgentTeamStore((s) => s.teammates);
   const activeTeamId = useAgentTeamStore((s) => s.activeTeamId);
   const selectedTeammateId = useAgentTeamStore((s) => s.selectedTeammateId);
   const displayMode = useAgentTeamStore((s) => s.displayMode);
@@ -383,19 +351,21 @@ export function AgentTeamPanel({
 
   const activeTeam = activeTeamId ? teams[activeTeamId] : undefined;
 
-  const teamTeammates = activeTeam
-    ? activeTeam.teammateIds.map(id => teammates[id]).filter(Boolean)
-    : [];
+  const teamTeammates = useTeamTeammates(activeTeamId);
+  const teamTasksUnsorted = useTeamTasks(activeTeamId);
+  const teamMessagesUnsorted = useTeamMessages(activeTeamId);
 
-  const teamTasks = activeTeam
-    ? activeTeam.taskIds.map(id => tasks[id]).filter(Boolean).sort((a, b) => a.order - b.order)
-    : [];
+  const teamTasks = useMemo(
+    () => [...teamTasksUnsorted].sort((a, b) => a.order - b.order),
+    [teamTasksUnsorted]
+  );
 
-  const teamMessages = activeTeam
-    ? activeTeam.messageIds.map(id => messages[id]).filter(Boolean).sort((a, b) =>
+  const teamMessages = useMemo(
+    () => [...teamMessagesUnsorted].sort((a, b) =>
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
-    : [];
+    ),
+    [teamMessagesUnsorted]
+  );
 
   const toggleSection = useCallback((section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -409,15 +379,15 @@ export function AgentTeamPanel({
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-center', className)}>
         <Users className="size-10 text-muted-foreground/50" />
         <div>
-          <h3 className="text-sm font-medium">No Agent Teams</h3>
+          <h3 className="text-sm font-medium">{t('noTeams')}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Create a team to coordinate multiple AI agents working together.
+            {t('noTeamsHint')}
           </p>
         </div>
         {onCreateTeam && (
           <Button size="sm" onClick={onCreateTeam} className="gap-1.5">
             <Plus className="size-3.5" />
-            Create Team
+            {t('createTeam')}
           </Button>
         )}
       </div>
@@ -430,7 +400,7 @@ export function AgentTeamPanel({
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <Users className="size-4 text-primary" />
-          <span className="text-sm font-medium">Agent Teams</span>
+          <span className="text-sm font-medium">{t('title')}</span>
           <Badge variant="secondary" className="text-[10px] px-1.5">
             {teamList.length}
           </Badge>
@@ -444,7 +414,7 @@ export function AgentTeamPanel({
                   <Plus className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Create Team</TooltipContent>
+              <TooltipContent>{t('createTeam')}</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -473,7 +443,7 @@ export function AgentTeamPanel({
           /* Split mode: Graph visualization */
           <Suspense fallback={
             <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading graph...
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> {t('loadingGraph')}
             </div>
           }>
             <AgentTeamGraph
@@ -500,7 +470,7 @@ export function AgentTeamPanel({
               {(activeTeam.status === 'executing' || activeTeam.status === 'planning') && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{activeTeam.status === 'planning' ? 'Planning...' : 'Executing...'}</span>
+                    <span>{activeTeam.status === 'planning' ? t('planning') : t('executing')}</span>
                     <span>{activeTeam.progress}%</span>
                   </div>
                   <Progress value={activeTeam.progress} className="h-1.5" />
@@ -512,7 +482,7 @@ export function AgentTeamPanel({
                 {activeTeam.status === 'idle' && onExecuteTeam && (
                   <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => onExecuteTeam(activeTeam.id)}>
                     <Play className="size-3" />
-                    Execute
+                    {t('executeTeam')}
                   </Button>
                 )}
                 {activeTeam.status === 'executing' && (
@@ -520,13 +490,13 @@ export function AgentTeamPanel({
                     {onPauseTeam && (
                       <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => onPauseTeam(activeTeam.id)}>
                         <Pause className="size-3" />
-                        Pause
+                        {t('pauseTeam')}
                       </Button>
                     )}
                     {onCancelTeam && (
                       <Button variant="destructive" size="sm" className="h-7 gap-1 text-xs" onClick={() => onCancelTeam(activeTeam.id)}>
                         <Square className="size-3" />
-                        Cancel
+                        {t('cancelTeam')}
                       </Button>
                     )}
                   </>
@@ -534,13 +504,13 @@ export function AgentTeamPanel({
                 {activeTeam.status === 'paused' && onResumeTeam && (
                   <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => onResumeTeam(activeTeam.id)}>
                     <Play className="size-3" />
-                    Resume
+                    {t('resumeTeam')}
                   </Button>
                 )}
                 {(activeTeam.status === 'completed' || activeTeam.status === 'failed' || activeTeam.status === 'cancelled') && onDeleteTeam && (
                   <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-destructive" onClick={() => onDeleteTeam(activeTeam.id)}>
                     <Trash2 className="size-3" />
-                    Remove
+                    {t('remove')}
                   </Button>
                 )}
               </div>
@@ -548,7 +518,7 @@ export function AgentTeamPanel({
               {/* Token Usage */}
               {activeTeam.totalTokenUsage.totalTokens > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                  Total tokens: {activeTeam.totalTokenUsage.totalTokens.toLocaleString()}
+                  {t('result.totalTokens', { count: activeTeam.totalTokenUsage.totalTokens.toLocaleString() })}
                 </p>
               )}
             </div>
@@ -562,7 +532,7 @@ export function AgentTeamPanel({
                   {expandedSections.teammates ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   <Layers className="size-3.5 text-muted-foreground" />
                   <span className="text-xs font-medium">
-                    Teammates ({teamTeammates.length})
+                    {t('teammate.title')} ({teamTeammates.length})
                   </span>
                 </div>
               </CollapsibleTrigger>
@@ -589,11 +559,11 @@ export function AgentTeamPanel({
                   {expandedSections.tasks ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   <ListTodo className="size-3.5 text-muted-foreground" />
                   <span className="text-xs font-medium">
-                    Tasks ({teamTasks.length})
+                    {t('task.title')} ({teamTasks.length})
                   </span>
                   {teamTasks.length > 0 && (
                     <span className="text-[10px] text-muted-foreground">
-                      {teamTasks.filter(t => t.status === 'completed').length}/{teamTasks.length} done
+                      {t('task.done', { completed: teamTasks.filter(tk => tk.status === 'completed').length, total: teamTasks.length })}
                     </span>
                   )}
                 </div>
@@ -601,11 +571,11 @@ export function AgentTeamPanel({
               <CollapsibleContent className="mt-2 space-y-1.5">
                 {teamTasks.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-2 text-center">
-                    Tasks will be generated when the team executes.
+                    {t('task.noTasksHint')}
                   </p>
                 ) : (
                   teamTasks.map(task => (
-                    <TaskItem key={task.id} task={task} teammates={teammates} />
+                    <TaskItem key={task.id} task={task} teammates={teammatesRecord} />
                   ))
                 )}
               </CollapsibleContent>
@@ -620,7 +590,7 @@ export function AgentTeamPanel({
                   {expandedSections.messages ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                   <MessageSquare className="size-3.5 text-muted-foreground" />
                   <span className="text-xs font-medium">
-                    Messages ({teamMessages.length})
+                    {t('message.title')} ({teamMessages.length})
                   </span>
                 </div>
               </CollapsibleTrigger>
@@ -636,7 +606,7 @@ export function AgentTeamPanel({
                 <div className="space-y-1.5">
                   <h4 className="text-xs font-medium flex items-center gap-1.5">
                     <CheckCircle className="size-3.5 text-green-500" />
-                    Final Result
+                    {t('result.title')}
                   </h4>
                   <div className="rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto">
                     {activeTeam.finalResult}
@@ -652,7 +622,7 @@ export function AgentTeamPanel({
                 <div className="space-y-1.5">
                   <h4 className="text-xs font-medium flex items-center gap-1.5 text-destructive">
                     <XCircle className="size-3.5" />
-                    Error
+                    {t('result.error')}
                   </h4>
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
                     {activeTeam.error}
@@ -668,7 +638,7 @@ export function AgentTeamPanel({
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <Clock className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium">Timeline</span>
+                  <span className="text-xs font-medium">{t('timeline.title')}</span>
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
@@ -683,7 +653,7 @@ export function AgentTeamPanel({
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <Eye className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium">Activity</span>
+                  <span className="text-xs font-medium">{t('activityFeed.title')}</span>
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
@@ -698,7 +668,7 @@ export function AgentTeamPanel({
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
                 <div className="flex items-center gap-2">
                   <Brain className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium">Configuration</span>
+                  <span className="text-xs font-medium">{t('configEditor.title')}</span>
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
@@ -710,7 +680,7 @@ export function AgentTeamPanel({
         )
       ) : (
         <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-          Select a team to view details
+          {t('selectTeam')}
         </div>
       )}
     </div>

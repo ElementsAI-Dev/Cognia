@@ -5,6 +5,21 @@ import { NodeSearchPanel } from './node-search-panel';
 import { useWorkflowEditorStore } from '@/stores/workflow';
 import { NextIntlClientProvider } from 'next-intl';
 
+// Mock @xyflow/react
+jest.mock('@xyflow/react', () => ({
+  useReactFlow: () => ({
+    setCenter: jest.fn(),
+    getNode: jest.fn(() => ({ position: { x: 0, y: 0 }, measured: { width: 200, height: 80 } })),
+    fitView: jest.fn(),
+  }),
+  ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+// Mock zustand/react/shallow
+jest.mock('zustand/react/shallow', () => ({
+  useShallow: (fn: (...args: unknown[]) => unknown) => fn,
+}));
+
 jest.mock('@/stores/workflow');
 
 const mockUseWorkflowEditorStore = useWorkflowEditorStore as jest.MockedFunction<typeof useWorkflowEditorStore>;

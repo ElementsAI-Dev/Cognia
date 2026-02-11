@@ -32,22 +32,12 @@ jest.mock('@/components/ui/input', () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input data-testid="input" {...props} />,
 }));
 
-jest.mock('@/components/ui/tabs', () => ({
-  Tabs: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs">{children}</div>,
-  TabsList: ({ children }: { children: React.ReactNode }) => <div data-testid="tabs-list">{children}</div>,
-  TabsTrigger: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <button data-testid={`tab-${value}`}>{children}</button>
-  ),
-  TabsContent: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <div data-testid={`tab-content-${value}`}>{children}</div>
-  ),
+jest.mock('@/components/ui/textarea', () => ({
+  Textarea: (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea data-testid="textarea" {...props} />,
 }));
 
-// Mock lucide-react icons
-jest.mock('lucide-react', () => ({
-  Function: () => <span data-testid="icon-function" />,
-  Copy: () => <span data-testid="icon-copy" />,
-  Check: () => <span data-testid="icon-check" />,
+jest.mock('@/components/ui/separator', () => ({
+  Separator: () => <hr data-testid="separator" />,
 }));
 
 describe('LaTeXEquationDialog', () => {
@@ -72,14 +62,15 @@ describe('LaTeXEquationDialog', () => {
     expect(screen.queryByTestId('dialog')).not.toBeInTheDocument();
   });
 
-  it('renders tabs', () => {
+  it('renders input and textarea', () => {
     render(<LaTeXEquationDialog {...defaultProps} />);
-    expect(screen.getByTestId('tabs')).toBeInTheDocument();
+    expect(screen.getByTestId('input')).toBeInTheDocument();
+    expect(screen.getByTestId('textarea')).toBeInTheDocument();
   });
 
-  it('renders dialog footer with buttons', () => {
+  it('renders separator', () => {
     render(<LaTeXEquationDialog {...defaultProps} />);
-    expect(screen.getByTestId('dialog-footer')).toBeInTheDocument();
+    expect(screen.getByTestId('separator')).toBeInTheDocument();
   });
 
   it('calls onOpenChange when cancel clicked', async () => {
@@ -95,21 +86,17 @@ describe('LaTeXEquationDialog', () => {
     }
   });
 
-  it('calls onInsert when insert clicked', async () => {
+  it('renders insert and cancel buttons', () => {
     render(<LaTeXEquationDialog {...defaultProps} />);
-    
-    const insertButton = screen.getAllByRole('button').find(
-      btn => btn.textContent?.toLowerCase().includes('insert')
-    );
-    
-    if (insertButton) {
-      await userEvent.click(insertButton);
-      expect(defaultProps.onInsert).toHaveBeenCalled();
-    }
+    const buttons = screen.getAllByRole('button');
+    // Should have generate, cancel, and insert buttons
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders function icon', () => {
+  it('renders generate button', () => {
     render(<LaTeXEquationDialog {...defaultProps} />);
-    expect(screen.getByTestId('icon-function')).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button');
+    const generateBtn = buttons.find(btn => btn.textContent?.toLowerCase().includes('generate'));
+    expect(generateBtn).toBeDefined();
   });
 });

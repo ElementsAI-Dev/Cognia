@@ -3,8 +3,12 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { streamText, type CoreMessage } from 'ai';
 import { useChatWidgetStore } from '@/stores/chat';
+import { useSettingsStore } from '@/stores';
 import { isTauri } from '@/lib/native/utils';
+import { getProxyProviderModel } from '@/lib/ai/core/proxy-client';
+import type { ProviderName } from '@/types';
 
 interface UseChatWidgetOptions {
   onShow?: () => void;
@@ -40,6 +44,9 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const deleteMessage = useChatWidgetStore((state) => state.deleteMessage);
+  const deleteMessagesAfter = useChatWidgetStore((state) => state.deleteMessagesAfter);
+  const sendQuickMessage = useChatWidgetStore((state) => state.sendQuickMessage);
+  const providerSettings = useSettingsStore((state) => state.providerSettings);
 
   // History navigation state
   const historyIndexRef = useRef<number>(-1);
@@ -255,50 +262,43 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       abortControllerRef.current = new AbortController();
 
       try {
-        // Build messages array for API
-        const apiMessages = [
+        // Get API key from settings store
+        const provider = config.provider as ProviderName;
+        const settings = providerSettings[provider];
+        const apiKey = settings?.apiKey || '';
+        const baseURL = settings?.baseURL;
+
+        if (!apiKey && provider !== 'ollama') {
+          throw new Error(`API key not configured for ${provider}. Please add your API key in Settings.`);
+        }
+
+        // Build messages array
+        const apiMessages: CoreMessage[] = [
           { role: 'system' as const, content: config.systemPrompt },
-          ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ...messages.map((m) => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content })),
           { role: 'user' as const, content: text },
         ];
 
-        const response = await fetch('/api/chat-widget', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: apiMessages,
-            provider: config.provider,
-            model: config.model,
-          }),
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `API error: ${response.status}`);
-        }
-
-        // Handle streaming response
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('No response body');
+        // Get the AI model via proxy-aware client (works in static export)
+        const aiModel = getProxyProviderModel(provider, config.model, apiKey, baseURL);
 
         const assistantMessageId = addMessage({
           role: 'assistant',
           content: '',
           isStreaming: true,
         });
-        const decoder = new TextDecoder();
         let fullContent = '';
 
         try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+          // Stream directly using Vercel AI SDK (no API route needed)
+          const result = streamText({
+            model: aiModel,
+            messages: apiMessages,
+            abortSignal: abortControllerRef.current.signal,
+          });
 
-            const chunk = decoder.decode(value, { stream: true });
+          for await (const chunk of result.textStream) {
             fullContent += chunk;
-
-            // Update the assistant message with accumulated content
             useChatWidgetStore.getState().updateMessage(assistantMessageId, {
               content: fullContent,
               isStreaming: true,
@@ -342,6 +342,7 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
       isLoading,
       messages,
       config,
+      providerSettings,
       addMessage,
       setLoading,
       clearInput,
@@ -541,6 +542,8 @@ export function useChatWidget(options: UseChatWidgetOptions = {}) {
     stop,
     regenerate,
     openMainWindow,
+    deleteMessagesAfter,
+    sendQuickMessage,
   };
 }
 

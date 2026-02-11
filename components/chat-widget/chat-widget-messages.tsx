@@ -63,7 +63,7 @@ export function ChatWidgetMessages({
 
   return (
     <ScrollArea ref={scrollRef} className={cn('flex-1 px-3 py-2', className)}>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" role="log" aria-live="polite" aria-label="Chat messages">
         {/* Messages */}
         {messages.map((message, index) => (
           <MessageBubble

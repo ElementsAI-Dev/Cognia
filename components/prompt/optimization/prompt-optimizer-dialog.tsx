@@ -18,18 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Tooltip,
@@ -41,7 +30,6 @@ import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { useSettingsStore, useSessionStore } from '@/stores';
 import { useMcpStore } from '@/stores/mcp/mcp-store';
-import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import { optimizePrompt } from '@/lib/ai/prompts/prompt-optimizer';
 import {
   optimizePromptViaMcp,
@@ -59,39 +47,22 @@ import {
 } from '@/lib/ai/prompts/mcp-prompt-optimizer';
 import { messageRepository } from '@/lib/db';
 import { McpPrivacyDialog } from './mcp-privacy-dialog';
+import { OptimizationResult, OptimizationHistory, McpModeContent, LocalModeContent } from './sections';
 import type {
   PromptOptimizationStyle,
   PromptOptimizationMode,
   OptimizedPrompt,
   McpOptimizedPrompt,
 } from '@/types/content/prompt';
-import { PROVIDERS } from '@/types/provider';
 import {
-  Sparkles,
   Wand2,
-  FileText,
-  Lightbulb,
-  Briefcase,
-  GraduationCap,
-  Code,
-  Settings2,
-  Check,
-  Copy,
   ArrowRight,
   RefreshCw,
   Cpu,
   Globe,
   CircleDot,
-  AlertTriangle,
   History,
-  Trash2,
-  Columns2,
-  Zap,
   BarChart3,
-  Pencil,
-  Timer,
-  ListOrdered,
-  Table2,
 } from 'lucide-react';
 
 interface PromptOptimizerDialogProps {
@@ -100,68 +71,6 @@ interface PromptOptimizerDialogProps {
   initialPrompt: string;
   onApply: (optimizedPrompt: string) => void;
 }
-
-const STYLE_OPTIONS: {
-  value: PromptOptimizationStyle;
-  labelKey: string;
-  descriptionKey: string;
-  icon: React.ReactNode;
-}[] = [
-  {
-    value: 'concise',
-    labelKey: 'concise',
-    descriptionKey: 'conciseDesc',
-    icon: <FileText className="h-4 w-4" />,
-  },
-  {
-    value: 'detailed',
-    labelKey: 'detailed',
-    descriptionKey: 'detailedDesc',
-    icon: <Lightbulb className="h-4 w-4" />,
-  },
-  {
-    value: 'creative',
-    labelKey: 'creative',
-    descriptionKey: 'creativeDesc',
-    icon: <Sparkles className="h-4 w-4" />,
-  },
-  {
-    value: 'professional',
-    labelKey: 'professional',
-    descriptionKey: 'professionalDesc',
-    icon: <Briefcase className="h-4 w-4" />,
-  },
-  {
-    value: 'academic',
-    labelKey: 'academic',
-    descriptionKey: 'academicDesc',
-    icon: <GraduationCap className="h-4 w-4" />,
-  },
-  {
-    value: 'technical',
-    labelKey: 'technical',
-    descriptionKey: 'technicalDesc',
-    icon: <Code className="h-4 w-4" />,
-  },
-  {
-    value: 'step-by-step',
-    labelKey: 'stepByStep',
-    descriptionKey: 'stepByStepDesc',
-    icon: <ListOrdered className="h-4 w-4" />,
-  },
-  {
-    value: 'structured',
-    labelKey: 'structured',
-    descriptionKey: 'structuredDesc',
-    icon: <Table2 className="h-4 w-4" />,
-  },
-  {
-    value: 'custom',
-    labelKey: 'custom',
-    descriptionKey: 'customDesc',
-    icon: <Settings2 className="h-4 w-4" />,
-  },
-];
 
 /** Unified result type for both local and MCP optimization */
 type UnifiedOptimizedResult = (OptimizedPrompt | McpOptimizedPrompt) & {
@@ -250,12 +159,6 @@ export function PromptOptimizerDialog({
   const availableProviders = Object.entries(providerSettings)
     .filter(([, settings]) => settings.enabled && settings.apiKey)
     .map(([id]) => id);
-
-  // Get models for selected provider
-  const getModelsForProvider = (providerId: string) => {
-    const provider = PROVIDERS[providerId];
-    return provider?.models || [];
-  };
 
   // Handle mode switch with privacy check
   const handleModeSwitch = useCallback((newMode: PromptOptimizationMode) => {
@@ -559,380 +462,69 @@ export function PromptOptimizerDialog({
 
           {/* History Panel */}
           {showHistory && (
-            <div className="space-y-2 rounded-lg border p-3 max-h-[200px] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">{t('historyTitle')}</Label>
-                {history.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearHistory}
-                    className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    {t('historyClear')}
-                  </Button>
-                )}
-              </div>
-              {history.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">{t('historyEmpty')}</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {history.slice(0, 10).map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between gap-2 rounded-md border bg-card p-2 text-xs hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            {entry.mode === 'mcp' ? 'MCP' : entry.style || 'local'}
-                          </Badge>
-                          <span className="text-muted-foreground">
-                            {new Date(entry.timestamp).toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="truncate text-foreground">{entry.optimized.slice(0, 80)}...</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 shrink-0"
-                        onClick={() => handleApplyFromHistory(entry.optimized)}
-                      >
-                        <ArrowRight className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <OptimizationHistory
+              history={history}
+              onClearHistory={handleClearHistory}
+              onApplyFromHistory={handleApplyFromHistory}
+            />
           )}
 
-          {/* MCP Mode Content */}
+          {/* MCP / Local AI Mode Content */}
           {mode === 'mcp' ? (
-            <div className="space-y-4">
-              {/* Original Prompt */}
-              <div className="space-y-2">
-                <Label>{t('originalPrompt')}</Label>
-                <div className="rounded-lg border bg-muted/50 p-3 text-sm max-h-[120px] overflow-y-auto">
-                  {initialPrompt || <span className="text-muted-foreground italic">{t('noPrompt')}</span>}
-                </div>
-              </div>
-
-              {/* MCP Server Status */}
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">{t('mcpServerStatus')}</Label>
-                  <div className="flex items-center gap-2">
-                    {aceServer && !aceToolReady && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={handleAutoConnect}
-                        disabled={isConnecting}
-                      >
-                        {isConnecting ? (
-                          <Loader size={12} />
-                        ) : (
-                          <Zap className="h-3 w-3 mr-1" />
-                        )}
-                        {t('mcpAutoConnect')}
-                      </Button>
-                    )}
-                    {aceServer ? (
-                      <Badge
-                        variant={aceToolReady ? 'default' : 'secondary'}
-                        className={cn(
-                          'text-xs',
-                          aceToolReady && 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        )}
-                      >
-                        {aceToolReady ? t('mcpConnected') : t('mcpDisconnected')}
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="text-xs">
-                        {t('mcpNotConfigured')}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                {aceServer && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('mcpServerName')}: {aceServer.name || aceServer.id}
-                  </p>
-                )}
-                {!aceServer && (
-                  <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <span>{t('mcpConfigHint')}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* MCP Info */}
-              <Alert>
-                <Globe className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  {t('mcpDescription')}
-                </AlertDescription>
-              </Alert>
-            </div>
+            <McpModeContent
+              initialPrompt={initialPrompt}
+              aceServer={aceServer ? { id: aceServer.id, name: aceServer.name } : null}
+              aceToolReady={aceToolReady}
+              isConnecting={isConnecting}
+              onAutoConnect={handleAutoConnect}
+            />
           ) : (
-            /* Local AI Mode Content */
-            <Tabs defaultValue="style" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="style">{t('style')}</TabsTrigger>
-                <TabsTrigger value="settings">{tCommon('settings')}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="style" className="space-y-4 mt-4">
-                {/* Original Prompt */}
-                <div className="space-y-2">
-                  <Label>{t('originalPrompt')}</Label>
-                  <div className="rounded-lg border bg-muted/50 p-3 text-sm">
-                    {initialPrompt || <span className="text-muted-foreground italic">{t('noPrompt')}</span>}
-                  </div>
-                </div>
-
-                {/* Style Selection */}
-                <div className="space-y-2">
-                  <Label>{t('optimizationStyle')}</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {STYLE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setStyle(option.value)}
-                        className={cn(
-                          'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-all hover:bg-accent',
-                          style === option.value && 'border-primary bg-primary/5'
-                        )}
-                      >
-                        <div className={cn(
-                          'text-muted-foreground',
-                          style === option.value && 'text-primary'
-                        )}>
-                          {option.icon}
-                        </div>
-                        <span className="text-sm font-medium">{t(option.labelKey)}</span>
-                        <span className="text-xs text-muted-foreground hidden sm:block">
-                          {t(option.descriptionKey)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom Prompt Input */}
-                {style === 'custom' && (
-                  <div className="space-y-2">
-                    <Label>{t('customInstructions')}</Label>
-                    <Textarea
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      placeholder={t('customPlaceholder')}
-                      className="min-h-[100px]"
-                    />
-                  </div>
-                )}
-
-                {/* Quick Options */}
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="preserve-intent"
-                      checked={preserveIntent}
-                      onCheckedChange={setPreserveIntent}
-                    />
-                    <Label htmlFor="preserve-intent" className="text-sm">
-                      {t('preserveIntent')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="enhance-clarity"
-                      checked={enhanceClarity}
-                      onCheckedChange={setEnhanceClarity}
-                    />
-                    <Label htmlFor="enhance-clarity" className="text-sm">
-                      {t('enhanceClarity')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="add-context"
-                      checked={addContext}
-                      onCheckedChange={setAddContext}
-                    />
-                    <Label htmlFor="add-context" className="text-sm">
-                      {t('addContext')}
-                    </Label>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="settings" className="space-y-4 mt-4">
-                {/* Model Selection */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="use-session-model"
-                      checked={useSessionModel}
-                      onCheckedChange={setUseSessionModel}
-                    />
-                    <Label htmlFor="use-session-model">
-                      {t('useSessionModel')} ({session?.model || 'default'})
-                    </Label>
-                  </div>
-
-                  {!useSessionModel && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>{t('provider')}</Label>
-                        <Select
-                          value={selectedProvider}
-                          onValueChange={(value) => {
-                            setSelectedProvider(value);
-                            const models = getModelsForProvider(value);
-                            if (models.length > 0) {
-                              setSelectedModel(models[0].id);
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableProviders.map((providerId) => (
-                              <SelectItem key={providerId} value={providerId} showIconInTrigger>
-                                <ProviderIcon icon={`/icons/providers/${providerId}.svg`} size={16} />
-                                {PROVIDERS[providerId]?.name || providerId}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>{t('model')}</Label>
-                        <Select value={selectedModel} onValueChange={setSelectedModel}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getModelsForProvider(selectedProvider).map((model) => (
-                              <SelectItem key={model.id} value={model.id}>
-                                {model.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+            <LocalModeContent
+              initialPrompt={initialPrompt}
+              style={style}
+              customPrompt={customPrompt}
+              preserveIntent={preserveIntent}
+              enhanceClarity={enhanceClarity}
+              addContext={addContext}
+              useSessionModel={useSessionModel}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              sessionModel={session?.model}
+              availableProviders={availableProviders}
+              onStyleChange={setStyle}
+              onCustomPromptChange={setCustomPrompt}
+              onPreserveIntentChange={setPreserveIntent}
+              onEnhanceClarityChange={setEnhanceClarity}
+              onAddContextChange={setAddContext}
+              onUseSessionModelChange={setUseSessionModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+            />
           )}
 
           {/* Result Display */}
           {result && (
-            <div className="space-y-3 rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label className="text-primary">{t('optimizedPrompt')}</Label>
-                  {'mode' in result && result.mode === 'mcp' && (
-                    <Badge variant="outline" className="text-xs">
-                      MCP
-                    </Badge>
-                  )}
-                  {optimizeDuration !== null && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 text-muted-foreground">
-                      <Timer className="h-3 w-3" />
-                      {(optimizeDuration / 1000).toFixed(1)}s
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={isEditing ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => {
-                          if (!isEditing) {
-                            setEditedResult(result.optimized);
-                            setIsEditing(true);
-                          } else {
-                            setIsEditing(false);
-                          }
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('editToggle')}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={showComparison ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setShowComparison(!showComparison)}
-                      >
-                        <Columns2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('compareToggle')}</TooltipContent>
-                  </Tooltip>
-                  <Button variant="ghost" size="sm" onClick={handleCopy}>
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleReset}>
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Editable / Comparison / Normal View */}
-              {isEditing ? (
-                <Textarea
-                  value={editedResult}
-                  onChange={(e) => setEditedResult(e.target.value)}
-                  className="min-h-[120px] max-h-[300px] text-sm"
-                />
-              ) : showComparison ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{t('originalPrompt')}</Label>
-                    <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
-                      {initialPrompt}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-primary">{t('optimizedPrompt')}</Label>
-                    <div className="rounded-lg bg-primary/5 border-primary/20 border p-3 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
-                      {result.optimized}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                  {result.optimized}
-                </div>
-              )}
-
-              {result.improvements.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {result.improvements.map((improvement, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {improvement}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+            <OptimizationResult
+              result={result}
+              initialPrompt={initialPrompt}
+              optimizeDuration={optimizeDuration}
+              isEditing={isEditing}
+              editedResult={editedResult}
+              showComparison={showComparison}
+              copied={copied}
+              onEditToggle={() => {
+                if (!isEditing) {
+                  setEditedResult(result.optimized);
+                  setIsEditing(true);
+                } else {
+                  setIsEditing(false);
+                }
+              }}
+              onEditedResultChange={setEditedResult}
+              onComparisonToggle={() => setShowComparison(!showComparison)}
+              onCopy={handleCopy}
+              onReset={handleReset}
+            />
           )}
 
           {/* Error Display */}

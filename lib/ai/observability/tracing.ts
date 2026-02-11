@@ -19,8 +19,23 @@ const log = loggers.ai;
 // Only import OpenTelemetry in Node.js environment
 const isServer = typeof window === 'undefined';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let otelModules: any = null;
+/** Lazily loaded OpenTelemetry module references */
+interface OtelModules {
+  NodeSDK: new (config: Record<string, unknown>) => NodeSDKInstance;
+  OTLPTraceExporter: new (config?: Record<string, unknown>) => unknown;
+  getNodeAutoInstrumentations: (config?: Record<string, unknown>) => unknown[];
+  SEMRESATTRS_SERVICE_NAME: string;
+  SEMRESATTRS_SERVICE_VERSION: string;
+  resourceFromAttributes: (attrs: Record<string, string>) => unknown;
+}
+
+/** NodeSDK instance shape */
+interface NodeSDKInstance {
+  start: () => void;
+  shutdown: () => Promise<void>;
+}
+
+let otelModules: OtelModules | null = null;
 
 // Dynamic import for server-side only
 async function loadOpenTelemetry(): Promise<boolean> {
@@ -78,8 +93,7 @@ export interface OpenTelemetryConfig {
 }
 
 // Global SDK instance
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let sdk: any = null;
+let sdk: NodeSDKInstance | null = null;
 let isInitialized = false;
 
 /**

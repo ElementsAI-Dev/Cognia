@@ -13,9 +13,15 @@ jest.mock('next-intl', () => ({
 // Mock the prompt optimizer hook
 jest.mock('@/hooks/ai/use-prompt-optimizer', () => ({
   usePromptOptimizer: () => ({
-    optimize: jest.fn().mockResolvedValue({ optimized: 'optimized prompt' }),
+    isAnalyzing: false,
     isOptimizing: false,
+    analysisResult: null,
+    suggestions: [],
     error: null,
+    analyze: jest.fn().mockResolvedValue({ success: true, suggestions: [] }),
+    optimize: jest.fn().mockResolvedValue({ success: true, optimizedContent: 'optimized prompt' }),
+    reset: jest.fn(),
+    getConfig: jest.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4o' }),
   }),
 }));
 
@@ -145,10 +151,11 @@ describe('PromptSelfOptimizerDialog', () => {
     expect(screen.getByTestId('dialog-title')).toBeInTheDocument();
   });
 
-  it('has textarea for prompt input', () => {
+  it('displays original prompt content in analyze tab', () => {
     render(<PromptSelfOptimizerDialog {...defaultProps} />);
     
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    const matches = screen.getAllByText('Initial prompt text');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('has tabs for different views', () => {
@@ -157,11 +164,35 @@ describe('PromptSelfOptimizerDialog', () => {
     expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 
+  it('renders three tab triggers', () => {
+    render(<PromptSelfOptimizerDialog {...defaultProps} />);
+    
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(3);
+    expect(tabs[0]).toHaveAttribute('data-value', 'analyze');
+    expect(tabs[1]).toHaveAttribute('data-value', 'suggestions');
+    expect(tabs[2]).toHaveAttribute('data-value', 'compare');
+  });
+
   it('displays action buttons in footer', () => {
     render(<PromptSelfOptimizerDialog {...defaultProps} />);
     
     expect(screen.getByTestId('dialog-footer')).toBeInTheDocument();
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  it('renders quick analysis scores', () => {
+    render(<PromptSelfOptimizerDialog {...defaultProps} />);
+    
+    // quickAnalyze mock returns 50 for all scores
+    const scores = screen.getAllByText('50');
+    expect(scores.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('renders cancel button in footer', () => {
+    render(<PromptSelfOptimizerDialog {...defaultProps} />);
+    
+    expect(screen.getByText('cancel')).toBeInTheDocument();
   });
 });

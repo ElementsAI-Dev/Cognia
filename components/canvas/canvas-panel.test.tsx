@@ -33,14 +33,88 @@ jest.mock('@/hooks/canvas', () => ({
     isGenerating: false,
     generateSuggestions: jest.fn(),
   }),
+  useCanvasActions: () => ({
+    isProcessing: false,
+    isStreaming: false,
+    streamingContent: '',
+    actionError: null,
+    actionResult: null,
+    diffPreview: null,
+    pendingContent: null,
+    handleAction: jest.fn(),
+    acceptDiffChanges: jest.fn(),
+    rejectDiffChanges: jest.fn(),
+    setActionError: jest.fn(),
+    setActionResult: jest.fn(),
+  }),
+  useChunkLoader: () => ({
+    isLargeDocument: false,
+    loadedContent: '',
+    loadChunk: jest.fn(),
+  }),
+  useCanvasMonacoSetup: () => ({
+    editorRef: { current: null },
+    handleEditorMount: jest.fn(),
+    symbols: [],
+    breadcrumb: [],
+    availableThemes: ['vs-light', 'vs-dark'],
+    activeThemeId: 'vs-light',
+    setActiveTheme: jest.fn(),
+    goToSymbol: jest.fn(),
+  }),
+  useCollaborativeSession: () => ({
+    session: null,
+    participants: [],
+    connectionState: 'disconnected',
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    shareSession: jest.fn(),
+    joinSession: jest.fn(),
+  }),
 }));
 
 // Mock keybinding store
 jest.mock('@/stores/canvas/keybinding-store', () => ({
   useKeybindingStore: () => ({
     bindings: {},
-    setBinding: jest.fn(),
+    conflicts: {},
+    setKeybinding: jest.fn(),
+    resetKeybinding: jest.fn(),
+    resetAllBindings: jest.fn(),
+    exportBindings: jest.fn().mockReturnValue('{}'),
+    importBindings: jest.fn(),
+    isModified: jest.fn().mockReturnValue(false),
+    checkConflicts: jest.fn().mockReturnValue({}),
   }),
+  formatKeybinding: (key: string) => key,
+  parseKeyEvent: () => 'Ctrl+S',
+  DEFAULT_KEYBINDINGS: {},
+}));
+
+// Mock chunked document store
+jest.mock('@/stores/canvas/chunked-document-store', () => ({
+  useChunkedDocumentStore: () => ({
+    addChunkedDocument: jest.fn(),
+    removeChunkedDocument: jest.fn(),
+  }),
+}));
+
+// Mock canvas settings store
+jest.mock('@/stores/canvas/canvas-settings-store', () => ({
+  useCanvasSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      settings: {
+        editor: {
+          wordWrap: false,
+          minimap: false,
+          lineNumbers: 'on',
+          fontSize: 14,
+        },
+      },
+      updateEditorSettings: jest.fn(),
+    };
+    return selector(state);
+  },
 }));
 
 // Mock theme registry

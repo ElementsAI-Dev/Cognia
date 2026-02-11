@@ -28,7 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitPanel } from '@/components/git';
+import { GitPanel, type GitPanelRef } from '@/components/git';
 import { GitCommitGraph } from '@/components/git/git-commit-graph';
 import { GitStatsDashboard } from '@/components/git/git-stats-dashboard';
 import { GitCheckpointPanel } from '@/components/git/git-checkpoint-panel';
@@ -45,12 +45,7 @@ export default function GitPage() {
   const [repoPath, setRepoPath] = useState('');
   const [activeRepo, setActiveRepo] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<MainTab>('overview');
-  const gitPanelRef = useRef<{ 
-    stageAll?: () => Promise<void>;
-    commit?: () => void;
-    push?: () => Promise<void>;
-    pull?: () => Promise<void>;
-  }>(null);
+  const gitPanelRef = useRef<GitPanelRef>(null);
 
   const {
     graphCommits,
@@ -74,48 +69,29 @@ export default function GitPage() {
   } = useGitStore();
 
   const [selectedGraphCommit, setSelectedGraphCommit] = useState<string | null>(null);
-  const [graphLoading, setGraphLoading] = useState(false);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [checkpointsLoading, setCheckpointsLoading] = useState(false);
-  const [tagsLoading, setTagsLoading] = useState(false);
-  const [remotesLoading, setRemotesLoading] = useState(false);
+  const [loadingTab, setLoadingTab] = useState<MainTab | null>(null);
+
+  const tabLoaders: Partial<Record<MainTab, () => Promise<void>>> = {
+    graph: loadGraphCommits,
+    stats: loadRepoStats,
+    checkpoints: loadCheckpoints,
+    tags: loadTags,
+    remotes: loadRemotes,
+  };
+
+  const refreshTab = useCallback(async (tab: MainTab) => {
+    const loader = tabLoaders[tab];
+    if (!loader) return;
+    setLoadingTab(tab);
+    try { await loader(); } finally { setLoadingTab(null); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadGraphCommits, loadRepoStats, loadCheckpoints, loadTags, loadRemotes]);
 
   // Load data when tab changes
   useEffect(() => {
-    if (!activeRepo) return;
-
-    const loadTabData = async () => {
-      switch (mainTab) {
-        case 'graph':
-          setGraphLoading(true);
-          await loadGraphCommits();
-          setGraphLoading(false);
-          break;
-        case 'stats':
-          setStatsLoading(true);
-          await loadRepoStats();
-          setStatsLoading(false);
-          break;
-        case 'checkpoints':
-          setCheckpointsLoading(true);
-          await loadCheckpoints();
-          setCheckpointsLoading(false);
-          break;
-        case 'tags':
-          setTagsLoading(true);
-          await loadTags();
-          setTagsLoading(false);
-          break;
-        case 'remotes':
-          setRemotesLoading(true);
-          await loadRemotes();
-          setRemotesLoading(false);
-          break;
-      }
-    };
-
-    loadTabData();
-  }, [mainTab, activeRepo, loadGraphCommits, loadRepoStats, loadCheckpoints, loadTags, loadRemotes]);
+    if (!activeRepo || mainTab === 'overview') return;
+    refreshTab(mainTab);
+  }, [mainTab, activeRepo, refreshTab]);
 
   const handleOpenRepo = () => {
     if (repoPath.trim()) {
@@ -278,7 +254,7 @@ export default function GitPage() {
 
         {/* Git Panel */}
         {activeRepo && (
-          <GitPanel repoPath={activeRepo} className="flex-1 overflow-hidden" />
+          <GitPanel ref={gitPanelRef} repoPath={activeRepo} className="flex-1 overflow-hidden" />
         )}
       </div>
 
@@ -422,12 +398,8 @@ export default function GitPage() {
                 commits={graphCommits}
                 selectedCommit={selectedGraphCommit}
                 onCommitClick={(c) => setSelectedGraphCommit(c.hash)}
-                onRefresh={async () => {
-                  setGraphLoading(true);
-                  await loadGraphCommits();
-                  setGraphLoading(false);
-                }}
-                isLoading={graphLoading}
+                onRefresh={() => refreshTab('graph')}
+                isLoading={loadingTab === 'graph'}
                 className="h-full"
               />
             </TabsContent>
@@ -436,12 +408,8 @@ export default function GitPage() {
             <TabsContent value="stats" className="flex-1 overflow-auto mt-0">
               <GitStatsDashboard
                 stats={repoStats}
-                onRefresh={async () => {
-                  setStatsLoading(true);
-                  await loadRepoStats();
-                  setStatsLoading(false);
-                }}
-                isLoading={statsLoading}
+                onRefresh={() => refreshTab('stats')}
+                isLoading={loadingTab === 'stats'}
               />
             </TabsContent>
 
@@ -452,12 +420,8 @@ export default function GitPage() {
                 onCreateCheckpoint={createCheckpoint}
                 onRestoreCheckpoint={restoreCheckpoint}
                 onDeleteCheckpoint={deleteCheckpoint}
-                onRefresh={async () => {
-                  setCheckpointsLoading(true);
-                  await loadCheckpoints();
-                  setCheckpointsLoading(false);
-                }}
-                isLoading={checkpointsLoading}
+                onRefresh={() => refreshTab('checkpoints')}
+                isLoading={loadingTab === 'checkpoints'}
                 className="h-full"
               />
             </TabsContent>
@@ -469,12 +433,8 @@ export default function GitPage() {
                 onCreateTag={handleCreateTag}
                 onDeleteTag={handleDeleteTag}
                 onPushTag={handlePushTag}
-                onRefresh={async () => {
-                  setTagsLoading(true);
-                  await loadTags();
-                  setTagsLoading(false);
-                }}
-                isLoading={tagsLoading}
+                onRefresh={() => refreshTab('tags')}
+                isLoading={loadingTab === 'tags'}
                 className="h-full"
               />
             </TabsContent>
@@ -485,12 +445,8 @@ export default function GitPage() {
                 remotes={remotes}
                 onAddRemote={handleAddRemote}
                 onRemoveRemote={handleRemoveRemote}
-                onRefresh={async () => {
-                  setRemotesLoading(true);
-                  await loadRemotes();
-                  setRemotesLoading(false);
-                }}
-                isLoading={remotesLoading}
+                onRefresh={() => refreshTab('remotes')}
+                isLoading={loadingTab === 'remotes'}
                 className="h-full"
               />
             </TabsContent>

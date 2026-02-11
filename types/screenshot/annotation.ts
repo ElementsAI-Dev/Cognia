@@ -30,7 +30,8 @@ export interface BaseAnnotation {
   type: AnnotationTool;
   style: AnnotationStyle;
   timestamp: number;
-  rotation?: number; // degrees, default 0
+  /** @deprecated Not yet implemented in drawing code. Reserved for future rotation support. */
+  rotation?: number;
 }
 
 export interface RectangleAnnotation extends BaseAnnotation {
@@ -119,18 +120,6 @@ export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 export interface Point {
   x: number;
   y: number;
-}
-
-// ============== Editor State ==============
-
-export interface EditorState {
-  mode: 'selecting' | 'editing' | 'annotating';
-  currentTool: AnnotationTool;
-  style: AnnotationStyle;
-  annotations: Annotation[];
-  selectedAnnotationId: string | null;
-  undoStack: Annotation[][];
-  redoStack: Annotation[][];
 }
 
 // ============== Constants ==============

@@ -33,6 +33,20 @@ jest.mock('next/image', () => ({
   ),
 }));
 
+// Mock ScreenshotEditor to auto-confirm
+jest.mock('@/components/screenshot/screenshot-editor', () => ({
+  ScreenshotEditor: ({ imageData, onConfirm }: { imageData: string; onConfirm: (data: string, annotations: unknown[]) => void; onCancel: () => void }) => (
+    <div data-testid="screenshot-editor">
+      <button data-testid="editor-confirm" onClick={() => onConfirm(imageData, [])}>Confirm</button>
+    </div>
+  ),
+}));
+
+// Mock native screenshot API
+jest.mock('@/lib/native/screenshot', () => ({
+  saveToFile: jest.fn(),
+}));
+
 // Mock copy-button to avoid langfuse import issues
 jest.mock('@/components/chat/ui/copy-button', () => ({
   CopyButton: ({ content, className }: { content: string; className?: string }) => (
@@ -221,6 +235,13 @@ describe('ScreenshotPanel', () => {
     render(<ScreenshotPanel onScreenshotTaken={mockOnScreenshotTaken} />);
     const fullscreenButton = screen.getByText('Fullscreen');
     fireEvent.click(fullscreenButton);
+    // After capture, editor opens
+    await waitFor(() => {
+      expect(screen.getByTestId('screenshot-editor')).toBeInTheDocument();
+    });
+    // Confirm in editor triggers onScreenshotTaken
+    const confirmButton = screen.getByTestId('editor-confirm');
+    fireEvent.click(confirmButton);
     await waitFor(() => {
       expect(mockOnScreenshotTaken).toHaveBeenCalledWith('base64imagedata');
     });

@@ -46,6 +46,7 @@ import {
   createChatObservabilityManager,
   type ChatObservabilityManager,
 } from '../observability/chat-observability';
+import { useChatObservabilityConfig } from '@/hooks/ai/use-chat-observability';
 
 export interface ChatUsageInfo {
   promptTokens: number;
@@ -143,7 +144,7 @@ export function useAIChat({
   const observabilityManagerRef = useRef<ChatObservabilityManager | null>(null);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const streamingEnabled = useSettingsStore((state) => state.streamResponses);
-  const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
+  const observabilityConfig = useChatObservabilityConfig();
 
   // Compression settings
   const compressionSettings = useSettingsStore((state) => state.compressionSettings);
@@ -235,12 +236,12 @@ export function useAIChat({
       const { messages, systemPrompt, temperature = 0.7, maxTokens, topP, frequencyPenalty, presencePenalty, sessionId, messageId, streaming } = options;
 
       // Initialize observability manager for this session
-      if (sessionId && !observabilityManagerRef.current && observabilitySettings?.enabled) {
+      if (sessionId && !observabilityManagerRef.current && observabilityConfig.enabled) {
         observabilityManagerRef.current = createChatObservabilityManager({
           sessionId,
           userId: undefined, // TODO: Get from user store when available
-          enableLangfuse: observabilitySettings.langfuseEnabled,
-          enableOpenTelemetry: observabilitySettings.openTelemetryEnabled,
+          enableLangfuse: observabilityConfig.enableLangfuse,
+          enableOpenTelemetry: observabilityConfig.enableOpenTelemetry,
           metadata: {
             provider,
             model,
@@ -876,7 +877,7 @@ export function useAIChat({
         throw error;
       }
     },
-    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, vectorSettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession, safetyModeSettings, observabilitySettings?.enabled, observabilitySettings?.langfuseEnabled, observabilitySettings?.openTelemetryEnabled]
+    [provider, model, providerSettings, streamingEnabled, onStreamStart, onStreamEnd, onError, onFinish, onStepFinish, extractReasoning, reasoningTagName, getMemoriesForPrompt, detectMemoryFromText, createMemory, memorySettings, vectorSettings, customInstructions, customInstructionsEnabled, aboutUser, responsePreferences, addUsageRecord, compressionSettings, getSession, safetyModeSettings, observabilityConfig]
   );
 
   // Get the last extracted reasoning

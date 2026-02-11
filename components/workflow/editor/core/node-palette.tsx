@@ -66,48 +66,30 @@ export function NodePalette({ onDragStart, className }: NodePaletteProps) {
     NODE_CATEGORIES.map((c) => c.id)
   );
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [recentNodes, setRecentNodes] = useState<WorkflowNodeType[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('workflow-recent-nodes');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-  const [favoriteNodes, setFavoriteNodes] = useState<WorkflowNodeType[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('workflow-favorite-nodes');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
   
-  const { addNodeFromTemplate, nodeTemplates, addNode } = useWorkflowEditorStore(
+  const {
+    addNodeFromTemplate,
+    nodeTemplates,
+    addNode,
+    recentNodes,
+    favoriteNodes,
+    addRecentNode,
+    toggleFavoriteNode,
+  } = useWorkflowEditorStore(
     useShallow((state) => ({
       addNodeFromTemplate: state.addNodeFromTemplate,
       nodeTemplates: state.nodeTemplates,
       addNode: state.addNode,
+      recentNodes: state.recentNodes,
+      favoriteNodes: state.favoriteNodes,
+      addRecentNode: state.addRecentNode,
+      toggleFavoriteNode: state.toggleFavoriteNode,
     }))
   );
 
-  // Save recent nodes
-  const addToRecent = useCallback((type: WorkflowNodeType) => {
-    setRecentNodes(prev => {
-      const updated = [type, ...prev.filter(t => t !== type)].slice(0, 8);
-      localStorage.setItem('workflow-recent-nodes', JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  // Toggle favorite
-  const toggleFavorite = useCallback((type: WorkflowNodeType) => {
-    setFavoriteNodes(prev => {
-      const updated = prev.includes(type) 
-        ? prev.filter(t => t !== type)
-        : [...prev, type];
-      localStorage.setItem('workflow-favorite-nodes', JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  // Alias store actions for backward compat with internal references
+  const addToRecent = addRecentNode;
+  const toggleFavorite = toggleFavoriteNode;
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) =>

@@ -6,6 +6,7 @@
  */
 
 import React, { useMemo, useState, useCallback, memo } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -19,13 +20,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import type { A2UIComponentProps, A2UITableComponent, A2UITableColumn } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
 
 type SortDirection = 'asc' | 'desc' | null;
 
 export const A2UITable = memo(function A2UITable({ component, onAction, onDataChange }: A2UIComponentProps<A2UITableComponent>) {
-  const { dataModel } = useA2UIContext();
+  const { dataModel } = useA2UIData();
+  const t = useTranslations('a2ui');
 
   // Resolve data - can be static array or data-bound
   const data = useMemo(() => {
@@ -207,7 +209,7 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
                   <Checkbox
                     checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
                     onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                    aria-label={locale.selectAll || 'Select all rows'}
+                    aria-label={locale.selectAll || t('tableSelectAll')}
                   />
                 </TableHead>
               )}
@@ -237,7 +239,7 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
                   colSpan={columns.length + (selectable ? 1 : 0)}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  {component.emptyMessage || locale.empty || 'No data available'}
+                  {component.emptyMessage || locale.empty || t('tableEmpty')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -259,7 +261,7 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
                           checked={isSelected}
                           onCheckedChange={(checked) => handleSelectRow(rid, !!checked)}
                           onClick={(e) => e.stopPropagation()}
-                          aria-label={locale.selectRow ? `${locale.selectRow} ${rid}` : `Select row ${rid}`}
+                          aria-label={locale.selectRow ? `${locale.selectRow} ${rid}` : `${t('tableSelectRow')} ${rid}`}
                         />
                       </TableCell>
                     )}
@@ -290,7 +292,7 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
                   .replace('{start}', String(currentPage * pageSize + 1))
                   .replace('{end}', String(Math.min((currentPage + 1) * pageSize, sortedData.length)))
                   .replace('{total}', String(sortedData.length))
-              : `Showing ${currentPage * pageSize + 1} to ${Math.min((currentPage + 1) * pageSize, sortedData.length)} of ${sortedData.length} entries`}
+              : t('tableShowing', { start: currentPage * pageSize + 1, end: Math.min((currentPage + 1) * pageSize, sortedData.length), total: sortedData.length })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -299,14 +301,14 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 0}
             >
-              {locale.previous || 'Previous'}
+              {locale.previous || t('tablePrevious')}
             </Button>
             <span className="text-sm">
               {locale.page
                 ? locale.page
                     .replace('{current}', String(currentPage + 1))
                     .replace('{total}', String(totalPages))
-                : `Page ${currentPage + 1} of ${totalPages}`}
+                : t('tablePage', { current: currentPage + 1, total: totalPages })}
             </span>
             <Button
               variant="outline"
@@ -314,7 +316,7 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
             >
-              {locale.next || 'Next'}
+              {locale.next || t('tableNext')}
             </Button>
           </div>
         </div>

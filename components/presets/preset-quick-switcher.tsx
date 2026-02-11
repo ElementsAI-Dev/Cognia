@@ -23,6 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { COLOR_TINT_CLASS } from '@/lib/presets';
 import { usePresetStore, useSessionStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
 import type { Preset } from '@/types/content/preset';
@@ -140,13 +141,14 @@ export function PresetQuickSwitcher({
   // Check if we're in search mode
   const isSearching = searchQuery.trim().length > 0;
 
-  // Handle toggling favorite
+  // Handle toggling favorite with toast dedup
   const handleToggleFavorite = useCallback((e: React.MouseEvent, presetId: string) => {
     e.stopPropagation();
     toggleFavorite(presetId);
     const preset = presets.find(p => p.id === presetId);
     if (preset) {
-      toast.success(preset.isFavorite ? t('removedFromFavorites') : t('addedToFavorites'));
+      toast.dismiss('preset-fav');
+      toast.success(preset.isFavorite ? t('removedFromFavorites') : t('addedToFavorites'), { id: 'preset-fav' });
     }
   }, [toggleFavorite, presets, t]);
 
@@ -417,8 +419,10 @@ function PresetItem({ preset, isActive, onSelect, onToggleFavorite, isDragging, 
         className="flex items-center gap-2 flex-1 min-w-0"
       >
         <span
-          className="flex h-7 w-7 items-center justify-center rounded text-sm shrink-0"
-          style={{ backgroundColor: `${preset.color}20` }}
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded text-sm shrink-0',
+            (preset.color && COLOR_TINT_CLASS[preset.color]) ?? 'bg-muted'
+          )}
         >
           {preset.icon || '💬'}
         </span>

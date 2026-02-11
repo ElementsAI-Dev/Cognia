@@ -28,6 +28,7 @@ const mockStore = {
   setFilter: jest.fn(),
   clearFilter: jest.fn(),
   setError: jest.fn(),
+  clearError: jest.fn(),
   loadRecentExecutions: jest.fn(),
   loadUpcomingTasks: jest.fn(),
   cleanupOldExecutions: jest.fn(),
@@ -237,14 +238,14 @@ describe('useScheduler', () => {
   });
 
   describe('clearError', () => {
-    it('should call store setError with null', () => {
+    it('should call store clearError', () => {
       const { result } = renderHook(() => useScheduler());
 
       act(() => {
         result.current.clearError();
       });
 
-      expect(mockStore.setError).toHaveBeenCalledWith(null);
+      expect(mockStore.clearError).toHaveBeenCalled();
     });
   });
 
@@ -266,7 +267,7 @@ describe('useScheduler', () => {
         result.current.loadRecentExecutions();
       });
 
-      expect(mockStore.loadRecentExecutions).toHaveBeenCalledWith(undefined);
+      expect(mockStore.loadRecentExecutions).toHaveBeenCalled();
     });
   });
 

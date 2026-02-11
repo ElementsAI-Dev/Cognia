@@ -10,8 +10,8 @@ function createMockSelector<T>(state: T) {
   return (selector: (s: T) => unknown) => selector(state);
 }
 
-// Mock all stores with useSettingsStore
-jest.mock('@/stores', () => ({
+// Mock @/stores/workflow barrel to prevent dagre-d3-es ESM import chain
+jest.mock('@/stores/workflow', () => ({
   useWorkflowStore: () => ({
     workflows: [],
     getWorkflow: jest.fn(),
@@ -21,6 +21,20 @@ jest.mock('@/stores', () => ({
     openWorkflowPanel: jest.fn(),
     setSelectedWorkflowType: jest.fn(),
   }),
+}));
+
+// Mock template market store
+jest.mock('@/stores/workflow/template-market-store', () => ({
+  useTemplateMarketStore: () => ({
+    templates: [],
+    isLoading: false,
+    error: null,
+    fetchTemplates: jest.fn(),
+  }),
+}));
+
+// Mock all stores with useSettingsStore
+jest.mock('@/stores', () => ({
   useSessionStore: createMockSelector({
     sessions: [],
     activeSessionId: null,
@@ -94,8 +108,8 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
-// Mock useWorkflow hook
-jest.mock('@/hooks/designer/use-workflow', () => ({
+// Mock @/hooks/designer barrel to prevent dagre-d3-es ESM import chain
+jest.mock('@/hooks/designer', () => ({
   useWorkflow: () => ({
     executeWorkflow: jest.fn(),
     isExecuting: false,

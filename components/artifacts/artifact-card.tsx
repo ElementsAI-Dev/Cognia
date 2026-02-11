@@ -4,8 +4,9 @@
  * ArtifactCard - Card component to display artifact reference in messages
  */
 
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Eye, Copy } from 'lucide-react';
+import { ExternalLink, Eye, Copy, Ruler, BarChart3, Table } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -220,9 +221,9 @@ export function MessageArtifacts({
   className?: string;
   compact?: boolean;
 }) {
-  const artifacts = useArtifactStore((state) => state.artifacts);
-
-  const messageArtifacts = Object.values(artifacts).filter((a) => a.messageId === messageId);
+  const messageArtifacts = useArtifactStore(
+    useCallback((state) => Object.values(state.artifacts).filter((a) => a.messageId === messageId), [messageId])
+  );
 
   if (messageArtifacts.length === 0) {
     return null;
@@ -278,9 +279,9 @@ export function MessageAnalysisResults({
             openPanel('analysis');
           }}
         >
-          {result.type === 'math' && '📐'}
-          {result.type === 'chart' && '📊'}
-          {result.type === 'data' && '📋'}
+          {result.type === 'math' && <Ruler className="h-3.5 w-3.5" />}
+          {result.type === 'chart' && <BarChart3 className="h-3.5 w-3.5" />}
+          {result.type === 'data' && <Table className="h-3.5 w-3.5" />}
           <span className="max-w-[100px] truncate">
             {result.output?.summary || result.type}
           </span>
@@ -289,5 +290,3 @@ export function MessageAnalysisResults({
     </div>
   );
 }
-
-export default ArtifactCard;

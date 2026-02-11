@@ -21,7 +21,7 @@ const messages = {
     history: {
       overallProgress: 'Overall Progress',
       sessionsCompleted: 'Sessions Completed',
-      totalTime: 'Total Time',
+      totalTime: 'Total Learning Time',
       overallAccuracy: 'Overall Accuracy',
       conceptsMastered: 'Concepts Mastered',
       currentStreak: 'Current Streak',
@@ -31,6 +31,8 @@ const messages = {
       recentSessions: 'Recent Sessions',
       noSessions: 'No sessions yet',
       days: 'days',
+      concepts: 'concepts',
+      completed: 'Completed',
     },
   },
 };

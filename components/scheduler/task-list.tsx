@@ -5,7 +5,8 @@
  * Redesigned with left status border, colored type icons, and hover actions
  */
 
-import { useMemo } from 'react';
+import { useRef, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslations } from 'next-intl';
 import {
   Clock,
@@ -29,7 +30,6 @@ import {
   Plug,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,12 +85,9 @@ const statusDotColor: Record<ScheduledTaskStatus, string> = {
   expired: 'bg-red-500',
 };
 
-const statusLabel: Record<ScheduledTaskStatus, string> = {
-  active: 'Active',
-  paused: 'Paused',
-  disabled: 'Disabled',
-  expired: 'Expired',
-};
+function getStatusLabel(status: ScheduledTaskStatus, t: ReturnType<typeof useTranslations>): string {
+  return t(`statuses.${status}`) || status;
+}
 
 export function TaskList({
   tasks,
@@ -127,6 +124,14 @@ export function TaskList({
     });
   }, [tasks]);
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: sortedTasks.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 76,
+    overscan: 5,
+  });
+
   if (tasks.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-6 py-12">
@@ -142,9 +147,14 @@ export function TaskList({
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="space-y-1 p-2">
-        {sortedTasks.map((task) => {
+    <div ref={parentRef} className="h-full overflow-auto">
+      <TooltipProvider>
+      <div
+        className="relative p-2"
+        style={{ height: `${virtualizer.getTotalSize()}px` }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const task = sortedTasks[virtualRow.index];
           const typeConfig = taskTypeConfig[task.type];
           const isSelected = task.id === selectedTaskId;
 
@@ -152,14 +162,17 @@ export function TaskList({
             <button
               key={task.id}
               type="button"
+              ref={virtualizer.measureElement}
+              data-index={virtualRow.index}
               className={cn(
-                'group relative flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all',
+                'group absolute left-2 right-2 flex w-[calc(100%-16px)] items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-all',
                 'border-l-[3px] hover:bg-accent/40',
                 statusBorderColor[task.status],
                 isSelected
                   ? 'bg-accent/50 border-l-primary shadow-sm'
                   : 'hover:shadow-sm'
               )}
+              style={{ top: `${virtualRow.start}px` }}
               onClick={() => onSelect(task.id)}
             >
               {/* Type Icon */}
@@ -177,7 +190,7 @@ export function TaskList({
                   <span className="truncate text-sm font-medium">{task.name}</span>
                   <div className="flex shrink-0 items-center gap-1">
                     <div className={cn('h-1.5 w-1.5 rounded-full', statusDotColor[task.status])} />
-                    <span className="text-[10px] text-muted-foreground">{statusLabel[task.status]}</span>
+                    <span className="text-[10px] text-muted-foreground">{getStatusLabel(task.status, t)}</span>
                   </div>
                 </div>
 
@@ -190,21 +203,19 @@ export function TaskList({
 
                 {/* Row 3: Next run + Stats */}
                 <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatNextRun(task.nextRunAt, nextRunLabels)}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        {task.nextRunAt
-                          ? task.nextRunAt.toLocaleString()
-                          : t('noScheduledRun') || 'No scheduled run'}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatNextRun(task.nextRunAt, nextRunLabels)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {task.nextRunAt
+                        ? task.nextRunAt.toLocaleString()
+                        : t('noScheduledRun') || 'No scheduled run'}
+                    </TooltipContent>
+                  </Tooltip>
                   <span className="flex items-center gap-1">
                     <CheckCircle className="h-3 w-3 text-green-500" />
                     <span className="tabular-nums">{task.successCount}</span>
@@ -276,7 +287,8 @@ export function TaskList({
           );
         })}
       </div>
-    </ScrollArea>
+      </TooltipProvider>
+    </div>
   );
 }
 

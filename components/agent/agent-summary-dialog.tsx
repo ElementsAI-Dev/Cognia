@@ -28,8 +28,10 @@ import {
   List,
   BarChart3,
   Play,
+  Wrench,
 } from 'lucide-react';
 import { cn, formatDurationShort } from '@/lib/utils';
+import { MarkdownRenderer } from '@/components/chat/utils/markdown-renderer';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { Button } from '@/components/ui/button';
 import {
@@ -296,7 +298,8 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
           )}
           {stats.toolsUsed.length > 0 && (
             <Badge variant="outline" className="bg-green-50 dark:bg-green-950">
-              🔧 {stats.toolsUsed.length} {t('tools')}
+              <Wrench className="h-3 w-3 mr-1" />
+              {stats.toolsUsed.length} {t('tools')}
             </Badge>
           )}
           <Badge variant="outline">
@@ -414,9 +417,7 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
             {agentSummary ? (
               <ScrollArea className="h-[280px] rounded-lg border p-4">
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div
-                    dangerouslySetInnerHTML={{ __html: formatSummaryAsHtml(agentSummary.summary) }}
-                  />
+                  <MarkdownRenderer content={agentSummary.summary} />
                 </div>
 
                 {/* Sub-agent summaries */}
@@ -444,7 +445,8 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
                     <div className="flex flex-wrap gap-2">
                       {agentSummary.toolsUsed.map((tool) => (
                         <Badge key={tool} variant="outline">
-                          🔧 {tool}
+                          <Wrench className="h-3 w-3 mr-1" />
+                        {tool}
                         </Badge>
                       ))}
                     </div>
@@ -544,7 +546,8 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
                         <div className="flex flex-wrap gap-1 mt-2">
                           {step.toolCalls.map((tc) => (
                             <Badge key={tc.id} variant="secondary" className="text-[10px]">
-                              🔧 {tc.name}
+                              <Wrench className="h-3 w-3 mr-1" />
+                            {tc.name}
                             </Badge>
                           ))}
                         </div>
@@ -646,37 +649,4 @@ export function AgentSummaryDialog({ open, onOpenChange, agent }: AgentSummaryDi
   );
 }
 
-/**
- * Escape HTML entities to prevent XSS attacks
- */
-function escapeHtml(text: string): string {
-  const htmlEntities: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  };
-  return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
-}
 
-/**
- * Format markdown-like summary text as safe HTML
- * Escapes HTML first to prevent XSS, then applies safe formatting
- */
-function formatSummaryAsHtml(text: string): string {
-  // First escape any HTML entities to prevent XSS
-  const escaped = escapeHtml(text);
-
-  // Then apply safe markdown-like formatting
-  return escaped
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-medium mt-3 mb-1">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n\n/g, '</p><p class="my-2">')
-    .replace(/\n- /g, '</p><li class="ml-4">')
-    .replace(/^- /gm, '<li class="ml-4">')
-    .replace(/&lt;\/li&gt;&lt;li/g, '</li><li');
-}
-
-export default AgentSummaryDialog;

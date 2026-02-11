@@ -462,6 +462,7 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
         const abTest: PromptABTest = {
           id: nanoid(),
           templateId,
+          hypothesis,
           variantA: {
             content: template.content,
             uses: 0,
@@ -478,9 +479,6 @@ export const usePromptTemplateStore = create<PromptTemplateState>()(
           startedAt: new Date(),
           minSampleSize: 50,
         };
-
-        // Store hypothesis in a way TypeScript accepts
-        void hypothesis;
 
         set((state) => ({
           abTests: {

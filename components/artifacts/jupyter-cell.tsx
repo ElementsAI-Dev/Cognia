@@ -334,5 +334,3 @@ export function NotebookCell({
     </div>
   );
 }
-
-export default NotebookCell;

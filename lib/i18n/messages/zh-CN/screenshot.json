@@ -20,7 +20,10 @@
       "save": "保存",
       "cancel": "取消",
       "confirm": "完成",
-      "magnifier": "放大镜"
+      "magnifier": "放大镜",
+      "extractText": "提取文字 (OCR)",
+      "sendToChat": "对话",
+      "sendToChatDesc": "发送截图到AI对话"
     },
     "shortcuts": {
       "undo": "Ctrl+Z",
@@ -45,8 +48,12 @@
       "textInputHint": "回车确认，Shift+回车换行，Esc取消",
       "dimensions": "{width} × {height} px",
       "region": "区域",
-      "magnifierActive": "放大镜已启用 (按G切换)",
-      "loading": "加载中..."
+      "magnifierActive": "放大镜已启用",
+      "toToggle": "切换",
+      "loading": "加载中...",
+      "textInputHintConfirm": "确认",
+      "textInputHintNewLine": "换行",
+      "textInputHintCancel": "取消"
     }
   }
 }

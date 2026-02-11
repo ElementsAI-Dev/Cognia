@@ -5,6 +5,7 @@
 import {
   triggerWebCompletion,
   cancelWebCompletion,
+  clearWebCompletionCache,
 } from './web-completion-provider';
 
 // Mock fetch
@@ -16,10 +17,23 @@ jest.mock('@/lib/network/proxy-fetch', () => ({
   proxyFetch: (...args: unknown[]) => (global.fetch as jest.MockedFunction<typeof fetch>)(...args as Parameters<typeof fetch>),
 }));
 
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+  createLogger: jest.fn(() => ({
+    trace: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    fatal: jest.fn(),
+  })),
+}));
+
 describe('web-completion-provider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     cancelWebCompletion();
+    clearWebCompletionCache();
   });
 
   describe('defaults', () => {
@@ -218,13 +232,11 @@ describe('web-completion-provider', () => {
       it('should handle network errors gracefully', async () => {
         mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
         const result = await triggerWebCompletion('test', {
           provider: 'ollama',
         });
 
         expect(result.suggestions).toHaveLength(0);
-        consoleSpy.mockRestore();
       });
 
       it('should handle abort errors silently', async () => {
@@ -271,6 +283,84 @@ describe('web-completion-provider', () => {
     describe('cancellation', () => {
       it('should not throw when cancelling with no active request', () => {
         expect(() => cancelWebCompletion()).not.toThrow();
+      });
+    });
+
+    describe('caching', () => {
+      it('should return cached result for identical input', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ response: 'cached response' }),
+        });
+
+        // First call - should hit the API
+        const result1 = await triggerWebCompletion('const x = ', {
+          provider: 'ollama',
+        });
+
+        expect(result1.suggestions).toHaveLength(1);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+
+        // Second call with same input - should use cache
+        const result2 = await triggerWebCompletion('const x = ', {
+          provider: 'ollama',
+        });
+
+        expect(result2.suggestions).toHaveLength(1);
+        expect(result2.suggestions[0].text).toBe('cached response');
+        // fetch should not be called again
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+
+      it('should not cache empty results', async () => {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ response: '' }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ response: 'now it works' }),
+          });
+
+        // First call - empty response
+        const result1 = await triggerWebCompletion('x', {
+          provider: 'ollama',
+        });
+        expect(result1.suggestions).toHaveLength(0);
+
+        // Second call - should hit API again since empty wasn't cached
+        const result2 = await triggerWebCompletion('x', {
+          provider: 'ollama',
+        });
+        expect(result2.suggestions).toHaveLength(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+      });
+
+      it('should use different cache keys for different models', async () => {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ response: 'model-a response' }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ response: 'model-b response' }),
+          });
+
+        const result1 = await triggerWebCompletion('test', {
+          provider: 'ollama',
+          modelId: 'model-a',
+        });
+
+        const result2 = await triggerWebCompletion('test', {
+          provider: 'ollama',
+          modelId: 'model-b',
+        });
+
+        expect(result1.suggestions[0].text).toBe('model-a response');
+        expect(result2.suggestions[0].text).toBe('model-b response');
+        expect(mockFetch).toHaveBeenCalledTimes(2);
       });
     });
   });

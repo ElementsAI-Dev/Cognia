@@ -4,7 +4,6 @@
 
 import {
   formatRelativeDate,
-  formatDateFull,
   getDateKey,
   formatFileSize,
   FILE_EXTENSION_MAP,
@@ -60,15 +59,6 @@ describe('Canvas Utils', () => {
       const result = formatRelativeDate(date, mockT);
       expect(typeof result).toBe('string');
       expect(result).not.toBe('just now');
-    });
-  });
-
-  describe('formatDateFull', () => {
-    it('should format date with year, month, and day', () => {
-      const date = new Date('2024-01-15');
-      const result = formatDateFull(date);
-      expect(result).toContain('2024');
-      expect(result).toContain('15');
     });
   });
 

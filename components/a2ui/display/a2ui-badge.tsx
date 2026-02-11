@@ -9,7 +9,7 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { A2UIComponentProps, A2UIBadgeComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 const variantMap: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   default: 'default',
@@ -29,7 +29,7 @@ const colorStyles: Record<string, string> = {
 };
 
 export const A2UIBadge = memo(function A2UIBadge({ component }: A2UIComponentProps<A2UIBadgeComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
 
   const text = resolveString(component.text, '');
   const variant = component.variant || 'default';

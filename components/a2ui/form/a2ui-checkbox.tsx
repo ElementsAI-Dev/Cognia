@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UICheckboxComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UICheckbox = memo(function A2UICheckbox({ component, onDataChange }: A2UIComponentProps<A2UICheckboxComponent>) {
-  const { resolveBoolean } = useA2UIContext();
+  const { resolveBoolean } = useA2UIData();
 
   const checked = resolveBoolean(component.checked, false);
   const isDisabled = component.disabled ? resolveBoolean(component.disabled, false) : false;

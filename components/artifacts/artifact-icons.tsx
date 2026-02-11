@@ -14,6 +14,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import type { ArtifactType } from '@/types';
+import { ARTIFACT_TYPES } from '@/lib/artifacts';
 
 /**
  * Get the icon component for an artifact type
@@ -35,16 +36,8 @@ export function getArtifactTypeIcon(type: ArtifactType, className = 'h-4 w-4') {
 }
 
 /**
- * Artifact type icon mapping (for components that need direct access)
+ * Artifact type icon mapping (derived from getArtifactTypeIcon to avoid duplication)
  */
-export const ARTIFACT_TYPE_ICONS: Record<ArtifactType, React.ReactNode> = {
-  code: <Code className="h-4 w-4" />,
-  document: <FileText className="h-4 w-4" />,
-  svg: <ImageIcon className="h-4 w-4" />,
-  html: <Code className="h-4 w-4" />,
-  react: <Sparkles className="h-4 w-4" />,
-  mermaid: <GitBranch className="h-4 w-4" />,
-  chart: <BarChart className="h-4 w-4" />,
-  math: <Calculator className="h-4 w-4" />,
-  jupyter: <BookOpen className="h-4 w-4" />,
-};
+export const ARTIFACT_TYPE_ICONS: Record<ArtifactType, React.ReactNode> = Object.fromEntries(
+  ARTIFACT_TYPES.map((type) => [type, getArtifactTypeIcon(type)])
+) as Record<ArtifactType, React.ReactNode>;

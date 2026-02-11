@@ -15,6 +15,18 @@ const messages = {
     connecting: 'Connecting...',
     interrupt: 'Interrupt',
     restart: 'Restart',
+    status: {
+      idle: 'Idle',
+      busy: 'Busy',
+      starting: 'Starting',
+      dead: 'Dead',
+      error: 'Error',
+      restarting: 'Restarting',
+      interrupting: 'Interrupting',
+      stopping: 'Stopping',
+      configuring: 'Configuring',
+      installing: 'Installing',
+    },
   },
 };
 

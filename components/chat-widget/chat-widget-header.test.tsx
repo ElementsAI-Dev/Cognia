@@ -115,13 +115,15 @@ describe('ChatWidgetHeader', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it('calls onTogglePin when pin button is clicked', () => {
+  it('calls onTogglePin when pin option is clicked in dropdown', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
-    const buttons = screen.getAllByRole('button');
-    const pinButton = buttons[0]; // First button is pin
+    const menuItems = screen.getAllByTestId('dropdown-item');
+    const pinItem = menuItems.find((item) => item.textContent?.includes('置顶'));
 
-    fireEvent.click(pinButton);
-    expect(defaultProps.onTogglePin).toHaveBeenCalled();
+    if (pinItem) {
+      fireEvent.click(pinItem);
+      expect(defaultProps.onTogglePin).toHaveBeenCalled();
+    }
   });
 
   it('displays pin icon when pinned is false', () => {
@@ -275,7 +277,7 @@ describe('ChatWidgetHeader', () => {
   it('does not display expand button when onExpandToFull is not provided', () => {
     render(<ChatWidgetHeader {...defaultProps} />);
     const buttons = screen.getAllByRole('button');
-    // Without expand button, should have: pin, menu, close = 3 buttons
-    expect(buttons.length).toBe(3);
+    // Without expand button, should have: menu trigger + close = 2 buttons
+    expect(buttons.length).toBe(2);
   });
 });

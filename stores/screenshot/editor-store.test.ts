@@ -9,8 +9,16 @@ import {
   selectCanRedo,
   selectIsEditing,
   selectHasSelection,
+  selectHasAnnotations,
+  selectAnnotationCount,
+  selectCurrentAnnotation,
+  selectAnnotationsByType,
+  selectUndoStackDepth,
+  selectRedoStackDepth,
+  selectIsAnnotating,
 } from './editor-store';
 import type { Annotation, RectangleAnnotation } from '@/types/screenshot';
+import { DEFAULT_STYLE } from '@/types/screenshot';
 
 describe('useEditorStore', () => {
   beforeEach(() => {
@@ -365,6 +373,212 @@ describe('useEditorStore', () => {
       });
 
       expect(selectHasSelection(result.current)).toBe(true);
+    });
+
+    it('selectHasAnnotations should return correct value', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(selectHasAnnotations(result.current)).toBe(false);
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'test',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+      });
+
+      expect(selectHasAnnotations(result.current)).toBe(true);
+    });
+
+    it('selectAnnotationCount should return correct count', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(selectAnnotationCount(result.current)).toBe(0);
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'test-1',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+        result.current.addAnnotation({
+          id: 'test-2',
+          type: 'ellipse',
+          style: { color: '#00FF00', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          cx: 50,
+          cy: 50,
+          rx: 30,
+          ry: 20,
+        });
+      });
+
+      expect(selectAnnotationCount(result.current)).toBe(2);
+    });
+
+    it('selectCurrentAnnotation should return selected annotation or null', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(selectCurrentAnnotation(result.current)).toBeNull();
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'sel-test',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+        result.current.selectAnnotation('sel-test');
+      });
+
+      const current = selectCurrentAnnotation(result.current);
+      expect(current).not.toBeNull();
+      expect(current!.id).toBe('sel-test');
+    });
+
+    it('selectCurrentAnnotation should return null for non-existent id', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.selectAnnotation('nonexistent');
+      });
+
+      expect(selectCurrentAnnotation(result.current)).toBeNull();
+    });
+
+    it('selectAnnotationsByType should filter annotations by type', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'rect-1',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+        result.current.addAnnotation({
+          id: 'ellipse-1',
+          type: 'ellipse',
+          style: { color: '#00FF00', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          cx: 50,
+          cy: 50,
+          rx: 30,
+          ry: 20,
+        });
+        result.current.addAnnotation({
+          id: 'rect-2',
+          type: 'rectangle',
+          style: { color: '#0000FF', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 50,
+          y: 50,
+          width: 80,
+          height: 60,
+        });
+      });
+
+      const rectSelector = selectAnnotationsByType('rectangle');
+      const rects = rectSelector(result.current);
+      expect(rects).toHaveLength(2);
+      rects.forEach((r) => expect(r.type).toBe('rectangle'));
+
+      const ellipseSelector = selectAnnotationsByType('ellipse');
+      expect(ellipseSelector(result.current)).toHaveLength(1);
+
+      const arrowSelector = selectAnnotationsByType('arrow');
+      expect(arrowSelector(result.current)).toHaveLength(0);
+    });
+
+    it('selectUndoStackDepth should return undo stack size', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(selectUndoStackDepth(result.current)).toBe(0);
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'depth-test',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+      });
+
+      expect(selectUndoStackDepth(result.current)).toBe(1);
+    });
+
+    it('selectRedoStackDepth should return redo stack size', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.addAnnotation({
+          id: 'redo-depth',
+          type: 'rectangle',
+          style: { color: '#FF0000', strokeWidth: 2, filled: false, opacity: 1 },
+          timestamp: Date.now(),
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        });
+        result.current.undo();
+      });
+
+      expect(selectRedoStackDepth(result.current)).toBe(1);
+    });
+
+    it('selectIsAnnotating should return correct value', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(selectIsAnnotating(result.current)).toBe(false);
+
+      act(() => {
+        result.current.setMode('annotating');
+      });
+
+      expect(selectIsAnnotating(result.current)).toBe(true);
+    });
+  });
+
+  describe('DEFAULT_STYLE integration', () => {
+    it('should use DEFAULT_STYLE for initial style', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      expect(result.current.style).toEqual(DEFAULT_STYLE);
+    });
+
+    it('should reset to DEFAULT_STYLE after reset()', () => {
+      const { result } = renderHook(() => useEditorStore());
+
+      act(() => {
+        result.current.setStyle({ color: '#00FF00', strokeWidth: 5 });
+        result.current.reset();
+      });
+
+      expect(result.current.style).toEqual(DEFAULT_STYLE);
     });
   });
 

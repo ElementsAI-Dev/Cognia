@@ -26,7 +26,7 @@ import {
   type UsageTrend,
   type CostEfficiencyMetrics,
 } from '@/lib/ai/usage-analytics';
-import type { MetricsData, TimeRange } from '@/components/observability/observability-dashboard';
+import type { MetricsData, TimeRange } from '@/types/observability';
 
 /**
  * Convert TimeRange to AnalyticsPeriod

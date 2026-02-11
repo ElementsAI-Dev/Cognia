@@ -8,15 +8,27 @@ import { A2UIProgress } from './a2ui-progress';
 import type { A2UIProgressComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
+const mockDataCtx = {
+  surface: null,
+  dataModel: { progress: 50 },
+  components: {},
+  resolveNumber: (value: number | { path: string }) => {
+    if (typeof value === 'number') return value;
+    return 50;
+  },
+  resolveString: (value: string | { path: string }) => 
+    typeof value === 'string' ? value : '',
+  resolveBoolean: (value: boolean | { path: string }) =>
+    typeof value === 'boolean' ? value : false,
+  resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) =>
+    Array.isArray(value) ? value : d,
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: () => ({
-    dataModel: { progress: 50 },
-    resolveNumber: (value: number | { path: string }) => {
-      if (typeof value === 'number') return value;
-      return 50;
-    },
-    resolveString: (value: string | { path: string }) => 
-      typeof value === 'string' ? value : '',
+  useA2UIContext: () => ({ ...mockDataCtx }),
+  useA2UIData: () => mockDataCtx,
+  useA2UIActions: () => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   }),
 }));
 

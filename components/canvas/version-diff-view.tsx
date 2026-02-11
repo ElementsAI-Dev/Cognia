@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 
 interface DiffLine {
   type: 'added' | 'removed' | 'unchanged';
@@ -27,12 +28,19 @@ interface VersionDiffViewProps {
   className?: string;
 }
 
+const MAX_DIFF_LINES = 5000;
+
 /**
  * Simple line-by-line diff algorithm
  */
-function computeDiff(oldText: string, newText: string): DiffLine[] {
-  const oldLines = oldText.split('\n');
-  const newLines = newText.split('\n');
+function computeDiff(oldText: string, newText: string): { lines: DiffLine[]; truncated: boolean } {
+  let oldLines = oldText.split('\n');
+  let newLines = newText.split('\n');
+  const truncated = oldLines.length > MAX_DIFF_LINES || newLines.length > MAX_DIFF_LINES;
+  if (truncated) {
+    oldLines = oldLines.slice(0, MAX_DIFF_LINES);
+    newLines = newLines.slice(0, MAX_DIFF_LINES);
+  }
   const diff: DiffLine[] = [];
 
   // LCS-based diff for better results
@@ -98,7 +106,7 @@ function computeDiff(oldText: string, newText: string): DiffLine[] {
     }
   }
 
-  return diff;
+  return { lines: diff, truncated };
 }
 
 /**
@@ -150,7 +158,7 @@ export function VersionDiffView({
   const t = useTranslations('canvas');
   const [copied, setCopied] = useState(false);
 
-  const diff = useMemo(() => computeDiff(oldContent, newContent), [oldContent, newContent]);
+  const { lines: diff, truncated } = useMemo(() => computeDiff(oldContent, newContent), [oldContent, newContent]);
 
   const stats = useMemo(() => {
     let added = 0;
@@ -177,7 +185,7 @@ export function VersionDiffView({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy diff:', err);
+      loggers.ui.error('Failed to copy diff:', err);
     }
   };
 
@@ -221,6 +229,13 @@ export function VersionDiffView({
         </div>
       </div>
 
+      {/* Truncation warning */}
+      {truncated && (
+        <div className="px-4 py-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border-b">
+          Diff truncated to first {MAX_DIFF_LINES.toLocaleString()} lines for performance.
+        </div>
+      )}
+
       {/* Diff content */}
       <ScrollArea className="flex-1">
         <div className="font-mono text-xs sm:text-sm">
@@ -262,4 +277,3 @@ export function VersionDiffView({
   );
 }
 
-export default VersionDiffView;

@@ -18,7 +18,7 @@ describe('PromptTemplateEditor', () => {
     const contentInput = screen.getByLabelText('Content');
     await user.click(contentInput);
     await user.paste('Hello {{name}}');
-    await user.type(screen.getByLabelText('add-tag'), 'greeting{enter}');
+    await user.type(screen.getByPlaceholderText('Add tag and press Enter'), 'greeting{enter}');
 
     await user.click(screen.getByText('Create template'));
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Zap, Loader2, Send } from 'lucide-react';
-import { icons } from 'lucide-react';
+import { resolveIcon } from '@/lib/a2ui/resolve-icon';
 
 interface FlashAppTabProps {
   onGenerate: (prompt: string) => Promise<void>;
@@ -30,10 +30,10 @@ export const FlashAppTab = memo(function FlashAppTab({ onGenerate }: FlashAppTab
   }, [flashPrompt, isGenerating, onGenerate]);
 
   const examples = [
-    { icon: 'Calculator', name: '计算器', desc: '四则运算' },
-    { icon: 'Timer', name: '计时器', desc: '倒计时' },
-    { icon: 'CheckSquare', name: '待办', desc: '任务管理' },
-    { icon: 'BarChart3', name: '仪表盘', desc: '数据展示' },
+    { icon: 'Calculator', name: t('exampleCalculator'), desc: t('exampleCalculatorDesc') },
+    { icon: 'Timer', name: t('exampleTimer'), desc: t('exampleTimerDesc') },
+    { icon: 'CheckSquare', name: t('exampleTodo'), desc: t('exampleTodoDesc') },
+    { icon: 'BarChart3', name: t('exampleDashboard'), desc: t('exampleDashboardDesc') },
   ];
 
   return (
@@ -75,7 +75,14 @@ export const FlashAppTab = memo(function FlashAppTab({ onGenerate }: FlashAppTab
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">{t('quickTry')}</p>
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap sm:overflow-visible">
-              {['📝 待办', '🧮 计算器', '⏱️ 番茄钟', '💰 记账', '🎯 打卡', '📊 图表'].map(
+              {[
+                t('suggestionTodo'),
+                t('suggestionCalculator'),
+                t('suggestionPomodoro'),
+                t('suggestionExpense'),
+                t('suggestionHabit'),
+                t('suggestionChart'),
+              ].map(
                 (suggestion) => (
                   <Button
                     key={suggestion}
@@ -95,17 +102,15 @@ export const FlashAppTab = memo(function FlashAppTab({ onGenerate }: FlashAppTab
             <p className="text-xs text-muted-foreground mb-2 sm:mb-3">{t('exampleApps')}</p>
             <div className="grid grid-cols-2 gap-2">
               {examples.map((example) => {
-                const ExIcon = icons[example.icon as keyof typeof icons];
+                const ExIcon = resolveIcon(example.icon);
                 return (
                   <Card
                     key={example.name}
                     className="p-2.5 sm:p-3 cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
-                    onClick={() => setFlashPrompt(`做一个${example.name}`)}
+                    onClick={() => setFlashPrompt(`${t('flashPromptPrefix')}${example.name}`)}
                   >
                     <div className="flex items-center gap-2">
-                      {ExIcon && (
-                        <ExIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      )}
+                      {ExIcon && React.createElement(ExIcon, { className: 'h-4 w-4 text-muted-foreground flex-shrink-0' })}
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{example.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{example.desc}</p>

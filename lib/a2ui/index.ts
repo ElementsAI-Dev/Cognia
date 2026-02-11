@@ -139,6 +139,9 @@ export {
   type ThumbnailResult,
 } from './thumbnail';
 
+// Date formatting utilities
+export { formatRelativeTime, formatAbsoluteTime } from './format';
+
 // Academic Templates
 export {
   academicTemplates,

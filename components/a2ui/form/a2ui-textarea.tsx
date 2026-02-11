@@ -10,14 +10,14 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import type { A2UIComponentProps, A2UITextAreaComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 import { getBindingPath } from '@/lib/a2ui/data-model';
 
 export const A2UITextArea = memo(function A2UITextArea({
   component,
   onDataChange,
 }: A2UIComponentProps<A2UITextAreaComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
 
   const value = resolveString(component.value, '');
   const error = component.error ? resolveString(component.error, '') : '';

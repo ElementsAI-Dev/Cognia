@@ -31,6 +31,8 @@ export interface PPTXExportOptions {
   subject?: string;
   /** Output quality */
   quality?: 'low' | 'medium' | 'high';
+  /** Apply zip compression for smaller file sizes (slower export) */
+  compression?: boolean;
 }
 
 export interface PPTXExportResult {
@@ -581,7 +583,7 @@ export async function exportToPPTX(
 ): Promise<PPTXExportResult> {
   try {
     const pptx = createPPTXDocument(presentation, options);
-    const blob = await pptx.write({ outputType: 'blob' }) as Blob;
+    const blob = await pptx.write({ outputType: 'blob', compression: options.compression ?? true }) as Blob;
     const filename = generateFilename(presentation.title);
 
     return {
@@ -630,7 +632,7 @@ export async function exportToPPTXBase64(
 ): Promise<{ success: boolean; base64?: string; error?: string }> {
   try {
     const pptx = createPPTXDocument(presentation, options);
-    const base64 = await pptx.write({ outputType: 'base64' }) as string;
+    const base64 = await pptx.write({ outputType: 'base64', compression: options.compression ?? true }) as string;
 
     return {
       success: true,

@@ -8,6 +8,31 @@ import { PPTEditor } from './ppt-editor';
 import type { PPTEditorProps } from '../types';
 import type { PPTPresentation, PPTSlide } from '@/types/workflow';
 
+// Mock hooks barrel to avoid dagre-d3-es ESM import chain
+jest.mock('@/hooks', () => ({
+  useWindowControls: () => ({
+    isFullscreen: false,
+    toggleFullscreen: jest.fn(),
+  }),
+}));
+
+// Mock sub-components that are not the focus of this test
+jest.mock('../slideshow', () => ({
+  SlideshowView: () => <div data-testid="slideshow-view">Slideshow</div>,
+}));
+
+jest.mock('./ai-toolbar', () => ({
+  AIToolbar: () => <div data-testid="ai-toolbar">AI Toolbar</div>,
+}));
+
+jest.mock('../rendering/error-boundary', () => ({
+  PPTPreviewErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('./slide-editor', () => ({
+  SlideEditor: () => <div data-testid="slide-editor">Slide Editor</div>,
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -119,9 +144,26 @@ const mockStore: MockStore = {
 
 jest.mock('@/stores/tools/ppt-editor-store', () => ({
   usePPTEditorStore: Object.assign(
-    () => mockStore,
-    { getState: (): MockStore => mockStore }
+    (selectorOrUndefined?: (state: MockStore) => unknown) => {
+      if (typeof selectorOrUndefined === 'function') {
+        return selectorOrUndefined(mockStore);
+      }
+      return mockStore;
+    },
+    {
+      getState: (): MockStore => mockStore,
+      setState: (partial: Partial<MockStore>) => Object.assign(mockStore, partial),
+    }
   ),
+  selectCurrentSlide: (state: MockStore) =>
+    state.presentation?.slides?.[state.currentSlideIndex] ?? null,
+  selectSelectedElements: (state: MockStore) => {
+    const slide = state.presentation?.slides?.[state.currentSlideIndex];
+    if (!slide) return [];
+    return slide.elements?.filter((e: { id: string }) => state.selection.elementIds.includes(e.id)) ?? [];
+  },
+  selectSlideCount: (state: MockStore) => state.presentation?.slides?.length ?? 0,
+  selectIsDirty: (state: MockStore) => state.isDirty,
 }));
 
 // Setup savePresentation to return presentation
@@ -360,11 +402,8 @@ describe('PPTEditor', () => {
       mockStore.mode = 'slideshow';
       renderPPTEditor();
       
-      // In slideshow mode, the component should render differently
-      // The exit button should be available
-      const buttons = screen.getAllByRole('button');
-      const exitButton = buttons.find(btn => btn.querySelector('svg.lucide-minimize-2'));
-      expect(exitButton).toBeInTheDocument();
+      // In slideshow mode, the SlideshowView component should be rendered
+      expect(screen.getByTestId('slideshow-view')).toBeInTheDocument();
     });
 
     it('should start slideshow when present button is clicked', async () => {

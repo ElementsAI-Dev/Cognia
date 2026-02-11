@@ -52,12 +52,26 @@ jest.mock('@/stores/arena', () => ({
   }),
 }));
 
-// Mock useArena hook
+// Mock useArena and useSmartModelPair hooks
 jest.mock('@/hooks/arena', () => ({
   useArena: () => ({
     isExecuting: false,
     startBattle: jest.fn(),
     getAvailableModels: () => [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3' },
+    ],
+  }),
+  useSmartModelPair: () => ({
+    getSmartModelPair: () => [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3' },
+    ],
+    selectedModels: [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3' },
+    ],
+    availableModels: [
       { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
       { provider: 'anthropic', model: 'claude-3', displayName: 'Claude 3' },
     ],

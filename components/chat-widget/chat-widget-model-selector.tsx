@@ -16,6 +16,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ChevronDown } from 'lucide-react';
 import { ProviderIcon } from '@/components/providers/ai/provider-icon';
 import type { ProviderName } from '@/types';
+import {
+  CHAT_WIDGET_PROVIDERS,
+  CHAT_WIDGET_MODELS,
+  getProviderShortName,
+  getShortModelName,
+} from '@/lib/chat-widget/constants';
 
 interface ChatWidgetModelSelectorProps {
   provider: ProviderName;
@@ -25,81 +31,6 @@ interface ChatWidgetModelSelectorProps {
   className?: string;
 }
 
-const PROVIDERS: { value: ProviderName; label: string }[] = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'google', label: 'Google' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'groq', label: 'Groq' },
-  { value: 'mistral', label: 'Mistral' },
-  { value: 'ollama', label: 'Ollama' },
-];
-
-const MODELS: Partial<Record<ProviderName, { value: string; label: string }[]>> = {
-  openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  ],
-  anthropic: [
-    { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
-    { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku' },
-  ],
-  google: [
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-  ],
-  deepseek: [
-    { value: 'deepseek-chat', label: 'DeepSeek Chat' },
-    { value: 'deepseek-reasoner', label: 'DeepSeek R1' },
-  ],
-  groq: [
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
-    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B' },
-  ],
-  mistral: [
-    { value: 'mistral-large-latest', label: 'Mistral Large' },
-    { value: 'mistral-small-latest', label: 'Mistral Small' },
-  ],
-  ollama: [
-    { value: 'llama3.2', label: 'Llama 3.2' },
-    { value: 'qwen2.5', label: 'Qwen 2.5' },
-  ],
-};
-
-function getShortModelName(model: string): string {
-  const shortNames: Record<string, string> = {
-    'gpt-4o': '4o',
-    'gpt-4o-mini': '4o-mini',
-    'gpt-4-turbo': '4-turbo',
-    'claude-3-5-sonnet-latest': 'Sonnet',
-    'claude-3-5-haiku-latest': 'Haiku',
-    'gemini-2.0-flash-exp': '2.0 Flash',
-    'gemini-1.5-pro': '1.5 Pro',
-    'deepseek-chat': 'Chat',
-    'deepseek-reasoner': 'R1',
-    'llama-3.3-70b-versatile': '3.3-70B',
-    'llama-3.1-8b-instant': '3.1-8B',
-    'mistral-large-latest': 'Large',
-    'mistral-small-latest': 'Small',
-    'llama3.2': '3.2',
-    'qwen2.5': '2.5',
-  };
-  return shortNames[model] || model.split('-').pop() || model;
-}
-
-function getProviderShortName(provider: ProviderName): string {
-  const shortNames: Record<string, string> = {
-    openai: 'GPT',
-    anthropic: 'Claude',
-    google: 'Gemini',
-    deepseek: 'DS',
-    groq: 'Groq',
-    mistral: 'Mistral',
-    ollama: 'Ollama',
-  };
-  return shortNames[provider] || provider;
-}
 
 export function ChatWidgetModelSelector({
   provider,
@@ -111,7 +42,7 @@ export function ChatWidgetModelSelector({
   const t = useTranslations('chatWidget.modelSelector');
 
   const currentModels = useMemo(() => {
-    return MODELS[provider] || [];
+    return CHAT_WIDGET_MODELS[provider] || [];
   }, [provider]);
 
   const displayName = useMemo(() => {
@@ -124,7 +55,7 @@ export function ChatWidgetModelSelector({
     if (newProvider !== provider) {
       onProviderChange(newProvider);
       // Auto-select first model of new provider
-      const models = MODELS[newProvider];
+      const models = CHAT_WIDGET_MODELS[newProvider];
       if (models && models.length > 0) {
         onModelChange(models[0].value);
       }
@@ -160,7 +91,7 @@ export function ChatWidgetModelSelector({
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t('selectProvider')}
         </DropdownMenuLabel>
-        {PROVIDERS.map((p) => (
+        {CHAT_WIDGET_PROVIDERS.map((p) => (
           <DropdownMenuItem
             key={p.value}
             onClick={() => handleProviderSelect(p.value)}

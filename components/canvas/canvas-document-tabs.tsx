@@ -175,4 +175,3 @@ export const CanvasDocumentTabs = memo(function CanvasDocumentTabs({
   );
 });
 
-export default CanvasDocumentTabs;

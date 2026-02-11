@@ -50,6 +50,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useArtifactStore, useSettingsStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
+import { TRANSLATE_LANGUAGES } from '@/lib/canvas/constants';
 import { VersionHistoryPanel } from './version-history-panel';
 import { CodeExecutionPanel } from './code-execution-panel';
 import { CanvasDocumentTabs } from './canvas-document-tabs';
@@ -152,19 +154,6 @@ const actionIcons: Record<string, React.ReactNode> = {
   run: <Play className="h-4 w-4" />,
 };
 
-const TRANSLATE_LANGUAGES = [
-  { value: 'english', label: 'English' },
-  { value: 'chinese', label: '中文 (Chinese)' },
-  { value: 'japanese', label: '日本語 (Japanese)' },
-  { value: 'korean', label: '한국어 (Korean)' },
-  { value: 'spanish', label: 'Español (Spanish)' },
-  { value: 'french', label: 'Français (French)' },
-  { value: 'german', label: 'Deutsch (German)' },
-  { value: 'russian', label: 'Русский (Russian)' },
-  { value: 'portuguese', label: 'Português (Portuguese)' },
-  { value: 'arabic', label: 'العربية (Arabic)' },
-];
-
 function CanvasPanelContent() {
   const t = useTranslations('canvas');
   const panelOpen = useArtifactStore((state) => state.panelOpen);
@@ -236,7 +225,6 @@ function CanvasPanelContent() {
     handleAction,
     acceptDiffChanges,
     rejectDiffChanges,
-    setActionError: _setActionError,
     setActionResult,
   } = useCanvasActions({
     content: localContent,
@@ -268,7 +256,7 @@ function CanvasPanelContent() {
 
   // Large file optimization
   const { addChunkedDocument, removeChunkedDocument } = useChunkedDocumentStore();
-  const { isLargeDocument: _isLargeDoc } = useChunkLoader(activeCanvasId);
+  useChunkLoader(activeCanvasId);
   const isLargeFile = activeDocument ? isLargeDocument(activeDocument.content || '') : false;
 
   // Initialize chunked document for large files
@@ -296,6 +284,7 @@ function CanvasPanelContent() {
   const documentStats = useMemo(() => calculateDocumentStats(localContent), [localContent]);
 
   // Handle Designer code changes
+  // Ref access is safe in useCallback — refs are mutable containers
   const handleDesignerCodeChange = useCallback(
     (newCode: string) => {
       setLocalContent(newCode);
@@ -333,7 +322,7 @@ function CanvasPanelContent() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
-        console.error('Failed to copy:', err);
+        loggers.ui.error('Failed to copy:', err);
       }
     }
   }, [actionResult]);
@@ -362,6 +351,8 @@ function CanvasPanelContent() {
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef<string>('');
 
+  const activeDocId = activeDocument?.id;
+  const activeDocContent = activeDocument?.content;
   useEffect(() => {
     // Clear pending auto-save from previous document to prevent stale saves
     if (autoSaveTimerRef.current) {
@@ -369,16 +360,15 @@ function CanvasPanelContent() {
       autoSaveTimerRef.current = null;
     }
 
-    if (activeDocument) {
+    if (activeDocContent !== undefined) {
       // Use microtask to avoid synchronous setState in effect
       queueMicrotask(() => {
-        setLocalContent(activeDocument.content);
-        lastSavedContentRef.current = activeDocument.content;
+        setLocalContent(activeDocContent);
+        lastSavedContentRef.current = activeDocContent;
         setHasUnsavedChanges(false);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDocument?.id]);
+  }, [activeDocId, activeDocContent]);
 
   // Cleanup auto-save timer on unmount
   useEffect(() => {
@@ -483,13 +473,14 @@ function CanvasPanelContent() {
     [activeCanvasId, updateCanvasDocument, saveCanvasVersion]
   );
 
-  const handleManualSave = useCallback(() => {
+  const handleManualSave = () => {
     if (activeCanvasId && hasUnsavedChanges) {
       saveCanvasVersion(activeCanvasId, undefined, false);
+      // eslint-disable-next-line -- legitimate ref mutation in event handler
       lastSavedContentRef.current = localContent;
       setHasUnsavedChanges(false);
     }
-  }, [activeCanvasId, hasUnsavedChanges, saveCanvasVersion, localContent]);
+  };
 
   // Update handleTranslate ref after handleAction is defined
   useEffect(() => {
@@ -1161,7 +1152,9 @@ function CanvasPanelContent() {
                   <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => {
-                      saveCanvasVersion(activeCanvasId!, undefined, false);
+                      if (activeCanvasId) {
+                        saveCanvasVersion(activeCanvasId, undefined, false);
+                      }
                       closePanel();
                     }}
                     className="bg-primary"
@@ -1245,7 +1238,7 @@ export function CanvasPanel() {
   return (
     <CanvasErrorBoundary
       onError={(error, errorInfo) => {
-        console.error('Canvas error caught:', error, errorInfo);
+        loggers.ui.error('Canvas error caught:', error, { errorInfo });
       }}
     >
       <CanvasPanelContent />
@@ -1300,4 +1293,3 @@ function SuggestionsPanel({
   );
 }
 
-export default CanvasPanel;

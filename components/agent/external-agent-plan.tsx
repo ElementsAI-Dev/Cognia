@@ -158,4 +158,3 @@ export function ExternalAgentPlan({
   );
 }
 
-export default ExternalAgentPlan;

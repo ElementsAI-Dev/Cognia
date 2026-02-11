@@ -79,42 +79,42 @@ describe('LearningStartDialog', () => {
   describe('Rendering', () => {
     it('renders dialog when open', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('does not render when closed', () => {
       render(<LearningStartDialog open={false} onOpenChange={() => {}} />, { wrapper });
-      expect(screen.queryByText('Start Learning')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Start Learning' })).not.toBeInTheDocument();
     });
 
     it('renders topic input', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
       // Dialog should render with title
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('renders background knowledge input', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
       // Dialog should render with title
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('renders difficulty selector', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
       // Dialog should render with title
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('renders learning type options', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
       // Dialog should render with title
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('renders start and cancel buttons', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
       // Dialog should render with title
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -123,14 +123,14 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('disables start button when topic is empty', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -139,14 +139,14 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
 
     it('clears goal input after adding', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -155,7 +155,7 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -164,7 +164,7 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -173,7 +173,7 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={() => {}} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 
@@ -184,7 +184,7 @@ describe('LearningStartDialog', () => {
       render(<LearningStartDialog open={true} onOpenChange={onOpenChange} />, { wrapper });
 
       // Dialog should render
-      expect(screen.getByText('Start Learning')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Start Learning' })).toBeInTheDocument();
     });
   });
 

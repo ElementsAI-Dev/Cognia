@@ -8,7 +8,7 @@
 import React, { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData, useA2UIActions } from '../a2ui-context';
 import { resolveArrayOrPath, getValueByPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 
@@ -36,7 +36,8 @@ function getItemDisplayText(item: unknown): string {
 }
 
 export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
-  const { dataModel, renderChild } = useA2UIContext();
+  const { dataModel } = useA2UIData();
+  const { renderChild } = useA2UIActions();
 
   const templateDataPath = component.template?.dataPath;
   const componentItems = component.items;

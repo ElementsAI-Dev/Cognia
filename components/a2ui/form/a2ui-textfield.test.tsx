@@ -8,15 +8,23 @@ import { A2UITextField } from './a2ui-textfield';
 import type { A2UITextFieldComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock the A2UI context
+const mockDataCtx = {
+  surface: null, dataModel: { name: 'John' }, components: {},
+  resolveString: (value: string | { path: string }) => {
+    if (typeof value === 'string') return value;
+    if (value.path === '/name') return 'John';
+    return '';
+  },
+  resolveNumber: (value: number | { path: string }) => typeof value === 'number' ? value : 0,
+  resolveBoolean: () => false,
+  resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) => Array.isArray(value) ? value : d,
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: () => ({
-    dataModel: { name: 'John' },
-    resolveString: (value: string | { path: string }) => {
-      if (typeof value === 'string') return value;
-      if (value.path === '/name') return 'John';
-      return '';
-    },
-    resolveBoolean: () => false,
+  useA2UIContext: () => ({ ...mockDataCtx }),
+  useA2UIData: () => mockDataCtx,
+  useA2UIActions: () => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   }),
 }));
 

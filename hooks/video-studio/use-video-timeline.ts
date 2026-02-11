@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
+import { nanoid } from 'nanoid';
 
 export interface TimelineMarker {
   id: string;
@@ -50,6 +51,7 @@ export interface UseTimelineOptions {
   defaultZoom?: number;
   pixelsPerSecondBase?: number;
   snapThreshold?: number;
+  fps?: number;
   onTimeChange?: (time: number) => void;
   onMarkerAdd?: (marker: TimelineMarker) => void;
   onRegionChange?: (region: TimelineRegion) => void;
@@ -128,7 +130,7 @@ export interface UseTimelineReturn {
 }
 
 function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return nanoid();
 }
 
 const DEFAULT_PIXELS_PER_SECOND = 100;
@@ -140,6 +142,7 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
     defaultZoom = 1,
     pixelsPerSecondBase = DEFAULT_PIXELS_PER_SECOND,
     snapThreshold = DEFAULT_SNAP_THRESHOLD,
+    fps = 30,
     onTimeChange,
     onMarkerAdd,
     onRegionChange,
@@ -165,7 +168,8 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
 
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const playheadRef = useRef<HTMLDivElement | null>(null);
-  const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackRafRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
 
   // Derive pixels per second from zoom (computed value, not stored in state)
   const pixelsPerSecond = pixelsPerSecondBase * state.zoom;
@@ -217,23 +221,32 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
   // Playback
   const play = useCallback(() => {
     setState((prev) => ({ ...prev, isPlaying: true }));
+    lastFrameTimeRef.current = performance.now();
 
-    playbackIntervalRef.current = setInterval(() => {
+    const tick = (now: number) => {
+      const delta = (now - lastFrameTimeRef.current) / 1000;
+      lastFrameTimeRef.current = now;
+
       setState((prev) => {
         if (prev.currentTime >= prev.duration) {
-          clearInterval(playbackIntervalRef.current!);
+          playbackRafRef.current = null;
           return { ...prev, isPlaying: false, currentTime: 0 };
         }
-        const newTime = prev.currentTime + 0.033;
+        const newTime = Math.min(prev.currentTime + delta, prev.duration);
         onTimeChange?.(newTime);
         return { ...prev, currentTime: newTime };
       });
-    }, 33);
+
+      playbackRafRef.current = requestAnimationFrame(tick);
+    };
+
+    playbackRafRef.current = requestAnimationFrame(tick);
   }, [onTimeChange]);
 
   const pause = useCallback(() => {
-    if (playbackIntervalRef.current) {
-      clearInterval(playbackIntervalRef.current);
+    if (playbackRafRef.current) {
+      cancelAnimationFrame(playbackRafRef.current);
+      playbackRafRef.current = null;
     }
     setState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
@@ -259,37 +272,41 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
 
   // Zoom & Pan
   const setZoom = useCallback((zoom: number) => {
+    const clampedZoom = Math.max(0.1, Math.min(10, zoom));
     setState((prev) => ({
       ...prev,
-      zoom: Math.max(0.1, Math.min(10, zoom)),
+      zoom: clampedZoom,
+      pixelsPerSecond: pixelsPerSecondBase * clampedZoom,
     }));
-  }, []);
+  }, [pixelsPerSecondBase]);
 
   const zoomIn = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      zoom: Math.min(10, prev.zoom * 1.25),
-    }));
-  }, []);
+    setState((prev) => {
+      const newZoom = Math.min(10, prev.zoom * 1.25);
+      return { ...prev, zoom: newZoom, pixelsPerSecond: pixelsPerSecondBase * newZoom };
+    });
+  }, [pixelsPerSecondBase]);
 
   const zoomOut = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      zoom: Math.max(0.1, prev.zoom / 1.25),
-    }));
-  }, []);
+    setState((prev) => {
+      const newZoom = Math.max(0.1, prev.zoom / 1.25);
+      return { ...prev, zoom: newZoom, pixelsPerSecond: pixelsPerSecondBase * newZoom };
+    });
+  }, [pixelsPerSecondBase]);
 
   const resetZoom = useCallback(() => {
-    setState((prev) => ({ ...prev, zoom: 1 }));
-  }, []);
+    setState((prev) => ({ ...prev, zoom: 1, pixelsPerSecond: pixelsPerSecondBase }));
+  }, [pixelsPerSecondBase]);
 
   const fitToView = useCallback(
     (containerWidth: number) => {
       if (state.duration === 0) return;
       const requiredZoom = containerWidth / (state.duration * pixelsPerSecondBase);
+      const clampedZoom = Math.max(0.1, Math.min(10, requiredZoom));
       setState((prev) => ({
         ...prev,
-        zoom: Math.max(0.1, Math.min(10, requiredZoom)),
+        zoom: clampedZoom,
+        pixelsPerSecond: pixelsPerSecondBase * clampedZoom,
         scrollPosition: 0,
       }));
     },
@@ -489,7 +506,7 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-      const frames = Math.floor((time % 1) * 30); // Assuming 30fps
+      const frames = Math.floor((time % 1) * fps);
 
       switch (format) {
         case 'frames':
@@ -504,7 +521,7 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
           return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       }
     },
-    []
+    [fps]
   );
 
   const parseTime = useCallback((timeString: string): number => {
@@ -530,8 +547,9 @@ export function useVideoTimeline(options: UseTimelineOptions = {}): UseTimelineR
   // Cleanup
   useEffect(() => {
     return () => {
-      if (playbackIntervalRef.current) {
-        clearInterval(playbackIntervalRef.current);
+      if (playbackRafRef.current) {
+        cancelAnimationFrame(playbackRafRef.current);
+        playbackRafRef.current = null;
       }
     };
   }, []);

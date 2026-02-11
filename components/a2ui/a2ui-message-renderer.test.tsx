@@ -14,14 +14,14 @@ import {
 // Mock useA2UI hook
 const mockExtractAndProcess = jest.fn();
 const mockGetSurface = jest.fn();
-const mockProcessMessage = jest.fn();
+const mockProcessMessages = jest.fn();
 
 jest.mock('@/hooks/a2ui', () => ({
   useA2UI: jest.fn(() => ({
     extractAndProcess: mockExtractAndProcess,
     getSurface: mockGetSurface,
-    processMessage: mockProcessMessage,
-    processMessages: jest.fn(),
+    processMessage: jest.fn(),
+    processMessages: mockProcessMessages,
     createSurface: jest.fn(),
     deleteSurface: jest.fn(),
   })),
@@ -78,12 +78,12 @@ describe('A2UIMessageRenderer', () => {
     expect(screen.queryByTestId('inline-surface')).toBeNull();
   });
 
-  it('should call extractAndProcess when A2UI content found', () => {
+  it('should call processMessages when A2UI content found', () => {
     const content = '{"a2ui": true, "createSurface": {}}';
 
     render(<A2UIMessageRenderer content={content} messageId="msg3" />);
 
-    expect(mockExtractAndProcess).toHaveBeenCalledWith(content);
+    expect(mockProcessMessages).toHaveBeenCalled();
   });
 
   it('should apply custom className', () => {

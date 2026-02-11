@@ -16,3 +16,5 @@ export {
   ArtifactRenderer,
 } from './artifact-renderers';
 export { getArtifactTypeIcon, ARTIFACT_TYPE_ICONS } from './artifact-icons';
+export { JupyterRenderer } from './jupyter-renderer';
+export { VersionDiffView } from './version-diff-view';

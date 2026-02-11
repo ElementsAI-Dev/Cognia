@@ -8,7 +8,7 @@
 import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UITextComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 const variantStyles: Record<string, string> = {
   body: 'text-base',
@@ -28,7 +28,7 @@ const alignStyles: Record<string, string> = {
 };
 
 export const A2UIText = memo(function A2UIText({ component }: A2UIComponentProps<A2UITextComponent>) {
-  const { resolveString } = useA2UIContext();
+  const { resolveString } = useA2UIData();
 
   const text = resolveString(component.text, '');
   const variant = component.variant || 'body';

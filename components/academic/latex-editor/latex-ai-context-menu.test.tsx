@@ -19,10 +19,19 @@ jest.mock('@/components/ui/context-menu', () => ({
   ContextMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
     <button data-testid="context-item" onClick={onClick}>{children}</button>
   ),
+  ContextMenuLabel: ({ children }: { children: React.ReactNode }) => <div data-testid="context-label">{children}</div>,
   ContextMenuSeparator: () => <hr data-testid="context-separator" />,
   ContextMenuSub: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ContextMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   ContextMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+// Mock useLatexAI hook
+jest.mock('@/hooks/latex/use-latex-ai', () => ({
+  useLatexAI: () => ({
+    runTextAction: jest.fn().mockResolvedValue('result'),
+    isLoading: false,
+  }),
 }));
 
 // Mock lucide-react icons
@@ -84,9 +93,9 @@ describe('LatexAIContextMenu', () => {
     }
   });
 
-  it('renders AI sparkles icon', () => {
+  it('renders context menu label', () => {
     render(<LatexAIContextMenu {...defaultProps} />);
-    expect(screen.getByTestId('icon-sparkles')).toBeInTheDocument();
+    expect(screen.getByTestId('context-label')).toBeInTheDocument();
   });
 
   it('renders with different selected text', () => {

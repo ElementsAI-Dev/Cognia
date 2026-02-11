@@ -9,10 +9,10 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import type { A2UIComponentProps, A2UIProgressComponent } from '@/types/artifact/a2ui';
-import { useA2UIContext } from '../a2ui-context';
+import { useA2UIData } from '../a2ui-context';
 
 export const A2UIProgress = memo(function A2UIProgress({ component }: A2UIComponentProps<A2UIProgressComponent>) {
-  const { resolveNumber, resolveString } = useA2UIContext();
+  const { resolveNumber, resolveString } = useA2UIData();
 
   const value = resolveNumber(component.value, 0);
   const max = component.max ?? 100;

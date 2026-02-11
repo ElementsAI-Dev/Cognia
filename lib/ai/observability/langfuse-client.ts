@@ -39,35 +39,47 @@ interface LangfuseClient {
   flushAsync: () => Promise<void>;
 }
 
-// Dynamic import to handle dynamic import issues in test environment
-let Langfuse: new (options: Record<string, unknown>) => LangfuseClient;
+// Lazy-loaded Langfuse constructor (resolved on first use)
+let Langfuse: (new (options: Record<string, unknown>) => LangfuseClient) | null = null;
+let langfuseLoadAttempted = false;
 
-try {
-  // Use dynamic import to avoid require() issues
-  const langfuseModule = eval('require')('langfuse');
-  Langfuse = langfuseModule.Langfuse;
-} catch (_error) {
-  // Langfuse not available (e.g., in test environment)
-  // Provide mock implementations
-  Langfuse = class MockLangfuse {
-    constructor() {}
-    async flush() {}
-    async flushAsync() {}
-    trace() {
-      return {
+const MockLangfuse = class MockLangfuse {
+  constructor() {}
+  async flush() {}
+  async flushAsync() {}
+  trace() {
+    return {
+      update: () => {},
+      end: () => {},
+      generation: () => ({
         update: () => {},
         end: () => {},
-        generation: () => ({
-          update: () => {},
-          end: () => {},
-        }),
-        span: () => ({
-          update: () => {},
-          end: () => {},
-        }),
-      } as LangfuseTrace;
-    }
-  } as unknown as new (options: Record<string, unknown>) => LangfuseClient;
+      }),
+      span: () => ({
+        update: () => {},
+        end: () => {},
+      }),
+    } as LangfuseTrace;
+  }
+} as unknown as new (options: Record<string, unknown>) => LangfuseClient;
+
+/**
+ * Lazily load the Langfuse SDK via dynamic import.
+ * Falls back to a no-op mock when the package is unavailable.
+ */
+async function getLangfuseConstructor(): Promise<new (options: Record<string, unknown>) => LangfuseClient> {
+  if (Langfuse) return Langfuse;
+  if (langfuseLoadAttempted) return MockLangfuse;
+
+  langfuseLoadAttempted = true;
+  try {
+    const mod = await import('langfuse');
+    Langfuse = mod.Langfuse as unknown as new (options: Record<string, unknown>) => LangfuseClient;
+    return Langfuse;
+  } catch {
+    // Langfuse not available (e.g., in test/browser environment)
+    return MockLangfuse;
+  }
 }
 
 /**
@@ -168,7 +180,7 @@ let langfuseInstance: LangfuseClient | null = null;
 /**
  * Get or create Langfuse instance
  */
-export function getLangfuse(config?: LangfuseConfig): LangfuseClient {
+export async function getLangfuse(config?: LangfuseConfig): Promise<LangfuseClient> {
   if (langfuseInstance) {
     return langfuseInstance;
   }
@@ -182,7 +194,8 @@ export function getLangfuse(config?: LangfuseConfig): LangfuseClient {
     return createNoOpLangfuse();
   }
 
-  langfuseInstance = new Langfuse({
+  const LangfuseConstructor = await getLangfuseConstructor();
+  langfuseInstance = new LangfuseConstructor({
     publicKey: config?.publicKey || process.env.LANGFUSE_PUBLIC_KEY,
     secretKey: config?.secretKey || process.env.LANGFUSE_SECRET_KEY,
     baseUrl: config?.host || process.env.LANGFUSE_HOST || 'https://cloud.langfuse.com',
@@ -248,11 +261,11 @@ export interface LangfuseScore {
 /**
  * Create a chat trace
  */
-export function createChatTrace(
+export async function createChatTrace(
   options: ChatTraceOptions & { config?: LangfuseConfig },
   ..._args: unknown[]
-): LangfuseTrace {
-  const langfuse = getLangfuse(options.config);
+): Promise<LangfuseTrace> {
+  const langfuse = await getLangfuse(options.config);
 
   return langfuse.trace({
     name: 'ai-chat',
@@ -330,7 +343,7 @@ export function addScore(
  * Flush all pending traces
  */
 export async function flushLangfuse(): Promise<void> {
-  const langfuse = getLangfuse();
+  const langfuse = await getLangfuse();
   await langfuse.flush();
 }
 
@@ -453,7 +466,7 @@ export const LangfuseUtils = {
     usage: { promptTokens: number; completionTokens: number; totalTokens: number },
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
+    const trace = await createChatTrace({
       sessionId,
       userId,
       metadata: {
@@ -488,7 +501,7 @@ export const LangfuseUtils = {
     toolCalls: Array<{ name: string; args: Record<string, unknown>; result: unknown }>,
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
+    const trace = await createChatTrace({
       sessionId,
       userId,
       tags: ['agent', agentName],
@@ -539,7 +552,7 @@ export const LangfuseUtils = {
     nodes: Array<{ id: string; type: string; status: string; duration?: number }>,
     metadata?: Record<string, unknown>
   ) {
-    const trace = createChatTrace({
+    const trace = await createChatTrace({
       sessionId,
       userId,
       metadata: {

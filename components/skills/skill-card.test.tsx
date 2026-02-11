@@ -238,7 +238,7 @@ describe('SkillCard', () => {
     it('calls onSelect when list item is clicked', () => {
       renderWithProviders(<SkillCard skill={mockSkill} variant="list" onSelect={mockOnSelect} />);
 
-      const listItem = document.querySelector('.rounded-lg.border');
+      const listItem = document.querySelector('.rounded-xl.border');
       fireEvent.click(listItem!);
 
       expect(mockOnSelect).toHaveBeenCalledWith(mockSkill);
@@ -365,7 +365,7 @@ describe('SkillCard', () => {
     it('applies custom className to list variant', () => {
       renderWithProviders(<SkillCard skill={mockSkill} variant="list" className="custom-class" />);
 
-      const listItem = document.querySelector('.rounded-lg.border');
+      const listItem = document.querySelector('.rounded-xl.border');
       expect(listItem).toHaveClass('custom-class');
     });
   });

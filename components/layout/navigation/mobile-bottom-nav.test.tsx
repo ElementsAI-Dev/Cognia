@@ -64,13 +64,13 @@ describe('MobileBottomNav', () => {
 
   it('renders sessions link with badge', () => {
     renderWithProviders(<MobileBottomNav />);
-    expect(screen.getByText('Chats')).toBeInTheDocument();
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('renders new chat button', () => {
     renderWithProviders(<MobileBottomNav />);
-    expect(screen.getByText('New')).toBeInTheDocument();
+    expect(screen.getByText('New Chat')).toBeInTheDocument();
   });
 
   it('renders projects link', () => {

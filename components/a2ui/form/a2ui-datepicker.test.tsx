@@ -8,10 +8,19 @@ import { A2UIDatePicker } from './a2ui-datepicker';
 import type { A2UIDatePickerComponent } from '@/types/artifact/a2ui';
 
 // Mock the context
+const mockDataCtx = {
+  surface: null, dataModel: {}, components: {},
+  resolveString: jest.fn((value: unknown) => (typeof value === 'string' ? value : '')),
+  resolveNumber: jest.fn((value: unknown) => (typeof value === 'number' ? value : 0)),
+  resolveBoolean: jest.fn((value: unknown, defaultVal: unknown) => (typeof value === 'boolean' ? value : defaultVal)),
+  resolveArray: jest.fn((value: unknown, d: unknown[] = []) => (Array.isArray(value) ? value : d)),
+};
 jest.mock('../a2ui-context', () => ({
-  useA2UIContext: jest.fn(() => ({
-    resolveString: jest.fn((value) => (typeof value === 'string' ? value : '')),
-    resolveBoolean: jest.fn((value, defaultVal) => (typeof value === 'boolean' ? value : defaultVal)),
+  useA2UIContext: jest.fn(() => ({ ...mockDataCtx })),
+  useA2UIData: jest.fn(() => mockDataCtx),
+  useA2UIActions: jest.fn(() => ({
+    surfaceId: 'test-surface', catalog: undefined, emitAction: jest.fn(),
+    setDataValue: jest.fn(), getBindingPath: jest.fn(), getComponent: jest.fn(), renderChild: jest.fn(),
   })),
 }));
 

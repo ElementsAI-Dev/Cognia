@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Copy,
   Trash2,
@@ -74,7 +75,14 @@ export function NodeQuickConfig({
     duplicateNode, 
     deleteNode,
     currentWorkflow,
-  } = useWorkflowEditorStore();
+  } = useWorkflowEditorStore(
+    useShallow((state) => ({
+      updateNode: state.updateNode,
+      duplicateNode: state.duplicateNode,
+      deleteNode: state.deleteNode,
+      currentWorkflow: state.currentWorkflow,
+    }))
+  );
 
   const handleDelete = useCallback(() => {
     deleteNode(nodeId);

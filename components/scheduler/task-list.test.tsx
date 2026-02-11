@@ -17,6 +17,21 @@ jest.mock('@/stores/scheduler', () => ({
   useSchedulerStore: jest.fn(() => ({})),
 }));
 
+// Mock @tanstack/react-virtual for jsdom
+jest.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: jest.fn(({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        start: i * 76,
+        size: 76,
+        key: i,
+      })),
+    getTotalSize: () => count * 76,
+    measureElement: jest.fn(),
+  })),
+}));
+
 const createMockTask = (overrides: Partial<ScheduledTask> = {}): ScheduledTask => ({
   id: 'task-1',
   name: 'Test Task',
@@ -104,28 +119,28 @@ describe('TaskList', () => {
     const tasks = [createMockTask({ status: 'active' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
 
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('statuses.active')).toBeInTheDocument();
   });
 
   it('should display paused status', () => {
     const tasks = [createMockTask({ status: 'paused' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
 
-    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getByText('statuses.paused')).toBeInTheDocument();
   });
 
   it('should display disabled status', () => {
     const tasks = [createMockTask({ status: 'disabled' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
 
-    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.getByText('statuses.disabled')).toBeInTheDocument();
   });
 
   it('should display expired status', () => {
     const tasks = [createMockTask({ status: 'expired' })];
     render(<TaskList {...defaultProps} tasks={tasks} />);
 
-    expect(screen.getByText('Expired')).toBeInTheDocument();
+    expect(screen.getByText('statuses.expired')).toBeInTheDocument();
   });
 
   it('should apply left border color for active status', () => {

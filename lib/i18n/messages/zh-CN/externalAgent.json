@@ -29,6 +29,7 @@
   "statusConnected": "已连接",
   "statusReconnecting": "重连中",
   "statusError": "错误",
+  "setConfigOptionFailed": "设置配置选项失败",
   "settings": {
     "title": "外部代理",
     "description": "配置外部 AI 代理以扩展 Cognia 的功能",
