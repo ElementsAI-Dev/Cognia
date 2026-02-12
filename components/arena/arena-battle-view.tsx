@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { WIN_REASONS } from '@/lib/arena';
 import { useArenaVoting } from '@/hooks/arena';
 import { QuickVoteBar } from '@/components/chat/ui/quick-vote-bar';
 import { ArenaDiffView } from '@/components/arena/arena-diff-view';
@@ -52,17 +53,6 @@ interface ArenaBattleViewProps {
   onContinueTurn?: (battleId: string, message: string) => Promise<void>;
   canContinue?: boolean;
 }
-
-const WIN_REASONS: ArenaWinReason[] = [
-  'quality',
-  'accuracy',
-  'clarity',
-  'speed',
-  'completeness',
-  'creativity',
-  'conciseness',
-  'other',
-];
 
 // ContestantCard is now imported from ./arena-contestant-card
 

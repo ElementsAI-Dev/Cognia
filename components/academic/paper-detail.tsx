@@ -53,34 +53,11 @@ import { toast } from '@/components/ui/toaster';
 import type {
   Paper,
   LibraryPaper,
-  PaperReadingStatus,
   PaperAnalysisType,
   PaperAnalysisResult,
-} from '@/types/learning/academic';
-
-const ANALYSIS_TYPES: { value: PaperAnalysisType; label: string; description: string }[] = [
-  { value: 'summary', label: 'Summary', description: 'Comprehensive paper summary' },
-  { value: 'key-insights', label: 'Key Insights', description: 'Main takeaways and findings' },
-  { value: 'methodology', label: 'Methodology', description: 'Research methods analysis' },
-  { value: 'findings', label: 'Findings', description: 'Results and conclusions' },
-  { value: 'limitations', label: 'Limitations', description: 'Study limitations' },
-  { value: 'future-work', label: 'Future Work', description: 'Suggested research directions' },
-  { value: 'related-work', label: 'Related Work', description: 'Connection to other research' },
-  {
-    value: 'technical-details',
-    label: 'Technical Details',
-    description: 'Implementation specifics',
-  },
-  { value: 'critique', label: 'Critical Analysis', description: 'Strengths and weaknesses' },
-  { value: 'eli5', label: 'ELI5', description: 'Simple explanation' },
-];
-
-const STATUS_OPTIONS: { value: PaperReadingStatus; label: string }[] = [
-  { value: 'unread', label: 'Unread' },
-  { value: 'reading', label: 'Reading' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-];
+} from '@/types/academic';
+import { ANALYSIS_TYPES } from '@/types/academic';
+import { STATUS_OPTIONS } from '@/components/academic/constants';
 
 interface PaperDetailProps {
   paper: Paper | LibraryPaper | null;

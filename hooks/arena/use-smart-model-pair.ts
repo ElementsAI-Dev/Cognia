@@ -6,12 +6,7 @@
 import { useCallback, useMemo } from 'react';
 import { useArenaStore } from '@/stores/arena';
 import { useArena } from './use-arena';
-
-interface ModelSelection {
-  provider: string;
-  model: string;
-  displayName: string;
-}
+import type { ModelSelection } from '@/types/arena';
 
 /**
  * Returns a smart model pair for arena battles based on:

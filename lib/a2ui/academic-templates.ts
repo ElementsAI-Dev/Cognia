@@ -4,7 +4,7 @@
  */
 
 import type { A2UIComponent, A2UIServerMessage } from '@/types/artifact/a2ui';
-import type { Paper, LibraryPaper, PaperAnalysisType } from '@/types/learning/academic';
+import type { Paper, LibraryPaper, PaperAnalysisType } from '@/types/academic';
 import { generateTemplateId } from './templates';
 
 /**

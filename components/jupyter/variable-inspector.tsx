@@ -16,7 +16,8 @@ import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { VariableInfo } from '@/types/system/jupyter';
+import { VARIABLE_TYPE_COLORS } from '@/lib/jupyter/constants';
+import type { VariableInfo } from '@/types/jupyter';
 
 interface VariableInspectorProps {
   variables: VariableInfo[];
@@ -26,20 +27,7 @@ interface VariableInspectorProps {
   className?: string;
 }
 
-const typeColors: Record<string, string> = {
-  int: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  float: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
-  str: 'bg-green-500/10 text-green-700 dark:text-green-400',
-  bool: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
-  list: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
-  dict: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400',
-  tuple: 'bg-pink-500/10 text-pink-700 dark:text-pink-400',
-  set: 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
-  ndarray: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
-  DataFrame: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  Series: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
-  Tensor: 'bg-red-500/10 text-red-700 dark:text-red-400',
-};
+const typeColors = VARIABLE_TYPE_COLORS;
 
 export function VariableInspector({
   variables,

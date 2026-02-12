@@ -16,44 +16,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type {
-  A2UIComponentProps,
-  A2UIBaseComponent,
-  A2UIStringOrPath,
-  A2UINumberOrPath,
-} from '@/types/artifact/a2ui';
+import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 import { isPathValue } from '@/types/artifact/a2ui';
-import { useA2UIData } from '../a2ui-context';
-
-/**
- * A single guide step definition
- */
-export interface A2UIGuideStep {
-  id: string;
-  title: A2UIStringOrPath;
-  description?: A2UIStringOrPath;
-  content: string[]; // Child component IDs for this step
-  action?: string; // Optional action to trigger when step is viewed
-  icon?: string;
-  isOptional?: boolean;
-}
-
-/**
- * A2UI Interactive Guide component interface
- */
-export interface A2UIInteractiveGuideComponentDef extends A2UIBaseComponent {
-  component: 'InteractiveGuide';
-  title?: A2UIStringOrPath;
-  steps: A2UIGuideStep[];
-  currentStep?: A2UINumberOrPath; // Controlled mode
-  showProgress?: boolean;
-  showNavigation?: boolean;
-  showStepIndicator?: boolean;
-  allowSkip?: boolean;
-  onComplete?: string; // Action when guide completes
-  onStepChange?: string; // Action when step changes
-  onSkip?: string; // Action when guide is skipped
-}
+import type {
+  A2UIInteractiveGuideComponentDef,
+  StepIndicatorProps,
+} from '@/types/a2ui/interactive-guide';
+import { useA2UIData } from '@/hooks/a2ui';
 
 /**
  * Resolve string or path value
@@ -77,16 +46,6 @@ function resolveValue<T>(
     return result as T;
   }
   return value as T;
-}
-
-/**
- * Step indicator dots
- */
-interface StepIndicatorProps {
-  steps: A2UIGuideStep[];
-  currentStep: number;
-  completedSteps: Set<number>;
-  onStepClick?: (step: number) => void;
 }
 
 const StepIndicator = memo(function StepIndicator({

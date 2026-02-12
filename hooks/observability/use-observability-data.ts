@@ -18,7 +18,6 @@ import {
   getUsageRecommendations,
   getDailyUsageSummary,
   filterRecordsByPeriod,
-  type AnalyticsPeriod,
   type UsageStatistics,
   type ModelUsageBreakdown,
   type ProviderUsageBreakdown,
@@ -26,25 +25,8 @@ import {
   type UsageTrend,
   type CostEfficiencyMetrics,
 } from '@/lib/ai/usage-analytics';
+import { timeRangeToPeriod } from '@/lib/observability';
 import type { MetricsData, TimeRange } from '@/types/observability';
-
-/**
- * Convert TimeRange to AnalyticsPeriod
- */
-function timeRangeToPeriod(timeRange: TimeRange): AnalyticsPeriod {
-  switch (timeRange) {
-    case '1h':
-      return 'hour';
-    case '24h':
-      return 'day';
-    case '7d':
-      return 'week';
-    case '30d':
-      return 'month';
-    default:
-      return 'week';
-  }
-}
 
 /**
  * Observability data returned by the hook

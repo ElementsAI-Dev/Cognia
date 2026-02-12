@@ -356,6 +356,65 @@ export interface ArenaModelPreset {
 }
 
 /**
+ * Diff segment for response comparison
+ */
+export interface DiffSegment {
+  text: string;
+  type: 'common' | 'added' | 'removed';
+}
+
+/**
+ * Model selection for arena battles (shared across hooks and components)
+ */
+export interface ModelSelection {
+  provider: ProviderName;
+  model: string;
+  displayName: string;
+}
+
+/**
+ * Model usage statistics for arena stats dashboard
+ */
+export interface ModelUsageStats {
+  modelId: string;
+  provider: string;
+  model: string;
+  displayName: string;
+  battleCount: number;
+  winCount: number;
+  winRate: number;
+}
+
+/**
+ * Category distribution statistics
+ */
+export interface CategoryStats {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+/**
+ * Battle history filter status
+ */
+export type BattleFilterStatus = 'all' | 'completed' | 'tie' | 'pending' | 'error';
+
+/**
+ * Battle history sort order
+ */
+export type BattleSortOrder = 'newest' | 'oldest';
+
+/**
+ * Leaderboard table sort field
+ */
+export type LeaderboardSortField = 'rank' | 'rating' | 'winRate' | 'battles' | 'stability';
+
+/**
+ * Leaderboard table sort direction
+ */
+export type LeaderboardSortDirection = 'asc' | 'desc';
+
+/**
  * Default model presets
  */
 // Re-export leaderboard sync types

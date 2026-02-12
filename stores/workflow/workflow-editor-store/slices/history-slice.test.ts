@@ -40,12 +40,12 @@ describe('history-slice (deepClone integration)', () => {
     const mod = await import('./history-slice');
     createHistorySlice = mod.createHistorySlice;
 
-    const set = (partial: Record<string, unknown>) => {
+    const set = (partial: Record<string, unknown> | ((s: unknown) => Record<string, unknown>)) => {
       Object.assign(state, typeof partial === 'function' ? partial(state) : partial);
     };
     const get = () => state as never;
 
-    sliceActions = createHistorySlice(set as never, get as never, {} as never);
+    sliceActions = createHistorySlice(set as never, get as never);
   });
 
   describe('pushHistory', () => {

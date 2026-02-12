@@ -48,16 +48,11 @@ import {
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { getProviderColor } from '@/lib/arena';
 import { useArena } from '@/hooks/arena';
 
 import { ARENA_MODEL_PRESETS } from '@/types/arena';
-import type { ProviderName } from '@/types/provider';
-
-interface ModelOption {
-  provider: ProviderName;
-  model: string;
-  displayName: string;
-}
+import type { ModelSelection } from '@/types/arena';
 
 interface ArenaDialogProps {
   open: boolean;
@@ -83,7 +78,7 @@ export function ArenaDialog({
 
   const [prompt, setPrompt] = useState(initialPrompt);
   useEffect(() => { setPrompt(initialPrompt); }, [initialPrompt]);
-  const [selectedModels, setSelectedModels] = useState<ModelOption[]>([]);
+  const [selectedModels, setSelectedModels] = useState<ModelSelection[]>([]);
   const [blindMode, setBlindMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'models' | 'presets'>('models');
 
@@ -104,7 +99,7 @@ export function ArenaDialog({
   const availableModels = useMemo(() => getAvailableModels(), [getAvailableModels]);
 
   // Toggle model selection
-  const toggleModel = useCallback((model: ModelOption) => {
+  const toggleModel = useCallback((model: ModelSelection) => {
     setSelectedModels((prev) => {
       const exists = prev.some((m) => m.provider === model.provider && m.model === model.model);
       if (exists) {
@@ -116,7 +111,7 @@ export function ArenaDialog({
 
   // Check if model is selected
   const isSelected = useCallback(
-    (model: ModelOption) => {
+    (model: ModelSelection) => {
       return selectedModels.some((m) => m.provider === model.provider && m.model === model.model);
     },
     [selectedModels]
@@ -179,20 +174,6 @@ export function ArenaDialog({
     onBattleStart,
     onOpenChange,
   ]);
-
-  // Get provider color
-  const getProviderColor = (provider: ProviderName) => {
-    const colors: Record<string, string> = {
-      openai: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-      anthropic: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-      google: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-      deepseek: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-      groq: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-      mistral: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-      xai: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
-    };
-    return colors[provider] || 'bg-gray-100 text-gray-700';
-  };
 
   // Get preset icon
   const getPresetIcon = (presetId: string) => {

@@ -36,22 +36,13 @@ import { A2UIInlineSurface } from './a2ui-surface';
 import { templateCategories, type A2UIAppTemplate } from '@/lib/a2ui/templates';
 import { generateAppFromDescription } from '@/lib/a2ui/app-generator';
 import { useA2UI } from '@/hooks/a2ui';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
+import type { ViewMode } from '@/hooks/a2ui/use-app-gallery-filter';
+import type { QuickAppBuilderProps, TabValue } from '@/types/a2ui/app';
 
 import { TemplateCard } from './quick-app-builder/template-card';
 import { QuickAppCard } from './quick-app-builder/app-card';
 import { FlashAppTab } from './quick-app-builder/flash-app-tab';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
-
-interface QuickAppBuilderProps {
-  className?: string;
-  onAction?: (action: A2UIUserAction) => void;
-  onDataChange?: (change: A2UIDataModelChange) => void;
-  onAppSelect?: (appId: string) => void;
-}
-
-type ViewMode = 'grid' | 'list';
-type TabValue = 'flash' | 'templates' | 'my-apps';
 
 export function QuickAppBuilder({
   className,

@@ -7,7 +7,7 @@
 
 import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner, LoadingDots } from '@/components/ui/loading-states';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export interface A2UILoadingComponent extends A2UIBaseComponent {
@@ -16,12 +16,6 @@ export interface A2UILoadingComponent extends A2UIBaseComponent {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'spinner' | 'dots' | 'pulse';
 }
-
-const sizeClasses = {
-  sm: 'h-4 w-4',
-  md: 'h-6 w-6',
-  lg: 'h-8 w-8',
-};
 
 const textSizeClasses = {
   sm: 'text-xs',
@@ -36,24 +30,7 @@ export const A2UILoading = memo(function A2UILoading({ component }: A2UIComponen
   const renderLoader = () => {
     switch (variant) {
       case 'dots':
-        return (
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={cn(
-                  'rounded-full bg-primary',
-                  size === 'sm' && 'h-1.5 w-1.5',
-                  size === 'md' && 'h-2 w-2',
-                  size === 'lg' && 'h-3 w-3'
-                )}
-                style={{
-                  animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-        );
+        return <LoadingDots />;
 
       case 'pulse':
         return (
@@ -70,7 +47,7 @@ export const A2UILoading = memo(function A2UILoading({ component }: A2UIComponen
 
       case 'spinner':
       default:
-        return <Loader2 className={cn(sizeClasses[size], 'animate-spin text-primary')} />;
+        return <LoadingSpinner size={size} className="text-primary" />;
     }
   };
 

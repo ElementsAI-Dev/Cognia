@@ -71,6 +71,15 @@ jest.mock('@/hooks/canvas', () => ({
     shareSession: jest.fn(),
     joinSession: jest.fn(),
   }),
+  useCanvasAutoSave: () => ({
+    localContent: '',
+    setLocalContent: jest.fn(),
+    hasUnsavedChanges: false,
+    handleEditorChange: jest.fn(),
+    handleManualSave: jest.fn(),
+    lastSavedContentRef: { current: '' },
+  }),
+  useCanvasKeyboardShortcuts: jest.fn(),
 }));
 
 // Mock keybinding store

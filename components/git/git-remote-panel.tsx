@@ -45,17 +45,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import type { GitRemoteInfo } from '@/types/system/git';
-
-// ==================== Props ====================
-
-interface GitRemotePanelProps {
-  remotes: GitRemoteInfo[];
-  onAddRemote: (name: string, url: string) => Promise<boolean>;
-  onRemoveRemote: (name: string) => Promise<boolean>;
-  onRefresh?: () => void;
-  isLoading?: boolean;
-  className?: string;
-}
+import type { GitRemotePanelProps } from '@/types/git';
 
 // ==================== Component ====================
 

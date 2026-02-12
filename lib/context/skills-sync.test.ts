@@ -32,14 +32,16 @@ const createMockSkill = (
   metadata: {
     name,
     description,
-    version: '1.0.0',
-    author: 'test',
-    tags: ['test'],
   },
   content: `Full content for ${name}`,
+  rawContent: `---\nname: ${name}\ndescription: ${description}\n---\nFull content for ${name}`,
+  resources: [],
+  status: 'enabled',
+  source: 'custom',
+  category: 'development',
+  tags: ['test'],
   createdAt: new Date(),
   updatedAt: new Date(),
-  isEnabled: true,
 });
 
 // Mock context file

@@ -49,7 +49,7 @@ import {
 } from '@/components/ui/table';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper } from '@/types/learning/academic';
+import type { LibraryPaper } from '@/types/academic';
 
 interface PaperComparisonProps {
   className?: string;

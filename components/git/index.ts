@@ -1,9 +1,11 @@
 /**
  * Git Components Exports
+ *
+ * Component prop types are centralized in @/types/git
  */
 
-export { GitStatusPanel, type GitStatusPanelProps } from './git-status-panel';
-export { GitPanel, type GitPanelRef } from './git-panel';
+export { GitStatusPanel } from './git-status-panel';
+export { GitPanel } from './git-panel';
 export { GitBranchManager } from './git-branch-manager';
 export { GitCommitHistory } from './git-commit-history';
 export { GitDiffViewer } from './git-diff-viewer';
@@ -14,4 +16,4 @@ export { GitStatsDashboard } from './git-stats-dashboard';
 export { GitCheckpointPanel } from './git-checkpoint-panel';
 export { GitTagPanel } from './git-tag-panel';
 export { GitRemotePanel } from './git-remote-panel';
-export { GitignoreTemplateSelector, type GitignoreTemplateSelectorProps } from './gitignore-template-selector';
+export { GitignoreTemplateSelector } from './gitignore-template-selector';

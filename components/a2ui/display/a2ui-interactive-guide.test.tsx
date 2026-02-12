@@ -4,11 +4,8 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import {
-  A2UIInteractiveGuide,
-  type A2UIInteractiveGuideComponentDef,
-  type A2UIGuideStep,
-} from './a2ui-interactive-guide';
+import { A2UIInteractiveGuide } from './a2ui-interactive-guide';
+import type { A2UIInteractiveGuideComponentDef, A2UIGuideStep } from '@/types/a2ui/interactive-guide';
 import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock next-intl
@@ -53,7 +50,7 @@ const mockDataCtx = {
   resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) =>
     Array.isArray(value) ? value : d,
 };
-jest.mock('../a2ui-context', () => ({
+jest.mock('@/hooks/a2ui', () => ({
   useA2UIContext: () => ({ ...mockDataCtx }),
   useA2UIData: () => mockDataCtx,
   useA2UIActions: () => ({

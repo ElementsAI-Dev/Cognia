@@ -32,8 +32,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useProjectStore, useSessionStore } from '@/stores';
+import { useProjectStore } from '@/stores';
 import type { Project, CreateProjectInput } from '@/types';
+import { useProjectStats } from '@/hooks/projects/use-project-stats';
 
 interface ProjectListProps {
   onProjectSelect?: (projectId: string) => void;
@@ -58,23 +59,8 @@ export function ProjectList({ onProjectSelect }: ProjectListProps) {
   const setActiveProject = useProjectStore((state) => state.setActiveProject);
   const archiveProject = useProjectStore((state) => state.archiveProject);
   const unarchiveProject = useProjectStore((state) => state.unarchiveProject);
-  
-  const sessions = useSessionStore((state) => state.sessions);
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalProjects = projects.length;
-    const totalSessions = sessions.filter(s => s.projectId).length;
-    const dayAgo = new Date();
-    dayAgo.setDate(dayAgo.getDate() - 1);
-    const dayAgoTime = dayAgo.getTime();
-    const recentProjects = projects.filter(p =>
-      new Date(p.updatedAt).getTime() > dayAgoTime
-    ).length;
-    
-    return { totalProjects, totalSessions, recentProjects };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recentProjects is approximate, ok to recalc on projects/sessions change
-  }, [projects.length, sessions.length]);
+  const stats = useProjectStats();
 
   const filteredProjects = useMemo(() => {
     // First filter by archive status

@@ -14,6 +14,7 @@ export { CodeExecutionPanel } from './code-execution-panel';
 export { CanvasDocumentTabs } from './canvas-document-tabs';
 export { CanvasDocumentList } from './canvas-document-list';
 export { SuggestionItem } from './suggestion-item';
+export { SuggestionsPanel } from './suggestions-panel';
 export { RenameDialog } from './rename-dialog';
 export { CollaborationPanel } from './collaboration-panel';
 export { CommentPanel } from './comment-panel';

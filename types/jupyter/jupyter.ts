@@ -89,7 +89,7 @@ export interface CellOutputEvent {
   total?: number;
 }
 
-/** Kernel configuration */
+/** Kernel configuration (frontend) */
 export interface KernelConfig {
   timeoutSecs: number;
   maxOutputSize: number;
@@ -104,6 +104,32 @@ export const DEFAULT_KERNEL_CONFIG: KernelConfig = {
   startupTimeoutSecs: 30,
   idleTimeoutSecs: 3600, // 1 hour
 };
+
+/** Kernel service configuration (Tauri backend) */
+export interface KernelServiceConfig {
+  /** Timeout for kernel startup in seconds */
+  startup_timeout_secs: number;
+  /** Timeout for code execution in seconds */
+  execution_timeout_secs: number;
+  /** Timeout for idle kernels before cleanup in seconds */
+  idle_timeout_secs: number;
+  /** Maximum number of kernels */
+  max_kernels: number;
+  /** Enable verbose logging */
+  verbose: boolean;
+}
+
+/** Notebook file metadata */
+export interface NotebookFileInfo {
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  cellCount: number;
+  codeCells: number;
+  markdownCells: number;
+  kernelName: string;
+  nbformat: number;
+}
 
 /** Jupyter cell type */
 export type JupyterCellType = 'code' | 'markdown' | 'raw';
@@ -171,6 +197,23 @@ export interface KernelEvent {
   sessionId?: string;
   data: unknown;
   timestamp: string;
+}
+
+/** Execution history entry */
+export interface ExecutionHistoryEntry {
+  id: string;
+  sessionId: string;
+  code: string;
+  result: KernelSandboxExecutionResult;
+  timestamp: string;
+}
+
+/** Session-environment mapping */
+export interface SessionEnvMapping {
+  chatSessionId: string;
+  jupyterSessionId: string;
+  envPath: string;
+  createdAt: string;
 }
 
 /** Helper to check if execution was successful */

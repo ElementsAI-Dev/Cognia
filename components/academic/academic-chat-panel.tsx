@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { useAcademic } from '@/hooks/academic/use-academic';
-import type { Paper, PaperAnalysisType } from '@/types/learning/academic';
+import type { Paper, PaperAnalysisType } from '@/types/academic';
 import { AcademicPaperCard } from '@/components/a2ui/academic/academic-paper-card';
 
 export interface ChatMessage {

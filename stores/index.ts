@@ -259,13 +259,17 @@ export {
   type WindowPreferences,
 } from './system';
 
-// Tools stores
+// Jupyter stores
 export {
   useJupyterStore,
   useActiveSession,
   useActiveKernel,
   useExecutionState,
   useJupyterSessionForChat,
+} from './jupyter';
+
+// Tools stores
+export {
   usePPTEditorStore,
   useTemplateStore,
 } from './tools';
@@ -421,6 +425,9 @@ export {
   useTransformersStore,
   type TransformersState,
 } from './ai/transformers-store';
+
+// Observability stores
+export { useObservabilityDashboardStore } from './observability';
 
 // External Agent stores (merged into agent/external-agent-store)
 export {

@@ -6,19 +6,12 @@
 import { useCallback, useState } from 'react';
 import { useArenaStore } from '@/stores/arena';
 import { useSettingsStore } from '@/stores/settings';
-import { getProviderModel } from '@/lib/ai/core/client';
+import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 import { streamText } from 'ai';
 import { classifyTaskRuleBased } from '@/lib/ai/generation/auto-router';
-import type { ProviderName } from '@/types/provider';
-import type { ArenaBattle, ArenaContestant, ArenaWinReason } from '@/types/arena';
+import type { ArenaBattle, ArenaContestant, ArenaWinReason, ModelSelection } from '@/types/arena';
 
 const abortControllers = new Map<string, AbortController>();
-
-interface ModelSelection {
-  provider: ProviderName;
-  model: string;
-  displayName: string;
-}
 
 interface UseArenaOptions {
   onBattleStart?: (battle: ArenaBattle) => void;

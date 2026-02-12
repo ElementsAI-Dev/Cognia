@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useCommentStore } from '@/stores/canvas/comment-store';
 import { formatRelativeDate } from '@/lib/canvas/utils';
+import { REACTION_EMOJIS } from '@/lib/canvas/constants';
 import type { CanvasComment, LineRange } from '@/types/canvas/collaboration';
 
 interface CommentPanelProps {
@@ -38,8 +39,6 @@ interface CommentPanelProps {
   selectedRange?: LineRange;
   trigger?: React.ReactNode;
 }
-
-const REACTION_EMOJIS = ['👍', '👎', '❤️', '🎉', '🤔', '👀'];
 
 export function CommentPanel({
   documentId,

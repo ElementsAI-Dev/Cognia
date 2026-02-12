@@ -5,7 +5,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { KernelStatus } from './kernel-status';
-import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/system/jupyter';
+import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/jupyter';
 
 // Messages for testing
 const messages = {

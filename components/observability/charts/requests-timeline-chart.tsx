@@ -21,7 +21,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
-import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from './chart-config';
+import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from '@/lib/observability/chart-config';
 
 interface RequestsTimelineChartProps {
   data: TimeSeriesDataPoint[];

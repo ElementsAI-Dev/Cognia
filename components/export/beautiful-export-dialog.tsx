@@ -5,31 +5,24 @@
  * Supports multiple formats: Beautiful HTML, PDF, Rich Markdown, Word, Excel, Animated HTML
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Download,
-  FileText,
-  FileType,
-  Code2,
-  Play,
-  FileSpreadsheet,
   Loader2,
   Check,
   Settings2,
   Eye,
-  Sun,
-  Moon,
-  Monitor,
-  BookOpen,
   Sparkles,
   Plus,
   Pencil,
   Trash2,
-  Table2,
   ExternalLink,
   Share2,
   Image as ImageIcon,
+  Sun,
+  Monitor,
+  Moon,
 } from 'lucide-react';
 import {
   Dialog,
@@ -47,156 +40,24 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
-import type { Session } from '@/types';
-import { useExportMessages } from '@/hooks/export';
-import { type SyntaxThemeName, getAvailableSyntaxThemes } from '@/lib/export/html/syntax-themes';
+import type { BeautifulExportDialogProps, BeautifulExportFormat } from '@/types/export/beautiful-export';
+import type { SyntaxThemeName } from '@/lib/export/html/syntax-themes';
+import { getAvailableSyntaxThemes } from '@/lib/export/html/syntax-themes';
+import { useExportMessages, useExportOptions, useExportPreview, useExportHandler } from '@/hooks/export';
 import { useCustomThemeStore } from '@/stores/settings';
+import { FORMAT_CONFIG } from '@/lib/export/constants';
 import { CustomThemeEditor } from './custom-theme-editor';
 import { SocialShareDialog } from './social-share-dialog';
 import { ImageExportDialog } from './image-export-dialog';
-import { PageLayoutDialog, type PageLayoutSettings } from '@/components/document/page-layout-dialog';
-import { MARGIN_PRESETS } from '@/types/document/document-formatting';
-
-type ExportFormat =
-  | 'beautiful-html'
-  | 'pdf'
-  | 'markdown'
-  | 'word'
-  | 'excel'
-  | 'csv'
-  | 'animated-html'
-  | 'json';
-type ThemeOption = 'light' | 'dark' | 'system';
-
-interface BeautifulExportDialogProps {
-  session: Session;
-  trigger?: React.ReactNode;
-}
-
-interface ExportOptions {
-  theme: ThemeOption;
-  syntaxTheme: SyntaxThemeName;
-  showTimestamps: boolean;
-  showTokens: boolean;
-  showThinkingProcess: boolean;
-  showToolCalls: boolean;
-  includeCoverPage: boolean;
-  includeTableOfContents: boolean;
-  syntaxHighlighting: boolean;
-  compactMode: boolean;
-  pageLayout: PageLayoutSettings;
-}
-
-const DEFAULT_PAGE_LAYOUT: PageLayoutSettings = {
-  pageSize: 'a4',
-  orientation: 'portrait',
-  margins: MARGIN_PRESETS.normal,
-  headerEnabled: false,
-  footerEnabled: true,
-  showPageNumbers: true,
-};
-
-const DEFAULT_OPTIONS: ExportOptions = {
-  theme: 'system',
-  syntaxTheme: 'one-dark-pro',
-  showTimestamps: true,
-  showTokens: false,
-  showThinkingProcess: true,
-  showToolCalls: true,
-  includeCoverPage: true,
-  includeTableOfContents: true,
-  syntaxHighlighting: true,
-  compactMode: false,
-  pageLayout: DEFAULT_PAGE_LAYOUT,
-};
+import { PageLayoutDialog } from '@/components/document/page-layout-dialog';
 
 const SYNTAX_THEMES = getAvailableSyntaxThemes();
-
-const FORMAT_CONFIG: Record<
-  ExportFormat,
-  {
-    icon: React.ElementType;
-    label: string;
-    description: string;
-    extension: string;
-    badge?: string;
-  }
-> = {
-  'beautiful-html': {
-    icon: Sparkles,
-    label: 'Beautiful HTML',
-    description: 'Modern, responsive HTML with syntax highlighting',
-    extension: '.html',
-    badge: 'Recommended',
-  },
-  pdf: {
-    icon: FileType,
-    label: 'PDF Document',
-    description: 'Professional PDF with cover page',
-    extension: '.pdf',
-  },
-  markdown: {
-    icon: FileText,
-    label: 'Rich Markdown',
-    description: 'GitHub-flavored markdown with metadata',
-    extension: '.md',
-  },
-  word: {
-    icon: BookOpen,
-    label: 'Word Document',
-    description: 'Microsoft Word format (.docx)',
-    extension: '.docx',
-  },
-  excel: {
-    icon: FileSpreadsheet,
-    label: 'Excel Spreadsheet',
-    description: 'Tabular format with statistics',
-    extension: '.xlsx',
-  },
-  csv: {
-    icon: Table2,
-    label: 'CSV Spreadsheet',
-    description: 'CSV format for Google Sheets import',
-    extension: '.csv',
-  },
-  'animated-html': {
-    icon: Play,
-    label: 'Animated HTML',
-    description: 'Interactive replay with typewriter effect',
-    extension: '.html',
-  },
-  json: {
-    icon: Code2,
-    label: 'JSON Data',
-    description: 'Complete structured data export',
-    extension: '.json',
-  },
-};
 
 export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportSuccess, setExportSuccess] = useState<ExportFormat | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>(() => {
-    try {
-      const saved = localStorage.getItem('cognia-export-format');
-      if (saved && saved in FORMAT_CONFIG) return saved as ExportFormat;
-    } catch { /* ignore */ }
-    return 'beautiful-html';
-  });
-  const [options, setOptions] = useState<ExportOptions>(() => {
-    try {
-      const saved = localStorage.getItem('cognia-export-options');
-      if (saved) return { ...DEFAULT_OPTIONS, ...JSON.parse(saved) };
-    } catch { /* ignore */ }
-    return DEFAULT_OPTIONS;
-  });
-  const [previewHtml, setPreviewHtml] = useState<string>('');
-  const [previewText, setPreviewText] = useState<string>('');
-  const previewRef = useRef<HTMLIFrameElement>(null);
 
   // Custom theme editor state
   const [themeEditorOpen, setThemeEditorOpen] = useState(false);
@@ -204,249 +65,16 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
   const { customThemes, deleteTheme } = useCustomThemeStore();
 
   const { messages, isLoading } = useExportMessages(session.id, open);
-
-  // Generate preview when format or options change
-  useEffect(() => {
-    if (!open || messages.length === 0) return;
-
-    const generatePreview = async () => {
-      try {
-        if (selectedFormat === 'beautiful-html' || selectedFormat === 'pdf') {
-          const { exportToBeautifulHTML } = await import('@/lib/export/html/beautiful-html');
-          const html = exportToBeautifulHTML({
-            session,
-            messages: messages.slice(0, 3),
-            exportedAt: new Date(),
-            options: {
-              theme: options.theme,
-              syntaxTheme: options.syntaxTheme,
-              customThemes: customThemes,
-              showTimestamps: options.showTimestamps,
-              showTokens: options.showTokens,
-              showThinkingProcess: options.showThinkingProcess,
-              showToolCalls: options.showToolCalls,
-              includeCoverPage: false,
-              includeTableOfContents: false,
-              syntaxHighlighting: options.syntaxHighlighting,
-              compactMode: options.compactMode,
-            },
-          });
-          setPreviewHtml(html);
-          setPreviewText('');
-        } else if (selectedFormat === 'animated-html') {
-          const { exportToAnimatedHTML } = await import('@/lib/export');
-          const html = exportToAnimatedHTML({
-            session,
-            messages: messages.slice(0, 3),
-            exportedAt: new Date(),
-            options: { theme: options.theme, showTimestamps: options.showTimestamps, showControls: true, autoPlay: false },
-          });
-          setPreviewHtml(html);
-          setPreviewText('');
-        } else if (selectedFormat === 'markdown') {
-          const { exportToRichMarkdown } = await import('@/lib/export');
-          const md = exportToRichMarkdown({
-            session,
-            messages: messages.slice(0, 5),
-            exportedAt: new Date(),
-            includeMetadata: true,
-          });
-          setPreviewText(md);
-          setPreviewHtml('');
-        } else if (selectedFormat === 'json') {
-          const { exportToRichJSON } = await import('@/lib/export');
-          const json = exportToRichJSON({
-            session,
-            messages: messages.slice(0, 3),
-            exportedAt: new Date(),
-          });
-          setPreviewText(json.slice(0, 2000) + '\n...');
-          setPreviewHtml('');
-        } else {
-          setPreviewHtml('');
-          setPreviewText('');
-        }
-      } catch (err) {
-        console.error('Preview generation failed:', err);
-        setPreviewHtml('');
-        setPreviewText('');
-      }
-    };
-
-    const debounce = setTimeout(generatePreview, 300);
-    return () => clearTimeout(debounce);
-  }, [open, messages, selectedFormat, options, session, customThemes]);
+  const { selectedFormat, setSelectedFormat, options, setOptions, persistOptions } = useExportOptions();
+  const { previewHtml, previewText, previewRef } = useExportPreview(open, session, messages, selectedFormat, options, customThemes);
+  const { isExporting, exportSuccess, exportError, handleExport, resetState } = useExportHandler(session, messages, selectedFormat, options, customThemes, persistOptions);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setExportSuccess(null);
-      setExportError(null);
+      resetState();
     }
-  }, [open]);
-
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
-    setExportError(null);
-    setExportSuccess(null);
-
-    try {
-      const exportedAt = new Date();
-
-      switch (selectedFormat) {
-        case 'beautiful-html': {
-          const { exportToBeautifulHTML, downloadFile, generateFilename } =
-            await import('@/lib/export');
-          const html = exportToBeautifulHTML({
-            session,
-            messages,
-            exportedAt,
-            options: {
-              theme: options.theme,
-              syntaxTheme: options.syntaxTheme,
-              customThemes: customThemes,
-              showTimestamps: options.showTimestamps,
-              showTokens: options.showTokens,
-              showThinkingProcess: options.showThinkingProcess,
-              showToolCalls: options.showToolCalls,
-              includeCoverPage: options.includeCoverPage,
-              includeTableOfContents: options.includeTableOfContents,
-              syntaxHighlighting: options.syntaxHighlighting,
-              compactMode: options.compactMode,
-            },
-          });
-          downloadFile(html, generateFilename(session.title, 'html'), 'text/html');
-          break;
-        }
-
-        case 'pdf': {
-          const { exportToBeautifulPDF } = await import('@/lib/export/document/beautiful-pdf');
-          await exportToBeautifulPDF({
-            session,
-            messages,
-            exportedAt,
-            options: {
-              theme: options.theme === 'system' ? 'light' : (options.theme as 'light' | 'dark'),
-              showTimestamps: options.showTimestamps,
-              showTokens: options.showTokens,
-              showThinkingProcess: options.showThinkingProcess,
-              showToolCalls: options.showToolCalls,
-              includeCoverPage: options.includeCoverPage,
-              includeTableOfContents: options.includeTableOfContents,
-            },
-          });
-          break;
-        }
-
-        case 'markdown': {
-          const { exportToRichMarkdown, downloadFile, generateFilename } =
-            await import('@/lib/export');
-          const markdown = exportToRichMarkdown({
-            session,
-            messages,
-            exportedAt,
-            includeMetadata: true,
-            includeAttachments: true,
-            includeTokens: options.showTokens,
-          });
-          downloadFile(markdown, generateFilename(session.title, 'md'), 'text/markdown');
-          break;
-        }
-
-        case 'word': {
-          const { generateWordDocument, downloadWordDocument } =
-            await import('@/lib/export/document/word-document-generator');
-          const result = await generateWordDocument(session, messages, {
-            includeMetadata: true,
-            includeTimestamps: options.showTimestamps,
-            includeTokens: options.showTokens,
-            showThinkingProcess: options.showThinkingProcess,
-            showToolCalls: options.showToolCalls,
-            includeCoverPage: options.includeCoverPage,
-            tableOfContents: options.includeTableOfContents
-              ? {
-                  enabled: true,
-                  title: 'Table of Contents',
-                  levels: 3,
-                  showPageNumbers: true,
-                }
-              : undefined,
-            pageSize: options.pageLayout.pageSize,
-            orientation: options.pageLayout.orientation,
-            margins: options.pageLayout.margins,
-          });
-          if (result.success && result.blob && result.filename) {
-            downloadWordDocument(result.blob, result.filename);
-          } else {
-            throw new Error(result.error || 'Word export failed');
-          }
-          break;
-        }
-
-        case 'excel': {
-          const { exportChatToExcel, downloadExcel } =
-            await import('@/lib/export/document/excel-export');
-          const result = await exportChatToExcel(session, messages);
-          if (result.success && result.blob && result.filename) {
-            downloadExcel(result.blob, result.filename);
-          } else {
-            throw new Error(result.error || 'Excel export failed');
-          }
-          break;
-        }
-
-        case 'csv': {
-          const { exportChatToCSV, downloadCSV } =
-            await import('@/lib/export/document/google-sheets-export');
-          const result = exportChatToCSV(session, messages);
-          if (result.success && result.content && result.filename) {
-            downloadCSV(result.content, result.filename);
-          } else {
-            throw new Error(result.error || 'CSV export failed');
-          }
-          break;
-        }
-
-        case 'animated-html': {
-          const { exportToAnimatedHTML, downloadFile, generateFilename } =
-            await import('@/lib/export');
-          const html = exportToAnimatedHTML({
-            session,
-            messages,
-            exportedAt,
-            options: {
-              theme: options.theme,
-              showTimestamps: options.showTimestamps,
-              showControls: true,
-              autoPlay: false,
-            },
-          });
-          downloadFile(html, generateFilename(session.title, 'html'), 'text/html');
-          break;
-        }
-
-        case 'json': {
-          const { exportToRichJSON, downloadFile, generateFilename } = await import('@/lib/export');
-          const json = exportToRichJSON({ session, messages, exportedAt });
-          downloadFile(json, generateFilename(session.title, 'json'), 'application/json');
-          break;
-        }
-      }
-
-      setExportSuccess(selectedFormat);
-
-      // Persist user preferences
-      try {
-        localStorage.setItem('cognia-export-format', selectedFormat);
-        localStorage.setItem('cognia-export-options', JSON.stringify(options));
-      } catch { /* ignore */ }
-    } catch (error) {
-      console.error('Export failed:', error);
-      setExportError(error instanceof Error ? error.message : 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
-  }, [selectedFormat, session, messages, options, customThemes]);
+  }, [open, resetState]);
 
   const stats = {
     messages: messages.length,
@@ -498,13 +126,13 @@ export function BeautifulExportDialog({ session, trigger }: BeautifulExportDialo
                   <ScrollArea className="h-[340px] pr-4">
                     <RadioGroup
                       value={selectedFormat}
-                      onValueChange={(v) => setSelectedFormat(v as ExportFormat)}
+                      onValueChange={(v) => setSelectedFormat(v as BeautifulExportFormat)}
                       className="space-y-2"
                     >
                       {(
                         Object.entries(FORMAT_CONFIG) as [
-                          ExportFormat,
-                          (typeof FORMAT_CONFIG)[ExportFormat],
+                          BeautifulExportFormat,
+                          (typeof FORMAT_CONFIG)[BeautifulExportFormat],
                         ][]
                       ).map(([format, config]) => {
                         const Icon = config.icon;

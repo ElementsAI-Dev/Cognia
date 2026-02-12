@@ -28,4 +28,4 @@ export {
   type SessionEnvContext,
 } from './use-session-env';
 export { useEnvironment, type UseEnvironmentReturn } from './use-environment';
-export { useJupyterKernel, type UseJupyterKernelReturn } from './use-jupyter-kernel';
+// jupyter kernel hook moved to hooks/jupyter

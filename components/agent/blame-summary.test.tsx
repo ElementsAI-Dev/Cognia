@@ -54,7 +54,6 @@ const baseStats: FileBlameStats = {
   aiPercentage: 60,
   humanPercentage: 30,
   models: { 'openai/gpt-4': 40, 'anthropic/claude-3': 20 },
-  lastAnalyzed: new Date(),
 };
 
 describe('BlameSummary', () => {

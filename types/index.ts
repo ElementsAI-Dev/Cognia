@@ -50,6 +50,9 @@ export * from './learning';
 // System types
 export * from './system';
 
+// Jupyter types
+export * from './jupyter';
+
 // Routing types
 export * from './routing';
 
@@ -84,3 +87,12 @@ export * from './map';
 
 // Observability types
 export * from './observability';
+
+// Export types
+export * from './export';
+
+// Explicit re-exports to resolve ambiguity (TS2308)
+// TriggerType exists in both ./chat (input-completion) and ./workflow (workflow-editor)
+// ModelSelection exists in both ./provider (auto-router) and ./arena
+export type { TriggerType } from './chat';
+export type { ModelSelection } from './provider';

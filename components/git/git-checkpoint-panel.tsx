@@ -47,18 +47,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatCommitDate } from '@/types/system/git';
 import type { GitCheckpoint } from '@/types/system/git';
-
-// ==================== Props ====================
-
-interface GitCheckpointPanelProps {
-  checkpoints: GitCheckpoint[];
-  onCreateCheckpoint: (message?: string) => Promise<boolean>;
-  onRestoreCheckpoint: (id: string) => Promise<boolean>;
-  onDeleteCheckpoint: (id: string) => Promise<boolean>;
-  onRefresh?: () => void;
-  isLoading?: boolean;
-  className?: string;
-}
+import type { GitCheckpointPanelProps } from '@/types/git';
 
 // ==================== Component ====================
 

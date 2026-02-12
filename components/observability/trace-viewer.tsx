@@ -9,7 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, ExternalLink, Clock, Zap, Hash } from 'lucide-react';
 import { useSettingsStore } from '@/stores';
-import type { TraceData, SpanData } from './observability-dashboard';
+import { getSpanTypeColor, getStatusColor } from '@/lib/observability';
+import type { TraceData, SpanData } from '@/types/observability';
 
 interface TraceViewerProps {
   trace: TraceData;
@@ -25,29 +26,6 @@ function SpanTree({ span, depth = 0, t }: SpanTreeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = span.children && span.children.length > 0;
 
-  const getSpanTypeColor = (type: SpanData['type']) => {
-    switch (type) {
-      case 'generation':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
-      case 'tool':
-        return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300';
-      case 'agent':
-        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
-      default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
-    }
-  };
-
-  const getStatusColor = (status: SpanData['status']) => {
-    switch (status) {
-      case 'success':
-        return 'text-green-600 dark:text-green-400';
-      case 'error':
-        return 'text-red-600 dark:text-red-400';
-      default:
-        return 'text-yellow-600 dark:text-yellow-400';
-    }
-  };
 
   return (
     <div className="ml-4 first:ml-0">

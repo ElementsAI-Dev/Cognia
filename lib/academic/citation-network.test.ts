@@ -12,7 +12,7 @@ import {
   type CitationNetwork,
   type CitationNode,
 } from './citation-network';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // Mock fetch
 const mockFetch = jest.fn();

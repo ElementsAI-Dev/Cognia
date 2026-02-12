@@ -4,7 +4,7 @@
  * ArtifactList - Displays a list of artifacts for the current session
  */
 
-import { useState, useMemo, useCallback, useDeferredValue } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Code, Search, Filter, CheckSquare, Eye } from 'lucide-react';
@@ -33,8 +33,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useArtifactStore, useSessionStore } from '@/stores';
-import type { Artifact, ArtifactType } from '@/types';
+import type { Artifact } from '@/types';
 import { ARTIFACT_TYPES, ARTIFACT_TYPE_KEYS, PREVIEWABLE_TYPES } from '@/lib/artifacts';
+import { useArtifactList } from '@/hooks/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactListProps {
@@ -55,82 +56,24 @@ export function ArtifactList({
 }: ArtifactListProps) {
   const t = useTranslations('artifactList');
   const tArtifacts = useTranslations('artifacts');
-  const activeArtifactId = useArtifactStore((state) => state.activeArtifactId);
-  const setActiveArtifact = useArtifactStore((state) => state.setActiveArtifact);
-  const deleteArtifact = useArtifactStore((state) => state.deleteArtifact);
-  const openPanel = useArtifactStore((state) => state.openPanel);
-  const getSessionArtifacts = useArtifactStore((state) => state.getSessionArtifacts);
-  const searchArtifacts = useArtifactStore((state) => state.searchArtifacts);
-  const filterArtifactsByType = useArtifactStore((state) => state.filterArtifactsByType);
-  const deleteArtifacts = useArtifactStore((state) => state.deleteArtifacts);
-  const getActiveSession = useSessionStore((state) => state.getActiveSession);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchMode, setBatchMode] = useState(false);
-
-  const currentSessionId = sessionId || getActiveSession()?.id;
-
-  const sessionArtifacts = useMemo(() => {
-    if (!currentSessionId) return [];
-
-    // All store methods (searchArtifacts, filterArtifactsByType, getSessionArtifacts)
-    // already return results sorted by date descending, so no additional sorting needed
-    if (deferredSearchQuery.trim()) {
-      return searchArtifacts(deferredSearchQuery, currentSessionId);
-    }
-
-    if (typeFilter !== 'all') {
-      return filterArtifactsByType(typeFilter as ArtifactType, currentSessionId);
-    }
-
-    return getSessionArtifacts(currentSessionId);
-  }, [currentSessionId, getSessionArtifacts, searchArtifacts, filterArtifactsByType, deferredSearchQuery, typeFilter]);
-
-  const handleArtifactClick = (artifact: Artifact) => {
-    if (batchMode) {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(artifact.id)) {
-          next.delete(artifact.id);
-        } else {
-          next.add(artifact.id);
-        }
-        return next;
-      });
-      return;
-    }
-    setActiveArtifact(artifact.id);
-    openPanel('artifact');
-    onArtifactClick?.(artifact);
-  };
-
-  const [pendingDelete, setPendingDelete] = useState<string | string[] | null>(null);
-
-  const handleDelete = (artifactId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPendingDelete(artifactId);
-  };
-
-  const handleBatchDelete = useCallback(() => {
-    if (selectedIds.size > 0) {
-      setPendingDelete(Array.from(selectedIds));
-    }
-  }, [selectedIds]);
-
-  const confirmDelete = useCallback(() => {
-    if (!pendingDelete) return;
-    if (Array.isArray(pendingDelete)) {
-      deleteArtifacts(pendingDelete);
-      setSelectedIds(new Set());
-      setBatchMode(false);
-    } else {
-      deleteArtifact(pendingDelete);
-    }
-    setPendingDelete(null);
-  }, [pendingDelete, deleteArtifact, deleteArtifacts]);
+  const {
+    activeArtifactId,
+    searchQuery,
+    typeFilter,
+    selectedIds,
+    batchMode,
+    pendingDelete,
+    sessionArtifacts,
+    setSearchQuery,
+    setTypeFilter,
+    setPendingDelete,
+    toggleBatchMode,
+    handleArtifactClick,
+    handleDelete,
+    handleBatchDelete,
+    confirmDelete,
+  } = useArtifactList({ sessionId, onArtifactClick });
 
   if (sessionArtifacts.length === 0 && !searchQuery && typeFilter === 'all') {
     return (
@@ -176,10 +119,7 @@ export function ArtifactList({
           variant={batchMode ? 'secondary' : 'ghost'}
           size="icon"
           className="h-8 w-8 shrink-0"
-          onClick={() => {
-            setBatchMode(!batchMode);
-            setSelectedIds(new Set());
-          }}
+          onClick={toggleBatchMode}
         >
           <CheckSquare className="h-3.5 w-3.5" />
           <span className="sr-only">{tArtifacts('batchSelect')}</span>

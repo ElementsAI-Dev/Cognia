@@ -45,6 +45,7 @@ jest.mock('@/hooks/skills', () => ({
   useSkillSync: jest.fn(),
   useSkillSyncAvailable: jest.fn(),
   useNativeSkills: jest.fn(),
+  useNativeSkillAvailable: jest.fn(),
 }));
 
 // Mock toast
@@ -56,11 +57,12 @@ jest.mock('@/components/ui/toaster', () => ({
 }));
 
 import { SkillDiscovery } from './skill-discovery';
-import { useSkillSync, useSkillSyncAvailable, useNativeSkills, type DiscoverableSkill, type InstalledSkill, type SkillRepo } from '@/hooks/skills';
+import { useSkillSync, useSkillSyncAvailable, useNativeSkills, useNativeSkillAvailable, type DiscoverableSkill, type InstalledSkill, type SkillRepo } from '@/hooks/skills';
 import { toast } from '@/components/ui/toaster';
 
 const mockUseSkillSync = jest.mocked(useSkillSync);
 const mockUseSkillSyncAvailable = jest.mocked(useSkillSyncAvailable);
+const mockUseNativeSkillAvailable = jest.mocked(useNativeSkillAvailable);
 const mockUseNativeSkills = jest.mocked(useNativeSkills);
 const mockToast = jest.mocked(toast);
 
@@ -108,6 +110,7 @@ describe('SkillDiscovery', () => {
     jest.clearAllMocks();
 
     mockUseSkillSyncAvailable.mockReturnValue(true);
+    mockUseNativeSkillAvailable.mockReturnValue(true);
 
     mockUseSkillSync.mockReturnValue({
       isSyncing: false,
@@ -147,8 +150,10 @@ describe('SkillDiscovery', () => {
       disable: jest.fn(),
       update: jest.fn(),
       readContent: jest.fn(),
+      writeContent: jest.fn(),
       listResources: jest.fn(),
       readResource: jest.fn(),
+      writeResource: jest.fn(),
       getSsotDir: jest.fn(),
       clearError: jest.fn(),
     });

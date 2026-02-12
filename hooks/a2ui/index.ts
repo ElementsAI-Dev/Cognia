@@ -5,6 +5,19 @@
 
 export { useA2UIAppBuilder, type A2UIAppInstance, type A2UIAppTemplate } from './use-app-builder';
 export { useA2UI } from './use-a2ui';
+
+// Context hooks (extracted from components/a2ui/a2ui-context.tsx)
+export {
+  useA2UIActions,
+  useA2UIData,
+  useA2UIContext,
+  useA2UIComponent,
+  useA2UIBinding,
+  useA2UIVisibility,
+  useA2UIDisabled,
+  A2UIActionsCtx,
+  A2UIDataCtx,
+} from './use-a2ui-context';
 export {
   useA2UIDataModel,
   useA2UIBoundValue,

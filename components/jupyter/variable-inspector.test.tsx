@@ -5,7 +5,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { VariableInspector } from './variable-inspector';
-import type { VariableInfo } from '@/types/system/jupyter';
+import type { VariableInfo } from '@/types/jupyter';
 
 // Messages for testing
 const messages = {

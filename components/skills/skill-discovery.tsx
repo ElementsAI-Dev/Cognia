@@ -47,6 +47,7 @@ import {
   useSkillSync,
   useSkillSyncAvailable,
   useNativeSkills,
+  useNativeSkillAvailable,
   type DiscoverableSkill,
   type SkillRepo,
 } from '@/hooks/skills';
@@ -269,6 +270,7 @@ function RepoManagerDialog({
 export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryProps) {
   const t = useTranslations('skills');
   const isAvailable = useSkillSyncAvailable();
+  const isNativeAvailable = useNativeSkillAvailable();
 
   const {
     discoverable,
@@ -365,12 +367,14 @@ export function SkillDiscovery({ className, onSkillInstalled }: SkillDiscoveryPr
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <RepoManagerDialog
-            repos={repos}
-            onAddRepo={addRepo}
-            onRemoveRepo={removeRepo}
-            onToggleRepo={toggleRepo}
-          />
+          {isNativeAvailable && (
+            <RepoManagerDialog
+              repos={repos}
+              onAddRepo={addRepo}
+              onRemoveRepo={removeRepo}
+              onToggleRepo={toggleRepo}
+            />
+          )}
           <Button
             variant="outline"
             size="sm"

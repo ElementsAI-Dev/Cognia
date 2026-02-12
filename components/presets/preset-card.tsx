@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { COLOR_TINT_CLASS } from '@/lib/presets';
+import { COLOR_TINT_CLASS, getModeLabel } from '@/lib/presets';
 import type { Preset } from '@/types/content/preset';
 
 interface PresetCardProps {
@@ -41,21 +41,6 @@ export function PresetCard({
 }: PresetCardProps) {
   const t = useTranslations('presets');
   const tChat = useTranslations('chat');
-
-  const getModeLabel = (mode: string) => {
-    switch (mode) {
-      case 'chat':
-        return tChat('modeChat');
-      case 'agent':
-        return tChat('modeAgent');
-      case 'research':
-        return tChat('modeResearch');
-      case 'learning':
-        return tChat('modeLearning');
-      default:
-        return mode;
-    }
-  };
 
   return (
     <Card
@@ -131,7 +116,7 @@ export function PresetCard({
             {preset.provider === 'auto' ? tChat('autoMode') : preset.provider}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            {getModeLabel(preset.mode)}
+            {getModeLabel(preset.mode, tChat)}
           </Badge>
           {preset.temperature !== undefined && (
             <Badge variant="secondary" className="text-xs">

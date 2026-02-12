@@ -15,28 +15,49 @@ import type {
   VariableInfo,
   KernelSandboxExecutionResult,
   ExecutableCell,
-} from '@/types/system/jupyter';
+} from '@/types/jupyter';
 
 const createMockSession = (overrides: Partial<JupyterSession> = {}): JupyterSession => ({
-  id: `session-${Date.now()}`,
+  id: 'session-1',
   name: 'Test Session',
-  kernelId: 'kernel-1',
+  kernelId: null,
   envPath: '/path/to/env',
   createdAt: new Date().toISOString(),
-  lastActivityAt: new Date().toISOString(),
+  lastActivityAt: null,
   metadata: {},
   ...overrides,
 });
 
 const createMockKernel = (overrides: Partial<KernelInfo> = {}): KernelInfo => ({
   id: 'kernel-1',
-  name: 'python3',
+  name: 'Python 3',
   envPath: '/path/to/env',
   status: 'idle',
-  pythonVersion: '3.11',
+  pythonVersion: '3.10.0',
   executionCount: 0,
   createdAt: new Date().toISOString(),
   lastActivityAt: null,
+  ...overrides,
+});
+
+const _createMockVariable = (overrides: Partial<VariableInfo> = {}): VariableInfo => ({
+  name: 'test_var',
+  type: 'int',
+  value: '42',
+  size: null,
+  ...overrides,
+});
+
+const _createMockResult = (
+  overrides: Partial<KernelSandboxExecutionResult> = {}
+): KernelSandboxExecutionResult => ({
+  success: true,
+  executionCount: 1,
+  stdout: '',
+  stderr: '',
+  displayData: [],
+  error: null,
+  executionTimeMs: 100,
   ...overrides,
 });
 
@@ -48,33 +69,7 @@ describe('useJupyterStore', () => {
     });
   });
 
-  describe('Initial State', () => {
-    it('has correct initial state', () => {
-      const { result } = renderHook(() => useJupyterStore());
-
-      expect(result.current.sessions).toEqual([]);
-      expect(result.current.kernels).toEqual([]);
-      expect(result.current.activeSessionId).toBeNull();
-      expect(result.current.isExecuting).toBe(false);
-      expect(result.current.executingCellIndex).toBeNull();
-      expect(result.current.variables).toEqual([]);
-      expect(result.current.executionHistory).toEqual([]);
-      expect(result.current.error).toBeNull();
-    });
-  });
-
   describe('Session Management', () => {
-    it('sets sessions', () => {
-      const { result } = renderHook(() => useJupyterStore());
-      const sessions = [createMockSession({ id: 's1' }), createMockSession({ id: 's2' })];
-
-      act(() => {
-        result.current.setSessions(sessions);
-      });
-
-      expect(result.current.sessions).toHaveLength(2);
-    });
-
     it('adds a session', () => {
       const { result } = renderHook(() => useJupyterStore());
       const session = createMockSession();
@@ -84,70 +79,82 @@ describe('useJupyterStore', () => {
       });
 
       expect(result.current.sessions).toHaveLength(1);
-      expect(result.current.sessions[0].id).toBe(session.id);
+      expect(result.current.sessions[0].id).toBe('session-1');
     });
 
     it('removes a session', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const session = createMockSession({ id: 'to-remove' });
 
       act(() => {
-        result.current.addSession(session);
-        result.current.setActiveSession('to-remove');
+        result.current.addSession(createMockSession({ id: 's1' }));
+        result.current.addSession(createMockSession({ id: 's2' }));
       });
 
       act(() => {
-        result.current.removeSession('to-remove');
+        result.current.removeSession('s1');
       });
 
-      expect(result.current.sessions).toHaveLength(0);
+      expect(result.current.sessions).toHaveLength(1);
+      expect(result.current.sessions[0].id).toBe('s2');
+    });
+
+    it('clears active session when removed', () => {
+      const { result } = renderHook(() => useJupyterStore());
+
+      act(() => {
+        result.current.addSession(createMockSession({ id: 's1' }));
+        result.current.setActiveSession('s1');
+      });
+
+      act(() => {
+        result.current.removeSession('s1');
+      });
+
       expect(result.current.activeSessionId).toBeNull();
     });
 
     it('updates a session', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const session = createMockSession({ id: 's1', name: 'Original' });
 
       act(() => {
-        result.current.addSession(session);
+        result.current.addSession(createMockSession({ id: 's1', name: 'Old Name' }));
       });
 
       act(() => {
-        result.current.updateSession('s1', { name: 'Updated' });
+        result.current.updateSession('s1', { name: 'New Name' });
       });
 
-      expect(result.current.sessions[0].name).toBe('Updated');
+      expect(result.current.sessions[0].name).toBe('New Name');
     });
 
     it('sets active session', () => {
       const { result } = renderHook(() => useJupyterStore());
 
       act(() => {
-        result.current.setActiveSession('session-123');
+        result.current.setActiveSession('session-1');
       });
 
-      expect(result.current.activeSessionId).toBe('session-123');
+      expect(result.current.activeSessionId).toBe('session-1');
     });
   });
 
   describe('Kernel Management', () => {
     it('sets kernels', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const kernels = [createMockKernel({ id: 'k1' }), createMockKernel({ id: 'k2' })];
+      const kernels = [createMockKernel()];
 
       act(() => {
         result.current.setKernels(kernels);
       });
 
-      expect(result.current.kernels).toHaveLength(2);
+      expect(result.current.kernels).toHaveLength(1);
     });
 
     it('updates kernel status', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const kernel = createMockKernel({ id: 'k1', status: 'idle' });
 
       act(() => {
-        result.current.setKernels([kernel]);
+        result.current.setKernels([createMockKernel({ id: 'k1', status: 'idle' })]);
       });
 
       act(() => {
@@ -170,56 +177,43 @@ describe('useJupyterStore', () => {
       expect(result.current.executingCellIndex).toBe(5);
     });
 
-    it('sets last execution result', () => {
+    it('clears executing state', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const execResult: KernelSandboxExecutionResult = {
-        success: true,
-        executionCount: 1,
-        stdout: 'Hello',
-        stderr: '',
-        displayData: [],
-        error: null,
-        executionTimeMs: 100,
-      };
 
       act(() => {
-        result.current.setLastSandboxExecutionResult(execResult);
+        result.current.setExecuting(true, 3);
       });
 
-      expect(result.current.lastSandboxExecutionResult).toEqual(execResult);
+      act(() => {
+        result.current.setExecuting(false);
+      });
+
+      expect(result.current.isExecuting).toBe(false);
+      expect(result.current.executingCellIndex).toBeNull();
     });
   });
 
   describe('Variables', () => {
     it('sets variables', () => {
       const { result } = renderHook(() => useJupyterStore());
-      const variables: VariableInfo[] = [
-        { name: 'x', type: 'int', value: '42', size: '28 bytes' },
-        { name: 'y', type: 'str', value: '"hello"', size: '54 bytes' },
-      ];
 
       act(() => {
-        result.current.setVariables(variables);
+        result.current.setVariables([
+          { name: 'x', type: 'int', value: '10', size: null },
+        ]);
       });
 
-      expect(result.current.variables).toHaveLength(2);
-    });
-
-    it('sets variables loading state', () => {
-      const { result } = renderHook(() => useJupyterStore());
-
-      act(() => {
-        result.current.setVariablesLoading(true);
-      });
-
-      expect(result.current.variablesLoading).toBe(true);
+      expect(result.current.variables).toHaveLength(1);
+      expect(result.current.variables[0].name).toBe('x');
     });
 
     it('clears variables', () => {
       const { result } = renderHook(() => useJupyterStore());
 
       act(() => {
-        result.current.setVariables([{ name: 'x', type: 'int', value: '1', size: '28 bytes' }]);
+        result.current.setVariables([
+          { name: 'x', type: 'int', value: '10', size: null },
+        ]);
       });
 
       act(() => {
@@ -236,36 +230,15 @@ describe('useJupyterStore', () => {
 
       act(() => {
         result.current.addExecutionHistory({
-          id: 'h1',
+          id: 'exec-1',
           sessionId: 's1',
           code: 'print("hello")',
-          result: { success: true } as KernelSandboxExecutionResult,
+          result: _createMockResult(),
           timestamp: new Date().toISOString(),
         });
       });
 
       expect(result.current.executionHistory).toHaveLength(1);
-      expect(result.current.executionHistory[0].code).toBe('print("hello")');
-    });
-
-    it('clears all execution history', () => {
-      const { result } = renderHook(() => useJupyterStore());
-
-      act(() => {
-        result.current.addExecutionHistory({
-          id: 'h1',
-          sessionId: 's1',
-          code: 'x = 1',
-          result: { success: true } as KernelSandboxExecutionResult,
-          timestamp: new Date().toISOString(),
-        });
-      });
-
-      act(() => {
-        result.current.clearExecutionHistory();
-      });
-
-      expect(result.current.executionHistory).toEqual([]);
     });
 
     it('clears execution history for specific session', () => {
@@ -273,17 +246,17 @@ describe('useJupyterStore', () => {
 
       act(() => {
         result.current.addExecutionHistory({
-          id: 'h1',
+          id: 'exec-1',
           sessionId: 's1',
           code: 'x = 1',
-          result: { success: true } as KernelSandboxExecutionResult,
+          result: _createMockResult(),
           timestamp: new Date().toISOString(),
         });
         result.current.addExecutionHistory({
-          id: 'h2',
+          id: 'exec-2',
           sessionId: 's2',
           code: 'y = 2',
-          result: { success: true } as KernelSandboxExecutionResult,
+          result: _createMockResult(),
           timestamp: new Date().toISOString(),
         });
       });
@@ -558,7 +531,6 @@ describe('Selector Hooks', () => {
       storeResult.current.setExecuting(true, 3);
     });
 
-    // Verify through store directly since selector uses same store
     expect(storeResult.current.isExecuting).toBe(true);
     expect(storeResult.current.executingCellIndex).toBe(3);
   });

@@ -440,9 +440,9 @@ describe('useAdvancedImageEditor', () => {
       expect(result.current.redo).toBeDefined();
     });
 
-    it('should have reset function', () => {
+    it('should have resetToOriginal function', () => {
       const { result } = renderHook(() => useAdvancedImageEditor());
-      expect(result.current.reset).toBeDefined();
+      expect(result.current.resetToOriginal).toBeDefined();
     });
   });
 

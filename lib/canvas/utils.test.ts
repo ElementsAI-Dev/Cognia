@@ -14,6 +14,9 @@ import {
   calculateDocumentStats,
   isLargeDocument,
   truncateText,
+  isDesignerCompatible,
+  exportCanvasDocument,
+  getConnectionStatusColor,
 } from './utils';
 
 describe('Canvas Utils', () => {
@@ -217,6 +220,75 @@ describe('Canvas Utils', () => {
 
     it('should handle very short maxLength', () => {
       expect(truncateText('Hello World', 4)).toBe('H...');
+    });
+  });
+
+  describe('isDesignerCompatible', () => {
+    it('should return true for supported languages', () => {
+      expect(isDesignerCompatible('jsx')).toBe(true);
+      expect(isDesignerCompatible('tsx')).toBe(true);
+      expect(isDesignerCompatible('html')).toBe(true);
+      expect(isDesignerCompatible('javascript')).toBe(true);
+      expect(isDesignerCompatible('typescript')).toBe(true);
+    });
+
+    it('should return false for unsupported languages', () => {
+      expect(isDesignerCompatible('python')).toBe(false);
+      expect(isDesignerCompatible('css')).toBe(false);
+      expect(isDesignerCompatible('json')).toBe(false);
+      expect(isDesignerCompatible('markdown')).toBe(false);
+      expect(isDesignerCompatible('')).toBe(false);
+    });
+  });
+
+  describe('exportCanvasDocument', () => {
+    it('should create a download link and trigger click', () => {
+      const createObjectURL = jest.fn(() => 'blob:test');
+      const revokeObjectURL = jest.fn();
+      const clickSpy = jest.fn();
+      const appendChildSpy = jest.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+      const removeChildSpy = jest.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+      Object.defineProperty(global, 'URL', {
+        value: { createObjectURL, revokeObjectURL },
+        writable: true,
+      });
+
+      const mockAnchor = {
+        href: '',
+        download: '',
+        click: clickSpy,
+      } as unknown as HTMLAnchorElement;
+      jest.spyOn(document, 'createElement').mockReturnValueOnce(mockAnchor);
+
+      exportCanvasDocument('My Document', 'console.log("hi")', 'javascript');
+
+      expect(mockAnchor.download).toBe('My_Document.js');
+      expect(clickSpy).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:test');
+
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
+    });
+  });
+
+  describe('getConnectionStatusColor', () => {
+    it('should return green for connected', () => {
+      expect(getConnectionStatusColor('connected')).toBe('text-green-500');
+    });
+
+    it('should return yellow for connecting', () => {
+      expect(getConnectionStatusColor('connecting')).toBe('text-yellow-500');
+    });
+
+    it('should return red for error', () => {
+      expect(getConnectionStatusColor('error')).toBe('text-red-500');
+    });
+
+    it('should return muted-foreground for unknown/disconnected state', () => {
+      expect(getConnectionStatusColor('disconnected')).toBe('text-muted-foreground');
+      expect(getConnectionStatusColor('')).toBe('text-muted-foreground');
+      expect(getConnectionStatusColor('unknown')).toBe('text-muted-foreground');
     });
   });
 });

@@ -28,7 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, AlertTriangle, Clock, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TOOLTIP_STYLE, CHART_MARGINS } from '@/components/observability/charts/chart-config';
+import { TOOLTIP_STYLE, CHART_MARGINS } from '@/lib/observability/chart-config';
 import type { StructuredLogEntry, LogLevel } from '@/lib/logger';
 
 export interface LogStatsDashboardProps {

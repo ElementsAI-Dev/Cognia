@@ -36,30 +36,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { loggers } from '@/lib/logger';
-import type { A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
-import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
 import { generatePlaceholderThumbnail, captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
 import { formatRelativeTime } from '@/lib/a2ui/format';
+import type { AppCardProps } from '@/types/a2ui/app';
 
-export interface AppCardProps {
-  app: A2UIAppInstance;
-  template?: A2UIAppTemplate;
-  isSelected?: boolean;
-  showThumbnail?: boolean;
-  showStats?: boolean;
-  showDescription?: boolean;
-  compact?: boolean;
-  onSelect?: (appId: string) => void;
-  onOpen?: (appId: string) => void;
-  onRename?: (app: A2UIAppInstance) => void;
-  onDuplicate?: (appId: string) => void;
-  onDelete?: (appId: string) => void;
-  onReset?: (appId: string) => void;
-  onShare?: (appId: string) => void;
-  onViewDetails?: (app: A2UIAppInstance) => void;
-  onThumbnailGenerated?: (appId: string, thumbnail: string) => void;
-  className?: string;
-}
+export type { AppCardProps } from '@/types/a2ui/app';
 
 export function AppCard({
   app,

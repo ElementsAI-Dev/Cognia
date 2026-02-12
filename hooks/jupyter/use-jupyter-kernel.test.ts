@@ -62,7 +62,7 @@ const mockSetVariables = jest.fn();
 const mockSetError = jest.fn();
 const mockClearError = jest.fn();
 
-jest.mock('@/stores/tools', () => ({
+jest.mock('@/stores/jupyter', () => ({
   useJupyterStore: jest.fn((selector) => {
     const state = {
       ...mockStoreState,

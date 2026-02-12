@@ -390,9 +390,10 @@ describe('Result Translators', () => {
     it('should handle missing optional fields', () => {
       const subAgentResult: SubAgentResult = {
         success: false,
-        finalResponse: undefined,
+        finalResponse: '',
         steps: [],
         totalSteps: 0,
+        duration: 0,
       };
 
       const result = subAgentResultToExternal(subAgentResult, 'session_x');

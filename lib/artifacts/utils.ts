@@ -4,7 +4,7 @@
  */
 
 import type { ArtifactType } from '@/types';
-import { MERMAID_TYPE_NAMES, LANGUAGE_DISPLAY_NAMES } from './constants';
+import { MERMAID_TYPE_NAMES, LANGUAGE_DISPLAY_NAMES, matchesTypePatterns } from './constants';
 
 /**
  * Generate a title from artifact content
@@ -74,4 +74,26 @@ export function generateArtifactTitle(
   }
 
   return 'Code Snippet';
+}
+
+/**
+ * Enhanced artifact type detection with additional pattern matching
+ * Combines base detection from artifact-detector with centralized pattern matching
+ * for edge cases (JSX/TSX → react, JSON chart data → chart)
+ */
+export function enhancedDetectArtifactType(
+  baseType: ArtifactType,
+  language?: string,
+  content?: string
+): ArtifactType {
+  if (baseType === 'code' && content) {
+    const lang = language?.toLowerCase();
+    if ((lang === 'jsx' || lang === 'tsx') && matchesTypePatterns(content, 'react')) {
+      return 'react';
+    }
+    if (lang === 'json' && matchesTypePatterns(content, 'chart')) {
+      return 'chart';
+    }
+  }
+  return baseType;
 }

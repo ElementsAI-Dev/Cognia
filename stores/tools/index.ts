@@ -2,15 +2,7 @@
  * Tools stores index
  */
 
-export {
-  useJupyterStore,
-  useActiveSession,
-  useActiveKernel,
-  useExecutionState,
-  useJupyterSessionForChat,
-  type ExecutionHistoryEntry,
-  type SessionEnvMapping,
-} from './jupyter-store';
+// jupyter store moved to stores/jupyter
 
 export {
   usePPTEditorStore,

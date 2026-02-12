@@ -117,7 +117,7 @@ describe('BaseProtocolAdapter', () => {
   const mockConfig: ExternalAgentConfig = {
     id: 'test-agent',
     name: 'Test Agent',
-    protocol: 'test',
+    protocol: 'acp',
     transport: 'stdio',
     enabled: true,
     defaultPermissionMode: 'default',

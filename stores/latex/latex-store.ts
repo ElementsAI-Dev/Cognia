@@ -22,7 +22,7 @@ import {
   type CitationLibrary,
   type CitationEntry,
 } from '@/lib/latex/citation-inserter';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // ============================================================================
 // Types

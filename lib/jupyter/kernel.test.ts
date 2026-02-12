@@ -9,7 +9,7 @@ import type {
   VariableInfo,
   KernelProgressEvent,
   CellOutputEvent,
-} from '@/types/system/jupyter';
+} from '@/types/jupyter';
 
 // Mock Tauri modules
 const mockInvoke = jest.fn();

@@ -18,20 +18,11 @@ import {
   TokenBreakdownChart,
   LatencyDistributionChart,
   EfficiencyRadarChart,
-  calculateEfficiencyScores,
 } from './charts';
-import type { MetricsData } from '@/types/observability';
+import { calculateEfficiencyScores } from '@/lib/observability';
+import type { MetricsData, SessionData } from '@/types/observability';
 import type { UsageStatistics, TimeSeriesDataPoint, CostEfficiencyMetrics, ProviderUsageBreakdown } from '@/lib/ai/usage-analytics';
 import type { MetricsSummary, AgentMetrics } from '@/lib/ai/agent/performance-metrics';
-
-interface SessionData {
-  sessionId: string;
-  tokens: number;
-  cost: number;
-  requests: number;
-  name?: string;
-  lastActive?: Date;
-}
 
 interface OverviewTabProps {
   statistics: UsageStatistics;

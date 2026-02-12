@@ -6,6 +6,8 @@ import {
   ARTIFACT_EXTENSIONS,
   ARTIFACT_COLORS,
   ARTIFACT_TYPE_KEYS,
+  ARTIFACT_I18N_TYPE_KEYS,
+  CHART_COLORS,
   PREVIEWABLE_TYPES,
   DESIGNABLE_TYPES,
   ALWAYS_CREATE_TYPES,
@@ -60,6 +62,36 @@ describe('Artifact Constants', () => {
       expect(ARTIFACT_TYPE_KEYS.code).toBe('code');
       expect(ARTIFACT_TYPE_KEYS.html).toBe('html');
       expect(ARTIFACT_TYPE_KEYS.react).toBe('react');
+    });
+  });
+
+  describe('ARTIFACT_I18N_TYPE_KEYS', () => {
+    it('should have i18n keys for all artifact types', () => {
+      expect(ARTIFACT_I18N_TYPE_KEYS.code).toBe('typeCode');
+      expect(ARTIFACT_I18N_TYPE_KEYS.document).toBe('typeDocument');
+      expect(ARTIFACT_I18N_TYPE_KEYS.svg).toBe('typeSvg');
+      expect(ARTIFACT_I18N_TYPE_KEYS.html).toBe('typeHtml');
+      expect(ARTIFACT_I18N_TYPE_KEYS.react).toBe('typeReact');
+      expect(ARTIFACT_I18N_TYPE_KEYS.mermaid).toBe('typeMermaid');
+      expect(ARTIFACT_I18N_TYPE_KEYS.chart).toBe('typeChart');
+      expect(ARTIFACT_I18N_TYPE_KEYS.math).toBe('typeMath');
+      expect(ARTIFACT_I18N_TYPE_KEYS.jupyter).toBe('typeJupyter');
+    });
+
+    it('should cover all 9 artifact types', () => {
+      expect(Object.keys(ARTIFACT_I18N_TYPE_KEYS)).toHaveLength(9);
+    });
+  });
+
+  describe('CHART_COLORS', () => {
+    it('should have at least 8 colors', () => {
+      expect(CHART_COLORS.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('should contain valid hex color strings', () => {
+      for (const color of CHART_COLORS) {
+        expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
+      }
     });
   });
 

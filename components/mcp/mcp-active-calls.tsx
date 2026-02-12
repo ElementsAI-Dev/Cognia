@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Zap,
@@ -18,8 +17,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { useMcpStore, type ActiveToolCall } from '@/stores';
+import { type ActiveToolCall } from '@/stores';
 import { cn } from '@/lib/utils';
+import { useMcpActiveCalls } from '@/hooks/mcp/use-mcp-active-calls';
 
 export interface MCPActiveCallsProps {
   autoRefreshMs?: number;
@@ -28,55 +28,14 @@ export interface MCPActiveCallsProps {
 
 export function MCPActiveCalls({ autoRefreshMs = 1000, className }: MCPActiveCallsProps) {
   const t = useTranslations('mcp');
-  const activeToolCalls = useMcpStore((state) => state.activeToolCalls);
-  const cancelRequest = useMcpStore((state) => state.cancelRequest);
-  const clearCompletedToolCalls = useMcpStore((state) => state.clearCompletedToolCalls);
-
-  const [, setTick] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const calls = useMemo(() => {
-    const arr = Array.from(activeToolCalls.values());
-    arr.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-    return arr;
-  }, [activeToolCalls]);
-
-  const hasCompleted = useMemo(
-    () => calls.some((c) => c.status === 'completed' || c.status === 'error' || c.status === 'timeout'),
-    [calls]
-  );
-
-  const hasRunning = useMemo(
-    () => calls.some((c) => c.status === 'running' || c.status === 'pending'),
-    [calls]
-  );
-
-  useEffect(() => {
-    if (hasRunning && autoRefreshMs > 0) {
-      intervalRef.current = setInterval(() => setTick((t) => t + 1), autoRefreshMs);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [hasRunning, autoRefreshMs]);
-
-  const handleCancel = useCallback(
-    async (call: ActiveToolCall) => {
-      try {
-        await cancelRequest(call.serverId, call.id, 'Cancelled by user');
-      } catch {
-        // cancel may fail silently
-      }
-    },
-    [cancelRequest]
-  );
-
-  const getElapsedTime = useCallback((call: ActiveToolCall): string => {
-    const end = call.completedAt || new Date();
-    const ms = end.getTime() - call.startedAt.getTime();
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  }, []);
+  const {
+    calls,
+    hasCompleted,
+    hasRunning: _hasRunning,
+    handleCancel,
+    clearCompleted: clearCompletedToolCalls,
+    getCallElapsedTime: getElapsedTime,
+  } = useMcpActiveCalls({ autoRefreshMs });
 
   const getStatusIcon = (status: ActiveToolCall['status']) => {
     switch (status) {

@@ -35,9 +35,9 @@ import { RecordingModeContent } from './recording-mode';
 import { AIGenerationModeContent } from './ai-generation-mode';
 
 export default function VideoStudioPage() {
-  const t = useTranslations('videoStudio');
-  const tEditor = useTranslations('videoEditor');
-  const tGen = useTranslations('videoGeneration');
+  const t = useTranslations('videoStudio') as unknown as (key: string, values?: Record<string, unknown>) => string;
+  const tEditor = useTranslations('videoEditor') as unknown as (key: string, values?: Record<string, unknown>) => string;
+  const tGen = useTranslations('videoGeneration') as unknown as (key: string, values?: Record<string, unknown>) => string;
   const searchParams = useSearchParams();
 
   // Get initial mode from URL query parameter

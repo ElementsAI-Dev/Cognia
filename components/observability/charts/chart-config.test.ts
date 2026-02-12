@@ -11,7 +11,7 @@ import {
   TOKEN_COLORS,
   GRID_STYLE,
   AXIS_STYLE,
-} from './chart-config';
+} from '@/lib/observability/chart-config';
 
 describe('chart-config', () => {
   describe('TOOLTIP_STYLE', () => {

@@ -158,7 +158,7 @@ export function ReactSandbox({
   const fwConfig = getFrameworkConfig(framework);
 
   // Build files object for Sandpack based on framework
-  const files = useMemo(() => {
+  const files = useMemo((): Record<string, { code: string; active?: boolean; hidden?: boolean }> => {
     if (framework === 'vue') {
       return {
         '/src/App.vue': {

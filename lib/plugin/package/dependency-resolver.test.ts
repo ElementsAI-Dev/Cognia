@@ -174,7 +174,7 @@ describe('DependencyResolver', () => {
 
       resolver.setInstalledPlugins(plugins);
 
-      expect(resolver.getRegisteredPlugins?.() ?? []).toBeDefined();
+      expect((resolver as unknown as Record<string, unknown>).setInstalledPlugins).toBeDefined();
     });
 
     it('should add installed plugin', () => {

@@ -10,6 +10,8 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CHART_COLORS } from '@/lib/artifacts';
+import type { ChartDataPoint } from '@/types';
 import {
   LineChart,
   Line,
@@ -35,11 +37,9 @@ import {
   Cell,
 } from 'recharts';
 
-export interface ChartDataPoint {
-  name: string;
-  value: number;
-  [key: string]: string | number;
-}
+// ChartDataPoint imported from @/types
+// Re-export for consumers that import from this file
+export type { ChartDataPoint } from '@/types';
 
 interface ChartRendererProps {
   content: string;
@@ -48,16 +48,7 @@ interface ChartRendererProps {
   chartData?: ChartDataPoint[];
 }
 
-const COLORS = [
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7300',
-  '#0088fe',
-  '#00C49F',
-  '#FFBB28',
-  '#FF8042',
-];
+// CHART_COLORS imported from @/lib/artifacts
 
 export function ChartRenderer({
   content,
@@ -130,7 +121,7 @@ export function ChartRenderer({
             <Tooltip />
             <Legend />
             {numericKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} />
+              <Bar key={key} dataKey={key} fill={CHART_COLORS[index % CHART_COLORS.length]} />
             ))}
           </BarChart>
         );
@@ -148,7 +139,7 @@ export function ChartRenderer({
               label
             >
               {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
             <Tooltip />
@@ -169,8 +160,8 @@ export function ChartRenderer({
                 key={key}
                 type="monotone"
                 dataKey={key}
-                fill={COLORS[index % COLORS.length]}
-                stroke={COLORS[index % COLORS.length]}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
                 fillOpacity={0.3}
               />
             ))}
@@ -185,7 +176,7 @@ export function ChartRenderer({
             <YAxis dataKey="y" type="number" name="Y" />
             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
             <Legend />
-            <Scatter name="Data" data={data} fill={COLORS[0]} />
+            <Scatter name="Data" data={data} fill={CHART_COLORS[0]} />
           </ScatterChart>
         );
 
@@ -202,8 +193,8 @@ export function ChartRenderer({
                 key={key}
                 name={key}
                 dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
-                fill={COLORS[index % COLORS.length]}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
                 fillOpacity={0.3}
               />
             ))}
@@ -224,7 +215,7 @@ export function ChartRenderer({
                 key={key}
                 type="monotone"
                 dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
                 strokeWidth={2}
               />
             ))}

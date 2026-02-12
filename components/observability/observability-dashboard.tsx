@@ -27,16 +27,13 @@ import { EmptyState } from './empty-state';
 import { DashboardHeader } from './dashboard-header';
 import { OverviewTab } from './overview-tab';
 import { TracesTab } from './traces-tab';
-import { useSettingsStore, useUsageStore } from '@/stores';
+import { useSettingsStore, useUsageStore, useObservabilityDashboardStore } from '@/stores';
 import { useObservabilityData, useObservabilityActions, usePerformanceMetrics } from '@/hooks/observability';
 import { useAgentTrace } from '@/hooks/agent-trace';
 import { getTopSessionsByUsage } from '@/lib/ai/usage-analytics';
 import { dbTraceToTraceData } from '@/lib/ai/observability/trace-converter';
 import { cn } from '@/lib/utils';
-import type { TimeRange, TraceData } from '@/types/observability';
-
-// Re-export types for backward compatibility
-export type { TraceData, SpanData, MetricsData, TimeRange } from '@/types/observability';
+import type { TimeRange, TraceData, DashboardTab } from '@/types/observability';
 
 interface ObservabilityDashboardProps {
   onClose?: () => void;
@@ -47,9 +44,12 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
   const tTime = useTranslations('observability.timeRange');
   const tCommon = useTranslations('observability');
 
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const timeRange = useObservabilityDashboardStore((s) => s.timeRange);
+  const setTimeRange = useObservabilityDashboardStore((s) => s.setTimeRange);
+  const activeTab = useObservabilityDashboardStore((s) => s.activeTab);
+  const setActiveTab = useObservabilityDashboardStore((s) => s.setActiveTab);
+  const autoRefresh = useObservabilityDashboardStore((s) => s.autoRefresh);
+  const setAutoRefresh = useObservabilityDashboardStore((s) => s.setAutoRefresh);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const observabilitySettings = useSettingsStore((state) => state.observabilitySettings);
@@ -220,7 +220,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(v) => setActiveTab(v as DashboardTab)}
         className="flex-1 px-4 pb-4 overflow-hidden"
       >
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">

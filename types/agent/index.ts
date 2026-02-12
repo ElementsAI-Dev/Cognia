@@ -10,3 +10,4 @@ export * from './background-agent';
 export * from './external-agent';
 export * from './tool';
 export * from './tool-history';
+export * from './component-types';

@@ -14,10 +14,11 @@ const createMockTask = (overrides: Partial<SystemTask> = {}): SystemTask => ({
   id: 'sys-task-1',
   name: 'Test System Task',
   description: 'Test description',
-  status: 'ready',
+  status: 'enabled',
   trigger: { type: 'cron', expression: '0 9 * * *' },
   action: { type: 'execute_script', language: 'python', code: 'print(1)' },
   run_level: 'user',
+  requires_admin: false,
   tags: [],
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-15T00:00:00Z',
@@ -25,9 +26,12 @@ const createMockTask = (overrides: Partial<SystemTask> = {}): SystemTask => ({
 });
 
 const defaultCapabilities: SchedulerCapabilities = {
-  has_system_scheduler: true,
+  os: 'windows',
+  backend: 'task_scheduler',
+  available: true,
   can_elevate: true,
-  platform: 'windows',
+  supported_triggers: ['cron', 'interval'],
+  max_tasks: 100,
 };
 
 describe('SystemSchedulerView', () => {
@@ -124,10 +128,10 @@ describe('SystemSchedulerView', () => {
     });
 
     it('should render task status badge', () => {
-      const tasks = [createMockTask({ status: 'ready' })];
+      const tasks = [createMockTask({ status: 'enabled' })];
       render(<SystemSchedulerView {...defaultProps} systemTasks={tasks} />);
 
-      expect(screen.getByText('ready')).toBeInTheDocument();
+      expect(screen.getByText('enabled')).toBeInTheDocument();
     });
 
     it('should format cron trigger', () => {

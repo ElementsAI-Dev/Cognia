@@ -9,8 +9,8 @@ import { z } from 'zod';
 import type {
   PaperPPTSection,
   PaperPPTOutlineItem,
-} from '@/types/learning/academic';
-import { DEFAULT_PPT_SECTIONS } from '@/types/learning/academic';
+} from '@/types/academic';
+import { DEFAULT_PPT_SECTIONS } from '@/types/academic';
 import type {
   PPTPresentation,
   PPTSlide,

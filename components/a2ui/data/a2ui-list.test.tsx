@@ -15,7 +15,7 @@ const mockDataCtx = {
   resolveBoolean: (value: boolean | { path: string }) => typeof value === 'boolean' ? value : false,
   resolveArray: <T,>(value: T[] | { path: string }, d: T[] = []) => Array.isArray(value) ? value : d,
 };
-jest.mock('../a2ui-context', () => ({
+jest.mock('@/hooks/a2ui', () => ({
   useA2UIContext: () => ({ ...mockDataCtx }),
   useA2UIData: () => mockDataCtx,
   useA2UIActions: () => ({

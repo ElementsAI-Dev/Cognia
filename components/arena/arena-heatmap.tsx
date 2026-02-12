@@ -14,28 +14,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { getWinRateColor, getWinRateText, buildWinRateMatrix } from '@/lib/arena';
+import type { MatrixModelInfo } from '@/lib/arena';
 import { useArenaStore } from '@/stores/arena';
 import type { ArenaHeadToHead } from '@/types/arena';
 
 interface ArenaHeatmapProps {
   className?: string;
   maxModels?: number;
-}
-
-function getWinRateColor(winRate: number): string {
-  // winRate is from perspective of row model vs column model
-  // 0.5 = neutral (tie), < 0.5 = loses, > 0.5 = wins
-  if (winRate >= 0.7) return 'bg-green-600 text-white';
-  if (winRate >= 0.6) return 'bg-green-500 text-white';
-  if (winRate >= 0.55) return 'bg-green-400 text-white';
-  if (winRate >= 0.45) return 'bg-gray-300 text-gray-800';
-  if (winRate >= 0.4) return 'bg-red-400 text-white';
-  if (winRate >= 0.3) return 'bg-red-500 text-white';
-  return 'bg-red-600 text-white';
-}
-
-function getWinRateText(winRate: number): string {
-  return `${(winRate * 100).toFixed(0)}%`;
 }
 
 function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps) {
@@ -50,7 +36,7 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
   const headToHead = useMemo(() => getHeadToHead(), [getHeadToHead]);
 
   // Get top models by rating (limited to maxModels)
-  const topModels = useMemo(() => {
+  const topModels: MatrixModelInfo[] = useMemo(() => {
     return [...modelRatings]
       .sort((a, b) => b.rating - a.rating)
       .slice(0, maxModels)
@@ -63,36 +49,10 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
   }, [modelRatings, maxModels]);
 
   // Build win rate matrix
-  const matrix = useMemo(() => {
-    const result: Record<string, Record<string, { winRate: number; games: number }>> = {};
-
-    for (const model of topModels) {
-      result[model.id] = {};
-      for (const other of topModels) {
-        if (model.id === other.id) {
-          result[model.id][other.id] = { winRate: 0.5, games: 0 };
-        } else {
-          // Find head-to-head record
-          const h2h = headToHead.find(
-            (h: ArenaHeadToHead) =>
-              (h.modelA === model.id && h.modelB === other.id) ||
-              (h.modelA === other.id && h.modelB === model.id)
-          );
-
-          if (h2h) {
-            // Calculate win rate from model's perspective
-            const isModelA = h2h.modelA === model.id;
-            const winRate = isModelA ? h2h.winRateA : 1 - h2h.winRateA;
-            result[model.id][other.id] = { winRate, games: h2h.total };
-          } else {
-            result[model.id][other.id] = { winRate: 0.5, games: 0 };
-          }
-        }
-      }
-    }
-
-    return result;
-  }, [topModels, headToHead]);
+  const matrix = useMemo(
+    () => buildWinRateMatrix(topModels, headToHead),
+    [topModels, headToHead]
+  );
 
   const cellSizeClasses = {
     sm: 'w-8 h-8 text-[8px]',

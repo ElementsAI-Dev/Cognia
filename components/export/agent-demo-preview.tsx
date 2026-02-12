@@ -10,7 +10,7 @@
  * - Playback controls
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Play,
@@ -41,22 +41,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { BackgroundAgent, BackgroundAgentStep } from '@/types/agent/background-agent';
-import {
-  exportAgentDemo,
-  exportAgentAsMarkdown,
-  type AgentDemoOptions,
-} from '@/lib/export/agent/agent-demo-export';
-import { downloadFile } from '@/lib/export';
-
-interface AgentDemoPreviewProps {
-  agent: BackgroundAgent;
-  trigger?: React.ReactNode;
-}
-
-type ExportFormat = 'html' | 'markdown';
+import type { BackgroundAgentStep } from '@/types/agent/background-agent';
+import type { AgentDemoPreviewProps, AgentDemoExportFormat } from '@/types/export/agent-demo';
+import { useAgentDemoExport } from '@/hooks/export';
 
 const STEP_ICONS: Record<BackgroundAgentStep['type'], React.ReactNode> = {
   thinking: <span className="text-lg">🤔</span>,
@@ -88,97 +76,29 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgCo
   },
 };
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
-
 export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('html');
-  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
 
-  // Demo options
-  const [autoPlay, setAutoPlay] = useState(false);
-  const [showTimeline, setShowTimeline] = useState(true);
-  const [showToolDetails, setShowToolDetails] = useState(true);
-  const [showThinkingProcess, setShowThinkingProcess] = useState(true);
-  const [playbackSpeed] = useState(1);
-
-  // Toggle step expansion
-  const toggleStep = useCallback((stepNumber: number) => {
-    setExpandedSteps((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepNumber)) {
-        next.delete(stepNumber);
-      } else {
-        next.add(stepNumber);
-      }
-      return next;
-    });
-  }, []);
-
-  // Handle export
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
-
-    try {
-      const options: Partial<AgentDemoOptions> = {
-        autoPlay,
-        showTimeline,
-        showToolDetails,
-        showThinkingProcess,
-        playbackSpeed,
-        theme: 'system',
-        showControls: true,
-      };
-
-      let content: string;
-      let filename: string;
-      let mimeType: string;
-
-      if (exportFormat === 'html') {
-        content = exportAgentDemo(agent, options);
-        filename = `agent-demo-${agent.name.slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.html`;
-        mimeType = 'text/html';
-      } else {
-        content = exportAgentAsMarkdown(agent, { includeDetails: showToolDetails });
-        filename = `agent-workflow-${agent.name.slice(0, 30)}-${new Date().toISOString().slice(0, 10)}.md`;
-        mimeType = 'text/markdown';
-      }
-
-      downloadFile(content, filename, mimeType);
-      toast.success(exportFormat === 'html' ? t('demoExported') : t('markdownExported'));
-    } catch (error) {
-      console.error('Export failed:', error);
-      toast.error(t('exportFailed'));
-    } finally {
-      setIsExporting(false);
-    }
-  }, [
-    agent,
+  const {
+    isExporting,
     exportFormat,
+    setExportFormat,
+    expandedSteps,
+    toggleStep,
     autoPlay,
+    setAutoPlay,
     showTimeline,
+    setShowTimeline,
     showToolDetails,
+    setShowToolDetails,
     showThinkingProcess,
-    playbackSpeed,
-    t,
-  ]);
-
-  // Calculate statistics
-  const stats = {
-    totalSteps: agent.steps.length,
-    completedSteps: agent.steps.filter((s) => s.status === 'completed').length,
-    failedSteps: agent.steps.filter((s) => s.status === 'failed').length,
-    totalDuration: agent.steps.reduce((sum, s) => sum + (s.duration || 0), 0),
-    toolCalls: agent.steps.filter((s) => s.type === 'tool_call').length,
-  };
-
-  const progress = stats.totalSteps > 0 ? (stats.completedSteps / stats.totalSteps) * 100 : 0;
+    setShowThinkingProcess,
+    handleExport,
+    stats,
+    progress,
+    formatDuration,
+  } = useAgentDemoExport(agent, t);
 
   const statusConfig = STATUS_CONFIG[agent.status] || STATUS_CONFIG.pending;
 
@@ -323,7 +243,7 @@ export function AgentDemoPreview({ agent, trigger }: AgentDemoPreviewProps) {
               <Label>{t('exportFormatDemo')}</Label>
               <RadioGroup
                 value={exportFormat}
-                onValueChange={(v) => setExportFormat(v as ExportFormat)}
+                onValueChange={(v) => setExportFormat(v as AgentDemoExportFormat)}
                 className="flex gap-4"
               >
                 <div className="flex items-center">

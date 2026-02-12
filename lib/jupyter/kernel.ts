@@ -19,7 +19,9 @@ import type {
   CellOutputEvent,
   CreateSessionOptions,
   NotebookExecutionOptions,
-} from '@/types/system/jupyter';
+  KernelServiceConfig,
+  NotebookFileInfo,
+} from '@/types/jupyter';
 
 /** Check if kernel management is available */
 export function isKernelAvailable(): boolean {
@@ -337,28 +339,14 @@ export async function cleanup(): Promise<void> {
 
 // ==================== Configuration ====================
 
-/** Kernel configuration */
-export interface KernelConfig {
-  /** Timeout for kernel startup in seconds */
-  startup_timeout_secs: number;
-  /** Timeout for code execution in seconds */
-  execution_timeout_secs: number;
-  /** Timeout for idle kernels before cleanup in seconds */
-  idle_timeout_secs: number;
-  /** Maximum number of kernels */
-  max_kernels: number;
-  /** Enable verbose logging */
-  verbose: boolean;
-}
-
 /** Get the current kernel configuration */
-export async function getKernelConfig(): Promise<KernelConfig | null> {
+export async function getKernelConfig(): Promise<KernelServiceConfig | null> {
   if (!isTauri()) {
     return null;
   }
 
   try {
-    return await invoke<KernelConfig>('jupyter_get_config');
+    return await invoke<KernelServiceConfig>('jupyter_get_config');
   } catch (error) {
     log.warn('Jupyter: Failed to get kernel config', { error });
     return null;
@@ -366,18 +354,6 @@ export async function getKernelConfig(): Promise<KernelConfig | null> {
 }
 
 // ==================== Notebook File I/O ====================
-
-/** Notebook file metadata */
-export interface NotebookFileInfo {
-  path: string;
-  fileName: string;
-  sizeBytes: number;
-  cellCount: number;
-  codeCells: number;
-  markdownCells: number;
-  kernelName: string;
-  nbformat: number;
-}
 
 /** Open a .ipynb notebook file from disk */
 export async function openNotebook(path: string): Promise<string> {

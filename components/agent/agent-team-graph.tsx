@@ -37,13 +37,7 @@ import {
   ArrowRight,
   MessageSquare,
   Lock,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Pause,
   Clock,
-  Ban,
-  GitBranch,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -64,12 +58,10 @@ import type {
   AgentTeamMessage,
 } from '@/types/agent/agent-team';
 import { cn } from '@/lib/utils';
+import { GRAPH_STATUS_ICONS, PRIORITY_DOT_COLORS } from '@/lib/agent';
+import type { GraphViewMode } from '@/types/agent/component-types';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-type GraphViewMode = 'team' | 'tasks';
+export type { GraphViewMode } from '@/types/agent/component-types';
 
 interface AgentTeamGraphProps {
   teamId: string;
@@ -316,17 +308,7 @@ function layoutTaskNodes(
 // Custom Nodes
 // ============================================================================
 
-const STATUS_ICONS: Record<string, React.ElementType> = {
-  idle: Clock,
-  planning: GitBranch,
-  awaiting_approval: Pause,
-  executing: Loader2,
-  paused: Pause,
-  completed: CheckCircle2,
-  failed: XCircle,
-  cancelled: Ban,
-  shutdown: Ban,
-};
+const STATUS_ICONS = GRAPH_STATUS_ICONS;
 
 function TeammateNodeComponent({ data }: NodeProps<Node<TeammateNodeData>>) {
   const { teammate, isLead, taskCount, messageCount } = data;
@@ -416,13 +398,7 @@ function TeammateNodeComponent({ data }: NodeProps<Node<TeammateNodeData>>) {
   );
 }
 
-const PRIORITY_DOT_COLORS: Record<string, string> = {
-  critical: 'bg-red-500',
-  high: 'bg-orange-500',
-  normal: 'bg-blue-500',
-  low: 'bg-gray-400',
-  background: 'bg-gray-300',
-};
+// PRIORITY_DOT_COLORS imported from lib/agent
 
 function TaskNodeComponent({ data }: NodeProps<Node<TaskNodeData>>) {
   const { task, assigneeName, depCount } = data;
@@ -630,4 +606,4 @@ export function AgentTeamGraph(props: AgentTeamGraphProps) {
   );
 }
 
-export type { AgentTeamGraphProps, GraphViewMode };
+export type { AgentTeamGraphProps };

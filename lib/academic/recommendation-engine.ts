@@ -3,7 +3,7 @@
  * Provides multiple recommendation strategies for discovering relevant papers
  */
 
-import type { Paper, LibraryPaper, AcademicProviderType } from '@/types/learning/academic';
+import type { Paper, LibraryPaper, AcademicProviderType } from '@/types/academic';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;

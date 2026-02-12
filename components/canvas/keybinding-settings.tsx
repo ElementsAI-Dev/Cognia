@@ -39,47 +39,11 @@ import {
   parseKeyEvent,
   DEFAULT_KEYBINDINGS,
 } from '@/stores/canvas/keybinding-store';
+import { KEYBINDING_CATEGORIES } from '@/lib/canvas/constants';
 
 interface KeybindingSettingsProps {
   trigger?: React.ReactNode;
 }
-
-const KEYBINDING_CATEGORIES = {
-  canvas: [
-    'canvas.save',
-    'canvas.saveVersion',
-    'canvas.undo',
-    'canvas.redo',
-    'canvas.find',
-    'canvas.replace',
-    'canvas.goToLine',
-    'canvas.format',
-    'canvas.toggleWordWrap',
-    'canvas.toggleMinimap',
-    'canvas.close',
-  ],
-  action: [
-    'action.review',
-    'action.fix',
-    'action.improve',
-    'action.explain',
-    'action.simplify',
-    'action.expand',
-    'action.translate',
-    'action.run',
-  ],
-  navigation: [
-    'navigation.nextSuggestion',
-    'navigation.prevSuggestion',
-    'navigation.acceptSuggestion',
-    'navigation.rejectSuggestion',
-    'navigation.nextDocument',
-    'navigation.prevDocument',
-  ],
-  view: ['view.toggleHistory', 'view.toggleSuggestions', 'view.toggleExecution'],
-  edit: ['edit.selectAll', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.comment'],
-  fold: ['fold.foldAll', 'fold.unfoldAll', 'fold.foldLevel1', 'fold.foldLevel2'],
-};
 
 export function KeybindingSettings({ trigger }: KeybindingSettingsProps) {
   const t = useTranslations('canvas');

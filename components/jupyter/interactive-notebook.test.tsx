@@ -6,12 +6,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 
 // Mock the hooks
-jest.mock('@/hooks/sandbox', () => ({
+jest.mock('@/hooks/jupyter', () => ({
   useJupyterKernel: jest.fn(),
+}));
+
+jest.mock('@/hooks/sandbox', () => ({
   useVirtualEnv: jest.fn(),
 }));
 
-jest.mock('@/stores/tools', () => ({
+jest.mock('@/stores/jupyter', () => ({
   useJupyterStore: jest.fn(),
 }));
 
@@ -74,9 +77,9 @@ jest.mock('@/components/artifacts/jupyter-renderer', () => ({
   ),
 }));
 
-import { useJupyterKernel } from '@/hooks/sandbox';
+import { useJupyterKernel } from '@/hooks/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
-import { useJupyterStore } from '@/stores/tools';
+import { useJupyterStore } from '@/stores/jupyter';
 
 import { InteractiveNotebook } from './interactive-notebook';
 

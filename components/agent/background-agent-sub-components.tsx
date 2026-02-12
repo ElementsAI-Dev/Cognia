@@ -28,18 +28,9 @@ import type {
   BackgroundAgent,
   BackgroundAgentLog,
 } from '@/types/agent/background-agent';
+import type { PerformanceStats } from '@/types/agent/component-types';
 
-// Performance stats interface
-export interface PerformanceStats {
-  totalTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  averageDuration: number;
-  successRate: number;
-  activeSubAgents: number;
-  toolCallsTotal: number;
-  tokenUsage: number;
-}
+export type { PerformanceStats } from '@/types/agent/component-types';
 
 // Agent logs viewer component
 export function AgentLogsViewer({

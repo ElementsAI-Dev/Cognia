@@ -11,6 +11,12 @@ const renderWithProviders = (ui: React.ReactElement) => {
 jest.mock('@/stores/skills', () => ({
   useSkillStore: jest.fn(),
 }));
+jest.mock('@/hooks/skills/use-skills', () => ({
+  useSkillTokenBudget: jest.fn(() => ({ totalTokens: 200, fits: true, excess: 0 })),
+}));
+
+import { useSkillTokenBudget } from '@/hooks/skills/use-skills';
+const mockUseSkillTokenBudget = jest.mocked(useSkillTokenBudget);
 
 const mockSkill1: Skill = {
   id: 'skill-1',
@@ -290,6 +296,48 @@ describe('SkillSelector', () => {
       // Active skill should appear as a badge
       const badge = document.querySelector('[data-slot="badge"]');
       expect(badge).toBeInTheDocument();
+    });
+  });
+
+  describe('token budget', () => {
+    it('shows token budget badge when skills are active', () => {
+      mockGetActiveSkills.mockReturnValue([mockSkill1]);
+      mockUseSkillTokenBudget.mockReturnValue({ totalTokens: 200, fits: true, excess: 0 });
+      mockUseSkillStore.mockReturnValue({
+        skills: {
+          'skill-1': mockSkill1,
+          'skill-2': mockSkill2,
+        },
+        activeSkillIds: ['skill-1'],
+        activateSkill: mockActivateSkill,
+        deactivateSkill: mockDeactivateSkill,
+        getActiveSkills: mockGetActiveSkills,
+      } as unknown as ReturnType<typeof useSkillStore>);
+
+      renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
+
+      // Token badge shows estimated tokens
+      expect(screen.getAllByText(/~200/).length).toBeGreaterThan(0);
+    });
+
+    it('shows over budget warning when token budget exceeded', () => {
+      mockGetActiveSkills.mockReturnValue([mockSkill1, mockSkill2]);
+      mockUseSkillTokenBudget.mockReturnValue({ totalTokens: 9000, fits: false, excess: 1000 });
+      mockUseSkillStore.mockReturnValue({
+        skills: {
+          'skill-1': mockSkill1,
+          'skill-2': mockSkill2,
+        },
+        activeSkillIds: ['skill-1', 'skill-2'],
+        activateSkill: mockActivateSkill,
+        deactivateSkill: mockDeactivateSkill,
+        getActiveSkills: mockGetActiveSkills,
+      } as unknown as ReturnType<typeof useSkillStore>);
+
+      renderWithProviders(<SkillSelector onSkillsChange={mockOnSkillsChange} />);
+
+      // next-intl mock returns key as-is; appears in badge and tooltip
+      expect(screen.getAllByText(/tokenBudgetExceeded/).length).toBeGreaterThan(0);
     });
   });
 

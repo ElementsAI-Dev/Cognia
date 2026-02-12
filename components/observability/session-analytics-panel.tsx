@@ -13,16 +13,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { MessageSquare, Zap, DollarSign, Clock } from 'lucide-react';
+import { formatTokens, formatCost, formatSessionId, formatTimeAgo } from '@/lib/observability';
 import { cn } from '@/lib/utils';
-
-interface SessionData {
-  sessionId: string;
-  tokens: number;
-  cost: number;
-  requests: number;
-  name?: string;
-  lastActive?: Date;
-}
+import type { SessionData } from '@/types/observability';
 
 interface SessionAnalyticsPanelProps {
   sessions: SessionData[];
@@ -60,35 +53,6 @@ export function SessionAnalyticsPanel({
     );
   }, [sessions]);
 
-  const formatTokens = (tokens: number) => {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-    return tokens.toString();
-  };
-
-  const formatCost = (cost: number) => {
-    if (cost < 0.01) return '< $0.01';
-    if (cost < 1) return `$${cost.toFixed(3)}`;
-    return `$${cost.toFixed(2)}`;
-  };
-
-  const formatSessionId = (id: string) => {
-    if (id.length <= 12) return id;
-    return `${id.slice(0, 6)}...${id.slice(-4)}`;
-  };
-
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
-  };
 
   if (sessions.length === 0) {
     return (

@@ -35,8 +35,17 @@ export {
   EfficiencyRadarChart,
   TokenBreakdownChart,
   RequestsTimelineChart,
-  calculateEfficiencyScores,
 } from './charts';
 
-// Types
-export type { TraceData, SpanData, MetricsData, TimeRange } from '@/types/observability';
+// Types (re-exported for convenience)
+export type {
+  TraceData,
+  SpanData,
+  MetricsData,
+  TimeRange,
+  DashboardTab,
+  ObservabilitySettingsData,
+  SessionData,
+  SparklineDataPoint,
+  EfficiencyData,
+} from '@/types/observability';

@@ -4,7 +4,8 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { A2UIAnimation, type A2UIAnimationComponentDef } from './a2ui-animation';
+import { A2UIAnimation } from './a2ui-animation';
+import type { A2UIAnimationComponentDef } from '@/types/a2ui/animation';
 import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 
 // Mock motion/react

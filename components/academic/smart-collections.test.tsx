@@ -6,7 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SmartCollections } from './smart-collections';
 import { useAcademic } from '@/hooks/academic';
-import type { LibraryPaper, PaperCollection } from '@/types/learning/academic';
+import type { LibraryPaper, PaperCollection } from '@/types/academic';
 
 jest.mock('@/hooks/academic', () => ({
   useAcademic: jest.fn(),

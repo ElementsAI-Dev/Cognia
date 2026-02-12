@@ -4,7 +4,6 @@
  * PresetSelector - dropdown menu for selecting presets
  */
 
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Plus, Star, Clock, TrendingUp, Search, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { COLOR_TINT_CLASS } from '@/lib/presets';
-import { usePresetStore } from '@/stores';
+import { usePresetSelector } from '@/hooks/presets/use-preset-selector';
 import type { Preset } from '@/types/content/preset';
 
 interface PresetSelectorProps {
@@ -42,42 +41,20 @@ export function PresetSelector({
   compact = false,
 }: PresetSelectorProps) {
   const t = useTranslations('presetSelector');
-  const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(false);
 
-  const presets = usePresetStore((state) => state.presets);
-  const selectedPresetId = usePresetStore((state) => state.selectedPresetId);
-  const selectPreset = usePresetStore((state) => state.selectPreset);
-  const trackPresetUsage = usePresetStore((state) => state.usePreset);
-
-  // Compute derived values directly instead of using store methods
-  const selectedPreset = selectedPresetId 
-    ? presets.find(p => p.id === selectedPresetId) 
-    : presets.find(p => p.isDefault);
-  
-  const filteredPresets = search 
-    ? presets.filter(p => 
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description?.toLowerCase().includes(search.toLowerCase())
-      )
-    : presets;
-  
-  const recentPresets = [...presets]
-    .filter(p => p.lastUsedAt)
-    .sort((a, b) => (b.lastUsedAt?.getTime() || 0) - (a.lastUsedAt?.getTime() || 0))
-    .slice(0, 3);
-  
-  const popularPresets = [...presets]
-    .sort((a, b) => b.usageCount - a.usageCount)
-    .slice(0, 3);
-
-  const handleSelect = (preset: Preset) => {
-    selectPreset(preset.id);
-    trackPresetUsage(preset.id);
-    onSelect?.(preset);
-    setOpen(false);
-    setSearch('');
-  };
+  const {
+    search,
+    setSearch,
+    open,
+    setOpen,
+    presets,
+    selectedPresetId,
+    selectedPreset,
+    filteredPresets,
+    recentPresets,
+    popularPresets,
+    handleSelect,
+  } = usePresetSelector({ onSelect });
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

@@ -11,9 +11,14 @@ const renderWithProviders = (ui: React.ReactElement) => {
 jest.mock('@/stores/skills', () => ({
   useSkillStore: jest.fn(),
 }));
-jest.mock('@/lib/skills/executor', () => ({
-  findMatchingSkills: jest.fn((skills, _query, _max) => skills.slice(0, 2)),
+jest.mock('@/hooks/skills/use-skills', () => ({
+  useAutoMatchSkills: jest.fn(() => []),
+  useSkillSystemPrompt: jest.fn(() => ''),
 }));
+
+import { useAutoMatchSkills, useSkillSystemPrompt } from '@/hooks/skills/use-skills';
+const mockUseAutoMatchSkills = jest.mocked(useAutoMatchSkills);
+const mockUseSkillSystemPrompt = jest.mocked(useSkillSystemPrompt);
 
 const mockSkill1: Skill = {
   id: 'skill-1',
@@ -73,11 +78,8 @@ describe('SkillSuggestions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetActiveSkills.mockReturnValue([]);
+    mockUseAutoMatchSkills.mockReturnValue([mockSkill1, mockSkill2]);
     mockUseSkillStore.mockReturnValue({
-      skills: {
-        'skill-1': mockSkill1,
-        'skill-2': mockSkill2,
-      },
       activateSkill: mockActivateSkill,
       deactivateSkill: mockDeactivateSkill,
       getActiveSkills: mockGetActiveSkills,
@@ -86,6 +88,7 @@ describe('SkillSuggestions', () => {
 
   describe('rendering', () => {
     it('renders nothing when query is too short', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       const { container } = renderWithProviders(
         <SkillSuggestions 
           query="ab" 
@@ -98,8 +101,8 @@ describe('SkillSuggestions', () => {
     });
 
     it('renders nothing when no matching skills and no active skills', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockUseSkillStore.mockReturnValue({
-        skills: {},
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: jest.fn(() => []),
@@ -227,9 +230,9 @@ describe('SkillSuggestions', () => {
 
   describe('active skills display', () => {
     it('shows active skills indicator when no suggestions but has active skills', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: {},
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -247,9 +250,9 @@ describe('SkillSuggestions', () => {
     });
 
     it('displays active skill badges', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: { 'active-skill-1': mockActiveSkill },
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -269,10 +272,6 @@ describe('SkillSuggestions', () => {
     it('shows currently active section in suggestions panel', () => {
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: { 
-          'skill-1': mockSkill1,
-          'active-skill-1': mockActiveSkill,
-        },
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -290,9 +289,9 @@ describe('SkillSuggestions', () => {
     });
 
     it('calls deactivateSkill when clicking active skill badge', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: { 'active-skill-1': mockActiveSkill },
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -312,6 +311,7 @@ describe('SkillSuggestions', () => {
     });
 
     it('shows +N badge when more than 3 active skills', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       const multipleActiveSkills = [
         { ...mockActiveSkill, id: 'a1', metadata: { name: 's1', description: '' } },
         { ...mockActiveSkill, id: 'a2', metadata: { name: 's2', description: '' } },
@@ -321,7 +321,6 @@ describe('SkillSuggestions', () => {
 
       mockGetActiveSkills.mockReturnValue(multipleActiveSkills);
       mockUseSkillStore.mockReturnValue({
-        skills: {},
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -339,9 +338,9 @@ describe('SkillSuggestions', () => {
     });
 
     it('renders with showActiveSkills false', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: { 'active-skill-1': mockActiveSkill },
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -362,6 +361,7 @@ describe('SkillSuggestions', () => {
 
   describe('configuration', () => {
     it('respects minQueryLength prop', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       const { container } = renderWithProviders(
         <SkillSuggestions 
           query="code" 
@@ -374,9 +374,9 @@ describe('SkillSuggestions', () => {
     });
 
     it('applies custom className', () => {
+      mockUseAutoMatchSkills.mockReturnValue([]);
       mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
       mockUseSkillStore.mockReturnValue({
-        skills: {},
         activateSkill: mockActivateSkill,
         deactivateSkill: mockDeactivateSkill,
         getActiveSkills: mockGetActiveSkills,
@@ -407,8 +407,8 @@ describe('ActiveSkillsIndicator', () => {
 
   it('renders nothing when no active skills', () => {
     mockGetActiveSkills.mockReturnValue([]);
+    mockUseSkillSystemPrompt.mockReturnValue('');
     mockUseSkillStore.mockReturnValue({
-      skills: {},
       getActiveSkills: mockGetActiveSkills,
     } as unknown as ReturnType<typeof useSkillStore>);
 
@@ -419,8 +419,8 @@ describe('ActiveSkillsIndicator', () => {
 
   it('renders button when skills are active', () => {
     mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
+    mockUseSkillSystemPrompt.mockReturnValue('## Active Skill: active-skill');
     mockUseSkillStore.mockReturnValue({
-      skills: { 'active-skill-1': mockActiveSkill },
       getActiveSkills: mockGetActiveSkills,
     } as unknown as ReturnType<typeof useSkillStore>);
 
@@ -431,8 +431,8 @@ describe('ActiveSkillsIndicator', () => {
 
   it('displays active skills count', () => {
     mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
+    mockUseSkillSystemPrompt.mockReturnValue('prompt');
     mockUseSkillStore.mockReturnValue({
-      skills: { 'active-skill-1': mockActiveSkill },
       getActiveSkills: mockGetActiveSkills,
     } as unknown as ReturnType<typeof useSkillStore>);
 
@@ -443,8 +443,8 @@ describe('ActiveSkillsIndicator', () => {
 
   it('calls onClick when button clicked', () => {
     mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
+    mockUseSkillSystemPrompt.mockReturnValue('prompt');
     mockUseSkillStore.mockReturnValue({
-      skills: { 'active-skill-1': mockActiveSkill },
       getActiveSkills: mockGetActiveSkills,
     } as unknown as ReturnType<typeof useSkillStore>);
 
@@ -457,13 +457,27 @@ describe('ActiveSkillsIndicator', () => {
 
   it('applies custom className', () => {
     mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
+    mockUseSkillSystemPrompt.mockReturnValue('prompt');
     mockUseSkillStore.mockReturnValue({
-      skills: { 'active-skill-1': mockActiveSkill },
       getActiveSkills: mockGetActiveSkills,
     } as unknown as ReturnType<typeof useSkillStore>);
 
     renderWithProviders(<ActiveSkillsIndicator onClick={mockOnClick} className="custom-class" />);
 
     expect(screen.getByRole('button')).toHaveClass('custom-class');
+  });
+
+  it('shows prompt preview in tooltip when skills are active', () => {
+    mockGetActiveSkills.mockReturnValue([mockActiveSkill]);
+    mockUseSkillSystemPrompt.mockReturnValue('## Active Skill: active-skill\n**Description:** An active skill');
+    mockUseSkillStore.mockReturnValue({
+      getActiveSkills: mockGetActiveSkills,
+    } as unknown as ReturnType<typeof useSkillStore>);
+
+    renderWithProviders(<ActiveSkillsIndicator onClick={mockOnClick} />);
+
+    expect(screen.getByRole('button')).toBeInTheDocument();
+    // Prompt preview section should be rendered in the tooltip
+    expect(screen.getByText(/promptPreview|Prompt Preview/)).toBeInTheDocument();
   });
 });

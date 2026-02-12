@@ -8,13 +8,6 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Sparkles,
-  Code,
-  BookOpen,
-  Briefcase,
-  PenTool,
-  Rocket,
-  GraduationCap,
-  Heart,
   Loader2,
 } from 'lucide-react';
 import {
@@ -35,118 +28,11 @@ import {
 import { toast } from 'sonner';
 import { useProjectStore } from '@/stores';
 import type { CreateProjectInput, ProjectTemplate } from '@/types';
+import { PROJECT_ICON_MAP } from '@/lib/project/utils';
+import { PROJECT_TEMPLATES, CATEGORY_LABELS } from '@/lib/project/templates';
 
 export type { ProjectTemplate } from '@/types';
-
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Code,
-  BookOpen,
-  Briefcase,
-  PenTool,
-  Rocket,
-  GraduationCap,
-  Heart,
-  Sparkles,
-};
-
-export const PROJECT_TEMPLATES: ProjectTemplate[] = [
-  {
-    id: 'coding-assistant',
-    name: 'Coding Assistant',
-    description: 'AI-powered coding help with code reviews, debugging, and documentation',
-    icon: 'Code',
-    color: '#3B82F6',
-    defaultMode: 'agent',
-    customInstructions: 'You are an expert software developer. Help with coding tasks, code reviews, debugging, and technical documentation. Always provide clean, well-documented code examples.',
-    tags: ['development', 'coding'],
-    category: 'development',
-  },
-  {
-    id: 'research-project',
-    name: 'Research Project',
-    description: 'Organize research with AI-assisted analysis and summarization',
-    icon: 'BookOpen',
-    color: '#8B5CF6',
-    defaultMode: 'research',
-    customInstructions: 'You are a research assistant. Help analyze documents, summarize findings, and organize research materials. Provide citations and references when possible.',
-    tags: ['research', 'learning'],
-    category: 'research',
-  },
-  {
-    id: 'business-strategy',
-    name: 'Business Strategy',
-    description: 'Strategic planning and business analysis with AI insights',
-    icon: 'Briefcase',
-    color: '#F97316',
-    defaultMode: 'chat',
-    customInstructions: 'You are a business strategist. Help with market analysis, competitive research, and strategic planning. Provide actionable insights and recommendations.',
-    tags: ['work', 'business'],
-    category: 'business',
-  },
-  {
-    id: 'creative-writing',
-    name: 'Creative Writing',
-    description: 'Writing assistant for stories, articles, and creative content',
-    icon: 'PenTool',
-    color: '#EC4899',
-    defaultMode: 'chat',
-    customInstructions: 'You are a creative writing assistant. Help with storytelling, character development, and prose improvement. Provide constructive feedback and suggestions.',
-    tags: ['writing', 'creative'],
-    category: 'writing',
-  },
-  {
-    id: 'startup-launch',
-    name: 'Startup Launch',
-    description: 'Plan and execute your startup idea with AI guidance',
-    icon: 'Rocket',
-    color: '#22C55E',
-    defaultMode: 'agent',
-    customInstructions: 'You are a startup advisor. Help with product development, go-to-market strategy, and pitch preparation. Provide practical, actionable advice for early-stage founders.',
-    tags: ['work', 'startup'],
-    category: 'business',
-  },
-  {
-    id: 'learning-path',
-    name: 'Learning Path',
-    description: 'Personalized learning with AI tutoring and study plans',
-    icon: 'GraduationCap',
-    color: '#14B8A6',
-    defaultMode: 'chat',
-    customInstructions: 'You are a patient and knowledgeable tutor. Help create personalized learning paths, explain complex concepts, and provide practice exercises. Adapt to the learner\'s pace and style.',
-    tags: ['learning', 'personal'],
-    category: 'personal',
-  },
-  {
-    id: 'personal-journal',
-    name: 'Personal Journal',
-    description: 'Reflective journaling with AI prompts and insights',
-    icon: 'Heart',
-    color: '#EF4444',
-    defaultMode: 'chat',
-    customInstructions: 'You are a thoughtful companion for personal reflection. Help with journaling prompts, goal setting, and self-discovery. Be supportive and non-judgmental.',
-    tags: ['personal', 'journal'],
-    category: 'personal',
-  },
-  {
-    id: 'blank-project',
-    name: 'Blank Project',
-    description: 'Start fresh with a clean slate',
-    icon: 'Sparkles',
-    color: '#6B7280',
-    defaultMode: 'chat',
-    customInstructions: '',
-    tags: [],
-    category: 'personal',
-  },
-];
-
-const CATEGORY_LABELS: Record<ProjectTemplate['category'], string> = {
-  development: 'Development',
-  writing: 'Writing',
-  research: 'Research',
-  business: 'Business',
-  personal: 'Personal',
-};
+export { PROJECT_TEMPLATES } from '@/lib/project/templates';
 
 interface ProjectTemplatesDialogProps {
   open: boolean;
@@ -242,7 +128,7 @@ export function ProjectTemplatesDialog({
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
             {filteredTemplates.map((template) => {
-              const IconComponent = ICON_MAP[template.icon] || Sparkles;
+              const IconComponent = PROJECT_ICON_MAP[template.icon] || Sparkles;
               const templateKeyMap: Record<string, string> = {
                 'coding-assistant': 'codingAssistant',
                 'research-project': 'researchProject',

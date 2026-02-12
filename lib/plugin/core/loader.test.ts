@@ -22,7 +22,7 @@ beforeAll(() => {
     createElement: mockCreateElement,
     head: {
       appendChild: mockAppendChild,
-    },
+    } as unknown as HTMLHeadElement,
   };
   // Mock fetch to reject immediately so loader falls through to script tag strategy
   global.fetch = jest.fn().mockRejectedValue(new Error('fetch not available in test'));

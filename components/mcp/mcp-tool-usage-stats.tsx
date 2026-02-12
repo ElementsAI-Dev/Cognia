@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   BarChart3,
@@ -23,83 +22,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { useMcpStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import type { ToolUsageRecord } from '@/types/mcp';
+import { formatExecutionTime, formatLastUsed } from '@/lib/mcp/format-utils';
+import { useMcpToolUsage } from '@/hooks/mcp/use-mcp-tool-usage';
 
 export interface MCPToolUsageStatsProps {
   maxItems?: number;
   className?: string;
 }
 
-type SortKey = 'usage' | 'success' | 'time';
-
 export function MCPToolUsageStats({ maxItems = 20, className }: MCPToolUsageStatsProps) {
   const t = useTranslations('mcp');
-  const toolUsageHistory = useMcpStore((state) => state.toolUsageHistory);
-  const resetToolUsageHistory = useMcpStore((state) => state.resetToolUsageHistory);
-  const [sortBy, setSortBy] = useState<SortKey>('usage');
-
-  const usageRecords = useMemo(() => {
-    const records: ToolUsageRecord[] = Array.from(toolUsageHistory.values());
-
-    records.sort((a, b) => {
-      switch (sortBy) {
-        case 'usage':
-          return b.usageCount - a.usageCount;
-        case 'success': {
-          const rateA = a.usageCount > 0 ? a.successCount / a.usageCount : 0;
-          const rateB = b.usageCount > 0 ? b.successCount / b.usageCount : 0;
-          return rateB - rateA;
-        }
-        case 'time':
-          return b.avgExecutionTime - a.avgExecutionTime;
-        default:
-          return 0;
-      }
-    });
-
-    return records.slice(0, maxItems);
-  }, [toolUsageHistory, sortBy, maxItems]);
-
-  const maxUsageCount = useMemo(
-    () => Math.max(1, ...usageRecords.map((r) => r.usageCount)),
-    [usageRecords]
-  );
-
-  const formatTime = (ms: number): string => {
-    if (ms < 1000) return `${Math.round(ms)}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  };
-
-  const formatLastUsed = useCallback((timestamp: number): string => {
-    const diff = Date.now() - timestamp;
-    if (diff < 60000) return '<1m';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-    return `${Math.floor(diff / 86400000)}d`;
-  }, []);
-
-  const getSuccessRate = (record: ToolUsageRecord): number => {
-    if (record.usageCount === 0) return 0;
-    return Math.round((record.successCount / record.usageCount) * 100);
-  };
-
-  const getToolDisplayName = (toolName: string): string => {
-    const parts = toolName.split('_');
-    if (parts.length > 2) {
-      return parts.slice(2).join('_');
-    }
-    return toolName;
-  };
-
-  const getServerName = (toolName: string): string => {
-    const parts = toolName.split('_');
-    if (parts.length > 1) {
-      return parts[1];
-    }
-    return '';
-  };
+  const {
+    usageRecords,
+    maxUsageCount,
+    sortBy: _sortBy,
+    setSortBy,
+    resetHistory: resetToolUsageHistory,
+  } = useMcpToolUsage({ maxItems });
 
   if (usageRecords.length === 0) {
     return (
@@ -165,9 +105,7 @@ export function MCPToolUsageStats({ maxItems = 20, className }: MCPToolUsageStat
         <ScrollArea className="max-h-[400px]">
           <div className="space-y-3">
             {usageRecords.map((record) => {
-              const successRate = getSuccessRate(record);
-              const displayName = getToolDisplayName(record.toolName);
-              const serverName = getServerName(record.toolName);
+              const { successRate, displayName, serverName } = record;
 
               return (
                 <div
@@ -216,7 +154,7 @@ export function MCPToolUsageStats({ maxItems = 20, className }: MCPToolUsageStat
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatTime(record.avgExecutionTime)}
+                      {formatExecutionTime(record.avgExecutionTime)}
                     </span>
                     <span className="text-muted-foreground/70">
                       {t('lastUsed')}: {formatLastUsed(record.lastUsedAt)}

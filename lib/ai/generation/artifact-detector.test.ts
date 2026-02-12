@@ -188,8 +188,8 @@ describe('generateTitle', () => {
   it('should return type-based default title', () => {
     const content = 'some content without identifiable name';
     expect(generateTitle(content, 'svg')).toBe('SVG Graphic');
-    expect(generateTitle(content, 'mermaid')).toBe('Diagram');
-    expect(generateTitle(content, 'chart')).toBe('Chart');
+    expect(generateTitle(content, 'mermaid')).toBe('Mermaid Diagram');
+    expect(generateTitle(content, 'chart')).toBe('Data Chart');
     expect(generateTitle(content, 'math')).toBe('Math Expression');
     expect(generateTitle(content, 'document')).toBe('Document');
   });

@@ -36,25 +36,9 @@ import {
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { getFileStatusColor } from '@/types/system/git';
-import type { GitFileStatus } from '@/types/system/git';
-
-interface TreeNode {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  status?: GitFileStatus;
-  children: TreeNode[];
-}
-
-interface GitFileTreeProps {
-  files: GitFileStatus[];
-  isLoading?: boolean;
-  onStageFiles: (files: string[]) => Promise<boolean>;
-  onUnstageFiles: (files: string[]) => Promise<boolean>;
-  onDiscardFiles: (files: string[]) => Promise<boolean>;
-  onRefresh: () => Promise<void>;
-  className?: string;
-}
+import { buildFileTree } from '@/lib/git';
+import type { TreeNode } from '@/types/git';
+import type { GitFileTreeProps } from '@/types/git';
 
 export function GitFileTree({
   files,
@@ -71,52 +55,7 @@ export function GitFileTree({
   const [isOperating, setIsOperating] = useState(false);
 
   // Build tree structure from flat file list
-  const tree = useMemo(() => {
-    const root: TreeNode = {
-      name: '',
-      path: '',
-      isDirectory: true,
-      children: [],
-    };
-
-    for (const file of files) {
-      const parts = file.path.split('/');
-      let current = root;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const path = parts.slice(0, i + 1).join('/');
-        const isFile = i === parts.length - 1;
-
-        let child = current.children.find((c) => c.name === part);
-        if (!child) {
-          child = {
-            name: part,
-            path,
-            isDirectory: !isFile,
-            status: isFile ? file : undefined,
-            children: [],
-          };
-          current.children.push(child);
-        }
-        current = child;
-      }
-    }
-
-    // Sort: directories first, then files, both alphabetically
-    const sortChildren = (node: TreeNode) => {
-      node.children.sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) {
-          return a.isDirectory ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-      });
-      node.children.forEach(sortChildren);
-    };
-    sortChildren(root);
-
-    return root;
-  }, [files]);
+  const tree = useMemo(() => buildFileTree(files), [files]);
 
   const stagedFiles = files.filter((f) => f.staged);
   const unstagedFiles = files.filter((f) => !f.staged);

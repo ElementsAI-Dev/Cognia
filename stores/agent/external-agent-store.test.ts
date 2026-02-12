@@ -210,7 +210,7 @@ describe('useExternalAgentStore', () => {
 
         const originalAgent = useExternalAgentStore.getState().getAgent(agentId!);
         expect(originalAgent).toBeDefined();
-        const originalUpdatedAt = originalAgent!.updatedAt;
+        const originalUpdatedAt = originalAgent!.updatedAt!;
 
         act(() => {
           useExternalAgentStore.getState().updateAgent(agentId!, {
@@ -218,9 +218,9 @@ describe('useExternalAgentStore', () => {
           });
         });
 
-        const agent = useExternalAgentStore.getState().getAgent(agentId!);
+        const agent = useExternalAgentStore.getState().getAgent(agentId!)!;
         expect(agent).toBeDefined();
-        expect(agent!.updatedAt.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt!.getTime());
+        expect(agent.updatedAt!.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
       });
 
       it('should not update non-existent agent', () => {

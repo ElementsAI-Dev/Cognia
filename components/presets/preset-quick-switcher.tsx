@@ -5,7 +5,6 @@
  * Similar to the thinking toggle button, allows quick switching between presets
  */
 
-import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Layers, ChevronDown, Star, Check, Plus, Settings2, Heart, GripVertical, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,9 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { COLOR_TINT_CLASS } from '@/lib/presets';
-import { usePresetStore, useSessionStore } from '@/stores';
-import { toast } from '@/components/ui/sonner';
 import type { Preset } from '@/types/content/preset';
+import { usePresetQuickSwitcher } from '@/hooks/presets/use-preset-quick-switcher';
 import {
   DndContext,
   closestCenter,
@@ -34,7 +32,6 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -58,15 +55,25 @@ export function PresetQuickSwitcher({
   disabled = false,
 }: PresetQuickSwitcherProps) {
   const t = useTranslations('presetQuickSwitcher');
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
-  // Preset store
-  const presets = usePresetStore((state) => state.presets);
-  const selectPreset = usePresetStore((state) => state.selectPreset);
-  const trackPresetUsage = usePresetStore((state) => state.usePreset);
-  const toggleFavorite = usePresetStore((state) => state.toggleFavorite);
-  const reorderPresets = usePresetStore((state) => state.reorderPresets);
+  const {
+    open,
+    setOpen,
+    searchQuery,
+    setSearchQuery,
+    presets,
+    currentPreset,
+    currentPresetId,
+    favoritePresets,
+    recentPresets,
+    otherPresets,
+    isSearching,
+    hasActivePreset,
+    handleDragEnd,
+    handleToggleFavorite,
+    handleSelectPreset,
+    filteredPresets,
+  } = usePresetQuickSwitcher({ onPresetChange, t });
 
   // DnD sensors
   const sensors = useSensors(
@@ -79,108 +86,6 @@ export function PresetQuickSwitcher({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Handle drag end
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      reorderPresets(active.id as string, over.id as string);
-      toast.success(t('orderUpdated'));
-    }
-  }, [reorderPresets, t]);
-
-  // Session store
-  const activeSessionId = useSessionStore((state) => state.activeSessionId);
-  const sessions = useSessionStore((state) => state.sessions);
-  const updateSession = useSessionStore((state) => state.updateSession);
-
-  // Get current session and its preset
-  const currentSession = useMemo(() => 
-    activeSessionId ? sessions.find(s => s.id === activeSessionId) : null,
-    [activeSessionId, sessions]
-  );
-  
-  const currentPresetId = currentSession?.presetId;
-  const currentPreset = useMemo(() => 
-    currentPresetId ? presets.find(p => p.id === currentPresetId) : null,
-    [currentPresetId, presets]
-  );
-
-  // Filter presets by search query
-  const filteredPresets = useMemo(() => {
-    if (!searchQuery.trim()) return presets;
-    const query = searchQuery.toLowerCase();
-    return presets.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.description?.toLowerCase().includes(query)
-    );
-  }, [presets, searchQuery]);
-
-  // Get favorite presets (from filtered results)
-  const favoritePresets = useMemo(() => 
-    filteredPresets.filter(p => p.isFavorite),
-    [filteredPresets]
-  );
-
-  // Get recent presets (excluding favorites to avoid duplication)
-  const recentPresets = useMemo(() => 
-    [...filteredPresets]
-      .filter(p => p.lastUsedAt && !p.isFavorite)
-      .sort((a, b) => (b.lastUsedAt?.getTime() || 0) - (a.lastUsedAt?.getTime() || 0))
-      .slice(0, 5),
-    [filteredPresets]
-  );
-
-  // Get other presets (not favorite and not in recent)
-  const otherPresets = useMemo(() => 
-    filteredPresets.filter(p => !p.isFavorite && !recentPresets.some(r => r.id === p.id)),
-    [filteredPresets, recentPresets]
-  );
-
-  // Check if we're in search mode
-  const isSearching = searchQuery.trim().length > 0;
-
-  // Handle toggling favorite with toast dedup
-  const handleToggleFavorite = useCallback((e: React.MouseEvent, presetId: string) => {
-    e.stopPropagation();
-    toggleFavorite(presetId);
-    const preset = presets.find(p => p.id === presetId);
-    if (preset) {
-      toast.dismiss('preset-fav');
-      toast.success(preset.isFavorite ? t('removedFromFavorites') : t('addedToFavorites'), { id: 'preset-fav' });
-    }
-  }, [toggleFavorite, presets, t]);
-
-  const handleSelectPreset = (preset: Preset) => {
-    // Update preset store
-    selectPreset(preset.id);
-    trackPresetUsage(preset.id);
-
-    // Update current session with preset settings
-    if (currentSession) {
-      updateSession(currentSession.id, {
-        provider: preset.provider === 'auto' ? 'openai' : preset.provider,
-        model: preset.model,
-        mode: preset.mode,
-        systemPrompt: preset.systemPrompt,
-        builtinPrompts: preset.builtinPrompts,
-        temperature: preset.temperature,
-        maxTokens: preset.maxTokens,
-        webSearchEnabled: preset.webSearchEnabled,
-        thinkingEnabled: preset.thinkingEnabled,
-        presetId: preset.id,
-      });
-    }
-
-    onPresetChange?.(preset);
-    setOpen(false);
-    
-    // Show toast notification
-    toast.success(t('switchedTo', { name: preset.name }));
-  };
-
-  const hasActivePreset = !!currentPreset;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

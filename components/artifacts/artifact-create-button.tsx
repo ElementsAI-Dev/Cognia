@@ -18,12 +18,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useArtifactStore, useSessionStore } from '@/stores';
 import type { ArtifactType } from '@/types';
 import {
-  matchesTypePatterns,
   generateArtifactTitle,
+  enhancedDetectArtifactType,
+  mapToArtifactLanguage,
 } from '@/lib/artifacts';
 import {
   detectArtifactType as detectType,
-  mapToArtifactLanguage,
 } from '@/hooks/chat/use-artifact-detection';
 
 interface ArtifactCreateButtonProps {
@@ -41,21 +41,8 @@ interface ArtifactCreateButtonProps {
  * additional pattern matching from lib/artifacts
  */
 function detectArtifactType(language?: string, content?: string): ArtifactType {
-  // Use the hook's detection as base
   const baseType = detectType(language, content);
-
-  // Enhance with centralized pattern matching for edge cases
-  if (baseType === 'code' && content) {
-    const lang = language?.toLowerCase();
-    if ((lang === 'jsx' || lang === 'tsx') && matchesTypePatterns(content, 'react')) {
-      return 'react';
-    }
-    if (lang === 'json' && matchesTypePatterns(content, 'chart')) {
-      return 'chart';
-    }
-  }
-
-  return baseType;
+  return enhancedDetectArtifactType(baseType, language, content);
 }
 
 // generateTitle delegated to centralized generateArtifactTitle from lib/artifacts

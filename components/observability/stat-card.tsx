@@ -12,11 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { cn } from '@/lib/utils';
-
-interface SparklineDataPoint {
-  value: number;
-  label?: string;
-}
+import type { SparklineDataPoint } from '@/types/observability';
 
 interface StatCardProps {
   title: string;

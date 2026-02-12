@@ -78,7 +78,7 @@ describe('SyncInitializer', () => {
     render(<SyncInitializer />);
     
     const beforeUnloadCalls = addEventListenerSpy.mock.calls.filter(
-      (call) => call[0] === 'beforeunload'
+      (call) => String(call[0]) === 'beforeunload'
     );
     expect(beforeUnloadCalls.length).toBe(0);
     

@@ -4,7 +4,8 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { EfficiencyRadarChart, calculateEfficiencyScores } from './efficiency-radar-chart';
+import { EfficiencyRadarChart } from './efficiency-radar-chart';
+import { calculateEfficiencyScores } from '@/lib/observability';
 
 // Mock Recharts to avoid rendering issues in tests
 jest.mock('recharts', () => ({

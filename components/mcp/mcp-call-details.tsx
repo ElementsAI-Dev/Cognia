@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ai-elements/code-block';
+import { formatTimestamp, formatDurationFromDates } from '@/lib/mcp/format-utils';
 
 export interface MCPCallDetailsProps {
   /** Call ID */
@@ -48,21 +49,6 @@ export interface MCPCallDetailsProps {
   className?: string;
 }
 
-function formatTimestamp(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3,
-  });
-}
-
-function formatDuration(start: Date, end: Date): string {
-  const ms = end.getTime() - start.getTime();
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${Math.floor(ms / 60000)}m ${((ms % 60000) / 1000).toFixed(1)}s`;
-}
 
 interface DetailSectionProps {
   title: string;
@@ -140,7 +126,7 @@ export function MCPCallDetails({
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-muted-foreground">{t('duration')}:</span>
-              <span className="font-mono">{formatDuration(startedAt, endedAt)}</span>
+              <span className="font-mono">{formatDurationFromDates(startedAt, endedAt)}</span>
             </div>
           )}
         </div>

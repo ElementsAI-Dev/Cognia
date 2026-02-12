@@ -142,6 +142,30 @@ export {
 // Date formatting utilities
 export { formatRelativeTime, formatAbsoluteTime } from './format';
 
+// Animation utilities
+export {
+  ANIMATION_VARIANTS,
+  getAnimationVariants,
+  getTransitionConfig,
+} from './animation';
+
+// Chart constants
+export { DEFAULT_CHART_COLORS, CHART_TOOLTIP_STYLE } from './chart-constants';
+
+// Shared constants
+export {
+  CATEGORY_KEYS,
+  CATEGORY_I18N_MAP,
+  surfaceStyles,
+  contentStyles,
+  ANALYSIS_TYPE_ICONS,
+  ANALYSIS_TYPE_I18N_KEYS,
+  ANALYSIS_TYPE_VALUES,
+} from './constants';
+
+// List utilities
+export { getItemKey, getItemDisplayText } from './list-utils';
+
 // Academic Templates
 export {
   academicTemplates,

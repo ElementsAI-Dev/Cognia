@@ -87,3 +87,15 @@ export const MCP_STATUS_TYPES = [
   'error',
   'reconnecting',
 ] as const;
+
+/** All log levels in order of severity */
+export const MCP_ALL_LOG_LEVELS = [
+  'debug',
+  'info',
+  'notice',
+  'warning',
+  'error',
+  'critical',
+  'alert',
+  'emergency',
+] as const;

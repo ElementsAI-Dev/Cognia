@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
-import { findMatchingSkills } from '@/lib/skills/executor';
+import { useAutoMatchSkills, useSkillSystemPrompt } from '@/hooks/skills/use-skills';
 import { CATEGORY_ICONS_SM } from './skill-constants';
 import type { Skill } from '@/types/system/skill';
 
@@ -53,7 +53,6 @@ export function SkillSuggestions({
   const [isDismissed, setIsDismissed] = useState(false);
 
   const {
-    skills,
     activateSkill,
     deactivateSkill,
     getActiveSkills,
@@ -67,18 +66,16 @@ export function SkillSuggestions({
   const queryPrefix = query.slice(0, 10);
   const effectiveDismissed = isDismissed && dismissedForPrefix === queryPrefix;
 
-  // Find matching skills based on query
-  const suggestedSkills = useMemo(() => {
-    if (!query || query.length < minQueryLength || effectiveDismissed) {
-      return [];
-    }
+  // Find matching skills based on query using useAutoMatchSkills hook
+  const autoMatched = useAutoMatchSkills(
+    effectiveDismissed || query.length < minQueryLength ? '' : query,
+    maxSuggestions
+  );
 
-    const enabledSkills = Object.values(skills).filter(s => s.status === 'enabled');
-    const matches = findMatchingSkills(enabledSkills, query, maxSuggestions);
-    
-    // Filter out already active skills from suggestions
-    return matches.filter(s => !s.isActive);
-  }, [query, minQueryLength, effectiveDismissed, skills, maxSuggestions]);
+  // Filter out already active skills from suggestions
+  const suggestedSkills = useMemo(() => {
+    return autoMatched.filter(s => !s.isActive);
+  }, [autoMatched]);
 
   const handleActivate = useCallback((skill: Skill) => {
     activateSkill(skill.id);
@@ -257,10 +254,15 @@ export function ActiveSkillsIndicator({
   const t = useTranslations('skills');
   const { getActiveSkills } = useSkillStore();
   const activeSkills = useMemo(() => getActiveSkills(), [getActiveSkills]);
+  const systemPrompt = useSkillSystemPrompt();
 
   if (activeSkills.length === 0) {
     return null;
   }
+
+  const promptPreview = systemPrompt.length > 200
+    ? systemPrompt.slice(0, 200) + '...'
+    : systemPrompt;
 
   return (
     <Tooltip>
@@ -275,7 +277,7 @@ export function ActiveSkillsIndicator({
           <span className="text-xs">{activeSkills.length}</span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent className="max-w-xs">
         <div className="text-sm">
           <div className="font-medium mb-1">{t('activeSkills')}</div>
           {activeSkills.map((skill) => (
@@ -283,6 +285,16 @@ export function ActiveSkillsIndicator({
               • {skill.metadata.name}
             </div>
           ))}
+          {systemPrompt && (
+            <div className="mt-2 pt-2 border-t border-border/50">
+              <div className="text-xs font-medium text-muted-foreground mb-1">
+                {t('promptPreview') || 'Prompt Preview'}
+              </div>
+              <div className="text-xs text-muted-foreground/80 whitespace-pre-wrap font-mono leading-relaxed">
+                {promptPreview}
+              </div>
+            </div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>

@@ -95,13 +95,13 @@ jest.mock('@/components/ui/collapsible', () => ({
   ),
   CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => {
     const ctx = React.useContext(CollapsibleContext);
-    const element = children as React.ReactElement;
+    const element = children as React.ReactElement<{ onClick?: (e: React.MouseEvent) => void }>;
     return React.cloneElement(element, {
       onClick: (e: React.MouseEvent) => {
         element.props.onClick?.(e);
         ctx?.onOpenChange?.(!ctx.open);
       },
-    });
+    } as Partial<unknown>);
   },
   CollapsibleContent: ({ children }: { children: React.ReactNode }) => {
     const ctx = React.useContext(CollapsibleContext);

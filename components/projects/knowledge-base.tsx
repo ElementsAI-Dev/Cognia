@@ -4,29 +4,21 @@
  * KnowledgeBase - manage project knowledge files
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   FileText,
-  Code,
-  File,
   Upload,
   Trash2,
   Plus,
   Search,
   Download,
   Eye,
-  FileSpreadsheet,
-  FileType,
-  Globe,
   Loader2,
   ExternalLink,
   CheckSquare,
   Square,
   Pencil,
 } from 'lucide-react';
-import { opener } from '@/lib/native';
-import { useNativeStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,337 +55,66 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useProjectStore, useDocumentStore } from '@/stores';
-import type { KnowledgeFile } from '@/types';
 import { cn } from '@/lib/utils';
-import { detectDocumentType } from '@/lib/document';
-import { useDocumentProcessor } from '@/hooks/document';
+import { FILE_TYPE_ICONS, FILE_TYPE_COLORS } from '@/lib/project/knowledge-base-utils';
+import { formatFileSize } from '@/lib/project/utils';
+import { useKnowledgeBase } from '@/hooks/projects/use-knowledge-base';
 
 interface KnowledgeBaseProps {
   projectId: string;
 }
 
-const fileTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  text: FileText,
-  pdf: File,
-  code: Code,
-  markdown: FileText,
-  json: Code,
-  word: FileType,
-  excel: FileSpreadsheet,
-  csv: FileSpreadsheet,
-  html: Globe,
-};
-
-const fileTypeColors: Record<string, string> = {
-  text: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-  pdf: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  code: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  markdown: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  json: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  word: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  excel: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
-  csv: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
-  html: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-};
-
-function detectFileType(filename: string, content?: string): KnowledgeFile['type'] {
-  const docType = detectDocumentType(filename);
-  
-  // Map DocumentType to KnowledgeFile type
-  const typeMap: Record<string, KnowledgeFile['type']> = {
-    markdown: 'markdown',
-    code: 'code',
-    text: 'text',
-    json: 'json',
-    pdf: 'pdf',
-    word: 'word',
-    excel: 'excel',
-    csv: 'csv',
-    html: 'html',
-    unknown: 'text',
-  };
-
-  const mappedType = typeMap[docType];
-  if (mappedType && mappedType !== 'text') return mappedType;
-
-  // Try to detect from content for text files
-  if (content) {
-    if (content.startsWith('{') || content.startsWith('[')) return 'json';
-    if (content.includes('```') || content.startsWith('#')) return 'markdown';
-  }
-
-  return 'text';
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
   const t = useTranslations('knowledgeBase');
   const tCommon = useTranslations('common');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [viewingFile, setViewingFile] = useState<KnowledgeFile | null>(null);
-  const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
-  const [newFileName, setNewFileName] = useState('');
-  const [newFileContent, setNewFileContent] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  const isDesktop = useNativeStore((state) => state.isDesktop);
-  const project = useProjectStore((state) => state.getProject(projectId));
-  const addKnowledgeFile = useProjectStore((state) => state.addKnowledgeFile);
-  const removeKnowledgeFile = useProjectStore((state) => state.removeKnowledgeFile);
-  const updateKnowledgeFile = useProjectStore((state) => state.updateKnowledgeFile);
-  const deleteFromDocumentStore = useDocumentStore((state) => state.deleteDocument);
-  const { processFile, validate } = useDocumentProcessor();
-
-  // Open file content with default application (creates temp file)
-  const handleOpenFile = useCallback(async (file: KnowledgeFile) => {
-    if (!isDesktop) return;
-    
-    // Create a blob URL and open it
-    const blob = new Blob([file.content], { type: file.mimeType || 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    await opener.openUrl(url);
-  }, [isDesktop]);
-
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      for (const file of Array.from(files)) {
-        // Validate file before processing
-        const validation = validate(file);
-        if (!validation.valid) {
-          setUploadError(`${file.name}: ${validation.errors.join(', ')}`);
-          continue;
-        }
-
-        try {
-          // Use unified processFile from useDocumentProcessor hook
-          // Handles both binary (PDF, Word, Excel) and text files automatically
-          const processed = await processFile(file, {
-            extractEmbeddable: true,
-            storeResult: true,
-            projectId,
-          });
-
-          if (processed) {
-            const fileContent = processed.embeddableContent || processed.content;
-            addKnowledgeFile(projectId, {
-              name: file.name,
-              type: detectFileType(file.name, fileContent),
-              content: fileContent,
-              size: fileContent.length,
-              mimeType: file.type,
-              originalSize: file.size,
-              pageCount: typeof processed.metadata.pageCount === 'number' ? processed.metadata.pageCount : undefined,
-            });
-          }
-        } catch (fileError) {
-          console.error(`Error processing file ${file.name}:`, fileError);
-          setUploadError(`Failed to process ${file.name}: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
-        }
-      }
-    } finally {
-      setIsUploading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  }, [projectId, addKnowledgeFile, processFile, validate]);
-
-  // Syntax highlighting for viewed file
-  useEffect(() => {
-    if (!viewingFile || isEditing) {
-      setHighlightedHtml(null);
-      return;
-    }
-
-    const extMap: Record<string, string> = {
-      js: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx',
-      py: 'python', rs: 'rust', go: 'go', java: 'java',
-      cpp: 'cpp', c: 'c', h: 'c', cs: 'csharp',
-      rb: 'ruby', php: 'php', swift: 'swift', kt: 'kotlin',
-      json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
-      xml: 'xml', html: 'html', htm: 'html', css: 'css', scss: 'scss',
-      md: 'markdown', sql: 'sql', sh: 'bash', bash: 'bash',
-      dockerfile: 'dockerfile', csv: 'csv',
-    };
-
-    const ext = viewingFile.name.split('.').pop()?.toLowerCase() || '';
-    const lang = extMap[ext];
-
-    if (!lang || viewingFile.content.length > 50000) {
-      setHighlightedHtml(null);
-      return;
-    }
-
-    let cancelled = false;
-    import('shiki').then(({ codeToHtml }) =>
-      codeToHtml(viewingFile.content, {
-        lang: lang as import('shiki').BundledLanguage,
-        theme: 'github-dark',
-      })
-    ).then((html) => {
-      if (!cancelled) setHighlightedHtml(html);
-    }).catch(() => {
-      if (!cancelled) setHighlightedHtml(null);
-    });
-
-    return () => { cancelled = true; };
-  }, [viewingFile, isEditing]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set isDragging to false if leaving the drop zone entirely
-    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      // Reuse the same upload handler by creating a synthetic event
-      const dataTransfer = new DataTransfer();
-      for (const file of Array.from(files)) {
-        dataTransfer.items.add(file);
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.files = dataTransfer.files;
-        fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
-  }, []);
+  const {
+    project,
+    searchQuery,
+    setSearchQuery,
+    filteredFiles,
+    isDesktop,
+    isDragging,
+    isUploading,
+    uploadError,
+    setUploadError,
+    selectedFiles,
+    showAddDialog,
+    setShowAddDialog,
+    showBatchDeleteDialog,
+    setShowBatchDeleteDialog,
+    deleteFileId,
+    setDeleteFileId,
+    viewingFile,
+    setViewingFile,
+    isEditing,
+    editContent,
+    setEditContent,
+    highlightedHtml,
+    newFileName,
+    setNewFileName,
+    newFileContent,
+    setNewFileContent,
+    fileInputRef,
+    dropZoneRef,
+    handleFileUpload,
+    handleOpenFile,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleAddManual,
+    handleDelete,
+    handleBatchDelete,
+    handleDownload,
+    toggleFileSelection,
+    toggleSelectAll,
+    startEditing,
+    cancelEditing,
+    saveEdit,
+    closeViewer,
+  } = useKnowledgeBase({ projectId });
 
   if (!project) return null;
-
-  const filteredFiles = searchQuery
-    ? project.knowledgeBase.filter(
-        (f) =>
-          f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          f.content.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : project.knowledgeBase;
-
-  const handleAddManual = () => {
-    if (!newFileName.trim() || !newFileContent.trim()) return;
-
-    addKnowledgeFile(projectId, {
-      name: newFileName.trim(),
-      type: detectFileType(newFileName, newFileContent),
-      content: newFileContent,
-      size: newFileContent.length,
-    });
-
-    setNewFileName('');
-    setNewFileContent('');
-    setShowAddDialog(false);
-  };
-
-  const handleDelete = () => {
-    if (deleteFileId) {
-      // Find the file to get its name for document store cleanup
-      const file = project?.knowledgeBase.find((f) => f.id === deleteFileId);
-      removeKnowledgeFile(projectId, deleteFileId);
-      // Also clean up from document store by searching for matching filename
-      if (file) {
-        const docStoreDocuments = useDocumentStore.getState().filterDocuments({
-          projectId,
-          searchQuery: file.name,
-        });
-        for (const doc of docStoreDocuments) {
-          if (doc.filename === file.name) {
-            deleteFromDocumentStore(doc.id);
-          }
-        }
-      }
-      setDeleteFileId(null);
-    }
-  };
-
-  const handleBatchDelete = () => {
-    const filesToDelete = project?.knowledgeBase.filter((f) => selectedFiles.has(f.id)) || [];
-    for (const fileId of selectedFiles) {
-      removeKnowledgeFile(projectId, fileId);
-    }
-    // Also clean up from document store
-    for (const file of filesToDelete) {
-      const docStoreDocuments = useDocumentStore.getState().filterDocuments({
-        projectId,
-        searchQuery: file.name,
-      });
-      for (const doc of docStoreDocuments) {
-        if (doc.filename === file.name) {
-          deleteFromDocumentStore(doc.id);
-        }
-      }
-    }
-    setSelectedFiles(new Set());
-    setShowBatchDeleteDialog(false);
-  };
-
-  const toggleFileSelection = (fileId: string) => {
-    setSelectedFiles((prev) => {
-      const next = new Set(prev);
-      if (next.has(fileId)) {
-        next.delete(fileId);
-      } else {
-        next.add(fileId);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedFiles.size === filteredFiles.length) {
-      setSelectedFiles(new Set());
-    } else {
-      setSelectedFiles(new Set(filteredFiles.map((f) => f.id)));
-    }
-  };
-
-  const handleDownload = (file: KnowledgeFile) => {
-    const blob = new Blob([file.content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div
@@ -507,7 +228,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       {filteredFiles.length > 0 ? (
         <div className="space-y-2">
           {filteredFiles.map((file) => {
-            const IconComponent = fileTypeIcons[file.type] || FileText;
+            const IconComponent = FILE_TYPE_ICONS[file.type] || FileText;
             const isSelected = selectedFiles.has(file.id);
             return (
               <div
@@ -542,7 +263,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge
                         variant="secondary"
-                        className={cn('text-xs', fileTypeColors[file.type])}
+                        className={cn('text-xs', FILE_TYPE_COLORS[file.type])}
                       >
                         {file.type}
                       </Badge>
@@ -680,11 +401,7 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
       {/* View/Edit File Dialog */}
       <Dialog
         open={!!viewingFile}
-        onOpenChange={() => {
-          setViewingFile(null);
-          setIsEditing(false);
-          setEditContent('');
-        }}
+        onOpenChange={() => closeViewer()}
       >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -727,24 +444,11 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
           <DialogFooter>
             {isEditing ? (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditContent('');
-                  }}
-                >
+                <Button variant="outline" onClick={cancelEditing}>
                   {tCommon('cancel')}
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (viewingFile && editContent !== viewingFile.content) {
-                      updateKnowledgeFile(projectId, viewingFile.id, editContent);
-                    }
-                    setIsEditing(false);
-                    setEditContent('');
-                    setViewingFile(null);
-                  }}
+                  onClick={saveEdit}
                   disabled={!editContent.trim()}
                 >
                   {tCommon('save') || 'Save'}
@@ -752,23 +456,14 @@ export function KnowledgeBase({ projectId }: KnowledgeBaseProps) {
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setViewingFile(null);
-                    setIsEditing(false);
-                  }}
-                >
+                <Button variant="outline" onClick={closeViewer}>
                   {tCommon('close')}
                 </Button>
                 {viewingFile && (
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        setEditContent(viewingFile.content);
-                        setIsEditing(true);
-                      }}
+                      onClick={() => startEditing(viewingFile)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
                       {tCommon('edit') || 'Edit'}

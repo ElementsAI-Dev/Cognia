@@ -211,7 +211,7 @@ describe('useObservabilityData', () => {
     });
 
     it('should be true when records exist', () => {
-      mockUsageStore.records = [{ id: '1' }];
+      mockUsageStore.records = [{ id: '1' }] as unknown as typeof mockUsageStore.records;
 
       const { result } = renderHook(() => useObservabilityData());
 

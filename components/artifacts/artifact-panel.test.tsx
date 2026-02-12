@@ -300,7 +300,7 @@ describe('ArtifactPanel', () => {
   });
 
   it('shows artifact list when no active artifact', () => {
-    hookReturnOverrides = { activeArtifact: null };
+    hookReturnOverrides = { activeArtifact: undefined };
     render(<ArtifactPanel />);
     expect(screen.getByTestId('artifact-list')).toBeInTheDocument();
   });

@@ -13,7 +13,7 @@ import {
   getPapersByFavoriteAuthors,
   generateSearchQueries,
 } from './recommendation-engine';
-import type { Paper, LibraryPaper } from '@/types/learning/academic';
+import type { Paper, LibraryPaper } from '@/types/academic';
 
 // Mock data helpers
 const createMockPaper = (id: string, overrides: Partial<Paper> = {}): Paper => ({

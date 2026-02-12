@@ -9,7 +9,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { formatAbsoluteTime } from '@/lib/a2ui/format';
-import { CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/hooks/a2ui/use-app-gallery-filter';
+import { CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/lib/a2ui/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,18 +51,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
-import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
+import type { AppDetailDialogProps } from '@/types/a2ui/app';
 
-export interface AppDetailDialogProps {
-  app: A2UIAppInstance | null;
-  template?: A2UIAppTemplate;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave?: (appId: string, metadata: Partial<A2UIAppInstance>) => void;
-  onGenerateThumbnail?: (appId: string) => void;
-  onPreparePublish?: (appId: string) => { valid: boolean; missing: string[] };
-  className?: string;
-}
+export type { AppDetailDialogProps } from '@/types/a2ui/app';
 
 export function AppDetailDialog({
   app,

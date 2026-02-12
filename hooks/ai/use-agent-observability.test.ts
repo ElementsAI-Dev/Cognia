@@ -21,7 +21,7 @@ const mockManager = {
   }),
   trackPlanning: jest.fn(async (fn: () => unknown) => fn()),
   endAgentExecution: jest.fn(),
-  getTraceUrl: jest.fn(() => 'https://langfuse.com/trace/123'),
+  getTraceUrl: jest.fn((): string | null => 'https://langfuse.com/trace/123'),
 };
 
 jest.mock('@/lib/ai/observability/agent-observability', () => ({

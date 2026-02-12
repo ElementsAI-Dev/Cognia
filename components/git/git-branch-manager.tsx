@@ -48,19 +48,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import type { GitBranchInfo } from '@/types/system/git';
-
-interface GitBranchManagerProps {
-  branches: GitBranchInfo[];
-  currentBranch?: string;
-  isLoading?: boolean;
-  onCheckout: (branch: string, createNew?: boolean) => Promise<boolean>;
-  onCreateBranch: (name: string, startPoint?: string) => Promise<boolean>;
-  onDeleteBranch: (name: string, force?: boolean) => Promise<boolean>;
-  onMergeBranch?: (branch: string) => Promise<boolean>;
-  onRefresh: () => Promise<void>;
-  className?: string;
-}
+import type { GitBranchManagerProps } from '@/types/git';
 
 export function GitBranchManager({
   branches,

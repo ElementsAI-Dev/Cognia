@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcademicPaperCard } from './academic-paper-card';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 const createMockPaper = (overrides: Partial<Paper> = {}): Paper => ({
   id: 'paper-1',

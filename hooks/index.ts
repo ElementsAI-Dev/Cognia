@@ -95,3 +95,5 @@ export * from './map';
 // Document processing hooks
 export * from './document';
 
+// Jupyter hooks
+export * from './jupyter';

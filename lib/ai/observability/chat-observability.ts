@@ -38,7 +38,7 @@ export class ChatObservabilityManager {
   private sessionId: string;
   private userId?: string;
   private metadata?: Record<string, unknown>;
-  private langfuseTrace: ReturnType<typeof createChatTrace> | null = null;
+  private langfuseTrace: Awaited<ReturnType<typeof createChatTrace>> | null = null;
   private enableLangfuse: boolean;
   private enableOpenTelemetry: boolean;
 
@@ -53,9 +53,9 @@ export class ChatObservabilityManager {
   /**
    * Start a chat session
    */
-  startChat() {
+  async startChat() {
     if (this.enableLangfuse) {
-      this.langfuseTrace = createChatTrace({
+      this.langfuseTrace = await createChatTrace({
         sessionId: this.sessionId,
         userId: this.userId,
         metadata: this.metadata,

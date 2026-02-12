@@ -38,7 +38,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { TOOLTIP_STYLE, CHART_MARGINS, CHART_COLORS, GRID_STYLE, AXIS_STYLE } from './charts';
+import { TOOLTIP_STYLE, CHART_MARGINS, CHART_COLORS, GRID_STYLE, AXIS_STYLE } from '@/lib/observability';
 import { cn } from '@/lib/utils';
 import type { AgentMetrics, MetricsSummary } from '@/lib/ai/agent/performance-metrics';
 

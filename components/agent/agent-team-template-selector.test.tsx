@@ -22,8 +22,8 @@ const mockTemplates: Record<string, AgentTeamTemplate> = {
     category: 'review',
     icon: 'ShieldCheck',
     teammates: [
-      { name: 'Reviewer', role: 'lead', specialization: 'code review' },
-      { name: 'Tester', role: 'member', specialization: 'testing' },
+      { name: 'Reviewer', description: 'Lead code reviewer', specialization: 'code review' },
+      { name: 'Tester', description: 'Testing specialist', specialization: 'testing' },
     ],
     isBuiltIn: true,
   },
@@ -33,7 +33,7 @@ const mockTemplates: Record<string, AgentTeamTemplate> = {
     description: 'Custom research team',
     category: 'research',
     teammates: [
-      { name: 'Researcher', role: 'lead', specialization: 'research' },
+      { name: 'Researcher', description: 'Lead researcher', specialization: 'research' },
     ],
     isBuiltIn: false,
   },

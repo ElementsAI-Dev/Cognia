@@ -28,13 +28,13 @@ import { AlertCircle } from 'lucide-react';
 import { JupyterRenderer } from '@/components/artifacts/jupyter-renderer';
 import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
-import { useJupyterKernel } from '@/hooks/sandbox';
+import { useJupyterKernel } from '@/hooks/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
-import { useJupyterStore } from '@/stores/tools';
+import { useJupyterStore } from '@/stores/jupyter';
 import { serializeNotebook } from '@/lib/jupyter';
+import { applyCellsToNotebook } from '@/lib/jupyter/notebook-utils';
 import type { VirtualEnvInfo } from '@/types/system/environment';
-import type { JupyterNotebook, JupyterOutput } from '@/types';
-import type { CellOutput, ExecutableCell } from '@/types/system/jupyter';
+import type { JupyterNotebook } from '@/types';
 
 interface InteractiveNotebookProps {
   content: string;
@@ -102,82 +102,6 @@ export function InteractiveNotebook({
 
     getCachedVariables(activeSession.id);
   }, [activeSession, getCachedVariables, showVariables]);
-
-  const toJupyterOutputs = useCallback((outputs: CellOutput[]): JupyterOutput[] => {
-    return outputs.map((output) => {
-      if (output.outputType === 'stream') {
-        return {
-          output_type: 'stream',
-          name: output.name,
-          text: output.text ?? '',
-        };
-      }
-
-      if (output.outputType === 'error') {
-        return {
-          output_type: 'error',
-          ename: output.ename,
-          evalue: output.evalue,
-          traceback: output.traceback,
-        };
-      }
-
-      if (output.outputType === 'execute_result') {
-        return {
-          output_type: 'execute_result',
-          data: output.data,
-          execution_count: output.executionCount ?? null,
-        };
-      }
-
-      return {
-        output_type: 'display_data',
-        data: output.data,
-      };
-    });
-  }, []);
-
-  const applyCellsToNotebook = useCallback(
-    (notebook: JupyterNotebook, cells: ExecutableCell[]): JupyterNotebook => {
-      const nextCells = [...notebook.cells];
-
-      const codeCellIndices = nextCells
-        .map((cell, idx) => ({ cell, idx }))
-        .filter(({ cell }) => cell.cell_type === 'code')
-        .map(({ idx }) => idx);
-
-      const hasMeaningfulResult = (cell?: ExecutableCell) => {
-        if (!cell) return false;
-        return cell.outputs.length > 0 || cell.executionCount !== null;
-      };
-
-      for (let ordinal = 0; ordinal < codeCellIndices.length; ordinal++) {
-        const notebookCellIndex = codeCellIndices[ordinal];
-        const notebookCell = nextCells[notebookCellIndex];
-        if (!notebookCell || notebookCell.cell_type !== 'code') continue;
-
-        const absoluteCell = cells[notebookCellIndex];
-        const ordinalCell = cells[ordinal];
-
-        const chosen = hasMeaningfulResult(absoluteCell)
-          ? absoluteCell
-          : hasMeaningfulResult(ordinalCell)
-            ? ordinalCell
-            : (absoluteCell ?? ordinalCell);
-
-        if (!chosen) continue;
-
-        nextCells[notebookCellIndex] = {
-          ...notebookCell,
-          outputs: toJupyterOutputs(chosen.outputs),
-          execution_count: chosen.executionCount ?? null,
-        };
-      }
-
-      return { ...notebook, cells: nextCells };
-    },
-    [toJupyterOutputs]
-  );
 
   // Auto-connect to existing session for chat
   useEffect(() => {
@@ -279,7 +203,7 @@ export function InteractiveNotebook({
     } catch (err) {
       console.error('Failed to sync notebook outputs:', err);
     }
-  }, [activeSessionId, applyCellsToNotebook, content, onContentChange, sessionCells]);
+  }, [activeSessionId, content, onContentChange, sessionCells]);
 
   // Handle variable inspection
   const handleInspectVariable = useCallback(

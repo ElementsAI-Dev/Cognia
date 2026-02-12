@@ -9,6 +9,7 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export interface A2UIErrorComponent extends A2UIBaseComponent {
@@ -88,16 +89,26 @@ export const A2UIError = memo(function A2UIError({ component, onAction }: A2UICo
 
   if (variant === 'card') {
     return (
-      <div
-        className={cn(
-          'flex flex-col items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center',
-          component.className
-        )}
+      <Alert
+        variant="destructive"
+        className={cn('text-center [&>svg]:static [&>svg]:translate-y-0 flex flex-col items-center gap-3', component.className)}
         style={component.style as React.CSSProperties}
-        role="alert"
       >
-        {content}
-      </div>
+        <AlertCircle className="h-5 w-5" />
+        {component.title && <AlertTitle>{component.title}</AlertTitle>}
+        <AlertDescription>{component.message}</AlertDescription>
+        {component.retryAction && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetry}
+            className="mt-2"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {component.retryLabel || 'Retry'}
+          </Button>
+        )}
+      </Alert>
     );
   }
 

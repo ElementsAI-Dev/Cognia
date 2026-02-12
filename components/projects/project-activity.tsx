@@ -245,20 +245,4 @@ function ActivityItem({ activity, formatTime }: ActivityItemProps) {
   );
 }
 
-/**
- * Hook to get project activities from the store
- * Provides a simpler interface for getting activities for a specific project
- * 
- * @deprecated Use useProjectActivityStore from @/stores directly for better performance
- * This hook is kept for backward compatibility
- */
-export { useProjectActivityStore } from '@/stores';
-
-export function useProjectActivity(projectId: string): ProjectActivityItem[] {
-  // Re-export for backward compatibility - users should migrate to useProjectActivityStore
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useProjectActivityStore: store } = require('@/stores') as { useProjectActivityStore: typeof import('@/stores').useProjectActivityStore };
-  return store((state) => state.getActivitiesForProject(projectId));
-}
-
 export default ProjectActivity;

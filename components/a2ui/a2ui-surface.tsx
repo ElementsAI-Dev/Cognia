@@ -13,36 +13,13 @@ import type {
   A2UIUserAction,
   A2UIDataModelChange,
 } from '@/types/artifact/a2ui';
+import type { A2UISurfaceContainerProps } from '@/types/a2ui/renderer';
 import { useA2UIStore } from '@/stores/a2ui';
 import { globalEventEmitter } from '@/lib/a2ui/events';
+import { surfaceStyles, contentStyles } from '@/lib/a2ui/constants';
 import { A2UIProvider } from './a2ui-context';
 import { A2UIRenderer } from './a2ui-renderer';
 import { Loader2 } from 'lucide-react';
-
-/**
- * Surface container styles by type
- */
-const surfaceStyles = {
-  inline: 'w-full',
-  dialog: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50',
-  panel: 'w-full max-w-md border-l bg-background',
-  fullscreen: 'fixed inset-0 z-50 bg-background',
-};
-
-/**
- * Surface content wrapper styles
- */
-const contentStyles = {
-  inline: '',
-  dialog: 'bg-background rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-auto p-4',
-  panel: 'h-full overflow-auto p-4',
-  fullscreen: 'h-full overflow-auto p-4',
-};
-
-export interface A2UISurfaceContainerProps extends A2UISurfaceProps {
-  showLoading?: boolean;
-  loadingText?: string;
-}
 
 /**
  * A2UI Surface Container Component

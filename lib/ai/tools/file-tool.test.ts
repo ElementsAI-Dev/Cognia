@@ -236,7 +236,7 @@ describe('executeFileList', () => {
       },
     });
 
-    const input: FileListInput = { path: '/path/to/dir' };
+    const input: FileListInput = { path: '/path/to/dir', maxDepth: 3, recursive: false, maxItems: 100 };
     const result = await executeFileList(input);
 
     expect(result.success).toBe(true);
@@ -248,7 +248,7 @@ describe('executeFileList', () => {
   it('returns error outside Tauri', async () => {
     mockIsInTauri.mockReturnValue(false);
 
-    const input: FileListInput = { path: '/path' };
+    const input: FileListInput = { path: '/path', maxDepth: 3, recursive: false, maxItems: 100 };
     const result = await executeFileList(input);
 
     expect(result.success).toBe(false);
@@ -261,7 +261,7 @@ describe('executeFileList', () => {
       error: 'Directory not found',
     });
 
-    const input: FileListInput = { path: '/nonexistent' };
+    const input: FileListInput = { path: '/nonexistent', maxDepth: 3, recursive: false, maxItems: 100 };
     const result = await executeFileList(input);
 
     expect(result.success).toBe(false);

@@ -6,7 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AcademicChatPanel } from './academic-chat-panel';
 import { useAcademic } from '@/hooks/academic/use-academic';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // Mock the hooks
 jest.mock('@/hooks/academic/use-academic', () => ({

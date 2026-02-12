@@ -32,18 +32,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
-import type { LogLevel } from '@/types/mcp';
+import { formatTimestamp } from '@/lib/mcp/format-utils';
+import { MCP_ALL_LOG_LEVELS } from '@/lib/mcp/constants';
+import type { LogLevel, MCPLogEntry } from '@/types/mcp';
 
-export interface MCPLogEntry {
-  id: string;
-  level: LogLevel;
-  message: string;
-  timestamp: Date;
-  serverId?: string;
-  serverName?: string;
-  logger?: string;
-  data?: unknown;
-}
+export { type MCPLogEntry } from '@/types/mcp';
 
 export interface MCPLogViewerProps {
   logs: MCPLogEntry[];
@@ -109,25 +102,6 @@ const levelConfig: Record<
   },
 };
 
-const allLevels: LogLevel[] = [
-  'debug',
-  'info',
-  'notice',
-  'warning',
-  'error',
-  'critical',
-  'alert',
-  'emergency',
-];
-
-function formatTimestamp(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    fractionalSecondDigits: 3,
-  });
-}
 
 export function MCPLogViewer({
   logs,
@@ -141,7 +115,7 @@ export function MCPLogViewer({
   const t = useTranslations('mcp');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLevels, setSelectedLevels] = useState<Set<LogLevel>>(new Set(allLevels));
+  const [selectedLevels, setSelectedLevels] = useState<Set<LogLevel>>(new Set(MCP_ALL_LOG_LEVELS));
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -267,7 +241,7 @@ export function MCPLogViewer({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                {allLevels.map((level) => {
+                {MCP_ALL_LOG_LEVELS.map((level) => {
                   const config = levelConfig[level];
                   const count = levelCounts[level] || 0;
                   return (

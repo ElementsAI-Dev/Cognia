@@ -42,25 +42,14 @@ import {
 } from 'lucide-react';
 import { loggers } from '@/lib/logger';
 import { useA2UIAppBuilder, type A2UIAppInstance } from '@/hooks/a2ui/use-app-builder';
-import { useAppGalleryFilter, CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/hooks/a2ui/use-app-gallery-filter';
-import type { SortField, ViewMode } from '@/hooks/a2ui/use-app-gallery-filter';
+import { useAppGalleryFilter } from '@/hooks/a2ui/use-app-gallery-filter';
+import { CATEGORY_KEYS, CATEGORY_I18N_MAP } from '@/lib/a2ui/constants';
+import type { SortField } from '@/hooks/a2ui/use-app-gallery-filter';
 import { A2UIInlineSurface } from './a2ui-surface';
 import { AppCard } from './app-card';
 import { AppDetailDialog } from './app-detail-dialog';
 import { captureSurfaceThumbnail } from '@/lib/a2ui/thumbnail';
-import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
-
-
-interface AppGalleryProps {
-  className?: string;
-  onAction?: (action: A2UIUserAction) => void;
-  onDataChange?: (change: A2UIDataModelChange) => void;
-  onAppOpen?: (appId: string) => void;
-  showPreview?: boolean;
-  showThumbnails?: boolean;
-  columns?: 1 | 2 | 3 | 4;
-  defaultViewMode?: ViewMode;
-}
+import type { AppGalleryProps } from '@/types/a2ui/app';
 
 export function AppGallery({
   className,

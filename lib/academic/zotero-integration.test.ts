@@ -14,7 +14,7 @@ import {
   type ZoteroItem,
   type ZoteroCollection,
 } from './zotero-integration';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -612,7 +612,7 @@ describe('paperToZoteroItem', () => {
   });
 
   it('should handle paper with no metadata', () => {
-    const paperNoMetadata: Paper = { ...mockPaper, metadata: undefined };
+    const paperNoMetadata: Paper = { ...mockPaper, metadata: {} as Paper['metadata'] };
     const zoteroItem = paperToZoteroItem(paperNoMetadata);
 
     expect(zoteroItem.DOI).toBeUndefined();

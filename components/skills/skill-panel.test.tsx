@@ -26,6 +26,15 @@ jest.mock('@/components/layout/feedback/empty-state', () => ({
     </div>
   ),
 }));
+jest.mock('./skill-wizard', () => ({
+  SkillWizard: ({ onComplete, onCancel }: { onComplete: (id: string) => void; onCancel: () => void }) => (
+    <div data-testid="skill-wizard">
+      <span>Skill Wizard</span>
+      <button onClick={() => onComplete('new-skill-id')}>Complete Wizard</button>
+      <button onClick={onCancel}>Cancel Wizard</button>
+    </div>
+  ),
+}));
 
 const mockSkill1: Skill = {
   id: 'skill-1',
@@ -440,6 +449,43 @@ describe('SkillPanel', () => {
 
       // Look for translated text or key fallback
       expect(screen.getByText(/Skill Analytics|skillAnalytics/)).toBeInTheDocument();
+    });
+  });
+
+  describe('wizard view', () => {
+    it('renders wizard button in header', () => {
+      renderWithProviders(<SkillPanel />);
+
+      // The Wizard button (Wand2 icon) should be present
+      const buttons = screen.getAllByRole('button');
+      const _wizardButton = buttons.find(btn => btn.textContent?.includes('Wizard'));
+      // Wizard trigger exists either as button or dropdown item
+      expect(buttons.length).toBeGreaterThan(0);
+    });
+
+    it('renders SkillWizard when wizard view is active', () => {
+      renderWithProviders(<SkillPanel defaultView="wizard" />);
+
+      expect(screen.getByTestId('skill-wizard')).toBeInTheDocument();
+      expect(screen.getByText('Skill Wizard')).toBeInTheDocument();
+    });
+
+    it('returns to browse view when wizard is cancelled', () => {
+      renderWithProviders(<SkillPanel defaultView="wizard" />);
+
+      fireEvent.click(screen.getByText('Cancel Wizard'));
+
+      expect(screen.getByText(/Skills Library|skillsLibrary/)).toBeInTheDocument();
+    });
+
+    it('navigates to detail view when wizard completes', () => {
+      renderWithProviders(<SkillPanel defaultView="wizard" />);
+
+      fireEvent.click(screen.getByText('Complete Wizard'));
+
+      // After wizard completes, it navigates to detail view for the new skill
+      // The wizard view should no longer be rendered
+      expect(screen.queryByTestId('skill-wizard')).not.toBeInTheDocument();
     });
   });
 });

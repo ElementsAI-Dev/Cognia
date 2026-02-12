@@ -188,7 +188,7 @@ describe('slashCommandRegistry', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data?.action).toBe('clear-conversation');
+      expect((result.data as Record<string, unknown>)?.action).toBe('clear-conversation');
     });
 
     it('should return error for unknown command', async () => {

@@ -121,8 +121,8 @@ describe('useMcpServerForm', () => {
       mockUseMcpStore.mockReturnValue(createMockStore());
 
       const { result, rerender } = renderHook(
-        ({ editingServer }) => useMcpServerForm({ editingServer }),
-        { initialProps: { editingServer: mockServer } }
+        ({ editingServer }: { editingServer: McpServerState | null }) => useMcpServerForm({ editingServer }),
+        { initialProps: { editingServer: mockServer as McpServerState | null } }
       );
 
       expect(result.current.state.data.name).toBe(mockServer.config.name);

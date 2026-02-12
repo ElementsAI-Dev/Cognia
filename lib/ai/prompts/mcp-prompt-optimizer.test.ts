@@ -58,6 +58,9 @@ function createMockServer(overrides: Partial<McpServerState> = {}): McpServerSta
         inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
       },
     ],
+    resources: [],
+    prompts: [],
+    reconnectAttempts: 0,
     ...overrides,
   };
 }

@@ -9,7 +9,7 @@ import {
   type RAGSearchInput,
   type RAGSearchResult,
 } from './rag-search';
-import type { RAGConfig } from '@/lib/ai/rag';
+import type { RAGSearchConfig } from './rag-search';
 
 // Mock RAG module
 jest.mock('@/lib/ai/rag', () => ({
@@ -21,12 +21,10 @@ import { retrieveContext } from '@/lib/ai/rag';
 const mockRetrieveContext = retrieveContext as jest.Mock;
 
 describe('executeRAGSearch', () => {
-  const mockConfig: RAGConfig = {
-    chromaConfig: {
-      mode: 'embedded',
-      embeddingConfig: { provider: 'openai', model: 'text-embedding-3-small' },
-      apiKey: 'test-key',
-    },
+  const mockConfig: RAGSearchConfig = {
+    embeddingProvider: 'openai',
+    embeddingModel: 'text-embedding-3-small',
+    embeddingApiKey: 'test-key',
   };
 
   beforeEach(() => {

@@ -108,7 +108,7 @@ export class LangfuseTransport implements Transport {
 
     try {
       const { getLangfuse, createChatTrace, createSpan } = this.langfuseModule;
-      const langfuse = getLangfuse();
+      const langfuse = await getLangfuse();
       
       if (!langfuse) return;
 
@@ -123,7 +123,7 @@ export class LangfuseTransport implements Transport {
 
       // Create a trace for each group
       for (const [traceKey, traceEntries] of entriesByTrace) {
-        const trace = createChatTrace({
+        const trace = await createChatTrace({
           sessionId: traceKey,
           metadata: {
             source: 'logger',

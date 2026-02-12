@@ -16,7 +16,6 @@ import {
   Clock,
   Tag,
   BarChart3,
-  CheckCircle2,
   AlertCircle,
   X,
   ChevronLeft,
@@ -47,6 +46,7 @@ import { SkillMarkdownPreview, SkillMarkdownStyles } from './skill-markdown-prev
 import { SkillResourceManager } from './skill-resource-manager';
 import { SkillEditor } from './skill-editor';
 import { SkillSecurityScanner } from './skill-security-scanner';
+import { SkillTestPanel } from './skill-test-panel';
 import { useSkillStore } from '@/stores/skills';
 import { estimateSkillTokens } from '@/lib/skills/executor';
 import { downloadSkillAsMarkdown, downloadSkillAsPackage } from '@/lib/skills/packager';
@@ -63,10 +63,8 @@ interface SkillDetailProps {
 export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailProps) {
   const t = useTranslations('skills');
   const requestAI = useSkillAI();
-  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'security' | 'edit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'resources' | 'security' | 'test' | 'edit'>('overview');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showTestDialog, setShowTestDialog] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
 
   const {
     skills,
@@ -77,6 +75,7 @@ export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailPr
     deleteSkill,
     updateSkill,
     getSkillUsageStats,
+    recordSkillUsage,
   } = useSkillStore();
 
   const skill = skills[skillId];
@@ -129,25 +128,8 @@ export function SkillDetail({ skillId, onClose, onEdit: _onEdit }: SkillDetailPr
 
   const handleTestSkill = useCallback(() => {
     if (!skill) return;
-    // Simulate a test by showing the system prompt that would be generated
-    const testOutput = `=== Skill Test: ${skill.metadata.name} ===
-
-System Prompt Preview:
----
-## Active Skill: ${skill.metadata.name}
-**Description:** ${skill.metadata.description}
-
-## Skill Instructions
-${skill.content.slice(0, 500)}${skill.content.length > 500 ? '...' : ''}
-
----
-Token Estimate: ~${tokenEstimate} tokens
-Resources: ${skill.resources.length} file(s)
-Status: ${skill.status}
-`;
-    setTestResult(testOutput);
-    setShowTestDialog(true);
-  }, [skill, tokenEstimate]);
+    setActiveTab('test');
+  }, [skill]);
 
   if (!skill) {
     return (
@@ -226,6 +208,7 @@ Status: ${skill.status}
             <TabsTrigger value="content">{t('content')}</TabsTrigger>
             <TabsTrigger value="resources">{t('resourcesTab')}</TabsTrigger>
             <TabsTrigger value="security">{t('securityTab')}</TabsTrigger>
+            <TabsTrigger value="test">{t('test')}</TabsTrigger>
             <TabsTrigger value="edit">{t('editTab')}</TabsTrigger>
           </TabsList>
 
@@ -400,6 +383,18 @@ Status: ${skill.status}
             />
           </TabsContent>
 
+          {/* Test Tab */}
+          <TabsContent value="test" className="p-4">
+            <SkillTestPanel
+              skill={skill}
+              onExecutionComplete={(result) => {
+                if (result.success) {
+                  recordSkillUsage(skill.id, true, result.executionTime, result.tokenCount);
+                }
+              }}
+            />
+          </TabsContent>
+
           {/* Edit Tab */}
           <TabsContent value="edit" className="flex-1 min-h-0 overflow-hidden">
             <SkillEditor
@@ -434,26 +429,6 @@ Status: ${skill.status}
         </DialogContent>
       </Dialog>
 
-      {/* Test Dialog */}
-      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              {t('skillTestResult')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('previewInjection')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="bg-muted rounded-lg p-4 max-h-[400px] overflow-auto">
-            <pre className="text-sm whitespace-pre-wrap font-mono">{testResult}</pre>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowTestDialog(false)}>{t('close')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

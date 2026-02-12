@@ -48,18 +48,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatCommitDate } from '@/types/system/git';
 import type { GitTagInfo } from '@/types/system/git';
-
-// ==================== Props ====================
-
-interface GitTagPanelProps {
-  tags: GitTagInfo[];
-  onCreateTag: (name: string, message?: string, target?: string) => Promise<boolean>;
-  onDeleteTag: (name: string) => Promise<boolean>;
-  onPushTag: (name: string) => Promise<boolean>;
-  onRefresh?: () => void;
-  isLoading?: boolean;
-  className?: string;
-}
+import type { GitTagPanelProps } from '@/types/git';
 
 // ==================== Component ====================
 

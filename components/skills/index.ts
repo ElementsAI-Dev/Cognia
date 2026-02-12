@@ -21,4 +21,7 @@ export { SkillMarketplaceDetail } from './skill-marketplace-detail';
 export { SkillGeneratorPanel } from './skill-generator';
 export { SkillImportDialog } from './skill-import-dialog';
 export { SkillDeleteDialog } from './skill-delete-dialog';
+export { SkillWizard } from './skill-wizard';
+export { SkillTestPanel } from './skill-test-panel';
+export { SkillEditorAIPopup } from './skill-editor-ai-popup';
 export { CATEGORY_ICONS, CATEGORY_ICONS_SM, CATEGORY_ICONS_LG, CATEGORY_COLORS, CATEGORY_LABEL_KEYS, CATEGORY_DESC_KEYS, CATEGORY_OPTIONS } from './skill-constants';

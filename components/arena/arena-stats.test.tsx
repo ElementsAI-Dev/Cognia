@@ -88,7 +88,7 @@ const createBattle = (overrides: Partial<ArenaBattle> = {}): ArenaBattle => ({
   ],
   mode: 'normal',
   conversationMode: 'single',
-  createdAt: new Date('2024-01-01').toISOString(),
+  createdAt: new Date('2024-01-01'),
   ...overrides,
 });
 
@@ -107,8 +107,8 @@ describe('ArenaStats', () => {
 
   it('renders stats when battles exist', () => {
     mockBattles = [
-      createBattle({ winnerId: 'c1', completedAt: new Date('2024-01-01T00:01:00').toISOString() }),
-      createBattle({ isTie: true, completedAt: new Date('2024-01-01T00:02:00').toISOString() }),
+      createBattle({ winnerId: 'c1', completedAt: new Date('2024-01-01T00:01:00') }),
+      createBattle({ isTie: true, completedAt: new Date('2024-01-01T00:02:00') }),
     ];
     mockPreferences = [{ id: 'p1' }];
 
@@ -130,7 +130,7 @@ describe('ArenaStats', () => {
 
   it('shows category distribution', () => {
     mockBattles = [
-      createBattle({ winnerId: 'c1', taskClassification: { category: 'coding', confidence: 0.9 } }),
+      createBattle({ winnerId: 'c1', taskClassification: { category: 'coding', confidence: 0.9, complexity: 'moderate', requiresReasoning: false, requiresTools: false, requiresVision: false, requiresCreativity: false, requiresCoding: true, requiresLongContext: false, estimatedInputTokens: 100, estimatedOutputTokens: 200 } }),
     ];
 
     render(<ArenaStats />);

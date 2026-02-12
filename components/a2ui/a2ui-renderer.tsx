@@ -7,7 +7,8 @@
 
 import React, { useMemo, useCallback, memo, lazy, Suspense, type ComponentType } from 'react';
 import type { A2UIComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
-import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from './a2ui-context';
+import type { A2UIRendererProps } from '@/types/a2ui/renderer';
+import { useA2UIContext, useA2UIVisibility, useA2UIDisabled } from '@/hooks/a2ui/use-a2ui-context';
 import { getComponent } from '@/lib/a2ui/catalog';
 
 // Import layout components
@@ -80,7 +81,7 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   ['Alert', A2UIAlert as A2UIComponentType],
   ['Progress', A2UIProgress as A2UIComponentType],
   ['Loading', A2UILoading as A2UIComponentType],
-  ['Error', A2UIError as A2UIComponentType],
+  ['Error', A2UIError as unknown as A2UIComponentType],
   ['Empty', A2UIEmpty as A2UIComponentType],
   // Form components
   ['Button', A2UIButton as A2UIComponentType],
@@ -111,14 +112,6 @@ function resolveA2UIComponent(componentType: string, catalogId?: string): A2UICo
   return builtInComponents.get(componentType)
     || getComponent(componentType, catalogId)?.component
     || (A2UIFallback as A2UIComponentType);
-}
-
-/**
- * Props for the renderer
- */
-interface A2UIRendererProps {
-  component: A2UIComponent;
-  className?: string;
 }
 
 /**

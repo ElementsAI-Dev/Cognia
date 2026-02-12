@@ -65,7 +65,7 @@ export interface UseAIGenerationModeReturn {
   setProvider: React.Dispatch<React.SetStateAction<VideoProvider>>;
   model: VideoModel;
   setModel: React.Dispatch<React.SetStateAction<VideoModel>>;
-  providerModels: Array<{ id: string; name: string; provider: string }>;
+  providerModels: Array<{ id: string; name: string; provider: VideoProvider }>;
 
   // Generation settings
   resolution: VideoResolution;
@@ -156,7 +156,9 @@ export function useAIGenerationMode(): UseAIGenerationModeReturn {
 
   // Models for current provider
   const providerModels = useMemo(() => {
-    return videoGen.availableModels.filter((m) => m.provider === provider);
+    return videoGen.availableModels
+      .filter((m) => m.provider === provider)
+      .map((m) => ({ ...m, provider: m.provider as VideoProvider }));
   }, [videoGen.availableModels, provider]);
 
   // Derive effective model — auto-select first model when provider changes

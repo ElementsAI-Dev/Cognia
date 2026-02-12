@@ -7,7 +7,7 @@ import citationInserterApi, {
   generateBibTeX,
   formatCitation,
 } from './citation-inserter';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 const mockPaper: Paper = {
   id: 'test-paper-1',

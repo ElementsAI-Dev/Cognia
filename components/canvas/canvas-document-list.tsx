@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { DocumentSortField, DocumentSortOrder } from '@/types/canvas/panel';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -70,9 +71,6 @@ interface CanvasDocumentListProps {
   className?: string;
 }
 
-type SortField = 'title' | 'updatedAt' | 'language';
-type SortOrder = 'asc' | 'desc';
-
 export const CanvasDocumentList = memo(function CanvasDocumentList({
   documents,
   activeDocumentId,
@@ -86,8 +84,8 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
   const t = useTranslations('canvas');
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<DocumentSortField>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<DocumentSortOrder>('desc');
   const [filterLanguage, setFilterLanguage] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -204,7 +202,7 @@ export const CanvasDocumentList = memo(function CanvasDocumentList({
               </SelectContent>
             </Select>
 
-            <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+            <Select value={sortField} onValueChange={(v) => setSortField(v as DocumentSortField)}>
               <SelectTrigger className="h-7 w-full sm:w-25 min-w-20">
                 <SelectValue />
               </SelectTrigger>

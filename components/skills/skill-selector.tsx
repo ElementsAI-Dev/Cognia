@@ -14,6 +14,7 @@ import {
   Sparkles,
   ChevronDown,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { useSkillStore } from '@/stores/skills';
+import { useSkillTokenBudget } from '@/hooks/skills/use-skills';
 import { CATEGORY_LABEL_KEYS } from './skill-constants';
 import type { Skill, SkillCategory } from '@/types/system/skill';
 
@@ -74,6 +76,9 @@ export function SkillSelector({
   );
 
   const activeSkills = getActiveSkills();
+
+  // Token budget check for active skills
+  const tokenBudget = useSkillTokenBudget(8000);
 
   const filteredSkills = useMemo(() => {
     if (!search) return allSkills;
@@ -207,6 +212,31 @@ export function SkillSelector({
           <Badge variant="secondary">
             {activeSkills.length}/{maxSkills}
           </Badge>
+          {activeSkills.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={tokenBudget.fits ? 'outline' : 'destructive'}
+                  className="text-xs"
+                >
+                  {tokenBudget.fits ? (
+                    <>~{tokenBudget.totalTokens} {t('tokens')}</>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {t('tokenBudgetExceeded') || 'Over budget'}
+                    </>
+                  )}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {tokenBudget.fits
+                  ? `${t('tokenEstimate')}: ~${tokenBudget.totalTokens} / 8000`
+                  : `${t('tokenBudgetExceeded') || 'Token budget exceeded'}: ${tokenBudget.totalTokens} / 8000 (+${tokenBudget.excess})`
+                }
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         {activeSkills.length > 0 && (
           <Button variant="ghost" size="sm" onClick={handleClearAll}>

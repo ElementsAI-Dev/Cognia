@@ -18,22 +18,7 @@ import {
   Twitter, Facebook, Mail, MessageCircle,
 } from 'lucide-react';
 import { resolveIcon } from '@/lib/a2ui/resolve-icon';
-import type { A2UIAppInstance } from '@/hooks/a2ui/app-builder/types';
-import type { A2UIAppTemplate } from '@/lib/a2ui/templates';
-
-interface AppCardProps {
-  app: A2UIAppInstance;
-  template: A2UIAppTemplate | undefined;
-  isActive: boolean;
-  viewMode: 'grid' | 'list';
-  onSelect: (appId: string) => void;
-  onDuplicate: (appId: string) => void;
-  onDownload: (appId: string) => void;
-  onDelete: (appId: string) => void;
-  onCopyToClipboard: (appId: string, format: 'json' | 'code' | 'url') => Promise<boolean>;
-  onNativeShare: (appId: string) => Promise<void>;
-  onSocialShare: (appId: string, platform: string) => void;
-}
+import type { QuickAppCardProps as AppCardProps } from '@/types/a2ui/app';
 
 export const QuickAppCard = memo(function QuickAppCard({
   app, template, isActive, viewMode,

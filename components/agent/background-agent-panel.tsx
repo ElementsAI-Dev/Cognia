@@ -51,46 +51,7 @@ import {
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-
-// Sub-components extracted to background-agent-card.tsx and background-agent-sub-components.tsx
-
-// Utility function to download file
-function downloadFile(filename: string, content: string, mimeType: string = 'text/plain') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// Format agent as markdown for export
-function formatAgentAsMarkdown(agent: BackgroundAgent): string {
-  const lines: string[] = [
-    `# ${agent.name}`,
-    '',
-    `**Status:** ${agent.status}`,
-    `**Task:** ${agent.task}`,
-    `**Progress:** ${agent.progress}%`,
-    '',
-    agent.startedAt ? `**Started:** ${agent.startedAt.toISOString()}` : '',
-    agent.completedAt ? `**Completed:** ${agent.completedAt.toISOString()}` : '',
-    '',
-    '## Sub-Agents',
-    '',
-    ...agent.subAgents.map((sa) => `- **${sa.name}** (${sa.status}): ${sa.task || 'No task'}`),
-    '',
-    '## Logs',
-    '',
-    ...agent.logs.map(
-      (log) => `- [${log.level.toUpperCase()}] ${log.timestamp.toISOString()}: ${log.message}`
-    ),
-  ];
-  return lines.filter(Boolean).join('\n');
-}
+import { downloadFile, formatAgentAsMarkdown } from '@/lib/agent';
 
 export function BackgroundAgentPanel() {
   const t = useTranslations('agent');

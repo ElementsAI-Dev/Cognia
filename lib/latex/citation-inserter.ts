@@ -3,7 +3,7 @@
  * Smart citation insertion with context awareness and auto-formatting
  */
 
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 import type { CitationStyle } from '@/lib/ai/rag/citation-formatter';
 
 // ============================================================================

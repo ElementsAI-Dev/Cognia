@@ -37,3 +37,26 @@ export type {
   UseMcpEnvironmentCheckOptions,
   UseMcpEnvironmentCheckReturn,
 } from './use-mcp-environment-check';
+
+export { useMcpActiveCalls } from './use-mcp-active-calls';
+export type { UseMcpActiveCallsOptions, UseMcpActiveCallsReturn } from './use-mcp-active-calls';
+
+export { useMcpResourceBrowser } from './use-mcp-resource-browser';
+export type {
+  UseMcpResourceBrowserOptions,
+  UseMcpResourceBrowserReturn,
+} from './use-mcp-resource-browser';
+
+export { useMcpPrompts } from './use-mcp-prompts';
+export type { UseMcpPromptsOptions, UseMcpPromptsReturn } from './use-mcp-prompts';
+
+export { useMcpServerHealth } from './use-mcp-server-health';
+export type { UseMcpServerHealthReturn } from './use-mcp-server-health';
+
+export { useMcpToolUsage } from './use-mcp-tool-usage';
+export type {
+  UseMcpToolUsageOptions,
+  UseMcpToolUsageReturn,
+  ProcessedUsageRecord,
+  ToolUsageSortKey,
+} from './use-mcp-tool-usage';

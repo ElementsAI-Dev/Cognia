@@ -6,7 +6,7 @@
  * Supports: Twitter/X, LinkedIn, Reddit, WeChat, Weibo, Telegram, Facebook, Email
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Share2,
@@ -33,29 +33,15 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
-import type { Session } from '@/types';
-import { useExportMessages } from '@/hooks/export';
+import type { SocialShareDialogProps, ShareFormat } from '@/types/export/social-share';
+import { useExportMessages, useSocialShare } from '@/hooks/export';
 import {
   type SocialPlatform,
   PLATFORM_CONFIGS,
-  generateShareContent,
-  openSharePopup,
-  copyToClipboard,
-  generateWeChatQRCode,
-  nativeShare,
   isNativeShareAvailable,
   generateShareableMarkdown,
 } from '@/lib/export/social/social-share';
-import { exportToImage } from '@/lib/export/image/image-export';
 import { QRCodeGenerator } from '@/components/export/qr';
-
-interface SocialShareDialogProps {
-  session: Session;
-  trigger?: React.ReactNode;
-}
-
-type ShareFormat = 'text' | 'markdown' | 'image' | 'link' | 'qrcode';
 
 const PLATFORM_ICONS: Record<SocialPlatform, React.ReactNode> = {
   twitter: <span className="font-bold">𝕏</span>,
@@ -71,143 +57,29 @@ const PLATFORM_ICONS: Record<SocialPlatform, React.ReactNode> = {
 export function SocialShareDialog({ session, trigger }: SocialShareDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [shareFormat, setShareFormat] = useState<ShareFormat>('text');
-  const [copied, setCopied] = useState(false);
-  const [wechatQR, setWechatQR] = useState<string | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-
-  // Share options
-  const [includeTitle, setIncludeTitle] = useState(true);
-  const [includeTimestamps, setIncludeTimestamps] = useState(false);
-  const [includeModel, setIncludeModel] = useState(true);
-  const [maxMessages] = useState(10);
 
   const { messages, isLoading } = useExportMessages(session.id, open);
 
-  // Generate share content
-  const shareContent = useCallback(() => {
-    if (messages.length === 0) return null;
-
-    return generateShareContent(session, messages, {
-      maxMessages,
-      includeTimestamps,
-      includeModel,
-    });
-  }, [session, messages, maxMessages, includeTimestamps, includeModel]);
-
-  // Handle platform share
-  const handlePlatformShare = useCallback(
-    async (platform: SocialPlatform) => {
-      const content = shareContent();
-      if (!content) return;
-
-      if (platform === 'wechat') {
-        // Generate QR code for WeChat
-        try {
-          const qrCode = await generateWeChatQRCode(content.text, { width: 256 });
-          setWechatQR(qrCode);
-        } catch (error) {
-          console.error('Failed to generate QR code:', error);
-          toast.error(t('qrCodeFailed'));
-        }
-        return;
-      }
-
-      const shareUrl = window.location.href;
-      openSharePopup(platform, {
-        title: content.title,
-        description: content.summary,
-        url: shareUrl,
-        hashtags: ['AI', 'Cognia'],
-      });
-    },
-    [shareContent, t]
-  );
-
-  // Handle native share
-  const handleNativeShare = useCallback(async () => {
-    const content = shareContent();
-    if (!content) return;
-
-    const success = await nativeShare({
-      title: content.title,
-      text: content.text,
-      url: window.location.href,
-    });
-
-    if (!success) {
-      toast.error(t('shareFailed'));
-    }
-  }, [shareContent, t]);
-
-  // Handle copy
-  const handleCopy = useCallback(async () => {
-    const content = shareContent();
-    if (!content) return;
-
-    let textToCopy: string;
-
-    switch (shareFormat) {
-      case 'markdown':
-        textToCopy = generateShareableMarkdown(session, messages, {
-          includeMetadata: includeModel,
-          maxMessages,
-        });
-        break;
-      case 'link':
-        textToCopy = window.location.href;
-        break;
-      case 'text':
-      default:
-        textToCopy = content.text;
-    }
-
-    const success = await copyToClipboard(textToCopy);
-    if (success) {
-      setCopied(true);
-      toast.success(t('copiedToClipboard'));
-      setTimeout(() => setCopied(false), 2000);
-    } else {
-      toast.error(t('copyFailed'));
-    }
-  }, [shareContent, shareFormat, session, messages, includeModel, maxMessages, t]);
-
-  // Handle image export
-  const handleImageExport = useCallback(async () => {
-    if (messages.length === 0) return;
-
-    setIsGeneratingImage(true);
-    try {
-      const result = await exportToImage(session, messages.slice(0, maxMessages), {
-        format: 'png',
-        scale: 2,
-        theme: 'light',
-        includeHeader: includeTitle,
-        showTimestamps: includeTimestamps,
-        showModel: includeModel,
-      });
-
-      // Download the image
-      const link = document.createElement('a');
-      link.href = result.dataUrl;
-      link.download = `${session.title}-share.png`;
-      link.click();
-
-      toast.success(t('imageExported'));
-    } catch (error) {
-      console.error('Image export failed:', error);
-      toast.error(t('imageExportFailed'));
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  }, [session, messages, maxMessages, includeTitle, includeTimestamps, includeModel, t]);
-
-  // Close QR code modal
-  const closeQRCode = useCallback(() => {
-    setWechatQR(null);
-  }, []);
-
-  const content = shareContent();
+  const {
+    shareFormat,
+    setShareFormat,
+    copied,
+    wechatQR,
+    isGeneratingImage,
+    includeTitle,
+    setIncludeTitle,
+    includeTimestamps,
+    setIncludeTimestamps,
+    includeModel,
+    setIncludeModel,
+    maxMessages,
+    content,
+    handlePlatformShare,
+    handleNativeShare,
+    handleCopy,
+    handleImageExport,
+    closeQRCode,
+  } = useSocialShare(session, messages, t);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

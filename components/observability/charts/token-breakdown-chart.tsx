@@ -10,7 +10,7 @@ import { memo, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TOOLTIP_STYLE, TOKEN_COLORS } from './chart-config';
+import { TOOLTIP_STYLE, TOKEN_COLORS } from '@/lib/observability/chart-config';
 
 interface TokenBreakdownData {
   inputTokens: number;

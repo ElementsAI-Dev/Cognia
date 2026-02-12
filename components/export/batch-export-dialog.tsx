@@ -4,7 +4,7 @@
  * BatchExportDialog - Export multiple sessions at once
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, Loader2, FileArchive, Check, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
@@ -29,126 +29,29 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { useSessionStore } from '@/stores';
-import { messageRepository } from '@/lib/db';
-import {
-  exportSessionsToZip,
-  downloadZip,
-  estimateExportSize,
-  type BatchExportFormat,
-  type SessionWithMessages,
-} from '@/lib/export';
+import { type BatchExportFormat } from '@/lib/export';
 import type { Session } from '@/types';
-
-interface BatchExportDialogProps {
-  trigger?: React.ReactNode;
-}
+import type { BatchExportDialogProps } from '@/types/export/batch-export';
+import { useBatchExport } from '@/hooks/export';
 
 export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
   const t = useTranslations('batchExport');
   const [open, setOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [format, setFormat] = useState<BatchExportFormat>('mixed');
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [estimatedSize, setEstimatedSize] = useState(0);
 
-  const sessions = useSessionStore((state) => state.sessions);
-
-  // Update estimated size when selection changes
-  useEffect(() => {
-    const updateEstimate = async () => {
-      if (selectedIds.size === 0) {
-        setEstimatedSize(0);
-        return;
-      }
-
-      setIsLoadingMessages(true);
-      try {
-        const sessionsWithMessages: SessionWithMessages[] = [];
-        for (const id of selectedIds) {
-          const session = sessions.find((s) => s.id === id);
-          if (session) {
-            const messages = await messageRepository.getBySessionId(id);
-            sessionsWithMessages.push({ session, messages });
-          }
-        }
-        setEstimatedSize(estimateExportSize(sessionsWithMessages));
-      } catch (error) {
-        console.error('Error estimating size:', error);
-        toast.error(t('estimateFailed'));
-      } finally {
-        setIsLoadingMessages(false);
-      }
-    };
-
-    const debounce = setTimeout(updateEstimate, 300);
-    return () => clearTimeout(debounce);
-  }, [selectedIds, sessions]);
-
-  const toggleSession = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedIds(newSet);
-  };
-
-  const selectAll = () => {
-    setSelectedIds(new Set(sessions.map((s) => s.id)));
-  };
-
-  const selectNone = () => {
-    setSelectedIds(new Set());
-  };
-
-  const handleExport = async () => {
-    if (selectedIds.size === 0) return;
-
-    setIsExporting(true);
-
-    try {
-      // Load messages for selected sessions
-      const sessionsWithMessages: SessionWithMessages[] = [];
-      for (const id of selectedIds) {
-        const session = sessions.find((s) => s.id === id);
-        if (session) {
-          const messages = await messageRepository.getBySessionId(id);
-          sessionsWithMessages.push({ session, messages });
-        }
-      }
-
-      // Export to ZIP
-      setExportProgress({ current: 0, total: sessionsWithMessages.length });
-      const result = await exportSessionsToZip(sessionsWithMessages, {
-        format,
-        includeIndex: true,
-        includeMetadata: true,
-        includeAttachments: true,
-        theme: 'system',
-        onProgress: (current, total) => setExportProgress({ current, total }),
-      });
-
-      if (result.success && result.blob) {
-        downloadZip(result.blob, result.filename);
-        toast.success(t('exportSuccess'));
-        setOpen(false);
-      } else {
-        console.error('Export failed:', result.error);
-        toast.error(result.error || t('exportFailed'));
-      }
-    } catch (error) {
-      console.error('Export failed:', error);
-      toast.error(error instanceof Error ? error.message : t('exportFailed'));
-    } finally {
-      setIsExporting(false);
-      setExportProgress({ current: 0, total: 0 });
-    }
-  };
+  const {
+    sessions,
+    selectedIds,
+    format,
+    setFormat,
+    isExporting,
+    exportProgress,
+    isLoadingMessages,
+    estimatedSize,
+    toggleSession,
+    selectAll,
+    selectNone,
+    handleExport,
+  } = useBatchExport(t);
 
   const formatLabels: Record<BatchExportFormat, string> = {
     markdown: t('formatMarkdown'),
@@ -262,7 +165,7 @@ export function BatchExportDialog({ trigger }: BatchExportDialogProps) {
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t('cancel')}
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || selectedIds.size === 0}>
+          <Button onClick={() => handleExport(() => setOpen(false))} disabled={isExporting || selectedIds.size === 0}>
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

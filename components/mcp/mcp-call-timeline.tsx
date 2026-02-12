@@ -28,26 +28,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
+import { formatDuration, formatToolName } from '@/lib/mcp/format-utils';
 import { MCPServerBadge } from './mcp-server-badge';
 import type { ToolState } from '@/types/core/message';
-import type { McpServerStatus } from '@/types/mcp';
+import type { MCPCallStep } from '@/types/mcp';
 
-export interface MCPCallStep {
-  id: string;
-  serverId: string;
-  serverName?: string;
-  serverStatus?: McpServerStatus;
-  toolName: string;
-  toolDescription?: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
-  state: ToolState;
-  startedAt?: Date;
-  endedAt?: Date;
-  progress?: number;
-  progressMessage?: string;
-}
+export { type MCPCallStep } from '@/types/mcp';
 
 export interface MCPCallTimelineProps {
   steps: MCPCallStep[];
@@ -72,18 +58,6 @@ const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; l
   'output-denied': { icon: XCircle, color: 'text-orange-500', label: 'Denied' },
 };
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
-
-function formatToolName(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
 
 export function MCPCallTimeline({
   steps,

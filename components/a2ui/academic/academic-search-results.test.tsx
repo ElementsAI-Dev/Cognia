@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcademicSearchResults } from './academic-search-results';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 const createMockPaper = (id: string, title: string): Paper => ({
   id,

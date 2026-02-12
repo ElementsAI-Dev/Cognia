@@ -52,3 +52,9 @@ export {
   onKernelOutput,
   onCellOutput,
 } from './kernel';
+
+// Constants
+export { KERNEL_STATUS_CONFIG, VARIABLE_TYPE_COLORS } from './constants';
+
+// Notebook utilities
+export { toJupyterOutputs, applyCellsToNotebook } from './notebook-utils';

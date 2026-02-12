@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Sparkles, FileText, Search, AlertCircle, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { useMcpStore } from '@/stores';
-import type { McpPrompt, PromptContent, PromptMessage } from '@/types/mcp';
+import { useMcpPrompts } from '@/hooks/mcp/use-mcp-prompts';
 
 export interface McpPromptsPanelProps {
   serverId: string;
@@ -28,70 +26,31 @@ export function McpPromptsPanel({
   className,
 }: McpPromptsPanelProps) {
   const t = useTranslations('mcp');
-  const servers = useMcpStore((state) => state.servers);
-  const getPrompt = useMcpStore((state) => state.getPrompt);
-  const [selectedPrompt, setSelectedPrompt] = useState<McpPrompt | null>(null);
-  const [promptContent, setPromptContent] = useState<PromptContent | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [promptArgs, setPromptArgs] = useState<Record<string, string>>({});
-  const server = useMemo(() => servers.find((s) => s.id === serverId), [servers, serverId]);
+  const {
+    server,
+    filteredPrompts,
+    searchQuery,
+    setSearchQuery,
+    selectedPrompt,
+    promptContent,
+    isLoading,
+    error,
+    promptArgs,
+    setPromptArgs,
+    handleSelectPrompt,
+    handlePreview,
+    getFlattenedContent,
+  } = useMcpPrompts({ serverId });
 
-  const filteredPrompts = useMemo(() => {
-    const prompts = server?.prompts || [];
-    if (!searchQuery) return prompts;
-    const query = searchQuery.toLowerCase();
-    return prompts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query)
-    );
-  }, [server?.prompts, searchQuery]);
+  const handleInsert = () => {
+    const combined = getFlattenedContent();
+    if (combined) onInsert?.(combined);
+  };
 
-  const handleSelectPrompt = useCallback((prompt: McpPrompt) => {
-    setSelectedPrompt(prompt);
-    setPromptContent(null);
-    setError(null);
-    const initialArgs: Record<string, string> = {};
-    if (prompt.arguments) {
-      for (const arg of prompt.arguments) {
-        initialArgs[arg.name] = '';
-      }
-    }
-    setPromptArgs(initialArgs);
-  }, []);
-
-  const handlePreview = useCallback(async () => {
-    if (!selectedPrompt) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const args: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(promptArgs)) {
-        if (value) args[key] = value;
-      }
-      const content = await getPrompt(serverId, selectedPrompt.name, args);
-      setPromptContent(content);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setPromptContent(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedPrompt, promptArgs, getPrompt, serverId]);
-
-  const handleInsert = useCallback(() => {
-    if (!promptContent) return;
-    const combined = flattenMessages(promptContent.messages);
-    onInsert?.(combined);
-  }, [promptContent, onInsert]);
-
-  const handleUseAsSystemPrompt = useCallback(() => {
-    if (!promptContent) return;
-    const combined = flattenMessages(promptContent.messages);
-    onUseAsSystemPrompt?.(combined);
-  }, [promptContent, onUseAsSystemPrompt]);
+  const handleUseAsSystemPrompt = () => {
+    const combined = getFlattenedContent();
+    if (combined) onUseAsSystemPrompt?.(combined);
+  };
 
   if (!server) {
     return (
@@ -281,7 +240,7 @@ export function McpPromptsPanel({
               </div>
               <ScrollArea className="max-h-[300px] rounded border bg-muted/40 p-3">
                 <pre className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                  {flattenMessages(promptContent.messages)}
+                  {getFlattenedContent()}
                 </pre>
               </ScrollArea>
             </div>
@@ -292,16 +251,3 @@ export function McpPromptsPanel({
   );
 }
 
-function flattenMessages(messages: PromptMessage[]): string {
-  return messages
-    .map((message) => {
-      if (typeof message.content === 'string') return message.content;
-      if (Array.isArray(message.content)) {
-        return message.content
-          .map((item) => (item.type === 'text' ? item.text : JSON.stringify(item)))
-          .join('\n');
-      }
-      return '';
-    })
-    .join('\n');
-}

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { SUGGESTION_TYPE_COLORS } from '@/lib/canvas/constants';
 import type { CanvasSuggestion } from '@/types';
 
 interface SuggestionItemProps {
@@ -28,12 +29,6 @@ const TYPE_ICONS = {
   edit: Edit3,
 };
 
-const TYPE_COLORS = {
-  fix: 'text-red-500 bg-red-50 dark:bg-red-950/30',
-  improve: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30',
-  comment: 'text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30',
-  edit: 'text-green-500 bg-green-50 dark:bg-green-950/30',
-};
 
 export const SuggestionItem = memo(function SuggestionItem({
   suggestion,
@@ -45,7 +40,7 @@ export const SuggestionItem = memo(function SuggestionItem({
   const [open, setOpen] = useState(false);
 
   const Icon = TYPE_ICONS[suggestion.type] || Edit3;
-  const colorClass = TYPE_COLORS[suggestion.type] || TYPE_COLORS.edit;
+  const colorClass = SUGGESTION_TYPE_COLORS[suggestion.type] || SUGGESTION_TYPE_COLORS.edit;
 
   const hasCodeDiff = suggestion.originalText && suggestion.suggestedText;
 

@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useCollaborativeSession } from '@/hooks/canvas';
+import { getConnectionStatusColor } from '@/lib/canvas/utils';
 import type { Participant } from '@/types/canvas/collaboration';
 
 interface CollaborationPanelProps {
@@ -71,19 +72,6 @@ export function CollaborationPanel({
     }
   }, [joinSession, joinSessionId]);
 
-  const getConnectionStatusColor = () => {
-    switch (connectionState) {
-      case 'connected':
-        return 'text-green-500';
-      case 'connecting':
-        return 'text-yellow-500';
-      case 'error':
-        return 'text-red-500';
-      default:
-        return 'text-muted-foreground';
-    }
-  };
-
   const getConnectionStatusText = () => {
     switch (connectionState) {
       case 'connected':
@@ -128,9 +116,9 @@ export function CollaborationPanel({
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
             <div className="flex items-center gap-2">
               {isConnected ? (
-                <Wifi className={cn('h-4 w-4', getConnectionStatusColor())} />
+                <Wifi className={cn('h-4 w-4', getConnectionStatusColor(connectionState))} />
               ) : (
-                <WifiOff className={cn('h-4 w-4', getConnectionStatusColor())} />
+                <WifiOff className={cn('h-4 w-4', getConnectionStatusColor(connectionState))} />
               )}
               <span className="text-sm">{getConnectionStatusText()}</span>
             </div>

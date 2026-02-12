@@ -30,12 +30,7 @@ import {
   mergeGitignoreTemplates,
   detectProjectType,
 } from '@/lib/native/gitignore-templates';
-
-export interface GitignoreTemplateSelectorProps {
-  onSelect: (content: string) => void;
-  projectFiles?: string[];
-  className?: string;
-}
+import type { GitignoreTemplateSelectorProps } from '@/types/git';
 
 export function GitignoreTemplateSelector({
   onSelect,

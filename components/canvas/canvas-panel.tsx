@@ -5,7 +5,7 @@
  * Includes version history support
  */
 
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import {
@@ -49,17 +49,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useArtifactStore, useSettingsStore } from '@/stores';
+import type { CanvasSuggestion } from '@/types';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
-import { TRANSLATE_LANGUAGES } from '@/lib/canvas/constants';
+import { TRANSLATE_LANGUAGES, CANVAS_ACTIONS, FORMAT_ACTION_MAP } from '@/lib/canvas/constants';
 import { VersionHistoryPanel } from './version-history-panel';
 import { CodeExecutionPanel } from './code-execution-panel';
 import { CanvasDocumentTabs } from './canvas-document-tabs';
-import { SuggestionItem } from './suggestion-item';
+import { SuggestionsPanel } from './suggestions-panel';
 import { CollaborationPanel } from './collaboration-panel';
 import { CommentPanel } from './comment-panel';
 import { KeybindingSettings } from './keybinding-settings';
-import type { CanvasSuggestion } from '@/types';
 import {
   useCanvasCodeExecution,
   useCanvasDocuments,
@@ -67,17 +67,17 @@ import {
   useChunkLoader,
   useCanvasMonacoSetup,
   useCanvasActions,
+  useCanvasAutoSave,
+  useCanvasKeyboardShortcuts,
 } from '@/hooks/canvas';
-import { useKeybindingStore } from '@/stores/canvas/keybinding-store';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
-import { isLargeDocument, getMonacoLanguage, calculateDocumentStats, getFileExtension } from '@/lib/canvas/utils';
+import { isLargeDocument, getMonacoLanguage, calculateDocumentStats, isDesignerCompatible, exportCanvasDocument } from '@/lib/canvas/utils';
 import { symbolParser } from '@/lib/canvas/symbols/symbol-parser';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { createEditorOptions } from '@/lib/monaco';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
 import { DocumentFormatToolbar, type FormatAction } from '@/components/document/document-format-toolbar';
-import type { CanvasActionType } from '@/lib/ai/generation/canvas-actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { V0Designer } from '@/components/designer';
@@ -126,22 +126,6 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ),
 });
 
-const canvasActions: Array<{
-  type: CanvasActionType;
-  labelKey: string;
-  icon: string;
-  shortcut?: string;
-}> = [
-  { type: 'review', labelKey: 'actionReview', icon: 'eye', shortcut: '⌘R' },
-  { type: 'fix', labelKey: 'actionFix', icon: 'bug', shortcut: '⌘F' },
-  { type: 'improve', labelKey: 'actionImprove', icon: 'sparkles', shortcut: '⌘I' },
-  { type: 'explain', labelKey: 'actionExplain', icon: 'help', shortcut: '⌘E' },
-  { type: 'simplify', labelKey: 'actionSimplify', icon: 'minimize', shortcut: '⌘S' },
-  { type: 'expand', labelKey: 'actionExpand', icon: 'maximize', shortcut: '⌘X' },
-  { type: 'translate', labelKey: 'actionTranslate', icon: 'languages' },
-  { type: 'format', labelKey: 'actionFormat', icon: 'format' },
-];
-
 const actionIcons: Record<string, React.ReactNode> = {
   review: <Eye className="h-4 w-4" />,
   fix: <Bug className="h-4 w-4" />,
@@ -166,9 +150,7 @@ function CanvasPanelContent() {
   const theme = useSettingsStore((state) => state.theme);
 
   const activeDocument = activeCanvasId ? canvasDocuments[activeCanvasId] : null;
-  const [localContent, setLocalContent] = useState('');
   const [selection, setSelection] = useState<string>('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
@@ -203,16 +185,29 @@ function CanvasPanelContent() {
     generateSuggestions,
   } = useCanvasSuggestions();
 
+  // Auto-save hook
+  const {
+    localContent,
+    setLocalContent,
+    hasUnsavedChanges,
+    handleEditorChange,
+    handleManualSave,
+  } = useCanvasAutoSave({
+    documentId: activeCanvasId,
+    content: activeDocument?.content || '',
+    onSave: saveCanvasVersion,
+    onContentUpdate: (id, content) => updateCanvasDocument(id, { content }),
+  });
+
   // AI actions hook - handles streaming, diff preview, action execution
   const handleActionContentChange = useCallback(
     (newContent: string) => {
       setLocalContent(newContent);
       if (activeCanvasId) {
         updateCanvasDocument(activeCanvasId, { content: newContent });
-        setHasUnsavedChanges(true);
       }
     },
-    [activeCanvasId, updateCanvasDocument]
+    [activeCanvasId, updateCanvasDocument, setLocalContent]
   );
 
   const {
@@ -276,24 +271,17 @@ function CanvasPanelContent() {
   const updateEditorSettings = useCanvasSettingsStore((s) => s.updateEditorSettings);
 
   // Check if current document can be opened in Designer
-  const canOpenInDesigner =
-    activeDocument &&
-    ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(activeDocument.language);
+  const canOpenInDesigner = activeDocument && isDesignerCompatible(activeDocument.language);
 
   // Calculate document statistics
   const documentStats = useMemo(() => calculateDocumentStats(localContent), [localContent]);
 
   // Handle Designer code changes
-  // Ref access is safe in useCallback — refs are mutable containers
   const handleDesignerCodeChange = useCallback(
     (newCode: string) => {
-      setLocalContent(newCode);
-      if (activeCanvasId) {
-        updateCanvasDocument(activeCanvasId, { content: newCode });
-      }
-      setHasUnsavedChanges(newCode !== lastSavedContentRef.current);
+      handleEditorChange(newCode);
     },
-    [activeCanvasId, updateCanvasDocument]
+    [handleEditorChange]
   );
 
   // Open in full Designer page
@@ -330,57 +318,18 @@ function CanvasPanelContent() {
   // Export canvas document
   const handleExport = useCallback(() => {
     if (!activeDocument) return;
-
-    const ext = getFileExtension(activeDocument.language);
-    const filename = `${activeDocument.title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
-    const blob = new Blob([localContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportCanvasDocument(activeDocument.title, localContent, activeDocument.language);
   }, [activeDocument, localContent]);
 
   // Handle translate action with language selection (defined after handleAction)
-  const handleTranslateRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const handleTranslateRef = React.useRef<() => Promise<void>>(() => Promise.resolve());
 
-  // Auto-save timer ref
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSavedContentRef = useRef<string>('');
-
-  const activeDocId = activeDocument?.id;
-  const activeDocContent = activeDocument?.content;
-  useEffect(() => {
-    // Clear pending auto-save from previous document to prevent stale saves
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-
-    if (activeDocContent !== undefined) {
-      // Use microtask to avoid synchronous setState in effect
-      queueMicrotask(() => {
-        setLocalContent(activeDocContent);
-        lastSavedContentRef.current = activeDocContent;
-        setHasUnsavedChanges(false);
-      });
-    }
-  }, [activeDocId, activeDocContent]);
-
-  // Cleanup auto-save timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Keybinding store integration
-  const getActionByKeybinding = useKeybindingStore((state) => state.getActionByKeybinding);
+  // Keyboard shortcuts hook
+  useCanvasKeyboardShortcuts({
+    isActive: panelOpen && panelView === 'canvas',
+    isProcessing,
+    hasActiveDocument: !!activeDocument,
+  });
 
   // Get Monaco theme from theme registry
   const monacoTheme = useMemo(() => {
@@ -388,99 +337,6 @@ function CanvasPanelContent() {
       theme === 'dark' ? themeRegistry.getTheme('vs-dark') : themeRegistry.getTheme('vs');
     return editorTheme ? editorTheme.id : theme === 'dark' ? 'vs-dark' : 'light';
   }, [theme]);
-
-  // Keyboard shortcuts handler - uses keybinding store
-  useEffect(() => {
-    if (!panelOpen || panelView !== 'canvas' || !activeDocument) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Cmd/Ctrl key
-      const isMod = e.metaKey || e.ctrlKey;
-      if (!isMod || isProcessing) return;
-
-      // Build key combo string
-      const parts: string[] = [];
-      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-      if (e.altKey) parts.push('Alt');
-      if (e.shiftKey) parts.push('Shift');
-      const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-      if (!['Control', 'Alt', 'Shift', 'Meta'].includes(key)) {
-        parts.push(key);
-      }
-      const keyCombo = parts.join('+');
-
-      // Check keybinding store first
-      const boundAction = getActionByKeybinding(keyCombo);
-      if (boundAction && boundAction.startsWith('action.')) {
-        const actionType = boundAction.replace('action.', '');
-        const action = canvasActions.find((a) => a.type === actionType);
-        if (action) {
-          e.preventDefault();
-          const event = new CustomEvent('canvas-action', { detail: action });
-          window.dispatchEvent(event);
-          return;
-        }
-      }
-
-      // Fallback to default key mapping
-      const keyActionMap: Record<string, string> = {
-        r: 'review',
-        f: 'fix',
-        i: 'improve',
-        e: 'explain',
-        s: 'simplify',
-        x: 'expand',
-      };
-
-      const actionType = keyActionMap[e.key.toLowerCase()];
-      if (actionType) {
-        const action = canvasActions.find((a) => a.type === actionType);
-        if (action) {
-          e.preventDefault();
-          const event = new CustomEvent('canvas-action', { detail: action });
-          window.dispatchEvent(event);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [panelOpen, panelView, isProcessing, activeDocument, getActionByKeybinding]);
-
-  const handleEditorChange = useCallback(
-    (value: string | undefined) => {
-      const newValue = value || '';
-      setLocalContent(newValue);
-      if (activeCanvasId) {
-        updateCanvasDocument(activeCanvasId, { content: newValue });
-      }
-
-      setHasUnsavedChanges(newValue !== lastSavedContentRef.current);
-
-      // Auto-save after 30 seconds of inactivity if there are changes
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-
-      if (newValue !== lastSavedContentRef.current && activeCanvasId) {
-        autoSaveTimerRef.current = setTimeout(() => {
-          saveCanvasVersion(activeCanvasId, undefined, true);
-          lastSavedContentRef.current = newValue;
-          setHasUnsavedChanges(false);
-        }, 30000); // Auto-save after 30 seconds
-      }
-    },
-    [activeCanvasId, updateCanvasDocument, saveCanvasVersion]
-  );
-
-  const handleManualSave = () => {
-    if (activeCanvasId && hasUnsavedChanges) {
-      saveCanvasVersion(activeCanvasId, undefined, false);
-      // eslint-disable-next-line -- legitimate ref mutation in event handler
-      lastSavedContentRef.current = localContent;
-      setHasUnsavedChanges(false);
-    }
-  };
 
   // Update handleTranslate ref after handleAction is defined
   useEffect(() => {
@@ -633,7 +489,7 @@ function CanvasPanelContent() {
             {/* Toolbar */}
             <div className="flex items-center gap-1 border-b px-4 py-2 overflow-x-auto">
               <TooltipProvider>
-                {canvasActions.slice(0, 5).map((action) => (
+                {CANVAS_ACTIONS.slice(0, 5).map((action) => (
                   <Tooltip key={action.type}>
                     <TooltipTrigger asChild>
                       <Button
@@ -665,7 +521,7 @@ function CanvasPanelContent() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {canvasActions.slice(5).map((action) => (
+                    {CANVAS_ACTIONS.slice(5).map((action) => (
                       <DropdownMenuItem
                         key={action.type}
                         onClick={() => handleAction(action)}
@@ -710,23 +566,7 @@ function CanvasPanelContent() {
             {activeDocument && activeDocument.type !== 'code' && (
               <DocumentFormatToolbar
                 onFormatAction={(action: FormatAction) => {
-                  const formatMap: Record<string, { prefix: string; suffix: string }> = {
-                    bold: { prefix: '**', suffix: '**' },
-                    italic: { prefix: '_', suffix: '_' },
-                    underline: { prefix: '<u>', suffix: '</u>' },
-                    strikethrough: { prefix: '~~', suffix: '~~' },
-                    codeBlock: { prefix: '```\n', suffix: '\n```' },
-                    quote: { prefix: '> ', suffix: '' },
-                    heading1: { prefix: '# ', suffix: '' },
-                    heading2: { prefix: '## ', suffix: '' },
-                    heading3: { prefix: '### ', suffix: '' },
-                    bulletList: { prefix: '- ', suffix: '' },
-                    numberedList: { prefix: '1. ', suffix: '' },
-                    link: { prefix: '[', suffix: '](url)' },
-                    horizontalRule: { prefix: '\n---\n', suffix: '' },
-                  };
-
-                  const format = formatMap[action];
+                  const format = FORMAT_ACTION_MAP[action];
                   if (!format) return;
 
                   const editor = canvasEditorRef.current;
@@ -740,10 +580,11 @@ function CanvasPanelContent() {
                         range: sel,
                         text: replacement,
                       }]);
-                      setHasUnsavedChanges(true);
+                      handleEditorChange(model.getValue());
                     } else {
                       // No selection: insert at cursor position
                       const pos = editor.getPosition();
+                      const mdl = editor.getModel();
                       if (pos) {
                         const text = `${format.prefix}${format.suffix}`;
                         editor.executeEdits('format-toolbar', [{
@@ -755,7 +596,7 @@ function CanvasPanelContent() {
                           },
                           text,
                         }]);
-                        setHasUnsavedChanges(true);
+                        if (mdl) handleEditorChange(mdl.getValue());
                       }
                     }
                   }
@@ -1246,50 +1087,4 @@ export function CanvasPanel() {
   );
 }
 
-function SuggestionsPanel({
-  documentId,
-  suggestions,
-  isGenerating = false,
-}: {
-  documentId: string;
-  suggestions: CanvasSuggestion[];
-  isGenerating?: boolean;
-}) {
-  const t = useTranslations('canvas');
-  const applySuggestion = useArtifactStore((state) => state.applySuggestion);
-  const updateSuggestionStatus = useArtifactStore((state) => state.updateSuggestionStatus);
-
-  const pendingSuggestions = suggestions.filter((s) => s.status === 'pending');
-
-  if (pendingSuggestions.length === 0 && !isGenerating) return null;
-
-  return (
-    <div className="border-t">
-      <div className="px-4 py-2 text-sm font-medium flex items-center gap-2">
-        {isGenerating ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('generatingSuggestions')}
-          </>
-        ) : (
-          <>
-            {t('aiSuggestions')} ({pendingSuggestions.length})
-          </>
-        )}
-      </div>
-      <ScrollArea className="max-h-[200px]">
-        <div className="space-y-2 px-4 pb-4">
-          {pendingSuggestions.map((suggestion) => (
-            <SuggestionItem
-              key={suggestion.id}
-              suggestion={suggestion}
-              onApply={(id) => applySuggestion(documentId, id)}
-              onReject={(id) => updateSuggestionStatus(documentId, id, 'rejected')}
-            />
-          ))}
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
 

@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { GitTagPanel } from './git-tag-panel';
-import type { GitTag } from '@/types/system/git';
+import type { GitTagInfo } from '@/types/system/git';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -24,7 +24,7 @@ jest.mock('@/types/system/git', () => ({
 }));
 
 describe('GitTagPanel', () => {
-  const mockTags: GitTag[] = [
+  const mockTags: GitTagInfo[] = [
     {
       name: 'v2.0.0',
       commitHash: 'abc123def456789012345678901234567890abcd',
@@ -152,7 +152,7 @@ describe('GitTagPanel', () => {
   });
 
   it('should show search input when more than 5 tags', () => {
-    const manyTags: GitTag[] = Array.from({ length: 6 }, (_, i) => ({
+    const manyTags: GitTagInfo[] = Array.from({ length: 6 }, (_, i) => ({
       name: `v${i}.0.0`,
       commitHash: `hash${i}`.padEnd(40, '0'),
       shortHash: `hash${i}`,

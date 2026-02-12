@@ -10,7 +10,7 @@ import {
   createReadingListSurface,
   type AcademicTemplateType,
 } from './academic-templates';
-import type { Paper, LibraryPaper } from '@/types/learning/academic';
+import type { Paper, LibraryPaper } from '@/types/academic';
 
 // Mock generateTemplateId
 jest.mock('./templates', () => ({

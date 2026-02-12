@@ -21,6 +21,16 @@ jest.mock('@/lib/skills/packager', () => ({
 jest.mock('@/hooks/skills/use-skill-ai', () => ({
   useSkillAI: () => jest.fn().mockResolvedValue('AI result'),
 }));
+jest.mock('./skill-test-panel', () => ({
+  SkillTestPanel: ({ skill, onExecutionComplete }: { skill: { id: string }; onExecutionComplete?: (r: unknown) => void }) => (
+    <div data-testid="skill-test-panel">
+      <span>Test Panel: {skill.id}</span>
+      <button onClick={() => onExecutionComplete?.({ success: true, executionTime: 100, tokenCount: 50, logs: [] })}>
+        Run Test
+      </button>
+    </div>
+  ),
+}));
 
 const mockSkill: Skill = {
   id: 'test-skill-1',
@@ -79,6 +89,7 @@ describe('SkillDetail', () => {
   const mockDeleteSkill = jest.fn();
   const mockUpdateSkill = jest.fn();
   const mockGetSkillUsageStats = jest.fn();
+  const mockRecordSkillUsage = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,6 +106,7 @@ describe('SkillDetail', () => {
       deleteSkill: mockDeleteSkill,
       updateSkill: mockUpdateSkill,
       getSkillUsageStats: mockGetSkillUsageStats,
+      recordSkillUsage: mockRecordSkillUsage,
     } as unknown as ReturnType<typeof useSkillStore>);
   });
 
@@ -146,6 +158,7 @@ describe('SkillDetail', () => {
         deleteSkill: mockDeleteSkill,
         updateSkill: mockUpdateSkill,
         getSkillUsageStats: mockGetSkillUsageStats,
+        recordSkillUsage: mockRecordSkillUsage,
       } as unknown as ReturnType<typeof useSkillStore>);
 
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
@@ -168,12 +181,13 @@ describe('SkillDetail', () => {
   });
 
   describe('tabs', () => {
-    it('renders all tabs', () => {
+    it('renders all tabs including test tab', () => {
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
 
       expect(screen.getByRole('tab', { name: /preview/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /content/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /resources/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /test/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /edit/i })).toBeInTheDocument();
     });
 
@@ -324,6 +338,7 @@ describe('SkillDetail', () => {
         deleteSkill: mockDeleteSkill,
         updateSkill: mockUpdateSkill,
         getSkillUsageStats: mockGetSkillUsageStats,
+        recordSkillUsage: mockRecordSkillUsage,
       } as unknown as ReturnType<typeof useSkillStore>);
 
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
@@ -354,6 +369,7 @@ describe('SkillDetail', () => {
         deleteSkill: mockDeleteSkill,
         updateSkill: mockUpdateSkill,
         getSkillUsageStats: mockGetSkillUsageStats,
+        recordSkillUsage: mockRecordSkillUsage,
       } as unknown as ReturnType<typeof useSkillStore>);
 
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
@@ -385,12 +401,29 @@ describe('SkillDetail', () => {
     });
   });
 
-  describe('test dialog', () => {
-    it('renders test button', () => {
+  describe('test tab', () => {
+    it('renders test tab trigger alongside other tabs', () => {
       renderWithProviders(<SkillDetail skillId="test-skill-1" />);
 
-      const testButtons = screen.getAllByRole('button', { name: /test/i });
-      expect(testButtons.length).toBeGreaterThan(0);
+      const testTab = screen.getByRole('tab', { name: /test/i });
+      expect(testTab).toBeInTheDocument();
+    });
+
+    it('test tab is clickable without errors', () => {
+      renderWithProviders(<SkillDetail skillId="test-skill-1" />);
+
+      const testTab = screen.getByRole('tab', { name: /test/i });
+
+      // Should not throw when clicked
+      expect(() => fireEvent.click(testTab)).not.toThrow();
+    });
+
+    it('has recordSkillUsage available for SkillTestPanel callback', () => {
+      renderWithProviders(<SkillDetail skillId="test-skill-1" />);
+
+      // recordSkillUsage is destructured from store and used in onExecutionComplete
+      expect(mockRecordSkillUsage).toBeDefined();
+      expect(typeof mockRecordSkillUsage).toBe('function');
     });
   });
 

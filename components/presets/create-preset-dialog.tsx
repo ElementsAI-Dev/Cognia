@@ -4,7 +4,7 @@
  * CreatePresetDialog - dialog for creating or editing presets with AI features
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,16 +39,17 @@ import {
   Brain,
   Zap,
 } from 'lucide-react';
-import { usePresetStore, useSettingsStore, usePromptTemplateStore } from '@/stores';
+import { useSettingsStore } from '@/stores';
 import { toast } from '@/components/ui/sonner';
-import { PRESET_COLORS, PRESET_ICONS, PRESET_CATEGORIES, type Preset, type BuiltinPrompt, type PresetCategory } from '@/types/content/preset';
-import { PROVIDERS, type ProviderName } from '@/types/provider';
-import { nanoid } from 'nanoid';
+import { PRESET_COLORS, PRESET_ICONS, PRESET_CATEGORIES, type Preset, type PresetCategory } from '@/types/content/preset';
 import { cn } from '@/lib/utils';
-import { COLOR_BG_CLASS, COLOR_TINT_CLASS, getPresetAIConfig } from '@/lib/presets';
+import { COLOR_BG_CLASS, COLOR_TINT_CLASS } from '@/lib/presets';
+import { getAvailableModels, getEnabledProviders } from '@/lib/presets';
 import { PromptTemplateSelector } from '@/components/prompt';
-import { generatePresetFromDescription, optimizePresetPrompt, generateBuiltinPrompts as generateBuiltinPromptsAI } from '@/lib/ai/presets';
-import { loggers } from '@/lib/logger';
+import { usePresetForm } from '@/hooks/presets/use-preset-form';
+import { usePresetAI } from '@/hooks/presets/use-preset-ai';
+import type { ProviderName } from '@/types/provider';
+import { PROVIDERS } from '@/types/provider';
 
 interface CreatePresetDialogProps {
   open: boolean;
@@ -67,310 +68,93 @@ export function CreatePresetDialog({
   const tCommon = useTranslations('common');
   const tChat = useTranslations('chat');
   const tPlaceholders = useTranslations('placeholders');
-  const createPreset = usePresetStore((state) => state.createPreset);
-  const updatePreset = usePresetStore((state) => state.updatePreset);
   const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
-  const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
 
-  // Basic info
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState('💬');
-  const [color, setColor] = useState('#6366f1');
-  
-  // Model config
-  const [provider, setProvider] = useState<ProviderName | 'auto'>('auto');
-  const [model, setModel] = useState('gpt-4o');
-  const [mode, setMode] = useState<'chat' | 'agent' | 'research' | 'learning'>('chat');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState<number | undefined>(undefined);
-  
-  // Feature toggles
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
-  
-  // Category
-  const [category, setCategory] = useState<PresetCategory | undefined>(undefined);
-  
-  // Built-in prompts
-  const [builtinPrompts, setBuiltinPrompts] = useState<BuiltinPrompt[]>([]);
-  
-  // AI generation states
-  const [aiDescription, setAiDescription] = useState('');
-  const [isGeneratingPreset, setIsGeneratingPreset] = useState(false);
-  const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
-  const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
-  const [isTemplateSelectorOpen, setTemplateSelectorOpen] = useState(false);
+  // Form state (extracted to hook)
+  const {
+    form,
+    updateField,
+    aiDescription,
+    setAiDescription,
+    isTemplateSelectorOpen,
+    setTemplateSelectorOpen,
+    applyGeneratedPreset,
+    applyOptimizedPrompt,
+    applyGeneratedBuiltinPrompts,
+    handleApplyTemplate,
+    addBuiltinPrompt,
+    updateBuiltinPrompt,
+    removeBuiltinPrompt,
+    handleSubmit: submitForm,
+  } = usePresetForm({
+    editPreset,
+    open,
+    onSuccess,
+    onClose: () => onOpenChange(false),
+  });
 
-  // Populate form when editing
-  useEffect(() => {
-    queueMicrotask(() => {
-      if (editPreset) {
-        setName(editPreset.name);
-        setDescription(editPreset.description || '');
-        setIcon(editPreset.icon || '💬');
-        setColor(editPreset.color || '#6366f1');
-        setProvider(editPreset.provider);
-        setModel(editPreset.model);
-        setMode(editPreset.mode);
-        setSystemPrompt(editPreset.systemPrompt || '');
-        setTemperature(editPreset.temperature ?? 0.7);
-        setMaxTokens(editPreset.maxTokens);
-        setWebSearchEnabled(editPreset.webSearchEnabled || false);
-        setThinkingEnabled(editPreset.thinkingEnabled || false);
-        setBuiltinPrompts(editPreset.builtinPrompts || []);
-        setCategory(editPreset.category);
+  // AI operations (extracted to hook)
+  const {
+    isGeneratingPreset,
+    isOptimizingPrompt,
+    isGeneratingPrompts,
+    handleGeneratePreset,
+    handleOptimizePrompt: aiOptimizePrompt,
+    handleGenerateBuiltinPrompts: aiGenerateBuiltinPrompts,
+  } = usePresetAI({
+    onGenerateSuccess: (preset) => {
+      applyGeneratedPreset(preset);
+      toast.success(t('aiGenerateSuccess'));
+    },
+    onOptimizeSuccess: (optimizedPrompt) => {
+      applyOptimizedPrompt(optimizedPrompt);
+      toast.success(t('optimizeSuccess'));
+    },
+    onGeneratePromptsSuccess: (prompts) => {
+      applyGeneratedBuiltinPrompts(prompts);
+      toast.success(t('generatePromptsSuccess'));
+    },
+    onError: (error) => {
+      if (error === 'noApiKey') {
+        toast.warning(t('errors.noApiKey'));
       } else {
-        // Reset form for new preset
-        setName('');
-        setDescription('');
-        setIcon('💬');
-        setColor('#6366f1');
-        setProvider('auto');
-        setModel('gpt-4o');
-        setMode('chat');
-        setSystemPrompt('');
-        setTemperature(0.7);
-        setMaxTokens(undefined);
-        setWebSearchEnabled(false);
-        setThinkingEnabled(false);
-        setBuiltinPrompts([]);
-        setAiDescription('');
-        setCategory(undefined);
+        toast.error(error);
       }
-    });
-  }, [editPreset, open]);
+    },
+  });
 
-  useEffect(() => {
-    initializePromptTemplates();
-  }, [initializePromptTemplates]);
+  // Derived data from lib utilities
+  const availableModels = getAvailableModels(form.provider);
+  const enabledProviders = getEnabledProviders(providerSettings);
 
-  // Get AI config for AI features
-  const getAIConfig = useCallback(() => {
-    return getPresetAIConfig(providerSettings, provider);
-  }, [provider, providerSettings]);
-
-  // AI Generate preset from description
+  // AI action wrappers
   const handleAIGeneratePreset = useCallback(async () => {
     if (!aiDescription.trim()) return;
-    
-    const aiConfig = getAIConfig();
-    if (!aiConfig) {
-      toast.warning(t('errors.noApiKey'));
-      return;
-    }
+    await handleGeneratePreset(aiDescription, form.provider);
+  }, [aiDescription, handleGeneratePreset, form.provider]);
 
-    setIsGeneratingPreset(true);
-    try {
-      const result = await generatePresetFromDescription(aiDescription, aiConfig);
-
-      if (result.success && result.preset) {
-        const preset = result.preset;
-        setName(preset.name || '');
-        setDescription(preset.description || '');
-        setIcon(preset.icon || '💬');
-        setColor(preset.color || '#6366f1');
-        setMode(preset.mode || 'chat');
-        setSystemPrompt(preset.systemPrompt || '');
-        setTemperature(preset.temperature ?? 0.7);
-        setWebSearchEnabled(preset.webSearchEnabled || false);
-        setThinkingEnabled(preset.thinkingEnabled || false);
-        setCategory(preset.category as PresetCategory | undefined);
-        
-        if (preset.builtinPrompts?.length) {
-          setBuiltinPrompts(preset.builtinPrompts.map((p) => ({
-            id: nanoid(),
-            name: p.name,
-            content: p.content,
-            description: p.description || '',
-          })));
-        }
-        setAiDescription('');
-        toast.success(t('aiGenerateSuccess'));
-      } else {
-        toast.error(result.error || t('errors.generateFailed'));
-      }
-    } catch (error) {
-      loggers.ui.error('Failed to generate preset:', error);
-      toast.error(t('errors.generateFailedRetry'));
-    } finally {
-      setIsGeneratingPreset(false);
-    }
-  }, [aiDescription, getAIConfig, t]);
-
-  // AI Optimize system prompt
   const handleOptimizePrompt = useCallback(async () => {
-    if (!systemPrompt.trim()) return;
-    
-    const aiConfig = getAIConfig();
-    if (!aiConfig) {
-      toast.warning(t('errors.noApiKey'));
-      return;
-    }
+    if (!form.systemPrompt.trim()) return;
+    await aiOptimizePrompt(form.systemPrompt, form.provider);
+  }, [form.systemPrompt, form.provider, aiOptimizePrompt]);
 
-    setIsOptimizingPrompt(true);
-    try {
-      const result = await optimizePresetPrompt(systemPrompt, aiConfig);
-
-      if (result.success && result.optimizedPrompt) {
-        setSystemPrompt(result.optimizedPrompt);
-        toast.success(t('optimizeSuccess'));
-      } else {
-        toast.error(result.error || t('errors.optimizeFailed'));
-      }
-    } catch (error) {
-      loggers.ui.error('Failed to optimize prompt:', error);
-      toast.error(t('errors.optimizeFailedRetry'));
-    } finally {
-      setIsOptimizingPrompt(false);
-    }
-  }, [systemPrompt, getAIConfig, t]);
-
-  // AI Generate builtin prompts
   const handleGenerateBuiltinPrompts = useCallback(async () => {
-    if (!name.trim()) return;
-    
-    const aiConfig = getAIConfig();
-    if (!aiConfig) {
-      toast.warning(t('errors.noApiKey'));
-      return;
-    }
-
-    setIsGeneratingPrompts(true);
-    try {
-      const result = await generateBuiltinPromptsAI(
-        name,
-        description || undefined,
-        systemPrompt || undefined,
-        builtinPrompts.map(p => ({ name: p.name, content: p.content })),
-        aiConfig,
-        3
-      );
-
-      if (result.success && result.prompts) {
-        const newPrompts = result.prompts.map((p) => ({
-          id: nanoid(),
-          name: p.name,
-          content: p.content,
-          description: p.description || '',
-        }));
-        setBuiltinPrompts(prev => [...prev, ...newPrompts]);
-        toast.success(t('generatePromptsSuccess'));
-      } else {
-        toast.error(result.error || t('errors.generatePromptsFailed'));
-      }
-    } catch (error) {
-      loggers.ui.error('Failed to generate prompts:', error);
-      toast.error(t('errors.generatePromptsFailedRetry'));
-    } finally {
-      setIsGeneratingPrompts(false);
-    }
-  }, [name, description, systemPrompt, builtinPrompts, getAIConfig, t]);
-
-  const handleApplyTemplate = useCallback((template: import('@/types/content/prompt-template').PromptTemplate) => {
-    setSystemPrompt(template.content);
-    recordTemplateUsage(template.id);
-    setTemplateSelectorOpen(false);
-  }, [recordTemplateUsage]);
-
-  // Add manual builtin prompt
-  const handleAddBuiltinPrompt = useCallback(() => {
-    setBuiltinPrompts(prev => [...prev, {
-      id: nanoid(),
-      name: '',
-      content: '',
-      description: '',
-    }]);
-  }, []);
-
-  // Update builtin prompt
-  const handleUpdateBuiltinPrompt = useCallback((id: string, updates: Partial<BuiltinPrompt>) => {
-    setBuiltinPrompts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, []);
-
-  // Remove builtin prompt
-  const handleRemoveBuiltinPrompt = useCallback((id: string) => {
-    setBuiltinPrompts(prev => prev.filter(p => p.id !== id));
-  }, []);
-
-  // Get available models for selected provider
-  const availableModels =
-    provider === 'auto'
-      ? Object.values(PROVIDERS).flatMap((p) => p.models)
-      : PROVIDERS[provider as ProviderName]?.models || [];
-
-  // Get enabled providers
-  const enabledProviders = Object.entries(providerSettings)
-    .filter(([, settings]) => settings.enabled)
-    .map(([name]) => name as ProviderName);
+    if (!form.name.trim()) return;
+    await aiGenerateBuiltinPrompts(
+      form.name,
+      form.description || undefined,
+      form.systemPrompt || undefined,
+      form.builtinPrompts.map(p => ({ name: p.name, content: p.content })),
+      form.provider,
+      3,
+    );
+  }, [form, aiGenerateBuiltinPrompts]);
 
   const handleSubmit = () => {
-    if (!name.trim()) {
-      toast.error(t('errors.nameRequired'));
-      return;
+    const result = submitForm();
+    if (!result.valid && result.error) {
+      toast.error(t(`errors.${result.error}`));
     }
-    if (!model.trim()) {
-      toast.error(t('errors.modelRequired'));
-      return;
-    }
-
-    if (editPreset) {
-      updatePreset(editPreset.id, {
-        name,
-        description: description || undefined,
-        icon,
-        color,
-        provider,
-        model,
-        mode,
-        systemPrompt: systemPrompt || undefined,
-        builtinPrompts: builtinPrompts.length > 0 ? builtinPrompts : undefined,
-        temperature,
-        maxTokens,
-        webSearchEnabled,
-        thinkingEnabled,
-        category,
-      });
-      onSuccess?.({ 
-        ...editPreset, 
-        name, 
-        description, 
-        icon, 
-        color, 
-        provider, 
-        model, 
-        mode, 
-        systemPrompt, 
-        builtinPrompts,
-        temperature, 
-        maxTokens,
-        webSearchEnabled,
-        thinkingEnabled,
-        category,
-      } as Preset);
-    } else {
-      const newPreset = createPreset({
-        name,
-        description: description || undefined,
-        icon,
-        color,
-        provider,
-        model,
-        mode,
-        systemPrompt: systemPrompt || undefined,
-        builtinPrompts: builtinPrompts.length > 0 ? builtinPrompts : undefined,
-        temperature,
-        maxTokens,
-        webSearchEnabled,
-        thinkingEnabled,
-        category,
-      });
-      onSuccess?.(newPreset);
-    }
-
-    onOpenChange(false);
   };
 
   return (
@@ -432,8 +216,8 @@ export function CreatePresetDialog({
                 <Label htmlFor="name">{t('presetName')}</Label>
                 <Input
                   id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={form.name}
+                  onChange={(e) => updateField('name', e.target.value)}
                   placeholder={tPlaceholders('enterPresetName')}
                 />
               </div>
@@ -442,8 +226,8 @@ export function CreatePresetDialog({
                 <Label htmlFor="description">{t('description')}</Label>
                 <Textarea
                   id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={form.description}
+                  onChange={(e) => updateField('description', e.target.value)}
                   placeholder={tPlaceholders('enterPresetDescription')}
                   rows={2}
                 />
@@ -451,7 +235,7 @@ export function CreatePresetDialog({
 
               <div className="space-y-2">
                 <Label>{t('category')}</Label>
-                <Select value={category || ''} onValueChange={(v) => setCategory(v as PresetCategory || undefined)}>
+                <Select value={form.category || ''} onValueChange={(v) => updateField('category', v as PresetCategory || undefined)}>
                   <SelectTrigger>
                     <SelectValue placeholder={t('selectCategory')} />
                   </SelectTrigger>
@@ -473,10 +257,10 @@ export function CreatePresetDialog({
                       <button
                         key={emoji}
                         type="button"
-                        onClick={() => setIcon(emoji)}
+                        onClick={() => updateField('icon', emoji)}
                         className={cn(
                           'p-1.5 rounded hover:bg-accent transition-colors',
-                          icon === emoji && 'bg-accent ring-2 ring-primary'
+                          form.icon === emoji && 'bg-accent ring-2 ring-primary'
                         )}
                       >
                         {emoji}
@@ -492,10 +276,10 @@ export function CreatePresetDialog({
                       <button
                         key={c}
                         type="button"
-                        onClick={() => setColor(c)}
+                        onClick={() => updateField('color', c)}
                         className={cn(
                           'w-6 h-6 rounded-full transition-transform',
-                          color === c && 'ring-2 ring-primary ring-offset-2 scale-110',
+                          form.color === c && 'ring-2 ring-primary ring-offset-2 scale-110',
                           COLOR_BG_CLASS[c] ?? ''
                         )}
                         aria-label={`Select color ${c}`}
@@ -510,7 +294,7 @@ export function CreatePresetDialog({
             <TabsContent value="model" className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label>{t('mode')}</Label>
-                <Select value={mode} onValueChange={(v) => setMode(v as 'chat' | 'agent' | 'research' | 'learning')}>
+                <Select value={form.mode} onValueChange={(v) => updateField('mode', v as 'chat' | 'agent' | 'research' | 'learning')}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -526,7 +310,7 @@ export function CreatePresetDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t('provider')}</Label>
-                  <Select value={provider} onValueChange={(v) => setProvider(v as ProviderName | 'auto')}>
+                  <Select value={form.provider} onValueChange={(v) => updateField('provider', v as ProviderName | 'auto')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -543,7 +327,7 @@ export function CreatePresetDialog({
 
                 <div className="space-y-2">
                   <Label>{t('model')}</Label>
-                  <Select value={model} onValueChange={setModel}>
+                  <Select value={form.model} onValueChange={(v) => updateField('model', v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -559,10 +343,10 @@ export function CreatePresetDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>{t('temperature')}: {temperature.toFixed(1)}</Label>
+                <Label>{t('temperature')}: {form.temperature.toFixed(1)}</Label>
                 <Slider
-                  value={[temperature]}
-                  onValueChange={([v]) => setTemperature(v)}
+                  value={[form.temperature]}
+                  onValueChange={([v]) => updateField('temperature', v)}
                   min={0}
                   max={2}
                   step={0.1}
@@ -578,9 +362,9 @@ export function CreatePresetDialog({
                 <Input
                   id="maxTokens"
                   type="number"
-                  value={maxTokens || ''}
+                  value={form.maxTokens || ''}
                   onChange={(e) =>
-                    setMaxTokens(e.target.value ? parseInt(e.target.value) : undefined)
+                    updateField('maxTokens', e.target.value ? parseInt(e.target.value) : undefined)
                   }
                   placeholder={t('maxTokensPlaceholder')}
                 />
@@ -599,8 +383,8 @@ export function CreatePresetDialog({
                     </p>
                   </div>
                   <Switch
-                    checked={webSearchEnabled}
-                    onCheckedChange={setWebSearchEnabled}
+                    checked={form.webSearchEnabled}
+                    onCheckedChange={(v) => updateField('webSearchEnabled', v)}
                   />
                 </div>
 
@@ -615,8 +399,8 @@ export function CreatePresetDialog({
                     </p>
                   </div>
                   <Switch
-                    checked={thinkingEnabled}
-                    onCheckedChange={setThinkingEnabled}
+                    checked={form.thinkingEnabled}
+                    onCheckedChange={(v) => updateField('thinkingEnabled', v)}
                   />
                 </div>
               </div>
@@ -638,7 +422,7 @@ export function CreatePresetDialog({
                       variant="outline"
                       size="sm"
                       onClick={handleOptimizePrompt}
-                      disabled={!systemPrompt.trim() || isOptimizingPrompt}
+                      disabled={!form.systemPrompt.trim() || isOptimizingPrompt}
                     >
                       {isOptimizingPrompt ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -651,8 +435,8 @@ export function CreatePresetDialog({
                 </div>
                 <Textarea
                   id="systemPrompt"
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  value={form.systemPrompt}
+                  onChange={(e) => updateField('systemPrompt', e.target.value)}
                   placeholder={tPlaceholders('enterSystemPrompt')}
                   className="min-h-[200px] resize-none"
                 />
@@ -675,7 +459,7 @@ export function CreatePresetDialog({
                     variant="outline"
                     size="sm"
                     onClick={handleGenerateBuiltinPrompts}
-                    disabled={!name.trim() || isGeneratingPrompts}
+                    disabled={!form.name.trim() || isGeneratingPrompts}
                   >
                     {isGeneratingPrompts ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -684,7 +468,7 @@ export function CreatePresetDialog({
                     )}
                     {t('generatePrompts')}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleAddBuiltinPrompt}>
+                  <Button variant="outline" size="sm" onClick={addBuiltinPrompt}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('addPrompt')}
                   </Button>
@@ -692,7 +476,7 @@ export function CreatePresetDialog({
               </div>
 
               <div className="space-y-3">
-                {builtinPrompts.map((prompt) => (
+                {form.builtinPrompts.map((prompt) => (
                   <div
                     key={prompt.id}
                     className="p-3 rounded-lg border bg-muted/30 space-y-2"
@@ -701,7 +485,7 @@ export function CreatePresetDialog({
                       <Input
                         value={prompt.name}
                         onChange={(e) =>
-                          handleUpdateBuiltinPrompt(prompt.id, { name: e.target.value })
+                          updateBuiltinPrompt(prompt.id, { name: e.target.value })
                         }
                         placeholder={tPlaceholders('promptName')}
                         className="flex-1"
@@ -710,7 +494,7 @@ export function CreatePresetDialog({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive"
-                        onClick={() => handleRemoveBuiltinPrompt(prompt.id)}
+                        onClick={() => removeBuiltinPrompt(prompt.id)}
                         aria-label={t('removePrompt')}
                         title={t('removePrompt')}
                       >
@@ -720,7 +504,7 @@ export function CreatePresetDialog({
                     <Textarea
                       value={prompt.content}
                       onChange={(e) =>
-                        handleUpdateBuiltinPrompt(prompt.id, { content: e.target.value })
+                        updateBuiltinPrompt(prompt.id, { content: e.target.value })
                       }
                       placeholder={tPlaceholders('promptContent')}
                       className="min-h-[80px] resize-none"
@@ -728,7 +512,7 @@ export function CreatePresetDialog({
                   </div>
                 ))}
 
-                {builtinPrompts.length === 0 && (
+                {form.builtinPrompts.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     {t('noQuickPrompts')}
                   </p>
@@ -751,18 +535,18 @@ export function CreatePresetDialog({
             <span
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-lg text-lg',
-                COLOR_TINT_CLASS[color] ?? 'bg-muted'
+                COLOR_TINT_CLASS[form.color] ?? 'bg-muted'
               )}
             >
-              {icon}
+              {form.icon}
             </span>
             <div className="flex-1">
-              <p className="font-medium text-sm">{name || 'Preset Name'}</p>
+              <p className="font-medium text-sm">{form.name || 'Preset Name'}</p>
               <p className="text-xs text-muted-foreground">
-                {provider === 'auto' ? 'Auto' : provider} • {mode} • T:{temperature.toFixed(1)}
-                {webSearchEnabled && ' • Web'}
-                {thinkingEnabled && ' • Thinking'}
-                {builtinPrompts.length > 0 && ` • ${builtinPrompts.length} prompts`}
+                {form.provider === 'auto' ? 'Auto' : form.provider} • {form.mode} • T:{form.temperature.toFixed(1)}
+                {form.webSearchEnabled && ' • Web'}
+                {form.thinkingEnabled && ' • Thinking'}
+                {form.builtinPrompts.length > 0 && ` • ${form.builtinPrompts.length} prompts`}
               </p>
             </div>
           </div>
@@ -772,7 +556,7 @@ export function CreatePresetDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {tCommon('cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={!name.trim()}>
+          <Button onClick={handleSubmit} disabled={!form.name.trim()}>
             {editPreset ? tCommon('save') : t('createPreset')}
           </Button>
         </DialogFooter>

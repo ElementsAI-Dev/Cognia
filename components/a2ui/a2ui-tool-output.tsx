@@ -10,16 +10,7 @@ import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
 import { parseA2UIMessages, detectA2UIContent } from '@/lib/a2ui/parser';
 import { A2UISurface } from './a2ui-surface';
-import type { A2UIUserAction, A2UIDataModelChange, A2UIServerMessage } from '@/types/artifact/a2ui';
-
-interface A2UIToolOutputProps {
-  toolId: string;
-  toolName: string;
-  output: unknown;
-  className?: string;
-  onAction?: (action: A2UIUserAction) => void;
-  onDataChange?: (change: A2UIDataModelChange) => void;
-}
+import type { A2UIToolOutputProps, A2UIStructuredOutputProps } from '@/types/a2ui/renderer';
 
 /**
  * Renders A2UI content from tool execution output
@@ -119,15 +110,6 @@ export function hasA2UIToolOutput(output: unknown): boolean {
 /**
  * Generic A2UI output wrapper for any structured data
  */
-interface A2UIStructuredOutputProps {
-  id: string;
-  messages: A2UIServerMessage[];
-  title?: string;
-  className?: string;
-  onAction?: (action: A2UIUserAction) => void;
-  onDataChange?: (change: A2UIDataModelChange) => void;
-}
-
 export function A2UIStructuredOutput({
   id,
   messages,

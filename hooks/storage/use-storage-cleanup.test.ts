@@ -140,7 +140,7 @@ describe('useStorageCleanup', () => {
 
     await act(async () => {
       await result.current.cleanup({
-        categories: ['cache', 'temp'],
+        categories: ['cache', 'session'],
         olderThan: 7 * 24 * 60 * 60 * 1000,
       });
     });

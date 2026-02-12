@@ -31,48 +31,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { GitRepoStats } from '@/types/system/git';
-
-// ==================== Types ====================
-
-type SortField = 'commits' | 'additions' | 'deletions' | 'name';
-type SortDir = 'asc' | 'desc';
-
-interface GitStatsDashboardProps {
-  stats: GitRepoStats | null;
-  onRefresh?: () => void;
-  isLoading?: boolean;
-  className?: string;
-}
-
-// ==================== Heatmap Helpers ====================
-
-function getHeatmapColor(count: number, max: number): string {
-  if (count === 0) return 'var(--muted)';
-  const ratio = count / Math.max(max, 1);
-  if (ratio < 0.25) return 'hsl(150, 50%, 75%)';
-  if (ratio < 0.5) return 'hsl(150, 60%, 55%)';
-  if (ratio < 0.75) return 'hsl(150, 70%, 40%)';
-  return 'hsl(150, 80%, 30%)';
-}
-
-function getLast52Weeks(): string[] {
-  const days: string[] = [];
-  const now = new Date();
-  // Go back to the most recent Sunday
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  // Go back 52 weeks
-  const start = new Date(startOfWeek);
-  start.setDate(start.getDate() - 52 * 7);
-
-  const current = new Date(start);
-  while (current <= now) {
-    days.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
-  }
-  return days;
-}
+import { getHeatmapColor, getLast52Weeks } from '@/lib/git';
+import type { SortField, SortDir } from '@/types/git';
+import type { GitStatsDashboardProps } from '@/types/git';
 
 // ==================== Component ====================
 

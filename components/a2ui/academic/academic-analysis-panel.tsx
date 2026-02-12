@@ -35,53 +35,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type { PaperAnalysisType } from '@/types/learning/academic';
-
-export interface AcademicAnalysisPanelProps {
-  paperTitle: string;
-  paperAbstract?: string;
-  analysisType: PaperAnalysisType;
-  analysisContent: string;
-  suggestedQuestions?: string[];
-  relatedTopics?: string[];
-  isLoading?: boolean;
-  onAnalysisTypeChange?: (type: PaperAnalysisType) => void;
-  onRegenerate?: () => void;
-  onAskFollowUp?: (question: string) => void;
-  onCopy?: (content: string) => void;
-  className?: string;
-}
-
-const ANALYSIS_TYPE_ICONS: Record<PaperAnalysisType, string> = {
-  'summary': '📝',
-  'key-insights': '💡',
-  'methodology': '🔬',
-  'findings': '📊',
-  'limitations': '⚠️',
-  'future-work': '🚀',
-  'related-work': '🔗',
-  'technical-details': '⚙️',
-  'critique': '🎯',
-  'eli5': '�',
-};
-
-const ANALYSIS_TYPE_I18N_KEYS: Record<PaperAnalysisType, string> = {
-  'summary': 'analysisSummary',
-  'key-insights': 'analysisKeyInsights',
-  'methodology': 'analysisMethodology',
-  'findings': 'analysisFindings',
-  'limitations': 'analysisLimitations',
-  'future-work': 'analysisFutureWork',
-  'related-work': 'analysisRelatedWork',
-  'technical-details': 'analysisTechnicalDetails',
-  'critique': 'analysisCritique',
-  'eli5': 'analysisEli5',
-};
-
-const ANALYSIS_TYPE_VALUES: PaperAnalysisType[] = [
-  'summary', 'key-insights', 'methodology', 'findings', 'limitations',
-  'future-work', 'related-work', 'technical-details', 'critique', 'eli5',
-];
+import type { AcademicAnalysisPanelProps } from '@/types/a2ui/app';
+import type { PaperAnalysisType } from '@/types/academic';
+import {
+  ANALYSIS_TYPE_ICONS,
+  ANALYSIS_TYPE_I18N_KEYS,
+  ANALYSIS_TYPE_VALUES,
+} from '@/lib/a2ui/constants';
 
 export function AcademicAnalysisPanel({
   paperTitle,

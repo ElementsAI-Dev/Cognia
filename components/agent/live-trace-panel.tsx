@@ -21,17 +21,10 @@ import {
   Clock,
   Coins,
   Wrench,
-  CheckCircle2,
-  XCircle,
-  Play,
-  Pause,
-  AlertTriangle,
-  MessageSquare,
-  Brain,
-  ArrowRight,
 } from 'lucide-react';
 import { useAgentTraceStore, type AgentTraceEvent } from '@/stores/agent-trace';
 import { formatCost } from '@/lib/agent-trace/cost-estimator';
+import { LIVE_TRACE_EVENT_ICONS, LIVE_TRACE_EVENT_COLORS, formatDuration, formatTokens } from '@/lib/agent';
 import { cn } from '@/lib/utils';
 
 interface LiveTracePanelProps {
@@ -41,41 +34,8 @@ interface LiveTracePanelProps {
   compact?: boolean;
 }
 
-const EVENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  step_start: Play,
-  step_finish: Pause,
-  tool_call_request: ArrowRight,
-  tool_call_result: Wrench,
-  planning: Brain,
-  response: MessageSquare,
-  error: AlertTriangle,
-  checkpoint_create: CheckCircle2,
-  checkpoint_restore: XCircle,
-};
-
-const EVENT_COLORS: Record<string, string> = {
-  step_start: 'text-blue-500',
-  step_finish: 'text-blue-400',
-  tool_call_request: 'text-amber-500',
-  tool_call_result: 'text-green-500',
-  planning: 'text-purple-500',
-  response: 'text-teal-500',
-  error: 'text-red-500',
-  checkpoint_create: 'text-sky-500',
-  checkpoint_restore: 'text-orange-500',
-};
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
-}
-
-function formatTokens(count: number): string {
-  if (count < 1000) return `${count}`;
-  if (count < 1_000_000) return `${(count / 1000).toFixed(1)}k`;
-  return `${(count / 1_000_000).toFixed(2)}M`;
-}
+const EVENT_ICONS = LIVE_TRACE_EVENT_ICONS;
+const EVENT_COLORS = LIVE_TRACE_EVENT_COLORS;
 
 export function LiveTracePanel({
   sessionId,

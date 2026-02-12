@@ -29,65 +29,15 @@ import {
   Zap,
   Coins,
   Wrench,
-  MessageSquare,
-  Brain,
   AlertCircle,
-  CheckCircle2,
 } from 'lucide-react';
 import { cn, formatDurationShort } from '@/lib/utils';
 import { formatCost } from '@/lib/agent-trace/cost-estimator';
+import { REPLAY_EVENT_ICONS, formatTokens, parseReplayEvent } from '@/lib/agent';
 import type { DBAgentTrace } from '@/lib/db';
-import type { AgentTraceRecord, AgentTraceEventType } from '@/types/agent-trace';
+import type { ReplayEvent } from '@/types/agent/component-types';
 
-interface ReplayEvent {
-  id: string;
-  timestamp: number;
-  eventType: AgentTraceEventType;
-  stepId?: string;
-  toolName?: string;
-  success?: boolean;
-  duration?: number;
-  tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number };
-  cost?: number;
-  error?: string;
-  responsePreview?: string;
-  files: string[];
-}
-
-function parseReplayEvent(row: DBAgentTrace): ReplayEvent | null {
-  try {
-    const record = JSON.parse(row.record) as AgentTraceRecord;
-    const meta = record.metadata as Record<string, unknown> | undefined;
-    const tu = meta?.tokenUsage as ReplayEvent['tokenUsage'] | undefined;
-
-    return {
-      id: record.id,
-      timestamp: new Date(record.timestamp).getTime(),
-      eventType: record.eventType ?? 'response',
-      stepId: record.stepId,
-      toolName: meta?.toolName as string | undefined,
-      success: meta?.success as boolean | undefined,
-      duration: record.duration ?? (meta?.latencyMs as number | undefined),
-      tokenUsage: tu,
-      cost: record.costEstimate?.totalCost,
-      error: meta?.error as string | undefined,
-      responsePreview: meta?.responsePreview as string | undefined,
-      files: record.files.map((f) => f.path).filter(Boolean),
-    };
-  } catch {
-    return null;
-  }
-}
-
-const EVENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  step_start: Play,
-  step_finish: CheckCircle2,
-  tool_call_request: Wrench,
-  tool_call_result: Wrench,
-  planning: Brain,
-  response: MessageSquare,
-  error: AlertCircle,
-};
+const EVENT_ICONS = REPLAY_EVENT_ICONS;
 
 interface SessionReplayProps {
   traces: DBAgentTrace[];
@@ -429,12 +379,5 @@ function EventDetail({ event }: { event: ReplayEvent }) {
       )}
     </div>
   );
-}
-
-
-function formatTokens(count: number): string {
-  if (count < 1000) return `${count}`;
-  if (count < 1_000_000) return `${(count / 1000).toFixed(1)}k`;
-  return `${(count / 1_000_000).toFixed(2)}M`;
 }
 

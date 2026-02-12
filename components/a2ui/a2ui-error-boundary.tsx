@@ -9,17 +9,7 @@ import React, { Component } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loggers } from '@/lib/logger';
-
-interface A2UIErrorBoundaryProps {
-  componentType: string;
-  componentId: string;
-  children: React.ReactNode;
-}
-
-interface A2UIErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
+import type { A2UIErrorBoundaryProps, A2UIErrorBoundaryState } from '@/types/a2ui/renderer';
 
 export class A2UIErrorBoundary extends Component<A2UIErrorBoundaryProps, A2UIErrorBoundaryState> {
   constructor(props: A2UIErrorBoundaryProps) {
@@ -35,7 +25,7 @@ export class A2UIErrorBoundary extends Component<A2UIErrorBoundaryProps, A2UIErr
     loggers.ui.error(
       `A2UI Component Error [${this.props.componentType}#${this.props.componentId}]:`,
       error,
-      errorInfo
+      errorInfo as unknown as Record<string, unknown>
     );
   }
 

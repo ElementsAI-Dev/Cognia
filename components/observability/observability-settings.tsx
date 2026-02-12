@@ -12,17 +12,7 @@ import { ExternalLink, TestTube, CheckCircle, XCircle } from 'lucide-react';
 import { Loader } from '@/components/ai-elements/loader';
 import { useState } from 'react';
 import { useSettingsStore } from '@/stores';
-
-export interface ObservabilitySettingsData {
-  enabled: boolean;
-  langfuseEnabled: boolean;
-  langfusePublicKey: string;
-  langfuseSecretKey: string;
-  langfuseHost: string;
-  openTelemetryEnabled: boolean;
-  openTelemetryEndpoint: string;
-  serviceName: string;
-}
+import type { ObservabilitySettingsData } from '@/types/observability';
 
 export function ObservabilitySettings() {
   const t = useTranslations('observability.settings');

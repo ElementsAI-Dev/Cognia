@@ -19,21 +19,10 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { STEP_PRIORITY_CONFIG } from '@/lib/agent';
 import { Checkpoint, CheckpointTrigger } from '@/components/ai-elements/checkpoint';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface AgentStep {
-  id: string;
-  name: string;
-  description?: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
-  startedAt?: Date;
-  completedAt?: Date;
-  isCheckpoint?: boolean;
-  checkpointLabel?: string;
-  priority?: 'low' | 'normal' | 'high' | 'critical';
-  retryCount?: number;
-}
+import type { AgentStep } from '@/types/agent/component-types';
 
 interface AgentStepsProps {
   steps: AgentStep[];
@@ -42,12 +31,11 @@ interface AgentStepsProps {
   compactMode?: boolean;
 }
 
-// Priority configuration
 const priorityConfig: Record<string, { color: string; icon: React.ElementType }> = {
-  low: { color: 'text-muted-foreground', icon: Circle },
-  normal: { color: 'text-blue-500', icon: Circle },
-  high: { color: 'text-orange-500', icon: AlertTriangle },
-  critical: { color: 'text-red-500', icon: Zap },
+  low: { ...STEP_PRIORITY_CONFIG.low, icon: Circle },
+  normal: { ...STEP_PRIORITY_CONFIG.normal, icon: Circle },
+  high: { ...STEP_PRIORITY_CONFIG.high, icon: AlertTriangle },
+  critical: { ...STEP_PRIORITY_CONFIG.critical, icon: Zap },
 };
 
 export function AgentSteps({

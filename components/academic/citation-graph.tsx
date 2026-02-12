@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 import {
   buildCitationNetwork,
   type CitationNetwork,

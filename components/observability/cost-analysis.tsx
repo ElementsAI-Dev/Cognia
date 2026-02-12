@@ -15,7 +15,8 @@ import {
   Target,
 } from 'lucide-react';
 import { ProviderChart, UsageTrendChart } from './charts';
-import type { MetricsData, TimeRange } from './observability-dashboard';
+import { getProjectionMultiplier } from '@/lib/observability';
+import type { MetricsData, TimeRange } from '@/types/observability';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
 import { cn } from '@/lib/utils';
 
@@ -50,18 +51,7 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
     );
   }
 
-  const getTimeRangeLabel = (range: TimeRange) => {
-    switch (range) {
-      case '1h':
-        return tTime('lastHour');
-      case '24h':
-        return tTime('last24Hours');
-      case '7d':
-        return tTime('last7Days');
-      case '30d':
-        return tTime('last30Days');
-    }
-  };
+  const getTimeRangeLabel = (range: TimeRange) => tTime(`last${range === '1h' ? 'Hour' : range === '24h' ? '24Hours' : range === '7d' ? '7Days' : '30Days'}`);
 
   const costPerRequest = metrics.totalRequests > 0 ? metrics.totalCost / metrics.totalRequests : 0;
 
@@ -133,7 +123,7 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${(metrics.totalCost * getMultiplier(timeRange)).toFixed(2)}
+              ${(metrics.totalCost * getProjectionMultiplier(timeRange)).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -262,17 +252,3 @@ export function CostAnalysis({ metrics, timeRange, timeSeries = [] }: CostAnalys
   );
 }
 
-function getMultiplier(timeRange: TimeRange): number {
-  switch (timeRange) {
-    case '1h':
-      return 24 * 30; // 1 hour to 1 month
-    case '24h':
-      return 30; // 1 day to 1 month
-    case '7d':
-      return 4.3; // 1 week to 1 month
-    case '30d':
-      return 1; // Already 1 month
-    default:
-      return 1;
-  }
-}

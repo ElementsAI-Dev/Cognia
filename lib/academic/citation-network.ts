@@ -3,7 +3,7 @@
  * Provides APIs to get citations, references, and build citation graphs
  */
 
-import type { Paper, AcademicProviderType } from '@/types/learning/academic';
+import type { Paper, AcademicProviderType } from '@/types/academic';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 

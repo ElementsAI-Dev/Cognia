@@ -4,9 +4,9 @@
  * Git Status Panel - Shows Git installation and repository status
  */
 
-import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useGit } from '@/hooks/native/use-git';
+import { useGitRefresh } from '@/hooks/git';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,14 +27,7 @@ import {
   CloudOff,
 } from 'lucide-react';
 import { getGitStatusColor, formatCommitDate, formatCommitMessage } from '@/types/system/git';
-
-export interface GitStatusPanelProps {
-  repoPath?: string;
-  projectId?: string;
-  showInstallation?: boolean;
-  showRepoStatus?: boolean;
-  compact?: boolean;
-}
+import type { GitStatusPanelProps } from '@/types/git';
 
 export function GitStatusPanel({
   repoPath,
@@ -67,12 +60,7 @@ export function GitStatusPanel({
   });
 
   // Refresh status periodically
-  useEffect(() => {
-    if (isInstalled && repoPath) {
-      const interval = setInterval(refreshStatus, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isInstalled, repoPath, refreshStatus]);
+  useGitRefresh(30000, !!(isInstalled && repoPath), refreshStatus);
 
   const statusColor = currentRepo
     ? getGitStatusColor(currentRepo.status as Parameters<typeof getGitStatusColor>[0])

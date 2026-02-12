@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { 
   Paper, 
   AcademicProviderType,
-} from '@/types/learning/academic';
+} from '@/types/academic';
 
 export const academicSearchInputSchema = z.object({
   query: z.string().describe('Search query for academic papers (title, abstract, keywords, author names)'),

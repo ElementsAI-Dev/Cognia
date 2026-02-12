@@ -6,23 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
-} from 'lucide-react';
+import { Folder } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -47,6 +31,7 @@ import { TagInput } from '@/components/ui/tag-input';
 import { PROJECT_COLORS, PROJECT_ICONS, type Project, type CreateProjectInput } from '@/types';
 import { PROVIDERS } from '@/types/provider';
 import { cn } from '@/lib/utils';
+import { PROJECT_ICON_MAP } from '@/lib/project/utils';
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -54,24 +39,6 @@ interface CreateProjectDialogProps {
   onSubmit: (input: CreateProjectInput) => void;
   editProject?: Project | null;
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string; color?: string }>> = {
-  Folder,
-  Code,
-  BookOpen,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Home,
-  Lightbulb,
-  Music,
-  Palette,
-  PenTool,
-  Rocket,
-  Star,
-  Target,
-  Zap,
-};
 
 export function CreateProjectDialog({
   open,
@@ -141,7 +108,7 @@ export function CreateProjectDialog({
   };
 
   const selectedProvider = defaultProvider ? PROVIDERS[defaultProvider] : null;
-  const IconPreview = iconMap[icon] || Folder;
+  const IconPreview = PROJECT_ICON_MAP[icon] || Folder;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,7 +197,7 @@ export function CreateProjectDialog({
               <Label>{t('icon')}</Label>
               <div className="grid grid-cols-5 gap-2">
                 {PROJECT_ICONS.map((iconName) => {
-                  const IconComp = iconMap[iconName] || Folder;
+                  const IconComp = PROJECT_ICON_MAP[iconName] || Folder;
                   return (
                     <button
                       key={iconName}

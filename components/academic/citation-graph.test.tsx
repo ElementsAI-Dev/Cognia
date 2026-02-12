@@ -6,7 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CitationGraph } from './citation-graph';
 import * as citationNetworkModule from '@/lib/academic/citation-network';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

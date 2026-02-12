@@ -30,18 +30,7 @@ import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { formatCommitDate, formatCommitMessage } from '@/types/system/git';
 import type { GitCommitInfo, GitDiffInfo } from '@/types/system/git';
-
-interface GitCommitHistoryProps {
-  commits: GitCommitInfo[];
-  currentBranch?: string;
-  isLoading?: boolean;
-  onRefresh: () => Promise<void>;
-  onLoadMore?: () => Promise<void>;
-  onViewDiff?: (commit: GitCommitInfo) => Promise<GitDiffInfo[]>;
-  onCheckout?: (commitHash: string) => Promise<boolean>;
-  onRevert?: (commitHash: string) => Promise<boolean>;
-  className?: string;
-}
+import type { GitCommitHistoryProps } from '@/types/git';
 
 export function GitCommitHistory({
   commits,

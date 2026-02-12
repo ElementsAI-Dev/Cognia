@@ -13,24 +13,9 @@ import type {
   VariableInfo,
   KernelSandboxExecutionResult,
   ExecutableCell,
-} from '@/types/system/jupyter';
-
-/** Execution history entry */
-export interface ExecutionHistoryEntry {
-  id: string;
-  sessionId: string;
-  code: string;
-  result: KernelSandboxExecutionResult;
-  timestamp: string;
-}
-
-/** Session-environment mapping */
-export interface SessionEnvMapping {
-  chatSessionId: string;
-  jupyterSessionId: string;
-  envPath: string;
-  createdAt: string;
-}
+  ExecutionHistoryEntry,
+  SessionEnvMapping,
+} from '@/types/jupyter';
 
 /** Jupyter store state */
 interface JupyterState {

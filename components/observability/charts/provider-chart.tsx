@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ProviderUsageBreakdown } from '@/lib/ai/usage-analytics';
-import { TOOLTIP_STYLE, EXTENDED_COLORS } from './chart-config';
+import { TOOLTIP_STYLE, EXTENDED_COLORS } from '@/lib/observability/chart-config';
 
 interface ProviderChartProps {
   data: ProviderUsageBreakdown[];

@@ -45,20 +45,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useProcessManager } from '@/hooks/agent/use-process-manager';
+import { formatBytes } from '@/lib/agent';
 import type { ProcessInfo } from '@/lib/native/process';
 
 interface ProcessManagerPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-// Format bytes to human readable
-function formatBytes(bytes: number | undefined): string {
-  if (bytes === undefined || bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
 // Process row component

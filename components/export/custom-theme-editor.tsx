@@ -4,7 +4,7 @@
  * CustomThemeEditor - Create and edit custom syntax highlighting themes
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Dialog,
@@ -21,16 +21,14 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Save, RotateCcw, Download, Upload } from 'lucide-react';
-import { toast } from '@/components/ui/sonner';
-import { useCustomThemeStore, createDefaultThemeTemplate } from '@/stores/settings';
-import type { SyntaxTheme } from '@/lib/export/html/syntax-themes';
-
-interface CustomThemeEditorProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingThemeId?: string | null;
-  onSave?: (themeId: string) => void;
-}
+import type { CustomThemeEditorProps } from '@/types/export/custom-theme';
+import { useThemeEditor } from '@/hooks/export';
+import {
+  COLOR_FIELDS,
+  SAMPLE_CODE,
+  generatePreviewStyles,
+  generateHighlightedCode,
+} from '@/lib/export/html/theme-editor-constants';
 
 interface ColorFieldProps {
   label: string;
@@ -65,36 +63,6 @@ function ColorField({ label, value, onChange, description }: ColorFieldProps) {
   );
 }
 
-const COLOR_FIELDS = [
-  { key: 'background', labelKey: 'colorBackground', descKey: 'colorBackgroundDesc' },
-  { key: 'foreground', labelKey: 'colorForeground', descKey: 'colorForegroundDesc' },
-  { key: 'comment', labelKey: 'colorComment', descKey: 'colorCommentDesc' },
-  { key: 'keyword', labelKey: 'colorKeyword', descKey: 'colorKeywordDesc' },
-  { key: 'string', labelKey: 'colorString', descKey: 'colorStringDesc' },
-  { key: 'number', labelKey: 'colorNumber', descKey: 'colorNumberDesc' },
-  { key: 'function', labelKey: 'colorFunction', descKey: 'colorFunctionDesc' },
-  { key: 'operator', labelKey: 'colorOperator', descKey: 'colorOperatorDesc' },
-  { key: 'property', labelKey: 'colorProperty', descKey: 'colorPropertyDesc' },
-  { key: 'className', labelKey: 'colorClass', descKey: 'colorClassDesc' },
-  { key: 'constant', labelKey: 'colorConstant', descKey: 'colorConstantDesc' },
-  { key: 'tag', labelKey: 'colorTag', descKey: 'colorTagDesc' },
-  { key: 'attrName', labelKey: 'colorAttrName', descKey: 'colorAttrNameDesc' },
-  { key: 'attrValue', labelKey: 'colorAttrValue', descKey: 'colorAttrValueDesc' },
-  { key: 'punctuation', labelKey: 'colorPunctuation', descKey: 'colorPunctuationDesc' },
-  { key: 'selection', labelKey: 'colorSelection', descKey: 'colorSelectionDesc' },
-  { key: 'lineHighlight', labelKey: 'colorLineHighlight', descKey: 'colorLineHighlightDesc' },
-] as const;
-
-const SAMPLE_CODE = `// Sample code preview
-function greetUser(name) {
-  const message = "Hello, " + name;
-  console.log(message);
-  return { greeting: message, count: 42 };
-}
-
-// Call the function
-const result = greetUser("World");`;
-
 export function CustomThemeEditor({
   open,
   onOpenChange,
@@ -102,131 +70,22 @@ export function CustomThemeEditor({
   onSave,
 }: CustomThemeEditorProps) {
   const t = useTranslations('customThemeEditor');
-  const { addTheme, updateTheme, getTheme, exportTheme, importTheme } = useCustomThemeStore();
 
-  const existingTheme = editingThemeId ? getTheme(editingThemeId) : null;
-
-  const [themeName, setThemeName] = useState(existingTheme?.displayName || 'My Custom Theme');
-  const [isDark, setIsDark] = useState(existingTheme?.isDark ?? true);
-  const [colors, setColors] = useState<SyntaxTheme['colors']>(
-    existingTheme?.colors || createDefaultThemeTemplate('', true).colors
-  );
-
-  const updateColor = useCallback((key: keyof SyntaxTheme['colors'], value: string) => {
-    setColors((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const resetToDefaults = useCallback(() => {
-    const template = createDefaultThemeTemplate('', isDark);
-    setColors(template.colors);
-  }, [isDark]);
-
-  const handleSave = useCallback(() => {
-    if (!themeName.trim()) {
-      toast.error(t('enterThemeName'));
-      return;
-    }
-
-    const themeData = {
-      name: themeName.toLowerCase().replace(/\s+/g, '-'),
-      displayName: themeName,
-      isDark,
-      colors,
-    };
-
-    let themeId: string;
-    if (editingThemeId && existingTheme) {
-      updateTheme(editingThemeId, themeData);
-      themeId = editingThemeId;
-      toast.success(t('themeUpdated'));
-    } else {
-      themeId = addTheme(themeData);
-      toast.success(t('themeCreated'));
-    }
-
-    onSave?.(themeId);
-    onOpenChange(false);
-  }, [
+  const {
     themeName,
+    setThemeName,
     isDark,
+    setIsDark,
     colors,
-    editingThemeId,
-    existingTheme,
-    addTheme,
-    updateTheme,
-    onSave,
-    onOpenChange,
-    t,
-  ]);
+    updateColor,
+    resetToDefaults,
+    handleSave,
+    handleExport,
+    handleImport,
+  } = useThemeEditor(editingThemeId, onSave, onOpenChange, t);
 
-  const handleExport = useCallback(() => {
-    if (editingThemeId) {
-      const json = exportTheme(editingThemeId);
-      if (json) {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${themeName.toLowerCase().replace(/\s+/g, '-')}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success(t('themeExported'));
-      }
-    }
-  }, [editingThemeId, exportTheme, themeName, t]);
-
-  const handleImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const text = await file.text();
-      const result = importTheme(text);
-
-      if (result.success) {
-        toast.success(t('themeImported'));
-        onOpenChange(false);
-      } else {
-        toast.error(result.error || t('importFailed'));
-      }
-    };
-    input.click();
-  }, [importTheme, onOpenChange, t]);
-
-  const previewStyles = useMemo(() => {
-    return `
-      .preview-code {
-        background: ${colors.background};
-        color: ${colors.foreground};
-        padding: 16px;
-        border-radius: 8px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 13px;
-        line-height: 1.6;
-        overflow-x: auto;
-      }
-      .preview-code .comment { color: ${colors.comment}; font-style: italic; }
-      .preview-code .keyword { color: ${colors.keyword}; font-weight: 500; }
-      .preview-code .string { color: ${colors.string}; }
-      .preview-code .number { color: ${colors.number}; }
-      .preview-code .function { color: ${colors.function}; }
-      .preview-code .operator { color: ${colors.operator}; }
-      .preview-code .property { color: ${colors.property}; }
-      .preview-code .punctuation { color: ${colors.punctuation}; }
-    `;
-  }, [colors]);
-
-  const highlightedCode = useMemo(() => {
-    return SAMPLE_CODE.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
-      .replace(/\b(function|const|return)\b/g, '<span class="keyword">$1</span>')
-      .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
-      .replace(/\b(\d+)\b/g, '<span class="number">$1</span>')
-      .replace(/\b(\w+)\s*\(/g, '<span class="function">$1</span>(')
-      .replace(/([+:{}(),;])/g, '<span class="punctuation">$1</span>');
-  }, []);
+  const previewStyles = useMemo(() => generatePreviewStyles(colors), [colors]);
+  const highlightedCode = useMemo(() => generateHighlightedCode(SAMPLE_CODE), []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -57,3 +57,38 @@ export interface MetricsData {
 }
 
 export type TimeRange = '1h' | '24h' | '7d' | '30d';
+
+export type DashboardTab = 'overview' | 'metrics' | 'costs' | 'traces';
+
+export interface ObservabilitySettingsData {
+  enabled: boolean;
+  langfuseEnabled: boolean;
+  langfusePublicKey: string;
+  langfuseSecretKey: string;
+  langfuseHost: string;
+  openTelemetryEnabled: boolean;
+  openTelemetryEndpoint: string;
+  serviceName: string;
+}
+
+export interface SessionData {
+  sessionId: string;
+  tokens: number;
+  cost: number;
+  requests: number;
+  name?: string;
+  lastActive?: Date;
+}
+
+export interface SparklineDataPoint {
+  value: number;
+  label?: string;
+}
+
+export interface EfficiencyData {
+  costEfficiency: number;
+  tokenEfficiency: number;
+  latencyScore: number;
+  errorScore: number;
+  utilizationScore: number;
+}

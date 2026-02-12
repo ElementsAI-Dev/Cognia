@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Gauge, TrendingDown, Sparkles, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
+import { formatTokens, formatCost } from '@/lib/observability';
 import { cn } from '@/lib/utils';
 import type { CostEfficiencyMetrics } from '@/lib/ai/usage-analytics';
 
@@ -58,19 +59,6 @@ export function EfficiencyMetricsCard({
   };
 
   const efficiencyInfo = getEfficiencyLabel(efficiencyScore);
-
-  const formatTokens = (tokens: number) => {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-    return tokens.toFixed(0);
-  };
-
-  const formatCost = (cost: number) => {
-    if (cost < 0.0001) return '< $0.0001';
-    if (cost < 0.01) return `$${cost.toFixed(4)}`;
-    if (cost < 1) return `$${cost.toFixed(3)}`;
-    return `$${cost.toFixed(2)}`;
-  };
 
   return (
     <Card className={cn('overflow-hidden', className)}>

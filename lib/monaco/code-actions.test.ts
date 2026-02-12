@@ -77,8 +77,8 @@ describe('code-actions', () => {
       const ctx = createContext({ lineContent: '  doSomething();' });
       const edit = action.createEdit(ctx, mockMonaco);
       expect(edit.edits).toHaveLength(1);
-      expect(edit.edits[0].textEdit.text).toContain('try {');
-      expect(edit.edits[0].textEdit.text).toContain('catch (error)');
+      expect((edit.edits[0] as { textEdit: { text: string } }).textEdit.text).toContain('try {');
+      expect((edit.edits[0] as { textEdit: { text: string } }).textEdit.text).toContain('catch (error)');
     });
   });
 

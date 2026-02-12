@@ -247,7 +247,7 @@ describe('withProfiling', () => {
 
   it('should wrap a function with profiling', () => {
     const fn = (x: number, y: number) => x + y;
-    const profiled = withProfiling('plugin-a', 'add', fn);
+    const profiled = withProfiling('plugin-a', 'add', fn as unknown as (...args: unknown[]) => unknown);
 
     const result = profiled(2, 3);
 

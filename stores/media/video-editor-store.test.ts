@@ -385,13 +385,13 @@ describe('useVideoEditorStore', () => {
 
       expect(result.current.historyIndex).toBe(1);
 
-      let snapshot: ReturnType<typeof result.current.undo> = null;
+      let snapshot: unknown = null;
       act(() => {
         snapshot = result.current.undo();
       });
 
       expect(snapshot).not.toBeNull();
-      expect(snapshot?.action).toBe('action-1');
+      expect((snapshot as { action: string })?.action).toBe('action-1');
       expect(result.current.historyIndex).toBe(0);
     });
 
@@ -407,13 +407,13 @@ describe('useVideoEditorStore', () => {
         result.current.undo();
       });
 
-      let snapshot: ReturnType<typeof result.current.redo> = null;
+      let snapshot: unknown = null;
       act(() => {
         snapshot = result.current.redo();
       });
 
       expect(snapshot).not.toBeNull();
-      expect(snapshot?.action).toBe('action-2');
+      expect((snapshot as { action: string })?.action).toBe('action-2');
       expect(result.current.historyIndex).toBe(1);
     });
 

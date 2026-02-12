@@ -4,7 +4,7 @@
 
 import { act } from '@testing-library/react';
 import { useLatexStore, type LaTeXDocument } from './latex-store';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 
 // Mock LaTeXVersionControlService
 jest.mock('@/lib/latex/version-control', () => ({

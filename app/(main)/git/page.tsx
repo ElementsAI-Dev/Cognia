@@ -28,7 +28,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitPanel, type GitPanelRef } from '@/components/git';
+import { GitPanel } from '@/components/git';
+import type { GitPanelRef } from '@/types/git';
 import { GitCommitGraph } from '@/components/git/git-commit-graph';
 import { GitStatsDashboard } from '@/components/git/git-stats-dashboard';
 import { GitCheckpointPanel } from '@/components/git/git-checkpoint-panel';

@@ -36,7 +36,7 @@ const mockContextValue = {
   renderChild: mockRenderChild,
 };
 
-jest.mock('./a2ui-context', () => ({
+jest.mock('@/hooks/a2ui/use-a2ui-context', () => ({
   useA2UIContext: jest.fn(() => mockContextValue),
   useA2UIVisibility: jest.fn((visible) => {
     if (visible === undefined) return true;

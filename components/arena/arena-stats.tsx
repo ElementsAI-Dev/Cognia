@@ -23,27 +23,11 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { computeArenaStats } from '@/lib/arena';
 import { useArenaStore, selectBattles, selectModelRatings, selectPreferences } from '@/stores/arena';
-import type { ArenaBattle, ArenaModelRating } from '@/types/arena';
 
 interface ArenaStatsProps {
   className?: string;
-}
-
-interface ModelUsageStats {
-  modelId: string;
-  provider: string;
-  model: string;
-  displayName: string;
-  battleCount: number;
-  winCount: number;
-  winRate: number;
-}
-
-interface CategoryStats {
-  category: string;
-  count: number;
-  percentage: number;
 }
 
 function StatCard({
@@ -79,94 +63,6 @@ function StatCard({
   );
 }
 
-function computeStats(battles: ArenaBattle[], ratings: ArenaModelRating[]) {
-  const totalBattles = battles.length;
-  let completedCount = 0;
-  let tieCount = 0;
-  let bothBadCount = 0;
-  let decisiveCount = 0;
-  let blindModeCount = 0;
-  let multiTurnCount = 0;
-  let totalResponseTime = 0;
-  let responseTimeCount = 0;
-
-  const modelUsage = new Map<string, { battleCount: number; winCount: number; provider: string; model: string; displayName: string }>();
-  const categoryCounts = new Map<string, number>();
-  const uniqueModels = new Set<string>();
-
-  // Single pass over all battles
-  for (const battle of battles) {
-    const isCompleted = !!(battle.winnerId || battle.isTie || battle.isBothBad);
-
-    if (isCompleted) {
-      completedCount++;
-      if (battle.isTie) tieCount++;
-      if (battle.isBothBad) bothBadCount++;
-      if (battle.winnerId && !battle.isTie && !battle.isBothBad) decisiveCount++;
-
-      if (battle.completedAt && battle.createdAt) {
-        totalResponseTime += new Date(battle.completedAt).getTime() - new Date(battle.createdAt).getTime();
-        responseTimeCount++;
-      }
-    }
-
-    if (battle.mode === 'blind') blindModeCount++;
-    if (battle.conversationMode === 'multi') multiTurnCount++;
-
-    const cat = battle.taskClassification?.category || 'uncategorized';
-    categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
-
-    for (const c of battle.contestants) {
-      const key = `${c.provider}:${c.model}`;
-      uniqueModels.add(key);
-      const existing = modelUsage.get(key) || { battleCount: 0, winCount: 0, provider: c.provider, model: c.model, displayName: c.displayName };
-      existing.battleCount++;
-      if (battle.winnerId === c.id) {
-        existing.winCount++;
-      }
-      modelUsage.set(key, existing);
-    }
-  }
-
-  const avgResponseTime = responseTimeCount > 0
-    ? Math.round(totalResponseTime / responseTimeCount / 1000)
-    : 0;
-
-  const blindModePercent = totalBattles > 0 ? Math.round((blindModeCount / totalBattles) * 100) : 0;
-
-  const modelStats: ModelUsageStats[] = Array.from(modelUsage.entries())
-    .map(([modelId, stats]) => ({
-      modelId,
-      ...stats,
-      winRate: stats.battleCount > 0 ? stats.winCount / stats.battleCount : 0,
-    }))
-    .sort((a, b) => b.battleCount - a.battleCount);
-
-  const categoryStats: CategoryStats[] = Array.from(categoryCounts.entries())
-    .map(([category, count]) => ({
-      category,
-      count,
-      percentage: totalBattles > 0 ? Math.round((count / totalBattles) * 100) : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  return {
-    totalBattles,
-    completedCount,
-    tieCount,
-    bothBadCount,
-    decisiveCount,
-    avgResponseTime,
-    modelStats,
-    categoryStats,
-    blindModeCount,
-    blindModePercent,
-    multiTurnCount,
-    uniqueModelCount: uniqueModels.size,
-    topRating: ratings.length > 0 ? ratings[0] : null,
-  };
-}
-
 function ArenaStatsComponent({ className }: ArenaStatsProps) {
   const t = useTranslations('arena');
 
@@ -174,7 +70,7 @@ function ArenaStatsComponent({ className }: ArenaStatsProps) {
   const modelRatings = useArenaStore(selectModelRatings);
   const preferences = useArenaStore(selectPreferences);
 
-  const stats = useMemo(() => computeStats(battles, modelRatings), [battles, modelRatings]);
+  const stats = useMemo(() => computeArenaStats(battles, modelRatings), [battles, modelRatings]);
 
   if (stats.totalBattles === 0) {
     return (

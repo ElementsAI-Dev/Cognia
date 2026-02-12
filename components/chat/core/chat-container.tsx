@@ -86,7 +86,7 @@ import { PPTPreview } from '@/components/ppt';
 import { SkillSuggestions } from '@/components/skills';
 import { LearningModePanel, LearningStartDialog } from '@/components/learning';
 import { useSkillStore } from '@/stores/skills';
-import { buildProgressiveSkillsPrompt, findMatchingSkills } from '@/lib/skills/executor';
+import { buildProgressiveSkillsPrompt, findMatchingSkills, selectSkillsForContext } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
 import {
   initializeAgentTools,
@@ -1715,17 +1715,23 @@ Be thorough in your thinking but concise in your final answer.`;
         // Add active skills to context using Progressive Disclosure
         const activeSkills = getActiveSkills();
         if (activeSkills.length > 0) {
+          // Pre-filter skills to fit within token budget, prioritizing active skill order
+          const budgetFilteredSkills = selectSkillsForContext(
+            activeSkills,
+            4000,
+            activeSkills.map(s => s.id)
+          );
           const {
             prompt: skillsPrompt,
             level,
             tokenEstimate,
           } = buildProgressiveSkillsPrompt(
-            activeSkills,
+            budgetFilteredSkills,
             4000 // Token budget for skills
           );
           if (skillsPrompt) {
             console.log(
-              `Injecting ${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
+              `Injecting ${budgetFilteredSkills.length}/${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
             );
             enhancedSystemPrompt = enhancedSystemPrompt
               ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
@@ -2932,7 +2938,7 @@ function ChatMessageItem({
       try {
         const { addScore, isLangfuseEnabled, createChatTrace } = await import('@/lib/ai/observability/langfuse-client');
         if (isLangfuseEnabled()) {
-          const trace = createChatTrace({ sessionId });
+          const trace = await createChatTrace({ sessionId });
           addScore(trace, {
             name: 'user-feedback',
             value: emoji === '👍' ? 1 : 0,

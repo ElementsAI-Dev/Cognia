@@ -54,7 +54,7 @@ describe('useQuoteShortcuts', () => {
 
     // Capture keydown handler
     jest.spyOn(window, 'addEventListener').mockImplementation((event, handler) => {
-      if (event === 'keydown') {
+      if (String(event) === 'keydown') {
         keydownHandler = handler as (e: KeyboardEvent) => void;
       }
     });

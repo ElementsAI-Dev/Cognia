@@ -1,20 +1,14 @@
 'use client';
 
 /**
- * A2UI React Context
- * Provides A2UI surface state and actions to child components
+ * A2UI React Context Provider
+ * Provides A2UI surface state and actions to child components.
  *
- * Split into two contexts for performance:
- * - A2UIActionsContext: Stable references (actions, helpers) that rarely change
- * - A2UIDataContext: Frequently changing data (surface, dataModel, resolvers)
- *
- * Use useA2UIContext() for backward compatibility (merges both).
- * Use useA2UIActions() when you only need stable actions (avoids data re-renders).
- * Use useA2UIData() when you only need data/resolvers.
+ * Context objects and consumer hooks live in hooks/a2ui/use-a2ui-context.ts.
+ * This file only contains the Provider component.
  */
 
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import type { A2UISurfaceState, A2UIComponent, A2UIComponentCatalog } from '@/types/artifact/a2ui';
+import React, { useCallback, useMemo } from 'react';
 import { useA2UIStore } from '@/stores/a2ui';
 import {
   resolveStringOrPath,
@@ -25,50 +19,9 @@ import {
 } from '@/lib/a2ui/data-model';
 import { getCatalog, DEFAULT_CATALOG_ID } from '@/lib/a2ui/catalog';
 import { loggers } from '@/lib/logger';
-
-/**
- * Stable actions context — references rarely change
- */
-interface A2UIActionsContextValue {
-  surfaceId: string;
-  catalog: A2UIComponentCatalog | undefined;
-  emitAction: (action: string, componentId: string, data?: Record<string, unknown>) => void;
-  setDataValue: (path: string, value: unknown) => void;
-  getBindingPath: (value: unknown) => string | null;
-  getComponent: (componentId: string) => A2UIComponent | undefined;
-  renderChild: (componentId: string) => React.ReactNode;
-}
-
-/**
- * Data context — changes when surface data/components update
- */
-interface A2UIDataContextValue {
-  surface: A2UISurfaceState | null;
-  dataModel: Record<string, unknown>;
-  components: Record<string, A2UIComponent>;
-  resolveString: (value: string | { path: string }, defaultValue?: string) => string;
-  resolveNumber: (value: number | { path: string }, defaultValue?: number) => number;
-  resolveBoolean: (value: boolean | { path: string }, defaultValue?: boolean) => boolean;
-  resolveArray: <T>(value: T[] | { path: string }, defaultValue?: T[]) => T[];
-}
-
-/**
- * Combined context value (backward-compatible)
- */
-interface A2UIContextValue extends A2UIActionsContextValue, A2UIDataContextValue {}
-
-const A2UIActionsCtx = createContext<A2UIActionsContextValue | null>(null);
-const A2UIDataCtx = createContext<A2UIDataContextValue | null>(null);
-
-/**
- * Props for A2UI Provider
- */
-interface A2UIProviderProps {
-  surfaceId: string;
-  catalogId?: string;
-  children: React.ReactNode;
-  renderComponent: (component: A2UIComponent) => React.ReactNode;
-}
+import { A2UIActionsCtx, A2UIDataCtx } from '@/hooks/a2ui/use-a2ui-context';
+import type { A2UIActionsContextValue, A2UIDataContextValue } from '@/types/a2ui/context';
+import type { A2UIProviderProps } from '@/types/a2ui/context';
 
 /**
  * A2UI Context Provider
@@ -183,108 +136,13 @@ export function A2UIProvider({
   );
 }
 
-/**
- * Hook to access stable A2UI actions (won't re-render on data changes)
- */
-export function useA2UIActions(): A2UIActionsContextValue {
-  const context = useContext(A2UIActionsCtx);
-  if (!context) {
-    throw new Error('useA2UIActions must be used within an A2UIProvider');
-  }
-  return context;
-}
-
-/**
- * Hook to access A2UI data and resolvers (re-renders on data changes)
- */
-export function useA2UIData(): A2UIDataContextValue {
-  const context = useContext(A2UIDataCtx);
-  if (!context) {
-    throw new Error('useA2UIData must be used within an A2UIProvider');
-  }
-  return context;
-}
-
-/**
- * Hook to access full A2UI context (backward-compatible, merges both contexts)
- *
- * @deprecated Prefer useA2UIActions() + useA2UIData() for better performance.
- * useA2UIContext() re-renders on both action and data changes.
- */
-export function useA2UIContext(): A2UIContextValue {
-  const actions = useContext(A2UIActionsCtx);
-  const data = useContext(A2UIDataCtx);
-  if (!actions || !data) {
-    throw new Error('useA2UIContext must be used within an A2UIProvider');
-  }
-  return useMemo(() => ({ ...actions, ...data }), [actions, data]);
-}
-
-/**
- * Hook to get a specific component from context
- */
-export function useA2UIComponent(componentId: string): A2UIComponent | undefined {
-  const { getComponent } = useA2UIActions();
-  return getComponent(componentId);
-}
-
-/**
- * Hook for data binding - returns value and setter
- */
-export function useA2UIBinding<T>(path: string, defaultValue: T): [T, (value: T) => void] {
-  const { dataModel } = useA2UIData();
-  const { setDataValue } = useA2UIActions();
-
-  const value = useMemo(() => {
-    const segments = path.split('/').filter(Boolean);
-    let current: unknown = dataModel;
-
-    for (const segment of segments) {
-      if (current === null || current === undefined) {
-        return defaultValue;
-      }
-      if (typeof current === 'object') {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        return defaultValue;
-      }
-    }
-
-    return (current as T) ?? defaultValue;
-  }, [dataModel, path, defaultValue]);
-
-  const setValue = useCallback(
-    (newValue: T) => {
-      setDataValue(path, newValue);
-    },
-    [setDataValue, path]
-  );
-
-  return [value, setValue];
-}
-
-/**
- * Hook for component visibility based on data binding
- */
-export function useA2UIVisibility(visible?: boolean | { path: string }): boolean {
-  const { resolveBoolean } = useA2UIData();
-
-  if (visible === undefined) {
-    return true;
-  }
-
-  return resolveBoolean(visible, true);
-}
-
-/**
- * Hook for component disabled state based on data binding
- */
-export function useA2UIDisabled(disabled?: boolean | { path: string }): boolean {
-  const { resolveBoolean } = useA2UIData();
-
-  if (disabled === undefined) {
-    return false;
-  }
-
-  return resolveBoolean(disabled, false);
-}
+// Re-export consumer hooks from their canonical location for backward compatibility
+export {
+  useA2UIActions,
+  useA2UIData,
+  useA2UIContext,
+  useA2UIComponent,
+  useA2UIBinding,
+  useA2UIVisibility,
+  useA2UIDisabled,
+} from '@/hooks/a2ui/use-a2ui-context';

@@ -20,7 +20,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TOOLTIP_STYLE, PERCENTILE_COLORS } from './chart-config';
+import { TOOLTIP_STYLE, PERCENTILE_COLORS } from '@/lib/observability/chart-config';
 
 interface LatencyPercentilesData {
   p50: number;

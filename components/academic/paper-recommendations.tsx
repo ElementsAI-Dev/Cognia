@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/toaster';
-import type { Paper } from '@/types/learning/academic';
+import type { Paper } from '@/types/academic';
 import {
   scoreRecommendations,
   getTrendingInFields,

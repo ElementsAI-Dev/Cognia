@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/system/jupyter';
+import { KERNEL_STATUS_CONFIG } from '@/lib/jupyter/constants';
+import type { KernelInfo, KernelStatus as KernelStatusType } from '@/types/jupyter';
 
 interface KernelStatusProps {
   kernel: KernelInfo | null;
@@ -21,61 +22,27 @@ interface KernelStatusProps {
   className?: string;
 }
 
-const statusConfig: Record<
-  KernelStatusType,
-  { color: string; icon: React.ReactNode; labelKey: string }
-> = {
-  idle: {
-    color: 'bg-green-500',
-    icon: <Circle className="h-2 w-2 fill-current" />,
-    labelKey: 'status.idle',
-  },
-  busy: {
-    color: 'bg-yellow-500',
-    icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    labelKey: 'status.busy',
-  },
-  starting: {
-    color: 'bg-blue-500',
-    icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    labelKey: 'status.starting',
-  },
-  dead: {
-    color: 'bg-red-500',
-    icon: <AlertCircle className="h-2 w-2" />,
-    labelKey: 'status.dead',
-  },
-  restarting: {
-    color: 'bg-orange-500',
-    icon: <RefreshCw className="h-2 w-2 animate-spin" />,
-    labelKey: 'status.restarting',
-  },
-  interrupting: {
-    color: 'bg-orange-500',
-    icon: <Square className="h-2 w-2" />,
-    labelKey: 'status.interrupting',
-  },
-  stopping: {
-    color: 'bg-orange-500',
-    icon: <Square className="h-2 w-2" />,
-    labelKey: 'status.stopping',
-  },
-  configuring: {
-    color: 'bg-blue-500',
-    icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    labelKey: 'status.configuring',
-  },
-  installing: {
-    color: 'bg-blue-500',
-    icon: <Loader2 className="h-2 w-2 animate-spin" />,
-    labelKey: 'status.installing',
-  },
-  error: {
-    color: 'bg-red-500',
-    icon: <AlertCircle className="h-2 w-2" />,
-    labelKey: 'status.error',
-  },
+/** Status icon mapping (JSX elements must stay in the component) */
+const statusIcons: Record<KernelStatusType, React.ReactNode> = {
+  idle: <Circle className="h-2 w-2 fill-current" />,
+  busy: <Loader2 className="h-2 w-2 animate-spin" />,
+  starting: <Loader2 className="h-2 w-2 animate-spin" />,
+  dead: <AlertCircle className="h-2 w-2" />,
+  restarting: <RefreshCw className="h-2 w-2 animate-spin" />,
+  interrupting: <Square className="h-2 w-2" />,
+  stopping: <Square className="h-2 w-2" />,
+  configuring: <Loader2 className="h-2 w-2 animate-spin" />,
+  installing: <Loader2 className="h-2 w-2 animate-spin" />,
+  error: <AlertCircle className="h-2 w-2" />,
 };
+
+/** Combined status config with icons */
+const statusConfig = Object.fromEntries(
+  (Object.keys(KERNEL_STATUS_CONFIG) as KernelStatusType[]).map((key) => [
+    key,
+    { ...KERNEL_STATUS_CONFIG[key], icon: statusIcons[key] },
+  ])
+) as Record<KernelStatusType, { color: string; icon: React.ReactNode; labelKey: string }>;
 
 export function KernelStatus({
   kernel,

@@ -33,22 +33,9 @@ import {
   Label,
 } from 'recharts';
 import type { A2UIComponentProps, A2UIChartComponent } from '@/types/artifact/a2ui';
-import { useA2UIData } from '../a2ui-context';
+import { useA2UIData } from '@/hooks/a2ui';
 import { resolveArrayOrPath } from '@/lib/a2ui/data-model';
-
-const DEFAULT_COLORS = [
-  '#8884d8',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7300',
-  '#00C49F',
-];
-
-const TOOLTIP_STYLE = {
-  backgroundColor: 'hsl(var(--popover))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: '6px',
-};
+import { DEFAULT_CHART_COLORS as DEFAULT_COLORS, CHART_TOOLTIP_STYLE as TOOLTIP_STYLE } from '@/lib/a2ui/chart-constants';
 
 function ChartAxes({ xKey, xAxisLabel, yAxisLabel }: { xKey: string; xAxisLabel?: string; yAxisLabel?: string }) {
   return (

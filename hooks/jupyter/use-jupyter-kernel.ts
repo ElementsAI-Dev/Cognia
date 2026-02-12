@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { kernelService } from '@/lib/jupyter/kernel';
-import { useJupyterStore, useActiveSession, useActiveKernel } from '@/stores/tools';
+import { useJupyterStore, useActiveSession, useActiveKernel } from '@/stores/jupyter';
 import type {
   JupyterSession,
   KernelInfo,
@@ -17,7 +17,7 @@ import type {
   CellOutputEvent,
   CellOutput,
   ExecutableCell,
-} from '@/types/system/jupyter';
+} from '@/types/jupyter';
 
 /** Hook return type */
 export interface UseJupyterKernelReturn {

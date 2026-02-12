@@ -9,6 +9,14 @@ import React, { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { Inbox, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 
 export interface A2UIEmptyComponent extends A2UIBaseComponent {
@@ -28,34 +36,28 @@ export const A2UIEmpty = memo(function A2UIEmpty({ component, onAction }: A2UICo
   };
 
   return (
-    <div
-      className={cn(
-        'flex min-h-[200px] flex-col items-center justify-center gap-4 p-8 text-center',
-        component.className
-      )}
+    <Empty
+      className={cn('min-h-[200px]', component.className)}
       style={component.style as React.CSSProperties}
     >
-      <div className="rounded-full bg-muted p-4">
-        <Inbox className="h-8 w-8 text-muted-foreground" />
-      </div>
-      
-      <div className="space-y-2">
-        {component.title && (
-          <h3 className="text-lg font-semibold">{component.title}</h3>
-        )}
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Inbox className="h-8 w-8 text-muted-foreground" />
+        </EmptyMedia>
+        {component.title && <EmptyTitle>{component.title}</EmptyTitle>}
         {component.message && (
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {component.message}
-          </p>
+          <EmptyDescription>{component.message}</EmptyDescription>
         )}
-      </div>
+      </EmptyHeader>
 
       {component.action && component.actionLabel && (
-        <Button onClick={handleAction} className="mt-2">
-          <Plus className="mr-2 h-4 w-4" />
-          {component.actionLabel}
-        </Button>
+        <EmptyContent>
+          <Button onClick={handleAction}>
+            <Plus className="mr-2 h-4 w-4" />
+            {component.actionLabel}
+          </Button>
+        </EmptyContent>
       )}
-    </div>
+    </Empty>
   );
 });

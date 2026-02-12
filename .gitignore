@@ -78,3 +78,5 @@ next-env.d.ts
 .vercel/
 
 nul
+
+tsc-errors.txt

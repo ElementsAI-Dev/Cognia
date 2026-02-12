@@ -30,6 +30,7 @@ import { MCPServerBadge } from './mcp-server-badge';
 import { MCPProgressIndicator } from './mcp-progress-indicator';
 import type { McpServerStatus, ToolCallResult } from '@/types/mcp';
 import type { ToolState } from '@/types/core/message';
+import { formatToolName, formatDuration } from '@/lib/mcp/format-utils';
 
 export interface MCPToolCallCardProps {
   /** Unique call ID */
@@ -73,18 +74,6 @@ export interface MCPToolCallCardProps {
   className?: string;
 }
 
-function formatToolName(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
-}
 
 const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; bgColor: string }> =
   {

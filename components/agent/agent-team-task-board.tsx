@@ -53,6 +53,8 @@ import {
 import { useAgentTeamStore } from '@/stores/agent/agent-team-store';
 import { TASK_STATUS_CONFIG, type AgentTeamTask, type TeamTaskStatus } from '@/types/agent/agent-team';
 import { cn } from '@/lib/utils';
+import { TASK_BOARD_COLUMNS, TASK_PRIORITY_COLORS } from '@/lib/agent';
+import type { TaskCreateForm } from '@/types/agent/component-types';
 
 // ============================================================================
 // Types
@@ -63,32 +65,8 @@ interface AgentTeamTaskBoardProps {
   className?: string;
 }
 
-interface TaskCreateForm {
-  title: string;
-  description: string;
-  priority: string;
-  assignedTo: string;
-}
-
-// ============================================================================
-// Column Configuration
-// ============================================================================
-
-const COLUMNS: { id: string; statuses: TeamTaskStatus[]; labelKey: string; color: string }[] = [
-  { id: 'blocked', statuses: ['blocked'], labelKey: 'taskBoard.columnBlocked', color: 'border-orange-500/30' },
-  { id: 'pending', statuses: ['pending', 'claimed'], labelKey: 'taskBoard.columnPending', color: 'border-blue-500/30' },
-  { id: 'in_progress', statuses: ['in_progress'], labelKey: 'taskBoard.columnInProgress', color: 'border-primary/30' },
-  { id: 'review', statuses: ['review'], labelKey: 'taskBoard.columnReview', color: 'border-yellow-500/30' },
-  { id: 'done', statuses: ['completed', 'failed', 'cancelled'], labelKey: 'taskBoard.columnDone', color: 'border-green-500/30' },
-];
-
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-500/20 text-red-600 border-red-500/30',
-  high: 'bg-orange-500/20 text-orange-600 border-orange-500/30',
-  normal: 'bg-blue-500/20 text-blue-600 border-blue-500/30',
-  low: 'bg-gray-500/20 text-gray-600 border-gray-500/30',
-  background: 'bg-gray-400/20 text-gray-500 border-gray-400/30',
-};
+const COLUMNS = TASK_BOARD_COLUMNS;
+const PRIORITY_COLORS = TASK_PRIORITY_COLORS;
 
 // ============================================================================
 // Component

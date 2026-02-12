@@ -3,7 +3,7 @@
  * Provides integration with Zotero reference manager for citation management
  */
 
-import type { Paper, PaperAuthor } from '@/types/learning/academic';
+import type { Paper, PaperAuthor } from '@/types/academic';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 

@@ -13,8 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useArtifactStore } from '@/stores';
-import type { Artifact, ArtifactType } from '@/types';
-import { ARTIFACT_COLORS } from '@/lib/artifacts';
+import type { Artifact } from '@/types';
+import { ARTIFACT_COLORS, ARTIFACT_I18N_TYPE_KEYS } from '@/lib/artifacts';
 import { getArtifactTypeIcon } from './artifact-icons';
 
 interface ArtifactCardProps {
@@ -24,20 +24,8 @@ interface ArtifactCardProps {
   showPreview?: boolean;
 }
 
-// i18n keys for artifact type labels
-const typeLabelKeys: Record<ArtifactType, string> = {
-  code: 'typeCode',
-  document: 'typeDocument',
-  svg: 'typeSvg',
-  html: 'typeHtml',
-  react: 'typeReact',
-  mermaid: 'typeMermaid',
-  chart: 'typeChart',
-  math: 'typeMath',
-  jupyter: 'typeJupyter',
-};
-
-// Use centralized colors
+// Use centralized constants
+const typeLabelKeys = ARTIFACT_I18N_TYPE_KEYS;
 const typeColors = ARTIFACT_COLORS;
 
 export function ArtifactCard({

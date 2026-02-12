@@ -18,11 +18,12 @@ export { BackgroundAgentPanel } from './background-agent-panel';
 export { BackgroundAgentIndicator } from './background-agent-indicator';
 export { AgentCard } from './background-agent-card';
 export { AgentLogsViewer, PerformanceStatsCard, ResultPreview } from './background-agent-sub-components';
-export type { PerformanceStats } from './background-agent-sub-components';
+export type { PerformanceStats } from '@/types/agent/component-types';
 export { ProcessManagerPanel } from './process-manager-panel';
 
 // Tool components
-export { ToolTimeline, type ToolExecution, type PendingTool } from './tool-timeline';
+export { ToolTimeline } from './tool-timeline';
+export type { TimelineToolExecution as ToolExecution, PendingTool } from '@/types/agent/component-types';
 export { ToolApprovalDialog, type ToolApprovalRequest } from './tool-approval-dialog';
 
 // Workflow components

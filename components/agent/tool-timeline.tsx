@@ -11,8 +11,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Loader2,
-  AlertTriangle,
   ChevronDown,
   ChevronUp,
   Zap,
@@ -23,6 +21,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { cn, formatDurationShort } from '@/lib/utils';
+import { TOOL_STATE_CONFIG, formatToolName } from '@/lib/agent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CopyButton } from '@/components/chat/ui/copy-button';
@@ -41,37 +40,11 @@ import {
   QueueItemIndicator,
   QueueItemContent,
 } from '@/components/ai-elements/queue';
-import type { ToolState } from '@/types/core/message';
-import type { McpServerStatus } from '@/types/mcp';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
 import { MCPServerBadge } from '@/components/mcp';
+import type { TimelineToolExecution as ToolExecution, PendingTool } from '@/types/agent/component-types';
 
-// Component-specific ToolExecution with timeline-specific fields
-export interface ToolExecution {
-  id: string;
-  toolName: string;
-  state: ToolState;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  error?: string;
-  startTime?: Date;
-  endTime?: Date;
-  checkpointLabel?: string;
-  isCheckpoint?: boolean;
-  /** MCP server ID (if this is an MCP tool call) */
-  serverId?: string;
-  /** MCP server display name */
-  serverName?: string;
-  /** MCP server status */
-  serverStatus?: McpServerStatus;
-}
-
-export interface PendingTool {
-  id: string;
-  toolName: string;
-  estimatedDuration?: number;
-  position: number;
-}
+export type { TimelineToolExecution as ToolExecution, PendingTool } from '@/types/agent/component-types';
 
 interface ToolTimelineProps {
   executions: ToolExecution[];
@@ -82,52 +55,7 @@ interface ToolTimelineProps {
   className?: string;
 }
 
-const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; label: string }> = {
-  'input-streaming': {
-    icon: Loader2,
-    color: 'text-blue-500',
-    label: 'Preparing',
-  },
-  'input-available': {
-    icon: Loader2,
-    color: 'text-blue-500',
-    label: 'Running',
-  },
-  'approval-requested': {
-    icon: AlertTriangle,
-    color: 'text-yellow-500',
-    label: 'Awaiting Approval',
-  },
-  'approval-responded': {
-    icon: Clock,
-    color: 'text-blue-500',
-    label: 'Approved',
-  },
-  'output-available': {
-    icon: CheckCircle,
-    color: 'text-green-500',
-    label: 'Completed',
-  },
-  'output-error': {
-    icon: XCircle,
-    color: 'text-red-500',
-    label: 'Error',
-  },
-  'output-denied': {
-    icon: XCircle,
-    color: 'text-orange-500',
-    label: 'Denied',
-  },
-};
-
-// Use formatDurationShort from lib/utils
-
-function formatToolName(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+const stateConfig = TOOL_STATE_CONFIG;
 
 export function ToolTimeline({
   executions,

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Paper, LibraryPaper } from '@/types/learning/academic';
+import type { Paper, LibraryPaper } from '@/types/academic';
 
 export interface AcademicPaperCardProps {
   paper: Paper | LibraryPaper;

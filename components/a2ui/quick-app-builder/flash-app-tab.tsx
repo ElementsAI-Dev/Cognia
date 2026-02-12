@@ -8,10 +8,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Zap, Loader2, Send } from 'lucide-react';
 import { resolveIcon } from '@/lib/a2ui/resolve-icon';
-
-interface FlashAppTabProps {
-  onGenerate: (prompt: string) => Promise<void>;
-}
+import type { FlashAppTabProps } from '@/types/a2ui/app';
 
 export const FlashAppTab = memo(function FlashAppTab({ onGenerate }: FlashAppTabProps) {
   const t = useTranslations('a2ui');

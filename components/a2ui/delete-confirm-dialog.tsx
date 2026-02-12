@@ -3,27 +3,23 @@
 /**
  * Shared Delete Confirmation Dialog
  * Reusable across AppGallery, QuickAppBuilder, and other A2UI components
+ * Uses AlertDialog for better accessibility with destructive confirmations
  */
 
 import React, { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-
-interface DeleteConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  titleKey?: string;
-  descriptionKey?: string;
-}
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { buttonVariants } from '@/components/ui/button';
+import type { DeleteConfirmDialogProps } from '@/types/a2ui/renderer';
 
 export const DeleteConfirmDialog = memo(function DeleteConfirmDialog({
   open,
@@ -35,29 +31,24 @@ export const DeleteConfirmDialog = memo(function DeleteConfirmDialog({
   const t = useTranslations('a2ui');
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90vw] sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t(titleKey)}</DialogTitle>
-          <DialogDescription>{t(descriptionKey)}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto touch-manipulation"
-            onClick={() => onOpenChange(false)}
-          >
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t(titleKey)}</AlertDialogTitle>
+          <AlertDialogDescription>{t(descriptionKey)}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel className="w-full sm:w-auto touch-manipulation">
             {t('cancel')}
-          </Button>
-          <Button
-            variant="destructive"
-            className="w-full sm:w-auto touch-manipulation"
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className={buttonVariants({ variant: 'destructive', className: 'w-full sm:w-auto touch-manipulation' })}
             onClick={onConfirm}
           >
             {t('delete')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 });

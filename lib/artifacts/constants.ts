@@ -324,3 +324,33 @@ export function getLanguageDisplayName(language?: string): string {
   return LANGUAGE_DISPLAY_NAMES[language.toLowerCase()] || 
     language.charAt(0).toUpperCase() + language.slice(1);
 }
+
+/**
+ * i18n keys for artifact type labels (used in 'artifacts' namespace)
+ * Maps to keys like artifacts.typeCode, artifacts.typeDocument, etc.
+ */
+export const ARTIFACT_I18N_TYPE_KEYS: Record<ArtifactType, string> = {
+  code: 'typeCode',
+  document: 'typeDocument',
+  svg: 'typeSvg',
+  html: 'typeHtml',
+  react: 'typeReact',
+  mermaid: 'typeMermaid',
+  chart: 'typeChart',
+  math: 'typeMath',
+  jupyter: 'typeJupyter',
+};
+
+/**
+ * Chart color palette for recharts-based chart rendering
+ */
+export const CHART_COLORS = [
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7300',
+  '#0088fe',
+  '#00C49F',
+  '#FFBB28',
+  '#FF8042',
+];

@@ -13,7 +13,7 @@ import {
   LatencyDistributionChart,
   RequestsTimelineChart,
 } from './charts';
-import type { MetricsData, TimeRange } from './observability-dashboard';
+import type { MetricsData, TimeRange } from '@/types/observability';
 import type { TimeSeriesDataPoint } from '@/lib/ai/usage-analytics';
 
 interface MetricsPanelProps {

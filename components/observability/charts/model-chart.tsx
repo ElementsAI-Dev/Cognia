@@ -11,7 +11,7 @@ import { useTranslations } from 'next-intl';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ModelUsageBreakdown } from '@/lib/ai/usage-analytics';
-import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from './chart-config';
+import { TOOLTIP_STYLE, CHART_COLORS, CHART_MARGINS } from '@/lib/observability/chart-config';
 
 interface ModelChartProps {
   data: ModelUsageBreakdown[];

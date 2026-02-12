@@ -141,3 +141,43 @@ export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';
 }
+
+/**
+ * Check if a language is compatible with the V0 Designer
+ */
+export function isDesignerCompatible(language: string): boolean {
+  return ['jsx', 'tsx', 'html', 'javascript', 'typescript'].includes(language);
+}
+
+/**
+ * Export a canvas document as a file download
+ */
+export function exportCanvasDocument(title: string, content: string, language: string): void {
+  const ext = getFileExtension(language);
+  const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Get CSS color class for collaboration connection state
+ */
+export function getConnectionStatusColor(state: string): string {
+  switch (state) {
+    case 'connected':
+      return 'text-green-500';
+    case 'connecting':
+      return 'text-yellow-500';
+    case 'error':
+      return 'text-red-500';
+    default:
+      return 'text-muted-foreground';
+  }
+}

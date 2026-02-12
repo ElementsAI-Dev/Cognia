@@ -40,12 +40,15 @@ jest.mock('./version-diff-view', () => ({
 
 const mockArtifact = {
   id: 'artifact-1',
+  sessionId: 'session-1',
+  messageId: 'message-1',
   title: 'Test',
   content: '<div>Current</div>',
   type: 'html' as const,
-  language: 'html',
+  language: 'html' as const,
   version: 3,
   createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 const mockVersions = [

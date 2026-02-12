@@ -20,7 +20,7 @@ import { MarkdownRenderer as ChatMarkdownRenderer } from '@/components/chat/util
 import type { ChartDataPoint } from './chart-renderer';
 
 // Lazy-load ChartRenderer to avoid loading ~200KB recharts in initial bundle
-const LazyChartRenderer = lazy(() => import('./chart-renderer'));
+const LazyChartRenderer = lazy(() => import('./chart-renderer').then(m => ({ default: m.ChartRenderer })));
 
 // Re-export feature-rich renderers from chat/renderers for unified usage
 // These provide full functionality: fullscreen, copy, export, etc.

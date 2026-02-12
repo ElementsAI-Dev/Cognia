@@ -4,6 +4,8 @@
  * These types mirror the Rust types in src-tauri/src/mcp/types.rs
  */
 
+import type { ToolState } from '@/types/core/message';
+
 /** Connection type for MCP server */
 export type McpConnectionType = 'stdio' | 'sse';
 
@@ -696,6 +698,40 @@ export interface ToolSelectionContext {
   activeMode?: string;
   /** Previously used tools in this session */
   sessionToolHistory?: string[];
+}
+
+// ============================================================================
+// MCP Call & Log Types (used by display components)
+// ============================================================================
+
+/** A step in an MCP call timeline */
+export interface MCPCallStep {
+  id: string;
+  serverId: string;
+  serverName?: string;
+  serverStatus?: McpServerStatus;
+  toolName: string;
+  toolDescription?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  error?: string;
+  state: ToolState;
+  startedAt?: Date;
+  endedAt?: Date;
+  progress?: number;
+  progressMessage?: string;
+}
+
+/** A log entry from an MCP server */
+export interface MCPLogEntry {
+  id: string;
+  level: LogLevel;
+  message: string;
+  timestamp: Date;
+  serverId?: string;
+  serverName?: string;
+  logger?: string;
+  data?: unknown;
 }
 
 /** Tool with computed relevance score */

@@ -73,6 +73,17 @@ jest.mock('@/stores', () => ({
     };
     return selector(state);
   }),
+  useObservabilityDashboardStore: jest.fn((selector) => {
+    const state = {
+      timeRange: '24h',
+      activeTab: 'overview',
+      autoRefresh: false,
+      setTimeRange: jest.fn(),
+      setActiveTab: jest.fn(),
+      setAutoRefresh: jest.fn(),
+    };
+    return selector(state);
+  }),
 }));
 
 jest.mock('./trace-viewer', () => ({

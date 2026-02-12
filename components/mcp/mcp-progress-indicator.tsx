@@ -10,6 +10,7 @@ import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Loader } from '@/components/ai-elements/loader';
 import { cn } from '@/lib/utils';
+import { formatDuration } from '@/lib/mcp/format-utils';
 
 export interface MCPProgressIndicatorProps {
   /** Current state of the tool call */
@@ -27,14 +28,6 @@ export interface MCPProgressIndicatorProps {
   /** Compact mode */
   compact?: boolean;
   className?: string;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  const mins = Math.floor(ms / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  return `${mins}m ${secs}s`;
 }
 
 const stateConfig = {

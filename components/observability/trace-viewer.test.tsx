@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { TraceViewer } from './trace-viewer';
-import type { TraceData, SpanData } from './observability-dashboard';
+import type { TraceData, SpanData } from '@/types/observability';
 
 const mockSpan: SpanData = {
   id: 'span-1',

@@ -6,7 +6,7 @@
  * Supports: PNG, JPG, WebP with customization options
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Image as ImageIcon,
@@ -14,9 +14,6 @@ import {
   Copy,
   Check,
   Loader2,
-  Sun,
-  Moon,
-  Monitor,
 } from 'lucide-react';
 import {
   Dialog,
@@ -32,115 +29,28 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { Session } from '@/types';
-import { useExportMessages } from '@/hooks/export';
-import {
-  downloadAsImage,
-  generateThumbnail,
-  copyImageToClipboard,
-  getImageExportFormats,
-  estimateImageSize,
-} from '@/lib/export/image/image-export';
-
-interface ImageExportDialogProps {
-  session: Session;
-  trigger?: React.ReactNode;
-}
-
-type ThemeOption = 'light' | 'dark' | 'system';
-type FormatOption = 'png' | 'jpg' | 'webp';
-type ScaleOption = 1 | 2 | 3;
-
-const THEME_OPTIONS: { value: ThemeOption; labelKey: string; icon: React.ReactNode }[] = [
-  { value: 'light', labelKey: 'lightTheme', icon: <Sun className="h-4 w-4" /> },
-  { value: 'dark', labelKey: 'darkTheme', icon: <Moon className="h-4 w-4" /> },
-  { value: 'system', labelKey: 'systemTheme', icon: <Monitor className="h-4 w-4" /> },
-];
-
-const SCALE_OPTIONS: { value: ScaleOption; labelKey: string }[] = [
-  { value: 1, labelKey: 'scale1x' },
-  { value: 2, labelKey: 'scale2x' },
-  { value: 3, labelKey: 'scale3x' },
-];
+import type { ImageExportDialogProps } from '@/types/export/image-export';
+import type { ImageFormatOption } from '@/types/export/image-export';
+import type { ImageScaleOption } from '@/types/export/image-export';
+import type { ThemeOption } from '@/types/export/common';
+import { useExportMessages, useImageExport } from '@/hooks/export';
+import { IMAGE_THEME_OPTIONS, IMAGE_SCALE_OPTIONS } from '@/lib/export/constants';
+import { getImageExportFormats } from '@/lib/export/image/image-export';
 
 export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) {
   const t = useTranslations('export');
   const [open, setOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-
-  // Export options
-  const [format, setFormat] = useState<FormatOption>('png');
-  const [theme, setTheme] = useState<ThemeOption>('light');
-  const [scale, setScale] = useState<ScaleOption>(2);
-  const [quality, setQuality] = useState(92);
-  const [includeHeader, setIncludeHeader] = useState(true);
-  const [includeFooter, setIncludeFooter] = useState(true);
-  const [showTimestamps, setShowTimestamps] = useState(true);
-  const [showModel, setShowModel] = useState(true);
-  const [maxMessages] = useState(20);
 
   const formats = getImageExportFormats();
-
   const { messages, isLoading } = useExportMessages(session.id, open);
 
-  // Generate preview when options change
-  useEffect(() => {
-    if (!open || messages.length === 0) return;
-
-    const generatePreviewAsync = async () => {
-      setIsGeneratingPreview(true);
-      try {
-        const thumbnail = await generateThumbnail(session, messages.slice(0, 3), {
-          width: 400,
-          maxMessages: 3,
-        });
-        setPreview(thumbnail);
-      } catch (error) {
-        console.error('Preview generation failed:', error);
-        setPreview(null);
-      } finally {
-        setIsGeneratingPreview(false);
-      }
-    };
-
-    const timeoutId = setTimeout(generatePreviewAsync, 300);
-    return () => clearTimeout(timeoutId);
-  }, [open, messages, session, theme]);
-
-  // Handle export
-  const handleExport = useCallback(async () => {
-    if (messages.length === 0) return;
-
-    setIsExporting(true);
-    try {
-      await downloadAsImage(session, messages.slice(0, maxMessages), {
-        format,
-        theme,
-        scale,
-        quality: quality / 100,
-        includeHeader,
-        includeFooter,
-        showTimestamps,
-        showModel,
-      });
-      toast.success(t('imageExported'));
-      setOpen(false);
-    } catch (error) {
-      console.error('Export failed:', error);
-      toast.error(t('exportFailed'));
-    } finally {
-      setIsExporting(false);
-    }
-  }, [
-    session,
-    messages,
-    maxMessages,
+  const {
+    isExporting,
+    isCopying,
+    copied,
+    preview,
+    isGeneratingPreview,
     format,
     theme,
     scale,
@@ -149,55 +59,19 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
     includeFooter,
     showTimestamps,
     showModel,
-    t,
-  ]);
-
-  // Handle copy to clipboard
-  const handleCopy = useCallback(async () => {
-    if (messages.length === 0) return;
-
-    setIsCopying(true);
-    try {
-      const success = await copyImageToClipboard(session, messages.slice(0, maxMessages), {
-        theme,
-        scale,
-        includeHeader,
-        includeFooter,
-        showTimestamps,
-        showModel,
-      });
-
-      if (success) {
-        setCopied(true);
-        toast.success(t('imageCopied'));
-        setTimeout(() => setCopied(false), 2000);
-      } else {
-        toast.error(t('copyFailedTryDownload'));
-      }
-    } catch (error) {
-      console.error('Copy failed:', error);
-      toast.error(t('copyFailed'));
-    } finally {
-      setIsCopying(false);
-    }
-  }, [
-    session,
-    messages,
     maxMessages,
-    theme,
-    scale,
-    includeHeader,
-    includeFooter,
-    showTimestamps,
-    showModel,
-    t,
-  ]);
-
-  const estimatedSize = estimateImageSize(Math.min(messages.length, maxMessages), {
-    format,
-    scale,
-    width: 800,
-  });
+    estimatedSize,
+    setFormat,
+    setTheme,
+    setScale,
+    setQuality,
+    setIncludeHeader,
+    setIncludeFooter,
+    setShowTimestamps,
+    setShowModel,
+    handleExport,
+    handleCopy,
+  } = useImageExport(session, messages, open, t);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -252,7 +126,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 <Label>{t('imageFormatType')}</Label>
                 <RadioGroup
                   value={format}
-                  onValueChange={(v) => setFormat(v as FormatOption)}
+                  onValueChange={(v) => setFormat(v as ImageFormatOption)}
                   className="flex gap-2"
                 >
                   {formats.map((f) => (
@@ -281,26 +155,29 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                   onValueChange={(v) => setTheme(v as ThemeOption)}
                   className="flex gap-2"
                 >
-                  {THEME_OPTIONS.map((themeOpt) => (
-                    <div key={themeOpt.value} className="flex items-center">
-                      <RadioGroupItem
-                        value={themeOpt.value}
-                        id={`theme-${themeOpt.value}`}
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor={`theme-${themeOpt.value}`}
-                        className={cn(
-                          'flex items-center gap-1 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
-                          'peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10',
-                          'hover:bg-muted'
-                        )}
-                      >
-                        {themeOpt.icon}
-                        <span className="text-xs">{t(themeOpt.labelKey)}</span>
-                      </Label>
-                    </div>
-                  ))}
+                  {IMAGE_THEME_OPTIONS.map((themeOpt) => {
+                    const ThemeIcon = themeOpt.icon;
+                    return (
+                      <div key={themeOpt.value} className="flex items-center">
+                        <RadioGroupItem
+                          value={themeOpt.value}
+                          id={`theme-${themeOpt.value}`}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={`theme-${themeOpt.value}`}
+                          className={cn(
+                            'flex items-center gap-1 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
+                            'peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10',
+                            'hover:bg-muted'
+                          )}
+                        >
+                          <ThemeIcon className="h-4 w-4" />
+                          <span className="text-xs">{t(themeOpt.labelKey)}</span>
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
               </div>
             </div>
@@ -310,10 +187,10 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
               <Label>{t('imageScale')}</Label>
               <RadioGroup
                 value={String(scale)}
-                onValueChange={(v) => setScale(Number(v) as ScaleOption)}
+                onValueChange={(v) => setScale(Number(v) as ImageScaleOption)}
                 className="flex gap-2"
               >
-                {SCALE_OPTIONS.map((s) => (
+                {IMAGE_SCALE_OPTIONS.map((s) => (
                   <div key={s.value} className="flex items-center">
                     <RadioGroupItem
                       value={String(s.value)}
@@ -418,7 +295,7 @@ export function ImageExportDialog({ session, trigger }: ImageExportDialogProps) 
                 {copied ? t('copied') : t('copyImageBtn')}
               </Button>
               <Button
-                onClick={handleExport}
+                onClick={() => handleExport(() => setOpen(false))}
                 className="flex-1"
                 disabled={isExporting || messages.length === 0}
               >

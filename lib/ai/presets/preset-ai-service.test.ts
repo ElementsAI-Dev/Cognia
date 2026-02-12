@@ -17,7 +17,7 @@ jest.mock('../core/client', () => ({
 }));
 
 // Mock the prompt optimizer
-const mockDetectLanguage = jest.fn(() => 'en');
+const mockDetectLanguage = jest.fn((_text: unknown) => 'en');
 jest.mock('../prompts/prompt-optimizer', () => ({
   detectPromptLanguage: (text: unknown) => mockDetectLanguage(text),
 }));

@@ -52,7 +52,8 @@ import {
   Save,
 } from 'lucide-react';
 import { InteractiveNotebook } from '@/components/jupyter';
-import { useJupyterKernel, useVirtualEnv } from '@/hooks/sandbox';
+import { useJupyterKernel } from '@/hooks/jupyter';
+import { useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
 import { kernelService } from '@/lib/jupyter/kernel';
 

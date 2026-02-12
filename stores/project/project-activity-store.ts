@@ -5,28 +5,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import type { ActivityType, ProjectActivity } from '@/types';
 
-export type ActivityType =
-  | 'project_created'
-  | 'project_updated'
-  | 'project_archived'
-  | 'project_unarchived'
-  | 'session_added'
-  | 'session_removed'
-  | 'knowledge_added'
-  | 'knowledge_removed'
-  | 'knowledge_updated'
-  | 'tags_updated'
-  | 'settings_updated';
-
-export interface ProjectActivity {
-  id: string;
-  projectId: string;
-  type: ActivityType;
-  description: string;
-  timestamp: Date;
-  metadata?: Record<string, unknown>;
-}
+export type { ActivityType, ProjectActivity };
 
 interface ProjectActivityState {
   activities: ProjectActivity[];
@@ -130,6 +111,8 @@ export function getActivityDescription(
     project_updated: (m) => (m?.field ? `Updated ${m.field}` : 'Project settings updated'),
     project_archived: 'Project archived',
     project_unarchived: 'Project unarchived',
+    session_created: (m) =>
+      m?.sessionTitle ? `Created session: ${m.sessionTitle}` : 'Session created',
     session_added: (m) => (m?.sessionTitle ? `Added session: ${m.sessionTitle}` : 'Session added'),
     session_removed: (m) =>
       m?.sessionTitle ? `Removed session: ${m.sessionTitle}` : 'Session removed',

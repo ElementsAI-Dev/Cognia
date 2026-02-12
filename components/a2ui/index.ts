@@ -20,8 +20,8 @@ export {
   A2UISurface,
   A2UIInlineSurface,
   A2UIDialogSurface,
-  type A2UISurfaceContainerProps,
 } from './a2ui-surface';
+export type { A2UISurfaceContainerProps } from '@/types/a2ui/renderer';
 
 // Renderer
 export {

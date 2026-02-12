@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MetricsPanel } from './metrics-panel';
-import type { MetricsData, TimeRange } from './observability-dashboard';
+import type { MetricsData, TimeRange } from '@/types/observability';
 
 const mockMetrics: MetricsData = {
   totalRequests: 1000,

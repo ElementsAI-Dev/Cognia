@@ -267,11 +267,11 @@ describe('applyMiddlewareToTools', () => {
     const tools = {
       calculator: {
         name: 'calculator',
-        execute: async () => { calc_calls++; return { success: true }; },
+        execute: async (_args: Record<string, unknown>) => { calc_calls++; return { success: true }; },
       },
       web_search: {
         name: 'web_search',
-        execute: async () => { search_calls++; return { success: true }; },
+        execute: async (_args: Record<string, unknown>) => { search_calls++; return { success: true }; },
       },
     };
 

@@ -6,7 +6,7 @@ import { SearchResultsIndicator } from './search-results-indicator';
 import type { SearchResponse } from '@/types/search';
 
 const mockSearchResponse: SearchResponse = {
-  provider: 'tavily',
+  provider: 'tavily' as const,
   query: 'TypeScript best practices',
   answer: 'TypeScript best practices include using strict mode...',
   results: [
@@ -107,8 +107,8 @@ describe('SearchResultsIndicator', () => {
   it('renders without provider badge when provider is missing', () => {
     const responseNoProvider = {
       ...mockSearchResponse,
-      provider: undefined as unknown as string,
-    };
+      provider: undefined,
+    } as unknown as SearchResponse;
     render(
       <SearchResultsIndicator searchResponse={responseNoProvider} />
     );

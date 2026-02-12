@@ -63,21 +63,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAcademic } from '@/hooks/academic';
 import { cn } from '@/lib/utils';
-import type { LibraryPaper, PaperReadingStatus } from '@/types/learning/academic';
-
-const STATUS_ICONS: Record<PaperReadingStatus, typeof Clock> = {
-  unread: Clock,
-  reading: BookMarked,
-  completed: CheckCircle2,
-  archived: Archive,
-};
-
-const STATUS_COLORS: Record<PaperReadingStatus, string> = {
-  unread: 'text-muted-foreground',
-  reading: 'text-blue-500',
-  completed: 'text-green-500',
-  archived: 'text-gray-400',
-};
+import type { LibraryPaper, PaperReadingStatus } from '@/types/academic';
+import { STATUS_ICONS, STATUS_COLORS } from '@/components/academic/constants';
 
 interface PaperLibraryProps {
   onPaperSelect?: (paper: LibraryPaper) => void;

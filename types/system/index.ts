@@ -17,6 +17,6 @@ export * from './memory';
 export * from './environment';
 export * from './selection-toolbar';
 export * from './skill';
-export * from './jupyter';
+// jupyter types moved to types/jupyter
 export * from './tokenizer';
 export * from './tray';

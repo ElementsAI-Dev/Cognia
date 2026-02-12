@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Database,
@@ -23,9 +22,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { useMcpStore } from '@/stores';
 import { cn } from '@/lib/utils';
-import type { McpResource, ResourceContent, ResourceTemplate } from '@/types/mcp';
+import { useMcpResourceBrowser } from '@/hooks/mcp/use-mcp-resource-browser';
 
 export interface MCPResourceBrowserProps {
   serverId?: string;
@@ -39,116 +37,29 @@ export function MCPResourceBrowser({
   className,
 }: MCPResourceBrowserProps) {
   const t = useTranslations('mcp');
-  const servers = useMcpStore((state) => state.servers);
-  const readResource = useMcpStore((state) => state.readResource);
-  const subscribeResource = useMcpStore((state) => state.subscribeResource);
-  const unsubscribeResource = useMcpStore((state) => state.unsubscribeResource);
-  const listResourceTemplates = useMcpStore((state) => state.listResourceTemplates);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedResource, setSelectedResource] = useState<{
-    serverId: string;
-    resource: McpResource;
-  } | null>(null);
-  const [resourceContent, setResourceContent] = useState<ResourceContent | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copiedUri, setCopiedUri] = useState(false);
-  const [copiedContent, setCopiedContent] = useState(false);
-  const [subscribedUris, setSubscribedUris] = useState<Set<string>>(new Set());
-  const [templates, setTemplates] = useState<ResourceTemplate[]>([]);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
-
-  const connectedServers = useMemo(() => {
-    const filtered = servers.filter(
-      (s) => s.status.type === 'connected' && s.resources.length > 0
-    );
-    if (serverId) return filtered.filter((s) => s.id === serverId);
-    return filtered;
-  }, [servers, serverId]);
-
-  const allResources = useMemo(() => {
-    const result: Array<{ serverId: string; serverName: string; resource: McpResource }> = [];
-    for (const server of connectedServers) {
-      for (const resource of server.resources) {
-        result.push({ serverId: server.id, serverName: server.name, resource });
-      }
-    }
-    if (!searchQuery) return result;
-    const query = searchQuery.toLowerCase();
-    return result.filter(
-      (r) =>
-        r.resource.name.toLowerCase().includes(query) ||
-        r.resource.uri.toLowerCase().includes(query) ||
-        r.resource.description?.toLowerCase().includes(query) ||
-        r.resource.mimeType?.toLowerCase().includes(query)
-    );
-  }, [connectedServers, searchQuery]);
-
-  const handleReadResource = useCallback(
-    async (sid: string, resource: McpResource) => {
-      setSelectedResource({ serverId: sid, resource });
-      setIsLoading(true);
-      setError(null);
-      setResourceContent(null);
-      try {
-        const content = await readResource(sid, resource.uri);
-        setResourceContent(content);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [readResource]
-  );
-
-  const handleToggleSubscription = useCallback(
-    async (sid: string, uri: string) => {
-      try {
-        if (subscribedUris.has(uri)) {
-          await unsubscribeResource(sid, uri);
-          setSubscribedUris((prev) => {
-            const next = new Set(prev);
-            next.delete(uri);
-            return next;
-          });
-        } else {
-          await subscribeResource(sid, uri);
-          setSubscribedUris((prev) => new Set(prev).add(uri));
-        }
-      } catch {
-        // silently fail subscription toggle
-      }
-    },
-    [subscribedUris, subscribeResource, unsubscribeResource]
-  );
-
-  const handleLoadTemplates = useCallback(
-    async (sid: string) => {
-      try {
-        const result = await listResourceTemplates(sid);
-        setTemplates(result);
-        setShowTemplates(true);
-      } catch {
-        setTemplates([]);
-      }
-    },
-    [listResourceTemplates]
-  );
-
-  const handleCopyUri = useCallback((uri: string) => {
-    navigator.clipboard.writeText(uri);
-    setCopiedUri(true);
-    setTimeout(() => setCopiedUri(false), 2000);
-  }, []);
-
-  const handleCopyContent = useCallback((text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedContent(true);
-    setTimeout(() => setCopiedContent(false), 2000);
-  }, []);
+  const {
+    connectedServers,
+    allResources,
+    searchQuery,
+    setSearchQuery,
+    selectedResource,
+    resourceContent,
+    isLoading,
+    error,
+    copiedUri,
+    copiedContent,
+    subscribedUris,
+    templates,
+    showTemplates,
+    setShowTemplates,
+    templateParams,
+    setTemplateParams,
+    handleReadResource,
+    handleToggleSubscription,
+    handleLoadTemplates,
+    handleCopyUri,
+    handleCopyContent,
+  } = useMcpResourceBrowser({ serverId });
 
   const getMimeIcon = (mimeType?: string) => {
     if (!mimeType) return <FileText className="h-4 w-4 text-muted-foreground" />;

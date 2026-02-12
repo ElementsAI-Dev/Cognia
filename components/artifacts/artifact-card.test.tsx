@@ -17,7 +17,7 @@ jest.mock('./artifact-icons', () => ({
 const mockSetActiveArtifact = jest.fn();
 const mockOpenPanel = jest.fn();
 const mockDuplicateArtifact = jest.fn();
-const mockGetMessageAnalysis = jest.fn(() => []);
+const mockGetMessageAnalysis = jest.fn(() => [] as Record<string, unknown>[]);
 
 jest.mock('@/stores', () => ({
   useArtifactStore: (selector: (state: Record<string, unknown>) => unknown) => {
@@ -289,7 +289,7 @@ describe('MessageAnalysisResults', () => {
 
   it('renders analysis results when available', () => {
     mockGetMessageAnalysis.mockReturnValue([
-      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: { summary: 'Quadratic' }, createdAt: new Date() },
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: { summary: 'Quadratic' }, createdAt: new Date(), updatedAt: new Date() },
     ]);
     render(<MessageAnalysisResults messageId="msg-1" />);
     expect(mockGetMessageAnalysis).toHaveBeenCalledWith('msg-1');
@@ -298,7 +298,7 @@ describe('MessageAnalysisResults', () => {
 
   it('renders Lucide icon for math results', () => {
     mockGetMessageAnalysis.mockReturnValue([
-      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: {}, createdAt: new Date() },
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'math' as const, content: 'x^2', output: {}, createdAt: new Date(), updatedAt: new Date() },
     ]);
     const { container } = render(<MessageAnalysisResults messageId="msg-1" />);
     // Lucide Ruler icon renders as an SVG element
@@ -307,7 +307,7 @@ describe('MessageAnalysisResults', () => {
 
   it('renders Lucide icon for chart results', () => {
     mockGetMessageAnalysis.mockReturnValue([
-      { id: 'a2', sessionId: 's1', messageId: 'msg-1', type: 'chart' as const, content: '{}', output: {}, createdAt: new Date() },
+      { id: 'a2', sessionId: 's1', messageId: 'msg-1', type: 'chart' as const, content: '{}', output: {}, createdAt: new Date(), updatedAt: new Date() },
     ]);
     const { container } = render(<MessageAnalysisResults messageId="msg-1" />);
     // Lucide BarChart3 icon renders as an SVG element
@@ -316,7 +316,7 @@ describe('MessageAnalysisResults', () => {
 
   it('calls openPanel when analysis result is clicked', () => {
     mockGetMessageAnalysis.mockReturnValue([
-      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'data' as const, content: 'data', output: { summary: 'Stats' }, createdAt: new Date() },
+      { id: 'a1', sessionId: 's1', messageId: 'msg-1', type: 'data' as const, content: 'data', output: { summary: 'Stats' }, createdAt: new Date(), updatedAt: new Date() },
     ]);
     render(<MessageAnalysisResults messageId="msg-1" />);
     fireEvent.click(screen.getByText('Stats'));

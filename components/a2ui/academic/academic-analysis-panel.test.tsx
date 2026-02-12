@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AcademicAnalysisPanel } from './academic-analysis-panel';
-import type { PaperAnalysisType } from '@/types/learning/academic';
+import type { PaperAnalysisType } from '@/types/academic';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

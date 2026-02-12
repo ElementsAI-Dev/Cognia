@@ -99,7 +99,7 @@ global.fetch = jest.fn().mockImplementation((url: string, options?: RequestInit)
 
 // Mock MediaSource
 const mockMediaSource = {
-  readyState: 'open' as MediaSourceReadyState,
+  readyState: 'open' as const,
   addSourceBuffer: jest.fn(() => ({
     addEventListener: jest.fn(),
     appendBuffer: jest.fn(),
@@ -368,8 +368,9 @@ describe('Byte Range Loading', () => {
     });
 
     it('should handle missing Content-Range', () => {
-      const contentRange = null;
-      const totalSize = contentRange ? parseInt(contentRange.match(/\/(\d+)$/)?.[1] || '0', 10) : 0;
+      const parseContentRange = (cr: string | null) =>
+        cr ? parseInt(cr.match(/\/(\d+)$/)?.[1] || '0', 10) : 0;
+      const totalSize = parseContentRange(null);
       
       expect(totalSize).toBe(0);
     });

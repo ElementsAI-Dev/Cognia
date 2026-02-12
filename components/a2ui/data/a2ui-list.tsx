@@ -8,32 +8,10 @@
 import React, { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
-import { useA2UIData, useA2UIActions } from '../a2ui-context';
+import { useA2UIData, useA2UIActions } from '@/hooks/a2ui';
 import { resolveArrayOrPath, getValueByPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../a2ui-renderer';
-
-/**
- * Get a unique key for a list item
- */
-function getItemKey(item: unknown, index: number): string | number {
-  if (typeof item === 'object' && item !== null && 'id' in item) {
-    return (item as { id: string | number }).id;
-  }
-  return index;
-}
-
-/**
- * Extract display text from a list item
- */
-function getItemDisplayText(item: unknown): string {
-  if (typeof item === 'string') return item;
-  if (typeof item === 'number' || typeof item === 'boolean') return String(item);
-  if (typeof item === 'object' && item !== null) {
-    const obj = item as Record<string, unknown>;
-    return String(obj.label || obj.text || obj.name || obj.title || JSON.stringify(item));
-  }
-  return String(item);
-}
+import { getItemKey, getItemDisplayText } from '@/lib/a2ui/list-utils';
 
 export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
   const { dataModel } = useA2UIData();

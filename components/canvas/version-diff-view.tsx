@@ -13,12 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
-
-interface DiffLine {
-  type: 'added' | 'removed' | 'unchanged';
-  content: string;
-  lineNumber: { old?: number; new?: number };
-}
+import { computeDiff as computeDiffRaw, computeDiffStats } from '@/lib/artifacts';
+import type { CanvasDiffLine } from '@/types/canvas/panel';
 
 interface VersionDiffViewProps {
   oldContent: string;
@@ -26,126 +22,6 @@ interface VersionDiffViewProps {
   oldLabel?: string;
   newLabel?: string;
   className?: string;
-}
-
-const MAX_DIFF_LINES = 5000;
-
-/**
- * Simple line-by-line diff algorithm
- */
-function computeDiff(oldText: string, newText: string): { lines: DiffLine[]; truncated: boolean } {
-  let oldLines = oldText.split('\n');
-  let newLines = newText.split('\n');
-  const truncated = oldLines.length > MAX_DIFF_LINES || newLines.length > MAX_DIFF_LINES;
-  if (truncated) {
-    oldLines = oldLines.slice(0, MAX_DIFF_LINES);
-    newLines = newLines.slice(0, MAX_DIFF_LINES);
-  }
-  const diff: DiffLine[] = [];
-
-  // LCS-based diff for better results
-  const lcs = computeLCS(oldLines, newLines);
-
-  let oldIndex = 0;
-  let newIndex = 0;
-  let lcsIndex = 0;
-
-  while (oldIndex < oldLines.length || newIndex < newLines.length) {
-    if (
-      lcsIndex < lcs.length &&
-      oldIndex < oldLines.length &&
-      oldLines[oldIndex] === lcs[lcsIndex]
-    ) {
-      if (newIndex < newLines.length && newLines[newIndex] === lcs[lcsIndex]) {
-        // Line is unchanged
-        diff.push({
-          type: 'unchanged',
-          content: oldLines[oldIndex],
-          lineNumber: { old: oldIndex + 1, new: newIndex + 1 },
-        });
-        oldIndex++;
-        newIndex++;
-        lcsIndex++;
-      } else {
-        // Line was added in new
-        diff.push({
-          type: 'added',
-          content: newLines[newIndex],
-          lineNumber: { new: newIndex + 1 },
-        });
-        newIndex++;
-      }
-    } else if (
-      lcsIndex < lcs.length &&
-      newIndex < newLines.length &&
-      newLines[newIndex] === lcs[lcsIndex]
-    ) {
-      // Line was removed from old
-      diff.push({
-        type: 'removed',
-        content: oldLines[oldIndex],
-        lineNumber: { old: oldIndex + 1 },
-      });
-      oldIndex++;
-    } else if (oldIndex < oldLines.length) {
-      // Line was removed
-      diff.push({
-        type: 'removed',
-        content: oldLines[oldIndex],
-        lineNumber: { old: oldIndex + 1 },
-      });
-      oldIndex++;
-    } else if (newIndex < newLines.length) {
-      // Line was added
-      diff.push({
-        type: 'added',
-        content: newLines[newIndex],
-        lineNumber: { new: newIndex + 1 },
-      });
-      newIndex++;
-    }
-  }
-
-  return { lines: diff, truncated };
-}
-
-/**
- * Compute Longest Common Subsequence of lines
- */
-function computeLCS(a: string[], b: string[]): string[] {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-
-  // Backtrack to find LCS
-  const lcs: string[] = [];
-  let i = m,
-    j = n;
-  while (i > 0 && j > 0) {
-    if (a[i - 1] === b[j - 1]) {
-      lcs.unshift(a[i - 1]);
-      i--;
-      j--;
-    } else if (dp[i - 1][j] > dp[i][j - 1]) {
-      i--;
-    } else {
-      j--;
-    }
-  }
-
-  return lcs;
 }
 
 export function VersionDiffView({
@@ -158,17 +34,18 @@ export function VersionDiffView({
   const t = useTranslations('canvas');
   const [copied, setCopied] = useState(false);
 
-  const { lines: diff, truncated } = useMemo(() => computeDiff(oldContent, newContent), [oldContent, newContent]);
+  const diff: CanvasDiffLine[] = useMemo(() => {
+    const rawDiff = computeDiffRaw(oldContent, newContent);
+    return rawDiff.map((line) => ({
+      type: line.type,
+      content: line.content,
+      lineNumber: { old: line.oldLineNum, new: line.newLineNum },
+    }));
+  }, [oldContent, newContent]);
 
-  const stats = useMemo(() => {
-    let added = 0;
-    let removed = 0;
-    diff.forEach((line) => {
-      if (line.type === 'added') added++;
-      if (line.type === 'removed') removed++;
-    });
-    return { added, removed };
-  }, [diff]);
+  const truncated = false; // Large input guard is handled inside computeDiff
+
+  const stats = useMemo(() => computeDiffStats(computeDiffRaw(oldContent, newContent)), [oldContent, newContent]);
 
   const diffText = useMemo(() => {
     return diff
@@ -229,10 +106,10 @@ export function VersionDiffView({
         </div>
       </div>
 
-      {/* Truncation warning */}
+      {/* Truncation warning (large input guard handled inside computeDiff) */}
       {truncated && (
         <div className="px-4 py-1.5 text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border-b">
-          Diff truncated to first {MAX_DIFF_LINES.toLocaleString()} lines for performance.
+          Diff simplified for very large inputs.
         </div>
       )}
 

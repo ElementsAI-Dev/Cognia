@@ -41,8 +41,9 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { getRankBadgeClass, CATEGORY_IDS, exportLeaderboardData } from '@/lib/arena';
 import { useArenaStore } from '@/stores/arena';
-import type { ArenaModelRating } from '@/types/arena';
+import type { ArenaModelRating, LeaderboardSortField, LeaderboardSortDirection } from '@/types/arena';
 import type { TaskCategory } from '@/types/provider/auto-router';
 
 interface ArenaLeaderboardProps {
@@ -50,25 +51,6 @@ interface ArenaLeaderboardProps {
   compact?: boolean;
 }
 
-type SortField = 'rank' | 'rating' | 'winRate' | 'battles' | 'stability';
-type SortDirection = 'asc' | 'desc';
-
-const CATEGORY_IDS: Array<TaskCategory | 'all'> = [
-  'all',
-  'coding',
-  'math',
-  'analysis',
-  'creative',
-  'research',
-  'translation',
-];
-
-function getRankBadgeClass(rank: number): string {
-  if (rank === 1) return 'bg-yellow-500 text-yellow-950';
-  if (rank === 2) return 'bg-gray-400 text-gray-950';
-  if (rank === 3) return 'bg-amber-600 text-amber-950';
-  return 'bg-muted text-muted-foreground';
-}
 
 function getTrendIcon(rating: ArenaModelRating) {
   // This would need historical data to show trends
@@ -119,8 +101,8 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   const t = useTranslations('arena');
 
   const [activeCategory, setActiveCategory] = useState<TaskCategory | 'all'>('all');
-  const [sortField, setSortField] = useState<SortField>('rating');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortField, setSortField] = useState<LeaderboardSortField>('rating');
+  const [sortDirection, setSortDirection] = useState<LeaderboardSortDirection>('desc');
   const [providerFilter, setProviderFilter] = useState<string>('all');
 
   const modelRatings = useArenaStore((state) => state.modelRatings);
@@ -181,7 +163,7 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
     return filtered;
   }, [modelRatings, sortField, sortDirection, providerFilter, activeCategory]);
 
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: LeaderboardSortField) => {
     if (sortField === field) {
       setSortDirection((d) => (d === 'desc' ? 'asc' : 'desc'));
     } else {
@@ -191,32 +173,10 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   };
 
   const handleExport = () => {
-    const data = sortedRatings.map((r, i) => ({
-      rank: i + 1,
-      model: r.model,
-      provider: r.provider,
-      rating: Math.round(r.rating),
-      ci95Lower: r.ci95Lower ? Math.round(r.ci95Lower) : null,
-      ci95Upper: r.ci95Upper ? Math.round(r.ci95Upper) : null,
-      winRate: r.winRate ? (r.winRate * 100).toFixed(1) + '%' : null,
-      battles: r.totalBattles,
-      wins: r.wins,
-      losses: r.losses,
-      ties: r.ties,
-    }));
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `arena-leaderboard-${activeCategory}-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportLeaderboardData(sortedRatings, activeCategory);
   };
 
-  const SortHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+  const SortHeader = ({ field, children }: { field: LeaderboardSortField; children: React.ReactNode }) => (
     <button
       className="flex items-center gap-1 hover:text-foreground transition-colors"
       onClick={() => handleSort(field)}

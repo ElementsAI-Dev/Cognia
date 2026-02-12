@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   HeartPulse,
@@ -20,8 +19,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { useMcpStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { useMcpServerHealth } from '@/hooks/mcp/use-mcp-server-health';
 
 export interface MCPServerHealthProps {
   className?: string;
@@ -29,60 +28,20 @@ export interface MCPServerHealthProps {
 
 export function MCPServerHealth({ className }: MCPServerHealthProps) {
   const t = useTranslations('mcp');
-  const servers = useMcpStore((state) => state.servers);
-  const serverHealthMap = useMcpStore((state) => state.serverHealthMap);
-  const pingServer = useMcpStore((state) => state.pingServer);
-  const connectServer = useMcpStore((state) => state.connectServer);
-  const disconnectServer = useMcpStore((state) => state.disconnectServer);
-
-  const [pingingServers, setPingingServers] = useState<Set<string>>(new Set());
-
-  const connectedServers = useMemo(
-    () => servers.filter((s) => s.status.type === 'connected'),
-    [servers]
-  );
-
-  const handlePing = useCallback(
-    async (serverId: string) => {
-      setPingingServers((prev) => new Set(prev).add(serverId));
-      try {
-        await pingServer(serverId);
-      } catch {
-        // ping failure is reflected in health map
-      } finally {
-        setPingingServers((prev) => {
-          const next = new Set(prev);
-          next.delete(serverId);
-          return next;
-        });
-      }
-    },
-    [pingServer]
-  );
-
-  const handlePingAll = useCallback(async () => {
-    await Promise.allSettled(connectedServers.map((s) => handlePing(s.id)));
-  }, [connectedServers, handlePing]);
-
-  const formatLatency = (ms?: number): string => {
-    if (ms === undefined) return '-';
-    if (ms < 1) return '<1ms';
-    return `${Math.round(ms)}ms`;
-  };
-
-  const formatTimestamp = (ts?: number): string => {
-    if (!ts) return '-';
-    const diff = Date.now() - ts;
-    if (diff < 60000) return '<1m ago';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    return `${Math.floor(diff / 3600000)}h ago`;
-  };
-
-  const getHealthStatus = (serverId: string) => {
-    const health = serverHealthMap.get(serverId);
-    if (!health) return 'unknown';
-    return health.isHealthy ? 'healthy' : 'unhealthy';
-  };
+  const {
+    servers,
+    serverHealthMap,
+    connectedServers,
+    pingingServers,
+    handlePing,
+    handlePingAll,
+    connectServer,
+    disconnectServer,
+    getHealthStatus,
+    getLatencyDisplay: formatLatency,
+    getTimestampDisplay: formatTimestamp,
+    getLatencyColor,
+  } = useMcpServerHealth();
 
   const getHealthIcon = (status: string) => {
     switch (status) {
@@ -93,13 +52,6 @@ export function MCPServerHealth({ className }: MCPServerHealthProps) {
       default:
         return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
     }
-  };
-
-  const getLatencyColor = (ms?: number): string => {
-    if (ms === undefined) return 'text-muted-foreground';
-    if (ms < 100) return 'text-green-600';
-    if (ms < 500) return 'text-yellow-600';
-    return 'text-destructive';
   };
 
   if (servers.length === 0) {

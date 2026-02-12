@@ -56,18 +56,7 @@ import {
   type ExternalAgentPresetId,
 } from '@/lib/ai/agent/external/presets';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-interface AddAgentFormData {
-  name: string;
-  protocol: 'acp' | 'a2a' | 'http' | 'websocket' | 'custom';
-  transport: 'stdio' | 'http' | 'websocket' | 'sse';
-  command: string;
-  args: string;
-  endpoint: string;
-}
+import type { AddAgentFormData } from '@/types/agent/component-types';
 
 // ============================================================================
 // Status Badge Component

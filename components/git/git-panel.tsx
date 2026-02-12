@@ -4,7 +4,7 @@
  * Git Panel - Main sidebar panel integrating all Git features
  */
 
-import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   GitBranch,
@@ -40,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGit } from '@/hooks/native/use-git';
+import { useGitRefresh } from '@/hooks/git';
 import { GitBranchManager } from './git-branch-manager';
 import { GitCommitHistory } from './git-commit-history';
 import { GitDiffViewer } from './git-diff-viewer';
@@ -47,19 +48,7 @@ import { GitFileTree } from './git-file-tree';
 import { GitStashPanel } from './git-stash-panel';
 import { formatCommitDate, formatCommitMessage, type GitCommitInfo } from '@/types/system/git';
 import { cn } from '@/lib/utils';
-
-export interface GitPanelRef {
-  stageAll: () => Promise<void>;
-  commit: () => void;
-  push: () => Promise<void>;
-  pull: () => Promise<void>;
-}
-
-interface GitPanelProps {
-  repoPath?: string;
-  projectId?: string;
-  className?: string;
-}
+import type { GitPanelRef, GitPanelProps } from '@/types/git';
 
 export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel({ repoPath, projectId, className }, ref) {
   const t = useTranslations('git');
@@ -132,12 +121,7 @@ export const GitPanel = forwardRef<GitPanelRef, GitPanelProps>(function GitPanel
   );
 
   // Refresh status periodically
-  useEffect(() => {
-    if (isInstalled && repoPath) {
-      const interval = setInterval(refreshStatus, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [isInstalled, repoPath, refreshStatus]);
+  useGitRefresh(60000, !!(isInstalled && repoPath), refreshStatus);
 
   useImperativeHandle(ref, () => ({
     stageAll: async () => { await stageAll(); },

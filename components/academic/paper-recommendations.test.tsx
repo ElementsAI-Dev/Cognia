@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaperRecommendations } from './paper-recommendations';
 import { useAcademic } from '@/hooks/academic';
-import type { LibraryPaper, Paper } from '@/types/learning/academic';
+import type { LibraryPaper, Paper } from '@/types/academic';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({

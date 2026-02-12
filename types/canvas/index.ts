@@ -3,4 +3,5 @@
  */
 
 export * from './collaboration';
+export * from './panel';
 export * from './settings';

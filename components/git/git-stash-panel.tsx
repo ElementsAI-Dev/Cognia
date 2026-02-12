@@ -40,19 +40,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Empty, EmptyMedia, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
-import type { GitStashEntry } from '@/types/system/git';
-
-interface GitStashPanelProps {
-  stashes: GitStashEntry[];
-  isLoading?: boolean;
-  onStashSave: (message?: string, includeUntracked?: boolean) => Promise<boolean>;
-  onStashPop: (index?: number) => Promise<boolean>;
-  onStashApply: (index?: number) => Promise<boolean>;
-  onStashDrop: (index?: number) => Promise<boolean>;
-  onStashClear: () => Promise<boolean>;
-  onRefresh: () => Promise<void>;
-  className?: string;
-}
+import type { GitStashPanelProps } from '@/types/git';
 
 export function GitStashPanel({
   stashes,

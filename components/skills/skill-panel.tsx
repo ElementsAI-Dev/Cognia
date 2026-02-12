@@ -35,6 +35,7 @@ import {
   ChevronRight,
   Settings2,
   Check,
+  Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -81,6 +82,7 @@ import { SkillGeneratorPanel } from './skill-generator';
 import { SkillFilterSheet } from './skill-filter-sheet';
 import { SkillImportDialog } from './skill-import-dialog';
 import { SkillDeleteDialog } from './skill-delete-dialog';
+import { SkillWizard } from './skill-wizard';
 import type { Skill, SkillCategory, SkillStatus } from '@/types/system/skill';
 
 const CATEGORY_OPTIONS: Array<{ value: SkillCategory | 'all'; labelKey: string; icon: React.ReactNode; color: string }> = [
@@ -125,7 +127,7 @@ const SOURCE_OPTIONS: Array<{ value: 'all' | 'builtin' | 'custom' | 'imported'; 
 ];
 
 type ViewMode = 'grid' | 'list';
-type PanelView = 'browse' | 'detail' | 'create' | 'edit' | 'analytics';
+type PanelView = 'browse' | 'detail' | 'create' | 'edit' | 'analytics' | 'wizard';
 
 interface SkillPanelProps {
   className?: string;
@@ -312,6 +314,15 @@ export function SkillPanel({
     setCurrentView('create');
   }, []);
 
+  const handleCreateWithWizard = useCallback(() => {
+    setCurrentView('wizard');
+  }, []);
+
+  const handleWizardComplete = useCallback((skillId: string) => {
+    setSelectedSkillId(skillId);
+    setCurrentView('detail');
+  }, []);
+
   const handleSaveSkill = useCallback((rawContent: string) => {
     if (selectedSkillId) {
       updateSkill(selectedSkillId, { content: rawContent });
@@ -410,6 +421,20 @@ export function SkillPanel({
     );
   }
 
+  // Render wizard view
+  if (currentView === 'wizard') {
+    return (
+      <TooltipProvider>
+        <div className={cn('flex flex-col h-full', className)}>
+          <SkillWizard
+            onComplete={handleWizardComplete}
+            onCancel={handleBack}
+          />
+        </div>
+      </TooltipProvider>
+    );
+  }
+
   // Render analytics view
   if (currentView === 'analytics') {
     return (
@@ -484,6 +509,15 @@ export function SkillPanel({
                 </TooltipTrigger>
                 <TooltipContent className="lg:hidden">{t('generateSkill') || 'Generate'}</TooltipContent>
               </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={handleCreateWithWizard}>
+                    <Wand2 className="h-4 w-4 mr-1.5" />
+                    <span className="hidden lg:inline">{t('wizard') || 'Wizard'}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="lg:hidden">{t('wizard') || 'Wizard'}</TooltipContent>
+              </Tooltip>
               <Button size="sm" onClick={handleCreateNew}>
                 <Plus className="h-4 w-4 mr-1.5" />
                 <span className="hidden sm:inline">{t('newSkill')}</span>
@@ -509,6 +543,10 @@ export function SkillPanel({
                   <DropdownMenuItem onClick={() => setShowGeneratorDialog(true)}>
                     <Sparkles className="h-4 w-4 mr-2" />
                     {t('generateSkill') || 'Generate'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCreateWithWizard}>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    {t('wizard') || 'Wizard'}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowImportDialog(true)}>

@@ -47,34 +47,14 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { formatBattleDate, formatBattleDuration } from '@/lib/arena';
 import { useArenaStore } from '@/stores/arena';
-import type { ArenaBattle, ArenaContestant } from '@/types/arena';
+import type { ArenaBattle, ArenaContestant, BattleFilterStatus, BattleSortOrder } from '@/types/arena';
 
 interface ArenaHistoryProps {
   className?: string;
   onViewBattle?: (battleId: string) => void;
   maxItems?: number;
-}
-
-type FilterStatus = 'all' | 'completed' | 'tie' | 'pending' | 'error';
-type SortOrder = 'newest' | 'oldest';
-
-function formatDate(date: Date, locale: string = 'en-US'): string {
-  return new Intl.DateTimeFormat(locale, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-}
-
-function formatDuration(startDate: Date, endDate?: Date): string {
-  if (!endDate) return '-';
-  const ms = endDate.getTime() - startDate.getTime();
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ${seconds % 60}s`;
 }
 
 function BattleCard({
@@ -126,7 +106,7 @@ function BattleCard({
             <div className="flex items-center gap-2 mb-1">
               {getStatusBadge()}
               <span className="text-xs text-muted-foreground">
-                {formatDate(new Date(battle.createdAt), locale)}
+                {formatBattleDate(new Date(battle.createdAt), locale)}
               </span>
               {battle.mode === 'blind' && (
                 <Badge variant="outline" className="text-[10px]">
@@ -269,7 +249,7 @@ function BattleCard({
               {battle.completedAt && (
                 <div className="text-muted-foreground">
                   {t('duration')}:{' '}
-                  {formatDuration(new Date(battle.createdAt), new Date(battle.completedAt))}
+                  {formatBattleDuration(new Date(battle.createdAt), new Date(battle.completedAt))}
                 </div>
               )}
             </div>
@@ -292,9 +272,9 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
   const locale = useLocale();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<BattleFilterStatus>('all');
   const [modelFilter, setModelFilter] = useState<string>('all');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [sortOrder, setSortOrder] = useState<BattleSortOrder>('newest');
 
   const battles = useArenaStore((state) => state.battles);
   const deleteBattle = useArenaStore((state) => state.deleteBattle);
@@ -403,7 +383,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
         </div>
 
         {/* Status filter */}
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as FilterStatus)}>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as BattleFilterStatus)}>
           <SelectTrigger className="w-32 h-8">
             <Filter className="h-3 w-3 mr-1" />
             <SelectValue />
@@ -432,7 +412,7 @@ function ArenaHistoryComponent({ className, onViewBattle, maxItems = 50 }: Arena
         </Select>
 
         {/* Sort */}
-        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as SortOrder)}>
+        <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as BattleSortOrder)}>
           <SelectTrigger className="w-28 h-8">
             <Calendar className="h-3 w-3 mr-1" />
             <SelectValue />

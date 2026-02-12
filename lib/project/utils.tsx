@@ -24,9 +24,9 @@ import {
 /**
  * Map of icon names to their Lucide components
  */
-const PROJECT_ICON_MAP: Record<
+export const PROJECT_ICON_MAP: Record<
   string,
-  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+  React.ComponentType<{ className?: string; style?: React.CSSProperties; color?: string }>
 > = {
   Folder,
   Code,
