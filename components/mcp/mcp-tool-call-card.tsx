@@ -10,11 +10,9 @@ import { useTranslations } from 'next-intl';
 import {
   Wrench,
   ChevronDown,
-  Clock,
+  AlertTriangle,
   CheckCircle,
   XCircle,
-  Loader2,
-  AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ai-elements/code-block';
 import { CopyButton } from '@/components/chat/ui/copy-button';
 import { ContentItemDisplay } from '@/components/chat/utils/tool-result-display';
+import { TOOL_STATE_CONFIG } from '@/lib/agent';
 import { MCPServerBadge } from './mcp-server-badge';
 import { MCPProgressIndicator } from './mcp-progress-indicator';
 import type { McpServerStatus, ToolCallResult } from '@/types/mcp';
@@ -75,44 +74,15 @@ export interface MCPToolCallCardProps {
 }
 
 
-const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; bgColor: string }> =
-  {
-    'input-streaming': {
-      icon: Loader2,
-      color: 'text-blue-600',
-      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
-    },
-    'input-available': {
-      icon: Loader2,
-      color: 'text-blue-600',
-      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
-    },
-    'approval-requested': {
-      icon: AlertTriangle,
-      color: 'text-yellow-600',
-      bgColor: 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30',
-    },
-    'approval-responded': {
-      icon: Clock,
-      color: 'text-blue-600',
-      bgColor: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
-    },
-    'output-available': {
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'border-green-300 bg-green-50 dark:bg-green-950/30',
-    },
-    'output-error': {
-      icon: XCircle,
-      color: 'text-red-600',
-      bgColor: 'border-red-300 bg-red-50 dark:bg-red-950/30',
-    },
-    'output-denied': {
-      icon: XCircle,
-      color: 'text-orange-600',
-      bgColor: 'border-orange-300 bg-orange-50 dark:bg-orange-950/30',
-    },
-  };
+const stateBgColors: Record<ToolState, string> = {
+  'input-streaming': 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+  'input-available': 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+  'approval-requested': 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30',
+  'approval-responded': 'border-blue-300 bg-blue-50 dark:bg-blue-950/30',
+  'output-available': 'border-green-300 bg-green-50 dark:bg-green-950/30',
+  'output-error': 'border-red-300 bg-red-50 dark:bg-red-950/30',
+  'output-denied': 'border-orange-300 bg-orange-50 dark:bg-orange-950/30',
+};
 
 const riskColors = {
   low: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -146,8 +116,9 @@ export function MCPToolCallCard({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [activeTab, setActiveTab] = useState<string>('params');
 
-  const config = stateConfig[state];
-  const Icon = config.icon;
+  const toolStateConfig = TOOL_STATE_CONFIG[state];
+  const Icon = toolStateConfig.icon;
+  const bgColor = stateBgColors[state];
   const isRunning = state === 'input-streaming' || state === 'input-available';
   const isApprovalRequired = state === 'approval-requested';
   const isCompleted = state === 'output-available';
@@ -191,7 +162,7 @@ export function MCPToolCallCard({
       className={cn(
         'rounded-xl border-2 overflow-hidden transition-all duration-300',
         'bg-card/95 backdrop-blur-md shadow-sm hover:shadow-md',
-        config.bgColor,
+        bgColor,
         isRunning && 'animate-pulse',
         className
       )}
@@ -242,7 +213,7 @@ export function MCPToolCallCard({
                 {formatDuration(duration)}
               </Badge>
             )}
-            <div className={cn('flex items-center gap-1', config.color)}>
+            <div className={cn('flex items-center gap-1', toolStateConfig.color)}>
               <Icon className={cn('h-4 w-4', isRunning && 'animate-spin')} />
             </div>
             <ChevronDown

@@ -321,4 +321,4 @@ export function ChatAssistantPanel({
   );
 }
 
-export default ChatAssistantPanel;
+

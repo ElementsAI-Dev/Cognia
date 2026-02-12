@@ -20,6 +20,9 @@ import {
   Search,
   X,
   Trash2,
+  CheckSquare,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,6 +86,9 @@ export default function SchedulerPage() {
     cancelPluginExecution,
     getActivePluginCount,
     isPluginExecutionActive,
+    bulkPause,
+    bulkResume,
+    bulkDelete,
   } = useScheduler();
   const {
     capabilities,
@@ -100,7 +106,9 @@ export default function SchedulerPage() {
     disableTask: disableSystemTask,
     runTaskNow: runSystemTaskNow,
     confirmPending,
+    confirmTask,
     cancelPending,
+    validateTask,
     requestElevation,
     clearError: clearSystemError,
   } = useSystemScheduler();
@@ -118,6 +126,8 @@ export default function SchedulerPage() {
   const [systemEditTaskId, setSystemEditTaskId] = useState<string | null>(null);
   const [systemSubmitting, setSystemSubmitting] = useState(false);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(filter.search || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -175,6 +185,11 @@ export default function SchedulerPage() {
       setSystemSubmitting(true);
       clearSystemError();
       try {
+        const validation = await validateTask(input);
+        if (!validation.valid) {
+          clearSystemError();
+          return;
+        }
         const response = await createSystemTask(input);
         if (response.status === 'success') {
           setShowSystemCreateSheet(false);
@@ -188,7 +203,7 @@ export default function SchedulerPage() {
         setSystemSubmitting(false);
       }
     },
-    [createSystemTask, clearSystemError]
+    [createSystemTask, clearSystemError, validateTask]
   );
 
   const handleEditTask = useCallback(
@@ -219,6 +234,11 @@ export default function SchedulerPage() {
       setSystemSubmitting(true);
       clearSystemError();
       try {
+        const validation = await validateTask(input);
+        if (!validation.valid) {
+          clearSystemError();
+          return;
+        }
         const response = await updateSystemTask(selectedSystemTask.id, input);
         if (response.status === 'success') {
           setShowSystemEditSheet(false);
@@ -233,7 +253,7 @@ export default function SchedulerPage() {
         setSystemSubmitting(false);
       }
     },
-    [selectedSystemTask, updateSystemTask, clearSystemError]
+    [selectedSystemTask, updateSystemTask, clearSystemError, validateTask]
   );
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -288,6 +308,39 @@ export default function SchedulerPage() {
     },
     [enableSystemTask, disableSystemTask]
   );
+
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBulkPause = useCallback(async () => {
+    if (selectedTaskIds.size === 0) return;
+    await bulkPause(Array.from(selectedTaskIds));
+    setSelectedTaskIds(new Set());
+    setIsSelectMode(false);
+  }, [selectedTaskIds, bulkPause]);
+
+  const handleBulkResume = useCallback(async () => {
+    if (selectedTaskIds.size === 0) return;
+    await bulkResume(Array.from(selectedTaskIds));
+    setSelectedTaskIds(new Set());
+    setIsSelectMode(false);
+  }, [selectedTaskIds, bulkResume]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedTaskIds.size === 0) return;
+    await bulkDelete(Array.from(selectedTaskIds));
+    setSelectedTaskIds(new Set());
+    setIsSelectMode(false);
+  }, [selectedTaskIds, bulkDelete]);
 
   const handleRefresh = useCallback(() => {
     if (isSystemView) {
@@ -496,8 +549,46 @@ export default function SchedulerPage() {
                 ))}
               </div>
 
-              {/* Quick Actions */}
+              {/* Bulk / Quick Actions */}
               <div className="ml-auto flex items-center gap-1.5">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isSelectMode ? 'default' : 'ghost'}
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => {
+                          setIsSelectMode(!isSelectMode);
+                          if (isSelectMode) setSelectedTaskIds(new Set());
+                        }}
+                      >
+                        <CheckSquare className="h-3.5 w-3.5" />
+                        <span className="hidden lg:inline">{isSelectMode ? t('cancelSelect') || 'Cancel' : t('bulkSelect') || 'Select'}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('bulkSelectTooltip') || 'Toggle multi-select mode'}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {isSelectMode && selectedTaskIds.size > 0 && (
+                  <>
+                    <Badge variant="secondary" className="h-6 px-2 text-xs">
+                      {selectedTaskIds.size} {t('selected') || 'selected'}
+                    </Badge>
+                    <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleBulkPause}>
+                      <Pause className="h-3 w-3" />
+                      {t('bulkPause') || 'Pause'}
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleBulkResume}>
+                      <Play className="h-3 w-3" />
+                      {t('bulkResume') || 'Resume'}
+                    </Button>
+                    <Button variant="destructive" size="sm" className="h-7 gap-1 text-xs" onClick={handleBulkDelete}>
+                      <Trash2 className="h-3 w-3" />
+                      {t('bulkDelete') || 'Delete'}
+                    </Button>
+                  </>
+                )}
                 <WorkflowScheduleDialog
                   workflowId="default"
                   workflowName="Workflow"
@@ -536,6 +627,9 @@ export default function SchedulerPage() {
                   onRunNow={handleRunNow}
                   onDelete={setDeleteTaskId}
                   isLoading={isLoading}
+                  isSelectMode={isSelectMode}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleSelect={toggleTaskSelection}
                 />
               </div>
             </div>
@@ -618,6 +712,9 @@ export default function SchedulerPage() {
                   onRunNow={handleRunNow}
                   onDelete={setDeleteTaskId}
                   isLoading={isLoading}
+                  isSelectMode={isSelectMode}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleSelect={toggleTaskSelection}
                 />
               </TabsContent>
 
@@ -707,7 +804,7 @@ export default function SchedulerPage() {
         onSystemDeleteTaskIdChange={setSystemDeleteTaskId}
         onSystemDeleteConfirm={handleSystemDeleteConfirm}
         pendingConfirmation={pendingConfirmation}
-        onConfirmPending={confirmPending}
+        onConfirmPending={pendingConfirmation?.task_id ? () => confirmTask(pendingConfirmation.task_id!) : confirmPending}
         onCancelPending={cancelPending}
         showAdminDialog={showAdminDialog}
         onShowAdminDialogChange={setShowAdminDialog}

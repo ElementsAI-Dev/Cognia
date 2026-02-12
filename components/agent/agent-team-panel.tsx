@@ -58,6 +58,9 @@ import { AgentTeamChat } from './agent-team-chat';
 import { AgentTeamActivityFeed } from './agent-team-activity-feed';
 import { AgentTeamTimeline } from './agent-team-timeline';
 import { AgentTeamConfigEditor } from './agent-team-config-editor';
+import { AgentTeamTaskBoard } from './agent-team-task-board';
+import { AgentTeamAnalytics } from './agent-team-analytics';
+import { AgentTeamResultCard } from './agent-team-result-card';
 import {
   TEAM_STATUS_CONFIG,
   TEAMMATE_STATUS_CONFIG,
@@ -583,6 +586,21 @@ export function AgentTeamPanel({
 
             <Separator />
 
+            {/* Task Board (Kanban view) */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <Columns className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">{t('taskBoard.title')}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <AgentTeamTaskBoard teamId={activeTeam.id} />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator />
+
             {/* Messages Section (Interactive Chat) */}
             <Collapsible open={expandedSections.messages} onOpenChange={() => toggleSection('messages')}>
               <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
@@ -600,18 +618,10 @@ export function AgentTeamPanel({
             </Collapsible>
 
             {/* Final Result */}
-            {activeTeam.finalResult && (
+            {(activeTeam.finalResult || activeTeam.status === 'completed' || activeTeam.status === 'failed') && (
               <>
                 <Separator />
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-medium flex items-center gap-1.5">
-                    <CheckCircle className="size-3.5 text-green-500" />
-                    {t('result.title')}
-                  </h4>
-                  <div className="rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto">
-                    {activeTeam.finalResult}
-                  </div>
-                </div>
+                <AgentTeamResultCard teamId={activeTeam.id} compact />
               </>
             )}
 
@@ -658,6 +668,21 @@ export function AgentTeamPanel({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
                 <AgentTeamActivityFeed teamId={activeTeam.id} maxHeight="250px" />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator />
+
+            {/* Analytics */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex w-full items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <LayoutGrid className="size-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium">{t('analytics.title')}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <AgentTeamAnalytics teamId={activeTeam.id} />
               </CollapsibleContent>
             </Collapsible>
 

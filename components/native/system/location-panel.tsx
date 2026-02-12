@@ -164,5 +164,3 @@ export function LocationPanel({ className }: LocationPanelProps) {
     </div>
   );
 }
-
-export default LocationPanel;

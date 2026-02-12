@@ -134,5 +134,3 @@ export function useScheduler() {
     bulkDelete: store.bulkDelete,
   };
 }
-
-export default useScheduler;

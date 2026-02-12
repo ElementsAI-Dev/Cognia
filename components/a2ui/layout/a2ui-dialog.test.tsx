@@ -7,6 +7,12 @@ import { render, screen } from '@testing-library/react';
 import { A2UIDialog } from './a2ui-dialog';
 import type { A2UIDialogComponent } from '@/types/artifact/a2ui';
 
+// Mock useA2UIFocusTrap hook
+const mockFocusFirst = jest.fn();
+jest.mock('@/hooks/a2ui/use-a2ui-keyboard', () => ({
+  useA2UIFocusTrap: () => ({ focusFirst: mockFocusFirst, focusLast: jest.fn(), focusNext: jest.fn(), focusPrevious: jest.fn() }),
+}));
+
 // Mock the context
 const mockDataCtx = {
   surface: null, dataModel: {}, components: {},
@@ -175,6 +181,45 @@ describe('A2UIDialog', () => {
       // Actions should be rendered in footer
       const childRenderers = screen.getAllByTestId('child-renderer');
       expect(childRenderers.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('focus trap integration', () => {
+    it('should call focusFirst when dialog opens', async () => {
+      jest.useFakeTimers();
+      const mockUseA2UIContext = jest.requireMock('../a2ui-context').useA2UIContext;
+      mockUseA2UIContext.mockReturnValue({
+        resolveString: jest.fn((value) => value),
+        resolveBoolean: jest.fn(() => true),
+        getBindingPath: jest.fn(() => null),
+      });
+
+      render(
+        <A2UIDialog
+          {...defaultProps}
+          component={createMockComponent({ open: true, title: 'Focus Dialog' })}
+          onAction={jest.fn()}
+        />
+      );
+
+      jest.advanceTimersByTime(150);
+      expect(mockFocusFirst).toHaveBeenCalled();
+      jest.useRealTimers();
+    });
+
+    it('should not call focusFirst when dialog is closed', () => {
+      jest.useFakeTimers();
+      render(
+        <A2UIDialog
+          {...defaultProps}
+          component={createMockComponent({ open: false })}
+          onAction={jest.fn()}
+        />
+      );
+
+      jest.advanceTimersByTime(150);
+      expect(mockFocusFirst).not.toHaveBeenCalled();
+      jest.useRealTimers();
     });
   });
 });

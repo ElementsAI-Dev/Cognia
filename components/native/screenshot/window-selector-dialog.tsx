@@ -23,14 +23,12 @@ import { useScreenshot, WindowInfo } from '@/hooks/native/use-screenshot';
 interface WindowSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectWindow?: (window: WindowInfo) => void;
   onCaptureWindow?: (window: WindowInfo) => void;
 }
 
 export function WindowSelectorDialog({
   open,
   onOpenChange,
-  onSelectWindow: _onSelectWindow,
   onCaptureWindow,
 }: WindowSelectorDialogProps) {
   const t = useTranslations('windowSelector');

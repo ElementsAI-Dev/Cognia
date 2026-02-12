@@ -335,5 +335,3 @@ export function ProcessSettingsPanel({ className }: ProcessSettingsPanelProps) {
     </ScrollArea>
   );
 }
-
-export default ProcessSettingsPanel;

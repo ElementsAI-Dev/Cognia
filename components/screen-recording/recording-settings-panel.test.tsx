@@ -476,8 +476,8 @@ describe('RecordingSettingsPanel - Storage', () => {
     render(<RecordingSettingsPanel open={true} onOpenChange={() => {}} />);
 
     await waitFor(() => {
-      expect(screen.getByText('100 MB')).toBeInTheDocument();
-      expect(screen.getByText('50 MB')).toBeInTheDocument();
+      expect(screen.getByText('100.0 MB')).toBeInTheDocument();
+      expect(screen.getByText('50.0 MB')).toBeInTheDocument();
     });
   });
 

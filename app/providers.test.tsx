@@ -8,14 +8,15 @@
  * we test the core logic patterns used by internal components.
  */
 
-import React, { useEffect } from 'react';
-import { render, waitFor, act } from '@testing-library/react';
-import { isTauri as detectTauri } from '@/lib/native/utils';
+import React, { useState, useEffect, Suspense } from 'react';
+import { render, waitFor, act, screen } from '@testing-library/react';
+import { isTauri as detectTauri, getWindowLabel, WINDOW_LABELS } from '@/lib/native/utils';
 import { useChatWidgetStore } from '@/stores/chat';
 
 // Track whether Tauri mode is enabled
 let mockIsTauri = false;
 const mockInvoke = jest.fn();
+let mockWindowLabel: string | null = 'main';
 
 // Store mock
 const mockConfig = {
@@ -44,6 +45,8 @@ jest.mock('@tauri-apps/api/core', () => ({
 
 jest.mock('@/lib/native/utils', () => ({
   isTauri: () => mockIsTauri,
+  getWindowLabel: () => Promise.resolve(mockWindowLabel),
+  WINDOW_LABELS: { MAIN: 'main', CHAT_WIDGET: 'chat-widget', ASSISTANT_BUBBLE: 'assistant-bubble' },
 }));
 
 jest.mock('@/stores/chat', () => ({
@@ -60,12 +63,27 @@ jest.mock('@/stores/chat', () => ({
 
 /**
  * Simulates ChatAssistantContainerGate logic
- * AI assistant bubble is a desktop-only feature, hidden in web mode.
+ * AI assistant FAB + Panel renders only in Tauri main window.
  */
-function TestChatAssistantContainerGate({ children: _children }: { children: React.ReactNode }) {
-  // AI assistant bubble is a desktop-only feature.
-  // In web mode, this feature is not needed and should be hidden by default.
-  return null;
+function TestChatAssistantContainerGate() {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (!detectTauri()) return;
+    getWindowLabel().then((label) => {
+      if (!label || label === WINDOW_LABELS.MAIN) {
+        setShouldRender(true);
+      }
+    });
+  }, []);
+
+  if (!shouldRender) return null;
+
+  return (
+    <Suspense fallback={null}>
+      <div data-testid="chat-assistant-container">ChatAssistantContainer</div>
+    </Suspense>
+  );
 }
 
 /**
@@ -116,18 +134,56 @@ function TestChatWidgetNativeSync() {
 describe('ChatAssistantContainerGate logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri = false;
+    mockWindowLabel = 'main';
   });
 
-  it('always returns null (desktop-only feature)', () => {
-    // AI assistant bubble is a desktop-only feature, hidden in web mode
-    const { container } = render(
-      <TestChatAssistantContainerGate>
-        <span>Content</span>
-      </TestChatAssistantContainerGate>
-    );
+  it('renders nothing in web mode (no Tauri)', async () => {
+    mockIsTauri = false;
 
-    // Should render nothing - feature is disabled in web mode
+    const { container } = render(<TestChatAssistantContainerGate />);
+
+    // Wait for any potential async effects
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
     expect(container.firstChild).toBeNull();
+  });
+
+  it('renders ChatAssistantContainer in Tauri main window', async () => {
+    mockIsTauri = true;
+    mockWindowLabel = 'main';
+
+    render(<TestChatAssistantContainerGate />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-assistant-container')).toBeInTheDocument();
+    });
+  });
+
+  it('renders nothing in Tauri non-main window (e.g. chat-widget)', async () => {
+    mockIsTauri = true;
+    mockWindowLabel = 'chat-widget';
+
+    const { container } = render(<TestChatAssistantContainerGate />);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders when getWindowLabel returns null (fallback to main)', async () => {
+    mockIsTauri = true;
+    mockWindowLabel = null;
+
+    render(<TestChatAssistantContainerGate />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-assistant-container')).toBeInTheDocument();
+    });
   });
 });
 

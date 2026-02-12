@@ -5,17 +5,19 @@
  * Renders a dynamic list of items with templates
  */
 
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, memo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIListComponent } from '@/types/artifact/a2ui';
 import { useA2UIData, useA2UIActions } from '@/hooks/a2ui';
 import { resolveArrayOrPath, getValueByPath } from '@/lib/a2ui/data-model';
 import { A2UIChildRenderer } from '../a2ui-renderer';
 import { getItemKey, getItemDisplayText } from '@/lib/a2ui/list-utils';
+import { useA2UIListNavigation } from '@/hooks/a2ui/use-a2ui-keyboard';
 
 export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComponentProps<A2UIListComponent>) {
   const { dataModel } = useA2UIData();
   const { renderChild } = useA2UIActions();
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const templateDataPath = component.template?.dataPath;
   const componentItems = component.items;
@@ -35,7 +37,18 @@ export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComp
     return resolveArrayOrPath(componentItems, dataModel, []);
   }, [componentItems, templateDataPath, dataModel]);
 
+  const listNav = useA2UIListNavigation(items, {
+    onSelect: (item, index) => {
+      if (component.itemClickAction) {
+        onAction(component.itemClickAction, { item, index });
+      }
+    },
+    loop: true,
+  });
+
   const handleItemClick = (item: unknown, index: number) => {
+    setActiveIndex(index);
+    listNav.setActiveIndex(index);
     if (component.itemClickAction) {
       onAction(component.itemClickAction, { item, index });
     }
@@ -125,7 +138,8 @@ export const A2UIList = memo(function A2UIList({ component, onAction }: A2UIComp
           className={cn(
             'px-2 py-1 transition-colors',
             component.itemClickAction && 'cursor-pointer hover:bg-muted/50 rounded',
-            component.dividers && index > 0 && 'border-t'
+            component.dividers && index > 0 && 'border-t',
+            activeIndex === index && 'bg-accent/50 rounded'
           )}
           onClick={() => handleItemClick(item, index)}
         >

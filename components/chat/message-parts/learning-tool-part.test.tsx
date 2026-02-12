@@ -21,6 +21,9 @@ jest.mock('next-intl', () => ({
       'loading.reviewSession': 'Loading review session...',
       'loading.progressSummary': 'Loading progress summary...',
       'loading.conceptExplanation': 'Loading concept explanation...',
+      'loading.stepGuide': 'Loading step guide...',
+      'loading.conceptMap': 'Loading concept map...',
+      'loading.animation': 'Loading animation...',
       'loading.default': 'Loading...',
       'error.default': 'An error occurred',
       'concept.relatedConcepts': 'Related Concepts',
@@ -45,7 +48,7 @@ jest.mock('@/components/ui/card', () => ({
 }));
 
 // Mock learning components
-jest.mock('@/components/learning/flashcard', () => ({
+jest.mock('@/components/learning/content/flashcard', () => ({
   Flashcard: ({ flashcard }: { flashcard: { front: string; back: string } }) => (
     <div data-testid="flashcard">
       <span>{flashcard.front}</span>
@@ -60,7 +63,7 @@ jest.mock('@/components/learning/flashcard', () => ({
   ),
 }));
 
-jest.mock('@/components/learning/quiz', () => ({
+jest.mock('@/components/learning/content/quiz', () => ({
   QuizFromTool: ({ output }: { output: { title: string } }) => (
     <div data-testid="quiz-from-tool">{output.title}</div>
   ),
@@ -69,12 +72,36 @@ jest.mock('@/components/learning/quiz', () => ({
   ),
 }));
 
-jest.mock('@/components/learning/review-session', () => ({
+jest.mock('@/components/learning/content/review-session', () => ({
   ReviewSessionFromTool: ({ output }: { output: { sessionId: string } }) => (
     <div data-testid="review-session-from-tool">{output.sessionId}</div>
   ),
   ProgressSummaryFromTool: ({ output }: { output: { totalCards: number } }) => (
     <div data-testid="progress-summary-from-tool">{output.totalCards}</div>
+  ),
+}));
+
+jest.mock('@/components/learning/visualization/step-guide', () => ({
+  StepGuide: ({ title }: { title: string }) => (
+    <div data-testid="step-guide">{title}</div>
+  ),
+}));
+
+jest.mock('@/components/learning/visualization/concept-visualizer', () => ({
+  ConceptVisualizer: ({ data }: { data: { title: string } }) => (
+    <div data-testid="concept-visualizer">{data.title}</div>
+  ),
+}));
+
+jest.mock('@/components/learning/visualization/interactive-animation', () => ({
+  InteractiveAnimation: ({ scene }: { scene: { name: string } }) => (
+    <div data-testid="interactive-animation">{scene.name}</div>
+  ),
+}));
+
+jest.mock('@/components/learning/visualization/transformer-diagram', () => ({
+  TransformerDiagram: () => (
+    <div data-testid="transformer-diagram">Transformer Diagram</div>
   ),
 }));
 
@@ -105,6 +132,9 @@ describe('LearningToolPart', () => {
       expect(isLearningTool('displayReviewSession')).toBe(true);
       expect(isLearningTool('displayProgressSummary')).toBe(true);
       expect(isLearningTool('displayConceptExplanation')).toBe(true);
+      expect(isLearningTool('displayStepGuide')).toBe(true);
+      expect(isLearningTool('displayConceptMap')).toBe(true);
+      expect(isLearningTool('displayAnimation')).toBe(true);
     });
 
     it('returns false for invalid tool names', () => {
@@ -123,7 +153,10 @@ describe('LearningToolPart', () => {
       expect(LEARNING_TOOL_NAMES).toContain('displayReviewSession');
       expect(LEARNING_TOOL_NAMES).toContain('displayProgressSummary');
       expect(LEARNING_TOOL_NAMES).toContain('displayConceptExplanation');
-      expect(LEARNING_TOOL_NAMES).toHaveLength(7);
+      expect(LEARNING_TOOL_NAMES).toContain('displayStepGuide');
+      expect(LEARNING_TOOL_NAMES).toContain('displayConceptMap');
+      expect(LEARNING_TOOL_NAMES).toContain('displayAnimation');
+      expect(LEARNING_TOOL_NAMES).toHaveLength(10);
     });
   });
 
@@ -274,6 +307,93 @@ describe('LearningToolPart', () => {
       expect(
         screen.getByText('The process by which plants convert sunlight to energy')
       ).toBeInTheDocument();
+    });
+
+    it('renders StepGuide for displayStepGuide', () => {
+      const part = createToolPart({
+        toolName: 'displayStepGuide',
+        state: 'output-available',
+        result: {
+          type: 'step_guide',
+          title: 'Getting Started',
+          steps: [{ id: 's1', title: 'Install', content: 'Install Node.js' }],
+          showProgress: true,
+          allowSkip: true,
+          timestamp: '2024-01-01',
+        },
+      });
+      render(<LearningToolPart part={part} />);
+      expect(screen.getByTestId('step-guide')).toBeInTheDocument();
+      expect(screen.getByText('Getting Started')).toBeInTheDocument();
+    });
+
+    it('renders ConceptVisualizer for displayConceptMap', () => {
+      const part = createToolPart({
+        toolName: 'displayConceptMap',
+        state: 'output-available',
+        result: {
+          type: 'concept_map',
+          title: 'System Architecture',
+          visualizationType: 'flow',
+          nodes: [{ id: 'n1', label: 'Client' }],
+          timestamp: '2024-01-01',
+        },
+      });
+      render(<LearningToolPart part={part} />);
+      expect(screen.getByTestId('concept-visualizer')).toBeInTheDocument();
+      expect(screen.getByText('System Architecture')).toBeInTheDocument();
+    });
+
+    it('renders InteractiveAnimation for displayAnimation', () => {
+      const part = createToolPart({
+        toolName: 'displayAnimation',
+        state: 'output-available',
+        result: {
+          type: 'animation',
+          name: 'Bubble Sort',
+          width: 600,
+          height: 400,
+          steps: [{
+            id: 's1',
+            title: 'Compare',
+            elements: [{ id: 'e1', type: 'shape', x: 0, y: 0 }],
+            duration: 2000,
+          }],
+          autoPlay: false,
+          timestamp: '2024-01-01',
+        },
+      });
+      render(<LearningToolPart part={part} />);
+      expect(screen.getByTestId('interactive-animation')).toBeInTheDocument();
+      expect(screen.getByText('Bubble Sort')).toBeInTheDocument();
+    });
+
+    it('renders TransformerDiagram for AI/ML concept explanations', () => {
+      const part = createToolPart({
+        toolName: 'displayConceptExplanation',
+        state: 'output-available',
+        result: {
+          title: 'Transformer Architecture',
+          summary: 'How transformers work in deep learning',
+          sections: [],
+        },
+      });
+      render(<LearningToolPart part={part} />);
+      expect(screen.getByTestId('transformer-diagram')).toBeInTheDocument();
+    });
+
+    it('does not render TransformerDiagram for non-AI topics', () => {
+      const part = createToolPart({
+        toolName: 'displayConceptExplanation',
+        state: 'output-available',
+        result: {
+          title: 'Photosynthesis',
+          summary: 'How plants make food',
+          sections: [],
+        },
+      });
+      render(<LearningToolPart part={part} />);
+      expect(screen.queryByTestId('transformer-diagram')).not.toBeInTheDocument();
     });
   });
 

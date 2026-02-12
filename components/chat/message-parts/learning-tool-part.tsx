@@ -31,6 +31,10 @@ import {
   ReviewSessionFromTool,
   ProgressSummaryFromTool,
 } from '@/components/learning/content/review-session';
+import { StepGuide } from '@/components/learning/visualization/step-guide';
+import { ConceptVisualizer } from '@/components/learning/visualization/concept-visualizer';
+import { InteractiveAnimation } from '@/components/learning/visualization/interactive-animation';
+import { TransformerDiagram } from '@/components/learning/visualization/transformer-diagram';
 import type {
   LearningToolOutput,
   FlashcardToolOutput,
@@ -40,6 +44,9 @@ import type {
   ReviewSessionToolOutput,
   ProgressSummaryToolOutput,
   ConceptExplanationToolOutput,
+  StepGuideToolOutput,
+  ConceptMapToolOutput,
+  AnimationToolOutput,
 } from '@/lib/ai/tools/learning-tools';
 import type { ToolInvocationPart } from '@/types/core/message';
 
@@ -54,6 +61,9 @@ export const LEARNING_TOOL_NAMES = [
   'displayReviewSession',
   'displayProgressSummary',
   'displayConceptExplanation',
+  'displayStepGuide',
+  'displayConceptMap',
+  'displayAnimation',
 ] as const;
 
 export type LearningToolName = typeof LEARNING_TOOL_NAMES[number];
@@ -88,6 +98,9 @@ const LearningToolLoading = memo(function LearningToolLoading({
     displayReviewSession: t('loading.reviewSession'),
     displayProgressSummary: t('loading.progressSummary'),
     displayConceptExplanation: t('loading.conceptExplanation'),
+    displayStepGuide: t('loading.stepGuide'),
+    displayConceptMap: t('loading.conceptMap'),
+    displayAnimation: t('loading.animation'),
   };
 
   return (
@@ -266,12 +279,99 @@ export const LearningToolPart = memo(function LearningToolPart({
           </div>
         );
 
-      case 'displayConceptExplanation':
+      case 'displayConceptExplanation': {
+        const conceptOutput = output as ConceptExplanationToolOutput;
+        const isAIMLTopic = conceptOutput.title?.toLowerCase().match(/transformer|attention|neural|deep learning|machine learning|nlp|gpt|bert|llm/);
         return (
-          <div className={className}>
-            <ConceptExplanation output={output as ConceptExplanationToolOutput} />
+          <div className={cn('space-y-4', className)}>
+            <ConceptExplanation output={conceptOutput} />
+            {isAIMLTopic && (
+              <TransformerDiagram compact interactive />
+            )}
           </div>
         );
+      }
+
+      case 'displayStepGuide': {
+        const guideOutput = output as StepGuideToolOutput;
+        return (
+          <div className={className}>
+            <StepGuide
+              title={guideOutput.title}
+              description={guideOutput.description}
+              steps={guideOutput.steps.map((s) => ({
+                ...s,
+                content: s.content,
+              }))}
+              showProgress={guideOutput.showProgress}
+              allowSkip={guideOutput.allowSkip}
+            />
+          </div>
+        );
+      }
+
+      case 'displayConceptMap': {
+        const mapOutput = output as ConceptMapToolOutput;
+        return (
+          <div className={className}>
+            <ConceptVisualizer
+              data={{
+                id: `concept-map-${mapOutput.timestamp}`,
+                title: mapOutput.title,
+                description: mapOutput.description,
+                type: mapOutput.visualizationType,
+                nodes: mapOutput.nodes.map((n) => ({
+                  ...n,
+                  type: n.type || 'default',
+                })),
+                connections: mapOutput.connections,
+                tags: mapOutput.tags,
+              }}
+              interactive
+              showDetails
+            />
+          </div>
+        );
+      }
+
+      case 'displayAnimation': {
+        const animOutput = output as AnimationToolOutput;
+        return (
+          <div className={className}>
+            <InteractiveAnimation
+              scene={{
+                id: `animation-${animOutput.timestamp}`,
+                name: animOutput.name,
+                description: animOutput.description,
+                width: animOutput.width,
+                height: animOutput.height,
+                steps: animOutput.steps.map((s) => ({
+                  id: s.id,
+                  title: s.title,
+                  description: s.description,
+                  duration: s.duration ?? 2000,
+                  elements: s.elements.map((e) => ({
+                    id: e.id,
+                    type: e.type as 'text' | 'shape' | 'arrow' | 'highlight' | 'group',
+                    x: e.x ?? 0,
+                    y: e.y ?? 0,
+                    width: e.width,
+                    height: e.height,
+                    content: e.content,
+                    fill: e.fill,
+                    stroke: e.stroke,
+                    tooltip: e.tooltip,
+                  })),
+                })),
+                difficulty: animOutput.difficulty,
+              }}
+              autoPlay={animOutput.autoPlay}
+              showControls
+              showProgress
+            />
+          </div>
+        );
+      }
 
       default:
         return null;

@@ -6,6 +6,7 @@
  */
 
 import type { UsageRecord } from '@/types/system/usage';
+import { formatCost as _internalFormatCost } from '@/lib/observability';
 
 /**
  * Time period for analytics aggregation
@@ -415,27 +416,8 @@ export function getDailyUsageSummary(records: UsageRecord[]): {
   };
 }
 
-/**
- * Format cost for display (USD only, for locale-aware formatting use useCurrencyFormat hook)
- */
-export function formatCost(cost: number): string {
-  if (cost < 0.01) return '< $0.01';
-  if (cost < 1) return `$${cost.toFixed(3)}`;
-  return `$${cost.toFixed(2)}`;
-}
-
-/**
- * Format token count for display
- */
-export function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`;
-  }
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}K`;
-  }
-  return tokens.toString();
-}
+// Re-export canonical formatting functions from @/lib/observability
+export { formatCost, formatTokens } from '@/lib/observability';
 
 /**
  * Get usage recommendations based on patterns
@@ -474,7 +456,7 @@ export function getUsageRecommendations(
   // Check potential savings
   if (efficiency.potentialSavings > 1) {
     recommendations.push(
-      `Potential savings of ${formatCost(efficiency.potentialSavings)} by optimizing model selection.`
+      `Potential savings of ${_internalFormatCost(efficiency.potentialSavings)} by optimizing model selection.`
     );
   }
 

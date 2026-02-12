@@ -29,6 +29,8 @@ import {
   NativeToolSidebar,
   NativeToolMobileNav,
   NATIVE_TOOLS,
+  PlatformBadge,
+  usePlatform,
 } from '@/components/native';
 import { isTauri } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
@@ -36,6 +38,7 @@ import { cn } from '@/lib/utils';
 export default function NativeToolsPage() {
   const t = useTranslations('nativeToolsPage');
   const [activeTab, setActiveTab] = useState('clipboard');
+  const platform = usePlatform();
 
   const isDesktop = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -106,6 +109,7 @@ export default function NativeToolsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <PlatformBadge platform={platform} />
           <Tooltip>
             <TooltipTrigger asChild>
               <Link href="/settings/native-tools">

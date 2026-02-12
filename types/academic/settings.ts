@@ -5,6 +5,7 @@
 
 import type { AcademicProviderType } from './provider';
 import type { PaperReadingStatus } from './library';
+import type { ZoteroConfig } from '@/lib/academic/zotero-integration';
 
 // ============================================================================
 // Settings Types
@@ -46,6 +47,9 @@ export interface AcademicModeSettings {
   defaultView: 'grid' | 'list' | 'table';
   showCitationCounts: boolean;
   showAbstractPreview: boolean;
+
+  // Zotero integration
+  zoteroConfig?: ZoteroConfig | null;
 }
 
 export const DEFAULT_ACADEMIC_SETTINGS: AcademicModeSettings = {

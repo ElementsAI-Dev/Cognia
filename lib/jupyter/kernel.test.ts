@@ -52,6 +52,8 @@ import {
   checkKernelAvailable,
   ensureKernel,
   shutdownAll,
+  cleanup,
+  getKernelConfig,
   onKernelStatus,
   onKernelOutput,
   onCellOutput,
@@ -698,6 +700,55 @@ describe('Jupyter Kernel Service', () => {
         await shutdownAll();
 
         expect(mockInvoke).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('cleanup', () => {
+      it('should cleanup when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockResolvedValue(undefined);
+
+        await cleanup();
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_cleanup');
+      });
+
+      it('should do nothing when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        await cleanup();
+
+        expect(mockInvoke).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('getKernelConfig', () => {
+      it('should get kernel config when in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(true);
+        const mockConfig = { timeoutSecs: 60, maxOutputSize: 1048576 };
+        mockInvoke.mockResolvedValue(mockConfig);
+
+        const result = await getKernelConfig();
+
+        expect(mockInvoke).toHaveBeenCalledWith('jupyter_get_config');
+        expect(result).toEqual(mockConfig);
+      });
+
+      it('should return null when not in Tauri environment', async () => {
+        mockIsTauri.mockReturnValue(false);
+
+        const result = await getKernelConfig();
+
+        expect(result).toBeNull();
+      });
+
+      it('should return null on error', async () => {
+        mockIsTauri.mockReturnValue(true);
+        mockInvoke.mockRejectedValue(new Error('Failed'));
+
+        const result = await getKernelConfig();
+
+        expect(result).toBeNull();
       });
     });
   });

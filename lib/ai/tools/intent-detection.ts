@@ -17,7 +17,7 @@ export interface IntentDetectionResult {
   /** Whether any special intent was detected */
   hasIntent: boolean;
   /** The detected intent type */
-  intentType: 'learning' | 'research' | 'agent' | null;
+  intentType: 'learning' | 'research' | 'agent' | 'app' | null;
   /** Suggested mode to switch to */
   suggestedMode: ChatMode | null;
   /** Confidence score (0-1) */
@@ -98,6 +98,24 @@ const AGENT_PATTERNS = {
 };
 
 /**
+ * App builder intent patterns
+ */
+const APP_BUILDER_PATTERNS = {
+  chinese: [
+    /(?:帮我|请|我想|我要|我需要).*(?:制作|创建|生成|做|构建|开发).*(?:app|应用|小程序|工具|小工具|组件)/i,
+    /(?:做|创建|生成|制作|建)一个.*(?:计算器|计时器|待办|笔记|表单|问卷|仪表盘|追踪器)/i,
+    /(?:帮我做|给我做|帮我弄).*(?:一个|个).*(?:app|应用|小工具)/i,
+    /(?:能不能|可以).*(?:做|制作|生成).*(?:app|应用|小程序)/i,
+  ],
+  english: [
+    /(?:build|create|make|generate|develop).*(?:an? )?(?:app|application|mini.?app|tool|widget)/i,
+    /(?:build|create|make|generate).*(?:calculator|timer|todo|notes|form|dashboard|tracker)/i,
+    /(?:i want|i need|can you).*(?:build|create|make).*(?:app|application|tool)/i,
+    /(?:make me|build me|create me).*(?:an? )?(?:app|tool|widget)/i,
+  ],
+};
+
+/**
  * Calculate pattern match score
  */
 function calculatePatternScore(
@@ -133,12 +151,14 @@ export function detectUserIntent(message: string): IntentDetectionResult {
   const learningResult = calculatePatternScore(lowerMessage, LEARNING_PATTERNS);
   const researchResult = calculatePatternScore(lowerMessage, RESEARCH_PATTERNS);
   const agentResult = calculatePatternScore(lowerMessage, AGENT_PATTERNS);
+  const appResult = calculatePatternScore(lowerMessage, APP_BUILDER_PATTERNS);
 
   // Determine the dominant intent
   const scores = [
     { type: 'learning' as const, score: learningResult.score, matched: learningResult.matched, mode: 'learning' as ChatMode },
     { type: 'research' as const, score: researchResult.score, matched: researchResult.matched, mode: 'research' as ChatMode },
     { type: 'agent' as const, score: agentResult.score, matched: agentResult.matched, mode: 'agent' as ChatMode },
+    { type: 'app' as const, score: appResult.score, matched: appResult.matched, mode: 'agent' as ChatMode },
   ];
 
   // Find the highest scoring intent
@@ -158,6 +178,9 @@ export function detectUserIntent(message: string): IntentDetectionResult {
         break;
       case 'agent':
         reason = '检测到复杂任务意图：您似乎需要执行复杂任务。Agent模式可以使用工具自动完成任务。';
+        break;
+      case 'app':
+        reason = '检测到应用创建意图：您似乎想要创建一个小应用。Agent模式可以使用App Builder工具为您生成交互式应用。';
         break;
     }
 

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/input-group';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { NativeToolHeader } from '../layout/native-tool-header';
 import {
   Copy,
   Pin,
@@ -23,7 +24,6 @@ import {
   FileText,
   File,
   X,
-  RefreshCw,
   Clipboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -77,36 +77,14 @@ export function ClipboardHistoryPanel({ className, onSelect }: ClipboardHistoryP
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
-            <Clipboard className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold leading-none">
-              {t('title') || 'Clipboard History'}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t('itemCount', { count: history.length })}
-            </p>
-          </div>
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => fetchHistory()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('refresh')}</TooltipContent>
-        </Tooltip>
-      </div>
+      <NativeToolHeader
+        icon={Clipboard}
+        title={t('title') || 'Clipboard History'}
+        description={t('itemCount', { count: history.length })}
+        onRefresh={() => fetchHistory()}
+        isRefreshing={isLoading}
+        refreshLabel={t('refresh')}
+      />
 
       {/* Search */}
       <div className="flex items-center gap-2 p-3 border-b shrink-0">

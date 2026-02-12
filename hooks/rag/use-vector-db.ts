@@ -8,6 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useVectorStore } from '@/stores';
 import { useSettingsStore } from '@/stores';
+import { useDocumentStore } from '@/stores';
 import { getPluginEventHooks } from '@/lib/plugin';
 import {
   createVectorStore,
@@ -92,6 +93,10 @@ export interface UseVectorDBReturn {
   // Utils
   getDocumentCount: () => Promise<number>;
   clearCollection: () => Promise<void>;
+
+  // Document indexing status
+  markAsIndexed: (id: string, collectionId: string) => void;
+  markAsNotIndexed: (id: string) => void;
 }
 
 export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn {
@@ -103,6 +108,8 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
 
   const vectorStore = useVectorStore();
   const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const markAsIndexed = useDocumentStore((s) => s.markAsIndexed);
+  const markAsNotIndexed = useDocumentStore((s) => s.markAsNotIndexed);
   const embeddingProvider = vectorStore.settings.embeddingProvider;
 
   // Get API key for embeddings
@@ -339,6 +346,9 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
 
         getPluginEventHooks().dispatchDocumentsIndexed(collectionName, 1);
 
+        // Mark document as indexed in document store
+        markAsIndexed(docId, collectionName);
+
         return docId;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to add document');
@@ -347,7 +357,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         setIsLoading(false);
       }
     },
-    [collectionName, store, vectorStore]
+    [collectionName, store, vectorStore, markAsIndexed]
   );
 
   // Add batch of documents
@@ -378,6 +388,11 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
 
         getPluginEventHooks().dispatchDocumentsIndexed(collectionName, docs.length);
 
+        // Mark all documents as indexed in document store
+        for (const doc of docs) {
+          markAsIndexed(doc.id, collectionName);
+        }
+
         return docs.map((d) => d.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to add documents');
@@ -386,7 +401,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         setIsLoading(false);
       }
     },
-    [collectionName, store, vectorStore]
+    [collectionName, store, vectorStore, markAsIndexed]
   );
 
   // Remove documents
@@ -397,6 +412,10 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
       try {
         if (!store) throw new Error('Vector store not available');
         await store.deleteDocuments(collectionName, ids);
+        // Mark documents as not indexed in document store
+        for (const id of ids) {
+          markAsNotIndexed(id);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to remove documents');
         throw err;
@@ -404,7 +423,7 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
         setIsLoading(false);
       }
     },
-    [collectionName, store]
+    [collectionName, store, markAsNotIndexed]
   );
 
   // Search
@@ -669,7 +688,9 @@ export function useVectorDB(options: UseVectorDBOptions = {}): UseVectorDBReturn
     embedBatch,
     getDocumentCount,
     clearCollection,
+
+    // Document indexing status
+    markAsIndexed,
+    markAsNotIndexed,
   };
 }
-
-export default useVectorDB;

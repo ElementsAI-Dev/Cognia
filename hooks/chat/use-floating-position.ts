@@ -220,4 +220,4 @@ export function useFloatingPosition(config: FloatingPositionConfig): FloatingPos
   };
 }
 
-export default useFloatingPosition;
+

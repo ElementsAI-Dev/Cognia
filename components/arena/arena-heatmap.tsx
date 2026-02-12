@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { getWinRateColor, getWinRateText, buildWinRateMatrix } from '@/lib/arena';
+import { getWinRateColor, getWinRateText, buildWinRateMatrix, expectedWinProbability } from '@/lib/arena';
 import type { MatrixModelInfo } from '@/lib/arena';
 import { useArenaStore } from '@/stores/arena';
 import type { ArenaHeadToHead } from '@/types/arena';
@@ -225,11 +225,21 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
                             {t('heatmap.winRate')}: {getWinRateText(data.winRate)}
                           </p>
                           <p className="text-xs text-muted-foreground">
+                            {t('heatmap.expectedWinRate', { fallback: 'Expected' })}:{' '}
+                            {(expectedWinProbability(rowModel.rating, colModel.rating) * 100).toFixed(0)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
                             {t('heatmap.gamesPlayed', { count: data.games })}
                           </p>
                         </div>
                       ) : (
-                        <p className="text-xs">{t('heatmap.noBattlesYet')}</p>
+                        <div className="space-y-1">
+                          <p className="text-xs">{t('heatmap.noBattlesYet')}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t('heatmap.expectedWinRate', { fallback: 'Expected' })}:{' '}
+                            {(expectedWinProbability(rowModel.rating, colModel.rating) * 100).toFixed(0)}%
+                          </p>
+                        </div>
                       )}
                     </TooltipContent>
                   </Tooltip>

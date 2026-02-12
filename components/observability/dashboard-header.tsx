@@ -57,6 +57,7 @@ interface DashboardHeaderProps {
   langfuseEnabled?: boolean;
   openTelemetryEnabled?: boolean;
   onClose?: () => void;
+  recordCount?: number;
 }
 
 export function DashboardHeader({
@@ -73,6 +74,7 @@ export function DashboardHeader({
   langfuseEnabled,
   openTelemetryEnabled,
   onClose,
+  recordCount,
 }: DashboardHeaderProps) {
   const t = useTranslations('observability.dashboard');
   const tTime = useTranslations('observability.timeRange');
@@ -90,6 +92,11 @@ export function DashboardHeader({
             <p className="text-xs text-muted-foreground">
               {t('subtitle') || 'Monitor AI usage and performance'}
             </p>
+            {recordCount != null && recordCount > 0 && (
+              <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5">
+                {recordCount.toLocaleString()} {t('records') || 'records'}
+              </Badge>
+            )}
             {langfuseEnabled && (
               <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />

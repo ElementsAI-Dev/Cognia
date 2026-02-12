@@ -2,6 +2,8 @@
  * Canvas Utilities - Shared utility functions for Canvas components
  */
 
+import type { CollaborationConnectionState } from '@/types/canvas/panel';
+
 /**
  * Format a date relative to now (e.g., "just now", "5 minutes ago", "3 days ago")
  */
@@ -169,7 +171,7 @@ export function exportCanvasDocument(title: string, content: string, language: s
 /**
  * Get CSS color class for collaboration connection state
  */
-export function getConnectionStatusColor(state: string): string {
+export function getConnectionStatusColor(state: CollaborationConnectionState): string {
   switch (state) {
     case 'connected':
       return 'text-green-500';

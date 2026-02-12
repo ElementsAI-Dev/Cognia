@@ -317,6 +317,16 @@ describe('useAcademicStore', () => {
       expect(result.current.activeTab).toBe('library');
     });
 
+    it('should set active tab to knowledge', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      act(() => {
+        result.current.setActiveTab('knowledge');
+      });
+
+      expect(result.current.activeTab).toBe('knowledge');
+    });
+
     it('should set selected paper', () => {
       const { result } = renderHook(() => useAcademicStore());
 
@@ -716,6 +726,43 @@ describe('useAcademicStore', () => {
 
       const history = result.current.getAnalysisHistory('paper-1');
       expect(history).toEqual([]);
+    });
+  });
+
+  describe('Zotero Actions', () => {
+    it('should have Zotero actions available', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      expect(result.current.setZoteroConfig).toBeDefined();
+      expect(result.current.syncWithZotero).toBeDefined();
+      expect(result.current.importFromZotero).toBeDefined();
+      expect(result.current.exportToZoteroBibTeX).toBeDefined();
+    });
+
+    it('should set and clear Zotero config', () => {
+      const { result } = renderHook(() => useAcademicStore());
+
+      const config = {
+        apiKey: 'test-key',
+        userId: 'user1',
+        libraryType: 'user' as const,
+        libraryId: 'lib1',
+        syncEnabled: true,
+        autoSync: false,
+        syncInterval: 5,
+      };
+
+      act(() => {
+        result.current.setZoteroConfig(config);
+      });
+
+      expect(result.current.settings.zoteroConfig).toEqual(config);
+
+      act(() => {
+        result.current.setZoteroConfig(null);
+      });
+
+      expect(result.current.settings.zoteroConfig).toBeNull();
     });
   });
 

@@ -67,6 +67,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
+import { NativeToolHeader } from '../layout/native-tool-header';
 import { useProcessManager } from '@/hooks/agent/use-process-manager';
 import type { ProcessInfo } from '@/lib/native/process';
 import { ProcessDetailPanel } from './process-detail-panel';
@@ -272,20 +273,15 @@ export function ProcessPanel({ className }: ProcessPanelProps) {
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
-            <Cpu className="h-4 w-4 text-blue-500" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t('processCount', { count: stats.total })} · {formatBytes(stats.totalMemory)}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
+      <NativeToolHeader
+        icon={Cpu}
+        iconClassName="bg-blue-500/10 text-blue-500"
+        title={t('title')}
+        description={`${t('processCount', { count: stats.total })} · ${formatBytes(stats.totalMemory)}`}
+        onRefresh={() => refresh()}
+        isRefreshing={isLoading}
+        refreshLabel={t('refresh')}
+        actions={
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -305,22 +301,8 @@ export function ProcessPanel({ className }: ProcessPanelProps) {
               {autoRefresh ? t('autoRefreshOn') : t('autoRefreshOff')}
             </TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => refresh()}
-                disabled={isLoading}
-              >
-                <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('refresh')}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stats Bar */}
       <div className="flex items-center gap-3 px-3 py-2 border-b text-xs text-muted-foreground shrink-0 flex-wrap">
@@ -601,5 +583,3 @@ export function ProcessPanel({ className }: ProcessPanelProps) {
     </div>
   );
 }
-
-export default ProcessPanel;

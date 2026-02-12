@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-31T12:00:00.000Z",
-  "scanVersion": "2.0.0",
+  "timestamp": "2026-02-13T00:00:00.000Z",
+  "scanVersion": "2.1.0",
   "project": {
     "name": "Cognia",
     "description": "AI-native chat and creation application with multi-provider support",
@@ -58,11 +58,13 @@
       "type": "frontend",
       "description": "Feature-based React components (50+ directories)",
       "subdirectories": [
+        "a2ui",
         "ai-elements",
         "agent",
         "artifacts",
         "canvas",
         "chat",
+        "chat-widget",
         "designer",
         "export",
         "image-studio",
@@ -76,6 +78,7 @@
         "prompt",
         "providers",
         "screenshot",
+        "screen-recording",
         "selection-toolbar",
         "settings",
         "sidebar",
@@ -100,6 +103,9 @@
         "@monaco-editor/react",
         "@xyflow/react"
       ],
+      "newFiles": [
+        "components/a2ui/academic/a2ui-analysis-adapter.tsx"
+      ],
       "documentation": "components/CLAUDE.md",
       "status": "documented"
     },
@@ -109,6 +115,7 @@
       "type": "frontend",
       "description": "Domain utilities and business logic",
       "subdirectories": [
+        "a2ui",
         "ai",
         "academic",
         "canvas",
@@ -145,6 +152,13 @@
       "tests": true,
       "testCount": 50,
       "coverage": "good",
+      "newFiles": [
+        "lib/ai/tools/app-builder-tool.ts"
+      ],
+      "removedFiles": [
+        "lib/document/document-storage.ts",
+        "lib/export/document/word-export.ts"
+      ],
       "exclusions": [
         "lib/search/ - External APIs",
         "lib/vector/ - External services",
@@ -182,6 +196,10 @@
       "tests": true,
       "testCount": 20,
       "coverage": "good",
+      "removedFiles": [
+        "hooks/mcp/use-mcp-favorites.ts",
+        "hooks/mcp/use-mcp-recently-viewed.ts"
+      ],
       "documentation": "hooks/CLAUDE.md",
       "status": "documented"
     },
@@ -228,6 +246,9 @@
       "tests": true,
       "testCount": 20,
       "coverage": "good",
+      "newFiles": [
+        "stores/academic/slices/zotero-slice.ts"
+      ],
       "keyPattern": "Zustand with persist middleware",
       "documentation": "stores/CLAUDE.md",
       "status": "documented"
@@ -422,6 +443,19 @@
   ],
   "changelog": [
     {
+      "date": "2026-02-13",
+      "changes": [
+        "Added A2UI Analysis Adapter for Academic mode integration",
+        "Added App Builder Tools for AI-driven mini-app creation",
+        "Added Zotero integration slice for academic paper management",
+        "Enhanced Quick App Builder with template cards and flash generation",
+        "Removed deprecated MCP favorites and recently-viewed hooks",
+        "Removed document-storage and word-export modules",
+        "Tool Registry now includes 40+ tools",
+        "Updated module structure diagram with A2UI components"
+      ]
+    },
+    {
       "date": "2026-01-31",
       "changes": [
         "Documentation system refreshed and verified",
@@ -462,7 +496,8 @@
       "localProviders": 13,
       "aggregators": 1,
       "autoRouter": "three-tier",
-      "agentSystem": "three-tier"
+      "agentSystem": "three-tier",
+      "tools": 40
     },
     "desktop": {
       "windows": 5,
@@ -493,6 +528,32 @@
       "e2eTests": 100,
       "frameworks": ["Jest", "Playwright"],
       "coverage": "55% lines, 50% branches"
+    },
+    "a2ui": {
+      "description": "AI-driven mini-app system",
+      "features": [
+        "Quick App Builder",
+        "Template-based creation",
+        "Flash generation from descriptions",
+        "Academic analysis integration"
+      ],
+      "templates": [
+        "calculators",
+        "timers",
+        "todo lists",
+        "forms",
+        "trackers",
+        "dashboards",
+        "converters"
+      ]
+    },
+    "academic": {
+      "description": "Research paper management and analysis",
+      "features": [
+        "Paper search (arXiv, Semantic Scholar, OpenAlex)",
+        "Zotero integration",
+        "Paper analysis and comparison"
+      ]
     }
   }
 }

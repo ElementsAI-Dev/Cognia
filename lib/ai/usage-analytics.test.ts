@@ -264,7 +264,7 @@ describe('Usage Analytics', () => {
 
   describe('formatCost', () => {
     it('should format small costs', () => {
-      expect(formatCost(0.001)).toBe('< $0.01');
+      expect(formatCost(0.001)).toBe('$0.0010');
     });
 
     it('should format medium costs', () => {
@@ -278,7 +278,7 @@ describe('Usage Analytics', () => {
 
   describe('formatTokens', () => {
     it('should format small token counts', () => {
-      expect(formatTokens(500)).toBe('500');
+      expect(formatTokens(500)).toBe('500');  // toFixed(0) returns string
     });
 
     it('should format thousands', () => {

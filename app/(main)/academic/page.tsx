@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Library, BarChart3, ArrowLeftRight, Brain, GraduationCap, Lightbulb, Wand2 } from 'lucide-react';
+import { Search, Library, BarChart3, ArrowLeftRight, Brain, GraduationCap, Lightbulb, Wand2, Map } from 'lucide-react';
 import { PaperSearch } from '@/components/academic/paper-search';
 import { PaperLibrary } from '@/components/academic/paper-library';
 import { PaperDetail } from '@/components/academic/paper-detail';
@@ -16,10 +16,11 @@ import { PaperComparison } from '@/components/academic/paper-comparison';
 import { PaperRecommendations } from '@/components/academic/paper-recommendations';
 import { SmartCollections } from '@/components/academic/smart-collections';
 import { AcademicChatPanel } from '@/components/academic/academic-chat-panel';
+import { KnowledgeMapPanel } from '@/components/academic/knowledge-map-panel';
 import { useAcademicStore } from '@/stores/academic';
 import type { LibraryPaper, Paper } from '@/types/academic';
 
-type AcademicTab = 'search' | 'library' | 'stats' | 'compare' | 'recommend' | 'smart' | 'analysis';
+type AcademicTab = 'search' | 'library' | 'stats' | 'compare' | 'recommend' | 'smart' | 'analysis' | 'knowledge';
 
 export default function AcademicPage() {
   const t = useTranslations('academic');
@@ -80,6 +81,10 @@ export default function AcademicPage() {
               <Wand2 className="h-4 w-4" />
               {t('tabs.smart')}
             </TabsTrigger>
+            <TabsTrigger value="knowledge" className="gap-2 text-sm">
+              <Map className="h-4 w-4" />
+              {t('tabs.knowledge')}
+            </TabsTrigger>
             <TabsTrigger value="analysis" className="gap-2 text-sm" data-tour="academic-writing">
               <Brain className="h-4 w-4" />
               {t('tabs.ai')}
@@ -109,6 +114,10 @@ export default function AcademicPage() {
         
         <TabsContent value="smart" className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
           <SmartCollections className="flex-1" />
+        </TabsContent>
+        
+        <TabsContent value="knowledge" className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <KnowledgeMapPanel className="flex-1" />
         </TabsContent>
         
         <TabsContent value="analysis" className="flex-1 mt-0 data-[state=active]:flex data-[state=active]:flex-col">

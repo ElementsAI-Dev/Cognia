@@ -14,11 +14,8 @@ import {
   ToolInput,
   ToolOutput,
 } from '@/components/ai-elements/tool';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -39,7 +36,12 @@ import {
 import type { ToolInvocationPart, ToolState } from '@/types/core/message';
 import type { McpServerStatus } from '@/types/mcp';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
+import { A2UIInlineSurface } from '@/components/a2ui/a2ui-surface';
 import { MCPServerBadge } from '@/components/mcp';
+import { MCPProgressIndicator } from '@/components/mcp/mcp-progress-indicator';
+import { MCPErrorDisplay } from '@/components/mcp/mcp-error-display';
+import { MCPCallDetails } from '@/components/mcp/mcp-call-details';
+import { formatToolName, formatDuration } from '@/lib/mcp/format-utils';
 
 interface ToolPartProps {
   part: ToolInvocationPart;
@@ -54,22 +56,6 @@ interface ToolPartProps {
   onRetry?: () => void;
   onApprove?: () => void;
   onDeny?: () => void;
-}
-
-// Helper to format tool name for display
-function formatToolName(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-// Format duration for display
-function formatDuration(ms?: number): string {
-  if (!ms) return '';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
 }
 
 // Map our extended tool state to the AI SDK's expected states
@@ -125,6 +111,13 @@ function StateIndicator({ state }: { state: ToolState }) {
       config.animate && 'animate-pulse'
     )} />
   );
+}
+
+// Check if tool result is from app builder with a rendered surface
+function isAppBuilderResult(toolName: string, result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const APP_BUILDER_TOOLS = ['app_generate', 'app_create_from_template'];
+  return APP_BUILDER_TOOLS.includes(toolName) && 'appId' in result && (result as { success?: boolean }).success === true;
 }
 
 export function ToolPart({ 
@@ -281,14 +274,12 @@ export function ToolPart({
         
         {/* Running progress indicator */}
         {isRunning && (
-          <div className="px-4 py-2 space-y-2">
-            <Progress value={undefined} className="h-1" />
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-3 w-3 rounded-full" />
-              <p className="text-xs text-muted-foreground animate-pulse">
-                {t('executing')}...
-              </p>
-            </div>
+          <div className="px-4 py-2">
+            <MCPProgressIndicator
+              state="running"
+              startedAt={part.startedAt ? new Date(part.startedAt) : undefined}
+              showElapsedTime
+            />
           </div>
         )}
         
@@ -332,16 +323,32 @@ export function ToolPart({
         ) : null}
         
         <ToolInput input={part.args} />
+
+        {/* Detailed call info panel */}
+        {showDetails && serverId && isComplete && (
+          <div className="px-4 py-3 border-b border-border/30">
+            <MCPCallDetails
+              callId={part.toolCallId}
+              serverId={serverId}
+              serverName={serverName}
+              toolName={part.toolName}
+              args={part.args as Record<string, unknown>}
+              result={part.result}
+              error={part.errorText}
+              startedAt={part.startedAt ? new Date(part.startedAt) : undefined}
+              endedAt={part.completedAt ? new Date(part.completedAt) : undefined}
+              maxHeight={300}
+            />
+          </div>
+        )}
         
         {isError && part.errorText ? (
           <div className="px-4 py-3">
-            <Alert variant="destructive">
-              <XCircle className="h-4 w-4" />
-              <AlertTitle>{t('errorOccurred')}</AlertTitle>
-              <AlertDescription className="whitespace-pre-wrap break-words">
-                {part.errorText}
-              </AlertDescription>
-            </Alert>
+            <MCPErrorDisplay
+              error={part.errorText}
+              onRetry={onRetry}
+              compact={!showDetails}
+            />
           </div>
         ) : null}
         
@@ -353,7 +360,17 @@ export function ToolPart({
               output={part.result}
             />
           ) : (
-            <ToolOutput output={part.result} errorText={part.errorText} />
+            <>
+              <ToolOutput output={part.result} errorText={part.errorText} />
+              {isAppBuilderResult(part.toolName, part.result) && (
+                <div className="px-4 pb-3">
+                  <A2UIInlineSurface
+                    surfaceId={(part.result as { appId: string }).appId}
+                    className="mt-2"
+                  />
+                </div>
+              )}
+            </>
           )
         ) : null}
       </ToolContent>

@@ -92,7 +92,8 @@
     "cost": "Cost",
     "viewFullReport": "View Full Report",
     "showArchived": "Show Archived",
-    "showActive": "Show Active"
+    "showActive": "Show Active",
+    "viewAll": "View All"
   },
   "mobileNav": {
     "home": "Home",

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useCollaborativeSession } from '@/hooks/canvas';
 import { getConnectionStatusColor } from '@/lib/canvas/utils';
 import type { Participant } from '@/types/canvas/collaboration';
+import type { CollaborationConnectionState } from '@/types/canvas/panel';
 
 interface CollaborationPanelProps {
   documentId: string;
@@ -72,8 +73,8 @@ export function CollaborationPanel({
     }
   }, [joinSession, joinSessionId]);
 
-  const getConnectionStatusText = () => {
-    switch (connectionState) {
+  const getConnectionStatusText = (state: CollaborationConnectionState) => {
+    switch (state) {
       case 'connected':
         return t('connected');
       case 'connecting':
@@ -116,11 +117,11 @@ export function CollaborationPanel({
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
             <div className="flex items-center gap-2">
               {isConnected ? (
-                <Wifi className={cn('h-4 w-4', getConnectionStatusColor(connectionState))} />
+                <Wifi className={cn('h-4 w-4', getConnectionStatusColor(connectionState as CollaborationConnectionState))} />
               ) : (
-                <WifiOff className={cn('h-4 w-4', getConnectionStatusColor(connectionState))} />
+                <WifiOff className={cn('h-4 w-4', getConnectionStatusColor(connectionState as CollaborationConnectionState))} />
               )}
-              <span className="text-sm">{getConnectionStatusText()}</span>
+              <span className="text-sm">{getConnectionStatusText(connectionState as CollaborationConnectionState)}</span>
             </div>
             {session && (
               <Badge variant="outline" className="text-xs">

@@ -41,7 +41,7 @@ import { Label } from '@/components/ui/label';
 import { useArtifactStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import type { CanvasDocumentVersion } from '@/types';
-import { VersionDiffView } from './version-diff-view';
+import { VersionDiffView } from '@/components/artifacts/version-diff-view';
 
 interface VersionHistoryPanelProps {
   documentId: string;

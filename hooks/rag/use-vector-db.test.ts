@@ -17,6 +17,13 @@ const mockListCollections = jest.fn();
 const mockGetCollectionInfo = jest.fn();
 const mockGetStats = jest.fn();
 
+jest.mock('@/lib/plugin', () => ({
+  getPluginEventHooks: jest.fn(() => ({
+    dispatchDocumentsIndexed: jest.fn(),
+    dispatchVectorSearch: jest.fn(),
+  })),
+}));
+
 jest.mock('@/lib/vector', () => ({
   createVectorStore: jest.fn(() => ({
     provider: 'native',
@@ -38,8 +45,18 @@ jest.mock('@/lib/vector', () => ({
   })),
 }));
 
+const mockMarkAsIndexed = jest.fn();
+const mockMarkAsNotIndexed = jest.fn();
+
 jest.mock('@/stores', () => {
   return {
+    useDocumentStore: jest.fn(
+      (selector: (s: Record<string, unknown>) => unknown) =>
+        selector({
+          markAsIndexed: mockMarkAsIndexed,
+          markAsNotIndexed: mockMarkAsNotIndexed,
+        })
+    ),
     useVectorStore: jest.fn(() => ({
       settings: {
         provider: 'native',

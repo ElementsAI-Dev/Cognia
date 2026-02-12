@@ -48,12 +48,18 @@ import {
   Pencil,
   Copy as CopyIcon,
   Trash2,
+  PenTool,
+  Mic,
 } from 'lucide-react';
 import {
   LaTeXEditor,
   LatexEquationDialog,
   TemplateDialogContent,
   TemplateSelector,
+  LatexSketchDialog,
+  LatexVoiceDialog,
+  LatexAIFab,
+  LatexAISidebar,
   type LaTeXEditorHandle,
 } from '@/components/academic/latex-editor';
 import { LaTeXExportDialog } from '@/components/latex';
@@ -72,6 +78,9 @@ export default function LaTeXPage() {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [equationDialogOpen, setEquationDialogOpen] = useState(false);
+  const [sketchDialogOpen, setSketchDialogOpen] = useState(false);
+  const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameDocId, setRenameDocId] = useState<string | null>(null);
@@ -214,6 +223,28 @@ export default function LaTeXPage() {
               </Button>
             }
           />
+
+          {/* Sketch Input */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setSketchDialogOpen(true)}
+          >
+            <PenTool className="h-4 w-4" />
+            {t('sketch', { defaultValue: 'Sketch' })}
+          </Button>
+
+          {/* Voice Input */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setVoiceDialogOpen(true)}
+          >
+            <Mic className="h-4 w-4" />
+            {t('voice', { defaultValue: 'Voice' })}
+          </Button>
 
           <Separator orientation="vertical" className="h-6" />
 
@@ -443,6 +474,35 @@ export default function LaTeXPage() {
           editorRef.current?.insertText(latex);
           setEquationDialogOpen(false);
         }}
+      />
+
+      {/* Sketch to LaTeX Dialog */}
+      <LatexSketchDialog
+        open={sketchDialogOpen}
+        onOpenChange={setSketchDialogOpen}
+        onInsert={(latex) => {
+          editorRef.current?.insertText(latex);
+        }}
+      />
+
+      {/* Voice to LaTeX Dialog */}
+      <LatexVoiceDialog
+        open={voiceDialogOpen}
+        onOpenChange={setVoiceDialogOpen}
+        onInsert={(latex) => {
+          editorRef.current?.insertText(latex);
+        }}
+      />
+
+      {/* AI Floating Action Button - shown when AI panel is closed */}
+      {!aiPanelOpen && !aiSidebarOpen && (
+        <LatexAIFab onClick={() => setAiSidebarOpen(true)} />
+      )}
+
+      {/* AI Sidebar - floating chat overlay */}
+      <LatexAISidebar
+        open={aiSidebarOpen}
+        onClose={() => setAiSidebarOpen(false)}
       />
     </div>
   );

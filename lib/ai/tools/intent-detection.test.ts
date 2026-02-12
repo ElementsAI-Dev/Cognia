@@ -108,6 +108,43 @@ describe('detectUserIntent', () => {
     });
   });
 
+  describe('App Builder Intent Detection', () => {
+    it('detects Chinese app building patterns', () => {
+      const testCases = [
+        '帮我做一个计算器app',
+        '我想创建一个待办事项应用',
+        '请帮我制作一个小工具',
+        '帮我生成一个倒计时器应用',
+      ];
+
+      for (const message of testCases) {
+        const result = detectUserIntent(message);
+        expect(result.hasIntent).toBe(true);
+        expect(result.intentType).toBe('app');
+      }
+    });
+
+    it('detects English app building patterns', () => {
+      const testCases = [
+        'build me a calculator app',
+        'create a todo list application',
+        'make me a timer widget',
+        'generate a tip calculator tool',
+      ];
+
+      for (const message of testCases) {
+        const result = detectUserIntent(message);
+        expect(result.hasIntent).toBe(true);
+        expect(result.intentType).toBe('app');
+      }
+    });
+
+    it('suggests agent mode for app intent', () => {
+      const result = detectUserIntent('build me a calculator app');
+      expect(result.suggestedMode).toBe('agent');
+    });
+  });
+
   describe('No Intent Detection', () => {
     it('returns low or no intent for very general messages', () => {
       // These messages should have low confidence or no special intent

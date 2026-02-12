@@ -8,31 +8,53 @@
 
 Zustand state management stores with localStorage persistence. Stores are organized by domain and manage application state.
 
+## Changelog
+
+### 2026-02-13
+
+- Added Zotero integration slice for academic paper management (`academic/slices/zotero-slice.ts`)
+- Enhanced academic store with Zotero sync capabilities
+- Added A2UI store for mini-apps state management
+
+### 2025-01-14
+
+- Initial module documentation created
+- Indexed 25+ store directories
+- Documented store patterns
+
+---
+
 ## Directory Structure
 
-- `agent/` — Agent execution tracking (agent-store, background-agent-store, sub-agent-store)
+- `agent/` — Agent execution tracking (agent-store, background-agent-store, sub-agent-store, custom-mode-store)
 - `artifact/` — Artifacts, canvas, versions (artifact-store)
 - `chat/` — Chat sessions, widget state (chat-store, chat-widget-store, session-store, quote-store, summary-store)
 - `context/` — Clipboard context (clipboard-context-store)
 - `data/` — Recent files, templates, vectors (recent-files-store, template-store, vector-store, memory-store)
 - `designer/` — Designer state, history (designer-store, designer-history-store)
 - `document/` — Document management (document-store)
-- `learning/` — Learning mode state (learning-store)
+- `learning/` — Learning mode state (learning-store, speedpass-store)
 - `mcp/` — MCP servers, marketplace (mcp-store, mcp-marketplace-store)
-- `media/` — Media, screen recording (media-store, image-studio-store, screen-recording-store)
+- `media/` — Media, screen recording (media-store, image-studio-store, screen-recording-store, screenshot-store, video-editor-store)
 - `project/` — Projects, activities (project-store, project-activity-store)
 - `scheduler/` — Task automation (scheduler-store)
-- `settings/` — User preferences, presets (settings-store, preset-store, custom-theme-store, settings-profiles-store)
+- `settings/` — User preferences, presets (settings-store, preset-store, custom-theme-store, settings-profiles-store, completion-settings-store)
 - `system/` — Native state, proxy, usage (native-store, proxy-store, usage-store, window-store, environment-store, virtual-env-store, ui-store)
 - `tools/` — Skills, tools (skill-store, template-store, ppt-editor-store, jupyter-store)
 - `workflow/` — Workflow definitions and execution (workflow-store, workflow-editor-store)
 - `git/` — Git state (git-store)
-- `a2ui/` — A2UI state (a2ui-store)
-- `academic/` — Academic mode state (academic-store, knowledge-map-store)
+- `a2ui/` — A2UI mini-apps state (a2ui-store)
+- `academic/` — Academic mode state (academic-store, knowledge-map-store, zotero-slice)
 - `plugin/` — Plugin state (plugin-store)
 - `prompt/` — Prompt templates and marketplace (prompt-template-store, prompt-marketplace-store)
 - `tool-history/` — Tool usage history (tool-history-store)
 - `sandbox/` — Sandbox state (sandbox-store)
+- `skills/` — Skills state (skill-store)
+- `skill-seekers/` — SkillSeekers state (skill-seekers-store)
+- `input-completion/` — Input completion state (input-completion-store)
+- `canvas/` — Canvas state (comment-store, keybinding-store, chunked-document-store)
+- `screenshot/` — Screenshot editor state (editor-store)
+- `arena/` — Arena state (arena-store, leaderboard-sync-store)
 
 ## Entry Points
 
@@ -106,6 +128,57 @@ export const useMyStore = create<MyState>()(
 - `useMediaStore` — Images and videos
 - `useImageStudioStore` — Image editing state
 - `useScreenRecordingStore` — Screen recording
+- `useVideoEditorStore` — Video editing state
+
+### Academic Stores
+
+- `useAcademicStore` — Academic mode state
+  - Paper library management
+  - Search results
+  - Analysis state
+- `useKnowledgeMapStore` — Knowledge map state
+- `zotero-slice` — Zotero integration
+  - `setZoteroConfig` — Configure Zotero connection
+  - `syncWithZotero` — Full sync with Zotero library
+  - `importFromZotero` — Import papers from Zotero
+  - `exportToZoteroBibTeX` — Export papers as BibTeX
+
+### A2UI Stores
+
+- `useA2UIStore` — A2UI mini-apps state
+  - Surface management
+  - Message processing
+  - App instance tracking
+
+### Arena Stores
+
+- `useArenaStore` — Arena state
+- `useLeaderboardSyncStore` — Leaderboard synchronization
+
+## Slice Pattern (for complex stores)
+
+Complex stores use slices to organize related functionality:
+
+```typescript
+// stores/academic/slices/zotero-slice.ts
+export interface ZoteroActions {
+  setZoteroConfig: (config: ZoteroConfig | null) => void;
+  syncWithZotero: () => Promise<ZoteroSyncResult | null>;
+  importFromZotero: (query?: string) => Promise<number>;
+  exportToZoteroBibTeX: (paperIds: string[]) => string[];
+}
+
+export function createZoteroSlice(
+  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
+  get: () => AcademicState
+): ZoteroActions {
+  return {
+    setZoteroConfig: (config) => { /* ... */ },
+    syncWithZotero: async () => { /* ... */ },
+    // ...
+  };
+}
+```
 
 ## Selectors
 
@@ -179,11 +252,3 @@ function MyComponent() {
 - `types/` — Type definitions
 - `hooks/` — React hooks
 - `lib/` — Business logic
-
-## Changelog
-
-### 2025-01-14
-
-- Initial module documentation created
-- Indexed 25+ store directories
-- Documented store patterns

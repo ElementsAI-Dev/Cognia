@@ -5,10 +5,11 @@
  * Groups form fields with validation and layout options
  */
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps, A2UIBaseComponent } from '@/types/artifact/a2ui';
 import { A2UIChildRenderer } from '../a2ui-renderer';
+import { useA2UIForm, type ValidationRule } from '@/hooks/a2ui/use-a2ui-form';
 
 export interface A2UIFormGroupComponent extends A2UIBaseComponent {
   component: 'FormGroup';
@@ -19,9 +20,21 @@ export interface A2UIFormGroupComponent extends A2UIBaseComponent {
   columns?: number;
   gap?: number | string;
   required?: boolean;
+  validationRules?: Record<string, ValidationRule>;
+  onSubmit?: (values: Record<string, unknown>) => void;
 }
 
-export const A2UIFormGroup = memo(function A2UIFormGroup({ component }: A2UIComponentProps<A2UIFormGroupComponent>) {
+export const A2UIFormGroup = memo(function A2UIFormGroup({ component, onAction }: A2UIComponentProps<A2UIFormGroupComponent>) {
+  const validationRules = useMemo(() => component.validationRules || {}, [component.validationRules]);
+
+  const form = useA2UIForm({
+    validationRules,
+    onSubmit: (values) => {
+      onAction?.('formSubmit', { values });
+      component.onSubmit?.(values);
+    },
+  });
+
   const layout = component.layout || 'vertical';
   const columns = component.columns || 2;
   const gap = component.gap || 4;
@@ -39,6 +52,7 @@ export const A2UIFormGroup = memo(function A2UIFormGroup({ component }: A2UIComp
     <fieldset
       className={cn('space-y-4', component.className)}
       style={component.style as React.CSSProperties}
+      aria-invalid={!form.isValid && form.isDirty}
     >
       {component.legend && (
         <legend className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">

@@ -225,4 +225,4 @@ export const ChatAssistantFab = forwardRef<HTMLButtonElement, ChatAssistantFabPr
   }
 );
 
-export default ChatAssistantFab;
+

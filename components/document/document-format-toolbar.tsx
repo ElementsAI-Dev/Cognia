@@ -994,4 +994,4 @@ export const DocumentFormatToolbar = memo(function DocumentFormatToolbar({
   );
 });
 
-export default DocumentFormatToolbar;
+

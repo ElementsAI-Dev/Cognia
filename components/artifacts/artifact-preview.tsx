@@ -13,12 +13,7 @@ import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
 import { renderHTML, renderSVG, getReactShellHtml, escapeHtml } from '@/lib/artifacts';
 import type { Artifact, PreviewErrorBoundaryProps, PreviewErrorBoundaryState } from '@/types';
-import {
-  MermaidRenderer,
-  ChartRenderer,
-  MathRenderer,
-  MarkdownRenderer,
-} from './artifact-renderers';
+import { ArtifactRenderer } from './artifact-renderers';
 import { JupyterRenderer } from './jupyter-renderer';
 
 interface ArtifactPreviewProps {
@@ -182,11 +177,16 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
   };
 
   // Render specialized components for non-iframe types
-  if (artifact.type === 'mermaid') {
+  // Delegate to ArtifactRenderer for mermaid, chart, math, document, and code types
+  if (['mermaid', 'math', 'document', 'code'].includes(artifact.type)) {
     return (
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-          <MermaidRenderer content={artifact.content} className="min-h-full" />
+          <ArtifactRenderer
+            type={artifact.type}
+            content={artifact.content}
+            className="min-h-full"
+          />
         </div>
       </PreviewErrorBoundary>
     );
@@ -196,21 +196,12 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
     return (
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-auto bg-background p-4', className)}>
-          <ChartRenderer
+          <ArtifactRenderer
+            type="chart"
             content={artifact.content}
             chartType={artifact.metadata?.chartType}
             className="min-h-[300px]"
           />
-        </div>
-      </PreviewErrorBoundary>
-    );
-  }
-
-  if (artifact.type === 'math') {
-    return (
-      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
-        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-          <MathRenderer content={artifact.content} className="min-h-full" />
         </div>
       </PreviewErrorBoundary>
     );
@@ -221,16 +212,6 @@ export function ArtifactPreview({ artifact, className }: ArtifactPreviewProps) {
       <PreviewErrorBoundary errorMessage={t('previewFailed')}>
         <div className={cn('h-full w-full overflow-hidden bg-background', className)}>
           <JupyterRenderer content={artifact.content} className="h-full" />
-        </div>
-      </PreviewErrorBoundary>
-    );
-  }
-
-  if (artifact.type === 'document') {
-    return (
-      <PreviewErrorBoundary errorMessage={t('previewFailed')}>
-        <div className={cn('h-full w-full overflow-auto bg-background', className)}>
-          <MarkdownRenderer content={artifact.content} className="min-h-full" />
         </div>
       </PreviewErrorBoundary>
     );

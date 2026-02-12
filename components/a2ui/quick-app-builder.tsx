@@ -36,6 +36,7 @@ import { A2UIInlineSurface } from './a2ui-surface';
 import { templateCategories, type A2UIAppTemplate } from '@/lib/a2ui/templates';
 import { generateAppFromDescription } from '@/lib/a2ui/app-generator';
 import { useA2UI } from '@/hooks/a2ui';
+import { useA2UIDataModel } from '@/hooks/a2ui/use-a2ui-data-model';
 import type { ViewMode } from '@/hooks/a2ui/use-app-gallery-filter';
 import type { QuickAppBuilderProps, TabValue } from '@/types/a2ui/app';
 
@@ -61,6 +62,9 @@ export function QuickAppBuilder({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const a2ui = useA2UI({ onAction, onDataChange });
+
+  // Reactive data model for the currently previewed app
+  const previewDataModel = useA2UIDataModel(previewAppId || '');
 
   const appBuilder = useA2UIAppBuilder({
     onAction: (action) => {
@@ -413,6 +417,11 @@ export function QuickAppBuilder({
           <div className="flex items-center justify-between p-2 bg-muted/50">
             <span className="text-xs sm:text-sm font-medium px-2 truncate flex-1">
               {appBuilder.getAppInstance(previewAppId)?.name || t('appPreview')}
+              {Object.keys(previewDataModel.dataModel).length > 0 && (
+                <span className="ml-1 text-[10px] text-muted-foreground">
+                  ({Object.keys(previewDataModel.dataModel).length} fields)
+                </span>
+              )}
             </span>
             <div className="flex items-center gap-1 flex-shrink-0">
               <Button

@@ -12,7 +12,6 @@ export { CostAnalysis } from './cost-analysis';
 export { ObservabilitySettings } from './observability-settings';
 export { ObservabilityButton } from './observability-button';
 export { ObservabilityInitializer } from './observability-initializer';
-export { LogPanel as UnifiedLogPanel } from '@/components/logging';
 
 // Sub-components
 export { StatCard } from './stat-card';
@@ -37,15 +36,3 @@ export {
   RequestsTimelineChart,
 } from './charts';
 
-// Types (re-exported for convenience)
-export type {
-  TraceData,
-  SpanData,
-  MetricsData,
-  TimeRange,
-  DashboardTab,
-  ObservabilitySettingsData,
-  SessionData,
-  SparklineDataPoint,
-  EfficiencyData,
-} from '@/types/observability';

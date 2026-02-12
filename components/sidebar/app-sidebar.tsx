@@ -42,6 +42,8 @@ import {
   GraduationCap,
   BookOpen,
   Terminal,
+  List,
+  LayoutList,
 } from 'lucide-react';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
@@ -84,10 +86,18 @@ import {
 } from '@/components/ui/input-group';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useSessionStore, useSettingsStore, useProjectStore } from '@/stores';
-import { ArtifactListCompact } from '@/components/artifacts';
+import { useSessionStore, useSettingsStore, useProjectStore, useArtifactStore } from '@/stores';
+import { ArtifactListCompact, ArtifactCard, ArtifactInlineRef, ArtifactList, ARTIFACT_TYPE_ICONS } from '@/components/artifacts';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { messageRepository } from '@/lib/db';
 import { KeyboardShortcutsDialog } from '@/components/layout/overlays/keyboard-shortcuts-dialog';
+import { ObservabilityButton } from '@/components/observability';
 import { SidebarUsageStats } from './widgets/sidebar-usage-stats';
 import { SidebarBackgroundTasks } from './widgets/sidebar-background-tasks';
 import { SidebarAgentTeams } from './widgets/sidebar-agent-teams';
@@ -107,6 +117,34 @@ interface SearchResult {
   session: Session;
   matchType: 'title' | 'content';
   snippet?: string;
+}
+
+/**
+ * SidebarArtifactCards - Detailed artifact view using ArtifactCard and ArtifactInlineRef
+ */
+function SidebarArtifactCards({ sessionId }: { sessionId: string }) {
+  const getSessionArtifacts = useArtifactStore((state) => state.getSessionArtifacts);
+
+  const artifacts = useMemo(() => {
+    return getSessionArtifacts(sessionId).slice(0, 5);
+  }, [sessionId, getSessionArtifacts]);
+
+  if (artifacts.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 px-1">
+      {artifacts.slice(0, 3).map((artifact) => (
+        <ArtifactCard key={artifact.id} artifact={artifact} compact />
+      ))}
+      {artifacts.length > 3 && (
+        <div className="flex flex-wrap gap-1 px-1">
+          {artifacts.slice(3).map((artifact) => (
+            <ArtifactInlineRef key={artifact.id} artifact={artifact} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AppSidebar() {
@@ -134,6 +172,9 @@ export function AppSidebar() {
 
   // Archive filter state
   const [showArchived, setShowArchived] = useState(false);
+
+  // Artifact view mode: 'compact' (ArtifactListCompact) or 'detailed' (ArtifactCard)
+  const [artifactViewMode, setArtifactViewMode] = useState<'compact' | 'detailed'>('compact');
 
   // Project filter state
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
@@ -755,7 +796,53 @@ export function AppSidebar() {
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <ArtifactListCompact sessionId={activeSessionId} limit={5} />
+              <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(ARTIFACT_TYPE_ICONS).map(([type, icon]) => (
+                    <span key={type} className="text-muted-foreground/60 hover:text-foreground transition-colors" title={type}>
+                      {icon}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn('h-6 w-6', artifactViewMode === 'compact' && 'bg-accent')}
+                    onClick={(e) => { e.stopPropagation(); setArtifactViewMode('compact'); }}
+                    title="Compact view"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn('h-6 w-6', artifactViewMode === 'detailed' && 'bg-accent')}
+                    onClick={(e) => { e.stopPropagation(); setArtifactViewMode('detailed'); }}
+                    title="Detailed view"
+                  >
+                    <LayoutList className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              {artifactViewMode === 'compact' ? (
+                <ArtifactListCompact sessionId={activeSessionId} limit={5} />
+              ) : (
+                <SidebarArtifactCards sessionId={activeSessionId} />
+              )}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full mt-1 text-xs text-muted-foreground">
+                    {t('viewAll') || 'View All'}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>{t('sessionArtifacts') || 'Session Artifacts'}</DialogTitle>
+                  </DialogHeader>
+                  <ArtifactList sessionId={activeSessionId} maxHeight="60vh" />
+                </DialogContent>
+              </Dialog>
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -970,12 +1057,14 @@ export function AppSidebar() {
               </SidebarMenuItem>
               {observabilitySettings?.enabled && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip={t('observability') || 'Observability'}>
-                    <Link href="/observability">
-                      <Activity className="h-4 w-4 text-emerald-500" />
-                      <span>{t('observability') || 'Observability'}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                  <ObservabilityButton
+                    trigger={
+                      <SidebarMenuButton tooltip={t('observability') || 'Observability'}>
+                        <Activity className="h-4 w-4 text-emerald-500" />
+                        <span>{t('observability') || 'Observability'}</span>
+                      </SidebarMenuButton>
+                    }
+                  />
                 </SidebarMenuItem>
               )}
             </CollapsibleContent>

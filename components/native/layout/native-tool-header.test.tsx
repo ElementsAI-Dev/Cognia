@@ -77,4 +77,28 @@ describe('NativeToolHeader', () => {
     const header = screen.getByRole('banner');
     expect(header).toHaveClass('custom-header-class');
   });
+
+  it('applies custom iconClassName to icon container', () => {
+    render(
+      <NativeToolHeader
+        title="Screenshot"
+        icon={Camera}
+        iconClassName="bg-blue-500/10 text-blue-500"
+      />
+    );
+
+    const header = screen.getByRole('banner');
+    const iconContainer = header.querySelector('.bg-blue-500\\/10');
+    expect(iconContainer).toBeInTheDocument();
+    expect(iconContainer).toHaveClass('text-blue-500');
+  });
+
+  it('uses default icon styling when iconClassName is not provided', () => {
+    render(<NativeToolHeader title="Screenshot" icon={Camera} />);
+
+    const header = screen.getByRole('banner');
+    const iconContainer = header.querySelector('.bg-primary\\/10');
+    expect(iconContainer).toBeInTheDocument();
+    expect(iconContainer).toHaveClass('text-primary');
+  });
 });

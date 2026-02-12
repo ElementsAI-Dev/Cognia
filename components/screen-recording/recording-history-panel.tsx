@@ -59,43 +59,14 @@ import {
   Tag,
   Plus,
 } from 'lucide-react';
-import { cn, formatDuration } from '@/lib/utils';
+import { cn, formatDuration, formatBytes, formatRelativeTime } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { isTauri } from '@/lib/native/utils';
 import { RecordingControls } from './recording-controls';
 
 interface RecordingHistoryPanelProps {
   className?: string;
   onRecordingSelect?: (filePath: string) => void;
-}
-
-/**
- * Format file size to human readable string
- */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
-
-/**
- * Format timestamp to relative time
- */
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  
-  return new Date(timestamp).toLocaleDateString();
 }
 
 export function RecordingHistoryPanel({
@@ -179,38 +150,62 @@ export function RecordingHistoryPanel({
   };
 
   const handleDelete = async (id: string) => {
-    await deleteFromHistory(id);
+    try {
+      await deleteFromHistory(id);
+    } catch (err) {
+      loggers.ui.error('Failed to delete recording:', err);
+    }
   };
 
   const handleTogglePin = async (id: string, isPinned: boolean) => {
-    if (isPinned) {
-      await unpinRecording(id);
-    } else {
-      await pinRecording(id);
+    try {
+      if (isPinned) {
+        await unpinRecording(id);
+      } else {
+        await pinRecording(id);
+      }
+    } catch (err) {
+      loggers.ui.error('Failed to toggle pin:', err);
     }
   };
 
   const handleOpenFolder = async (filePath?: string) => {
     if (filePath) {
-      await openRecordingFolder(filePath);
+      try {
+        await openRecordingFolder(filePath);
+      } catch (err) {
+        loggers.ui.error('Failed to open folder:', err);
+      }
     }
   };
 
   const handleAddTag = async (id: string) => {
     const tag = tagInputValue.trim();
     if (tag) {
-      await addTag(id, tag);
-      setTagInputValue('');
-      setTagInputId(null);
+      try {
+        await addTag(id, tag);
+        setTagInputValue('');
+        setTagInputId(null);
+      } catch (err) {
+        loggers.ui.error('Failed to add tag:', err);
+      }
     }
   };
 
   const handleRemoveTag = async (id: string, tag: string) => {
-    await removeTag(id, tag);
+    try {
+      await removeTag(id, tag);
+    } catch (err) {
+      loggers.ui.error('Failed to remove tag:', err);
+    }
   };
 
   const handleClearAll = async () => {
-    await clearHistory();
+    try {
+      await clearHistory();
+    } catch (err) {
+      loggers.ui.error('Failed to clear history:', err);
+    }
   };
 
   // Not available in web
@@ -332,7 +327,7 @@ export function RecordingHistoryPanel({
                             <span>{formatDuration(recording.duration_ms)}</span>
                             <span>•</span>
                             <HardDrive className="h-3 w-3" />
-                            <span>{formatFileSize(recording.file_size)}</span>
+                            <span>{formatBytes(recording.file_size)}</span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1 truncate">
                             {formatRelativeTime(recording.timestamp)}
@@ -480,7 +475,7 @@ export function RecordingHistoryPanel({
                 <div className="flex items-center gap-1">
                   <HardDrive className="h-3 w-3" />
                   <span>
-                    {formatFileSize(storageStats.recordingsSize + storageStats.screenshotsSize)}
+                    {formatBytes(storageStats.recordingsSize + storageStats.screenshotsSize)}
                   </span>
                 </div>
                 <span className={cn(
@@ -513,8 +508,7 @@ export function RecordingHistoryPanel({
                   onClick={async () => {
                     const result = await runStorageCleanup();
                     if (result && result.filesDeleted > 0) {
-                      // Optionally show a toast notification
-                      console.log(`Cleaned up ${result.filesDeleted} files, freed ${formatFileSize(result.bytesFreed)}`);
+                      loggers.ui.info(`Cleaned up ${result.filesDeleted} files, freed ${formatBytes(result.bytesFreed)}`);
                     }
                   }}
                 >
@@ -559,4 +553,3 @@ export function RecordingHistoryPanel({
   );
 }
 
-export default RecordingHistoryPanel;

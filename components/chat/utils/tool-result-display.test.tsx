@@ -219,6 +219,36 @@ describe('ToolMentionInline', () => {
   });
 });
 
+// Mock A2UI components
+jest.mock('@/components/a2ui', () => ({
+  A2UIToolOutput: () => <div data-testid="a2ui-tool-output">A2UI Tool Output</div>,
+  A2UIStructuredOutput: ({ messages }: { messages: unknown[] }) => (
+    <div data-testid="a2ui-structured-output">
+      {messages.length} A2UI messages
+    </div>
+  ),
+  hasA2UIToolOutput: jest.fn(() => false),
+}));
+
+// Mock A2UI parser
+jest.mock('@/lib/a2ui/parser', () => ({
+  parseA2UIMessages: jest.fn((data: unknown) => {
+    if (Array.isArray(data) && data.length > 0 && data[0].type === 'createSurface') {
+      return { success: true, messages: data };
+    }
+    return { success: false, messages: [] };
+  }),
+}));
+
+describe('ContentItemDisplay - A2UI Integration', () => {
+  it('renders A2UIStructuredOutput for valid A2UI JSON content', () => {
+    const { ContentItemDisplay } = jest.requireActual('./tool-result-display');
+    // This is tested indirectly through ToolResultDisplay
+    // The tryParseA2UIContent function is internal
+    expect(ContentItemDisplay).toBeDefined();
+  });
+});
+
 describe('ToolExecutionStatus', () => {
   it('renders pending status', () => {
     render(

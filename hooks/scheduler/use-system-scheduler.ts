@@ -19,7 +19,7 @@ import type {
   TaskRunResult,
   ValidationResult,
 } from '@/types/scheduler';
-import { isTaskOperationSuccess, isConfirmationRequired } from '@/types/scheduler';
+import { isTaskOperationSuccess, isConfirmationRequired, isTaskOperationError } from '@/types/scheduler';
 
 export interface UseSystemSchedulerState {
   /** Scheduler capabilities */
@@ -146,7 +146,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
         } else if (isConfirmationRequired(response)) {
           setPendingConfirmation(response.confirmation);
           setPendingInput({ type: 'create', input });
-        } else {
+        } else if (isTaskOperationError(response)) {
           setError(response.message);
         }
 
@@ -183,7 +183,7 @@ export function useSystemScheduler(): UseSystemSchedulerReturn {
         } else if (isConfirmationRequired(response)) {
           setPendingConfirmation(response.confirmation);
           setPendingInput({ type: 'update', taskId, input });
-        } else {
+        } else if (isTaskOperationError(response)) {
           setError(response.message);
         }
 

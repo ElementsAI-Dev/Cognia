@@ -75,6 +75,11 @@ describe('useLeaderboardSyncStore', () => {
       result.current.clearCache();
       result.current.clearPendingSubmissions();
       result.current.clearError();
+      result.current.setOnlineStatus(true);
+    });
+    // Reset leaderboard data to empty
+    act(() => {
+      useLeaderboardSyncStore.setState({ leaderboard: [], lastFetchAt: null, status: 'idle' });
     });
   });
 
@@ -308,18 +313,23 @@ describe('useLeaderboardSyncStore', () => {
         result.current.updateSettings({ enabled: true });
       });
 
+      const fetchParams = {
+        period: 'all-time' as const,
+        minBattles: result.current.settings.minBattlesThreshold,
+      };
+
       await act(async () => {
-        await result.current.fetchLeaderboard({ period: 'all-time' });
+        await result.current.fetchLeaderboard(fetchParams);
       });
 
-      // Verify cache has data
-      expect(result.current.getCachedData({ period: 'all-time' })).not.toBeNull();
+      // Verify cache has data (use same params including minBattles for matching key)
+      expect(result.current.getCachedData(fetchParams)).not.toBeNull();
 
       act(() => {
         result.current.clearCache();
       });
 
-      expect(result.current.getCachedData({ period: 'all-time' })).toBeNull();
+      expect(result.current.getCachedData(fetchParams)).toBeNull();
     });
   });
 

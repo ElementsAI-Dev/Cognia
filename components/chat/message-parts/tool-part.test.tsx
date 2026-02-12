@@ -6,6 +6,63 @@ import { render, screen } from '@testing-library/react';
 import { ToolPart } from './tool-part';
 import type { ToolInvocationPart } from '@/types/core/message';
 
+// Mock next-intl
+jest.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
+// Mock MCP components
+jest.mock('@/components/mcp', () => ({
+  MCPServerBadge: () => <span data-testid="mcp-server-badge" />,
+}));
+
+jest.mock('@/components/mcp/mcp-progress-indicator', () => ({
+  MCPProgressIndicator: ({ state }: { state: string }) => (
+    <div data-testid="mcp-progress-indicator" data-state={state} />
+  ),
+}));
+
+jest.mock('@/components/mcp/mcp-error-display', () => ({
+  MCPErrorDisplay: ({ error }: { error: string }) => (
+    <div data-testid="mcp-error-display">{error}</div>
+  ),
+}));
+
+jest.mock('@/components/mcp/mcp-call-details', () => ({
+  MCPCallDetails: () => <div data-testid="mcp-call-details" />,
+}));
+
+jest.mock('@/lib/mcp/format-utils', () => ({
+  formatToolName: (name: string) => name.split(/[-_]/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+  formatDuration: (ms: number) => `${ms}ms`,
+}));
+
+jest.mock('@/components/a2ui', () => ({
+  A2UIToolOutput: () => <div data-testid="a2ui-output" />,
+  hasA2UIToolOutput: () => false,
+}));
+
+jest.mock('@/components/a2ui/a2ui-surface', () => ({
+  A2UIInlineSurface: () => <div data-testid="a2ui-surface" />,
+}));
+
+// Mock UI components
+jest.mock('@/components/ui/badge', () => ({
+  Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}));
+
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button onClick={onClick}>{children}</button>
+  ),
+}));
+
+jest.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 // Mock Tool components
 jest.mock('@/components/ai-elements/tool', () => ({
   Tool: ({ children, defaultOpen }: { children: React.ReactNode; defaultOpen?: boolean }) => (

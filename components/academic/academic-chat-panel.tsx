@@ -30,7 +30,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { useAcademic } from '@/hooks/academic/use-academic';
 import type { Paper, PaperAnalysisType } from '@/types/academic';
-import { AcademicPaperCard } from '@/components/a2ui/academic/academic-paper-card';
+import { AcademicSearchResults } from '@/components/a2ui/academic/academic-search-results';
+import { AcademicAnalysisPanel } from '@/components/a2ui/academic/academic-analysis-panel';
 
 export interface ChatMessage {
   id: string;
@@ -114,6 +115,13 @@ export function AcademicChatPanel({
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [selectedPapers, setSelectedPapers] = useState<Paper[]>([]);
   const [expandedMessageIds, setExpandedMessageIds] = useState<Set<string>>(new Set());
+  const [lastAnalysis, setLastAnalysis] = useState<{
+    paperTitle: string;
+    paperAbstract?: string;
+    analysisType: PaperAnalysisType;
+    content: string;
+    suggestedQuestions: string[];
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -183,6 +191,14 @@ export function AcademicChatPanel({
 
         if (result.success) {
           addMessage('assistant', result.analysis, { analysisType });
+
+          setLastAnalysis({
+            paperTitle: paper.title,
+            paperAbstract: paper.abstract,
+            analysisType,
+            content: result.analysis,
+            suggestedQuestions: result.suggestedQuestions || [],
+          });
 
           if (result.suggestedQuestions && result.suggestedQuestions.length > 0) {
             addMessage(
@@ -433,48 +449,57 @@ export function AcademicChatPanel({
                 </div>
 
                 {message.papers && message.papers.length > 0 && (
-                  <div className="mt-4 space-y-3">
-                    {(expandedMessageIds.has(message.id)
-                      ? message.papers
-                      : message.papers.slice(0, 5)
-                    ).map((paper, idx) => (
-                      <AcademicPaperCard
-                        key={paper.id || idx}
-                        paper={paper}
-                        compact
-                        onViewDetails={handlePaperClick}
-                        onAddToLibrary={handleAddToLibrary}
-                        onAnalyze={(p) => handleAnalyze(p, 'summary')}
-                        isInLibrary={false}
-                      />
-                    ))}
-                    {message.papers.length > 5 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          setExpandedMessageIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(message.id)) {
-                              next.delete(message.id);
-                            } else {
-                              next.add(message.id);
-                            }
-                            return next;
-                          });
-                        }}
-                      >
-                        {expandedMessageIds.has(message.id)
-                          ? t('showLess')
-                          : t('showMore', { count: message.papers.length - 5 })}
-                      </Button>
-                    )}
+                  <div className="mt-4">
+                    <AcademicSearchResults
+                      papers={expandedMessageIds.has(message.id) ? message.papers : message.papers.slice(0, 5)}
+                      query={message.content.match(/"([^"]+)"/)?.[1] || ''}
+                      totalResults={message.papers.length}
+                      onPaperSelect={handlePaperClick}
+                      onAddToLibrary={handleAddToLibrary}
+                      onAnalyzePaper={(p) => handleAnalyze(p, 'summary')}
+                      hasMore={!expandedMessageIds.has(message.id) && message.papers.length > 5}
+                      onLoadMore={() => {
+                        setExpandedMessageIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(message.id);
+                          return next;
+                        });
+                      }}
+                      className="rounded-lg border"
+                    />
                   </div>
                 )}
               </div>
             </div>
           ))}
+
+          {lastAnalysis && !isLoading && (
+            <AcademicAnalysisPanel
+              paperTitle={lastAnalysis.paperTitle}
+              paperAbstract={lastAnalysis.paperAbstract}
+              analysisType={lastAnalysis.analysisType}
+              analysisContent={lastAnalysis.content}
+              suggestedQuestions={lastAnalysis.suggestedQuestions}
+              isLoading={false}
+              onAnalysisTypeChange={(type) => {
+                if (selectedPapers.length > 0) {
+                  handleAnalyze(selectedPapers[0], type);
+                }
+              }}
+              onRegenerate={() => {
+                if (selectedPapers.length > 0) {
+                  handleAnalyze(selectedPapers[0], lastAnalysis.analysisType);
+                }
+              }}
+              onAskFollowUp={(question) => {
+                if (question) {
+                  setInput(question);
+                  inputRef.current?.focus();
+                }
+              }}
+              className="rounded-lg border"
+            />
+          )}
 
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground">

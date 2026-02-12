@@ -84,5 +84,3 @@ export function NativeToolMobileNav({
     </nav>
   );
 }
-
-export default NativeToolMobileNav;

@@ -285,10 +285,9 @@ describe('Canvas Utils', () => {
       expect(getConnectionStatusColor('error')).toBe('text-red-500');
     });
 
-    it('should return muted-foreground for unknown/disconnected state', () => {
+    it('should return muted-foreground for disconnected/reconnecting state', () => {
       expect(getConnectionStatusColor('disconnected')).toBe('text-muted-foreground');
-      expect(getConnectionStatusColor('')).toBe('text-muted-foreground');
-      expect(getConnectionStatusColor('unknown')).toBe('text-muted-foreground');
+      expect(getConnectionStatusColor('reconnecting')).toBe('text-muted-foreground');
     });
   });
 });

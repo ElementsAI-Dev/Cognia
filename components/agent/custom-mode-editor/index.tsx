@@ -58,6 +58,7 @@ import { TemplateSelector } from './template-selector';
 import { IconSelector } from './icon-selector';
 import { ToolSelector } from './tool-selector';
 import { McpToolSelector } from './mcp-tool-selector';
+import { A2UITemplatePreview } from '../a2ui-template-preview';
 
 // =============================================================================
 // Types
@@ -494,6 +495,13 @@ export function CustomModeEditor({ open, onOpenChange, mode, onSave }: CustomMod
                     </div>
                     <Switch checked={a2uiEnabled} onCheckedChange={setA2UIEnabled} />
                   </div>
+                  {a2uiEnabled && (
+                    <A2UITemplatePreview
+                      showPreview={previewEnabled}
+                      onTogglePreview={() => setPreviewEnabled(!previewEnabled)}
+                      className="mt-3"
+                    />
+                  )}
                 </CardContent>
               </Card>
 

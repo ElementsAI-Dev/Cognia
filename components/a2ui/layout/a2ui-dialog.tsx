@@ -5,7 +5,7 @@
  * Modal dialog with content and actions
  */
 
-import React, { memo } from 'react';
+import React, { memo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -18,6 +18,7 @@ import {
 import type { A2UIComponentProps, A2UIDialogComponent } from '@/types/artifact/a2ui';
 import { useA2UIData, useA2UIActions } from '../a2ui-context';
 import { A2UIChildRenderer } from '../a2ui-renderer';
+import { useA2UIFocusTrap } from '@/hooks/a2ui/use-a2ui-keyboard';
 
 export const A2UIDialog = memo(function A2UIDialog({
   component,
@@ -27,7 +28,17 @@ export const A2UIDialog = memo(function A2UIDialog({
   const { resolveString, resolveBoolean } = useA2UIData();
   const { getBindingPath } = useA2UIActions();
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { focusFirst } = useA2UIFocusTrap(contentRef);
+
   const open = resolveBoolean(component.open, false);
+
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(focusFirst, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open, focusFirst]);
   const title = component.title ? resolveString(component.title, '') : '';
   const description = component.description
     ? resolveString(component.description, '')
@@ -56,7 +67,7 @@ export const A2UIDialog = memo(function A2UIDialog({
           </DialogHeader>
         )}
 
-        <div className="py-4">
+        <div ref={contentRef} className="py-4">
           {component.children && component.children.length > 0 && (
             <A2UIChildRenderer childIds={component.children} />
           )}

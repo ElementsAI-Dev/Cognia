@@ -47,10 +47,15 @@ import { A2UIDatePicker } from './form/a2ui-datepicker';
 import { A2UITimePicker } from './form/a2ui-timepicker';
 import { A2UIDateTimePicker } from './form/a2ui-datetimepicker';
 import { A2UIToggle } from './form/a2ui-toggle';
+import { A2UIFormGroup } from './form/a2ui-form-group';
+import { A2UISwitch } from './form/a2ui-switch';
 
 // Import data components (Table/List are light; Chart is lazy-loaded)
 import { A2UITable } from './data/a2ui-table';
 import { A2UIList } from './data/a2ui-list';
+
+// Import academic adapter for withA2UIContext integration
+import { A2UIAnalysisAdapter } from './academic/a2ui-analysis-adapter';
 
 // Lazy-load heavy components (recharts ~200KB, motion/react)
 const A2UIChart = lazy(() => import('./data/a2ui-chart').then(m => ({ default: m.A2UIChart })));
@@ -95,6 +100,8 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   ['TimePicker', A2UITimePicker as A2UIComponentType],
   ['DateTimePicker', A2UIDateTimePicker as A2UIComponentType],
   ['Toggle', A2UIToggle as A2UIComponentType],
+  ['FormGroup', A2UIFormGroup as unknown as A2UIComponentType],
+  ['Switch', A2UISwitch as unknown as A2UIComponentType],
   // Data display components
   ['Chart', A2UIChart as A2UIComponentType],
   ['Table', A2UITable as A2UIComponentType],
@@ -102,6 +109,8 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   // Animation and interactive components
   ['Animation', A2UIAnimation as A2UIComponentType],
   ['InteractiveGuide', A2UIInteractiveGuide as A2UIComponentType],
+  // Academic components (wrapped with withA2UIContext bridge)
+  ['AcademicAnalysis', withA2UIContext(A2UIAnalysisAdapter) as unknown as A2UIComponentType],
 ]);
 
 /**

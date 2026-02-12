@@ -324,18 +324,8 @@ export function normalizeTokenUsage(usage: {
   };
 }
 
-/**
- * Format token count
- */
-export function formatTokens(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(2)}M`;
-  }
-  if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}K`;
-  }
-  return tokens.toString();
-}
+// Re-export canonical formatTokens from @/lib/observability
+export { formatTokens } from '@/lib/observability';
 
 /**
  * Supported currency codes

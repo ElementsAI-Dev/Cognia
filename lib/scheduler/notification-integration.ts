@@ -7,6 +7,7 @@ import type { ScheduledTask, TaskExecution, NotificationChannel } from '@/types/
 import { sendNotification } from '@/lib/native/notification';
 import { toast } from '@/components/ui/toaster';
 import { loggers } from '@/lib/logger';
+import { SchedulerError } from './errors';
 
 // Logger
 const log = loggers.app;
@@ -193,7 +194,7 @@ async function sendWebhookNotification(
       clearTimeout(timer);
 
       if (!response.ok) {
-        throw new Error(`Webhook responded with status ${response.status}`);
+        throw SchedulerError.webhookFailed(url, response.status);
       }
 
       log.debug(`Webhook notification sent to: ${url}`);
@@ -203,7 +204,11 @@ async function sendWebhookNotification(
 
       if (attempt === MAX_RETRIES) {
         log.error(`Failed to send webhook notification to ${url} after ${MAX_RETRIES + 1} attempts:`, error);
-        throw error;
+        throw SchedulerError.webhookFailed(
+          url,
+          undefined,
+          error instanceof Error ? error : undefined
+        );
       }
 
       const delay = BASE_DELAY * Math.pow(2, attempt) + Math.random() * 500;

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useArtifactStore } from '@/stores';
 import { ArtifactCreateButton } from '@/components/artifacts/artifact-create-button';
+import { getArtifactTypeIcon } from '@/components/artifacts';
 import {
   type ComponentProps,
   createContext,
@@ -214,6 +215,7 @@ export const CodeBlock = ({
         {/* Language badge header */}
         <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/30">
           <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">{getArtifactTypeIcon('code', 'h-3.5 w-3.5')}</span>
             <Badge variant="secondary" className="text-xs font-mono">
               {language}
             </Badge>

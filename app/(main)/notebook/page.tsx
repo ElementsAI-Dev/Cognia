@@ -50,12 +50,22 @@ import {
   Trash2,
   FolderOpen,
   Save,
+  Power,
+  RefreshCw,
+  List,
 } from 'lucide-react';
-import { InteractiveNotebook } from '@/components/jupyter';
+import { InteractiveNotebook, KernelStatus, VariableInspector } from '@/components/jupyter';
 import { useJupyterKernel } from '@/hooks/jupyter';
+import { useExecutionState, useJupyterSessionForChat } from '@/stores/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
 import { kernelService } from '@/lib/jupyter/kernel';
+import {
+  isExecutionSuccessful,
+  formatExecutionError,
+  formatExecutionTime,
+  DEFAULT_EXECUTION_OPTIONS,
+} from '@/types/jupyter';
 
 export default function NotebookPage() {
   const t = useTranslations('notebook');
@@ -68,20 +78,49 @@ export default function NotebookPage() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [quickRunCode, setQuickRunCode] = useState('');
+  const [quickRunResult, setQuickRunResult] = useState<string | null>(null);
 
   // Jupyter kernel hook
   const {
+    sessions,
+    kernels,
     activeSession,
     activeKernel,
     isExecuting,
+    executingCellIndex,
+    lastResult,
+    variables,
+    variablesLoading,
     isCreatingSession,
+    isLoadingSessions,
     error,
     createSession,
     deleteSession,
+    setActiveSession,
+    refreshSessions,
     restartKernel,
     interruptKernel,
+    execute,
+    quickExecute,
+    refreshVariables,
+    inspectVariable,
+    checkKernelAvailable,
+    ensureKernel,
+    shutdownAll,
+    cleanup,
     clearError,
+    updateSession,
+    clearVariables,
+    clearExecutionHistory,
+    getNotebookInfo,
+    unmapChatSession,
   } = useJupyterKernel();
+
+  // Store selectors for execution state and chat integration
+  const executionState = useExecutionState();
+  const chatSessionId = searchParams.get('chatSessionId');
+  const chatLinkedSession = useJupyterSessionForChat(chatSessionId || '');
 
   // Virtual environment hook
   const { environments, refreshEnvironments } = useVirtualEnv();
@@ -141,8 +180,13 @@ export default function NotebookPage() {
 
   const handleCreateSession = useCallback(async () => {
     if (!selectedEnvPath) return;
-    
+
     try {
+      const available = await checkKernelAvailable(selectedEnvPath);
+      if (!available) {
+        const installed = await ensureKernel(selectedEnvPath);
+        if (!installed) return;
+      }
       await createSession({
         name: `Notebook-${Date.now()}`,
         envPath: selectedEnvPath,
@@ -151,7 +195,7 @@ export default function NotebookPage() {
     } catch (err) {
       console.error('Failed to create session:', err);
     }
-  }, [selectedEnvPath, createSession]);
+  }, [selectedEnvPath, createSession, checkKernelAvailable, ensureKernel]);
 
   const handleRestartKernel = useCallback(async () => {
     if (!activeSession) return;
@@ -180,6 +224,69 @@ export default function NotebookPage() {
     }
   }, [activeSession, deleteSession]);
 
+  const handleShutdownAll = useCallback(async () => {
+    try {
+      await shutdownAll();
+      clearVariables();
+      clearExecutionHistory();
+    } catch (err) {
+      console.error('Failed to shutdown all kernels:', err);
+    }
+  }, [shutdownAll, clearVariables, clearExecutionHistory]);
+
+  const handleCleanup = useCallback(async () => {
+    try {
+      await cleanup();
+      clearVariables();
+      clearExecutionHistory();
+    } catch (err) {
+      console.error('Failed to cleanup:', err);
+    }
+  }, [cleanup, clearVariables, clearExecutionHistory]);
+
+  const handleRefreshSessions = useCallback(async () => {
+    await refreshSessions();
+  }, [refreshSessions]);
+
+  const handleSwitchSession = useCallback(
+    (sessionId: string) => {
+      setActiveSession(sessionId);
+    },
+    [setActiveSession]
+  );
+
+  const handleUnmapChat = useCallback(() => {
+    if (chatSessionId) {
+      unmapChatSession(chatSessionId);
+    }
+  }, [chatSessionId, unmapChatSession]);
+
+  const handleRenameSession = useCallback(
+    (newName: string) => {
+      if (activeSession) {
+        updateSession(activeSession.id, { name: newName });
+      }
+    },
+    [activeSession, updateSession]
+  );
+
+  const handleQuickRun = useCallback(async () => {
+    if (!quickRunCode.trim()) return;
+    setQuickRunResult(null);
+    const result = activeSession
+      ? await execute(quickRunCode)
+      : selectedEnvPath
+        ? await quickExecute(selectedEnvPath, quickRunCode)
+        : null;
+    if (result) {
+      setQuickRunResult(
+        result.success
+          ? result.stdout || t('executionSuccess')
+          : formatExecutionError(result.error!)
+      );
+    }
+  }, [quickRunCode, activeSession, execute, selectedEnvPath, quickExecute, t]);
+
   // Track content changes for dirty state
   const handleContentChange = useCallback(
     (content: string) => {
@@ -204,7 +311,13 @@ export default function NotebookPage() {
       });
 
       if (selected && typeof selected === 'string') {
-        const content = await kernelService.openNotebook(selected);
+        const [content, info] = await Promise.all([
+          kernelService.openNotebook(selected),
+          getNotebookInfo(selected).catch(() => null),
+        ]);
+        if (info) {
+          console.info(`Opened notebook: ${info.fileName} (${info.codeCells} code cells, ${info.markdownCells} markdown cells)`);
+        }
         startTransition(() => {
           setNotebookContent(content);
           setFilePath(selected);
@@ -214,7 +327,7 @@ export default function NotebookPage() {
     } catch (err) {
       console.error('Failed to open notebook:', err);
     }
-  }, [t]);
+  }, [t, getNotebookInfo]);
 
   // Save notebook file
   const handleSaveNotebook = useCallback(
@@ -460,20 +573,86 @@ export default function NotebookPage() {
           </TooltipProvider>
 
           {/* Kernel Status */}
-          {activeKernel && (
-            <Badge
-              variant={
-                activeKernel.status === 'idle'
-                  ? 'default'
-                  : activeKernel.status === 'busy'
-                    ? 'secondary'
-                    : 'destructive'
-              }
-              className="ml-2"
-            >
-              {activeKernel.status}
+          <KernelStatus
+            kernel={activeKernel}
+            isConnecting={isCreatingSession}
+            onRestart={activeSession ? handleRestartKernel : undefined}
+            onInterrupt={isExecuting ? handleInterruptKernel : undefined}
+            onConnect={!activeSession && selectedEnvPath ? handleCreateSession : undefined}
+            className="ml-2"
+          />
+
+          {/* Execution Info */}
+          {executingCellIndex !== null && (
+            <Badge variant="secondary" className="text-xs">
+              Cell [{executingCellIndex}]
             </Badge>
           )}
+          {lastResult && !isExecuting && (
+            <Badge variant={isExecutionSuccessful(lastResult) ? 'default' : 'destructive'} className="text-xs">
+              {formatExecutionTime(lastResult.executionTimeMs)}
+            </Badge>
+          )}
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Session Management */}
+          <TooltipProvider>
+            <div className="flex items-center gap-1">
+              {sessions.length > 1 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={handleRefreshSessions}
+                      disabled={isLoadingSessions}
+                    >
+                      {isLoadingSessions ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('refreshSessions')}</TooltipContent>
+                </Tooltip>
+              )}
+              {sessions.length > 0 && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={handleCleanup}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('cleanupKernels')}</TooltipContent>
+                  </Tooltip>
+                  {sessions.length > 1 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={handleShutdownAll}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('shutdownAll')}</TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
+              )}
+            </div>
+          </TooltipProvider>
 
           <Separator orientation="vertical" className="h-6" />
 
@@ -495,6 +674,39 @@ export default function NotebookPage() {
           </TooltipProvider>
         </div>
       </header>
+
+      {/* Quick Run Bar */}
+      {isDesktop && (
+        <div className="border-b px-4 py-1.5 flex items-center gap-2">
+          <input
+            type="text"
+            className="flex-1 h-7 px-2 text-xs font-mono bg-muted/30 rounded border border-input focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={`>>> ${t('quickRun')} (timeout: ${DEFAULT_EXECUTION_OPTIONS.timeout / 1000}s)`}
+            value={quickRunCode}
+            onChange={(e) => setQuickRunCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleQuickRun();
+              }
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={handleQuickRun}
+            disabled={isExecuting || !quickRunCode.trim()}
+          >
+            {t('run')}
+          </Button>
+          {quickRunResult && (
+            <span className="text-xs font-mono text-muted-foreground truncate max-w-[300px]">
+              {quickRunResult}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -529,7 +741,7 @@ export default function NotebookPage() {
             </ScrollArea>
           </ResizablePanel>
 
-          {/* Variables Panel */}
+          {/* Variables & Sessions Panel */}
           {showVariables && (
             <>
               <ResizableHandle withHandle />
@@ -551,18 +763,99 @@ export default function NotebookPage() {
                   </div>
                   <ScrollArea className="flex-1">
                     {activeSession ? (
-                      <div className="p-3">
-                        {/* Variable inspector will be shown in InteractiveNotebook */}
-                        <p className="text-sm text-muted-foreground">
-                          {t('variablesHint')}
-                        </p>
-                      </div>
+                      <VariableInspector
+                        variables={variables}
+                        isLoading={variablesLoading}
+                        onRefresh={() => refreshVariables()}
+                        onInspect={(name) => inspectVariable(name)}
+                      />
                     ) : (
                       <div className="flex flex-col items-center justify-center h-32 text-center p-4">
                         <Variable className="h-8 w-8 text-muted-foreground/30 mb-2" />
                         <p className="text-sm text-muted-foreground">
                           {t('startKernelHint')}
                         </p>
+                      </div>
+                    )}
+
+                    {/* Session List */}
+                    {sessions.length > 1 && (
+                      <div className="border-t">
+                        <div className="px-3 py-2 flex items-center gap-2">
+                          <List className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{t('sessions')}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {sessions.length}
+                          </Badge>
+                        </div>
+                        <div className="divide-y">
+                          {sessions.map((session) => (
+                            <div
+                              key={session.id}
+                              className={`px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors ${
+                                session.id === activeSession?.id ? 'bg-muted/50' : ''
+                              }`}
+                              onClick={() => handleSwitchSession(session.id)}
+                            >
+                              <div className="flex items-center justify-between">
+                                                <span
+                                  className="text-xs font-medium truncate"
+                                  onDoubleClick={(e) => {
+                                    const el = e.currentTarget;
+                                    el.contentEditable = 'true';
+                                    el.focus();
+                                    const handleBlur = () => {
+                                      el.contentEditable = 'false';
+                                      if (el.textContent && el.textContent !== session.name) {
+                                        handleRenameSession(el.textContent);
+                                      }
+                                      el.removeEventListener('blur', handleBlur);
+                                    };
+                                    el.addEventListener('blur', handleBlur);
+                                  }}
+                                >{session.name}</span>
+                                {kernels.find((k) => k.id === session.kernelId) && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {kernels.find((k) => k.id === session.kernelId)?.status}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Chat link info */}
+                    {chatLinkedSession && (
+                      <div className="border-t px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            {t('linkedToChat')}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={handleUnmapChat}
+                          >
+                            {t('unlink')}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Execution Info */}
+                    {executionState.lastResult && (
+                      <div className="border-t px-3 py-2">
+                        <div className="text-xs text-muted-foreground">
+                          {t('lastExecution')}: {formatExecutionTime(executionState.lastResult.executionTimeMs)}
+                          {executionState.lastResult.error && (
+                            <div className="mt-1 text-destructive text-[10px] font-mono truncate">
+                              {formatExecutionError(executionState.lastResult.error)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </ScrollArea>

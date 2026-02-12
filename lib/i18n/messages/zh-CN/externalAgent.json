@@ -29,6 +29,7 @@
   "statusConnected": "已连接",
   "statusReconnecting": "重连中",
   "statusError": "错误",
+  "manage": "管理",
   "setConfigOptionFailed": "设置配置选项失败",
   "settings": {
     "title": "外部代理",

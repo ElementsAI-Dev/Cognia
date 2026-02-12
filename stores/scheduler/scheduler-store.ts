@@ -604,4 +604,3 @@ export const selectRecentExecutions = (state: SchedulerStore): TaskExecution[] =
 export const selectSchedulerStatus = (state: SchedulerStore): SchedulerStatus =>
   state.schedulerStatus;
 
-export default useSchedulerStore;

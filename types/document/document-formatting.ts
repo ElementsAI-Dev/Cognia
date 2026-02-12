@@ -91,14 +91,6 @@ export interface ParagraphSettings {
   rightIndent?: number; // right indent in mm
 }
 
-export const LINE_SPACING_PRESETS = {
-  single: 1,
-  onePointFive: 1.5,
-  double: 2,
-  atLeast12pt: { rule: 'atLeast' as LineSpacingRule, value: 12 },
-  exact15pt: { rule: 'exact' as LineSpacingRule, value: 15 },
-} as const;
-
 // List settings
 export type ListType = 'bullet' | 'number' | 'letter' | 'roman';
 export type BulletStyle = 'disc' | 'circle' | 'square' | 'dash' | 'arrow';

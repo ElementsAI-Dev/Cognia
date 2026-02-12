@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { CopyButton } from '@/components/chat/ui/copy-button';
 import { useScreenRecordingStore } from '@/stores/media';
+import { loggers } from '@/lib/logger';
 import { isTauri } from '@/lib/native/utils';
 import { cn } from '@/lib/utils';
 
@@ -259,13 +260,18 @@ export function FFmpegStatus({
 
   const handleCheckAgain = async () => {
     setIsChecking(true);
-    const available = await checkFfmpeg();
-    if (available) {
-      await Promise.all([refreshFFmpegInfo(), refreshHardwareAcceleration()]);
-    } else {
-      await refreshFFmpegInstallGuide();
+    try {
+      const available = await checkFfmpeg();
+      if (available) {
+        await Promise.all([refreshFFmpegInfo(), refreshHardwareAcceleration()]);
+      } else {
+        await refreshFFmpegInstallGuide();
+      }
+    } catch (err) {
+      loggers.ui.error('Failed to check FFmpeg status:', err);
+    } finally {
+      setIsChecking(false);
     }
-    setIsChecking(false);
   };
 
 
@@ -286,7 +292,7 @@ export function FFmpegStatus({
 
   const hwAccelLabels = hardwareAcceleration
     ? [
-        hardwareAcceleration.nvidia && 'NVIDIA',
+        hardwareAcceleration.nvidia && 'NVIDIA NVENC',
         hardwareAcceleration.intel_qsv && 'Intel QSV',
         hardwareAcceleration.amd_amf && 'AMD AMF',
         hardwareAcceleration.vaapi && 'VAAPI',
@@ -448,4 +454,3 @@ export function FFmpegStatus({
   );
 }
 
-export default FFmpegStatus;

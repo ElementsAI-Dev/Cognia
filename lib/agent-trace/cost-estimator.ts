@@ -91,13 +91,5 @@ export function getKnownPricedModels(): string[] {
   return Object.keys(MODEL_PRICING);
 }
 
-/**
- * Format a cost value for display.
- */
-export function formatCost(cost: number, _currency = 'USD'): string {
-  if (cost === 0) return '$0.00';
-  if (cost < 0.0001) return `<$0.0001`;
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
-  if (cost < 1) return `$${cost.toFixed(3)}`;
-  return `$${cost.toFixed(2)}`;
-}
+// Re-export canonical formatCost from @/lib/observability
+export { formatCost } from '@/lib/observability';

@@ -33,6 +33,10 @@ jest.mock('./learning-history-panel', () => ({
   LearningHistoryPanel: () => <div data-testid="history-panel">History Panel</div>,
 }));
 
+jest.mock('./learning-path-dashboard', () => ({
+  LearningPathDashboard: () => <div data-testid="path-dashboard">Path Dashboard</div>,
+}));
+
 // Mock translations
 const messages = {
   learningMode: {
@@ -56,6 +60,7 @@ const messages = {
       statistics: 'Statistics',
       notes: 'Notes',
       history: 'History',
+      paths: 'Paths',
     },
     exit: 'Exit Learning Mode',
     exitConfirm: 'Are you sure you want to exit?',

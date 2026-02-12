@@ -8,7 +8,7 @@
 export { ClipboardHistoryPanel, ClipboardContextPanel, ClipboardTemplatesPanel } from './clipboard';
 
 // Screenshot
-export { ScreenshotPanel, WindowSelectorDialog } from './screenshot';
+export { ScreenshotPanel } from './screenshot';
 
 // Process
 export { ProcessPanel, ProcessDetailPanel, ProcessSettingsPanel } from './process';
@@ -24,7 +24,7 @@ export { SandboxPanel } from './sandbox';
 export type { SandboxPanelProps } from './sandbox';
 
 // Layout components
-export { NativeToolSidebar, NATIVE_TOOLS, type NativeToolItem } from './layout';
+export { NativeToolSidebar, NATIVE_TOOLS } from './layout';
 export { NativeToolMobileNav } from './layout';
 export { NativeToolHeader } from './layout';
 

@@ -9,6 +9,11 @@ import { useLearningTools } from './use-learning-tools';
 import { useLearningStore } from '@/stores/learning';
 import { useSessionStore } from '@/stores/chat';
 
+// Mock ESM module that breaks Jest resolution chain
+jest.mock('react-vega', () => ({
+  VegaEmbed: () => null,
+}));
+
 // Mock the stores
 jest.mock('@/stores/learning');
 jest.mock('@/stores/chat');
@@ -51,6 +56,21 @@ jest.mock('@/lib/ai/tools/learning-tools', () => ({
       description: 'Display concept explanation',
       parameters: { type: 'object', properties: {} },
     },
+    displayStepGuide: {
+      name: 'displayStepGuide',
+      description: 'Display step guide',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayConceptMap: {
+      name: 'displayConceptMap',
+      description: 'Display concept map',
+      parameters: { type: 'object', properties: {} },
+    },
+    displayAnimation: {
+      name: 'displayAnimation',
+      description: 'Display animation',
+      parameters: { type: 'object', properties: {} },
+    },
   },
   executeDisplayFlashcard: jest.fn().mockResolvedValue({ success: true }),
   executeDisplayFlashcardDeck: jest.fn().mockResolvedValue({ success: true }),
@@ -59,6 +79,9 @@ jest.mock('@/lib/ai/tools/learning-tools', () => ({
   executeDisplayReviewSession: jest.fn().mockResolvedValue({ success: true }),
   executeDisplayProgressSummary: jest.fn().mockResolvedValue({ success: true }),
   executeDisplayConceptExplanation: jest.fn().mockResolvedValue({ success: true }),
+  executeDisplayStepGuide: jest.fn().mockResolvedValue({ success: true }),
+  executeDisplayConceptMap: jest.fn().mockResolvedValue({ success: true }),
+  executeDisplayAnimation: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const mockUseLearningStore = useLearningStore as jest.MockedFunction<typeof useLearningStore>;
@@ -94,6 +117,9 @@ describe('useLearningTools', () => {
       expect(result.current.tools).toHaveProperty('displayReviewSession');
       expect(result.current.tools).toHaveProperty('displayProgressSummary');
       expect(result.current.tools).toHaveProperty('displayConceptExplanation');
+      expect(result.current.tools).toHaveProperty('displayStepGuide');
+      expect(result.current.tools).toHaveProperty('displayConceptMap');
+      expect(result.current.tools).toHaveProperty('displayAnimation');
     });
 
     it('should exclude flashcard tools when disabled', () => {
@@ -140,6 +166,17 @@ describe('useLearningTools', () => {
       expect(result.current.tools).not.toHaveProperty('displayConceptExplanation');
     });
 
+    it('should exclude visualization tools when disabled', () => {
+      mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
+
+      const { result } = renderHook(() => useLearningTools({ enableVisualization: false }));
+
+      expect(result.current.tools).not.toHaveProperty('displayStepGuide');
+      expect(result.current.tools).not.toHaveProperty('displayConceptMap');
+      expect(result.current.tools).not.toHaveProperty('displayAnimation');
+      expect(result.current.tools).toHaveProperty('displayFlashcard');
+    });
+
     it('should return empty tools when all disabled', () => {
       mockLearningStore.getLearningSessionByChat.mockReturnValue(undefined);
 
@@ -150,6 +187,7 @@ describe('useLearningTools', () => {
           enableReviewSessions: false,
           enableProgressSummary: false,
           enableConceptExplanation: false,
+          enableVisualization: false,
         })
       );
 

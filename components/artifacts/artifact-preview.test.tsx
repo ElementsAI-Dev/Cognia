@@ -43,6 +43,10 @@ jest.mock('./artifact-renderers', () => ({
   ChartRenderer: () => null,
   MathRenderer: () => null,
   MarkdownRenderer: () => null,
+  CodeRenderer: () => null,
+  ArtifactRenderer: ({ type, content }: { type: string; content: string }) => (
+    <div data-testid={`artifact-renderer-${type}`}>{content}</div>
+  ),
 }));
 
 // Mock jupyter-renderer to avoid langfuse import chain
@@ -160,11 +164,11 @@ describe('ArtifactPreview', () => {
     expect(screen.getByTitle(`Preview: ${mockReactArtifact.title}`)).toBeInTheDocument();
   });
 
-  it('renders code artifact with escaped HTML', async () => {
+  it('renders code artifact via ArtifactRenderer', async () => {
     await act(async () => {
       render(<ArtifactPreview artifact={mockCodeArtifact} />);
     });
-    expect(screen.getByTitle(`Preview: ${mockCodeArtifact.title}`)).toBeInTheDocument();
+    expect(screen.getByTestId('artifact-renderer-code')).toBeInTheDocument();
   });
 
   it('does not show error initially', async () => {

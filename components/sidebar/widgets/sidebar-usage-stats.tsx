@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useUsageStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { normalizeTokenUsage } from '@/types/system/usage';
+import { formatTokens } from '@/lib/observability';
 import { useCurrencyFormat } from '@/hooks/ui/use-currency-format';
 
 interface SidebarUsageStatsProps {
@@ -51,13 +52,6 @@ export function SidebarUsageStats({ className, collapsed }: SidebarUsageStatsPro
       { prompt: 0, completion: 0 }
     );
   }, [records]);
-
-  // Format numbers for display
-  const formatTokens = (tokens: number) => {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-    return tokens.toString();
-  };
 
   const { formatCost } = useCurrencyFormat();
 

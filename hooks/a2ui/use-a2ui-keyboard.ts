@@ -94,7 +94,7 @@ export function useA2UIKeyboard(options: KeyboardNavigationOptions = {}) {
 /**
  * Hook for managing focus within a container
  */
-export function useA2UIFocusTrap(containerRef: React.RefObject<HTMLElement>) {
+export function useA2UIFocusTrap(containerRef: React.RefObject<HTMLElement | null>) {
   const focusableElementsRef = useRef<HTMLElement[]>([]);
   const currentFocusIndexRef = useRef<number>(0);
 

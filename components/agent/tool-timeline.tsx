@@ -41,7 +41,7 @@ import {
   QueueItemContent,
 } from '@/components/ai-elements/queue';
 import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
-import { MCPServerBadge } from '@/components/mcp';
+import { MCPToolCallCard } from '@/components/mcp/mcp-tool-call-card';
 import type { TimelineToolExecution as ToolExecution, PendingTool } from '@/types/agent/component-types';
 
 export type { TimelineToolExecution as ToolExecution, PendingTool } from '@/types/agent/component-types';
@@ -315,22 +315,30 @@ export function ToolTimeline({
 
                   {/* Content */}
                   <div className={cn('flex-1 pb-6', isLast && 'pb-0')}>
+                    {/* MCP tool calls use MCPToolCallCard for richer display */}
+                    {execution.serverId ? (
+                      <MCPToolCallCard
+                        callId={execution.id}
+                        serverId={execution.serverId}
+                        serverName={execution.serverName}
+                        serverStatus={execution.serverStatus}
+                        toolName={execution.toolName}
+                        args={(execution.args ?? {}) as Record<string, unknown>}
+                        state={execution.state}
+                        result={execution.result}
+                        errorText={execution.error}
+                        startedAt={execution.startTime}
+                        completedAt={execution.endTime}
+                        defaultOpen={false}
+                      />
+                    ) : (
+                    <>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm truncate">
                             {formatToolName(execution.toolName)}
                           </p>
-                          {/* MCP Server badge */}
-                          {execution.serverId && (
-                            <MCPServerBadge
-                              serverId={execution.serverId}
-                              serverName={execution.serverName}
-                              status={execution.serverStatus}
-                              size="sm"
-                              showStatus={false}
-                            />
-                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {config.label}
@@ -420,6 +428,8 @@ export function ToolTimeline({
                             '[&>div]:bg-red-500'
                         )}
                       />
+                    )}
+                    </>
                     )}
                   </div>
                 </div>

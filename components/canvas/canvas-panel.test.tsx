@@ -292,6 +292,14 @@ jest.mock('./suggestion-item', () => ({
   SuggestionItem: () => <div data-testid="suggestion-item" />,
 }));
 
+jest.mock('./canvas-document-list', () => ({
+  CanvasDocumentList: (props: { documents: unknown[]; activeDocumentId: string | null }) => (
+    <div data-testid="canvas-document-list" data-document-count={props.documents.length}>
+      Canvas Document List
+    </div>
+  ),
+}));
+
 jest.mock('./canvas-error-boundary', () => ({
   CanvasErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -401,6 +409,36 @@ describe('CanvasPanel', () => {
     });
     expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Fix Issues').length).toBeGreaterThan(0);
+  });
+
+  describe('No Document State', () => {
+    it('renders CanvasDocumentList when no active document', async () => {
+      // Re-mock with no active document
+      const storeModule = jest.requireMock('@/stores');
+      const originalUseArtifactStore = storeModule.useArtifactStore;
+      storeModule.useArtifactStore = (selector: (state: Record<string, unknown>) => unknown) => {
+        const state = {
+          panelOpen: true,
+          panelView: 'canvas',
+          closePanel: mockClosePanel,
+          activeCanvasId: null,
+          canvasDocuments: {},
+          updateCanvasDocument: mockUpdateCanvasDocument,
+          saveCanvasVersion: mockSaveCanvasVersion,
+        };
+        return selector(state);
+      };
+
+      await act(async () => {
+        render(<CanvasPanel />);
+      });
+
+      expect(screen.getByTestId('canvas-document-list')).toBeInTheDocument();
+      expect(screen.getByText('Canvas Document List')).toBeInTheDocument();
+
+      // Restore original mock
+      storeModule.useArtifactStore = originalUseArtifactStore;
+    });
   });
 
   describe('Responsive Layout', () => {

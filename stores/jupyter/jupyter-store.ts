@@ -297,4 +297,3 @@ export const useJupyterSessionForChat = (chatSessionId: string) => {
   return sessions.find((s) => s.id === mapping.jupyterSessionId);
 };
 
-export default useJupyterStore;

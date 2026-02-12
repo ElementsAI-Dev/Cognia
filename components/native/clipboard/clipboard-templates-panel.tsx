@@ -564,4 +564,4 @@ export function ClipboardTemplatesPanel({ className }: ClipboardTemplatesPanelPr
   );
 }
 
-export default ClipboardTemplatesPanel;
+

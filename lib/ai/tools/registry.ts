@@ -158,6 +158,7 @@ import {
   type DisplayConceptExplanationInput,
 } from './learning-tools';
 import { registerArtifactTools } from './artifact-tool';
+import { registerAppBuilderTools } from './app-builder-tool';
 import { registerMemoryTools } from './memory-tool';
 import {
   shellExecuteInputSchema,
@@ -172,7 +173,7 @@ export interface ToolDefinition<T extends z.ZodType = z.ZodType> {
   description: string;
   parameters: T;
   requiresApproval?: boolean;
-  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video' | 'image' | 'academic' | 'learning' | 'artifact' | 'memory';
+  category?: 'search' | 'code' | 'file' | 'system' | 'custom' | 'ppt' | 'video' | 'image' | 'academic' | 'learning' | 'artifact' | 'memory' | 'app';
   create: (config: Record<string, unknown>) => ToolFunction;
 }
 
@@ -841,4 +842,7 @@ Use file tools for file creation/deletion instead.`,
 
   // Memory tools
   registerMemoryTools(registry);
+
+  // App builder tools
+  registerAppBuilderTools(registry);
 }

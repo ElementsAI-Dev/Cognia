@@ -114,7 +114,10 @@ class TaskSchedulerImpl {
       log.info('Task scheduler initialized successfully');
     } catch (error) {
       log.error('Failed to initialize task scheduler:', error);
-      throw error;
+      throw SchedulerError.initFailed(
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined
+      );
     }
   }
 
@@ -517,7 +520,7 @@ class TaskSchedulerImpl {
       // Get executor
       const executor = executors.get(task.type);
       if (!executor) {
-        throw new Error(`No executor registered for task type: ${task.type}`);
+        throw SchedulerError.executorNotFound(task.type);
       }
 
       // Execute with timeout
@@ -637,11 +640,7 @@ class TaskSchedulerImpl {
         fn(),
         new Promise<never>((_resolve, reject) => {
           controller.signal.addEventListener('abort', () => {
-            reject(new SchedulerError(
-              'EXECUTION_TIMEOUT',
-              `Execution timed out after ${timeoutMs}ms`,
-              { timeoutMs }
-            ));
+            reject(SchedulerError.executionTimeout('task', timeoutMs));
           });
         }),
       ]);

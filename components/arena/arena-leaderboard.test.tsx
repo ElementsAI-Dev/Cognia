@@ -60,16 +60,37 @@ const mockModelRatings = [
 ];
 
 const mockRecalculateBTRatings = jest.fn();
+const mockGetBTRatings = jest.fn(() => mockModelRatings.map((r) => ({
+  ...r,
+  btScore: r.rating / 1000,
+})));
 
 jest.mock('@/stores/arena', () => ({
   useArenaStore: (selector: (state: unknown) => unknown) => {
     const mockState = {
       modelRatings: mockModelRatings,
+      getBTRatings: mockGetBTRatings,
       recalculateBTRatings: mockRecalculateBTRatings,
       settings: { showConfidenceIntervals: true },
     };
     return selector(mockState);
   },
+}));
+
+// Mock hooks/arena to avoid transitive ESM dependency chain (react-vega)
+jest.mock('@/hooks/arena', () => ({
+  useLeaderboardData: () => ({
+    leaderboard: [],
+    status: 'idle',
+    error: null,
+    lastFetchAt: null,
+  }),
+}));
+
+// Mock remoteToLocalRating from types
+jest.mock('@/types/arena', () => ({
+  ...jest.requireActual('@/types/arena'),
+  remoteToLocalRating: jest.fn((r: unknown) => r),
 }));
 
 // Mock UI components

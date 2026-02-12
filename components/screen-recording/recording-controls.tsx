@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn, formatDuration } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import {
   useScreenRecordingStore,
   useIsRecording,
@@ -119,15 +120,23 @@ export function RecordingControls({
       return;
     }
     
-    await startRecording(mode, {
-      monitorIndex: selectedMonitor ?? undefined,
-      region,
-    });
+    try {
+      await startRecording(mode, {
+        monitorIndex: selectedMonitor ?? undefined,
+        region,
+      });
+    } catch (err) {
+      loggers.ui.error('Failed to start recording:', err);
+    }
   }, [startRecording, selectedMonitor]);
 
   const handleRegionSelected = useCallback(async (region: RecordingRegion) => {
     setShowRegionSelector(false);
-    await startRecording('region', { region });
+    try {
+      await startRecording('region', { region });
+    } catch (err) {
+      loggers.ui.error('Failed to start region recording:', err);
+    }
   }, [startRecording]);
 
   const handleRegionCancel = useCallback(() => {
@@ -135,19 +144,31 @@ export function RecordingControls({
   }, []);
 
   const handleStopRecording = useCallback(async () => {
-    await stop();
+    try {
+      await stop();
+    } catch (err) {
+      loggers.ui.error('Failed to stop recording:', err);
+    }
   }, [stop]);
 
   const handleTogglePause = useCallback(async () => {
-    if (status === 'Paused') {
-      await resume();
-    } else {
-      await pause();
+    try {
+      if (status === 'Paused') {
+        await resume();
+      } else {
+        await pause();
+      }
+    } catch (err) {
+      loggers.ui.error('Failed to toggle pause:', err);
     }
   }, [status, pause, resume]);
 
   const handleCancel = useCallback(async () => {
-    await cancel();
+    try {
+      await cancel();
+    } catch (err) {
+      loggers.ui.error('Failed to cancel recording:', err);
+    }
   }, [cancel]);
 
   // Not available in web
@@ -409,4 +430,3 @@ export function RecordingControls({
   );
 }
 
-export default RecordingControls;

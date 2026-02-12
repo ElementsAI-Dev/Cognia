@@ -18,10 +18,12 @@ const mockSettings = {
   showCostEstimates: true,
   showTokenCounts: true,
   showConfidenceIntervals: false,
+  showGlobalLeaderboard: false,
   enableAntiGaming: false,
   maxVotesPerHour: 30,
   minViewingTimeMs: 3000,
   bootstrapSamples: 1000,
+  enableLeaderboardSync: false,
 };
 
 const mockModelRatings = [
@@ -67,6 +69,7 @@ const mockResetSettings = jest.fn();
 const mockClearBattleHistory = jest.fn();
 const mockResetModelRatings = jest.fn();
 const mockClearPreferences = jest.fn();
+const mockCleanupOldBattles = jest.fn();
 const mockGetStats = jest.fn(() => mockStats);
 const mockLeaderboardSyncSettings = {
   enabled: true,
@@ -96,6 +99,7 @@ jest.mock('@/stores/arena', () => ({
       clearBattleHistory: mockClearBattleHistory,
       resetModelRatings: mockResetModelRatings,
       clearPreferences: mockClearPreferences,
+      cleanupOldBattles: mockCleanupOldBattles,
       getStats: mockGetStats,
     };
     return selector(state);
@@ -568,6 +572,7 @@ describe('ArenaSettings', () => {
       render(<ArenaSettings />);
       expect(screen.getByText('Export Preferences')).toBeInTheDocument();
       expect(screen.getByText('Import Preferences')).toBeInTheDocument();
+      expect(screen.getByText('cleanupOldBattles')).toBeInTheDocument();
       expect(screen.getByText('Reset Settings')).toBeInTheDocument();
       expect(screen.getByText('Clear All Data')).toBeInTheDocument();
     });
@@ -761,6 +766,15 @@ describe('ArenaSettings', () => {
 
       // Note: This test documents expected behavior
       // The actual empty state is shown when modelRatings.length === 0
+    });
+  });
+
+  describe('Cleanup Old Battles', () => {
+    it('calls cleanupOldBattles when cleanup button is clicked', () => {
+      render(<ArenaSettings />);
+      const cleanupButton = screen.getByText('cleanupOldBattles');
+      fireEvent.click(cleanupButton);
+      expect(mockCleanupOldBattles).toHaveBeenCalled();
     });
   });
 

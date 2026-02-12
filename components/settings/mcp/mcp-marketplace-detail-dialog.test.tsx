@@ -41,6 +41,7 @@ const mockFetchItemDetails = jest.fn();
 const mockSetInstallStatus = jest.fn();
 const mockGetInstallStatus = jest.fn(() => 'not_installed');
 const mockAddServer = jest.fn();
+const mockHandleInstall = jest.fn();
 
 jest.mock('@/stores/mcp', () => ({
   useMcpMarketplaceStore: () => ({
@@ -52,6 +53,24 @@ jest.mock('@/stores/mcp', () => ({
   }),
   useMcpStore: () => ({
     addServer: mockAddServer,
+    servers: [],
+    connectServer: jest.fn(),
+  }),
+}));
+
+// Mock useMcpInstallation hook
+jest.mock('@/hooks/mcp/use-mcp-installation', () => ({
+  useMcpInstallation: () => ({
+    isInstalling: false,
+    installError: null,
+    envValues: {},
+    envCheck: { supported: true, missingDeps: [] },
+    isCheckingEnv: false,
+    installConfig: null,
+    isCurrentlyInstalled: false,
+    setEnvValue: jest.fn(),
+    handleInstall: mockHandleInstall,
+    resetInstallation: jest.fn(),
   }),
 }));
 

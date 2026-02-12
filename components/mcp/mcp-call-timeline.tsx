@@ -14,7 +14,6 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  AlertTriangle,
   Server,
   Wrench,
   Eye,
@@ -29,8 +28,8 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 import { formatDuration, formatToolName } from '@/lib/mcp/format-utils';
+import { TOOL_STATE_CONFIG } from '@/lib/agent';
 import { MCPServerBadge } from './mcp-server-badge';
-import type { ToolState } from '@/types/core/message';
 import type { MCPCallStep } from '@/types/mcp';
 
 export { type MCPCallStep } from '@/types/mcp';
@@ -44,20 +43,7 @@ export interface MCPCallTimelineProps {
   className?: string;
 }
 
-const stateConfig: Record<ToolState, { icon: React.ElementType; color: string; label: string }> = {
-  'input-streaming': { icon: Loader2, color: 'text-blue-500', label: 'Streaming' },
-  'input-available': { icon: Loader2, color: 'text-blue-500', label: 'Running' },
-  'approval-requested': {
-    icon: AlertTriangle,
-    color: 'text-yellow-500',
-    label: 'Awaiting Approval',
-  },
-  'approval-responded': { icon: Clock, color: 'text-blue-500', label: 'Approved' },
-  'output-available': { icon: CheckCircle, color: 'text-green-500', label: 'Completed' },
-  'output-error': { icon: XCircle, color: 'text-red-500', label: 'Failed' },
-  'output-denied': { icon: XCircle, color: 'text-orange-500', label: 'Denied' },
-};
-
+const stateConfig = TOOL_STATE_CONFIG;
 
 export function MCPCallTimeline({
   steps,

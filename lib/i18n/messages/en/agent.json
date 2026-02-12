@@ -90,7 +90,8 @@
     "started": "Started: {time}",
     "durationValue": "Duration: {value}",
     "subAgentProgress": "{completed}/{total} sub-agents",
-    "nRunning": "{count} running"
+    "nRunning": "{count} running",
+    "processManager": "Process Manager"
   },
   "agentMode": {
     "title": "Agent Mode",

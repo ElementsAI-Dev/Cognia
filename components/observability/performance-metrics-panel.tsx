@@ -14,6 +14,7 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
@@ -25,6 +26,7 @@ import {
   AlertTriangle,
   Activity,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -47,6 +49,8 @@ interface PerformanceMetricsPanelProps {
   history: AgentMetrics[];
   activeExecutions: AgentMetrics[];
   hasData: boolean;
+  onClear?: () => void;
+  onRefresh?: () => void;
 }
 
 const PIE_COLORS = ['#22c55e', '#ef4444']; // success, error
@@ -98,6 +102,8 @@ export function PerformanceMetricsPanel({
   history,
   activeExecutions,
   hasData,
+  onClear,
+  onRefresh,
 }: PerformanceMetricsPanelProps) {
   const t = useTranslations('observability.dashboard');
 
@@ -151,6 +157,24 @@ export function PerformanceMetricsPanel({
 
   return (
     <div className="space-y-4">
+      {/* Actions bar */}
+      {(onRefresh || onClear) && (
+        <div className="flex items-center justify-end gap-2">
+          {onRefresh && (
+            <Button variant="ghost" size="sm" onClick={onRefresh} className="h-7 text-xs gap-1">
+              <RotateCcw className="h-3 w-3" />
+              {t('refreshMetrics') || 'Refresh'}
+            </Button>
+          )}
+          {onClear && (
+            <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs gap-1 text-destructive hover:text-destructive">
+              <Trash2 className="h-3 w-3" />
+              {t('clearMetrics') || 'Clear'}
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard

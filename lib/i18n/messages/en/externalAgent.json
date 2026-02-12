@@ -29,6 +29,7 @@
   "statusConnected": "Connected",
   "statusReconnecting": "Reconnecting",
   "statusError": "Error",
+  "manage": "Manage",
   "setConfigOptionFailed": "Failed to set config option",
   "settings": {
     "title": "External Agents",

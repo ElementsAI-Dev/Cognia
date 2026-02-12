@@ -117,4 +117,4 @@ export function ChatWidgetShortcuts({ className }: ChatWidgetShortcutsProps) {
   );
 }
 
-export default ChatWidgetShortcuts;
+

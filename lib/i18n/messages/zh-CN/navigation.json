@@ -92,7 +92,8 @@
     "cost": "费用",
     "viewFullReport": "查看完整报告",
     "showArchived": "显示已归档",
-    "showActive": "显示活跃"
+    "showActive": "显示活跃",
+    "viewAll": "查看全部"
   },
   "mobileNav": {
     "home": "首页",

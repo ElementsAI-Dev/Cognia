@@ -228,4 +228,4 @@ export const ChatWidgetSuggestions = memo(function ChatWidgetSuggestions({
   );
 });
 
-export default ChatWidgetSuggestions;
+

@@ -66,6 +66,9 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     hasData,
     efficiency,
     providerBreakdown,
+    dailySummary,
+    modelBreakdown,
+    recordCount,
   } = useObservabilityData(timeRange);
 
   // Agent trace data for Traces tab
@@ -84,6 +87,8 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
     history: perfHistory,
     activeExecutions: perfActiveExecutions,
     hasData: hasPerfData,
+    clearMetrics: perfClearMetrics,
+    refresh: perfRefresh,
   } = usePerformanceMetrics();
 
   // Get top sessions
@@ -178,6 +183,7 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
         langfuseEnabled={observabilitySettings?.langfuseEnabled}
         openTelemetryEnabled={observabilitySettings?.openTelemetryEnabled}
         onClose={onClose}
+        recordCount={recordCount}
       />
 
       {/* Stats Cards - Responsive grid */}
@@ -255,6 +261,10 @@ export function ObservabilityDashboard({ onClose }: ObservabilityDashboardProps)
             perfActiveExecutions={perfActiveExecutions}
             hasPerfData={hasPerfData}
             topSessions={topSessions}
+            dailySummary={dailySummary}
+            modelBreakdown={modelBreakdown}
+            onClearPerfMetrics={perfClearMetrics}
+            onRefreshPerfMetrics={perfRefresh}
           />
         </TabsContent>
 

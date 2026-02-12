@@ -348,6 +348,37 @@ describe('InteractiveNotebook', () => {
       // refreshVariables should not be called
       expect(refreshVariables).not.toHaveBeenCalled();
     });
+
+    it('should log warning with formatted error on failed execution with error', async () => {
+      const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const executeCell = jest.fn().mockResolvedValue({
+        success: false,
+        executionTimeMs: 150,
+        error: { ename: 'ValueError', evalue: 'bad input', traceback: ['line1', 'ValueError: bad input'] },
+      });
+      const refreshVariables = jest.fn();
+      mockUseJupyterKernel.mockReturnValue(
+        createMockKernelHook({ ...activeSessionMock, executeCell, refreshVariables })
+      );
+
+      renderWithIntl(<InteractiveNotebook content={sampleNotebook} />);
+
+      const executeButton = screen.getByRole('button', { name: 'Execute Cell' });
+      fireEvent.click(executeButton);
+
+      await waitFor(() => {
+        expect(executeCell).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(consoleWarn).toHaveBeenCalledWith(
+          expect.stringContaining('Cell 0 failed'),
+          expect.stringContaining('ValueError: bad input')
+        );
+      });
+
+      consoleWarn.mockRestore();
+    });
   });
 
   describe('run all cells', () => {

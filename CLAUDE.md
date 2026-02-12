@@ -4,6 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Changelog
 
+### 2026-02-13
+
+- **Module Updates**
+  - Added A2UI Analysis Adapter for Academic mode (`components/a2ui/academic/`)
+  - Added App Builder Tools for AI-driven mini-app creation (`lib/ai/tools/app-builder-tool.ts`)
+  - Added Zotero integration slice for academic paper management (`stores/academic/slices/zotero-slice.ts`)
+  - Enhanced Quick App Builder with template cards and flash app generation
+  - Removed deprecated MCP favorites and recently-viewed hooks
+  - Removed document-storage and word-export modules (functionality moved elsewhere)
+  - Tool Registry now includes 40+ tools including app builder, memory, and artifact tools
+
 ### 2026-01-31
 
 - **Documentation System Refresh**
@@ -71,6 +82,7 @@ graph TD
     Components --> CompChat["chat/ - Chat Components"]
     Components --> CompAgent["agent/ - Agent Components"]
     Components --> CompAI["ai-elements/ - AI Components"]
+    Components --> CompA2UI["a2ui/ - A2UI Mini-Apps"]
     Components --> CompDesigner["designer/ - Visual Designer"]
     Components --> CompNative["native/ - Native Features"]
     Components --> CompWorkflow["workflow-editor/ - Workflow Editor"]
@@ -92,6 +104,7 @@ graph TD
     Lib --> LibCanvas["canvas/ - Canvas Utilities"]
     Lib --> LibMedia["media/ - Media Processing"]
     Lib --> LibLearning["learning/ - Learning System"]
+    Lib --> LibA2UI["a2ui/ - A2UI App Generation"]
 
     Hooks --> HooksAI["ai/ - AI Hooks"]
     Hooks --> HooksAgent["agent/ - Agent Hooks"]
@@ -104,6 +117,7 @@ graph TD
     Hooks --> HooksLearning["learning/ - Learning Hooks"]
     Hooks --> HooksSkillSeekers["skill-seekers/ - SkillSeekers Hooks"]
     Hooks --> HooksInputCompletion["input-completion/ - Input Completion"]
+    Hooks --> HooksA2UI["a2ui/ - A2UI Hooks"]
 
     Stores --> StoresAgent["agent/ - Agent State"]
     Stores --> StoresChat["chat/ - Chat State"]
@@ -118,6 +132,8 @@ graph TD
     Stores --> StoresInputCompletion["input-completion/ - Input Completion State"]
     Stores --> StoresCanvas["canvas/ - Canvas State"]
     Stores --> StoresScreenshot["screenshot/ - Screenshot State"]
+    Stores --> StoresA2UI["a2ui/ - A2UI State"]
+    Stores --> StoresAcademic["academic/ - Academic State"]
 
     SrcTauri --> TauriCommands["commands/ - Tauri Commands"]
     SrcTauri --> TauriMCP["mcp/ - MCP Manager"]
@@ -144,7 +160,7 @@ graph TD
 | Module | Path | Type | Description | Files | Tests | Coverage |
 |--------|------|------|-------------|-------|-------|----------|
 | **app** | `app/` | Frontend | Next.js App Router with standalone windows | 60 | Yes | Good |
-| **components** | `components/` | Frontend | Feature-based React components (50 directories) | 350 | Yes | Good |
+| **components** | `components/` | Frontend | Feature-based React components (50+ directories) | 350 | Yes | Good |
 | **lib** | `lib/` | Frontend | Domain utilities and business logic | 250 | Yes | Good |
 | **hooks** | `hooks/` | Frontend | Custom React hooks organized by domain | 120 | Yes | Good |
 | **stores** | `stores/` | Frontend | Zustand state management with persistence | 120 | Yes | Good |
@@ -163,7 +179,7 @@ pnpm lint             # Run ESLint
 pnpm lint --fix       # Auto-fix ESLint issues
 
 # Testing - Unit
-pnpm test             # Run Jest unit tests (180 test files)
+pnpm test             # Run Jest unit tests (180+ test files)
 pnpm test:watch       # Jest watch mode
 pnpm test:coverage    # Jest with coverage (55%+ lines, 50%+ branches)
 pnpm test -- path/to/file.test.ts           # Run single test file
@@ -226,6 +242,25 @@ The application defines 5 windows:
 - **Auto-Router**: Three-tier intelligent routing (Fast/Balanced/Powerful)
 - **Agent System**: Three-tier architecture with tool calling, planning, sub-agent coordination
 
+### Tool System (40+ Tools)
+
+The tool registry includes tools across multiple categories:
+
+| Category | Tools |
+|----------|-------|
+| **Search** | `rag_search`, `web_search`, `web_scraper`, `bulk_web_scraper`, `search_and_scrape` |
+| **File** | `file_read`, `file_write`, `file_list`, `file_delete`, `file_search`, `content_search`, etc. |
+| **Document** | `document_summarize`, `document_chunk`, `document_analyze`, `document_extract_tables`, `document_read_file` |
+| **Video** | `video_generate`, `video_status`, `video_subtitles`, `video_analyze`, `subtitle_parse` |
+| **Image** | `image_generate`, `image_edit`, `image_variation` |
+| **PPT** | `ppt_outline`, `ppt_slide_content`, `ppt_finalize`, `ppt_export`, `ppt_generate_image` |
+| **Academic** | `academic_search`, `academic_analysis`, `paper_comparison` |
+| **Learning** | `display_flashcard`, `display_quiz`, `display_review_session`, `display_progress_summary` |
+| **App** | `app_generate`, `app_create_from_template`, `app_list_templates`, `app_delete` |
+| **System** | `calculator`, `shell_execute` |
+| **Memory** | Memory tools for persistent context |
+| **Artifact** | Artifact creation and management tools |
+
 ### MCP (Model Context Protocol)
 
 - **Rust Backend**: Full JSON-RPC 2.0 protocol implementation
@@ -239,6 +274,20 @@ The application defines 5 windows:
 - **Context System**: Window/app/file/browser/editor detection
 - **Screenshot System**: Multi-mode capture with OCR and searchable history
 - **Screen Recording**: Fullscreen, window, and region recording with history
+
+### A2UI Mini-Apps System
+
+- **Quick App Builder**: AI-driven interface for creating interactive mini-apps
+- **Templates**: Pre-built templates for calculators, timers, todo lists, forms, etc.
+- **Flash Generation**: Generate apps from natural language descriptions
+- **App Generator**: `lib/a2ui/app-generator.ts` for programmatic app creation
+- **Academic Integration**: `A2UIAnalysisAdapter` bridges A2UI with academic analysis panels
+
+### Academic Mode
+
+- **Paper Search**: Integration with arXiv, Semantic Scholar, OpenAlex, HuggingFace Papers
+- **Zotero Integration**: Import, export, and sync papers with Zotero library
+- **Paper Analysis**: Summaries, key insights, methodology analysis, comparisons
 
 ### New Features (2025-01-26)
 
@@ -260,7 +309,6 @@ The application defines 5 windows:
 - **Sandbox System**: Secure code execution with Docker/Podman/Native support
 - **Jupyter Integration**: Full Jupyter kernel and session management
 - **Git Integration**: Git operations support
-- **Academic Mode**: Research paper search and management
 - **Video Studio**: Video editing and generation with timeline, effects, and recording
 
 ## Store Architecture
@@ -285,8 +333,8 @@ All Zustand stores use localStorage persistence with the `persist` middleware:
 | `stores/tools/` | `skill-store`, `template-store`, `ppt-editor-store`, `jupyter-store` | Skills, tools |
 | `stores/workflow/` | `workflow-store`, `workflow-editor-store` | Workflow definitions and execution |
 | `stores/git/` | `git-store` | Git state |
-| `stores/a2ui/` | `a2ui-store` | A2UI state |
-| `stores/academic/` | `academic-store`, `knowledge-map-store` | Academic mode state |
+| `stores/a2ui/` | `a2ui-store` | A2UI mini-apps state |
+| `stores/academic/` | `academic-store`, `knowledge-map-store`, `zotero-slice` | Academic mode state |
 | `stores/plugin/` | `plugin-store` | Plugin state |
 | `stores/prompt/` | `prompt-template-store`, `prompt-marketplace-store` | Prompt management |
 | `stores/tool-history/` | `tool-history-store` | Tool usage history |
@@ -360,8 +408,8 @@ When working with this codebase:
 
 ## Coverage Report
 
-- **Total Files**: 3,850
-- **Scanned Files**: 3,850
+- **Total Files**: 3,850+
+- **Scanned Files**: 3,850+
 - **Coverage**: 100%
 - **Status**: Complete - all major modules and files indexed
 
@@ -380,12 +428,12 @@ When working with this codebase:
 | Module | Files | Dirs | Coverage | Notes |
 |--------|-------|------|----------|-------|
 | app | 60 | 9 | Good | All routes, API routes, and layouts documented |
-| components | 350 | 50 | Good | 50 component directories indexed |
-| lib | 250 | 25 | Good | All subdirectories documented |
-| hooks | 120 | 25 | Good | 25 hook categories indexed |
-| stores | 120 | 28 | Good | 28 store directories documented |
-| types | 120 | 25 | Complete | All type definitions indexed |
-| src-tauri | 150 | 17 | Partial | Rust modules documented |
+| components | 350 | 50+ | Good | 50+ component directories indexed |
+| lib | 250 | 25+ | Good | All subdirectories documented |
+| hooks | 120 | 25+ | Good | 25+ hook categories indexed |
+| stores | 120 | 28+ | Good | 28+ store directories documented |
+| types | 120 | 25+ | Complete | All type definitions indexed |
+| src-tauri | 150 | 17+ | Partial | Rust modules documented |
 | e2e | 100 | 4 | Good | Playwright test files |
 
 ## Documentation System

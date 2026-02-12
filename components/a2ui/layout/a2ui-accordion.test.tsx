@@ -3,9 +3,15 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { A2UIAccordion } from './a2ui-accordion';
 import type { A2UIAccordionComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
+
+// Mock useA2UIKeyboard hook
+const mockUseA2UIKeyboard = jest.fn();
+jest.mock('@/hooks/a2ui/use-a2ui-keyboard', () => ({
+  useA2UIKeyboard: (opts: unknown) => mockUseA2UIKeyboard(opts),
+}));
 
 // Mock A2UIChildRenderer
 jest.mock('../a2ui-renderer', () => ({
@@ -107,5 +113,72 @@ describe('A2UIAccordion', () => {
     const { container } = render(<A2UIAccordion {...createProps(component)} />);
     const accordion = container.querySelector('.custom-class');
     expect(accordion).toBeInTheDocument();
+  });
+
+  describe('keyboard navigation', () => {
+    it('should call useA2UIKeyboard with handlers', () => {
+      const component: A2UIAccordionComponent = {
+        id: 'accordion-kb',
+        component: 'Accordion',
+        items: [
+          { id: 'item1', title: 'First', children: ['child-1'] },
+          { id: 'item2', title: 'Second', children: ['child-2'] },
+        ],
+      };
+
+      render(<A2UIAccordion {...createProps(component)} />);
+
+      expect(mockUseA2UIKeyboard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          onArrowUp: expect.any(Function),
+          onArrowDown: expect.any(Function),
+          onEnter: expect.any(Function),
+          enabled: expect.any(Boolean),
+        })
+      );
+    });
+
+    it('should enable keyboard when container is focused', () => {
+      const component: A2UIAccordionComponent = {
+        id: 'accordion-focus',
+        component: 'Accordion',
+        items: [
+          { id: 'item1', title: 'Focus Item', children: ['child-1'] },
+        ],
+      };
+
+      const { container } = render(<A2UIAccordion {...createProps(component)} />);
+      const wrapper = container.firstChild as HTMLElement;
+
+      // Initially not focused
+      const initialCall = mockUseA2UIKeyboard.mock.calls[mockUseA2UIKeyboard.mock.calls.length - 1][0];
+      expect(initialCall.enabled).toBe(false);
+
+      // Focus the container
+      fireEvent.focus(wrapper);
+
+      // After focus, useA2UIKeyboard should be called with enabled: true
+      const focusedCall = mockUseA2UIKeyboard.mock.calls[mockUseA2UIKeyboard.mock.calls.length - 1][0];
+      expect(focusedCall.enabled).toBe(true);
+    });
+
+    it('should disable keyboard when container is blurred', () => {
+      const component: A2UIAccordionComponent = {
+        id: 'accordion-blur',
+        component: 'Accordion',
+        items: [
+          { id: 'item1', title: 'Blur Item', children: ['child-1'] },
+        ],
+      };
+
+      const { container } = render(<A2UIAccordion {...createProps(component)} />);
+      const wrapper = container.firstChild as HTMLElement;
+
+      fireEvent.focus(wrapper);
+      fireEvent.blur(wrapper);
+
+      const blurCall = mockUseA2UIKeyboard.mock.calls[mockUseA2UIKeyboard.mock.calls.length - 1][0];
+      expect(blurCall.enabled).toBe(false);
+    });
   });
 });

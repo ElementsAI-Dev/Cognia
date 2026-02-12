@@ -203,8 +203,10 @@ jest.mock('@/components/a2ui', () => ({
   hasA2UIToolOutput: () => false,
 }));
 
-jest.mock('@/components/mcp', () => ({
-  MCPServerBadge: () => <span data-testid="mcp-server-badge" />,
+jest.mock('@/components/mcp/mcp-tool-call-card', () => ({
+  MCPToolCallCard: ({ callId, toolName, serverId }: { callId: string; toolName: string; serverId: string }) => (
+    <div data-testid="mcp-tool-call-card" data-call-id={callId} data-tool-name={toolName} data-server-id={serverId} />
+  ),
 }));
 
 // Mock next-intl
@@ -395,6 +397,42 @@ describe('ToolTimeline', () => {
       const { container } = render(<ToolTimeline executions={singleExec} />);
       // Check that the component renders with at least one execution
       expect(container.firstChild).toBeInTheDocument();
+    });
+  });
+
+  describe('MCP tool execution', () => {
+    it('renders MCPToolCallCard for MCP tool executions', () => {
+      const mcpExec: ToolExecution[] = [
+        {
+          id: 'mcp-1',
+          toolName: 'mcp_tool',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(1000),
+          serverId: 'server-1',
+          serverName: 'Test Server',
+        },
+      ];
+      render(<ToolTimeline executions={mcpExec} />);
+      const card = screen.getByTestId('mcp-tool-call-card');
+      expect(card).toBeInTheDocument();
+      expect(card).toHaveAttribute('data-server-id', 'server-1');
+      expect(card).toHaveAttribute('data-tool-name', 'mcp_tool');
+    });
+
+    it('renders standard layout for non-MCP tool executions', () => {
+      const nonMcpExec: ToolExecution[] = [
+        {
+          id: 'std-1',
+          toolName: 'local_tool',
+          state: 'output-available',
+          startTime: new Date(0),
+          endTime: new Date(500),
+        },
+      ];
+      render(<ToolTimeline executions={nonMcpExec} />);
+      expect(screen.queryByTestId('mcp-tool-call-card')).not.toBeInTheDocument();
+      expect(screen.getByText('Local Tool')).toBeInTheDocument();
     });
   });
 });

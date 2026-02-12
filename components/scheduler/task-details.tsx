@@ -518,5 +518,3 @@ function ExecutionHistory({
     </ScrollArea>
   );
 }
-
-export default TaskDetails;

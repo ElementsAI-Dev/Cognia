@@ -17,7 +17,7 @@
  * 11. OnboardingProvider - Setup wizard
  */
 
-import { useEffect, useLayoutEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useSettingsStore } from '@/stores';
 import { useSelectionStore } from '@/stores/context';
 import { I18nProvider } from '@/lib/i18n';
@@ -89,11 +89,33 @@ async function ensurePluginSystemInitialized(): Promise<void> {
   return pluginInitPromise;
 }
 
+const ChatAssistantContainerLazy = lazy(() =>
+  import('@/components/chat-widget/chat-assistant-container').then((m) => ({
+    default: m.ChatAssistantContainer,
+  }))
+);
+
 function ChatAssistantContainerGate() {
-  // AI assistant bubble is a desktop-only feature.
-  // In web mode, this feature is not needed and should be hidden by default.
-  // Desktop uses the dedicated Tauri assistant bubble window.
-  return null;
+  // AI assistant FAB + Panel is a desktop-only feature.
+  // Renders only in Tauri main window (not in standalone chat-widget / bubble / toolbar windows).
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (!detectTauri()) return;
+    getWindowLabel().then((label) => {
+      if (!label || label === WINDOW_LABELS.MAIN) {
+        setShouldRender(true);
+      }
+    });
+  }, []);
+
+  if (!shouldRender) return null;
+
+  return (
+    <Suspense fallback={null}>
+      <ChatAssistantContainerLazy tauriOnly={true} />
+    </Suspense>
+  );
 }
 
 function ChatWidgetNativeSync() {

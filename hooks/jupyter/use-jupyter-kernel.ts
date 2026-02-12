@@ -17,6 +17,8 @@ import type {
   CellOutputEvent,
   CellOutput,
   ExecutableCell,
+  KernelServiceConfig,
+  NotebookFileInfo,
 } from '@/types/jupyter';
 
 /** Hook return type */
@@ -62,6 +64,18 @@ export interface UseJupyterKernelReturn {
     sessionId?: string
   ) => Promise<KernelSandboxExecutionResult | null>;
 
+  // Kernel inspection
+  getKernelStatus: (sessionId: string) => Promise<string | null>;
+  isKernelAlive: (sessionId: string) => Promise<boolean>;
+  getSessionById: (sessionId: string) => Promise<JupyterSession | null>;
+  getKernelConfig: () => Promise<KernelServiceConfig | null>;
+  getNotebookInfo: (path: string) => Promise<NotebookFileInfo>;
+
+  // Session actions
+  updateSession: (sessionId: string, updates: Partial<JupyterSession>) => void;
+  clearVariables: () => void;
+  clearExecutionHistory: (sessionId?: string) => void;
+
   // Utility
   checkKernelAvailable: (envPath: string) => Promise<boolean>;
   ensureKernel: (envPath: string) => Promise<boolean>;
@@ -106,6 +120,9 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     getCells,
     mapChatToJupyter,
     unmapChatSession: unmapChatSessionInStore,
+    updateSession,
+    clearVariables,
+    clearExecutionHistory,
     setError,
     clearError,
     setCreatingSession,
@@ -566,6 +583,27 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     }
   }, [refreshSessions, setError]);
 
+  // Kernel inspection wrappers
+  const getKernelStatus = useCallback(async (sessionId: string): Promise<string | null> => {
+    return kernelService.getKernelStatus(sessionId);
+  }, []);
+
+  const isKernelAlive = useCallback(async (sessionId: string): Promise<boolean> => {
+    return kernelService.isKernelAlive(sessionId);
+  }, []);
+
+  const getSessionById = useCallback(async (sessionId: string): Promise<JupyterSession | null> => {
+    return kernelService.getSessionById(sessionId);
+  }, []);
+
+  const getKernelConfig = useCallback(async (): Promise<KernelServiceConfig | null> => {
+    return kernelService.getKernelConfig();
+  }, []);
+
+  const getNotebookInfo = useCallback(async (path: string): Promise<NotebookFileInfo> => {
+    return kernelService.getNotebookInfo(path);
+  }, []);
+
   // Get session for chat
   const getSessionForChat = useCallback(
     (chatSessionId: string): JupyterSession | null => {
@@ -627,6 +665,18 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     getCachedVariables,
     inspectVariable,
 
+    // Kernel inspection
+    getKernelStatus,
+    isKernelAlive,
+    getSessionById,
+    getKernelConfig,
+    getNotebookInfo,
+
+    // Session actions
+    updateSession,
+    clearVariables,
+    clearExecutionHistory,
+
     // Utility
     checkKernelAvailable,
     ensureKernel,
@@ -641,4 +691,3 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
   };
 }
 
-export default useJupyterKernel;

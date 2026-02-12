@@ -6,6 +6,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import {
+  DEFAULT_LEADERBOARD_SYNC_SETTINGS,
+  generateLeaderboardCacheKey,
+  isCacheValid,
+} from '@/types/arena';
 import type {
   LeaderboardSyncState,
   LeaderboardSyncError,
@@ -17,7 +22,6 @@ import type {
   RemoteModelRating,
   RemotePreferenceSubmission,
 } from '@/types/arena';
-import { DEFAULT_LEADERBOARD_SYNC_SETTINGS } from '@/types/arena';
 import {
   getLeaderboardApiClient,
   LeaderboardApiError,
@@ -69,28 +73,6 @@ interface LeaderboardSyncStore extends LeaderboardSyncState {
   _autoRefreshTimer: ReturnType<typeof setInterval> | null;
 }
 
-// ============================================
-// Helper Functions
-// ============================================
-
-function generateCacheKey(params: LeaderboardFetchParams): string {
-  const parts = [
-    params.period || 'all-time',
-    params.category || 'all',
-    params.sortBy || 'rating',
-    params.sortDirection || 'desc',
-    params.page || 1,
-    params.pageSize || 50,
-    params.provider || 'all',
-    params.minBattles || 0,
-  ];
-  return parts.join(':');
-}
-
-function checkCacheValid(entry: LeaderboardCacheEntry | undefined): boolean {
-  if (!entry) return false;
-  return new Date(entry.expiresAt) > new Date();
-}
 
 // ============================================
 // Initial State
@@ -196,9 +178,9 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
 
         // Check cache first (unless force refresh)
         if (!force) {
-          const cacheKey = generateCacheKey(fetchParams);
+          const cacheKey = generateLeaderboardCacheKey(fetchParams);
           const cached = get().cache.get(cacheKey);
-          if (checkCacheValid(cached)) {
+          if (isCacheValid(cached)) {
             set({
               leaderboard: cached!.data,
               currentParams: fetchParams,
@@ -232,7 +214,7 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
 
           if (response.success) {
             // Update cache
-            const cacheKey = generateCacheKey(fetchParams);
+            const cacheKey = generateLeaderboardCacheKey(fetchParams);
             const cacheEntry: LeaderboardCacheEntry = {
               key: cacheKey,
               data: response.data,
@@ -466,9 +448,9 @@ export const useLeaderboardSyncStore = create<LeaderboardSyncStore>()(
       },
 
       getCachedData: (params) => {
-        const cacheKey = generateCacheKey(params);
+        const cacheKey = generateLeaderboardCacheKey(params);
         const entry = get().cache.get(cacheKey);
-        return checkCacheValid(entry) ? entry! : null;
+        return isCacheValid(entry) ? entry! : null;
       },
 
       // ============================================

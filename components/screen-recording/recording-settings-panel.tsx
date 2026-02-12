@@ -51,20 +51,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn, formatBytes } from '@/lib/utils';
 import { useScreenRecordingStore } from '@/stores/media';
 import { FFmpegStatus } from './ffmpeg-status';
 import type { RecordingConfig } from '@/lib/native/screen-recording';
-
-// ============== Helpers ==============
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
 
 // ============== Preset Definitions ==============
 
@@ -161,13 +151,6 @@ export function RecordingSettingsPanel({
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
-  const setOpen = useCallback(
-    (v: boolean) => {
-      if (controlledOnOpenChange) controlledOnOpenChange(v);
-      if (!isControlled) setInternalOpen(v);
-    },
-    [controlledOnOpenChange, isControlled]
-  );
 
   const {
     config,
@@ -183,15 +166,20 @@ export function RecordingSettingsPanel({
     runStorageCleanup,
   } = useScreenRecordingStore();
 
-  const [localConfig, setLocalConfig] = useState<RecordingConfig | null>(null);
-  const [prevOpen, setPrevOpen] = useState(false);
+  const [localConfig, setLocalConfig] = useState<RecordingConfig | null>(
+    () => (open && config ? { ...config } : null)
+  );
 
-  if (open && !prevOpen && config) {
-    setLocalConfig({ ...config });
-  }
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-  }
+  const handleOpenChange = useCallback(
+    (v: boolean) => {
+      if (v && config) {
+        setLocalConfig({ ...config });
+      }
+      if (controlledOnOpenChange) controlledOnOpenChange(v);
+      if (!isControlled) setInternalOpen(v);
+    },
+    [controlledOnOpenChange, isControlled, config]
+  );
 
   const updateField = useCallback(
     <K extends keyof RecordingConfig>(key: K, value: RecordingConfig[K]) => {
@@ -203,9 +191,9 @@ export function RecordingSettingsPanel({
   const handleSave = useCallback(async () => {
     if (localConfig) {
       await updateConfig(localConfig);
-      setOpen(false);
+      handleOpenChange(false);
     }
-  }, [localConfig, updateConfig, setOpen]);
+  }, [localConfig, updateConfig, handleOpenChange]);
 
   const handleApplyPreset = useCallback(
     (preset: RecordingPreset) => {
@@ -239,7 +227,7 @@ export function RecordingSettingsPanel({
   );
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>{trigger || defaultTrigger}</SheetTrigger>
       <SheetContent className="w-full sm:max-w-lg p-0">
         <SheetHeader className="px-6 pt-6 pb-2">
@@ -248,7 +236,7 @@ export function RecordingSettingsPanel({
             {t('title')}
           </SheetTitle>
           <SheetDescription>
-            {t('description') || 'Configure recording format, quality, audio, and more.'}
+            {t('description')}
           </SheetDescription>
         </SheetHeader>
 
@@ -281,7 +269,7 @@ export function RecordingSettingsPanel({
             <section className="space-y-4">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
-                {t('videoSection') || 'Video'}
+                {t('videoSection')}
               </Label>
 
               {/* Format */}
@@ -495,7 +483,7 @@ export function RecordingSettingsPanel({
             <section className="space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <Info className="h-4 w-4" />
-                {t('systemInfo') || 'System Info'}
+                {t('systemInfo')}
               </Label>
 
               {/* FFmpeg Status */}
@@ -506,7 +494,7 @@ export function RecordingSettingsPanel({
                 <div className="rounded-lg border p-3 space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Cpu className="h-4 w-4" />
-                    {t('hwAcceleration') || 'GPU Acceleration'}
+                    {t('hwAcceleration')}
                   </div>
                   {hwAccelLabels.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -518,7 +506,7 @@ export function RecordingSettingsPanel({
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      {t('noHwAcceleration') || 'No GPU acceleration detected'}
+                      {t('noHwAcceleration')}
                     </p>
                   )}
                 </div>
@@ -537,7 +525,7 @@ export function RecordingSettingsPanel({
                   )}
                   {ffmpegInfo.path && (
                     <div className="flex items-center justify-between">
-                      <span>{t('path') || 'Path'}</span>
+                      <span>{t('path')}</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="font-mono truncate max-w-[200px]">
@@ -550,7 +538,7 @@ export function RecordingSettingsPanel({
                   )}
                   {ffmpegInfo.encoders.length > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>{t('encoders') || 'Encoders'}</span>
+                      <span>{t('encoders')}</span>
                       <span className="font-mono">{ffmpegInfo.encoders.length}</span>
                     </div>
                   )}
@@ -562,7 +550,7 @@ export function RecordingSettingsPanel({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <HardDrive className="h-4 w-4" />
-                    {t('storage') || 'Storage'}
+                    {t('storage')}
                   </div>
                   <Button
                     variant="ghost"
@@ -579,7 +567,7 @@ export function RecordingSettingsPanel({
                   <>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{t('storageUsed') || 'Used'}</span>
+                        <span>{t('storageUsed')}</span>
                         <span className="font-mono">
                           {Math.round(storageUsagePercent)}%
                         </span>
@@ -602,13 +590,13 @@ export function RecordingSettingsPanel({
                     {/* Breakdown */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <div className="flex items-center justify-between">
-                        <span>{t('recordings') || 'Recordings'}</span>
+                        <span>{t('recordings')}</span>
                         <span className="font-mono">
                           {formatBytes(storageStats.recordingsSize)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>{t('screenshots') || 'Screenshots'}</span>
+                        <span>{t('screenshots')}</span>
                         <span className="font-mono">
                           {formatBytes(storageStats.screenshotsSize)}
                         </span>
@@ -619,7 +607,7 @@ export function RecordingSettingsPanel({
                     {isStorageExceeded && (
                       <div className="flex items-center gap-2 text-xs text-destructive">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{t('storageExceeded') || 'Storage limit exceeded'}</span>
+                        <span>{t('storageExceeded')}</span>
                       </div>
                     )}
 
@@ -636,7 +624,7 @@ export function RecordingSettingsPanel({
                       }}
                     >
                       <Trash2 className="h-3 w-3 mr-1.5" />
-                      {t('cleanup') || 'Cleanup Old Files'}
+                      {t('cleanup')}
                     </Button>
                   </>
                 )}
@@ -646,7 +634,7 @@ export function RecordingSettingsPanel({
                   <p className="text-xs text-muted-foreground">
                     <span className="font-medium">{t('saveDirectory')}: </span>
                     <span className="font-mono truncate">
-                      {localConfig.save_directory || t('defaultDirectory') || 'Default'}
+                      {localConfig.save_directory || t('defaultDirectory')}
                     </span>
                   </p>
                 </div>
@@ -659,14 +647,14 @@ export function RecordingSettingsPanel({
         <div className="flex items-center justify-between border-t px-6 py-3">
           <Button variant="ghost" size="sm" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-2" />
-            {t('reset') || 'Reset'}
+            {t('reset')}
           </Button>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-              {t('cancel') || 'Cancel'}
+            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
+              {t('cancel')}
             </Button>
             <Button size="sm" onClick={handleSave}>
-              {t('save') || 'Save'}
+              {t('save')}
             </Button>
           </div>
         </div>

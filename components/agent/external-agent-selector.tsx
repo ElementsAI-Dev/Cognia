@@ -5,7 +5,7 @@
  * Integrates with the external agent store for configuration and connection management
  */
 
-import { useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ExternalLink,
@@ -31,7 +31,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { ExternalAgentManager } from './external-agent-manager';
 import { useExternalAgentStore } from '@/stores/agent/external-agent-store';
 import type { ExternalAgentConnectionStatus } from '@/types/agent/external-agent';
 
@@ -108,6 +115,7 @@ export function ExternalAgentSelector({
   className,
 }: ExternalAgentSelectorProps) {
   const t = useTranslations('externalAgent');
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
 
   // Store
   const {
@@ -254,6 +262,10 @@ export function ExternalAgentSelector({
 
         {/* Actions */}
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setManageDialogOpen(true)} className="gap-2">
+          <Plug className="h-4 w-4" />
+          {t('manage')}
+        </DropdownMenuItem>
         {onOpenSettings && (
           <DropdownMenuItem onClick={onOpenSettings} className="gap-2">
             <Settings className="h-4 w-4" />
@@ -261,6 +273,16 @@ export function ExternalAgentSelector({
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
+
+      {/* External Agent Manager Dialog */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('manageAgents')}</DialogTitle>
+          </DialogHeader>
+          <ExternalAgentManager />
+        </DialogContent>
+      </Dialog>
     </DropdownMenu>
   );
 }

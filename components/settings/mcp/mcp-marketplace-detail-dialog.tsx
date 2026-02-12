@@ -6,7 +6,7 @@
  * Enhanced with Markdown rendering, icon display, version info, and smart installation
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
@@ -54,13 +54,9 @@ import {
   formatDownloadCount,
   formatStarCount,
   formatRelativeTime,
-  parseInstallationConfig,
 } from '@/lib/mcp/marketplace';
-import {
-  getSourceColor,
-  checkMcpEnvironment,
-  type EnvironmentCheckResult,
-} from '@/lib/mcp/marketplace-utils';
+import { getSourceColor } from '@/lib/mcp/marketplace-utils';
+import { useMcpInstallation } from '@/hooks/mcp/use-mcp-installation';
 import { InstallationPreview } from './components';
 
 interface McpMarketplaceDetailDialogProps {
@@ -87,47 +83,40 @@ export function McpMarketplaceDetailDialog({
     downloadDetails,
     isLoadingDetails,
     fetchItemDetails,
-    setInstallStatus,
-    getInstallStatus,
   } = useMcpMarketplaceStore();
 
-  const { addServer, connectServer } = useMcpStore();
+  const { connectServer } = useMcpStore();
 
-  const [isInstalling, setIsInstalling] = useState(false);
-  const [installError, setInstallError] = useState<string | null>(null);
+  const {
+    isInstalling,
+    installError,
+    envValues,
+    envCheck,
+    isCheckingEnv,
+    installConfig,
+    isCurrentlyInstalled: isHookInstalled,
+    setEnvValue,
+    handleInstall: hookHandleInstall,
+  } = useMcpInstallation({
+    item,
+    isOpen: open,
+    onSuccess: async () => {
+      // Try to auto-connect after installation
+      if (item) {
+        try {
+          await connectServer(item.mcpId);
+        } catch {
+          // Connection failure is not fatal, server is still added
+          console.warn('Auto-connect failed, server added but not connected');
+        }
+      }
+      onOpenChange(false);
+    },
+  });
+
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'readme' | 'install'>('overview');
-  const [envValues, setEnvValues] = useState<Record<string, string>>({});
   const [imageError, setImageError] = useState(false);
-  const [envCheck, setEnvCheck] = useState<EnvironmentCheckResult | null>(null);
-  const [isCheckingEnv, setIsCheckingEnv] = useState(false);
-
-  // Check environment when dialog opens for stdio connections
-  useEffect(() => {
-    if (open && item && !item.remote) {
-      setIsCheckingEnv(true);
-      checkMcpEnvironment()
-        .then(setEnvCheck)
-        .finally(() => setIsCheckingEnv(false));
-    }
-  }, [open, item]);
-
-  // Parse installation configuration from readme or llms content
-  const installConfig = useMemo(() => {
-    if (!item || !downloadDetails) return null;
-    return parseInstallationConfig(item, downloadDetails);
-  }, [item, downloadDetails]);
-
-  // Initialize env values when install config changes
-  useEffect(() => {
-    if (installConfig?.envKeys) {
-      const initialEnv: Record<string, string> = {};
-      installConfig.envKeys.forEach((key) => {
-        initialEnv[key] = '';
-      });
-      setEnvValues(initialEnv);
-    }
-  }, [installConfig]);
 
   // Fetch details when dialog opens
   useEffect(() => {
@@ -136,71 +125,17 @@ export function McpMarketplaceDetailDialog({
     }
   }, [open, item, fetchItemDetails]);
 
-  // Reset state when dialog closes
-  useEffect(() => {
-    if (!open) {
-      setInstallError(null);
-      setIsInstalling(false);
+  // Reset UI state when dialog closes
+  const handleOpenChangeWithReset = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setActiveTab('overview');
-      setEnvValues({});
       setImageError(false);
     }
-  }, [open]);
+    onOpenChange(nextOpen);
+  };
 
   const handleInstall = async () => {
-    if (!item) return;
-
-    setIsInstalling(true);
-    setInstallError(null);
-    setInstallStatus(item.mcpId, 'installing');
-
-    try {
-      // Use parsed install config or generate default
-      const config = installConfig || {
-        command: 'npx',
-        args: ['-y', item.mcpId],
-        connectionType: 'stdio' as const,
-      };
-
-      // Build environment variables from form
-      const env: Record<string, string> = {};
-      Object.entries(envValues).forEach(([key, value]) => {
-        if (value.trim()) {
-          env[key] = value.trim();
-        }
-      });
-
-      // Create server config
-      const serverConfig = {
-        name: item.name,
-        command: config.command,
-        args: config.args,
-        env,
-        connectionType: config.connectionType,
-        url: config.url,
-        enabled: true,
-        autoStart: false,
-      };
-
-      await addServer(item.mcpId, serverConfig);
-      
-      // Try to auto-connect after installation
-      try {
-        await connectServer(item.mcpId);
-      } catch {
-        // Connection failure is not fatal, server is still added
-        console.warn('Auto-connect failed, server added but not connected');
-      }
-      
-      setInstallStatus(item.mcpId, 'installed');
-      onOpenChange(false);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to install MCP server';
-      setInstallError(errorMessage);
-      setInstallStatus(item.mcpId, 'error', errorMessage);
-    } finally {
-      setIsInstalling(false);
-    }
+    await hookHandleInstall();
   };
 
   const handleCopyCommand = async () => {
@@ -218,14 +153,13 @@ export function McpMarketplaceDetailDialog({
     }
   };
 
-  const installStatus = item ? getInstallStatus(item.mcpId) : 'not_installed';
-  const isCurrentlyInstalled = isInstalled || installStatus === 'installed';
+  const isCurrentlyInstalled = isInstalled || isHookInstalled;
 
   if (!item) return null;
 
   return (
     <TooltipProvider delayDuration={300}>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChangeWithReset}>
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -570,7 +504,7 @@ export function McpMarketplaceDetailDialog({
                     envValues={envValues}
                     envCheck={envCheck}
                     isCheckingEnv={isCheckingEnv}
-                    onEnvValueChange={(key, value) => setEnvValues({ ...envValues, [key]: value })}
+                    onEnvValueChange={(key, value) => setEnvValue(key, value)}
                   />
                 </TabsContent>
               </Tabs>

@@ -2,24 +2,22 @@
 
 import { useTranslations } from 'next-intl';
 import { useContext, AppType } from '@/hooks/context';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Monitor,
   AppWindow,
   FileCode,
   Globe,
   Code,
-  RefreshCw,
   Folder,
   GitBranch,
   Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NativeToolHeader } from '../layout/native-tool-header';
 
 interface ContextPanelProps {
   className?: string;
@@ -59,36 +57,15 @@ export function ContextPanel({ className }: ContextPanelProps) {
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
-            <Eye className="h-4 w-4 text-blue-500" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
-            {context?.window && (
-              <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
-                {context.window.process_name}
-              </p>
-            )}
-          </div>
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => fetchContext()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('refreshContext')}</TooltipContent>
-        </Tooltip>
-      </div>
+      <NativeToolHeader
+        icon={Eye}
+        iconClassName="bg-blue-500/10 text-blue-500"
+        title={t('title')}
+        description={context?.window?.process_name}
+        onRefresh={() => fetchContext()}
+        isRefreshing={isLoading}
+        refreshLabel={t('refreshContext')}
+      />
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">

@@ -23,14 +23,6 @@ export type {
 export { useMcpInstallation } from './use-mcp-installation';
 export type { UseMcpInstallationOptions, UseMcpInstallationReturn } from './use-mcp-installation';
 
-export { useMcpRecentlyViewed } from './use-mcp-recently-viewed';
-export type {
-  UseMcpRecentlyViewedOptions,
-  UseMcpRecentlyViewedReturn,
-} from './use-mcp-recently-viewed';
-
-export { useMcpFavorites } from './use-mcp-favorites';
-export type { UseMcpFavoritesReturn } from './use-mcp-favorites';
 
 export { useMcpEnvironmentCheck } from './use-mcp-environment-check';
 export type {

@@ -19,6 +19,9 @@ import {
   executeDisplayReviewSession,
   executeDisplayProgressSummary,
   executeDisplayConceptExplanation,
+  executeDisplayStepGuide,
+  executeDisplayConceptMap,
+  executeDisplayAnimation,
   type DisplayFlashcardInput,
   type DisplayFlashcardDeckInput,
   type DisplayQuizInput,
@@ -26,6 +29,9 @@ import {
   type DisplayReviewSessionInput,
   type DisplayProgressSummaryInput,
   type DisplayConceptExplanationInput,
+  type DisplayStepGuideInput,
+  type DisplayConceptMapInput,
+  type DisplayAnimationInput,
   type FlashcardData,
   type QuizQuestionData,
 } from '@/lib/ai/tools/learning-tools';
@@ -42,6 +48,8 @@ export interface UseLearningToolsOptions {
   enableProgressSummary?: boolean;
   /** Enable concept explanation tools */
   enableConceptExplanation?: boolean;
+  /** Enable visualization tools (step guide, concept map, animation) */
+  enableVisualization?: boolean;
 }
 
 export interface UseLearningToolsReturn {
@@ -77,6 +85,7 @@ export function useLearningTools(options: UseLearningToolsOptions = {}): UseLear
     enableReviewSessions = true,
     enableProgressSummary = true,
     enableConceptExplanation = true,
+    enableVisualization = true,
   } = options;
 
   const learningStore = useLearningStore();
@@ -182,6 +191,41 @@ export function useLearningTools(options: UseLearningToolsOptions = {}): UseLear
       };
     }
 
+    if (enableVisualization) {
+      agentTools.displayStepGuide = {
+        name: learningTools.displayStepGuide.name,
+        description: learningTools.displayStepGuide.description,
+        parameters: learningTools.displayStepGuide.parameters,
+        execute: async (args) => {
+          const input = args as DisplayStepGuideInput;
+          return executeDisplayStepGuide(input);
+        },
+        requiresApproval: false,
+      };
+
+      agentTools.displayConceptMap = {
+        name: learningTools.displayConceptMap.name,
+        description: learningTools.displayConceptMap.description,
+        parameters: learningTools.displayConceptMap.parameters,
+        execute: async (args) => {
+          const input = args as DisplayConceptMapInput;
+          return executeDisplayConceptMap(input);
+        },
+        requiresApproval: false,
+      };
+
+      agentTools.displayAnimation = {
+        name: learningTools.displayAnimation.name,
+        description: learningTools.displayAnimation.description,
+        parameters: learningTools.displayAnimation.parameters,
+        execute: async (args) => {
+          const input = args as DisplayAnimationInput;
+          return executeDisplayAnimation(input);
+        },
+        requiresApproval: false,
+      };
+    }
+
     return agentTools;
   }, [
     enableFlashcards,
@@ -189,6 +233,7 @@ export function useLearningTools(options: UseLearningToolsOptions = {}): UseLear
     enableReviewSessions,
     enableProgressSummary,
     enableConceptExplanation,
+    enableVisualization,
   ]);
 
   // Generate flashcards from current session's review items

@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Plug, PlugZap, RefreshCw, AlertCircle, Store, ScrollText, Unplug, Loader2, Filter, SortAsc, Download, Upload } from 'lucide-react';
+import { Plus, Plug, PlugZap, RefreshCw, Store, ScrollText, Unplug, Loader2, Filter, SortAsc, Download, Upload, HeartPulse, Wrench, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,6 +52,13 @@ import { McpInstallWizard } from './mcp-install-wizard';
 import { McpMarketplace } from './mcp-marketplace';
 import { ServerCard, ServerCardSkeleton } from './components';
 import { MCPLogViewer } from '@/components/mcp/mcp-log-viewer';
+import { MCPServerHealth } from '@/components/mcp/mcp-server-health';
+import { MCPToolUsageStats } from '@/components/mcp/mcp-tool-usage-stats';
+import { MCPToolSelectionConfig } from '@/components/mcp/mcp-tool-selection-config';
+import { MCPActiveCalls } from '@/components/mcp/mcp-active-calls';
+import { MCPResourceBrowser } from '@/components/mcp/mcp-resource-browser';
+import { McpPromptsPanel } from '@/components/mcp/mcp-prompts-panel';
+import { MCPErrorDisplay } from '@/components/mcp/mcp-error-display';
 import type { McpServerState } from '@/types/mcp';
 
 export function McpSettings() {
@@ -299,7 +306,7 @@ export function McpSettings() {
   return (
     <TooltipProvider delayDuration={300}>
       <Tabs defaultValue="servers" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="servers" className="gap-1.5">
             <Plug className="h-3.5 w-3.5" />
             {t('myServers')}
@@ -307,6 +314,18 @@ export function McpSettings() {
           <TabsTrigger value="marketplace" className="gap-1.5">
             <Store className="h-3.5 w-3.5" />
             {t('marketplace')}
+          </TabsTrigger>
+          <TabsTrigger value="health" className="gap-1.5">
+            <HeartPulse className="h-3.5 w-3.5" />
+            {t('health')}
+          </TabsTrigger>
+          <TabsTrigger value="tools" className="gap-1.5">
+            <Wrench className="h-3.5 w-3.5" />
+            {t('tools')}
+          </TabsTrigger>
+          <TabsTrigger value="resources" className="gap-1.5">
+            <Database className="h-3.5 w-3.5" />
+            {t('resources')}
           </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="h-3.5 w-3.5" />
@@ -327,16 +346,10 @@ export function McpSettings() {
 
           {/* Error Alert */}
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{tCommon('error')}</AlertTitle>
-              <AlertDescription className="flex items-center justify-between">
-                <span>{error}</span>
-                <Button variant="ghost" size="sm" onClick={clearError}>
-                  {t('dismiss')}
-                </Button>
-              </AlertDescription>
-            </Alert>
+            <MCPErrorDisplay
+              error={error}
+              onDismiss={clearError}
+            />
           )}
 
           {/* Actions */}
@@ -617,8 +630,28 @@ export function McpSettings() {
           <McpMarketplace />
         </TabsContent>
 
+        {/* Health Tab */}
+        <TabsContent value="health" className="space-y-4">
+          <MCPServerHealth />
+        </TabsContent>
+
+        {/* Tools Tab */}
+        <TabsContent value="tools" className="space-y-4">
+          <MCPToolSelectionConfig />
+          <MCPToolUsageStats />
+        </TabsContent>
+
+        {/* Resources Tab */}
+        <TabsContent value="resources" className="space-y-4">
+          <MCPResourceBrowser />
+          {connectedServers.length > 0 && (
+            <McpPromptsPanel serverId={connectedServers[0].id} />
+          )}
+        </TabsContent>
+
         {/* Logs Tab */}
         <TabsContent value="logs" className="space-y-4">
+          <MCPActiveCalls />
           <Alert className="bg-muted/30">
             <ScrollText className="h-4 w-4" />
             <AlertTitle className="text-sm">{t('logsTitle')}</AlertTitle>

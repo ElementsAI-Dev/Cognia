@@ -43,6 +43,8 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { getRankBadgeClass, CATEGORY_IDS, exportLeaderboardData } from '@/lib/arena';
 import { useArenaStore } from '@/stores/arena';
+import { useLeaderboardData } from '@/hooks/arena';
+import { remoteToLocalRating } from '@/types/arena';
 import type { ArenaModelRating, LeaderboardSortField, LeaderboardSortDirection } from '@/types/arena';
 import type { TaskCategory } from '@/types/provider/auto-router';
 
@@ -106,8 +108,19 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   const [providerFilter, setProviderFilter] = useState<string>('all');
 
   const modelRatings = useArenaStore((state) => state.modelRatings);
+  const getBTRatings = useArenaStore((state) => state.getBTRatings);
   const recalculateBTRatings = useArenaStore((state) => state.recalculateBTRatings);
   const settings = useArenaStore((state) => state.settings);
+
+  // Remote leaderboard data via sync hook
+  const { leaderboard: remoteLeaderboard, status: syncStatus } = useLeaderboardData();
+  const remoteRatings = useMemo(
+    () => remoteLeaderboard.map(remoteToLocalRating),
+    [remoteLeaderboard]
+  );
+
+  // BT ratings accessor
+  const btRatings = useMemo(() => getBTRatings(), [getBTRatings]);
 
   // Get unique providers
   const providers = useMemo(() => {
@@ -211,6 +224,16 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
           <Badge variant="secondary" className="text-xs">
             {t('modelsCount', { count: modelRatings.length })}
           </Badge>
+          {remoteRatings.length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {t('leaderboard.globalModels', { fallback: `${remoteRatings.length} global`, count: remoteRatings.length })}
+            </Badge>
+          )}
+          {syncStatus === 'fetching' && (
+            <Badge variant="outline" className="text-xs animate-pulse">
+              {t('leaderboard.syncing', { fallback: 'Syncing...' })}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -297,6 +320,9 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                       <SortHeader field="battles">Battles</SortHeader>
                     </TableHead>
                     {!compact && (
+                      <TableHead className="text-right">BT</TableHead>
+                    )}
+                    {!compact && (
                       <TableHead className="text-right">
                         <SortHeader field="stability">Stability</SortHeader>
                       </TableHead>
@@ -364,6 +390,14 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                             ({rating.wins}W/{rating.losses}L)
                           </span>
                         </TableCell>
+                        {!compact && (
+                          <TableCell className="text-right font-mono text-xs">
+                            {(() => {
+                              const bt = btRatings.find((r) => r.modelId === rating.modelId);
+                              return bt?.btScore != null ? bt.btScore.toFixed(2) : '-';
+                            })()}
+                          </TableCell>
+                        )}
                         {!compact && (
                           <TableCell className="text-right">
                             <Badge

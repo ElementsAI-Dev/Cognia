@@ -11,7 +11,7 @@ export { createThemeAPI } from './theme-api';
 export { createExportAPI } from './export-api';
 export { createI18nAPI } from './i18n-api';
 export { createCanvasAPI } from './canvas-api';
-export { createArtifactAPI, getArtifactRenderers } from './artifact-api';
+export { createArtifactAPI, getArtifactRenderers, getBuiltinRenderers, getDefaultArtifactRenderer, getArtifactPreviewComponent } from './artifact-api';
 export { createNotificationCenterAPI, dispatchNotificationAction } from './notification-api';
 export { createAIProviderAPI, getCustomAIProviders } from './ai-provider-api';
 export { createExtensionAPI, getExtensionsForPoint, clearPluginExtensions } from './extension-api';

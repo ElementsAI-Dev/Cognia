@@ -1,9 +1,33 @@
 'use client';
 
 /**
- * ChatContainer - main chat component with AI integration
- * Uses Vercel AI SDK for streaming chat with multiple providers
- * Messages are persisted to IndexedDB via useMessages hook
+ * ChatContainer — the central chat orchestrator for Cognia.
+ *
+ * This module wires together every major chat subsystem:
+ *
+ * - **AI streaming** via Vercel AI SDK (`useAIChat`) with 14+ provider backends
+ * - **Agent mode** multi-step tool execution (`useAgent`)
+ * - **Auto-routing** that selects the optimal model per message (`useAutoRouter`)
+ * - **Message persistence** to IndexedDB through `useMessages` (branch-aware)
+ * - **Plugin lifecycle hooks** (pre-send, post-receive, regenerate, edit)
+ * - **Web search** with multi-provider fallback and source verification
+ * - **Skill injection** via Progressive Disclosure into the system prompt
+ * - **MCP tool execution** for inline `@tool` mentions
+ * - **Multimodal support** (vision, audio, video) with per-model capability checks
+ * - **Learning / research mode** with Socratic-method prompt injection
+ * - **Project knowledge-base RAG** context injection
+ * - **A2UI content** detection and rendering in assistant messages
+ * - **Artifact auto-creation** from AI response code blocks
+ * - **Streaming chunk coalescing** to reduce React render churn (~75 ms flush)
+ * - **View modes**: list (default), flow canvas, arena, multi-column
+ *
+ * Exported components in this file:
+ * - {@link ChatContainer} — top-level exported component (named + default)
+ * - {@link MessagePartsRenderer} — renders structured message parts (text, reasoning, tool, sources, A2UI)
+ * - {@link ChatMessageItem} — single message row with actions (edit, copy, bookmark, TTS, translate, share, react)
+ * - {@link VirtualizedChatMessageList} — windowed message list using `react-virtuoso` with infinite scroll
+ *
+ * @module chat-container
  */
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -166,10 +190,44 @@ import { FlowChatCanvas } from '../flow';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
 
+/**
+ * Props for the {@link ChatContainer} component.
+ */
 interface ChatContainerProps {
+  /**
+   * Optional chat session ID to bind to.
+   * When provided, the component loads the existing session from the store.
+   * When omitted, the component uses the store's `activeSessionId` or creates
+   * a new session on first message send.
+   */
   sessionId?: string;
 }
 
+/**
+ * Top-level chat orchestrator that manages the full lifecycle of a conversation.
+ *
+ * Responsibilities:
+ * 1. **Session management** — resolves or creates a chat session, manages view mode (list / flow / arena / multi-column).
+ * 2. **Message send pipeline** — builds the enhanced system prompt (project RAG, skills, search results, learning mode,
+ *    carried context, plugin hooks, thinking instructions), then dispatches to `useAIChat` (chat/research) or `useAgent` (agent).
+ * 3. **Streaming** — coalesces token chunks via a 75 ms flush buffer to reduce React re-renders.
+ * 4. **Post-response processing** — auto-creates artifacts, detects analysis results (math blocks), processes A2UI content,
+ *    tracks skill usage, generates follow-up suggestions.
+ * 5. **UI composition** — renders header, goal banner, error state, conversation view, suggestions bar, quick replies,
+ *    workflow indicators, chat input, and a suite of dialogs (model picker, AI settings, context settings, presets,
+ *    prompt optimizer, arena, learning, source verification, mode switch confirmation).
+ *
+ * @param props - {@link ChatContainerProps}
+ *
+ * @example
+ * ```tsx
+ * // Bind to a specific session
+ * <ChatContainer sessionId="abc-123" />
+ *
+ * // Use the active session from the store
+ * <ChatContainer />
+ * ```
+ */
 export function ChatContainer({ sessionId }: ChatContainerProps) {
   const t = useTranslations('chat');
   const tCommon = useTranslations('common');
@@ -379,6 +437,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   const streamBufferRef = useRef<{ messageId: string; buffer: string } | null>(null);
   const streamFlushTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  /** Flush any buffered streaming tokens to the message store immediately. */
   const flushStreamBuffer = useCallback(() => {
     if (streamFlushTimerRef.current) {
       clearTimeout(streamFlushTimerRef.current);
@@ -484,8 +543,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return currentModel;
   }, [isAutoMode, currentModel]);
 
-  // Token usage calculation using provider-aware estimation
-  // Uses tiktoken for OpenAI models, estimation for others
+  /**
+   * Token usage breakdown (system, user, assistant, context) computed via
+   * `calculateTokenBreakdown`. Uses tiktoken for OpenAI models, heuristic for others.
+   */
   const estimatedTokens = useMemo(() => {
     // Get system prompt from session
     const systemPrompt = session?.systemPrompt || '';
@@ -509,7 +570,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     };
   }, [messages, session?.systemPrompt, currentProvider, currentModel]);
 
-  // Model max tokens (varies by model)
+  /** Maximum context window size for the current model (falls back to 100 000). */
   const modelMaxTokens = useMemo(() => {
     const modelTokenLimits: Record<string, number> = {
       'gpt-4o': 128000,
@@ -523,6 +584,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return modelTokenLimits[currentModel] || 100000;
   }, [currentModel]);
 
+  /** Context usage as a 0–100 percentage relative to the user-configured context limit. */
   const contextUsagePercent = useMemo(() => {
     const limit = Math.round((contextLimitPercent / 100) * modelMaxTokens);
     return limit > 0 ? Math.min(100, Math.round((estimatedTokens.totalTokens / limit) * 100)) : 0;
@@ -565,7 +627,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return customModes[agentModeId] || null;
   }, [currentMode, agentModeId, customModes]);
 
-  // Initialize agent tools based on available API keys and search providers
+  /**
+   * Full set of agent tools initialised from available API keys and search providers.
+   * Includes web search, calculator, RAG, web scraper, document, academic, image, PPT,
+   * and learning tools — each gated on the presence of its required API key.
+   */
   const { searchProviders: agentSearchProviders, defaultSearchProvider: agentDefaultSearchProvider } = useSettingsStore();
   const allAgentTools = useMemo(() => {
     const tavilyApiKey = providerSettings.tavily?.apiKey;
@@ -590,7 +656,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     });
   }, [providerSettings.tavily?.apiKey, providerSettings.openai?.apiKey, agentSearchProviders, agentDefaultSearchProvider]);
 
-  // Create MCP tools for custom mode if configured
+  /**
+   * MCP-based tools selected by the current custom agent mode.
+   * Each MCP tool reference is resolved against connected MCP servers and
+   * converted to the agent-tool interface via `convertMcpToolToAgentTool`.
+   */
   const customModeMcpTools = useMemo(() => {
     if (!currentCustomMode?.mcpTools || currentCustomMode.mcpTools.length === 0) {
       return {};
@@ -614,7 +684,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return selectedMcpTools;
   }, [currentCustomMode?.mcpTools, mcpServers, mcpCallTool]);
 
-  // Filter tools based on custom mode configuration and merge with MCP tools
+  /**
+   * Final set of tools available to the agent: built-in tools filtered by
+   * custom mode configuration, merged with custom-mode MCP tools.
+   */
   const agentTools = useMemo(() => {
     let tools = allAgentTools;
     if (currentCustomMode?.tools && currentCustomMode.tools.length > 0) {
@@ -624,7 +697,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return { ...tools, ...customModeMcpTools };
   }, [allAgentTools, currentCustomMode, customModeMcpTools]);
 
-  // Process system prompt with template variables and active skills
+  /**
+   * Agent-mode system prompt with template variables resolved and
+   * active skills injected via Progressive Disclosure (up to 4 000 token budget).
+   */
   const processedSystemPrompt = useMemo(() => {
     const basePrompt =
       session?.systemPrompt || 'You are a helpful AI assistant with access to tools.';
@@ -701,7 +777,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     },
   });
 
-  // Handle tool approval
+  /**
+   * Approve a pending agent tool execution.
+   * Optionally persists an "always allow" preference for the tool.
+   *
+   * @param toolCallId - ID of the tool call to approve
+   * @param alwaysAllow - When `true`, adds the tool to the always-allowed list in settings
+   */
   const handleToolApproval = useCallback(
     async (toolCallId: string, alwaysAllow?: boolean) => {
       if (pendingApprovalRef.current) {
@@ -720,6 +802,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [toolApprovalRequest, addAlwaysAllowedTool]
   );
 
+  /**
+   * Deny a pending agent tool execution and resolve the approval promise as `false`.
+   *
+   * @param toolCallId - ID of the tool call being denied
+   */
   const handleToolDeny = useCallback((toolCallId: string) => {
     if (pendingApprovalRef.current) {
       pendingApprovalRef.current.resolve(false);
@@ -730,7 +817,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     console.log('Tool denied:', toolCallId);
   }, []);
 
-  // Convert agent tool executions to ToolTimeline format
+  /** Agent tool executions mapped to the {@link ToolTimeline} display format. */
   const toolTimelineExecutions: ToolExecution[] = useMemo(() => {
     return agentToolExecutions.map((exec) => ({
       id: exec.id,
@@ -764,6 +851,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setError(null);
   }, [createSession]);
 
+  /**
+   * Switch the current chat mode (chat / agent / research / learning).
+   * If the session already has messages and the mode is changing, a confirmation
+   * dialog is shown so the user can choose to carry context to the new session.
+   *
+   * @param mode - Target chat mode
+   */
   const handleModeChange = useCallback(
     (mode: ChatMode) => {
       if (session) {
@@ -793,7 +887,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession, createSession, getLearningSessionByChat, messages.length, currentMode]
   );
 
-  // Handle mode switch confirmation
+  /**
+   * Confirm a pending mode switch after the user chooses to carry (or discard) context.
+   * Creates a new session with the target mode and optional conversation summary.
+   *
+   * @param options.carryContext - Whether to copy context to the new session
+   * @param options.summary - Optional AI-generated conversation summary
+   */
   const handleModeSwitchConfirm = useCallback(
     (options: { carryContext: boolean; summary?: string }) => {
       if (!session || !pendingTargetMode) return;
@@ -822,7 +922,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setShowModeSwitchDialog(false);
   }, []);
 
-  // Generate summary for mode switch
+  /**
+   * Generate an AI-powered brief summary of the current conversation
+   * for use when carrying context across a mode switch.
+   *
+   * @returns The summary string, or `null` if generation fails or there are no messages
+   */
   const handleGenerateSummaryForModeSwitch = useCallback(async (): Promise<string | null> => {
     if (messages.length === 0) return null;
     try {
@@ -848,7 +953,12 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showLearningPanel]);
 
-  // Handle agent sub-mode change (within agent mode)
+  /**
+   * Switch the agent sub-mode (e.g. general, code, research) within agent mode.
+   * Updates the session's `agentModeId` and `systemPrompt`.
+   *
+   * @param agentMode - The target agent mode configuration
+   */
   const handleAgentModeChange = useCallback(
     (agentMode: AgentModeConfig) => {
       if (session) {
@@ -861,7 +971,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession]
   );
 
-  // Handle preset selection
+  /**
+   * Apply a preset configuration to the current (or new) session.
+   * Copies provider, model, mode, system prompt, temperature, and feature toggles
+   * from the preset into the session.
+   *
+   * @param preset - The preset to apply
+   */
   const handleSelectPreset = useCallback(
     (preset: import('@/types/content/preset').Preset) => {
       trackPresetUsage(preset.id);
@@ -891,7 +1007,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession, createSession, trackPresetUsage]
   );
 
-  // Handle web search toggle
+  /**
+   * Toggle the per-session web-search feature flag.
+   *
+   * @param enabled - Whether web search should be active for this session
+   */
   const handleWebSearchChange = useCallback(
     (enabled: boolean) => {
       if (session) {
@@ -901,7 +1021,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession]
   );
 
-  // Handle thinking mode toggle
+  /**
+   * Toggle the per-session thinking-mode (chain-of-thought) feature flag.
+   *
+   * @param enabled - Whether thinking mode should be active for this session
+   */
   const handleThinkingChange = useCallback(
     (enabled: boolean) => {
       if (session) {
@@ -911,7 +1035,11 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession]
   );
 
-  // Handle AI settings change
+  /**
+   * Apply partial AI inference settings (temperature, maxTokens, etc.) to the current session.
+   *
+   * @param settings - Partial settings object to merge into the session
+   */
   const handleAISettingsChange = useCallback(
     (settings: Partial<AISettings>) => {
       if (session) {
@@ -921,7 +1049,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [session, updateSession]
   );
 
-  // Get current AI settings from session (fallback to global defaults)
+  /** Per-session AI inference settings (temperature, maxTokens, topP, penalties) with global-default fallback. */
   const currentAISettings: AISettings = useMemo(
     () => ({
       temperature: session?.temperature ?? defaultTemperature,
@@ -944,7 +1072,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     ]
   );
 
-  // Global default AI settings for reset functionality
+  /** Global default AI settings used by the "Reset to defaults" button in the settings dialog. */
   const globalDefaultAISettings: AISettings = useMemo(
     () => ({
       temperature: defaultTemperature,
@@ -978,7 +1106,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     setInputValue(suggestion);
   }, []);
 
-  // Generate suggestions after AI response
+  /**
+   * Generate follow-up suggestion chips after an AI response.
+   * Falls back to static default suggestions when no API key is available.
+   *
+   * @param userMsg - The user's original message text
+   * @param assistantMsg - The assistant's response text
+   */
   const loadSuggestions = useCallback(
     async (userMsg: string, assistantMsg: string) => {
       const settings = providerSettings[currentProvider as keyof typeof providerSettings];
@@ -1012,20 +1146,32 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [currentProvider, currentModel, providerSettings]
   );
 
-  // Handle applying optimized prompt
+  /**
+   * Apply the output of the {@link PromptOptimizerDialog} back into the chat input.
+   *
+   * @param optimizedPrompt - The optimised prompt text
+   */
   const handleApplyOptimizedPrompt = useCallback((optimizedPrompt: string) => {
     setInputValue(optimizedPrompt);
     setShowPromptOptimizer(false);
   }, []);
 
-  // Open prompt optimizer (passed to ChatInput)
+  /** Open the prompt optimiser dialog (only if the input is non-empty). */
   const handleOpenPromptOptimizer = useCallback(() => {
     if (inputValue.trim()) {
       setShowPromptOptimizer(true);
     }
   }, [inputValue]);
 
-  // Format search results for system prompt with enhanced context
+  /**
+   * Format a {@link SearchResponse} into a Markdown system-prompt section.
+   * Includes the query, provider, quick answer, and numbered source entries
+   * with content previews (up to 500 chars each). Appends citation instructions
+   * for the LLM.
+   *
+   * @param searchResponse - Raw search results from the multi-provider search pipeline
+   * @returns Markdown string ready to be injected into the system prompt
+   */
   const formatSearchResults = useCallback((searchResponse: SearchResponse): string => {
     const parts: string[] = [
       '## Web Search Results',
@@ -1064,7 +1210,16 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     return parts.join('\n');
   }, []);
 
-  // Execute MCP tool calls and return results
+  /**
+   * Execute a batch of MCP tool calls (from `@tool` mentions in the user's message)
+   * and return a formatted summary of all results.
+   *
+   * Each tool call is validated against connected MCP servers before execution.
+   * Errors per tool are captured individually so one failure doesn't block others.
+   *
+   * @param toolCalls - Parsed tool call references from the user's input
+   * @returns Formatted Markdown string with ✅/❌ prefixed results per tool
+   */
   const executeMcpTools = useCallback(
     async (toolCalls: ParsedToolCall[]): Promise<string> => {
       const results: string[] = [];
@@ -1109,7 +1264,13 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     [mcpServers, mcpCallTool]
   );
 
-  // Format tool call result for display
+  /**
+   * Convert an MCP {@link ToolCallResult} into a human-readable string.
+   * Handles text, image, and resource content types.
+   *
+   * @param result - The raw tool call result containing mixed content items
+   * @returns Plain-text representation of the result
+   */
   const formatToolResult = (result: ToolCallResult): string => {
     return result.content
       .map((item) => {
@@ -1125,7 +1286,19 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       .join('\n');
   };
 
-  // Handle Agent mode message sending
+  /**
+   * Execute a user message through the agent pipeline (multi-step tool execution).
+   *
+   * Flow:
+   * 1. Persist the user message to IndexedDB.
+   * 2. Create a streaming placeholder for the assistant response.
+   * 3. Run the agent loop via `runAgent`, which may invoke multiple tools.
+   * 4. Append a tool-usage summary to the final response.
+   * 5. Save the assistant message and generate follow-up suggestions.
+   *
+   * @param content - User message text (may include extracted video context)
+   * @param currentSessionId - Active session ID for persistence
+   */
   const handleAgentMessage = useCallback(
     async (content: string, currentSessionId: string) => {
       // Add user message to database
@@ -1207,6 +1380,29 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     ]
   );
 
+  /**
+   * Primary message-send handler for all chat modes.
+   *
+   * Pipeline (in order):
+   * 1. **Plugin pre-hook** (`UserPromptSubmit`) — may block, modify, or enrich the prompt.
+   * 2. **Feature routing** — detects intent to navigate to a feature page (e.g. academic, arena).
+   * 3. **Intent detection** — suggests mode switches (chat ↔ research ↔ learning).
+   * 4. **Session bootstrap** — creates a session if none exists, optionally with cross-session history context.
+   * 5. **Quote / attachment assembly** — prepends quoted text, appends attachment info.
+   * 6. **MCP tool execution** — runs any `@tool` mentions and collects results.
+   * 7. **Agent dispatch** — if in agent mode, delegates to {@link handleAgentMessage} and returns.
+   * 8. **Auto-routing** — if provider is `auto`, selects the optimal model via {@link useAutoRouter}.
+   * 9. **Multimodal processing** — builds vision/audio/video content parts; falls back to video transcription.
+   * 10. **System prompt enrichment** — layers: carried context → history context → project RAG → web search →
+   *     thinking mode → MCP tool results → skills (Progressive Disclosure) → learning prompt → plugin context.
+   * 11. **AI send** — dispatches to `useAIChat.sendMessage` with streaming callback (75 ms coalesced flush).
+   * 12. **Post-response hooks** — plugin post-receive, artifact auto-creation, math block detection,
+   *     A2UI processing, skill usage tracking, follow-up suggestion generation.
+   *
+   * @param content - Raw user input text
+   * @param attachments - Optional file attachments (images, audio, video, documents)
+   * @param toolCalls - Optional parsed MCP tool call references from `@tool` mentions
+   */
   const handleSendMessage = useCallback(
     async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
       if (!content.trim() && (!attachments || attachments.length === 0)) return;
@@ -1958,6 +2154,7 @@ Be thorough in your thinking but concise in your final answer.`;
     ]
   );
 
+  /** Stop all in-flight generation: AI streaming, agent execution, and flush remaining buffer. */
   const handleStop = useCallback(() => {
     aiStop();
     flushStreamBuffer();
@@ -1975,7 +2172,12 @@ Be thorough in your thinking but concise in your final answer.`;
     onFocusInput: () => inputRef.current?.focus(),
   });
 
-  // Edit message handlers
+  /**
+   * Enter edit mode for a user message.
+   *
+   * @param messageId - ID of the message to edit
+   * @param content - Current content to pre-fill the editor
+   */
   const handleEditMessage = useCallback((messageId: string, content: string) => {
     setEditingMessageId(messageId);
     setEditContent(content);
@@ -1986,6 +2188,13 @@ Be thorough in your thinking but concise in your final answer.`;
     setEditContent('');
   }, []);
 
+  /**
+   * Save an edited message, delete all subsequent messages, and re-send
+   * the edited content to get a fresh AI response.
+   * Fires the `onMessageEdit` plugin lifecycle hook.
+   *
+   * @param messageId - ID of the message being edited
+   */
   const handleSaveEdit = useCallback(
     async (messageId: string) => {
       if (!editContent.trim()) return;
@@ -2027,7 +2236,14 @@ Be thorough in your thinking but concise in your final answer.`;
     [editContent, deleteMessagesAfter, updateMessage, messages, handleSendMessage, activeSessionId]
   );
 
-  // Translate message content
+  /**
+   * Translate a message's content and insert the translation as a new
+   * assistant message. Auto-detects language direction:
+   * Chinese → English, otherwise → Chinese.
+   *
+   * @param _messageId - ID of the source message (unused, kept for callback signature)
+   * @param content - Text content to translate
+   */
   const handleTranslateMessage = useCallback(
     async (_messageId: string, content: string) => {
       const settings = providerSettings[currentProvider as keyof typeof providerSettings];
@@ -2067,7 +2283,14 @@ Be thorough in your thinking but concise in your final answer.`;
     [providerSettings, currentProvider, currentModel, addMessage]
   );
 
-  // Handle workflow selection from WorkflowPickerDialog
+  /**
+   * Start executing a visual workflow selected from the {@link WorkflowPickerDialog}.
+   * Creates a workflow result entry, shows the active workflow indicator,
+   * and inserts a status message into the conversation.
+   *
+   * @param workflow - Selected workflow metadata (id, name, icon)
+   * @param input - User-provided input parameters for the workflow
+   */
   const handleWorkflowSelect = useCallback(
     async (
       workflow: { id: string; name: string; icon?: string },
@@ -2120,7 +2343,13 @@ Be thorough in your thinking but concise in your final answer.`;
     [addMessage]
   );
 
-  // Retry last assistant message
+  /**
+   * Regenerate an assistant message by deleting it (and subsequent messages)
+   * and re-sending the preceding user message.
+   * Fires the `onChatRegenerate` plugin lifecycle hook.
+   *
+   * @param messageId - ID of the assistant message to regenerate
+   */
   const handleRetry = useCallback(
     async (messageId: string) => {
       const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -2810,13 +3039,26 @@ Be thorough in your thinking but concise in your final answer.`;
   );
 }
 
-// Helper component to render message parts
+/**
+ * Props for the {@link MessagePartsRenderer} component.
+ */
 interface MessagePartsRendererProps {
+  /** Structured message parts (text, reasoning, tool-invocation, sources, a2ui). When empty, `content` is rendered directly. */
   parts?: MessagePart[];
+  /** Raw string content to display when `parts` is empty or as a fallback. */
   content: string;
+  /** When `true`, applies destructive (red) styling to the text. */
   isError?: boolean;
 }
 
+/**
+ * Render a message's content, choosing between raw text and structured parts.
+ *
+ * When `parts` is provided and non-empty each part is rendered by its
+ * specialised renderer ({@link TextPart}, {@link ReasoningPart},
+ * {@link ToolPart}, {@link SourcesPart}, {@link A2UIPart}).
+ * Otherwise the plain `content` string is wrapped in a {@link MessageResponse}.
+ */
 function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererProps) {
   // If no parts, render content directly
   if (!parts || parts.length === 0) {
@@ -2857,26 +3099,58 @@ function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererP
   );
 }
 
-// Individual message component with edit/retry support
+/**
+ * Props for the {@link ChatMessageItem} component.
+ */
 interface ChatMessageItemProps {
+  /** The message object to render. */
   message: UIMessage;
+  /** Parent session ID (used for branching, Langfuse tracing). */
   sessionId: string;
+  /** Whether this message is currently being streamed (disables actions). */
   isStreaming: boolean;
+  /** Whether this message is in inline-edit mode. */
   isEditing: boolean;
+  /** Current text in the edit textarea (controlled). */
   editContent: string;
+  /** Callback to update the edit textarea value. */
   onEditContentChange: (content: string) => void;
+  /** Enter edit mode for this message. */
   onEdit: () => void;
+  /** Cancel the current edit. */
   onCancelEdit: () => void;
+  /** Save the edited content and regenerate the response. */
   onSaveEdit: () => void;
+  /** Regenerate the AI response for this message. */
   onRetry: () => void;
+  /** Copy messages up to a branch point into a new branch. */
   onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
+  /** Translate this message's content inline. */
   onTranslate?: (messageId: string, content: string) => void;
+  /** Optional workflow execution result to render as a card. */
   workflowResult?: WorkflowResultData;
+  /** Callback to re-run the workflow with the same input. */
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
+  /** Hide action buttons (copy, edit, retry, etc.) — used in simplified mode. */
   hideMessageActions?: boolean;
+  /** Hide per-message timestamps — used in simplified mode. */
   hideMessageTimestamps?: boolean;
 }
 
+/**
+ * A single chat message row with rich interaction support.
+ *
+ * Features per role:
+ * - **User messages**: inline edit with Enter-to-save / Escape-to-cancel.
+ * - **Assistant messages**: copy, retry, bookmark, TTS (text-to-speech),
+ *   share (Web Share API with clipboard fallback), translate (auto-detect direction),
+ *   emoji reactions (persisted to IndexedDB + Langfuse quality score for 👍/👎),
+ *   web-search source indicators, A2UI content rendering, artifact cards, analysis results.
+ * - **Both roles**: branch button, swipe actions (mobile), text-selection popover for quoting.
+ *
+ * The component renders structured message parts via {@link MessagePartsRenderer}
+ * and conditionally displays workflow result cards, provider icons, and timestamps.
+ */
 function ChatMessageItem({
   message,
   sessionId,
@@ -2907,6 +3181,12 @@ function ChatMessageItem({
   const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
   const ttsTooltip = isTTSLoading ? 'Loading...' : isSpeaking ? 'Stop speaking' : 'Read aloud';
 
+  /**
+   * Toggle an emoji reaction on this message.
+   * Persists to IndexedDB and sends a Langfuse quality score for 👍/👎 on assistant messages.
+   *
+   * @param emoji - Emoji character to toggle
+   */
   const handleReaction = async (emoji: string) => {
     setReactions((prev) => {
       const existing = prev.find((r) => r.emoji === emoji);
@@ -2951,6 +3231,7 @@ function ChatMessageItem({
     }
   };
 
+  /** Copy the full message content to the clipboard. */
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(message.content);
     setCopied(true);
@@ -2965,6 +3246,7 @@ function ChatMessageItem({
     }
   };
 
+  /** Toggle the bookmark state and persist to IndexedDB. */
   const handleBookmark = useCallback(async () => {
     const newBookmarked = !isBookmarked;
     setIsBookmarked(newBookmarked);
@@ -2972,6 +3254,7 @@ function ChatMessageItem({
     await messageRepository.update(message.id, { isBookmarked: newBookmarked });
   }, [isBookmarked, message.id]);
 
+  /** Toggle text-to-speech playback for this message's content. */
   const handleSpeak = () => {
     if (isSpeaking) {
       stopTTS();
@@ -2980,6 +3263,7 @@ function ChatMessageItem({
     }
   };
 
+  /** Share via Web Share API; falls back to clipboard copy if unavailable. */
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -3006,7 +3290,11 @@ function ChatMessageItem({
     }
   };
 
-  // Handle swipe actions for mobile
+  /**
+   * Dispatch mobile swipe gesture actions (copy, edit, regenerate, bookmark, delete).
+   *
+   * @param action - The swipe action type
+   */
   const handleSwipeAction = useCallback(
     (action: SwipeAction) => {
       switch (action) {
@@ -3204,29 +3492,67 @@ function ChatMessageItem({
   );
 }
 
+/**
+ * Props for the {@link VirtualizedChatMessageList} component.
+ */
 interface VirtualizedChatMessageListProps {
+  /** Ordered array of messages to display. */
   messages: UIMessage[];
+  /** Active session ID passed down to each {@link ChatMessageItem}. */
   sessionId: string;
+  /** Whether the last assistant message is currently streaming. */
   isStreaming: boolean;
+  /** Whether a new AI response is being generated (shows thinking indicator). */
   isLoading: boolean;
+  /** ID of the message currently being edited, or `null`. */
   editingMessageId: string | null;
+  /** Controlled edit textarea value. */
   editContent: string;
+  /** Update the edit textarea value. */
   onEditContentChange: (content: string) => void;
+  /** Enter edit mode for a specific message. */
   onEditMessage: (messageId: string, content: string) => void;
+  /** Cancel the current inline edit. */
   onCancelEdit: () => void;
+  /** Save the edited message and regenerate. */
   onSaveEdit: (messageId: string) => Promise<void>;
+  /** Regenerate an assistant message. */
   onRetry: (messageId: string) => Promise<void>;
+  /** Copy messages for creating a conversation branch. */
   onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
+  /** Translate a message inline. */
   onTranslate?: (messageId: string, content: string) => void;
+  /** Whether the backend has older messages that can be loaded. */
   hasOlderMessages: boolean;
+  /** Whether older messages are currently being fetched. */
   isLoadingOlder: boolean;
+  /** Fetch the next page of older messages (infinite scroll upward). */
   loadOlderMessages: () => Promise<void>;
+  /** Map of message ID → workflow execution result data. */
   workflowResults?: Map<string, WorkflowResultData>;
+  /** Callback to re-run a workflow from its result card. */
   onWorkflowRerun?: (input: Record<string, unknown>) => void;
+  /** Hide message action buttons (simplified mode). */
   hideMessageActions?: boolean;
+  /** Hide per-message timestamps (simplified mode). */
   hideMessageTimestamps?: boolean;
 }
 
+/**
+ * Windowed message list using `react-virtuoso` for efficient rendering of long conversations.
+ *
+ * Key behaviours:
+ * - **Virtualisation** — only visible messages are mounted in the DOM, using `Virtuoso`
+ *   with a custom scroll parent from `use-stick-to-bottom`.
+ * - **Infinite scroll upward** — when the user scrolls to the top and `hasOlderMessages`
+ *   is `true`, `loadOlderMessages` is called. Scroll position is preserved by adjusting
+ *   `firstItemIndex` based on the prepended message count.
+ * - **Thinking indicator** — appends a pulsing "Thinking..." placeholder when `isLoading`
+ *   and the last message is from the user.
+ * - **Fallback** — renders a plain (non-virtualised) list until the scroll parent ref is available.
+ *
+ * Each message row is rendered by {@link ChatMessageItem}.
+ */
 function VirtualizedChatMessageList({
   messages,
   sessionId,

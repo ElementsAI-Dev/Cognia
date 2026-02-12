@@ -115,6 +115,12 @@ jest.mock('@/components/plugin', () => ({
   PluginExtensionPoint: () => <div data-testid="plugin-extension" />,
 }));
 
+jest.mock('@/components/observability', () => ({
+  ObservabilityButton: ({ trigger }: { trigger?: React.ReactNode }) => (
+    <div data-testid="observability-button">{trigger}</div>
+  ),
+}));
+
 jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -162,6 +168,14 @@ jest.mock('./widgets/sidebar-project-selector', () => ({
 
 jest.mock('@/components/artifacts', () => ({
   ArtifactListCompact: () => <div data-testid="artifacts" />,
+  ArtifactCard: ({ artifact }: { artifact: { id: string; title: string } }) => <div data-testid={`artifact-card-${artifact.id}`}>{artifact.title}</div>,
+  ArtifactInlineRef: ({ artifact }: { artifact: { id: string; title: string } }) => <span data-testid={`artifact-ref-${artifact.id}`}>{artifact.title}</span>,
+  ArtifactList: () => <div data-testid="artifact-list" />,
+  ARTIFACT_TYPE_ICONS: {
+    code: React.createElement('span', null, '📄'),
+    document: React.createElement('span', null, '📝'),
+  },
+  getArtifactTypeIcon: () => React.createElement('span', null, '📄'),
 }));
 
 describe('AppSidebar', () => {

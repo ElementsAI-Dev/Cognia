@@ -33,6 +33,7 @@ import { useVirtualEnv } from '@/hooks/sandbox';
 import { useJupyterStore } from '@/stores/jupyter';
 import { serializeNotebook } from '@/lib/jupyter';
 import { applyCellsToNotebook } from '@/lib/jupyter/notebook-utils';
+import { isExecutionSuccessful, formatExecutionError, formatExecutionTime } from '@/types/jupyter';
 import type { VirtualEnvInfo } from '@/types/system/environment';
 import type { JupyterNotebook } from '@/types';
 
@@ -144,8 +145,11 @@ export function InteractiveNotebook({
       const result = await executeCell(cellIndex, source, activeSession.id);
 
       // Refresh variables after execution
-      if (result?.success) {
+      if (result && isExecutionSuccessful(result)) {
         refreshVariables(activeSession.id);
+      }
+      if (result && !isExecutionSuccessful(result) && result.error) {
+        console.warn(`Cell ${cellIndex} failed (${formatExecutionTime(result.executionTimeMs)}):`, formatExecutionError(result.error));
       }
 
       return result;
@@ -174,7 +178,7 @@ export function InteractiveNotebook({
       if (codeCells && codeCells.length > 0) {
         for (const item of codeCells) {
           const result = await executeCell(item.index, item.source, activeSession.id);
-          if (!result?.success) break;
+          if (!result || !isExecutionSuccessful(result)) break;
         }
         refreshVariables(activeSession.id);
       }
@@ -335,4 +339,3 @@ export function InteractiveNotebook({
   );
 }
 
-export default InteractiveNotebook;

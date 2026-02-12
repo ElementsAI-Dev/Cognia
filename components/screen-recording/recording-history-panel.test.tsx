@@ -425,8 +425,8 @@ describe('RecordingHistoryPanel - Storage Stats', () => {
 
   it('displays total storage size', () => {
     render(<RecordingHistoryPanel />);
-    // 100MB + 50MB = 150MB, formatFileSize returns "150 MB" (no decimal when whole number)
-    expect(screen.getByText('150 MB')).toBeInTheDocument();
+    // 100MB + 50MB = 150MB, formatBytes returns "150.0 MB" (.toFixed(1))
+    expect(screen.getByText('150.0 MB')).toBeInTheDocument();
   });
 
   it('shows cleanup button when storage is exceeded', async () => {
@@ -506,6 +506,164 @@ describe('RecordingHistoryPanel - Pinned Recordings', () => {
     // Find the pin icon
     const pinIcon = document.querySelector('.lucide-pin');
     expect(pinIcon).toBeInTheDocument();
+  });
+});
+
+describe('RecordingHistoryPanel - Pin/Unpin Operations', () => {
+  const pinMock = jest.fn().mockResolvedValue(undefined);
+  const unpinMock = jest.fn().mockResolvedValue(undefined);
+
+  const mockStore = {
+    history: [
+      {
+        id: '1',
+        timestamp: Date.now(),
+        duration_ms: 60000,
+        mode: 'fullscreen',
+        file_path: '/path/to/video.mp4',
+        file_size: 1024,
+        is_pinned: false,
+        tags: [],
+      },
+    ],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
+    pinRecording: pinMock,
+    unpinRecording: unpinMock,
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    openRecordingFolder: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('calls pinRecording when pin button is clicked on unpinned recording', async () => {
+    render(<RecordingHistoryPanel />);
+
+    const buttons = screen.getAllByRole('button');
+    const pinButton = buttons.find(btn => btn.querySelector('svg.lucide-pin'));
+    if (pinButton) {
+      fireEvent.click(pinButton);
+      await waitFor(() => {
+        expect(pinMock).toHaveBeenCalledWith('1');
+      });
+    }
+  });
+});
+
+describe('RecordingHistoryPanel - Tag Operations', () => {
+  const removeTagMock = jest.fn().mockResolvedValue(undefined);
+
+  const mockStore = {
+    history: [
+      {
+        id: '1',
+        timestamp: Date.now(),
+        duration_ms: 60000,
+        mode: 'fullscreen',
+        file_path: '/path/to/video.mp4',
+        file_size: 1024,
+        is_pinned: false,
+        tags: ['meeting'],
+      },
+    ],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
+    pinRecording: jest.fn(),
+    unpinRecording: jest.fn(),
+    addTag: jest.fn(),
+    removeTag: removeTagMock,
+    openRecordingFolder: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('displays existing tags on recording cards', () => {
+    render(<RecordingHistoryPanel />);
+    expect(screen.getByText('meeting')).toBeInTheDocument();
+  });
+});
+
+describe('RecordingHistoryPanel - Open Folder', () => {
+  const openFolderMock = jest.fn().mockResolvedValue(undefined);
+
+  const mockStore = {
+    history: [
+      {
+        id: '1',
+        timestamp: Date.now(),
+        duration_ms: 60000,
+        mode: 'fullscreen',
+        file_path: '/path/to/video.mp4',
+        file_size: 1024,
+        is_pinned: false,
+        tags: [],
+      },
+    ],
+    isInitialized: true,
+    isLoading: false,
+    storageStats: null,
+    storageUsagePercent: 0,
+    isStorageExceeded: false,
+    initialize: jest.fn(),
+    refreshHistory: jest.fn(),
+    refreshStorageStats: jest.fn(),
+    deleteFromHistory: jest.fn(),
+    clearHistory: jest.fn(),
+    runStorageCleanup: jest.fn(),
+    pinRecording: jest.fn(),
+    unpinRecording: jest.fn(),
+    addTag: jest.fn(),
+    removeTag: jest.fn(),
+    openRecordingFolder: openFolderMock,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.spyOn(require('@/lib/native/utils'), 'isTauri').mockReturnValue(true);
+    (useScreenRecordingStore as unknown as jest.Mock).mockReturnValue(mockStore);
+  });
+
+  it('calls openRecordingFolder when folder button is clicked', async () => {
+    render(<RecordingHistoryPanel />);
+
+    const buttons = screen.getAllByRole('button');
+    const folderButton = buttons.find(btn => btn.querySelector('svg.lucide-folder'));
+    if (folderButton) {
+      fireEvent.click(folderButton);
+      await waitFor(() => {
+        expect(openFolderMock).toHaveBeenCalledWith('/path/to/video.mp4');
+      });
+    }
   });
 });
 

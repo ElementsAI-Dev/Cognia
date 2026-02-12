@@ -13,6 +13,15 @@ import type {
 } from '@/types/plugin/plugin-extended';
 import type { Artifact } from '@/types/artifact';
 import { createPluginSystemLogger } from '../core/logger';
+import {
+  ArtifactRenderer as ArtifactRendererComponent,
+  MermaidRenderer,
+  ChartRenderer,
+  MathRenderer,
+  MarkdownRenderer,
+  CodeRenderer,
+} from '@/components/artifacts/artifact-renderers';
+import { ArtifactPreview } from '@/components/artifacts/artifact-preview';
 
 // Registry for custom artifact renderers
 const artifactRenderers = new Map<string, ArtifactRenderer>();
@@ -149,4 +158,35 @@ export function getArtifactRenderers(): ArtifactRenderer[] {
  */
 export function clearArtifactRenderers(): void {
   artifactRenderers.clear();
+}
+
+/**
+ * Get the built-in artifact renderers provided by the platform.
+ * Plugins can use these to render standard artifact types without
+ * implementing their own rendering logic.
+ */
+export function getBuiltinRenderers() {
+  return {
+    MermaidRenderer,
+    ChartRenderer,
+    MathRenderer,
+    MarkdownRenderer,
+    CodeRenderer,
+  };
+}
+
+/**
+ * Get the default ArtifactRenderer component that routes to the
+ * appropriate renderer based on artifact type.
+ */
+export function getDefaultArtifactRenderer() {
+  return ArtifactRendererComponent;
+}
+
+/**
+ * Get the ArtifactPreview component for full artifact preview
+ * including iframe-based rendering for HTML, SVG, and React types.
+ */
+export function getArtifactPreviewComponent() {
+  return ArtifactPreview;
 }

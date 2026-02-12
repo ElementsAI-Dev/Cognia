@@ -21,6 +21,11 @@ import {
   Download,
   Filter,
   CheckSquare,
+  Cpu,
+  ListOrdered,
+  History,
+  Activity,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +42,15 @@ import {
   ResultPreview,
   type PerformanceStats,
 } from './background-agent-sub-components';
+import { AgentSteps } from './agent-steps';
+import { AgentSummaryDialog } from './agent-summary-dialog';
+import { ProcessManagerPanel } from './process-manager-panel';
+import { CheckpointPanel } from './checkpoint-panel';
+import { LiveTracePanel } from './live-trace-panel';
+import { SessionReplay } from './session-replay';
+import { BlameSummary } from './blame-summary';
+import type { AgentStep } from '@/types/agent/component-types';
+import type { FileBlameStats } from '@/lib/agent-trace/blame-provider';
 import type {
   BackgroundAgent,
   BackgroundAgentStatus,
@@ -56,8 +70,10 @@ import { downloadFile, formatAgentAsMarkdown } from '@/lib/agent';
 export function BackgroundAgentPanel() {
   const t = useTranslations('agent');
   const [activeTab, setActiveTab] = useState<'all' | 'running' | 'completed'>('all');
-  const [detailTab, setDetailTab] = useState<'flow' | 'logs' | 'stats'>('flow');
+  const [detailTab, setDetailTab] = useState<'flow' | 'logs' | 'stats' | 'steps' | 'checkpoints' | 'trace'>('flow');
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [processManagerOpen, setProcessManagerOpen] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +131,37 @@ export function BackgroundAgentPanel() {
       tokenUsage: agents.reduce((sum, a) => sum + (a.result?.tokenUsage?.totalTokens || 0), 0),
     };
   }, [agents, completedAgents, runningAgents]);
+
+  // Map BackgroundAgentStep to AgentStep for AgentSteps component
+  const agentSteps = useMemo<AgentStep[]>(() => {
+    if (!selectedAgent) return [];
+    return selectedAgent.steps.map((s) => ({
+      id: s.id,
+      name: s.title,
+      description: s.description,
+      status: s.status === 'skipped' ? 'error' : s.status === 'failed' ? 'error' : s.status,
+      startedAt: s.startedAt,
+      completedAt: s.completedAt,
+    }));
+  }, [selectedAgent]);
+
+  // Build blame stats from agent result token data
+  const blameStats = useMemo<FileBlameStats | null>(() => {
+    if (!selectedAgent?.result?.tokenUsage) return null;
+    const totalTokens = selectedAgent.result.tokenUsage.totalTokens;
+    if (totalTokens === 0) return null;
+    return {
+      filePath: selectedAgent.name,
+      totalLines: totalTokens,
+      aiLines: selectedAgent.result.tokenUsage.completionTokens,
+      humanLines: selectedAgent.result.tokenUsage.promptTokens,
+      mixedLines: 0,
+      unknownLines: 0,
+      aiPercentage: (selectedAgent.result.tokenUsage.completionTokens / totalTokens) * 100,
+      humanPercentage: (selectedAgent.result.tokenUsage.promptTokens / totalTokens) * 100,
+      models: { [selectedAgent.config.model || 'default']: selectedAgent.result.tokenUsage.completionTokens },
+    };
+  }, [selectedAgent]);
 
   // Desktop notification handler
   const sendNotification = useCallback(
@@ -295,6 +342,32 @@ export function BackgroundAgentPanel() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{t('markAllRead')}</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setProcessManagerOpen(true)}
+                  >
+                    <Cpu className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('processManager')}</TooltipContent>
+              </Tooltip>
+              {selectedAgent && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSummaryDialogOpen(true)}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('summary')}</TooltipContent>
                 </Tooltip>
               )}
               <Button variant="ghost" size="sm" onClick={closePanel}>
@@ -546,7 +619,7 @@ export function BackgroundAgentPanel() {
               <>
                 {/* Detail tabs */}
                 <div className="border-b">
-                  <div className="flex items-center gap-1 p-2">
+                  <div className="flex items-center gap-1 p-2 flex-wrap">
                     <Button
                       variant={detailTab === 'flow' ? 'secondary' : 'ghost'}
                       size="sm"
@@ -555,6 +628,20 @@ export function BackgroundAgentPanel() {
                     >
                       <Bot className="h-3.5 w-3.5 mr-1" />
                       {t('flow')}
+                    </Button>
+                    <Button
+                      variant={detailTab === 'steps' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('steps')}
+                    >
+                      <ListOrdered className="h-3.5 w-3.5 mr-1" />
+                      {t('steps')}
+                      {selectedAgent.steps.length > 0 && (
+                        <Badge variant="outline" className="ml-1 text-[10px] h-4">
+                          {selectedAgent.steps.length}
+                        </Badge>
+                      )}
                     </Button>
                     <Button
                       variant={detailTab === 'logs' ? 'secondary' : 'ghost'}
@@ -579,6 +666,24 @@ export function BackgroundAgentPanel() {
                       <BarChart3 className="h-3.5 w-3.5 mr-1" />
                       {t('stats')}
                     </Button>
+                    <Button
+                      variant={detailTab === 'checkpoints' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('checkpoints')}
+                    >
+                      <History className="h-3.5 w-3.5 mr-1" />
+                      {t('checkpoints')}
+                    </Button>
+                    <Button
+                      variant={detailTab === 'trace' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setDetailTab('trace')}
+                    >
+                      <Activity className="h-3.5 w-3.5 mr-1" />
+                      {t('trace')}
+                    </Button>
                   </div>
                 </div>
 
@@ -591,10 +696,28 @@ export function BackgroundAgentPanel() {
                         <ResultPreview agent={selectedAgent} />
                       </>
                     )}
+                    {detailTab === 'steps' && (
+                      <AgentSteps steps={agentSteps} showCheckpoints compactMode={false} />
+                    )}
                     {detailTab === 'logs' && (
                       <AgentLogsViewer logs={selectedAgent.logs || []} maxHeight={400} />
                     )}
-                    {detailTab === 'stats' && <PerformanceStatsCard stats={performanceStats} />}
+                    {detailTab === 'stats' && (
+                      <>
+                        <PerformanceStatsCard stats={performanceStats} />
+                        {blameStats && <BlameSummary stats={blameStats} compact />}
+                      </>
+                    )}
+                    {detailTab === 'checkpoints' && (
+                      <CheckpointPanel sessionId={selectedAgent.sessionId} />
+                    )}
+                    {detailTab === 'trace' && (
+                      selectedAgent.status === 'running' ? (
+                        <LiveTracePanel sessionId={selectedAgent.sessionId} compact={false} />
+                      ) : (
+                        <SessionReplay traces={[]} className="w-full" />
+                      )
+                    )}
                   </div>
                 </ScrollArea>
               </>
@@ -606,6 +729,21 @@ export function BackgroundAgentPanel() {
             )}
           </div>
         </div>
+
+        {/* Summary Dialog */}
+        {selectedAgent && (
+          <AgentSummaryDialog
+            open={summaryDialogOpen}
+            onOpenChange={setSummaryDialogOpen}
+            agent={selectedAgent}
+          />
+        )}
+
+        {/* Process Manager */}
+        <ProcessManagerPanel
+          open={processManagerOpen}
+          onOpenChange={setProcessManagerOpen}
+        />
       </SheetContent>
     </Sheet>
   );

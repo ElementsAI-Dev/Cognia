@@ -56,6 +56,9 @@ interface TaskListProps {
   onRunNow: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   isLoading?: boolean;
+  isSelectMode?: boolean;
+  selectedTaskIds?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
 }
 
 const taskTypeConfig: Record<ScheduledTaskType, { icon: React.ReactNode; bg: string; color: string }> = {
@@ -98,6 +101,9 @@ export function TaskList({
   onRunNow,
   onDelete,
   isLoading,
+  isSelectMode,
+  selectedTaskIds,
+  onToggleSelect,
 }: TaskListProps) {
   const t = useTranslations('scheduler');
 
@@ -173,15 +179,38 @@ export function TaskList({
                   : 'hover:shadow-sm'
               )}
               style={{ top: `${virtualRow.start}px` }}
-              onClick={() => onSelect(task.id)}
+              onClick={() => {
+                if (isSelectMode && onToggleSelect) {
+                  onToggleSelect(task.id);
+                } else {
+                  onSelect(task.id);
+                }
+              }}
             >
-              {/* Type Icon */}
-              <div className={cn(
-                'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105',
-                typeConfig.bg, typeConfig.color
-              )}>
-                {typeConfig.icon}
-              </div>
+              {/* Checkbox or Type Icon */}
+              {isSelectMode ? (
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center">
+                  <div className={cn(
+                    'h-4 w-4 rounded border-2 transition-colors',
+                    selectedTaskIds?.has(task.id)
+                      ? 'border-primary bg-primary'
+                      : 'border-muted-foreground/40'
+                  )}>
+                    {selectedTaskIds?.has(task.id) && (
+                      <svg className="h-full w-full text-primary-foreground" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 8l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className={cn(
+                  'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105',
+                  typeConfig.bg, typeConfig.color
+                )}>
+                  {typeConfig.icon}
+                </div>
+              )}
 
               {/* Content */}
               <div className="min-w-0 flex-1">
@@ -291,5 +320,3 @@ export function TaskList({
     </div>
   );
 }
-
-export default TaskList;

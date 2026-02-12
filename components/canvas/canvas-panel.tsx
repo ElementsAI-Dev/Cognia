@@ -69,6 +69,12 @@ import {
   useCanvasActions,
   useCanvasAutoSave,
   useCanvasKeyboardShortcuts,
+  type CodeSandboxExecutionResult,
+  type CanvasCreateDocumentOptions,
+  type CanvasSuggestionContext,
+  type CanvasGenerateSuggestionsOptions,
+  type UseCanvasAutoSaveOptions,
+  type UseCanvasKeyboardShortcutsOptions,
 } from '@/hooks/canvas';
 import { useChunkedDocumentStore } from '@/stores/canvas/chunked-document-store';
 import { useCanvasSettingsStore } from '@/stores/canvas/canvas-settings-store';
@@ -77,6 +83,7 @@ import { symbolParser } from '@/lib/canvas/symbols/symbol-parser';
 import { themeRegistry } from '@/lib/canvas/themes/theme-registry';
 import { createEditorOptions } from '@/lib/monaco';
 import { CanvasErrorBoundary } from './canvas-error-boundary';
+import { CanvasDocumentList } from './canvas-document-list';
 import { DocumentFormatToolbar, type FormatAction } from '@/components/document/document-format-toolbar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -165,7 +172,7 @@ function CanvasPanelContent() {
     execute: executeCode,
     cancel: cancelExecution,
     clear: clearExecution,
-  } = useCanvasCodeExecution();
+  } = useCanvasCodeExecution() as { isExecuting: boolean; result: CodeSandboxExecutionResult | null; execute: (code: string, language: string) => Promise<CodeSandboxExecutionResult>; cancel: () => void; clear: () => void };
 
   // Document management hook
   const {
@@ -186,18 +193,19 @@ function CanvasPanelContent() {
   } = useCanvasSuggestions();
 
   // Auto-save hook
+  const autoSaveOptions: UseCanvasAutoSaveOptions = {
+    documentId: activeCanvasId,
+    content: activeDocument?.content || '',
+    onSave: saveCanvasVersion,
+    onContentUpdate: (id, content) => updateCanvasDocument(id, { content }),
+  };
   const {
     localContent,
     setLocalContent,
     hasUnsavedChanges,
     handleEditorChange,
     handleManualSave,
-  } = useCanvasAutoSave({
-    documentId: activeCanvasId,
-    content: activeDocument?.content || '',
-    onSave: saveCanvasVersion,
-    onContentUpdate: (id, content) => updateCanvasDocument(id, { content }),
-  });
+  } = useCanvasAutoSave(autoSaveOptions);
 
   // AI actions hook - handles streaming, diff preview, action execution
   const handleActionContentChange = useCallback(
@@ -227,7 +235,7 @@ function CanvasPanelContent() {
     selection,
     activeCanvasId,
     onContentChange: handleActionContentChange,
-    onGenerateSuggestions: generateSuggestions,
+    onGenerateSuggestions: generateSuggestions as (context: CanvasSuggestionContext, options?: CanvasGenerateSuggestionsOptions) => Promise<unknown>,
   });
 
   // Canvas Monaco setup - integrates snippets, symbols, themes, plugins
@@ -325,11 +333,12 @@ function CanvasPanelContent() {
   const handleTranslateRef = React.useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Keyboard shortcuts hook
-  useCanvasKeyboardShortcuts({
+  const keyboardShortcutOptions: UseCanvasKeyboardShortcutsOptions = {
     isActive: panelOpen && panelView === 'canvas',
     isProcessing,
     hasActiveDocument: !!activeDocument,
-  });
+  };
+  useCanvasKeyboardShortcuts(keyboardShortcutOptions);
 
   // Get Monaco theme from theme registry
   const monacoTheme = useMemo(() => {
@@ -1052,9 +1061,18 @@ function CanvasPanelContent() {
             </Dialog>
           </>
         ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p>{t('noDocument')}</p>
-          </div>
+          <CanvasDocumentList
+            documents={allDocuments}
+            activeDocumentId={activeCanvasId}
+            onSelectDocument={openDocument}
+            onCreateDocument={(options: CanvasCreateDocumentOptions) => {
+              const id = createDocument(options);
+              openDocument(id);
+            }}
+            onRenameDocument={renameDocument}
+            onDuplicateDocument={duplicateDocument}
+            onDeleteDocument={deleteDocument}
+          />
         )}
 
         {/* V0 Designer Panel */}

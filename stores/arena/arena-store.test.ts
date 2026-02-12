@@ -3,7 +3,12 @@
  */
 
 import { act } from '@testing-library/react';
-import { useArenaStore } from './arena-store';
+import {
+  useArenaStore,
+  selectActiveBattle,
+  selectSettings,
+  selectModelRatings,
+} from './arena-store';
 import type { ArenaContestant, ArenaPreference } from '@/types/arena';
 
 describe('useArenaStore', () => {
@@ -480,6 +485,117 @@ describe('useArenaStore', () => {
 
       // Should not throw
       expect(true).toBe(true);
+    });
+  });
+
+  describe('selectors', () => {
+    const mockContestants: Omit<ArenaContestant, 'id' | 'response' | 'status' | 'startTime'>[] = [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3-opus', displayName: 'Claude 3 Opus' },
+    ];
+
+    it('selectActiveBattle returns undefined when no active battle', () => {
+      const state = useArenaStore.getState();
+      expect(selectActiveBattle(state)).toBeUndefined();
+    });
+
+    it('selectActiveBattle returns the active battle', () => {
+      let battleId: string = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Test', mockContestants);
+        battleId = battle.id;
+      });
+
+      const state = useArenaStore.getState();
+      const active = selectActiveBattle(state);
+      expect(active).toBeDefined();
+      expect(active?.id).toBe(battleId);
+    });
+
+    it('selectSettings returns current settings', () => {
+      const state = useArenaStore.getState();
+      const settings = selectSettings(state);
+      expect(settings).toBeDefined();
+      expect(typeof settings.enabled).toBe('boolean');
+      expect(typeof settings.defaultModelCount).toBe('number');
+    });
+
+    it('selectModelRatings returns model ratings array', () => {
+      const state = useArenaStore.getState();
+      expect(selectModelRatings(state)).toEqual([]);
+    });
+  });
+
+  describe('cleanupOldBattles', () => {
+    const mockContestants: Omit<ArenaContestant, 'id' | 'response' | 'status' | 'startTime'>[] = [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3-opus', displayName: 'Claude 3 Opus' },
+    ];
+
+    it('should remove battles older than retention period', () => {
+      act(() => {
+        useArenaStore.getState().createBattle('Recent battle', mockContestants);
+      });
+
+      // Manually set an old battle
+      act(() => {
+        useArenaStore.setState((state) => ({
+          battles: state.battles.map((b) => ({
+            ...b,
+            createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 60 days ago
+          })),
+        }));
+      });
+
+      act(() => {
+        useArenaStore.getState().cleanupOldBattles();
+      });
+
+      // Default retention is 30 days, so the 60-day-old battle should be removed
+      expect(useArenaStore.getState().battles).toHaveLength(0);
+    });
+
+    it('should keep recent battles', () => {
+      act(() => {
+        useArenaStore.getState().createBattle('Recent battle', mockContestants);
+      });
+
+      act(() => {
+        useArenaStore.getState().cleanupOldBattles();
+      });
+
+      // Battle was just created, should be kept
+      expect(useArenaStore.getState().battles).toHaveLength(1);
+    });
+  });
+
+  describe('getActiveBattle', () => {
+    const mockContestants: Omit<ArenaContestant, 'id' | 'response' | 'status' | 'startTime'>[] = [
+      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
+      { provider: 'anthropic', model: 'claude-3-opus', displayName: 'Claude 3 Opus' },
+    ];
+
+    it('should return undefined when no active battle', () => {
+      expect(useArenaStore.getState().getActiveBattle()).toBeUndefined();
+    });
+
+    it('should return the active battle object', () => {
+      let battleId: string = '';
+      act(() => {
+        const battle = useArenaStore.getState().createBattle('Test', mockContestants);
+        battleId = battle.id;
+      });
+
+      const active = useArenaStore.getState().getActiveBattle();
+      expect(active).toBeDefined();
+      expect(active?.id).toBe(battleId);
+    });
+  });
+
+  describe('getBTRatings', () => {
+    it('should return model ratings (BT accessor)', () => {
+      const ratings = useArenaStore.getState().getBTRatings();
+      expect(Array.isArray(ratings)).toBe(true);
     });
   });
 

@@ -324,6 +324,30 @@ export {
   type IntentDetectionResult,
 } from './intent-detection';
 
+// App builder tools
+export {
+  appBuilderTools,
+  appGenerateTool,
+  appCreateFromTemplateTool,
+  appListTemplatesTool,
+  appDeleteTool,
+  executeAppGenerate,
+  executeAppCreateFromTemplate,
+  executeAppList,
+  executeAppDelete,
+  registerAppBuilderTools,
+  getAppBuilderToolsPrompt,
+  appGenerateInputSchema,
+  appCreateFromTemplateInputSchema,
+  appListInputSchema,
+  appDeleteInputSchema,
+  type AppGenerateInput,
+  type AppCreateFromTemplateInput,
+  type AppListInput,
+  type AppDeleteInput,
+  type AppBuilderToolResult,
+} from './app-builder-tool';
+
 // Artifact tools
 export {
   artifactTools,

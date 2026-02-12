@@ -101,6 +101,11 @@ export function KernelStatus({
         {kernel?.executionCount !== undefined && kernel.executionCount > 0 && (
           <span className="text-muted-foreground">[{kernel.executionCount}]</span>
         )}
+        {kernel?.lastActivityAt && (
+          <span className="text-muted-foreground text-[10px]" title={kernel.lastActivityAt}>
+            {new Date(kernel.lastActivityAt).toLocaleTimeString()}
+          </span>
+        )}
       </Badge>
 
       <TooltipProvider>
@@ -132,4 +137,3 @@ export function KernelStatus({
   );
 }
 
-export default KernelStatus;

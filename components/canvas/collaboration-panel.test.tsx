@@ -131,11 +131,93 @@ describe('CollaborationPanel', () => {
 
 describe('CollaborationPanel with active session', () => {
   it('should handle session state changes', () => {
-    // The connected state requires re-mocking the hook
-    // This test verifies the component structure is correct
     expect(mockConnect).toBeDefined();
     expect(mockDisconnect).toBeDefined();
     expect(mockShareSession).toBeDefined();
     expect(mockJoinSession).toBeDefined();
+  });
+});
+
+describe('CollaborationPanel connection states', () => {
+  it('should display correct text for each CollaborationConnectionState', async () => {
+    // Test that the component correctly maps connection states to display text
+    // The hook mock returns 'disconnected' by default
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    // Default state is 'disconnected'
+    expect(screen.getByText('Disconnected')).toBeInTheDocument();
+  });
+
+  it('should show connecting state text', async () => {
+    // Override the hook mock for 'connecting' state
+    const hookModule = jest.requireMock('@/hooks/canvas');
+    const originalHook = hookModule.useCollaborativeSession;
+    hookModule.useCollaborativeSession = () => ({
+      session: null,
+      participants: [],
+      connectionState: 'connecting',
+      isConnected: false,
+      connect: mockConnect,
+      disconnect: mockDisconnect,
+      shareSession: mockShareSession,
+      joinSession: mockJoinSession,
+    });
+
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    expect(screen.getByText('Connecting...')).toBeInTheDocument();
+
+    hookModule.useCollaborativeSession = originalHook;
+  });
+
+  it('should show error state text', async () => {
+    const hookModule = jest.requireMock('@/hooks/canvas');
+    const originalHook = hookModule.useCollaborativeSession;
+    hookModule.useCollaborativeSession = () => ({
+      session: null,
+      participants: [],
+      connectionState: 'error',
+      isConnected: false,
+      connect: mockConnect,
+      disconnect: mockDisconnect,
+      shareSession: mockShareSession,
+      joinSession: mockJoinSession,
+    });
+
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    expect(screen.getByText('Connection Error')).toBeInTheDocument();
+
+    hookModule.useCollaborativeSession = originalHook;
+  });
+
+  it('should show reconnecting state as disconnected (default branch)', async () => {
+    const hookModule = jest.requireMock('@/hooks/canvas');
+    const originalHook = hookModule.useCollaborativeSession;
+    hookModule.useCollaborativeSession = () => ({
+      session: null,
+      participants: [],
+      connectionState: 'reconnecting',
+      isConnected: false,
+      connect: mockConnect,
+      disconnect: mockDisconnect,
+      shareSession: mockShareSession,
+      joinSession: mockJoinSession,
+    });
+
+    render(<CollaborationPanel documentId="doc-1" documentContent="test" />);
+    const button = screen.getByText('Collaborate');
+    await userEvent.click(button);
+
+    expect(screen.getByText('Disconnected')).toBeInTheDocument();
+
+    hookModule.useCollaborativeSession = originalHook;
   });
 });

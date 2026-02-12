@@ -44,4 +44,4 @@ export interface FormatActionMapping {
 /**
  * Connection state for collaboration
  */
-export type CollaborationConnectionState = 'connected' | 'connecting' | 'disconnected' | 'error';
+export type CollaborationConnectionState = 'connected' | 'connecting' | 'disconnected' | 'reconnecting' | 'error';

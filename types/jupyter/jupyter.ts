@@ -184,21 +184,6 @@ export interface CreateSessionOptions {
   autoInstallKernel?: boolean;
 }
 
-/** Kernel action types for UI */
-export type KernelAction = 'start' | 'stop' | 'restart' | 'interrupt' | 'execute' | 'clear';
-
-/** Kernel event types */
-export type KernelEventType = 'status' | 'output' | 'error' | 'cell-output' | 'variables-updated';
-
-/** Kernel event payload */
-export interface KernelEvent {
-  type: KernelEventType;
-  kernelId?: string;
-  sessionId?: string;
-  data: unknown;
-  timestamp: string;
-}
-
 /** Execution history entry */
 export interface ExecutionHistoryEntry {
   id: string;

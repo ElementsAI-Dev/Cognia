@@ -329,4 +329,4 @@ export const useDocumentStore = create<DocumentState>()(
   )
 );
 
-export default useDocumentStore;
+

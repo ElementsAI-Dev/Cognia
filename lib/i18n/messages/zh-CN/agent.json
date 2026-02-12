@@ -90,7 +90,8 @@
     "started": "开始：{time}",
     "durationValue": "耗时：{value}",
     "subAgentProgress": "{completed}/{total} 子代理",
-    "nRunning": "{count} 运行中"
+    "nRunning": "{count} 运行中",
+    "processManager": "进程管理器"
   },
   "agentMode": {
     "title": "智能体模式",

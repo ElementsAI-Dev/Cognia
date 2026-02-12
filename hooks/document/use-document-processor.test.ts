@@ -126,6 +126,14 @@ jest.mock('@/stores/document', () => ({
   useDocumentStore: jest.fn((selector) =>
     selector({
       addDocument: jest.fn(() => ({ id: 'test-id' })),
+      saveVersion: jest.fn(),
+      getVersions: jest.fn(() => []),
+      restoreVersion: jest.fn(),
+      selectDocument: jest.fn(),
+      getSelectedDocument: jest.fn(() => null),
+      searchDocuments: jest.fn(() => []),
+      setLoading: jest.fn(),
+      setError: jest.fn(),
     })
   ),
 }));

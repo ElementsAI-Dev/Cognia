@@ -7,6 +7,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { A2UIList } from './a2ui-list';
 import type { A2UIListComponent, A2UIComponentProps } from '@/types/artifact/a2ui';
 
+// Mock useA2UIListNavigation hook
+const mockSetActiveIndex = jest.fn();
+jest.mock('@/hooks/a2ui/use-a2ui-keyboard', () => ({
+  useA2UIListNavigation: () => ({
+    activeIndex: 0,
+    setActiveIndex: mockSetActiveIndex,
+    activeItem: null,
+  }),
+}));
+
 // Mock the A2UI context
 const mockDataCtx = {
   surface: null, dataModel: {}, components: {},
@@ -124,5 +134,36 @@ describe('A2UIList', () => {
 
     const { container } = render(<A2UIList {...createProps(component)} />);
     expect(container.firstChild).toHaveClass('custom-class');
+  });
+
+  describe('active item highlighting', () => {
+    it('should highlight active item on click', () => {
+      const component: A2UIListComponent = {
+        id: 'list-active',
+        component: 'List',
+        items: ['Item A', 'Item B', 'Item C'],
+        itemClickAction: 'select',
+      };
+
+      render(<A2UIList {...createProps(component)} />);
+
+      // Click second item
+      fireEvent.click(screen.getByText('Item B'));
+
+      // Should call setActiveIndex with the clicked index
+      expect(mockSetActiveIndex).toHaveBeenCalledWith(1);
+    });
+
+    it('should apply active class to first item by default', () => {
+      const component: A2UIListComponent = {
+        id: 'list-default-active',
+        component: 'List',
+        items: ['First', 'Second'],
+      };
+
+      const { container } = render(<A2UIList {...createProps(component)} />);
+      const firstItem = container.querySelector('li');
+      expect(firstItem).toHaveClass('bg-accent/50');
+    });
   });
 });

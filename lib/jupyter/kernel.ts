@@ -471,4 +471,3 @@ export const kernelService = {
   onCellOutput,
 };
 
-export default kernelService;

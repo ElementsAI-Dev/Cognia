@@ -224,4 +224,4 @@ export function ChatAssistantContainer({
   );
 }
 
-export default ChatAssistantContainer;
+

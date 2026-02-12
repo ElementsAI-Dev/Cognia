@@ -99,7 +99,7 @@ describe('cost-estimator', () => {
     });
 
     it('formats very small costs', () => {
-      expect(formatCost(0.00001)).toBe('<$0.0001');
+      expect(formatCost(0.00001)).toBe('< $0.0001');
     });
 
     it('formats small costs with 4 decimals', () => {

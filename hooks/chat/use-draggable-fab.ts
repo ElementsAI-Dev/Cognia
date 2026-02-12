@@ -376,4 +376,4 @@ export function useDraggableFab(config: DraggableFabConfig = {}): DraggableFabRe
   };
 }
 
-export default useDraggableFab;
+

@@ -63,6 +63,23 @@ export type {
   RecommendationConfig,
 } from './recommendation-engine';
 
+// Zotero integration
+export {
+  ZoteroClient,
+  ZoteroSyncService,
+  zoteroItemToPaper,
+  paperToZoteroItem,
+  generateCitationKey,
+  zoteroItemToBibTeX,
+} from './zotero-integration';
+export type {
+  ZoteroConfig,
+  ZoteroItem,
+  ZoteroCollection,
+  ZoteroSyncResult,
+  ZoteroSearchOptions,
+} from './zotero-integration';
+
 // Re-export types for convenience
 export type {
   PDFConversionOptions,

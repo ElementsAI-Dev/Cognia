@@ -5,6 +5,20 @@
 import { createArtifactAPI, getArtifactRenderers, clearArtifactRenderers } from './artifact-api';
 import type { ArtifactRenderer } from '@/types/plugin/plugin-extended';
 
+// Mock artifact renderers to prevent heavy dependency chain (react-vega etc.)
+jest.mock('@/components/artifacts/artifact-renderers', () => ({
+  ArtifactRenderer: () => null,
+  MermaidRenderer: () => null,
+  ChartRenderer: () => null,
+  MathRenderer: () => null,
+  MarkdownRenderer: () => null,
+  CodeRenderer: () => null,
+}));
+
+jest.mock('@/components/artifacts/artifact-preview', () => ({
+  ArtifactPreview: () => null,
+}));
+
 // Mock artifact store
 const mockArtifacts: Record<string, { id: string; sessionId: string; title: string; content: string; type: string; language?: string }> = {};
 let mockActiveArtifactId: string | null = null;

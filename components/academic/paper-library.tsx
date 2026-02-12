@@ -62,7 +62,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useAcademic } from '@/hooks/academic';
+import { useAcademicStore } from '@/stores/academic';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/toaster';
 import type { LibraryPaper, PaperReadingStatus } from '@/types/academic';
 import { STATUS_ICONS, STATUS_COLORS } from '@/components/academic/constants';
 
@@ -103,6 +105,15 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
   const [statusFilter, setStatusFilter] = useState<PaperReadingStatus | 'all'>('all');
   const [newCollectionName, setNewCollectionName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  const { importFromZotero, isLoading: zoteroLoading } = useAcademicStore();
+
+  const handleZoteroImport = async () => {
+    const count = await importFromZotero();
+    if (count > 0) {
+      toast.success(t('zoteroImported', { count: count.toString() }));
+    }
+  };
 
   // Filter papers
   const filteredPapers = useMemo(() => {
@@ -264,6 +275,15 @@ export function PaperLibrary({ onPaperSelect, className }: PaperLibraryProps) {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               {t('export')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleZoteroImport}
+              disabled={zoteroLoading}
+            >
+              <FolderInput className="h-4 w-4 mr-2" />
+              {t('zoteroImport', { defaultValue: 'Zotero' })}
             </Button>
           </div>
 

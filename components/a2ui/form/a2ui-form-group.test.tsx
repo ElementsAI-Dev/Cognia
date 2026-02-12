@@ -6,6 +6,26 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { A2UIFormGroup, type A2UIFormGroupComponent } from './a2ui-form-group';
 
+// Mock useA2UIForm hook
+const mockFormState = {
+  values: {},
+  errors: {},
+  touched: {},
+  isValid: true,
+  isDirty: false,
+  isSubmitting: false,
+  handleChange: jest.fn(),
+  handleBlur: jest.fn(),
+  handleSubmit: jest.fn(),
+  reset: jest.fn(),
+  setFieldValue: jest.fn(),
+  setFieldError: jest.fn(),
+  validate: jest.fn(() => true),
+};
+jest.mock('@/hooks/a2ui/use-a2ui-form', () => ({
+  useA2UIForm: () => mockFormState,
+}));
+
 // Mock the child renderer
 jest.mock('../a2ui-renderer', () => ({
   A2UIChildRenderer: ({ childIds }: { childIds: string[] }) => (
@@ -206,6 +226,56 @@ describe('A2UIFormGroup', () => {
       );
       
       expect(screen.getByText('input-1, input-2, input-3')).toBeInTheDocument();
+    });
+  });
+
+  describe('form validation integration', () => {
+    it('should not set aria-invalid when form is valid', () => {
+      mockFormState.isValid = true;
+      mockFormState.isDirty = false;
+
+      const { container } = render(
+        <A2UIFormGroup
+          {...defaultProps}
+          component={createMockComponent()}
+          onAction={jest.fn()}
+        />
+      );
+
+      const fieldset = container.querySelector('fieldset');
+      expect(fieldset).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('should set aria-invalid when form is invalid and dirty', () => {
+      mockFormState.isValid = false;
+      mockFormState.isDirty = true;
+
+      const { container } = render(
+        <A2UIFormGroup
+          {...defaultProps}
+          component={createMockComponent()}
+          onAction={jest.fn()}
+        />
+      );
+
+      const fieldset = container.querySelector('fieldset');
+      expect(fieldset).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('should not set aria-invalid when form is invalid but not dirty', () => {
+      mockFormState.isValid = false;
+      mockFormState.isDirty = false;
+
+      const { container } = render(
+        <A2UIFormGroup
+          {...defaultProps}
+          component={createMockComponent()}
+          onAction={jest.fn()}
+        />
+      );
+
+      const fieldset = container.querySelector('fieldset');
+      expect(fieldset).not.toHaveAttribute('aria-invalid', 'true');
     });
   });
 });

@@ -124,41 +124,45 @@ describe('RecordingControls - Recording State', () => {
 
   it('shows recording indicator when recording', () => {
     renderWithI18n(<RecordingControls />);
-    // Should show recording badge with duration
+    expect(screen.getByText('Recording')).toBeInTheDocument();
   });
 
   it('shows pause button when recording', () => {
     renderWithI18n(<RecordingControls />);
-    // Pause button should be visible
+    const buttons = screen.getAllByRole('button');
+    const pauseButton = buttons.find(btn => btn.querySelector('svg.lucide-pause'));
+    expect(pauseButton).toBeInTheDocument();
   });
 
   it('shows stop button when recording', () => {
     renderWithI18n(<RecordingControls />);
-    // Stop button should be visible
+    const buttons = screen.getAllByRole('button');
+    const stopButton = buttons.find(btn => btn.querySelector('svg.lucide-square'));
+    expect(stopButton).toBeInTheDocument();
   });
 
   it('calls pause when pause button is clicked', () => {
     renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
-    // Find and click pause button
-    buttons.forEach(btn => {
-      if (btn.querySelector('svg.lucide-pause')) {
-        fireEvent.click(btn);
-      }
-    });
+    const pauseButton = buttons.find(btn => btn.querySelector('svg.lucide-pause'));
+    expect(pauseButton).toBeDefined();
+    if (pauseButton) {
+      fireEvent.click(pauseButton);
+      expect(mockStore.pause).toHaveBeenCalled();
+    }
   });
 
   it('calls stop when stop button is clicked', () => {
     renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
-    // Find and click stop button
-    buttons.forEach(btn => {
-      if (btn.querySelector('svg.lucide-square')) {
-        fireEvent.click(btn);
-      }
-    });
+    const stopButton = buttons.find(btn => btn.querySelector('svg.lucide-square'));
+    expect(stopButton).toBeDefined();
+    if (stopButton) {
+      fireEvent.click(stopButton);
+      expect(mockStore.stop).toHaveBeenCalled();
+    }
   });
 });
 
@@ -197,18 +201,21 @@ describe('RecordingControls - Paused State', () => {
 
   it('shows resume button when paused', () => {
     renderWithI18n(<RecordingControls />);
-    // Resume button (play icon) should be visible
+    const buttons = screen.getAllByRole('button');
+    const resumeButton = buttons.find(btn => btn.querySelector('svg.lucide-play'));
+    expect(resumeButton).toBeInTheDocument();
   });
 
   it('calls resume when resume button is clicked', () => {
     renderWithI18n(<RecordingControls />);
     
     const buttons = screen.getAllByRole('button');
-    buttons.forEach(btn => {
-      if (btn.querySelector('svg.lucide-play')) {
-        fireEvent.click(btn);
-      }
-    });
+    const resumeButton = buttons.find(btn => btn.querySelector('svg.lucide-play'));
+    expect(resumeButton).toBeDefined();
+    if (resumeButton) {
+      fireEvent.click(resumeButton);
+      expect(mockStore.resume).toHaveBeenCalled();
+    }
   });
 });
 
@@ -247,7 +254,9 @@ describe('RecordingControls - Countdown State', () => {
 
   it('shows cancel button during countdown', () => {
     renderWithI18n(<RecordingControls />);
-    // Cancel button should be visible
+    const buttons = screen.getAllByRole('button');
+    const cancelButton = buttons.find(btn => btn.querySelector('svg.lucide-x'));
+    expect(cancelButton).toBeInTheDocument();
   });
 
   it('disables stop button during countdown', () => {

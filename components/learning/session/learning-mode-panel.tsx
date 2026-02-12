@@ -27,6 +27,7 @@ import {
   BarChart3,
   StickyNote,
   History,
+  Map,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ import { useLearningStore } from '@/stores/learning';
 import { LearningStatisticsPanel } from './learning-statistics-panel';
 import { LearningNotesPanel } from './learning-notes-panel';
 import { LearningHistoryPanel } from './learning-history-panel';
+import { LearningPathDashboard } from './learning-path-dashboard';
 import type { LearningPhase, LearningSubQuestion, LearningGoal } from '@/types/learning';
 
 const PHASE_ICONS: Record<LearningPhase, React.ReactNode> = {
@@ -128,7 +130,7 @@ export const LearningModePanel = memo(function LearningModePanel({
       <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList
-            className="grid w-full grid-cols-4 mx-4 mt-2"
+            className="grid w-full grid-cols-5 mx-4 mt-2"
             style={{ width: 'calc(100% - 2rem)' }}
           >
             <TabsTrigger value="progress" className="text-xs">
@@ -146,6 +148,10 @@ export const LearningModePanel = memo(function LearningModePanel({
             <TabsTrigger value="history" className="text-xs">
               <History className="h-3 w-3 mr-1" />
               {t('tabs.history')}
+            </TabsTrigger>
+            <TabsTrigger value="paths" className="text-xs">
+              <Map className="h-3 w-3 mr-1" />
+              {t('tabs.paths')}
             </TabsTrigger>
           </TabsList>
 
@@ -306,6 +312,12 @@ export const LearningModePanel = memo(function LearningModePanel({
             <TabsContent value="history" className="h-full mt-2 overflow-auto">
               <ScrollArea className="h-full">
                 <LearningHistoryPanel />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="paths" className="h-full mt-2 overflow-auto">
+              <ScrollArea className="h-full">
+                <LearningPathDashboard />
               </ScrollArea>
             </TabsContent>
           </div>

@@ -17,6 +17,7 @@ interface NativeToolHeaderProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   refreshLabel?: string;
+  iconClassName?: string;
   className?: string;
 }
 
@@ -29,26 +30,26 @@ export function NativeToolHeader({
   onRefresh,
   isRefreshing,
   refreshLabel = 'Refresh',
+  iconClassName,
   className,
 }: NativeToolHeaderProps) {
   return (
     <header
       className={cn(
         'flex items-center justify-between gap-3 p-3 sm:p-4 border-b',
-        'bg-background/50 backdrop-blur-sm',
-        'shrink-0',
+        'bg-muted/30 shrink-0',
         className
       )}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         {Icon && (
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary shrink-0">
-            <Icon className="h-5 w-5" />
+          <div className={cn('flex items-center justify-center h-8 w-8 rounded-lg shrink-0', iconClassName || 'bg-primary/10 text-primary')}>
+            <Icon className="h-4 w-4" />
           </div>
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold truncate">{title}</h2>
+            <h3 className="text-sm font-semibold leading-none">{title}</h3>
             {badge &&
               (typeof badge === 'string' ? (
                 <Badge variant="secondary" className="text-xs shrink-0">
@@ -72,7 +73,7 @@ export function NativeToolHeader({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-9 w-9"
+                className="h-8 w-8"
                 onClick={onRefresh}
                 disabled={isRefreshing}
               >
@@ -86,5 +87,3 @@ export function NativeToolHeader({
     </header>
   );
 }
-
-export default NativeToolHeader;

@@ -21,8 +21,8 @@ import type {
   LeaderboardSyncSettings,
   RemoteModelRating,
   LeaderboardPeriod,
-  ArenaPreference,
 } from '@/types/arena';
+import { localToRemotePreference } from '@/types/arena';
 
 // ============================================
 // Hook Options
@@ -150,21 +150,16 @@ export function useLeaderboardSync(
       return true;
     }
 
-    // Convert to remote format
+    // Convert to remote format using canonical converter
     const deviceId = settings.anonymousMode
       ? 'anonymous'
       : (typeof localStorage !== 'undefined'
           ? localStorage.getItem('cognia-device-id') || 'unknown'
           : 'unknown');
 
-    const remotePreferences = unsubmittedPreferences.map((pref: ArenaPreference) => ({
-      winner: pref.winner,
-      loser: pref.loser,
-      taskCategory: pref.taskCategory,
-      reason: pref.reason,
-      deviceId,
-      timestamp: new Date(pref.timestamp).toISOString(),
-    }));
+    const remotePreferences = unsubmittedPreferences.map((pref) =>
+      localToRemotePreference(pref, deviceId)
+    );
 
     const success = await storeSubmitPreferences(remotePreferences);
 

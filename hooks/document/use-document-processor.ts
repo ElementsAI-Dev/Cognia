@@ -78,6 +78,20 @@ export function useDocumentProcessor() {
   const abortRef = useRef(false);
   const addDocument = useDocumentStore((s) => s.addDocument);
 
+  // Version management
+  const saveVersion = useDocumentStore((s) => s.saveVersion);
+  const getVersions = useDocumentStore((s) => s.getVersions);
+  const restoreVersion = useDocumentStore((s) => s.restoreVersion);
+
+  // Selection & search
+  const selectDocument = useDocumentStore((s) => s.selectDocument);
+  const getSelectedDocument = useDocumentStore((s) => s.getSelectedDocument);
+  const searchStoredDocuments = useDocumentStore((s) => s.searchDocuments);
+
+  // Store state sync
+  const setStoreLoading = useDocumentStore((s) => s.setLoading);
+  const setStoreError = useDocumentStore((s) => s.setError);
+
   /**
    * Process a single text file
    */
@@ -93,6 +107,8 @@ export function useDocumentProcessor() {
         currentFile: filename,
         error: null,
       }));
+      setStoreLoading(true);
+      setStoreError(null);
 
       try {
         const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -119,6 +135,7 @@ export function useDocumentProcessor() {
           currentFile: null,
           results: [processed],
         }));
+        setStoreLoading(false);
 
         return processed;
       } catch (error) {
@@ -130,10 +147,12 @@ export function useDocumentProcessor() {
           currentFile: null,
           error: errorMsg,
         }));
+        setStoreLoading(false);
+        setStoreError(errorMsg);
         return null;
       }
     },
-    [addDocument]
+    [addDocument, setStoreLoading, setStoreError]
   );
 
   /**
@@ -508,7 +527,17 @@ export function useDocumentProcessor() {
     compare,
     detectFileEncoding,
     processTextDocuments,
+
+    // Version management
+    saveVersion,
+    getVersions,
+    restoreVersion,
+
+    // Selection & search
+    selectDocument,
+    getSelectedDocument,
+    searchStoredDocuments,
   };
 }
 
-export default useDocumentProcessor;
+

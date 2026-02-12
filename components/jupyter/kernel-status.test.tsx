@@ -290,6 +290,28 @@ describe('KernelStatus', () => {
     });
   });
 
+  describe('last activity display', () => {
+    it('should display last activity time when lastActivityAt is set', () => {
+      const kernel = createMockKernel({
+        lastActivityAt: '2024-06-15T10:30:00Z',
+      });
+      const { container } = renderWithIntl(<KernelStatus kernel={kernel} />);
+
+      // The time element should exist with the title attribute
+      const timeSpan = container.querySelector('[title="2024-06-15T10:30:00Z"]');
+      expect(timeSpan).toBeInTheDocument();
+      expect(timeSpan?.textContent).toBeTruthy();
+    });
+
+    it('should not display last activity time when lastActivityAt is null', () => {
+      const kernel = createMockKernel({ lastActivityAt: null });
+      const { container } = renderWithIntl(<KernelStatus kernel={kernel} />);
+
+      const timeSpan = container.querySelector('span[title]');
+      expect(timeSpan).toBeNull();
+    });
+  });
+
   describe('custom className', () => {
     it('should apply custom className', () => {
       const kernel = createMockKernel();

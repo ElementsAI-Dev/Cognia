@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Play, Pause, Trash2, Clock, Monitor, BarChart3 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
+import { NativeToolHeader } from '../layout/native-tool-header';
 import { cn, formatTime } from '@/lib/utils';
 
 interface FocusTrackerPanelProps {
@@ -46,60 +47,49 @@ export function FocusTrackerPanel({ className }: FocusTrackerPanelProps) {
 
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-background', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div
-            className={cn(
-              'flex items-center justify-center h-8 w-8 rounded-lg',
-              isTracking ? 'bg-green-500/10' : 'bg-muted'
-            )}
-          >
-            <Monitor
-              className={cn('h-4 w-4', isTracking ? 'text-green-500' : 'text-muted-foreground')}
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold leading-none">{t('title')}</h3>
-              {isTracking && (
-                <span className="flex items-center gap-1 text-xs text-green-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Active
-                </span>
-              )}
-            </div>
-            {todaySummary && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {formatDuration(todaySummary.total_active_ms)} today
-              </p>
-            )}
-          </div>
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={isTracking ? 'destructive' : 'default'}
-              size="sm"
-              className="h-8"
-              onClick={isTracking ? stopTracking : startTracking}
-            >
-              {isTracking ? (
-                <>
-                  <Pause className="h-4 w-4 mr-1.5" />
-                  {t('stop')}
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-1.5" />
-                  {t('start')}
-                </>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('toggleTracking')}</TooltipContent>
-        </Tooltip>
-      </div>
+      <NativeToolHeader
+        icon={Monitor}
+        iconClassName={isTracking ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'}
+        title={t('title')}
+        badge={
+          isTracking ? (
+            <span className="flex items-center gap-1 text-xs text-green-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              Active
+            </span>
+          ) : undefined
+        }
+        description={
+          todaySummary
+            ? `${formatDuration(todaySummary.total_active_ms)} today`
+            : undefined
+        }
+        actions={
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isTracking ? 'destructive' : 'default'}
+                size="sm"
+                className="h-8"
+                onClick={isTracking ? stopTracking : startTracking}
+              >
+                {isTracking ? (
+                  <>
+                    <Pause className="h-4 w-4 mr-1.5" />
+                    {t('stop')}
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-1.5" />
+                    {t('start')}
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('toggleTracking')}</TooltipContent>
+          </Tooltip>
+        }
+      />
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">

@@ -34,6 +34,55 @@ jest.mock('@/stores/mcp', () => ({
   useMcpStore: () => ({
     addServer: mockAddServer,
     updateServer: mockUpdateServer,
+    pingServer: jest.fn(),
+    testConnection: jest.fn(),
+  }),
+}));
+
+// Mock hooks/mcp barrel (prevents react-vega ESM chain)
+const mockHandleSave = jest.fn();
+jest.mock('@/hooks/mcp', () => ({
+  useMcpServerForm: () => ({
+    state: {
+      data: {
+        name: '',
+        command: 'npx',
+        args: [],
+        env: {},
+        connectionType: 'stdio',
+        url: '',
+        enabled: true,
+        autoStart: false,
+      },
+      newArg: '',
+      newEnvKey: '',
+      newEnvValue: '',
+      showEnvValues: {},
+      saving: false,
+      isValid: true,
+    },
+    setName: jest.fn(),
+    setCommand: jest.fn(),
+    setConnectionType: jest.fn(),
+    setUrl: jest.fn(),
+    setEnabled: jest.fn(),
+    setAutoStart: jest.fn(),
+    setNewArg: jest.fn(),
+    setNewEnvKey: jest.fn(),
+    setNewEnvValue: jest.fn(),
+    addArg: jest.fn(),
+    removeArg: jest.fn(),
+    addEnv: jest.fn(),
+    removeEnv: jest.fn(),
+    toggleEnvVisibility: jest.fn(),
+    handleSave: mockHandleSave,
+  }),
+  useMcpEnvironmentCheck: () => ({
+    envCheck: { supported: true, missingDeps: [] },
+    isChecking: false,
+    error: null,
+    runCheck: jest.fn(),
+    isSupported: true,
   }),
 }));
 
@@ -86,6 +135,11 @@ jest.mock('@/components/ui/dialog', () => ({
   DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
+}));
+
+jest.mock('@/components/ui/alert', () => ({
+  Alert: ({ children }: { children: React.ReactNode }) => <div data-testid="alert">{children}</div>,
+  AlertDescription: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
 jest.mock('@/components/ui/select', () => ({

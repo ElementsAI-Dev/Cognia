@@ -55,6 +55,11 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
   const removeKnowledgeFile = useProjectStore((state) => state.removeKnowledgeFile);
   const updateKnowledgeFile = useProjectStore((state) => state.updateKnowledgeFile);
   const deleteFromDocumentStore = useDocumentStore((state) => state.deleteDocument);
+  const deleteDocumentsFromStore = useDocumentStore((state) => state.deleteDocuments);
+  const clearAllDocuments = useDocumentStore((state) => state.clearAllDocuments);
+  const assignToProject = useDocumentStore((state) => state.assignToProject);
+  const removeFromProject = useDocumentStore((state) => state.removeFromProject);
+  const getDocumentsByProject = useDocumentStore((state) => state.getDocumentsByProject);
   const { processFile, validate } = useDocumentProcessor();
 
   // Filtered files based on search
@@ -111,6 +116,14 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
               originalSize: file.size,
               pageCount: typeof processed.metadata.pageCount === 'number' ? processed.metadata.pageCount : undefined,
             });
+            // Associate the stored document with this project
+            const docs = useDocumentStore.getState().filterDocuments({
+              searchQuery: file.name,
+            });
+            const matchedDoc = docs.find((d) => d.filename === file.name);
+            if (matchedDoc) {
+              assignToProject(matchedDoc.id, projectId);
+            }
           }
         } catch (fileError) {
           console.error(`Error processing file ${file.name}:`, fileError);
@@ -123,7 +136,7 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
         fileInputRef.current.value = '';
       }
     }
-  }, [projectId, addKnowledgeFile, processFile, validate]);
+  }, [projectId, addKnowledgeFile, processFile, validate, assignToProject]);
 
   // Syntax highlighting for viewed file
   useEffect(() => {
@@ -216,12 +229,13 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
       });
       for (const doc of docStoreDocuments) {
         if (doc.filename === file.name) {
+          removeFromProject(doc.id);
           deleteFromDocumentStore(doc.id);
         }
       }
     }
     setDeleteFileId(null);
-  }, [deleteFileId, project, projectId, removeKnowledgeFile, deleteFromDocumentStore]);
+  }, [deleteFileId, project, projectId, removeKnowledgeFile, deleteFromDocumentStore, removeFromProject]);
 
   // Batch delete
   const handleBatchDelete = useCallback(() => {
@@ -229,6 +243,8 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
     for (const fileId of selectedFiles) {
       removeKnowledgeFile(projectId, fileId);
     }
+    // Batch delete from document store using bulk operation
+    const docIdsToDelete: string[] = [];
     for (const file of filesToDelete) {
       const docStoreDocuments = useDocumentStore.getState().filterDocuments({
         projectId,
@@ -236,13 +252,16 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
       });
       for (const doc of docStoreDocuments) {
         if (doc.filename === file.name) {
-          deleteFromDocumentStore(doc.id);
+          docIdsToDelete.push(doc.id);
         }
       }
     }
+    if (docIdsToDelete.length > 0) {
+      deleteDocumentsFromStore(docIdsToDelete);
+    }
     setSelectedFiles(new Set());
     setShowBatchDeleteDialog(false);
-  }, [project, projectId, selectedFiles, removeKnowledgeFile, deleteFromDocumentStore]);
+  }, [project, projectId, selectedFiles, removeKnowledgeFile, deleteDocumentsFromStore]);
 
   // File selection
   const toggleFileSelection = useCallback((fileId: string) => {
@@ -345,5 +364,9 @@ export function useKnowledgeBase({ projectId }: UseKnowledgeBaseOptions) {
     cancelEditing,
     saveEdit,
     closeViewer,
+
+    // Document store operations
+    clearAllDocuments,
+    getDocumentsByProject,
   };
 }

@@ -24,7 +24,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import type { ToolCallResult, ContentItem } from '@/types/mcp';
-import { A2UIToolOutput, hasA2UIToolOutput } from '@/components/a2ui';
+import { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from '@/components/a2ui';
+import { parseA2UIMessages } from '@/lib/a2ui/parser';
 
 interface ToolResultDisplayProps {
   /** Server ID */
@@ -140,6 +141,22 @@ export function ToolResultDisplay({
   );
 }
 
+/**
+ * Try to parse text content as A2UI structured messages
+ */
+function tryParseA2UIContent(text: string) {
+  try {
+    const parsed = JSON.parse(text);
+    const result = parseA2UIMessages(parsed);
+    if (result.success && result.messages.length > 0) {
+      return result.messages;
+    }
+  } catch {
+    // Not JSON or not A2UI content
+  }
+  return null;
+}
+
 export interface ContentItemDisplayProps {
   item: ContentItem;
   t?: ReturnType<typeof useTranslations>;
@@ -147,6 +164,18 @@ export interface ContentItemDisplayProps {
 
 export function ContentItemDisplay({ item, t }: ContentItemDisplayProps) {
   if (item.type === 'text') {
+    // Check if text content contains A2UI structured messages
+    const a2uiMessages = tryParseA2UIContent(item.text);
+    if (a2uiMessages) {
+      return (
+        <A2UIStructuredOutput
+          id={`content-${item.text.length}-${item.text.charCodeAt(0)}`}
+          messages={a2uiMessages}
+          className="my-2"
+        />
+      );
+    }
+
     return (
       <pre className="whitespace-pre-wrap font-mono text-xs bg-muted/50 rounded p-2 overflow-x-auto">
         {item.text}

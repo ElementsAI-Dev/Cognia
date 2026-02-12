@@ -62,6 +62,11 @@ const mockAddKnowledgeFile = jest.fn();
 const mockRemoveKnowledgeFile = jest.fn();
 const mockUpdateKnowledgeFile = jest.fn();
 const mockDeleteDocument = jest.fn();
+const mockDeleteDocuments = jest.fn();
+const mockClearAllDocuments = jest.fn();
+const mockAssignToProject = jest.fn();
+const mockRemoveFromProject = jest.fn();
+const mockGetDocumentsByProject = jest.fn().mockReturnValue([]);
 const mockFilterDocuments = jest.fn().mockReturnValue([]);
 
 jest.mock('@/stores', () => ({
@@ -78,6 +83,11 @@ jest.mock('@/stores', () => ({
     (selector: (s: Record<string, unknown>) => unknown) =>
       selector({
         deleteDocument: mockDeleteDocument,
+        deleteDocuments: mockDeleteDocuments,
+        clearAllDocuments: mockClearAllDocuments,
+        assignToProject: mockAssignToProject,
+        removeFromProject: mockRemoveFromProject,
+        getDocumentsByProject: mockGetDocumentsByProject,
       }),
     {
       getState: () => ({

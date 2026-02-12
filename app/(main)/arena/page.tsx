@@ -7,11 +7,12 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3 } from 'lucide-react';
+import { Scale, Trophy, Grid3X3, History, Zap, Settings, BarChart3, Eye, EyeOff, Wifi, WifiOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   ArenaLeaderboard,
   ArenaHeatmap,
@@ -24,11 +25,13 @@ import {
 } from '@/components/arena';
 import {
   useArenaStore,
+  selectActiveBattle,
   selectActiveBattleId,
+  selectSettings as selectArenaSettings,
   selectTotalBattleCount,
   selectCompletedBattleCount,
 } from '@/stores/arena';
-import { useArena } from '@/hooks/arena';
+import { useArena, useLeaderboardSync, useLeaderboardOnlineStatus } from '@/hooks/arena';
 import Link from 'next/link';
 
 export default function ArenaPage() {
@@ -41,18 +44,29 @@ export default function ArenaPage() {
 
   const totalBattles = useArenaStore(selectTotalBattleCount);
   const completedBattleCount = useArenaStore(selectCompletedBattleCount);
+  const activeBattle = useArenaStore(selectActiveBattle);
   const activeBattleId = useArenaStore(selectActiveBattleId);
+  const arenaSettings = useArenaStore(selectArenaSettings);
   const setActiveBattle = useArenaStore((state) => state.setActiveBattle);
+  const getActiveBattle = useArenaStore((state) => state.getActiveBattle);
   const { continueTurn, canContinue } = useArena();
+
+  // Leaderboard sync - auto-fetch when leaderboard tab is active
+  const { isSyncing: leaderboardSyncing } = useLeaderboardSync({
+    autoFetch: activeTab === 'leaderboard',
+  });
+  const { isOnline } = useLeaderboardOnlineStatus();
 
   const currentBattleId = selectedBattleId || activeBattleId;
 
   const handleCloseBattle = useCallback(() => {
     setSelectedBattleId(null);
-    if (activeBattleId) {
+    // Use getActiveBattle() for imperative access to check completion status
+    const battle = getActiveBattle();
+    if (battle) {
       setActiveBattle(null);
     }
-  }, [activeBattleId, setActiveBattle]);
+  }, [getActiveBattle, setActiveBattle]);
 
   return (
     <div className="flex flex-col h-full">
@@ -69,6 +83,29 @@ export default function ArenaPage() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="secondary">{t('battlesCount', { count: totalBattles })}</Badge>
             <Badge variant="outline">{t('completedCount', { count: completedBattleCount })}</Badge>
+            {arenaSettings.defaultMode === 'blind' ? (
+              <Badge variant="secondary" className="gap-1">
+                <EyeOff className="h-3 w-3" />
+                {t('blindMode', { fallback: 'Blind' })}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="gap-1">
+                <Eye className="h-3 w-3" />
+                {t('normalMode', { fallback: 'Normal' })}
+              </Badge>
+            )}
+            {activeBattle && (
+              <Badge variant="default" className="gap-1 animate-pulse">
+                {activeBattle.contestants.map((c) => c.displayName || c.model).join(' vs ')}
+              </Badge>
+            )}
+            <Badge variant="outline" className="gap-1">
+              {isOnline ? (
+                <><Wifi className="h-3 w-3 text-green-500" /> {t('online', { fallback: 'Online' })}</>
+              ) : (
+                <><WifiOff className="h-3 w-3 text-red-500" /> {t('offline', { fallback: 'Offline' })}</>
+              )}
+            </Badge>
           </div>
           <Button onClick={() => setShowArenaDialog(true)} className="gap-2">
             <Zap className="h-4 w-4" />
@@ -91,7 +128,7 @@ export default function ArenaPage() {
               {t('quickBattle.title')}
             </TabsTrigger>
             <TabsTrigger value="leaderboard" className="gap-2">
-              <Trophy className="h-4 w-4" />
+              <Trophy className={cn('h-4 w-4', leaderboardSyncing && 'animate-spin')} />
               {t('leaderboard.title')}
             </TabsTrigger>
             <TabsTrigger value="heatmap" className="gap-2">

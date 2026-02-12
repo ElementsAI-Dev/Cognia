@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, X, Loader2, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { Plus, X, Loader2, CheckCircle2, XCircle, Zap, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { EnvVariablesForm } from './components';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useMcpServerForm } from '@/hooks/mcp';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useMcpServerForm, useMcpEnvironmentCheck } from '@/hooks/mcp';
 import { useMcpStore } from '@/stores/mcp';
 import type { McpServerState, McpConnectionType } from '@/types/mcp';
 
@@ -54,6 +55,10 @@ export function McpServerDialog({
   
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  const { envCheck, isChecking: isCheckingEnv } = useMcpEnvironmentCheck({
+    checkOnMount: !editingServer,
+  });
 
   const {
     state,
@@ -126,6 +131,20 @@ export function McpServerDialog({
 
           {connectionType === 'stdio' ? (
             <>
+              {/* Environment check warning */}
+              {!editingServer && envCheck && !envCheck.supported && !isCheckingEnv && (
+                <Alert variant="destructive" className="text-xs">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    {envCheck.message || t('envCheckFailed')}
+                    {envCheck.missingDeps.length > 0 && (
+                      <span className="block mt-1 font-mono">
+                        {t('missingDeps')}: {envCheck.missingDeps.join(', ')}
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
               {/* Command */}
               <div className="space-y-2">
                 <Label htmlFor="command">{t('command')}</Label>

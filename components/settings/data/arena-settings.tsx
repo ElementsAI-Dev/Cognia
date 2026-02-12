@@ -86,6 +86,7 @@ export function ArenaSettings() {
   const clearBattleHistory = useArenaStore((state) => state.clearBattleHistory);
   const resetModelRatings = useArenaStore((state) => state.resetModelRatings);
   const clearPreferences = useArenaStore((state) => state.clearPreferences);
+  const cleanupOldBattles = useArenaStore((state) => state.cleanupOldBattles);
   const getStats = useArenaStore((state) => state.getStats);
 
   const {
@@ -832,6 +833,18 @@ export function ArenaSettings() {
         <Button variant="outline" size="sm" onClick={handleImport}>
           <Upload className="h-4 w-4 mr-2" />
           {t('importPreferences')}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            cleanupOldBattles();
+            toast.success(t('cleanupComplete', { fallback: 'Old battles cleaned up' }));
+          }}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          {t('cleanupOldBattles', { fallback: 'Cleanup Old Battles' })}
         </Button>
 
         <Button variant="outline" size="sm" onClick={resetSettings}>

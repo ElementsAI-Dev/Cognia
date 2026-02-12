@@ -112,5 +112,3 @@ export function NativeToolSidebar({
     </aside>
   );
 }
-
-export default NativeToolSidebar;

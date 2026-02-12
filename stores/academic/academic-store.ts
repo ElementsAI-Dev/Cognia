@@ -19,6 +19,7 @@ import {
   createPdfSlice,
   createAnnotationSlice,
   createProviderSlice,
+  createZoteroSlice,
   initialSearchState,
   initialLibraryState,
 } from './slices';
@@ -28,6 +29,7 @@ import type { CollectionActions } from './slices/collection-slice';
 import type { PdfActions } from './slices/pdf-slice';
 import type { AnnotationActions } from './slices/annotation-slice';
 import type { ProviderActions } from './slices/provider-slice';
+import type { ZoteroActions } from './slices/zotero-slice';
 
 export type AcademicActiveTab =
   | 'search'
@@ -37,7 +39,8 @@ export type AcademicActiveTab =
   | 'stats'
   | 'compare'
   | 'recommend'
-  | 'smart';
+  | 'smart'
+  | 'knowledge';
 
 export interface AcademicState
   extends SearchActions,
@@ -45,7 +48,8 @@ export interface AcademicState
     CollectionActions,
     PdfActions,
     AnnotationActions,
-    ProviderActions {
+    ProviderActions,
+    ZoteroActions {
   // Nested state
   search: SearchState;
   library: LibraryState;
@@ -92,6 +96,7 @@ export const useAcademicStore = create<AcademicState>()(
       ...createPdfSlice(set, get),
       ...createAnnotationSlice(set, get),
       ...createProviderSlice(set, get),
+      ...createZoteroSlice(set, get),
 
       // UI actions (not in slices)
       setActiveTab: (tab) => set({ activeTab: tab }),

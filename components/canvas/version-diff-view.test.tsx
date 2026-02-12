@@ -128,27 +128,26 @@ new line`}
   });
 
   describe('Responsive Layout', () => {
-    it('applies responsive font sizes to diff content', () => {
+    it('applies monospace font to diff content', () => {
       const { container } = render(<VersionDiffView oldContent="line 1" newContent="line 2" />);
-      const diffContent = container.querySelector('.font-mono');
-      expect(diffContent).toHaveClass('text-xs');
-      expect(diffContent).toHaveClass('sm:text-sm');
+      const diffContent = container.querySelector('.font-mono.text-xs');
+      expect(diffContent).toBeInTheDocument();
     });
 
-    it('applies responsive line number width', () => {
+    it('applies line number width', () => {
       render(<VersionDiffView oldContent="line 1" newContent="line 1" />);
-      const lineNumberContainer = document.querySelector('.w-12.sm\\:w-16');
+      const lineNumberContainer = document.querySelector('.w-10');
       expect(lineNumberContainer).toBeInTheDocument();
     });
 
-    it('uses break-words instead of break-all for better readability', () => {
+    it('applies whitespace-pre for code formatting', () => {
       render(
         <VersionDiffView
           oldContent="verylongwordthatshouldwrapproperly"
           newContent="verylongwordthatshouldwrapproperly"
         />
       );
-      const contentSpan = document.querySelector('.break-words');
+      const contentSpan = document.querySelector('.whitespace-pre');
       expect(contentSpan).toBeInTheDocument();
     });
 

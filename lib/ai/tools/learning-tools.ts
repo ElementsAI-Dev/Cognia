@@ -244,6 +244,129 @@ export interface ConceptExplanationToolOutput {
   timestamp: string;
 }
 
+// Step Guide schemas
+export const guideStepSchema = z.object({
+  id: z.string().describe('Unique identifier for the step'),
+  title: z.string().describe('Step title'),
+  content: z.string().describe('Step content (markdown supported)'),
+  description: z.string().optional().describe('Brief description of the step'),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).optional(),
+  estimatedTimeMinutes: z.number().optional(),
+  tips: z.array(z.string()).optional().describe('Helpful tips for this step'),
+  hints: z.array(z.string()).optional().describe('Hints for learners who are stuck'),
+  requiresConfirmation: z.boolean().optional().describe('Require user confirmation before proceeding'),
+});
+
+export type GuideStepData = z.infer<typeof guideStepSchema>;
+
+export const displayStepGuideInputSchema = z.object({
+  title: z.string().describe('Title of the step guide'),
+  description: z.string().optional().describe('Overview description'),
+  steps: z.array(guideStepSchema).min(1).describe('Array of guide steps'),
+  showProgress: z.boolean().optional().describe('Show progress bar'),
+  allowSkip: z.boolean().optional().describe('Allow skipping the guide'),
+});
+
+export type DisplayStepGuideInput = z.infer<typeof displayStepGuideInputSchema>;
+
+// Concept Map schemas
+export const conceptNodeSchema = z.object({
+  id: z.string().describe('Unique node identifier'),
+  label: z.string().describe('Display label for the node'),
+  description: z.string().optional().describe('Node description shown on hover'),
+  type: z.enum(['input', 'output', 'process', 'decision', 'data', 'default']).optional(),
+  parentId: z.string().optional().describe('Parent node ID for hierarchy type'),
+  layer: z.number().optional().describe('Layer index for layers type'),
+  annotations: z.array(z.string()).optional(),
+});
+
+export const conceptConnectionSchema = z.object({
+  id: z.string().describe('Connection identifier'),
+  sourceId: z.string().describe('Source node ID'),
+  targetId: z.string().describe('Target node ID'),
+  label: z.string().optional(),
+  type: z.enum(['directed', 'bidirectional']).optional(),
+});
+
+export const displayConceptMapInputSchema = z.object({
+  title: z.string().describe('Title of the concept map'),
+  description: z.string().optional(),
+  type: z.enum(['flow', 'hierarchy', 'network', 'layers', 'sequence']).describe('Visualization layout type'),
+  nodes: z.array(conceptNodeSchema).min(1).describe('Nodes in the visualization'),
+  connections: z.array(conceptConnectionSchema).optional().describe('Connections between nodes'),
+  tags: z.array(z.string()).optional(),
+});
+
+export type DisplayConceptMapInput = z.infer<typeof displayConceptMapInputSchema>;
+
+// Animation schemas
+export const animationElementSchema = z.object({
+  id: z.string().describe('Element identifier'),
+  type: z.enum(['text', 'shape', 'arrow', 'highlight', 'group']).describe('Element type'),
+  content: z.string().optional().describe('Text content'),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  fill: z.string().optional(),
+  stroke: z.string().optional(),
+  tooltip: z.string().optional(),
+});
+
+export const animationStepSchema = z.object({
+  id: z.string().describe('Step identifier'),
+  title: z.string().describe('Step title'),
+  description: z.string().optional(),
+  elements: z.array(animationElementSchema).describe('Elements visible in this step'),
+  duration: z.number().optional().describe('Step duration in milliseconds').default(2000),
+});
+
+export const displayAnimationInputSchema = z.object({
+  name: z.string().describe('Animation name/title'),
+  description: z.string().optional(),
+  width: z.number().optional().describe('Canvas width').default(600),
+  height: z.number().optional().describe('Canvas height').default(400),
+  steps: z.array(animationStepSchema).min(1).describe('Animation steps'),
+  autoPlay: z.boolean().optional().describe('Auto-play on render'),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+});
+
+export type DisplayAnimationInput = z.infer<typeof displayAnimationInputSchema>;
+
+// Tool output types for new tools
+export interface StepGuideToolOutput {
+  type: 'step_guide';
+  title: string;
+  description?: string;
+  steps: GuideStepData[];
+  showProgress: boolean;
+  allowSkip: boolean;
+  timestamp: string;
+}
+
+export interface ConceptMapToolOutput {
+  type: 'concept_map';
+  title: string;
+  description?: string;
+  visualizationType: 'flow' | 'hierarchy' | 'network' | 'layers' | 'sequence';
+  nodes: z.infer<typeof conceptNodeSchema>[];
+  connections?: z.infer<typeof conceptConnectionSchema>[];
+  tags?: string[];
+  timestamp: string;
+}
+
+export interface AnimationToolOutput {
+  type: 'animation';
+  name: string;
+  description?: string;
+  width: number;
+  height: number;
+  steps: z.infer<typeof animationStepSchema>[];
+  autoPlay: boolean;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  timestamp: string;
+}
+
 export type LearningToolOutput =
   | FlashcardToolOutput
   | FlashcardDeckToolOutput
@@ -251,7 +374,10 @@ export type LearningToolOutput =
   | QuizQuestionToolOutput
   | ReviewSessionToolOutput
   | ProgressSummaryToolOutput
-  | ConceptExplanationToolOutput;
+  | ConceptExplanationToolOutput
+  | StepGuideToolOutput
+  | ConceptMapToolOutput
+  | AnimationToolOutput;
 
 /**
  * Execute display flashcard
@@ -369,6 +495,60 @@ export async function executeDisplayConceptExplanation(
 }
 
 /**
+ * Execute display step guide
+ */
+export async function executeDisplayStepGuide(
+  input: DisplayStepGuideInput
+): Promise<StepGuideToolOutput> {
+  return {
+    type: 'step_guide',
+    title: input.title,
+    description: input.description,
+    steps: input.steps,
+    showProgress: input.showProgress ?? true,
+    allowSkip: input.allowSkip ?? true,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Execute display concept map
+ */
+export async function executeDisplayConceptMap(
+  input: DisplayConceptMapInput
+): Promise<ConceptMapToolOutput> {
+  return {
+    type: 'concept_map',
+    title: input.title,
+    description: input.description,
+    visualizationType: input.type,
+    nodes: input.nodes,
+    connections: input.connections,
+    tags: input.tags,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Execute display animation
+ */
+export async function executeDisplayAnimation(
+  input: DisplayAnimationInput
+): Promise<AnimationToolOutput> {
+  return {
+    type: 'animation',
+    name: input.name,
+    description: input.description,
+    width: input.width ?? 600,
+    height: input.height ?? 400,
+    steps: input.steps,
+    autoPlay: input.autoPlay ?? false,
+    difficulty: input.difficulty,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
  * Learning tool definitions (compatible with project's tool pattern)
  */
 export const learningTools = {
@@ -425,6 +605,30 @@ export const learningTools = {
     description: 'Display an interactive concept explanation with expandable sections, examples, and related concepts.',
     parameters: displayConceptExplanationInputSchema,
     execute: executeDisplayConceptExplanation,
+    requiresApproval: false,
+    category: 'learning' as const,
+  },
+  displayStepGuide: {
+    name: 'displayStepGuide',
+    description: 'Display an interactive step-by-step guide for learning a process or procedure. Use this when walking the user through a multi-step workflow, tutorial, or methodology.',
+    parameters: displayStepGuideInputSchema,
+    execute: executeDisplayStepGuide,
+    requiresApproval: false,
+    category: 'learning' as const,
+  },
+  displayConceptMap: {
+    name: 'displayConceptMap',
+    description: 'Display an interactive concept visualization (flow diagram, hierarchy, network graph, or layered diagram). Use this when explaining relationships between concepts, system architectures, or data flows.',
+    parameters: displayConceptMapInputSchema,
+    execute: executeDisplayConceptMap,
+    requiresApproval: false,
+    category: 'learning' as const,
+  },
+  displayAnimation: {
+    name: 'displayAnimation',
+    description: 'Display an interactive step-by-step animation with playback controls. Use this for visualizing algorithms, processes, or any concept that benefits from animated step-by-step illustration.',
+    parameters: displayAnimationInputSchema,
+    execute: executeDisplayAnimation,
     requiresApproval: false,
     category: 'learning' as const,
   },

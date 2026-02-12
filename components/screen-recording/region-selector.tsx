@@ -319,15 +319,17 @@ export function RegionSelector({
 // Helper to get resize handle positions
 function getResizeHandles(selection: RecordingRegion, handleSize: number) {
   const half = handleSize / 2;
+  const edgeLong = handleSize * 2;
+  const edgeLongHalf = edgeLong / 2;
   return {
     nw: { x: selection.x - half, y: selection.y - half, width: handleSize, height: handleSize },
     ne: { x: selection.x + selection.width - half, y: selection.y - half, width: handleSize, height: handleSize },
     sw: { x: selection.x - half, y: selection.y + selection.height - half, width: handleSize, height: handleSize },
     se: { x: selection.x + selection.width - half, y: selection.y + selection.height - half, width: handleSize, height: handleSize },
-    n: { x: selection.x + selection.width / 2 - half, y: selection.y - half, width: handleSize, height: handleSize },
-    s: { x: selection.x + selection.width / 2 - half, y: selection.y + selection.height - half, width: handleSize, height: handleSize },
-    w: { x: selection.x - half, y: selection.y + selection.height / 2 - half, width: handleSize, height: handleSize },
-    e: { x: selection.x + selection.width - half, y: selection.y + selection.height / 2 - half, width: handleSize, height: handleSize },
+    n: { x: selection.x + selection.width / 2 - edgeLongHalf, y: selection.y - half, width: edgeLong, height: handleSize },
+    s: { x: selection.x + selection.width / 2 - edgeLongHalf, y: selection.y + selection.height - half, width: edgeLong, height: handleSize },
+    w: { x: selection.x - half, y: selection.y + selection.height / 2 - edgeLongHalf, width: handleSize, height: edgeLong },
+    e: { x: selection.x + selection.width - half, y: selection.y + selection.height / 2 - edgeLongHalf, width: handleSize, height: edgeLong },
   };
 }
 
@@ -388,4 +390,3 @@ function resizeSelection(
   return { x: sx, y: sy, width: sw, height: sh };
 }
 
-export default RegionSelector;

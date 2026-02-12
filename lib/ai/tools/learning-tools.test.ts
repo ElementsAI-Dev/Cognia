@@ -6,6 +6,11 @@ import {
   quizQuestionSchema,
   quizSchema,
   reviewSessionSchema,
+  guideStepSchema,
+  conceptNodeSchema,
+  conceptConnectionSchema,
+  animationElementSchema,
+  animationStepSchema,
   displayFlashcardInputSchema,
   displayFlashcardDeckInputSchema,
   displayQuizInputSchema,
@@ -13,6 +18,9 @@ import {
   displayReviewSessionInputSchema,
   displayProgressSummaryInputSchema,
   displayConceptExplanationInputSchema,
+  displayStepGuideInputSchema,
+  displayConceptMapInputSchema,
+  displayAnimationInputSchema,
   executeDisplayFlashcard,
   executeDisplayFlashcardDeck,
   executeDisplayQuiz,
@@ -20,6 +28,9 @@ import {
   executeDisplayReviewSession,
   executeDisplayProgressSummary,
   executeDisplayConceptExplanation,
+  executeDisplayStepGuide,
+  executeDisplayConceptMap,
+  executeDisplayAnimation,
   learningTools,
   type FlashcardData,
   type QuizQuestionData,
@@ -181,6 +192,132 @@ describe('Learning Tools Schemas', () => {
 
       const result = quizSchema.safeParse(quiz);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('guideStepSchema', () => {
+    it('validates a complete guide step', () => {
+      const step = {
+        id: 'step-1',
+        title: 'Install Node.js',
+        content: 'Download Node.js from the official website',
+        description: 'First step in setup',
+        difficulty: 'beginner',
+        estimatedTimeMinutes: 5,
+        tips: ['Use LTS version'],
+        hints: ['Check nodejs.org'],
+        requiresConfirmation: true,
+      };
+      expect(guideStepSchema.safeParse(step).success).toBe(true);
+    });
+
+    it('validates a minimal guide step', () => {
+      const step = { id: 'step-1', title: 'Step 1', content: 'Do something' };
+      expect(guideStepSchema.safeParse(step).success).toBe(true);
+    });
+
+    it('rejects missing required fields', () => {
+      expect(guideStepSchema.safeParse({ id: 'step-1' }).success).toBe(false);
+      expect(guideStepSchema.safeParse({ id: 'step-1', title: 'Step' }).success).toBe(false);
+    });
+
+    it('validates difficulty enum', () => {
+      const base = { id: '1', title: 'S', content: 'C' };
+      expect(guideStepSchema.safeParse({ ...base, difficulty: 'beginner' }).success).toBe(true);
+      expect(guideStepSchema.safeParse({ ...base, difficulty: 'expert' }).success).toBe(true);
+      expect(guideStepSchema.safeParse({ ...base, difficulty: 'impossible' }).success).toBe(false);
+    });
+  });
+
+  describe('conceptNodeSchema', () => {
+    it('validates a complete concept node', () => {
+      const node = {
+        id: 'node-1',
+        label: 'Database',
+        description: 'Stores data',
+        type: 'data',
+        parentId: 'root',
+        layer: 0,
+        annotations: ['primary'],
+      };
+      expect(conceptNodeSchema.safeParse(node).success).toBe(true);
+    });
+
+    it('validates a minimal concept node', () => {
+      expect(conceptNodeSchema.safeParse({ id: 'n1', label: 'Node' }).success).toBe(true);
+    });
+
+    it('validates node type enum', () => {
+      const base = { id: '1', label: 'N' };
+      expect(conceptNodeSchema.safeParse({ ...base, type: 'input' }).success).toBe(true);
+      expect(conceptNodeSchema.safeParse({ ...base, type: 'process' }).success).toBe(true);
+      expect(conceptNodeSchema.safeParse({ ...base, type: 'invalid' }).success).toBe(false);
+    });
+  });
+
+  describe('conceptConnectionSchema', () => {
+    it('validates a connection', () => {
+      const conn = { id: 'c1', sourceId: 'n1', targetId: 'n2', label: 'depends on', type: 'directed' };
+      expect(conceptConnectionSchema.safeParse(conn).success).toBe(true);
+    });
+
+    it('validates minimal connection', () => {
+      expect(conceptConnectionSchema.safeParse({ id: 'c1', sourceId: 'n1', targetId: 'n2' }).success).toBe(true);
+    });
+  });
+
+  describe('animationElementSchema', () => {
+    it('validates a complete element', () => {
+      const el = {
+        id: 'el-1',
+        type: 'text',
+        content: 'Hello',
+        x: 10,
+        y: 20,
+        width: 100,
+        height: 50,
+        fill: '#ff0000',
+        stroke: '#000',
+        tooltip: 'A text element',
+      };
+      expect(animationElementSchema.safeParse(el).success).toBe(true);
+    });
+
+    it('validates minimal element', () => {
+      expect(animationElementSchema.safeParse({ id: 'el-1', type: 'shape' }).success).toBe(true);
+    });
+
+    it('validates element type enum', () => {
+      const base = { id: '1' };
+      expect(animationElementSchema.safeParse({ ...base, type: 'text' }).success).toBe(true);
+      expect(animationElementSchema.safeParse({ ...base, type: 'arrow' }).success).toBe(true);
+      expect(animationElementSchema.safeParse({ ...base, type: 'invalid' }).success).toBe(false);
+    });
+  });
+
+  describe('animationStepSchema', () => {
+    it('validates a step with elements', () => {
+      const step = {
+        id: 'step-1',
+        title: 'Step 1',
+        description: 'First step',
+        elements: [{ id: 'el-1', type: 'text', content: 'Hello' }],
+        duration: 3000,
+      };
+      expect(animationStepSchema.safeParse(step).success).toBe(true);
+    });
+
+    it('defaults duration to 2000', () => {
+      const step = {
+        id: 'step-1',
+        title: 'Step 1',
+        elements: [{ id: 'el-1', type: 'shape' }],
+      };
+      const result = animationStepSchema.safeParse(step);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.duration).toBe(2000);
+      }
     });
   });
 
@@ -455,6 +592,131 @@ describe('Learning Tools Execute Functions', () => {
       expect(result.timestamp).toBeDefined();
     });
   });
+
+  describe('executeDisplayStepGuide', () => {
+    it('returns step guide output with all fields', async () => {
+      const input = {
+        title: 'Getting Started',
+        description: 'A beginner guide',
+        steps: [
+          { id: 's1', title: 'Install', content: 'Install Node.js', tips: ['Use LTS'] },
+          { id: 's2', title: 'Create Project', content: 'Run npx create-react-app' },
+        ],
+        showProgress: true,
+        allowSkip: false,
+      };
+
+      const result = await executeDisplayStepGuide(input);
+
+      expect(result.type).toBe('step_guide');
+      expect(result.title).toBe('Getting Started');
+      expect(result.description).toBe('A beginner guide');
+      expect(result.steps).toHaveLength(2);
+      expect(result.showProgress).toBe(true);
+      expect(result.allowSkip).toBe(false);
+      expect(result.timestamp).toBeDefined();
+    });
+
+    it('defaults showProgress to true and allowSkip to true', async () => {
+      const input = {
+        title: 'Guide',
+        steps: [{ id: 's1', title: 'Step', content: 'Content' }],
+      };
+
+      const result = await executeDisplayStepGuide(input);
+
+      expect(result.showProgress).toBe(true);
+      expect(result.allowSkip).toBe(true);
+    });
+  });
+
+  describe('executeDisplayConceptMap', () => {
+    it('returns concept map output with all fields', async () => {
+      const input = {
+        title: 'System Architecture',
+        description: 'Overview of the system',
+        type: 'flow' as const,
+        nodes: [
+          { id: 'n1', label: 'Client', type: 'input' as const },
+          { id: 'n2', label: 'Server', type: 'process' as const },
+        ],
+        connections: [
+          { id: 'c1', sourceId: 'n1', targetId: 'n2', label: 'HTTP' },
+        ],
+        tags: ['architecture'],
+      };
+
+      const result = await executeDisplayConceptMap(input);
+
+      expect(result.type).toBe('concept_map');
+      expect(result.title).toBe('System Architecture');
+      expect(result.visualizationType).toBe('flow');
+      expect(result.nodes).toHaveLength(2);
+      expect(result.connections).toHaveLength(1);
+      expect(result.tags).toEqual(['architecture']);
+      expect(result.timestamp).toBeDefined();
+    });
+
+    it('handles minimal input without connections', async () => {
+      const input = {
+        title: 'Simple Map',
+        type: 'hierarchy' as const,
+        nodes: [{ id: 'n1', label: 'Root' }],
+      };
+
+      const result = await executeDisplayConceptMap(input);
+
+      expect(result.type).toBe('concept_map');
+      expect(result.connections).toBeUndefined();
+    });
+  });
+
+  describe('executeDisplayAnimation', () => {
+    it('returns animation output with all fields', async () => {
+      const input = {
+        name: 'Bubble Sort',
+        description: 'How bubble sort works',
+        width: 800,
+        height: 600,
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Compare',
+            elements: [{ id: 'e1', type: 'shape' as const, x: 0, y: 0 }],
+            duration: 1500,
+          },
+        ],
+        autoPlay: true,
+        difficulty: 'beginner' as const,
+      };
+
+      const result = await executeDisplayAnimation(input);
+
+      expect(result.type).toBe('animation');
+      expect(result.name).toBe('Bubble Sort');
+      expect(result.width).toBe(800);
+      expect(result.height).toBe(600);
+      expect(result.steps).toHaveLength(1);
+      expect(result.autoPlay).toBe(true);
+      expect(result.difficulty).toBe('beginner');
+      expect(result.timestamp).toBeDefined();
+    });
+
+    it('defaults autoPlay to false', async () => {
+      const input = {
+        name: 'Simple Animation',
+        width: 600,
+        height: 400,
+        steps: [
+          { id: 's1', title: 'Start', elements: [{ id: 'e1', type: 'text' as const }], duration: 2000 },
+        ],
+      };
+
+      const result = await executeDisplayAnimation(input);
+
+      expect(result.autoPlay).toBe(false);
+    });
+  });
 });
 
 describe('Learning Tools Definitions', () => {
@@ -466,6 +728,9 @@ describe('Learning Tools Definitions', () => {
     expect(learningTools.displayReviewSession).toBeDefined();
     expect(learningTools.displayProgressSummary).toBeDefined();
     expect(learningTools.displayConceptExplanation).toBeDefined();
+    expect(learningTools.displayStepGuide).toBeDefined();
+    expect(learningTools.displayConceptMap).toBeDefined();
+    expect(learningTools.displayAnimation).toBeDefined();
   });
 
   it('all tools have required properties', () => {
@@ -487,6 +752,9 @@ describe('Learning Tools Definitions', () => {
     expect(learningTools.displayReviewSession.name).toBe('displayReviewSession');
     expect(learningTools.displayProgressSummary.name).toBe('displayProgressSummary');
     expect(learningTools.displayConceptExplanation.name).toBe('displayConceptExplanation');
+    expect(learningTools.displayStepGuide.name).toBe('displayStepGuide');
+    expect(learningTools.displayConceptMap.name).toBe('displayConceptMap');
+    expect(learningTools.displayAnimation.name).toBe('displayAnimation');
   });
 });
 
@@ -579,6 +847,62 @@ describe('Input Schema Validation', () => {
         sections: [{ title: 'Section 1', content: 'Content' }],
       };
       expect(displayConceptExplanationInputSchema.safeParse(input).success).toBe(true);
+    });
+  });
+
+  describe('displayStepGuideInputSchema', () => {
+    it('validates correct input', () => {
+      const input = {
+        title: 'Guide',
+        steps: [{ id: 's1', title: 'Step 1', content: 'Do this' }],
+      };
+      expect(displayStepGuideInputSchema.safeParse(input).success).toBe(true);
+    });
+
+    it('requires at least one step', () => {
+      const input = { title: 'Empty Guide', steps: [] };
+      expect(displayStepGuideInputSchema.safeParse(input).success).toBe(false);
+    });
+  });
+
+  describe('displayConceptMapInputSchema', () => {
+    it('validates correct input', () => {
+      const input = {
+        title: 'Map',
+        type: 'flow',
+        nodes: [{ id: 'n1', label: 'Node 1' }],
+      };
+      expect(displayConceptMapInputSchema.safeParse(input).success).toBe(true);
+    });
+
+    it('requires at least one node', () => {
+      const input = { title: 'Empty Map', type: 'flow', nodes: [] };
+      expect(displayConceptMapInputSchema.safeParse(input).success).toBe(false);
+    });
+
+    it('validates visualization type enum', () => {
+      const base = { title: 'M', nodes: [{ id: 'n1', label: 'N' }] };
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'flow' }).success).toBe(true);
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'hierarchy' }).success).toBe(true);
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'network' }).success).toBe(true);
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'layers' }).success).toBe(true);
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'sequence' }).success).toBe(true);
+      expect(displayConceptMapInputSchema.safeParse({ ...base, type: 'invalid' }).success).toBe(false);
+    });
+  });
+
+  describe('displayAnimationInputSchema', () => {
+    it('validates correct input', () => {
+      const input = {
+        name: 'Animation',
+        steps: [{ id: 's1', title: 'Step', elements: [{ id: 'e1', type: 'text' }] }],
+      };
+      expect(displayAnimationInputSchema.safeParse(input).success).toBe(true);
+    });
+
+    it('requires at least one step', () => {
+      const input = { name: 'Empty', steps: [] };
+      expect(displayAnimationInputSchema.safeParse(input).success).toBe(false);
     });
   });
 });

@@ -592,5 +592,3 @@ export function ProcessDetailPanel({
     </div>
   );
 }
-
-export default ProcessDetailPanel;

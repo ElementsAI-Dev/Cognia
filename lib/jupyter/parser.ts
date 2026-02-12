@@ -445,25 +445,4 @@ export function isValidNotebook(content: string): boolean {
   }
 }
 
-const jupyterParser = {
-  parseNotebook,
-  getCellSource,
-  getCellTextOutput,
-  getCellHtmlOutput,
-  getCellImageOutput,
-  getNotebookLanguage,
-  notebookToScript,
-  notebookToMarkdown,
-  createEmptyNotebook,
-  createCodeCell,
-  createMarkdownCell,
-  addCell,
-  removeCell,
-  moveCell,
-  updateCell,
-  clearAllOutputs,
-  serializeNotebook,
-  isValidNotebook,
-};
 
-export default jupyterParser;
