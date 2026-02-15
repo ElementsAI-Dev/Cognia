@@ -661,6 +661,106 @@ describe('messageRepository', () => {
     });
   });
 
+  describe('getStorageStats', () => {
+    it('returns correct stats for messages across sessions', async () => {
+      const otherSessionId = 'stats-session-2';
+      await db.sessions.add({
+        id: otherSessionId,
+        title: 'Stats Session 2',
+        provider: 'openai',
+        model: 'gpt-4o',
+        mode: 'chat',
+        messageCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await messageRepository.create(testSessionId, { role: 'user' as const, content: 'M1' });
+      await messageRepository.create(testSessionId, { role: 'assistant' as const, content: 'M2' });
+      await messageRepository.create(otherSessionId, { role: 'user' as const, content: 'M3' });
+
+      const stats = await messageRepository.getStorageStats();
+
+      expect(stats.totalMessages).toBe(3);
+      expect(stats.totalSessions).toBe(2);
+      expect(stats.messageCounts).toHaveLength(2);
+      // Sorted descending by count
+      expect(stats.messageCounts[0].count).toBe(2);
+      expect(stats.messageCounts[0].sessionId).toBe(testSessionId);
+      expect(stats.messageCounts[1].count).toBe(1);
+      expect(stats.oldestMessage).toBeTruthy();
+      expect(stats.newestMessage).toBeTruthy();
+    });
+
+    it('returns null dates when no messages exist', async () => {
+      const stats = await messageRepository.getStorageStats();
+      expect(stats.totalMessages).toBe(0);
+      expect(stats.oldestMessage).toBeNull();
+      expect(stats.newestMessage).toBeNull();
+    });
+  });
+
+  describe('deleteOrphanedMessages', () => {
+    it('deletes messages whose session no longer exists', async () => {
+      // Create a message in a valid session
+      await messageRepository.create(testSessionId, { role: 'user' as const, content: 'Valid' });
+
+      // Manually insert a message with a non-existent session
+      await db.messages.add({
+        id: 'orphan-1',
+        sessionId: 'deleted-session',
+        branchId: '',
+        role: 'user',
+        content: 'Orphaned message',
+        createdAt: new Date(),
+      });
+
+      const deleted = await messageRepository.deleteOrphanedMessages();
+
+      expect(deleted).toBe(1);
+      const remaining = await db.messages.count();
+      expect(remaining).toBe(1);
+    });
+
+    it('returns 0 when no orphans exist', async () => {
+      await messageRepository.create(testSessionId, { role: 'user' as const, content: 'Valid' });
+
+      const deleted = await messageRepository.deleteOrphanedMessages();
+      expect(deleted).toBe(0);
+    });
+  });
+
+  describe('deleteOlderThan', () => {
+    it('deletes messages older than cutoff date', async () => {
+      // Create a message first, then manually backdate it
+      const oldMsg = await messageRepository.create(testSessionId, {
+        role: 'user' as const,
+        content: 'Old message',
+      });
+      // Backdate the message directly in the DB
+      await db.messages.update(oldMsg.id, { createdAt: new Date('2020-01-01') });
+
+      // Create a recent message
+      await messageRepository.create(testSessionId, { role: 'user' as const, content: 'Recent' });
+
+      const cutoff = new Date('2023-01-01');
+      const deleted = await messageRepository.deleteOlderThan(cutoff);
+
+      expect(deleted).toBe(1);
+      const remaining = await db.messages.toArray();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].content).toBe('Recent');
+    });
+
+    it('returns 0 when no messages are older than cutoff', async () => {
+      await messageRepository.create(testSessionId, { role: 'user' as const, content: 'Recent' });
+
+      const cutoff = new Date('2020-01-01');
+      const deleted = await messageRepository.deleteOlderThan(cutoff);
+      expect(deleted).toBe(0);
+    });
+  });
+
   describe('getPageBySessionIdAndBranch', () => {
     it('returns paginated messages with limit', async () => {
       // Create multiple messages in a branch

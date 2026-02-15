@@ -10,22 +10,17 @@ import { AlertCircle, Braces } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MathBlock } from '@/components/chat/renderers/math-block';
 import {
-  getCellTextOutput,
-  getCellHtmlOutput,
-  getCellImageOutput,
-  getCellLatexOutput,
-  getCellJsonOutput,
   parseAnsiToHtml,
   hasAnsiCodes,
 } from '@/lib/jupyter';
-import type { JupyterCell, JupyterOutput } from '@/types';
+import type { JupyterOutput } from '@/types';
 
 interface CellOutputProps {
   output: JupyterOutput;
-  cell: JupyterCell;
+  cell?: unknown;
 }
 
-export function CellOutput({ output, cell }: CellOutputProps) {
+export function CellOutput({ output }: CellOutputProps) {
   // Handle stream output
   if (output.output_type === 'stream') {
     const text = Array.isArray(output.text) ? output.text.join('') : output.text || '';
@@ -83,22 +78,22 @@ export function CellOutput({ output, cell }: CellOutputProps) {
 
   // Handle execute_result and display_data
   if (output.output_type === 'execute_result' || output.output_type === 'display_data') {
-    // Try to render in order of preference: image > latex > html > json > text
-    const imageOutput = getCellImageOutput(cell);
-    const latexOutput = getCellLatexOutput(cell);
-    const htmlOutput = getCellHtmlOutput(cell);
-    const jsonOutput = getCellJsonOutput(cell);
-    const textOutput = getCellTextOutput(cell);
+    const data = output.data || {};
+    const resolveField = (field: string | string[] | undefined): string =>
+      Array.isArray(field) ? field.join('') : field || '';
 
-    // Image output
-    if (imageOutput) {
-      const isBase64 = !imageOutput.data.startsWith('http') && !imageOutput.data.startsWith('<');
+    // Try to render in order of preference: image > latex > html > json > text
+    const imageMimeTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml'];
+    const imageMime = imageMimeTypes.find((m) => data[m]);
+    if (imageMime) {
+      const imgData = resolveField(data[imageMime]);
+      const isBase64 = !imgData.startsWith('http') && !imgData.startsWith('<');
       const src =
-        imageOutput.mimeType === 'image/svg+xml'
-          ? `data:image/svg+xml,${encodeURIComponent(imageOutput.data)}`
+        imageMime === 'image/svg+xml'
+          ? `data:image/svg+xml,${encodeURIComponent(imgData)}`
           : isBase64
-            ? `data:${imageOutput.mimeType};base64,${imageOutput.data}`
-            : imageOutput.data;
+            ? `data:${imageMime};base64,${imgData}`
+            : imgData;
 
       return (
         <div className="flex justify-center p-2 bg-white dark:bg-muted rounded">
@@ -109,16 +104,16 @@ export function CellOutput({ output, cell }: CellOutputProps) {
     }
 
     // LaTeX/Math output
-    if (latexOutput) {
+    if (data['text/latex']) {
       return (
         <div className="p-3 bg-muted rounded overflow-x-auto">
-          <MathBlock content={latexOutput} />
+          <MathBlock content={resolveField(data['text/latex'])} />
         </div>
       );
     }
 
     // HTML output (e.g., pandas DataFrames)
-    if (htmlOutput) {
+    if (data['text/html']) {
       return (
         <div
           className={cn(
@@ -129,13 +124,13 @@ export function CellOutput({ output, cell }: CellOutputProps) {
             '[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1',
             '[&_tr:hover]:bg-muted/50'
           )}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlOutput, { ADD_TAGS: ['style'], ADD_ATTR: ['class', 'colspan', 'rowspan'] }) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(resolveField(data['text/html']), { ADD_TAGS: ['style'], ADD_ATTR: ['class', 'colspan', 'rowspan'] }) }}
         />
       );
     }
 
     // JSON output
-    if (jsonOutput) {
+    if (data['application/json']) {
       return (
         <div className="rounded overflow-hidden">
           <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 text-xs text-muted-foreground">
@@ -143,14 +138,15 @@ export function CellOutput({ output, cell }: CellOutputProps) {
             <span>JSON</span>
           </div>
           <pre className="text-sm font-mono p-2 bg-muted overflow-x-auto whitespace-pre-wrap">
-            {JSON.stringify(jsonOutput, null, 2)}
+            {JSON.stringify(data['application/json'], null, 2)}
           </pre>
         </div>
       );
     }
 
     // Plain text output
-    if (textOutput) {
+    if (data['text/plain']) {
+      const textOutput = resolveField(data['text/plain']);
       const hasAnsi = hasAnsiCodes(textOutput);
       if (hasAnsi) {
         return (

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
 
@@ -339,33 +340,51 @@ export function useClipboardHistory() {
     }
   }, [fetchHistory]);
 
-  // Clipboard monitoring polling
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Event-driven clipboard monitoring via Tauri events
+  const unlistenRef = useRef<UnlistenFn | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
 
   const startMonitoring = useCallback(
-    (intervalMs: number = 2000) => {
-      if (!isTauri() || pollingRef.current) return;
+    async () => {
+      if (!isTauri() || unlistenRef.current) return;
 
-      setIsMonitoring(true);
-      pollingRef.current = setInterval(async () => {
-        try {
-          const updated = await invoke<boolean>('clipboard_check_update');
-          if (updated) {
+      try {
+        // Listen for clipboard change events from the Rust backend
+        const unlisten = await listen('clipboard-changed', async () => {
+          try {
             await fetchHistory();
+          } catch (err) {
+            log.error('Clipboard event handler error', err as Error);
           }
-        } catch (err) {
-          log.error('Clipboard monitor error', err as Error);
-        }
-      }, intervalMs);
+        });
+        unlistenRef.current = unlisten;
+        setIsMonitoring(true);
+        log.info('Clipboard event monitoring started');
+      } catch (err) {
+        log.error('Failed to start clipboard monitoring', err as Error);
+        // Fallback to polling if event listener fails
+        log.info('Falling back to polling-based clipboard monitoring');
+        const interval = setInterval(async () => {
+          try {
+            const updated = await invoke<boolean>('clipboard_check_update');
+            if (updated) {
+              await fetchHistory();
+            }
+          } catch (pollErr) {
+            log.error('Clipboard poll error', pollErr as Error);
+          }
+        }, 2000);
+        unlistenRef.current = () => clearInterval(interval);
+        setIsMonitoring(true);
+      }
     },
     [fetchHistory]
   );
 
   const stopMonitoring = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+    if (unlistenRef.current) {
+      unlistenRef.current();
+      unlistenRef.current = null;
     }
     setIsMonitoring(false);
   }, []);

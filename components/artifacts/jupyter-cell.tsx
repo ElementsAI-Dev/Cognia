@@ -120,7 +120,23 @@ export function NotebookCell({
   const hasOutputs = isCodeCell && cell.outputs && cell.outputs.length > 0;
 
   return (
-    <div className="group rounded-lg border bg-card overflow-hidden shadow-sm">
+    <div
+      className="group rounded-lg border bg-card overflow-hidden shadow-sm"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (isEditing) return;
+        if (isCodeCell && onExecute) {
+          if (e.shiftKey && e.key === 'Enter') {
+            e.preventDefault();
+            onExecute();
+          }
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            onExecute();
+          }
+        }
+      }}
+    >
       {/* Cell header */}
       <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border-b">
         <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onToggleCollapse} aria-expanded={!isCollapsed} aria-label={isCollapsed ? t('cellCollapsed') : t('cellExpanded')}>

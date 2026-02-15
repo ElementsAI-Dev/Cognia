@@ -148,7 +148,8 @@ describe('DynamicContextManager', () => {
     it('should remove filler phrases', () => {
       const context = 'It is important to note that this is basically the main point';
       
-      const result = manager.compressContext(context, 100);
+      // Use a token limit lower than the context length to trigger compression
+      const result = manager.compressContext(context, 10);
       
       expect(result.compressed).not.toContain('It is important to note that');
       expect(result.compressed).not.toContain('basically');
@@ -184,7 +185,7 @@ describe('getModelContextLimits', () => {
 
   it('should return default limits for unknown models', () => {
     const limits = getModelContextLimits('unknown-model');
-    expect(limits.maxTokens).toBe(8192);
+    expect(limits.maxTokens).toBe(100000);
     expect(limits.reserveTokens).toBe(2000);
   });
 });

@@ -2,8 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { useContext, AppType } from '@/hooks/context';
+import { useContextStore } from '@/stores/context/context-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmptyState } from '@/components/layout/feedback/empty-state';
 import {
@@ -15,6 +17,9 @@ import {
   Folder,
   GitBranch,
   Eye,
+  ChevronLeft,
+  ChevronRight,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NativeToolHeader } from '../layout/native-tool-header';
@@ -26,6 +31,14 @@ interface ContextPanelProps {
 export function ContextPanel({ className }: ContextPanelProps) {
   const t = useTranslations('contextPanel');
   const { context, isLoading, error, fetchContext } = useContext();
+  const contextHistory = useContextStore((s) => s.contextHistory);
+  const historyIndex = useContextStore((s) => s.historyIndex);
+  const viewHistoryEntry = useContextStore((s) => s.viewHistoryEntry);
+  const viewLatest = useContextStore((s) => s.viewLatest);
+
+  const isViewingHistory = historyIndex !== null;
+  const canGoBack = contextHistory.length > 0 && (historyIndex === null ? contextHistory.length > 1 : historyIndex > 0);
+  const canGoForward = historyIndex !== null && historyIndex < contextHistory.length - 1;
 
   const getAppTypeIcon = (appType?: AppType) => {
     switch (appType) {
@@ -66,6 +79,56 @@ export function ContextPanel({ className }: ContextPanelProps) {
         isRefreshing={isLoading}
         refreshLabel={t('refreshContext')}
       />
+
+      {/* History navigation bar */}
+      {contextHistory.length > 1 && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/30 shrink-0">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!canGoBack}
+              onClick={() => {
+                if (historyIndex === null) {
+                  viewHistoryEntry(contextHistory.length - 2);
+                } else if (historyIndex > 0) {
+                  viewHistoryEntry(historyIndex - 1);
+                }
+              }}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!canGoForward}
+              onClick={() => {
+                if (historyIndex !== null && historyIndex < contextHistory.length - 1) {
+                  if (historyIndex === contextHistory.length - 2) {
+                    viewLatest();
+                  } else {
+                    viewHistoryEntry(historyIndex + 1);
+                  }
+                }
+              }}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <History className="h-3 w-3" />
+            {isViewingHistory ? (
+              <button className="hover:underline" onClick={viewLatest}>
+                {(historyIndex ?? 0) + 1}/{contextHistory.length} · {new Date(contextHistory[historyIndex ?? 0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </button>
+            ) : (
+              <span>{contextHistory.length} snapshots</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">

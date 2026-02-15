@@ -450,6 +450,77 @@ export const messageRepository = {
   },
 
   /**
+   * Get storage statistics for messages
+   */
+  async getStorageStats(): Promise<{
+    totalMessages: number;
+    totalSessions: number;
+    messageCounts: Array<{ sessionId: string; count: number }>;
+    oldestMessage: Date | null;
+    newestMessage: Date | null;
+  }> {
+    const totalMessages = await db.messages.count();
+    const allMessages = await db.messages.orderBy('sessionId').uniqueKeys();
+    const totalSessions = allMessages.length;
+
+    const messageCounts: Array<{ sessionId: string; count: number }> = [];
+    for (const sessionId of allMessages) {
+      const count = await db.messages.where('sessionId').equals(sessionId as string).count();
+      messageCounts.push({ sessionId: sessionId as string, count });
+    }
+    messageCounts.sort((a, b) => b.count - a.count);
+
+    let oldestMessage: Date | null = null;
+    let newestMessage: Date | null = null;
+    const oldest = await db.messages.orderBy('createdAt').first();
+    const newest = await db.messages.orderBy('createdAt').last();
+    if (oldest) oldestMessage = oldest.createdAt;
+    if (newest) newestMessage = newest.createdAt;
+
+    return { totalMessages, totalSessions, messageCounts, oldestMessage, newestMessage };
+  },
+
+  /**
+   * Delete orphaned messages (messages whose sessionId doesn't exist in sessions table)
+   */
+  async deleteOrphanedMessages(): Promise<number> {
+    const sessionIds = new Set(
+      (await db.sessions.toCollection().primaryKeys()) as string[]
+    );
+
+    const orphanedIds: string[] = [];
+    await db.messages.each((msg) => {
+      if (!sessionIds.has(msg.sessionId)) {
+        orphanedIds.push(msg.id);
+      }
+    });
+
+    if (orphanedIds.length === 0) return 0;
+
+    return withRetry(async () => {
+      await db.messages.bulkDelete(orphanedIds);
+      return orphanedIds.length;
+    }, 'messageRepository.deleteOrphanedMessages');
+  },
+
+  /**
+   * Delete messages older than a given date
+   */
+  async deleteOlderThan(cutoffDate: Date): Promise<number> {
+    const cutoffTime = cutoffDate.getTime();
+    const oldMessages = await db.messages
+      .filter((msg) => new Date(msg.createdAt).getTime() < cutoffTime)
+      .primaryKeys();
+
+    if (oldMessages.length === 0) return 0;
+
+    return withRetry(async () => {
+      await db.messages.bulkDelete(oldMessages);
+      return oldMessages.length;
+    }, 'messageRepository.deleteOlderThan');
+  },
+
+  /**
    * Delete all messages after a specific message (optimized using bulk delete)
    */
   async deleteMessagesAfterOptimized(

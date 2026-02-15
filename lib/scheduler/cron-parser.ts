@@ -226,9 +226,50 @@ function parseFieldValues(value: string, field: keyof typeof FIELD_CONSTRAINTS):
 }
 
 /**
- * Get the next occurrence of a cron expression
+ * Get date parts in a specific timezone using Intl API
  */
-export function getNextCronTime(expression: string, fromDate: Date = new Date()): Date | null {
+function getDatePartsInTimezone(
+  date: Date,
+  timezone: string
+): { year: number; month: number; day: number; hour: number; minute: number; dayOfWeek: number } {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    weekday: 'short',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || '';
+
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+
+  return {
+    year: parseInt(get('year'), 10),
+    month: parseInt(get('month'), 10),
+    day: parseInt(get('day'), 10),
+    hour: parseInt(get('hour'), 10),
+    minute: parseInt(get('minute'), 10),
+    dayOfWeek: weekdayMap[get('weekday')] ?? 0,
+  };
+}
+
+/**
+ * Get the next occurrence of a cron expression
+ * @param timezone - Optional IANA timezone (e.g., 'America/New_York'). When set, cron matching
+ *                   is done against the wall clock time in that timezone.
+ */
+export function getNextCronTime(
+  expression: string,
+  fromDate: Date = new Date(),
+  timezone?: string
+): Date | null {
   const parts = parseCronExpression(expression);
   if (!parts) return null;
 
@@ -237,6 +278,20 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
   const daysOfMonth = parseFieldValues(parts.dayOfMonth, 'dayOfMonth');
   const months = parseFieldValues(parts.month, 'month');
   const daysOfWeek = parseFieldValues(parts.dayOfWeek, 'dayOfWeek');
+
+  // Use timezone-aware or local date accessors
+  const useTz = !!timezone;
+  const getParts = (d: Date) =>
+    useTz
+      ? getDatePartsInTimezone(d, timezone!)
+      : {
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          day: d.getDate(),
+          hour: d.getHours(),
+          minute: d.getMinutes(),
+          dayOfWeek: d.getDay(),
+        };
 
   // Start from the next minute
   const current = new Date(fromDate);
@@ -249,8 +304,10 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
   maxDate.setFullYear(maxDate.getFullYear() + 4);
 
   while (current < maxDate) {
+    const p = getParts(current);
+
     // Check month
-    if (!months.includes(current.getMonth() + 1)) {
+    if (!months.includes(p.month)) {
       // Move to next valid month
       current.setMonth(current.getMonth() + 1);
       current.setDate(1);
@@ -260,10 +317,8 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
     }
 
     // Check day of month and day of week
-    const dayOfMonth = current.getDate();
-    const dayOfWeek = current.getDay();
-    const dayOfMonthValid = daysOfMonth.includes(dayOfMonth);
-    const dayOfWeekValid = daysOfWeek.includes(dayOfWeek);
+    const dayOfMonthValid = daysOfMonth.includes(p.day);
+    const dayOfWeekValid = daysOfWeek.includes(p.dayOfWeek);
 
     // If both day restrictions are wildcards, both are valid
     // Otherwise, at least one must match
@@ -281,12 +336,12 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
     }
 
     // Check hour
-    if (!hours.includes(current.getHours())) {
+    if (!hours.includes(p.hour)) {
       // Find next valid hour
-      const nextHour = hours.find(h => h > current.getHours());
+      const nextHour = hours.find(h => h > p.hour);
       if (nextHour !== undefined) {
-        current.setHours(nextHour);
-        current.setMinutes(minutes[0]);
+        current.setHours(current.getHours() + (nextHour - p.hour));
+        current.setMinutes(current.getMinutes() - p.minute + minutes[0]);
       } else {
         // Move to next day
         current.setDate(current.getDate() + 1);
@@ -297,11 +352,11 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
     }
 
     // Check minute
-    if (!minutes.includes(current.getMinutes())) {
+    if (!minutes.includes(p.minute)) {
       // Find next valid minute
-      const nextMinute = minutes.find(m => m > current.getMinutes());
+      const nextMinute = minutes.find(m => m > p.minute);
       if (nextMinute !== undefined) {
-        current.setMinutes(nextMinute);
+        current.setMinutes(current.getMinutes() + (nextMinute - p.minute));
       } else {
         // Move to next hour
         current.setMinutes(0);
@@ -323,13 +378,14 @@ export function getNextCronTime(expression: string, fromDate: Date = new Date())
 export function getNextCronTimes(
   expression: string,
   count: number,
-  fromDate: Date = new Date()
+  fromDate: Date = new Date(),
+  timezone?: string
 ): Date[] {
   const times: Date[] = [];
   let current = fromDate;
 
   for (let i = 0; i < count; i++) {
-    const next = getNextCronTime(expression, current);
+    const next = getNextCronTime(expression, current, timezone);
     if (!next) break;
     times.push(next);
     current = next;

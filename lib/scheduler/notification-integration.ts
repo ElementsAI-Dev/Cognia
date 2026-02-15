@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/native/notification';
 import { toast } from '@/components/ui/toaster';
 import { loggers } from '@/lib/logger';
 import { SchedulerError } from './errors';
+import { formatDuration } from './format-utils';
 
 // Logger
 const log = loggers.app;
@@ -216,26 +217,6 @@ async function sendWebhookNotification(
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-}
-
-/**
- * Format duration for display
- */
-function formatDuration(ms: number): string {
-  if (ms < 1000) {
-    return `${ms}ms`;
-  }
-  if (ms < 60000) {
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
-  if (ms < 3600000) {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.round((ms % 60000) / 1000);
-    return `${minutes}m ${seconds}s`;
-  }
-  const hours = Math.floor(ms / 3600000);
-  const minutes = Math.round((ms % 3600000) / 60000);
-  return `${hours}h ${minutes}m`;
 }
 
 /**

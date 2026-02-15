@@ -72,7 +72,7 @@ export function CarriedContextBanner({
     learning: tChat('modeLearning'),
   };
 
-  const timeAgo = getTimeAgo(carriedAt);
+  const timeAgo = getTimeAgo(carriedAt, t);
 
   return (
     <div
@@ -146,19 +146,19 @@ export function CarriedContextBanner({
   );
 }
 
-function getTimeAgo(date: Date): string {
+function getTimeAgo(date: Date, t: ReturnType<typeof useTranslations>): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffMins < 1) return t('justNow');
+  if (diffMins < 60) return t('minutesAgo', { count: diffMins });
   
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return t('hoursAgo', { count: diffHours });
   
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  return t('daysAgo', { count: diffDays });
 }
 
 export default CarriedContextBanner;

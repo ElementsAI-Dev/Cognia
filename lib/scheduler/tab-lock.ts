@@ -24,6 +24,7 @@ interface TabLeaderState {
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   channel: BroadcastChannel | null;
   lockAbortController: AbortController | null;
+  storageHandler: ((event: StorageEvent) => void) | null;
 }
 
 const tabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -35,6 +36,7 @@ const state: TabLeaderState = {
   heartbeatTimer: null,
   channel: null,
   lockAbortController: null,
+  storageHandler: null,
 };
 
 function setLeader(value: boolean): void {
@@ -152,7 +154,7 @@ function startHeartbeatElection(): void {
   state.heartbeatTimer = setInterval(tryClaimLeadership, HEARTBEAT_INTERVAL);
 
   // Listen for storage events from other tabs
-  window.addEventListener('storage', (event) => {
+  state.storageHandler = (event: StorageEvent) => {
     if (event.key === HEARTBEAT_KEY && event.newValue) {
       try {
         const data = JSON.parse(event.newValue) as { tabId: string; timestamp: number };
@@ -161,7 +163,8 @@ function startHeartbeatElection(): void {
         }
       } catch { /* ignore parse errors */ }
     }
-  });
+  };
+  window.addEventListener('storage', state.storageHandler);
 }
 
 function writeHeartbeat(): void {
@@ -205,6 +208,12 @@ export function stopLeaderElection(): void {
       }
     }
   } catch { /* ignore */ }
+
+  // Remove storage event listener
+  if (state.storageHandler) {
+    window.removeEventListener('storage', state.storageHandler);
+    state.storageHandler = null;
+  }
 
   // Close channel
   try {

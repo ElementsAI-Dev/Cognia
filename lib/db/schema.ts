@@ -214,6 +214,20 @@ export interface DBVideoProject {
   updatedAt: Date;
 }
 
+export interface DBContextFile {
+  id: string;
+  path: string;
+  category: string;
+  source: string;
+  content: string;
+  sizeBytes: number;
+  estimatedTokens: number;
+  tags: string[];
+  ttlMs?: number;
+  createdAt: Date;
+  lastAccessedAt: Date;
+}
+
 // Database class
 class CogniaDB extends Dexie {
   sessions!: EntityTable<DBSession, 'id'>;
@@ -230,6 +244,7 @@ class CogniaDB extends Dexie {
   assets!: EntityTable<DBAsset, 'id'>;
   folders!: EntityTable<DBFolder, 'id'>;
   videoProjects!: EntityTable<DBVideoProject, 'id'>;
+  contextFiles!: EntityTable<DBContextFile, 'id'>;
 
   constructor() {
     super('CogniaDB');
@@ -377,6 +392,25 @@ class CogniaDB extends Dexie {
       assets: 'id, kind, createdAt',
       folders: 'id, name, order, createdAt',
       videoProjects: 'id, name, createdAt, updatedAt',
+    });
+
+    // Version 12: Add contextFiles table for ContextFS persistence
+    this.version(12).stores({
+      sessions: 'id, title, provider, projectId, folderId, createdAt, updatedAt',
+      messages: 'id, sessionId, branchId, role, createdAt, [sessionId+createdAt], [sessionId+branchId+createdAt]',
+      documents: 'id, name, type, projectId, collectionId, isIndexed, createdAt, updatedAt',
+      mcpServers: 'id, name, url, connected',
+      projects: 'id, name, createdAt, updatedAt, lastAccessedAt',
+      knowledgeFiles: 'id, projectId, name, type, createdAt, [projectId+createdAt]',
+      workflows: 'id, name, category, isTemplate, createdAt, updatedAt',
+      workflowExecutions: 'id, workflowId, status, startedAt, completedAt, [workflowId+startedAt]',
+      summaries: 'id, sessionId, type, format, createdAt, updatedAt, [sessionId+createdAt]',
+      agentTraces: 'id, sessionId, timestamp, vcsRevision, *filePaths, [sessionId+timestamp], [vcsRevision+timestamp]',
+      checkpoints: 'id, sessionId, traceId, filePath, timestamp, [sessionId+filePath], [sessionId+timestamp]',
+      assets: 'id, kind, createdAt',
+      folders: 'id, name, order, createdAt',
+      videoProjects: 'id, name, createdAt, updatedAt',
+      contextFiles: 'id, path, category, source, createdAt, lastAccessedAt, [category+createdAt], [category+source]',
     });
   }
 }

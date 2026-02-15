@@ -58,11 +58,11 @@ jest.mock('@/components/chat/ui/copy-button', () => ({
 
 // Mock screenshot hooks
 const mockCaptureFullscreen = jest.fn().mockResolvedValue({
-  image_base64: 'base64imagedata',
+  imageBase64: 'base64imagedata',
   metadata: { width: 1920, height: 1080 },
 });
 const mockCaptureWindow = jest.fn().mockResolvedValue({
-  image_base64: 'base64imagedata',
+  imageBase64: 'base64imagedata',
   metadata: { width: 1280, height: 720 },
 });
 const mockStartRegionSelection = jest.fn().mockResolvedValue({
@@ -72,13 +72,13 @@ const mockStartRegionSelection = jest.fn().mockResolvedValue({
   height: 600,
 });
 const mockCaptureRegion = jest.fn().mockResolvedValue({
-  image_base64: 'base64imagedata',
+  imageBase64: 'base64imagedata',
   metadata: { width: 800, height: 600 },
 });
 const mockExtractText = jest.fn().mockResolvedValue('Extracted text');
 
 const mockLastScreenshot = {
-  image_base64: 'lastscreenshotbase64',
+  imageBase64: 'lastscreenshotbase64',
   metadata: {
     width: 1920,
     height: 1080,
@@ -95,21 +95,21 @@ const mockClearHistory = jest.fn();
 const mockHistoryItems = [
   {
     id: '1',
-    thumbnail_base64: 'thumbnail1base64',
+    thumbnailBase64: 'thumbnail1base64',
     timestamp: Date.now() - 1000,
     width: 1920,
     height: 1080,
     mode: 'fullscreen',
-    is_pinned: false,
+    isPinned: false,
   },
   {
     id: '2',
-    thumbnail_base64: 'thumbnail2base64',
+    thumbnailBase64: 'thumbnail2base64',
     timestamp: Date.now() - 2000,
     width: 1280,
     height: 720,
     mode: 'window',
-    is_pinned: true,
+    isPinned: true,
   },
 ];
 

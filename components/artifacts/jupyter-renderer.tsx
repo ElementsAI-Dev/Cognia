@@ -9,6 +9,7 @@ import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCellSource } from '@/lib/jupyter';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { RendererErrorBoundary } from '@/components/chat/renderers/renderer-error-boundary';
 import { useJupyterNotebook } from '@/hooks/artifacts';
 import { NotebookToolbar } from './jupyter-toolbar';
 import { NotebookCell, AddCellButton } from './jupyter-cell';
@@ -68,6 +69,7 @@ export function JupyterRenderer({
   }
 
   return (
+    <RendererErrorBoundary rendererName="JupyterRenderer">
     <div className={cn('h-full flex flex-col', className)}>
       {/* Toolbar */}
       {showToolbar && (
@@ -136,5 +138,6 @@ export function JupyterRenderer({
         </div>
       </ScrollArea>
     </div>
+    </RendererErrorBoundary>
   );
 }

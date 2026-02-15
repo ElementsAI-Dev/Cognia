@@ -273,9 +273,14 @@ export function useMessages({
       // Update local state immediately
       setMessages((prev) => prev.slice(0, messageIndex + 1));
 
-      // Delete from database
+      // Delete from database using optimized batch operation
       try {
-        await Promise.all(messagesToDelete.map((m) => messageRepository.delete(m.id)));
+        if (sessionId) {
+          await messageRepository.deleteMessagesAfterOptimized(sessionId, messageId, branchId);
+        } else {
+          // Fallback: delete individually if no sessionId
+          await Promise.all(messagesToDelete.map((m) => messageRepository.delete(m.id)));
+        }
         for (const m of messagesToDelete) {
           getPluginLifecycleHooks().dispatchOnMessageDelete(m.id, sessionId || '');
         }
@@ -284,7 +289,7 @@ export function useMessages({
         throw err;
       }
     },
-    [messages, sessionId]
+    [messages, sessionId, branchId]
   );
 
   // Clear all messages for the session
@@ -354,7 +359,7 @@ export function useMessages({
           pendingSaves.current.delete(id);
         }
         saveTimeouts.current.delete(id);
-      }, 500);
+      }, 200);
 
       saveTimeouts.current.set(id, timeout);
     }
@@ -428,24 +433,25 @@ export function useMessages({
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // Page is being hidden - flush saves immediately
+        // visibilitychange fires reliably before unload and allows async work
         flushPendingSaves();
       }
     };
 
     const handleBeforeUnload = () => {
-      // Synchronously save pending messages before page unload
+      // Best-effort: clear debounce timers and fire async saves.
+      // visibilitychange (above) is the primary save path since it fires first
+      // and browsers allow async work during that event.
       const pending = Array.from(pendingSaves.current.entries());
       if (pending.length > 0) {
-        // Use sendBeacon for reliable delivery during unload
-        // Note: This requires a backend endpoint, fallback to sync save
+        saveTimeouts.current.forEach((timeout) => clearTimeout(timeout));
+        saveTimeouts.current.clear();
         pending.forEach(([id, msg]) => {
-          try {
-            // Attempt synchronous IndexedDB write
-            messageRepository.update(id, { content: msg.content });
-          } catch {
+          messageRepository.update(id, { content: msg.content }).catch(() => {
             // Best effort - can't do much if it fails during unload
-          }
+          });
         });
+        pendingSaves.current.clear();
       }
     };
 

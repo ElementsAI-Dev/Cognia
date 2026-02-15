@@ -18,8 +18,11 @@ export {
   type ScreenshotMetadata,
   type ScreenshotResult,
   type ScreenshotHistoryEntry,
+  type ScreenshotConfig,
   type MonitorInfo,
   type WinOcrResult,
+  type WindowInfo,
+  type Annotation,
 } from './use-screenshot';
 export { useNotification, type UseNotificationReturn } from './use-notification';
 export { useStronghold, type StrongholdState, type UseStrongholdReturn } from './use-stronghold';

@@ -29,11 +29,13 @@ import {
   clearRecordingHistory,
   formatFileSize,
   getDefaultRecordingConfig,
+  getAggregatedStorageStatus,
   type RecordingStatus,
-  // RecordingConfig is used implicitly via getDefaultRecordingConfig
+  type RecordingConfig,
   type RecordingMetadata,
   type RecordingRegion,
   type MonitorInfo,
+  type AggregatedStorageStatus,
 } from './screen-recording';
 import { formatDuration } from '@/lib/utils';
 
@@ -280,6 +282,65 @@ describe('ScreenRecording - Helper Functions', () => {
       expect(config.capture_microphone).toBe(false);
       expect(config.show_cursor).toBe(true);
       expect(config.countdown_seconds).toBe(3);
+    });
+
+    it('should include hardware acceleration fields', () => {
+      const config = getDefaultRecordingConfig();
+      expect(config.use_hardware_acceleration).toBe(true);
+      expect(config.preferred_encoder).toBeUndefined();
+      expect(config.system_audio_device).toBeUndefined();
+      expect(config.microphone_device).toBeUndefined();
+    });
+
+    it('should have all required fields defined', () => {
+      const config = getDefaultRecordingConfig();
+      const requiredKeys: (keyof RecordingConfig)[] = [
+        'format', 'codec', 'frame_rate', 'quality', 'bitrate',
+        'capture_system_audio', 'capture_microphone', 'show_cursor',
+        'highlight_clicks', 'countdown_seconds', 'show_indicator',
+        'max_duration', 'pause_on_minimize', 'use_hardware_acceleration',
+      ];
+      for (const key of requiredKeys) {
+        expect(config[key]).toBeDefined();
+      }
+    });
+  });
+});
+
+describe('ScreenRecording - Aggregated Storage API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getAggregatedStorageStatus', () => {
+    it('should call invoke with correct command', async () => {
+      const mockStatus: AggregatedStorageStatus = {
+        stats: { recordingsSize: 512, screenshotsSize: 512, recordingsCount: 3, screenshotsCount: 2, availableSpace: 100000, totalSpace: 500000 },
+        usagePercent: 15.5,
+        isExceeded: false,
+        config: { recordingsDir: '/recordings', screenshotsDir: '/screenshots', organizeByDate: true, maxStorageGb: 10, autoCleanupDays: 30, preservePinned: true, semanticNaming: true },
+      };
+      mockInvoke.mockResolvedValue(mockStatus);
+
+      const result = await getAggregatedStorageStatus();
+      expect(mockInvoke).toHaveBeenCalledWith('storage_get_aggregated_status');
+      expect(result.usagePercent).toBe(15.5);
+      expect(result.isExceeded).toBe(false);
+      expect(result.stats.recordingsCount).toBe(3);
+    });
+
+    it('should handle exceeded storage', async () => {
+      const mockStatus: AggregatedStorageStatus = {
+        stats: { recordingsSize: 90000000, screenshotsSize: 9999999, recordingsCount: 80, screenshotsCount: 20, availableSpace: 100, totalSpace: 500000 },
+        usagePercent: 95.0,
+        isExceeded: true,
+        config: { recordingsDir: '/recordings', screenshotsDir: '/screenshots', organizeByDate: true, maxStorageGb: 10, autoCleanupDays: 30, preservePinned: true, semanticNaming: true },
+      };
+      mockInvoke.mockResolvedValue(mockStatus);
+
+      const result = await getAggregatedStorageStatus();
+      expect(result.isExceeded).toBe(true);
+      expect(result.usagePercent).toBe(95.0);
     });
   });
 });

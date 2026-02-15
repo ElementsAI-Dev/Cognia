@@ -10,7 +10,7 @@
  * - Environment selection
  */
 
-import { useState, useCallback, useEffect, startTransition } from 'react';
+import { useState, useCallback, useEffect, useRef, startTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -59,7 +59,9 @@ import { useJupyterKernel } from '@/hooks/jupyter';
 import { useExecutionState, useJupyterSessionForChat } from '@/stores/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import { isTauri } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 import { kernelService } from '@/lib/jupyter/kernel';
+import { createEmptyNotebook, serializeNotebook } from '@/lib/jupyter';
 import {
   isExecutionSuccessful,
   formatExecutionError,
@@ -150,13 +152,13 @@ export default function NotebookPage() {
         // Create empty notebook on decode error
         if (!notebookContent) {
           startTransition(() => {
-            setNotebookContent(createEmptyNotebook());
+            setNotebookContent(serializeNotebook(createEmptyNotebook()));
           });
         }
       }
     } else if (!notebookContent) {
       startTransition(() => {
-        setNotebookContent(createEmptyNotebook());
+        setNotebookContent(serializeNotebook(createEmptyNotebook()));
       });
     }
   }, [contentParam, notebookContent]);
@@ -193,7 +195,7 @@ export default function NotebookPage() {
         autoInstallKernel: true,
       });
     } catch (err) {
-      console.error('Failed to create session:', err);
+      loggers.jupyter.error('Failed to create session:', err);
     }
   }, [selectedEnvPath, createSession, checkKernelAvailable, ensureKernel]);
 
@@ -202,7 +204,7 @@ export default function NotebookPage() {
     try {
       await restartKernel(activeSession.id);
     } catch (err) {
-      console.error('Failed to restart kernel:', err);
+      loggers.jupyter.error('Failed to restart kernel:', err);
     }
   }, [activeSession, restartKernel]);
 
@@ -211,7 +213,7 @@ export default function NotebookPage() {
     try {
       await interruptKernel(activeSession.id);
     } catch (err) {
-      console.error('Failed to interrupt kernel:', err);
+      loggers.jupyter.error('Failed to interrupt kernel:', err);
     }
   }, [activeSession, interruptKernel]);
 
@@ -220,7 +222,7 @@ export default function NotebookPage() {
     try {
       await deleteSession(activeSession.id);
     } catch (err) {
-      console.error('Failed to delete session:', err);
+      loggers.jupyter.error('Failed to delete session:', err);
     }
   }, [activeSession, deleteSession]);
 
@@ -230,7 +232,7 @@ export default function NotebookPage() {
       clearVariables();
       clearExecutionHistory();
     } catch (err) {
-      console.error('Failed to shutdown all kernels:', err);
+      loggers.jupyter.error('Failed to shutdown all kernels:', err);
     }
   }, [shutdownAll, clearVariables, clearExecutionHistory]);
 
@@ -240,7 +242,7 @@ export default function NotebookPage() {
       clearVariables();
       clearExecutionHistory();
     } catch (err) {
-      console.error('Failed to cleanup:', err);
+      loggers.jupyter.error('Failed to cleanup:', err);
     }
   }, [cleanup, clearVariables, clearExecutionHistory]);
 
@@ -325,7 +327,7 @@ export default function NotebookPage() {
         });
       }
     } catch (err) {
-      console.error('Failed to open notebook:', err);
+      loggers.jupyter.error('Failed to open notebook:', err);
     }
   }, [t, getNotebookInfo]);
 
@@ -360,7 +362,7 @@ export default function NotebookPage() {
           setIsDirty(false);
         });
       } catch (err) {
-        console.error('Failed to save notebook:', err);
+        loggers.jupyter.error('Failed to save notebook:', err);
       } finally {
         setIsSaving(false);
       }
@@ -387,6 +389,19 @@ export default function NotebookPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSaveNotebook, handleOpenNotebook]);
+
+  // Auto-save: save 30s after last edit when file path exists
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (!isDirty || !filePath || isSaving) return;
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSaveNotebook(false);
+    }, 30_000);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [isDirty, filePath, isSaving, notebookContent, handleSaveNotebook]);
 
   // Not available in browser
   if (!isDesktop) {
@@ -867,33 +882,4 @@ export default function NotebookPage() {
       </div>
     </div>
   );
-}
-
-/** Create an empty Jupyter notebook structure */
-function createEmptyNotebook(): string {
-  const notebook = {
-    nbformat: 4,
-    nbformat_minor: 5,
-    metadata: {
-      kernelspec: {
-        display_name: 'Python 3',
-        language: 'python',
-        name: 'python3',
-      },
-      language_info: {
-        name: 'python',
-        version: '3.x',
-      },
-    },
-    cells: [
-      {
-        cell_type: 'code',
-        execution_count: null,
-        metadata: {},
-        outputs: [],
-        source: ['# Welcome to Jupyter Notebook\n', 'print("Hello, World!")'],
-      },
-    ],
-  };
-  return JSON.stringify(notebook, null, 2);
 }

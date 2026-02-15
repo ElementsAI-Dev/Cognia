@@ -50,6 +50,24 @@ jest.mock('@/hooks/context', () => ({
   }),
 }));
 
+// Mock the context store
+const mockViewHistoryEntry = jest.fn();
+const mockViewLatest = jest.fn();
+const mockContextHistory: Array<{ context: typeof mockContext; timestamp: number }> = [];
+const mockHistoryIndex: number | null = null;
+
+jest.mock('@/stores/context/context-store', () => ({
+  useContextStore: (selector: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      contextHistory: mockContextHistory,
+      historyIndex: mockHistoryIndex,
+      viewHistoryEntry: mockViewHistoryEntry,
+      viewLatest: mockViewLatest,
+    };
+    return selector(state);
+  },
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
@@ -175,6 +193,14 @@ describe('ContextPanel - Loading State', () => {
     // This test validates the component structure when loading
     render(<ContextPanel />);
     expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+});
+
+describe('ContextPanel - History Navigation', () => {
+  it('does not show history bar when history has fewer than 2 entries', () => {
+    // mockContextHistory is empty by default
+    render(<ContextPanel />);
+    expect(screen.queryByText(/snapshots/)).not.toBeInTheDocument();
   });
 });
 

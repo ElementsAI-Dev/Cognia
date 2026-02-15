@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getContextStats, gcContextFiles, clearAllContextFiles } from '@/lib/context';
+import { formatTokens as formatTokensCanonical } from '@/lib/observability/format-utils';
 
 export interface ContextStats {
   /** Files count by category */
@@ -109,11 +110,9 @@ export function useContextStats(options: UseContextStatsOptions = {}): UseContex
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }, []);
 
-  // Format token count for display
+  // Format token count for display (delegates to canonical implementation)
   const formatTokens = useCallback((tokens: number): string => {
-    if (tokens < 1000) return `${tokens}`;
-    if (tokens < 1000000) return `${(tokens / 1000).toFixed(1)}K`;
-    return `${(tokens / 1000000).toFixed(2)}M`;
+    return formatTokensCanonical(tokens);
   }, []);
 
   // Auto-refresh on mount

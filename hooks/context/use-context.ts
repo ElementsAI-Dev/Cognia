@@ -33,7 +33,19 @@ export type {
 } from '@/lib/native/context';
 
 export function useContext() {
+  // Extract stable action references to avoid re-creating callbacks on every render
+  const setStoreContext = useContextStore((s) => s.setContext);
+  const setStoreError = useContextStore((s) => s.setError);
+  const setStoreIsLoading = useContextStore((s) => s.setIsLoading);
+  const clearStoreContext = useContextStore((s) => s.clearContext);
+  const setStoreCacheDurationMs = useContextStore((s) => s.setCacheDurationMs);
+  const setStoreUiElements = useContextStore((s) => s.setUiElements);
+  // Read config values reactively (these are primitives, so stable across renders unless changed)
+  const autoRefreshEnabled = useContextStore((s) => s.autoRefreshEnabled);
+  const refreshIntervalMs = useContextStore((s) => s.refreshIntervalMs);
+  // Full store reference kept for pass-through in return value
   const store = useContextStore();
+
   const [localContext, setLocalContext] = useState<FullContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,18 +58,18 @@ export function useContext() {
     try {
       const result = await contextApi.getFullContext();
       setLocalContext(result);
-      store.setContext(result);
+      setStoreContext(result);
       return result;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(errorMsg);
-      store.setError(errorMsg);
+      setStoreError(errorMsg);
       return null;
     } finally {
       setIsLoading(false);
-      store.setIsLoading(false);
+      setStoreIsLoading(false);
     }
-  }, [store]);
+  }, [setStoreContext, setStoreError, setStoreIsLoading]);
 
   const getWindowInfo = useCallback(async () => {
     if (!isTauri()) return null;
@@ -152,22 +164,22 @@ export function useContext() {
 
     try {
       await contextApi.clearCache();
-      store.clearContext();
+      clearStoreContext();
     } catch (err) {
       log.error('Failed to clear cache', err as Error);
     }
-  }, [store]);
+  }, [clearStoreContext]);
 
   const updateCacheDuration = useCallback(async (ms: number) => {
     if (!isTauri()) return;
 
     try {
       await contextApi.setCacheDuration(ms);
-      store.setCacheDurationMs(ms);
+      setStoreCacheDurationMs(ms);
     } catch (err) {
       log.error('Failed to set cache duration', err as Error);
     }
-  }, [store]);
+  }, [setStoreCacheDurationMs]);
 
   const fetchCacheDuration = useCallback(async () => {
     if (!isTauri()) return 500;
@@ -185,13 +197,13 @@ export function useContext() {
 
     try {
       const elements = await contextApi.analyzeUiAutomation();
-      store.setUiElements(elements);
+      setStoreUiElements(elements);
       return elements;
     } catch (err) {
       log.error('Failed to analyze UI', err as Error);
       return [];
     }
-  }, [store]);
+  }, [setStoreUiElements]);
 
   const getTextAtPosition = useCallback(async (x: number, y: number) => {
     if (!isTauri()) return null;
@@ -217,16 +229,16 @@ export function useContext() {
 
   // Auto-refresh context periodically
   useEffect(() => {
-    if (!store.autoRefreshEnabled) return;
+    if (!autoRefreshEnabled) return;
 
     fetchContext();
 
     const interval = setInterval(() => {
       fetchContext();
-    }, store.refreshIntervalMs);
+    }, refreshIntervalMs);
 
     return () => clearInterval(interval);
-  }, [fetchContext, store.autoRefreshEnabled, store.refreshIntervalMs]);
+  }, [fetchContext, autoRefreshEnabled, refreshIntervalMs]);
 
   return {
     context: localContext,

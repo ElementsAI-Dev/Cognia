@@ -380,24 +380,49 @@ export async function buildHistoryContext(
       summaries.push(summary);
     }
 
-    // Format into context prompt
-    const contextText = formatContextPrompt(summaries, effectiveSettings);
-    const tokenCount = estimateTokens(contextText);
+    // Intelligent truncation: drop least-important sessions until within budget
+    let activeSummaries = summaries;
+    let contextText = formatContextPrompt(activeSummaries, effectiveSettings);
+    let tokenCount = estimateTokens(contextText);
 
-    // Trim if over budget
-    let finalContextText = contextText;
-    if (tokenCount > effectiveSettings.maxTokenBudget) {
-      // Simple truncation - could be smarter
-      const charLimit = effectiveSettings.maxTokenBudget * 4;
-      finalContextText = contextText.slice(0, charLimit) + '\n\n[Context truncated]';
+    if (tokenCount > effectiveSettings.maxTokenBudget && activeSummaries.length > 1) {
+      // Score each session by importance: recency + message count + topic overlap
+      const scored = activeSummaries.map((s, idx) => ({
+        summary: s,
+        score: (activeSummaries.length - idx) * 10 + (s.messageCount ?? 0),
+      }));
+
+      // Iteratively remove lowest-scored session until within budget
+      while (tokenCount > effectiveSettings.maxTokenBudget && scored.length > 1) {
+        // Remove the least important (lowest score)
+        scored.sort((a, b) => a.score - b.score);
+        scored.shift();
+
+        activeSummaries = scored.map((s) => s.summary);
+        contextText = formatContextPrompt(activeSummaries, effectiveSettings);
+        tokenCount = estimateTokens(contextText);
+      }
+
+      // If still over budget with a single session, truncate its summary text
+      if (tokenCount > effectiveSettings.maxTokenBudget && activeSummaries.length === 1) {
+        const charLimit = effectiveSettings.maxTokenBudget * 4;
+        const s = activeSummaries[0];
+        const maxSummaryChars = charLimit - (s.title.length + 80);
+        activeSummaries = [{
+          ...s,
+          summary: s.summary.slice(0, Math.max(50, maxSummaryChars)) + '...',
+        }];
+        contextText = formatContextPrompt(activeSummaries, effectiveSettings);
+        tokenCount = estimateTokens(contextText);
+      }
     }
 
     return {
       success: true,
-      contextText: finalContextText,
-      sessionCount: summaries.length,
-      tokenCount: estimateTokens(finalContextText),
-      summaries,
+      contextText,
+      sessionCount: activeSummaries.length,
+      tokenCount,
+      summaries: activeSummaries,
     };
   } catch (error) {
     log.error('Failed to build history context', error as Error);

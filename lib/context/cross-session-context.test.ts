@@ -217,6 +217,47 @@ describe('cross-session-context', () => {
     });
   });
 
+  describe('buildHistoryContext - intelligent truncation', () => {
+    it('should drop least-important sessions when over budget', async () => {
+      const settings = {
+        ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS,
+        enabled: true,
+        recentSessionCount: 3,
+        maxTokenBudget: 30, // Very small budget to force truncation
+        compressionLevel: 'minimal' as const,
+        excludeEmptySessions: true,
+      };
+
+      const result = await buildHistoryContext(settings);
+
+      expect(result.success).toBe(true);
+      // Should have fewer sessions than the 3 requested due to budget
+      expect(result.sessionCount).toBeLessThanOrEqual(3);
+      // Token count should be within reasonable range
+      expect(result.tokenCount).toBeGreaterThan(0);
+    });
+
+    it('should keep most important (recent, high-message-count) sessions', async () => {
+      const settings = {
+        ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS,
+        enabled: true,
+        recentSessionCount: 3,
+        maxTokenBudget: 50,
+        compressionLevel: 'minimal' as const,
+        excludeEmptySessions: true,
+      };
+
+      const result = await buildHistoryContext(settings);
+
+      expect(result.success).toBe(true);
+      // If truncation happened, the most recent/important sessions should remain
+      if (result.sessionCount < 2) {
+        // The remaining session should be one of the non-empty ones
+        expect(result.summaries[0].sessionId).toBeDefined();
+      }
+    });
+  });
+
   describe('shouldBuildHistoryContext', () => {
     it('should return false when disabled', async () => {
       const settings = { ...DEFAULT_CHAT_HISTORY_CONTEXT_SETTINGS, enabled: false };

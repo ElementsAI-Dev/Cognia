@@ -181,7 +181,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     await withDelay(async () => {
       const result = await captureFullscreen();
       if (result) {
-        openEditor(result.image_base64);
+        openEditor(result.imageBase64);
         fetchHistory();
       }
     });
@@ -191,7 +191,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     await withDelay(async () => {
       const result = await captureWindow();
       if (result) {
-        openEditor(result.image_base64);
+        openEditor(result.imageBase64);
         fetchHistory();
       }
     });
@@ -203,7 +203,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
       await withDelay(async () => {
         const result = await captureRegion(region.x, region.y, region.width, region.height);
         if (result) {
-          openEditor(result.image_base64);
+          openEditor(result.imageBase64);
           fetchHistory();
         }
       });
@@ -213,14 +213,14 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
   const handleCaptureSelectedWindow = async (window: WindowInfo) => {
     const result = await captureWindowByHwnd(window.hwnd);
     if (result) {
-      openEditor(result.image_base64);
+      openEditor(result.imageBase64);
       fetchHistory();
     }
   };
 
   const handleExtractTextFromLast = async () => {
     if (lastScreenshot) {
-      const text = await extractText(lastScreenshot.image_base64);
+      const text = await extractText(lastScreenshot.imageBase64);
       if (text) {
         navigator.clipboard.writeText(text);
       }
@@ -350,7 +350,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
           <Card>
             <CardContent className="p-2">
               <Image
-                src={`data:image/png;base64,${lastScreenshot.image_base64}`}
+                src={`data:image/png;base64,${lastScreenshot.imageBase64}`}
                 alt="Last screenshot"
                 className="w-full h-32 object-contain bg-muted rounded"
                 width={lastScreenshot.metadata.width}
@@ -362,7 +362,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
                   {lastScreenshot.metadata.width}x{lastScreenshot.metadata.height}
                 </span>
                 <div className="flex gap-1">
-                  <CopyButton content={lastScreenshot.image_base64} className="h-7 w-7" iconOnly />
+                  <CopyButton content={lastScreenshot.imageBase64} className="h-7 w-7" iconOnly />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -377,7 +377,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
                     className="h-7 w-7"
                     onClick={() => {
                       const link = document.createElement('a');
-                      link.href = `data:image/png;base64,${lastScreenshot.image_base64}`;
+                      link.href = `data:image/png;base64,${lastScreenshot.imageBase64}`;
                       link.download = `screenshot-${Date.now()}.png`;
                       link.click();
                     }}
@@ -437,7 +437,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
               entry={item}
               isSelected={selectedScreenshot === item.id}
               onSelect={() => setSelectedScreenshot(item.id)}
-              onPin={() => (item.is_pinned ? unpinScreenshot(item.id) : pinScreenshot(item.id))}
+              onPin={() => (item.isPinned ? unpinScreenshot(item.id) : pinScreenshot(item.id))}
               onDelete={() => deleteScreenshot(item.id)}
             />
           ))}
@@ -492,13 +492,13 @@ function ScreenshotHistoryItem({
       className={cn(
         'group relative rounded-md overflow-hidden border cursor-pointer',
         isSelected && 'ring-2 ring-primary',
-        entry.is_pinned && 'border-yellow-500/50'
+        entry.isPinned && 'border-yellow-500/50'
       )}
       onClick={onSelect}
     >
-      {entry.thumbnail_base64 ? (
+      {entry.thumbnailBase64 ? (
         <Image
-          src={`data:image/png;base64,${entry.thumbnail_base64}`}
+          src={`data:image/png;base64,${entry.thumbnailBase64}`}
           alt={`Screenshot from ${new Date(entry.timestamp).toLocaleString()}`}
           className="w-full h-20 object-cover"
           width={160}
@@ -521,7 +521,7 @@ function ScreenshotHistoryItem({
             onPin();
           }}
         >
-          {entry.is_pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          {entry.isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
         </Button>
         <Button
           variant="ghost"
@@ -545,7 +545,7 @@ function ScreenshotHistoryItem({
         </p>
       </div>
 
-      {entry.is_pinned && (
+      {entry.isPinned && (
         <div className="absolute top-1 right-1">
           <Pin className="h-3 w-3 text-yellow-500" />
         </div>

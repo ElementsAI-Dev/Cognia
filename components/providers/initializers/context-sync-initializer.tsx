@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAutoSync } from '@/hooks/context';
+import { initContextFS } from '@/lib/context';
 
 export function ContextSyncInitializer() {
   const hasInitialized = useRef(false);
@@ -20,6 +21,9 @@ export function ContextSyncInitializer() {
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
+
+    // Restore ContextFS from IndexedDB, then start background sync
+    initContextFS().catch(() => {});
 
     // Start background context sync after a short delay to avoid
     // competing with other initializers during app startup

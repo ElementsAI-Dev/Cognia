@@ -167,6 +167,11 @@ import { useFeatureRouting } from '@/hooks/chat/use-feature-routing';
 import { ModeSwitchSuggestion } from '../ui/mode-switch-suggestion';
 import { FeatureNavigationDialog } from '../ui/feature-navigation-dialog';
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
+import { getModelMaxTokens } from '@/lib/ai/model-limits';
+import { compressMessages } from '@/lib/ai/embedding/compression';
+import { loggers } from '@/lib/logger';
+import { countTokens } from '@/hooks/chat/use-token-count';
+import { formatTokens } from '@/lib/observability/format-utils';
 import {
   useAIChat,
   useAutoRouter,
@@ -189,6 +194,8 @@ import { useSummary } from '@/hooks/chat';
 import { FlowChatCanvas } from '../flow';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 import { useStickToBottomContext } from 'use-stick-to-bottom';
+
+const log = loggers.chat;
 
 /**
  * Props for the {@link ChatContainer} component.
@@ -414,6 +421,9 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
   // Chat history context settings
   const chatHistoryContextSettings = useSettingsStore((state) => state.chatHistoryContextSettings);
 
+  // Compression settings
+  const compressionSettings = useSettingsStore((state) => state.compressionSettings);
+
   // Clear context confirmation dialog state
   const [showClearContextConfirm, setShowClearContextConfirm] = useState(false);
 
@@ -572,16 +582,7 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
 
   /** Maximum context window size for the current model (falls back to 100 000). */
   const modelMaxTokens = useMemo(() => {
-    const modelTokenLimits: Record<string, number> = {
-      'gpt-4o': 128000,
-      'gpt-4-turbo': 128000,
-      'gpt-4': 8192,
-      'gpt-3.5-turbo': 16385,
-      'claude-3-opus': 200000,
-      'claude-3-sonnet': 200000,
-      'claude-3-haiku': 200000,
-    };
-    return modelTokenLimits[currentModel] || 100000;
+    return getModelMaxTokens(currentModel);
   }, [currentModel]);
 
   /** Context usage as a 0–100 percentage relative to the user-configured context limit. */
@@ -589,6 +590,21 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     const limit = Math.round((contextLimitPercent / 100) * modelMaxTokens);
     return limit > 0 ? Math.min(100, Math.round((estimatedTokens.totalTokens / limit) * 100)) : 0;
   }, [estimatedTokens.totalTokens, contextLimitPercent, modelMaxTokens]);
+
+  // Handle context optimization via compression engine
+  const handleOptimizeContext = useCallback(async () => {
+    if (messages.length === 0) return;
+
+    const result = await compressMessages(messages, compressionSettings);
+    if (result.success && result.messagesCompressed > 0) {
+      log.info('Context optimized', {
+        compressed: result.messagesCompressed,
+        ratio: result.compressionRatio.toFixed(2),
+        tokensBefore: result.tokensBefore,
+        tokensAfter: result.tokensAfter,
+      });
+    }
+  }, [messages, compressionSettings]);
 
   // Input ref for keyboard shortcuts
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -2586,6 +2602,7 @@ Be thorough in your thinking but concise in your final answer.`;
                 onWorkflowRerun={(_input) => setShowWorkflowPicker(true)}
                 hideMessageActions={isSimplifiedMode && simplifiedModeSettings.hideMessageActions}
                 hideMessageTimestamps={isSimplifiedMode && simplifiedModeSettings.hideMessageTimestamps}
+                showTokenUsageMeter={showTokenUsageMeter}
               />
             </ConversationContent>
           )}
@@ -2798,6 +2815,7 @@ Be thorough in your thinking but concise in your final answer.`;
         modelMaxTokens={modelMaxTokens}
         messageCount={messages.length}
         onClearContext={() => setShowClearContextConfirm(true)}
+        onOptimizeContext={handleOptimizeContext}
         onOpenDebug={() => setShowContextDebug(true)}
       />
 
@@ -3135,6 +3153,8 @@ interface ChatMessageItemProps {
   hideMessageActions?: boolean;
   /** Hide per-message timestamps — used in simplified mode. */
   hideMessageTimestamps?: boolean;
+  /** Show per-message token count next to timestamp. */
+  showTokenUsageMeter?: boolean;
 }
 
 /**
@@ -3168,6 +3188,7 @@ function ChatMessageItem({
   onWorkflowRerun,
   hideMessageActions = false,
   hideMessageTimestamps = false,
+  showTokenUsageMeter = false,
 }: ChatMessageItemProps) {
   const t = useTranslations('chat');
   const tCommon = useTranslations('common');
@@ -3176,6 +3197,11 @@ function ChatMessageItem({
   const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
   const [reactions, setReactions] = useState<EmojiReaction[]>(message.reactions || []);
   const messageContentRef = useRef<HTMLDivElement>(null);
+
+  // Per-message token count (estimation, memoized)
+  const messageTokens = useMemo(() => {
+    return countTokens(message.content);
+  }, [message.content]);
 
   // TTS hook for multi-provider text-to-speech
   const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
@@ -3423,10 +3449,13 @@ function ChatMessageItem({
               {message.role === 'assistant' && <MessageArtifacts messageId={message.id} compact />}
               {/* Message analysis results */}
               {message.role === 'assistant' && <MessageAnalysisResults messageId={message.id} />}
-              {/* Message timestamp */}
+              {/* Message timestamp and token count */}
               {!hideMessageTimestamps && message.createdAt && (
-                <div className="mt-1 text-[10px] text-muted-foreground/50">
-                  {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
+                  <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {showTokenUsageMeter && (
+                    <span title={`~${messageTokens} tokens`}>· {formatTokens(messageTokens)}t</span>
+                  )}
                 </div>
               )}
             </div>
@@ -3536,6 +3565,8 @@ interface VirtualizedChatMessageListProps {
   hideMessageActions?: boolean;
   /** Hide per-message timestamps (simplified mode). */
   hideMessageTimestamps?: boolean;
+  /** Show per-message token count next to timestamp. */
+  showTokenUsageMeter?: boolean;
 }
 
 /**
@@ -3574,6 +3605,7 @@ function VirtualizedChatMessageList({
   onWorkflowRerun,
   hideMessageActions = false,
   hideMessageTimestamps = false,
+  showTokenUsageMeter = false,
 }: VirtualizedChatMessageListProps) {
   const { scrollRef } = useStickToBottomContext();
 
@@ -3645,6 +3677,7 @@ function VirtualizedChatMessageList({
             onWorkflowRerun={onWorkflowRerun}
             hideMessageActions={hideMessageActions}
             hideMessageTimestamps={hideMessageTimestamps}
+            showTokenUsageMeter={showTokenUsageMeter}
           />
         ))}
       </>
@@ -3708,6 +3741,7 @@ function VirtualizedChatMessageList({
             onWorkflowRerun={onWorkflowRerun}
             hideMessageActions={hideMessageActions}
             hideMessageTimestamps={hideMessageTimestamps}
+            showTokenUsageMeter={showTokenUsageMeter}
           />
         );
       }}

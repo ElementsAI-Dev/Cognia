@@ -25,6 +25,7 @@ import type {
   ContextStats,
   ToolOutputRef,
 } from '@/types/system/context';
+import { db } from '@/lib/db';
 
 /**
  * Constants for context management
@@ -58,16 +59,112 @@ export const CATEGORY_DIRS: Record<ContextCategory, string> = {
   'temp': 'temp',
 };
 
+/** Auto-GC thresholds */
+const AUTO_GC_MAX_FILES = 500;
+const AUTO_GC_MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
 /**
- * In-memory metadata index for fast lookups
+ * In-memory metadata index for fast lookups (hot cache)
  */
 const metadataIndex = new Map<string, ContextFileMetadata>();
 
 /**
- * In-memory file storage (for web environment without filesystem)
- * In desktop/Tauri, this would be replaced with actual filesystem calls
+ * In-memory file storage (hot cache, backed by IndexedDB)
  */
 const fileStorage = new Map<string, string>();
+
+/** Whether the ContextFS has been initialized from IndexedDB */
+let _initialized = false;
+
+/**
+ * Persist a context file to IndexedDB (write-through)
+ */
+async function persistToDb(
+  id: string,
+  path: string,
+  content: string,
+  metadata: ContextFileMetadata
+): Promise<void> {
+  try {
+    await db.contextFiles.put({
+      id,
+      path,
+      category: metadata.category,
+      source: metadata.source,
+      content,
+      sizeBytes: metadata.sizeBytes,
+      estimatedTokens: metadata.estimatedTokens ?? 0,
+      tags: metadata.tags ?? [],
+      ttlMs: metadata.ttlMs,
+      createdAt: metadata.createdAt,
+      lastAccessedAt: metadata.accessedAt,
+    });
+  } catch {
+    // IndexedDB write failure is non-fatal; in-memory cache still works
+  }
+}
+
+/**
+ * Remove a context file from IndexedDB
+ */
+async function removeFromDb(path: string): Promise<void> {
+  try {
+    const record = await db.contextFiles.where('path').equals(path).first();
+    if (record) {
+      await db.contextFiles.delete(record.id);
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
+/**
+ * Initialize ContextFS by restoring metadata and content from IndexedDB.
+ * Called once on app startup. Subsequent calls are no-ops.
+ */
+export async function initContextFS(): Promise<void> {
+  if (_initialized) return;
+  _initialized = true;
+
+  try {
+    const records = await db.contextFiles.toArray();
+    for (const record of records) {
+      fileStorage.set(record.path, record.content);
+      metadataIndex.set(record.path, {
+        id: record.id,
+        category: record.category as ContextCategory,
+        source: record.source,
+        createdAt: record.createdAt,
+        accessedAt: record.lastAccessedAt,
+        sizeBytes: record.sizeBytes,
+        estimatedTokens: record.estimatedTokens,
+        tags: record.tags,
+        ttlMs: record.ttlMs,
+      });
+    }
+  } catch {
+    // IndexedDB unavailable; start with empty in-memory state
+  }
+}
+
+/**
+ * Run auto-GC if file count or total size exceeds thresholds.
+ * Called internally after writes.
+ */
+async function maybeAutoGC(): Promise<void> {
+  if (metadataIndex.size > AUTO_GC_MAX_FILES) {
+    await gcContextFiles({ maxTotalSize: AUTO_GC_MAX_SIZE_BYTES });
+    return;
+  }
+
+  let totalSize = 0;
+  for (const meta of metadataIndex.values()) {
+    totalSize += meta.sizeBytes;
+  }
+  if (totalSize > AUTO_GC_MAX_SIZE_BYTES) {
+    await gcContextFiles({ maxTotalSize: AUTO_GC_MAX_SIZE_BYTES });
+  }
+}
 
 /**
  * Generate a unique file ID
@@ -99,9 +196,37 @@ function getContextPath(category: ContextCategory, filename: string): string {
 
 /**
  * Estimate token count for content
+ * Uses content-aware heuristics: base ~4 chars/token with adjustments for
+ * code blocks, JSON, and CJK characters for improved accuracy.
  */
 export function estimateTokens(content: string): number {
-  return Math.ceil(content.length * CONTEXT_CONSTANTS.TOKENS_PER_CHAR);
+  if (!content || content.length === 0) return 0;
+
+  // Base estimation: ~4 characters per token for English
+  let tokens = Math.ceil(content.length / 4);
+
+  // Adjust for code content (more tokens per character due to syntax)
+  const codeBlockMatches = content.match(/```[\s\S]*?```/g);
+  if (codeBlockMatches) {
+    const codeLength = codeBlockMatches.reduce((sum, block) => sum + block.length, 0);
+    tokens += Math.ceil(codeLength * (1 / 3 - 1 / 4));
+  }
+
+  // Adjust for JSON/structured content (extra punctuation)
+  const jsonMatches = content.match(/\{[\s\S]*?\}/g);
+  if (jsonMatches) {
+    const jsonLength = jsonMatches.reduce((sum, block) => sum + block.length, 0);
+    tokens += Math.ceil(jsonLength * 0.1);
+  }
+
+  // Adjust for CJK characters (Chinese/Japanese/Korean)
+  // CJK characters typically tokenize as 1-2 tokens each
+  const cjkMatches = content.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g);
+  if (cjkMatches) {
+    tokens += Math.ceil(cjkMatches.length * 0.5);
+  }
+
+  return tokens;
 }
 
 /**
@@ -130,7 +255,7 @@ export async function writeContextFile(
     finalContent = fileStorage.get(path)! + '\n' + content;
   }
   
-  // Store content
+  // Store content in memory cache
   fileStorage.set(path, finalContent);
   
   // Create metadata
@@ -147,6 +272,12 @@ export async function writeContextFile(
   };
   
   metadataIndex.set(path, metadata);
+
+  // Write-through to IndexedDB (non-blocking)
+  persistToDb(id, path, finalContent, metadata).catch(() => {});
+
+  // Auto-GC check (non-blocking)
+  maybeAutoGC().catch(() => {});
   
   return {
     metadata,
@@ -341,6 +472,8 @@ export async function deleteContextFile(path: string): Promise<boolean> {
   const existed = fileStorage.has(path);
   fileStorage.delete(path);
   metadataIndex.delete(path);
+  // Remove from IndexedDB (non-blocking)
+  removeFromDb(path).catch(() => {});
   return existed;
 }
 
@@ -497,6 +630,12 @@ export function isLongOutput(content: string): boolean {
 export async function clearAllContextFiles(): Promise<void> {
   fileStorage.clear();
   metadataIndex.clear();
+  // Clear IndexedDB table
+  try {
+    await db.contextFiles.clear();
+  } catch {
+    // Non-fatal
+  }
 }
 
 /**

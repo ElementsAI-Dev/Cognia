@@ -11,6 +11,9 @@ import type {
   TaskFilter,
   TaskStatistics,
 } from '@/types/scheduler';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.app;
 
 // Database entity types (stored format)
 interface DBScheduledTask {
@@ -62,6 +65,11 @@ class SchedulerDatabase extends Dexie {
       tasks: 'id, name, type, status, nextRunAt, createdAt, [status+nextRunAt]',
       executions: 'id, taskId, status, startedAt, [taskId+startedAt]',
     });
+
+    this.version(2).stores({
+      tasks: 'id, name, type, status, nextRunAt, createdAt, [status+nextRunAt], [status+type]',
+      executions: 'id, taskId, status, startedAt, [taskId+startedAt]',
+    });
   }
 
   // ========== Task Operations ==========
@@ -108,7 +116,7 @@ class SchedulerDatabase extends Dexie {
    */
   async getAllTasks(): Promise<ScheduledTask[]> {
     const dbTasks = await this.tasks.toArray();
-    return dbTasks.map(deserializeTask);
+    return dbTasks.map(safeDeserializeTask).filter((t): t is ScheduledTask => t !== null);
   }
 
   /**
@@ -116,7 +124,7 @@ class SchedulerDatabase extends Dexie {
    */
   async getTasksByStatus(status: ScheduledTaskStatus): Promise<ScheduledTask[]> {
     const dbTasks = await this.tasks.where('status').equals(status).toArray();
-    return dbTasks.map(deserializeTask);
+    return dbTasks.map(safeDeserializeTask).filter((t): t is ScheduledTask => t !== null);
   }
 
   /**
@@ -131,7 +139,7 @@ class SchedulerDatabase extends Dexie {
     }
 
     const dbTasks = await collection.toArray();
-    let tasks = dbTasks.map(deserializeTask);
+    let tasks = dbTasks.map(safeDeserializeTask).filter((t): t is ScheduledTask => t !== null);
 
     // Filter by types
     if (filter.types && filter.types.length > 0) {
@@ -157,6 +165,26 @@ class SchedulerDatabase extends Dexie {
   }
 
   /**
+   * Get active event-triggered tasks, optionally filtered by eventType
+   */
+  async getActiveEventTasks(eventType?: string): Promise<ScheduledTask[]> {
+    // Use status index to narrow down, then filter by trigger type in memory
+    // (trigger.type is inside serialized JSON, not a separate indexed column)
+    const activeTasks = await this.tasks
+      .where('status')
+      .equals('active')
+      .toArray();
+
+    return activeTasks
+      .map(safeDeserializeTask)
+      .filter((t): t is ScheduledTask => t !== null)
+      .filter((t) =>
+        t.trigger.type === 'event' &&
+        (!eventType || t.trigger.eventType === eventType)
+      );
+  }
+
+  /**
    * Get upcoming tasks
    */
   async getUpcomingTasks(limit: number = 10): Promise<ScheduledTask[]> {
@@ -167,7 +195,7 @@ class SchedulerDatabase extends Dexie {
       .filter((t) => t.nextRunAt !== undefined && t.nextRunAt > now)
       .sortBy('nextRunAt');
 
-    return dbTasks.slice(0, limit).map(deserializeTask);
+    return dbTasks.slice(0, limit).map(safeDeserializeTask).filter((t): t is ScheduledTask => t !== null);
   }
 
   // ========== Execution Operations ==========
@@ -187,16 +215,29 @@ class SchedulerDatabase extends Dexie {
   }
 
   /**
-   * Get executions for a task
+   * Get executions for a task with efficient pagination
+   * @param beforeStartedAt - cursor for pagination: only return executions started before this ISO string
    */
-  async getTaskExecutions(taskId: string, limit: number = 50): Promise<TaskExecution[]> {
-    const dbExecutions = await this.executions
-      .where('taskId')
-      .equals(taskId)
-      .reverse()
-      .sortBy('startedAt');
+  async getTaskExecutions(
+    taskId: string,
+    limit: number = 50,
+    beforeStartedAt?: string
+  ): Promise<TaskExecution[]> {
+    const collection = this.executions
+      .where('[taskId+startedAt]')
+      .between(
+        [taskId, Dexie.minKey],
+        [taskId, beforeStartedAt || Dexie.maxKey],
+        true,
+        !beforeStartedAt // inclusive upper bound only when no cursor
+      );
 
-    return dbExecutions.slice(0, limit).map(deserializeExecution);
+    const dbExecutions = await collection
+      .reverse()
+      .limit(limit)
+      .toArray();
+
+    return dbExecutions.map(safeDeserializeExecution).filter((e): e is TaskExecution => e !== null);
   }
 
   /**
@@ -205,7 +246,7 @@ class SchedulerDatabase extends Dexie {
   async getRecentExecutions(limit: number = 50): Promise<TaskExecution[]> {
     const dbExecutions = await this.executions.orderBy('startedAt').reverse().limit(limit).toArray();
 
-    return dbExecutions.map(deserializeExecution);
+    return dbExecutions.map(safeDeserializeExecution).filter((e): e is TaskExecution => e !== null);
   }
 
   /**
@@ -364,6 +405,15 @@ function deserializeTask(dbTask: DBScheduledTask): ScheduledTask {
   };
 }
 
+function safeDeserializeTask(dbTask: DBScheduledTask): ScheduledTask | null {
+  try {
+    return deserializeTask(dbTask);
+  } catch (error) {
+    log.warn(`Failed to deserialize task ${dbTask.id}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 function serializeExecution(execution: TaskExecution): DBTaskExecution {
   return {
     id: execution.id,
@@ -402,11 +452,20 @@ function deserializeExecution(dbExecution: DBTaskExecution): TaskExecution {
     duration: dbExecution.duration,
     startedAt: new Date(dbExecution.startedAt),
     completedAt: dbExecution.completedAt ? new Date(dbExecution.completedAt) : undefined,
-    logs: logs.map((log: Record<string, unknown>) => ({
-      ...log,
-      timestamp: new Date(log.timestamp as string),
+    logs: logs.map((entry: Record<string, unknown>) => ({
+      ...entry,
+      timestamp: new Date(entry.timestamp as string),
     })),
   };
+}
+
+function safeDeserializeExecution(dbExecution: DBTaskExecution): TaskExecution | null {
+  try {
+    return deserializeExecution(dbExecution);
+  } catch (error) {
+    log.warn(`Failed to deserialize execution ${dbExecution.id}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
 }
 
 // Export singleton instance

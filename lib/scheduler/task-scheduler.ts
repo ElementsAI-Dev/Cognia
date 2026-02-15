@@ -439,14 +439,44 @@ class TaskSchedulerImpl {
     // Clear existing timer
     this.unscheduleTask(task.id);
 
-    // Set new timer
-    const timer = setTimeout(() => {
-      this.executeTask(task).catch((err) => {
-        log.error(`Error executing scheduled task ${task.name}:`, err);
-      });
-    }, delay);
+    // For long delays (> 60s), use polling to avoid browser timer throttling
+    // and setTimeout drift on background tabs. For short delays, use
+    // direct setTimeout for better precision.
+    const DRIFT_THRESHOLD_MS = 60_000;
 
-    this.timers.set(task.id, timer);
+    if (delay > DRIFT_THRESHOLD_MS) {
+      const targetTime = nextRun.getTime();
+      const timer = setInterval(() => {
+        const remaining = targetTime - Date.now();
+        if (remaining <= 0) {
+          clearInterval(timer);
+          this.timers.delete(task.id);
+          this.executeTask(task).catch((err) => {
+            log.error(`Error executing scheduled task ${task.name}:`, err);
+          });
+        } else if (remaining <= DRIFT_THRESHOLD_MS) {
+          // Switch to precise setTimeout for the final stretch
+          clearInterval(timer);
+          const finalTimer = setTimeout(() => {
+            this.timers.delete(task.id);
+            this.executeTask(task).catch((err) => {
+              log.error(`Error executing scheduled task ${task.name}:`, err);
+            });
+          }, remaining);
+          this.timers.set(task.id, finalTimer);
+        }
+      }, DRIFT_THRESHOLD_MS);
+      this.timers.set(task.id, timer);
+    } else {
+      const timer = setTimeout(() => {
+        this.timers.delete(task.id);
+        this.executeTask(task).catch((err) => {
+          log.error(`Error executing scheduled task ${task.name}:`, err);
+        });
+      }, delay);
+      this.timers.set(task.id, timer);
+    }
+
     log.debug(`Scheduled task ${task.name} for ${nextRun.toISOString()} (in ${Math.round(delay / 1000)}s)`);
   }
 
@@ -708,7 +738,7 @@ class TaskSchedulerImpl {
     switch (trigger.type) {
       case 'cron':
         if (trigger.cronExpression) {
-          return getNextCronTime(trigger.cronExpression, now) || undefined;
+          return getNextCronTime(trigger.cronExpression, now, trigger.timezone) || undefined;
         }
         break;
 
@@ -764,15 +794,11 @@ class TaskSchedulerImpl {
    * Trigger an event-based task
    */
   async triggerEventTask(eventType: string, eventSource?: string, payload?: Record<string, unknown>): Promise<void> {
-    const tasks = await schedulerDb.getAllTasks();
+    // Use targeted query instead of loading all tasks
+    const eventTasks = await schedulerDb.getActiveEventTasks(eventType);
     
-    for (const task of tasks) {
-      if (
-        task.status === 'active' &&
-        task.trigger.type === 'event' &&
-        task.trigger.eventType === eventType &&
-        (!task.trigger.eventSource || task.trigger.eventSource === eventSource)
-      ) {
+    for (const task of eventTasks) {
+      if (!task.trigger.eventSource || task.trigger.eventSource === eventSource) {
         log.info(`Event ${eventType} triggered task: ${task.name}`);
         
         // Merge event payload with task payload

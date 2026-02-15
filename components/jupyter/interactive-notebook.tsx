@@ -26,11 +26,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertCircle } from 'lucide-react';
 import { JupyterRenderer } from '@/components/artifacts/jupyter-renderer';
+import { RendererErrorBoundary } from '@/components/chat/renderers/renderer-error-boundary';
 import { KernelStatus } from './kernel-status';
 import { VariableInspector } from './variable-inspector';
 import { useJupyterKernel } from '@/hooks/jupyter';
 import { useVirtualEnv } from '@/hooks/sandbox';
 import { useJupyterStore } from '@/stores/jupyter';
+import { loggers } from '@/lib/logger';
 import { serializeNotebook } from '@/lib/jupyter';
 import { applyCellsToNotebook } from '@/lib/jupyter/notebook-utils';
 import { isExecutionSuccessful, formatExecutionError, formatExecutionTime } from '@/types/jupyter';
@@ -215,13 +217,14 @@ export function InteractiveNotebook({
       if (!activeSession) return;
       const result = await inspectVariable(variableName, activeSession.id);
       if (result) {
-        console.log('Variable inspection:', result);
+        loggers.jupyter.debug('Variable inspection:', result);
       }
     },
     [activeSession, inspectVariable]
   );
 
   return (
+    <RendererErrorBoundary rendererName="InteractiveNotebook">
     <div className={cn('flex flex-col h-full', className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
@@ -336,6 +339,7 @@ export function InteractiveNotebook({
         )}
       </div>
     </div>
+    </RendererErrorBoundary>
   );
 }
 

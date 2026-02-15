@@ -25,6 +25,7 @@ const mockCreateWithBranch = jest.fn();
 const mockUpdate = jest.fn();
 const mockDelete = jest.fn();
 const mockDeleteBySessionId = jest.fn();
+const mockDeleteMessagesAfterOptimized = jest.fn();
 const mockCopyMessagesForBranch = jest.fn();
 
 jest.mock('@/lib/db', () => ({
@@ -35,6 +36,7 @@ jest.mock('@/lib/db', () => ({
     update: (...args: unknown[]) => mockUpdate(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
     deleteBySessionId: (...args: unknown[]) => mockDeleteBySessionId(...args),
+    deleteMessagesAfterOptimized: (...args: unknown[]) => mockDeleteMessagesAfterOptimized(...args),
     copyMessagesForBranch: (...args: unknown[]) => mockCopyMessagesForBranch(...args),
   },
 }));
@@ -263,7 +265,7 @@ describe('useMessages', () => {
       ];
       mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(threeMessages);
       mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(threeMessages.length);
-      mockDelete.mockResolvedValue(undefined);
+      mockDeleteMessagesAfterOptimized.mockResolvedValue(2);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
 
@@ -277,6 +279,7 @@ describe('useMessages', () => {
 
       expect(result.current.messages).toHaveLength(1);
       expect(result.current.messages[0].id).toBe('msg-1');
+      expect(mockDeleteMessagesAfterOptimized).toHaveBeenCalledWith('session-1', 'msg-1', undefined);
     });
 
     it('should dispatch plugin hook for each deleted message', async () => {
@@ -286,7 +289,7 @@ describe('useMessages', () => {
       ];
       mockGetPageBySessionIdAndBranch.mockResolvedValueOnce(threeMessages);
       mockGetCountBySessionIdAndBranch.mockResolvedValueOnce(threeMessages.length);
-      mockDelete.mockResolvedValue(undefined);
+      mockDeleteMessagesAfterOptimized.mockResolvedValue(2);
 
       const { result } = renderHook(() => useMessages({ sessionId: 'session-1' }));
 

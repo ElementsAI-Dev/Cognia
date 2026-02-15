@@ -373,3 +373,7 @@ export * from './agent';
 
 // Workflows
 export * from './workflows';
+
+// Context budget
+export { computeBudget, segmentHeadroom, isCompressionRecommended } from './context-budget';
+export type { BudgetInput, BudgetAllocation } from './context-budget';

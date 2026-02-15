@@ -214,14 +214,8 @@ export function formatBytes(bytes: number | undefined): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-/**
- * Format token count to compact string (e.g. 1.5k, 2.30M)
- */
-export function formatTokens(count: number): string {
-  if (count < 1000) return `${count}`;
-  if (count < 1_000_000) return `${(count / 1000).toFixed(1)}k`;
-  return `${(count / 1_000_000).toFixed(2)}M`;
-}
+// Re-export canonical formatTokens from observability module
+export { formatTokens } from '@/lib/observability/format-utils';
 
 /**
  * Format duration in milliseconds to compact string

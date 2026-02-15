@@ -5,7 +5,6 @@
 export {
   useContext,
   type AppType,
-  type WindowInfo,
   type AppContext,
   type FileContext,
   type BrowserContext,

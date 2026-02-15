@@ -31,6 +31,10 @@ export interface RecordingConfig {
   show_indicator: boolean;
   max_duration: number;
   pause_on_minimize: boolean;
+  use_hardware_acceleration: boolean;
+  preferred_encoder?: string;
+  system_audio_device?: string;
+  microphone_device?: string;
 }
 
 export interface RecordingMetadata {
@@ -117,6 +121,13 @@ export interface StorageStats {
 export interface CleanupResult {
   filesDeleted: number;
   bytesFreed: number;
+}
+
+export interface AggregatedStorageStatus {
+  stats: StorageStats;
+  usagePercent: number;
+  isExceeded: boolean;
+  config: StorageConfig;
 }
 
 // ============== Video Processing Progress Types ==============
@@ -336,7 +347,6 @@ export function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
-
 /**
  * Get default recording configuration
  */
@@ -355,6 +365,7 @@ export function getDefaultRecordingConfig(): RecordingConfig {
     show_indicator: true,
     max_duration: 0,
     pause_on_minimize: false,
+    use_hardware_acceleration: true,
   };
 }
 
@@ -414,6 +425,13 @@ export async function checkFFmpegVersion(): Promise<boolean> {
   return invoke<boolean>("ffmpeg_check_version");
 }
 // ============== Storage Management Functions ==============
+
+/**
+ * Get aggregated storage status (stats + usage + exceeded + config in one call)
+ */
+export async function getAggregatedStorageStatus(): Promise<AggregatedStorageStatus> {
+  return invoke<AggregatedStorageStatus>("storage_get_aggregated_status");
+}
 
 /**
  * Get storage statistics

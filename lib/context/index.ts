@@ -35,6 +35,7 @@ export {
   clearAllContextFiles,
   getFilesByCategory,
   getNewContextPath,
+  initContextFS,
 } from './context-fs';
 
 // Tool output handling
