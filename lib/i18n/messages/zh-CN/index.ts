@@ -49,6 +49,7 @@ import keyboardShortcuts from './keyboardShortcuts.json';
 import map from './map.json';
 import search from './search.json';
 import a2ui from './a2ui.json';
+import selection from './selection.json';
 
 const messages = {
   ...common,
@@ -99,6 +100,7 @@ const messages = {
   map,
   search,
   a2ui,
+  ...selection,
 };
 
 export default messages;

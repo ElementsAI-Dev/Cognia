@@ -328,20 +328,6 @@
     "connected": "Connected to other tabs",
     "disconnected": "Disconnected from other tabs",
     "messageReceived": "Message received from another tab",
-    "sessionUpdated": "Session updated from another tab",
-    "conflictDetected": "Conflict detected with another tab",
-    "syncEnabled": "Cross-tab sync enabled",
-    "syncDisabled": "Cross-tab sync disabled"
-  },
-  "carriedContext": {
-    "title": "Context from previous chat",
-    "contextHint": "This summary provides context from your previous conversation. The AI will consider this when responding."
-  },
-  "modeSwitch": {
-    "title": "Switch Chat Mode",
-    "description": "Switching modes will start a new conversation. Your current chat will be preserved in the sidebar.",
-    "warningTitle": "Current conversation will end",
-    "warningMessage": "You have {count} messages in this conversation. Switching modes will start a fresh chat session.",
     "carryContextLabel": "Summarize and carry context",
     "carryContextDescription": "Generate a summary of the current chat and include it as context in the new conversation.",
     "generatingSummary": "Generating summary...",

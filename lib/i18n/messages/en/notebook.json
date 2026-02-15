@@ -23,5 +23,15 @@
   "openFailed": "Failed to open notebook",
   "saveFailed": "Failed to save notebook",
   "saveSuccess": "Notebook saved successfully",
-  "notebookFilter": "Jupyter Notebooks"
+  "notebookFilter": "Jupyter Notebooks",
+  "quickRun": "Quick run",
+  "run": "Run",
+  "executionSuccess": "Executed successfully",
+  "refreshSessions": "Refresh sessions",
+  "cleanupKernels": "Clean up kernels",
+  "shutdownAll": "Shutdown all kernels",
+  "sessions": "Sessions",
+  "linkedToChat": "Linked to chat session",
+  "unlink": "Unlink",
+  "lastExecution": "Last execution"
 }

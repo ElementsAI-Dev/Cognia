@@ -23,5 +23,15 @@
   "openFailed": "打开笔记本失败",
   "saveFailed": "保存笔记本失败",
   "saveSuccess": "笔记本保存成功",
-  "notebookFilter": "Jupyter 笔记本"
+  "notebookFilter": "Jupyter 笔记本",
+  "quickRun": "快速运行",
+  "run": "运行",
+  "executionSuccess": "执行成功",
+  "refreshSessions": "刷新会话",
+  "cleanupKernels": "清理内核",
+  "shutdownAll": "关闭所有内核",
+  "sessions": "会话",
+  "linkedToChat": "已关联聊天会话",
+  "unlink": "取消关联",
+  "lastExecution": "上次执行"
 }

@@ -1,0 +1,87 @@
+{
+  "selection": {
+    "toolbar": {
+      "title": "Selection Toolbar",
+      "actions": {
+        "copy": "Copy",
+        "translate": "Translate",
+        "explain": "Explain",
+        "summarize": "Summarize",
+        "rewrite": "Rewrite",
+        "search": "Search",
+        "define": "Define",
+        "askAI": "Ask AI",
+        "codeExplain": "Explain Code",
+        "codeReview": "Code Review",
+        "fixGrammar": "Fix Grammar",
+        "simplify": "Simplify",
+        "expand": "Expand",
+        "tone": "Change Tone",
+        "custom": "Custom Action"
+      },
+      "modes": {
+        "full": "Full Mode",
+        "compact": "Compact Mode"
+      },
+      "menu": {
+        "moreActions": "More Actions",
+        "settings": "Settings",
+        "customActions": "Custom Actions",
+        "templates": "Templates",
+        "presets": "Presets"
+      },
+      "feedback": {
+        "helpful": "Helpful",
+        "notHelpful": "Not Helpful"
+      }
+    },
+    "history": {
+      "title": "Selection History",
+      "empty": "No selection history yet",
+      "clear": "Clear History",
+      "export": "Export History",
+      "import": "Import History",
+      "search": "Search history...",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite",
+      "delete": "Delete",
+      "filterByApp": "Filter by App",
+      "filterByType": "Filter by Type"
+    },
+    "clipboard": {
+      "title": "Clipboard History",
+      "empty": "No clipboard history yet",
+      "monitoring": "Monitoring clipboard",
+      "startMonitoring": "Start Monitoring",
+      "stopMonitoring": "Stop Monitoring",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "clearUnpinned": "Clear Unpinned",
+      "clearAll": "Clear All",
+      "copyBack": "Copy to Clipboard",
+      "search": "Search clipboard..."
+    },
+    "multiSelect": {
+      "title": "Multi-Select",
+      "enable": "Enable Multi-Select",
+      "disable": "Disable Multi-Select",
+      "count": "{count} items selected",
+      "combine": "Combine Selections",
+      "clear": "Clear All"
+    },
+    "textType": {
+      "url": "URL",
+      "email": "Email",
+      "code": "Code",
+      "filepath": "File Path",
+      "numeric": "Number",
+      "plaintext": "Text",
+      "json": "JSON",
+      "markup": "Markup",
+      "markdown": "Markdown",
+      "commandline": "Command",
+      "errormessage": "Error",
+      "logentry": "Log Entry"
+    }
+  }
+}

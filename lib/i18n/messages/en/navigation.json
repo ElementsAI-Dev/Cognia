@@ -93,7 +93,16 @@
     "viewFullReport": "View Full Report",
     "showArchived": "Show Archived",
     "showActive": "Show Active",
-    "viewAll": "View All"
+    "viewAll": "View All",
+    "pin": "Pin",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "cancel": "Cancel",
+    "deleteAll": "Delete All",
+    "deleteConfirmTitle": "Delete conversation?",
+    "deleteConfirmDescription": "\"{title}\" and all its messages will be permanently deleted.",
+    "deleteAllConfirmTitle": "Delete all conversations?",
+    "deleteAllConfirmDescription": "{count} conversations and all their messages will be permanently deleted."
   },
   "mobileNav": {
     "home": "Home",

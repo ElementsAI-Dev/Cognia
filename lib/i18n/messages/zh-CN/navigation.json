@@ -93,7 +93,16 @@
     "viewFullReport": "查看完整报告",
     "showArchived": "显示已归档",
     "showActive": "显示活跃",
-    "viewAll": "查看全部"
+    "viewAll": "查看全部",
+    "pin": "置顶",
+    "archive": "归档",
+    "unarchive": "取消归档",
+    "cancel": "取消",
+    "deleteAll": "全部删除",
+    "deleteConfirmTitle": "删除对话？",
+    "deleteConfirmDescription": "「{title}」及其所有消息将被永久删除。",
+    "deleteAllConfirmTitle": "删除所有对话？",
+    "deleteAllConfirmDescription": "{count} 个对话及其所有消息将被永久删除。"
   },
   "mobileNav": {
     "home": "首页",

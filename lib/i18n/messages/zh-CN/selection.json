@@ -1,0 +1,87 @@
+{
+  "selection": {
+    "toolbar": {
+      "title": "选择工具栏",
+      "actions": {
+        "copy": "复制",
+        "translate": "翻译",
+        "explain": "解释",
+        "summarize": "总结",
+        "rewrite": "重写",
+        "search": "搜索",
+        "define": "定义",
+        "askAI": "询问 AI",
+        "codeExplain": "解释代码",
+        "codeReview": "代码审查",
+        "fixGrammar": "修正语法",
+        "simplify": "简化",
+        "expand": "展开",
+        "tone": "更改语气",
+        "custom": "自定义操作"
+      },
+      "modes": {
+        "full": "完整模式",
+        "compact": "紧凑模式"
+      },
+      "menu": {
+        "moreActions": "更多操作",
+        "settings": "设置",
+        "customActions": "自定义操作",
+        "templates": "模板",
+        "presets": "预设"
+      },
+      "feedback": {
+        "helpful": "有帮助",
+        "notHelpful": "没帮助"
+      }
+    },
+    "history": {
+      "title": "选择历史",
+      "empty": "暂无选择历史",
+      "clear": "清空历史",
+      "export": "导出历史",
+      "import": "导入历史",
+      "search": "搜索历史...",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "delete": "删除",
+      "filterByApp": "按应用筛选",
+      "filterByType": "按类型筛选"
+    },
+    "clipboard": {
+      "title": "剪贴板历史",
+      "empty": "暂无剪贴板历史",
+      "monitoring": "正在监控剪贴板",
+      "startMonitoring": "开始监控",
+      "stopMonitoring": "停止监控",
+      "pin": "固定",
+      "unpin": "取消固定",
+      "clearUnpinned": "清除未固定项",
+      "clearAll": "全部清除",
+      "copyBack": "复制到剪贴板",
+      "search": "搜索剪贴板..."
+    },
+    "multiSelect": {
+      "title": "多选",
+      "enable": "启用多选",
+      "disable": "禁用多选",
+      "count": "已选择 {count} 项",
+      "combine": "合并选择",
+      "clear": "全部清除"
+    },
+    "textType": {
+      "url": "链接",
+      "email": "邮箱",
+      "code": "代码",
+      "filepath": "文件路径",
+      "numeric": "数字",
+      "plaintext": "文本",
+      "json": "JSON",
+      "markup": "标记语言",
+      "markdown": "Markdown",
+      "commandline": "命令",
+      "errormessage": "错误",
+      "logentry": "日志"
+    }
+  }
+}

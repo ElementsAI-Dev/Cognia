@@ -304,25 +304,19 @@
     "moveUp": "上移",
     "moveDown": "下移",
     "collapse": "折叠",
-    "copy": "复制",
-    "edit": "编辑",
-    "duplicate": "复制",
-    "remove": "移除"
-  },
-  "carriedContext": {
-    "title": "来自上一次对话的上下文",
-    "contextHint": "此摘要提供了您之前对话的上下文。AI 在回复时会参考这些内容。"
-  },
-  "modeSwitch": {
-    "title": "切换聊天模式",
-    "description": "切换模式将开始新的对话。当前聊天将保留在侧边栏中。",
-    "warningTitle": "当前对话将结束",
-    "warningMessage": "当前对话有 {count} 条消息。切换模式将开始一个全新的聊天会话。",
     "carryContextLabel": "总结并携带上下文",
     "carryContextDescription": "生成当前聊天的摘要，并将其作为上下文包含在新对话中。",
     "generatingSummary": "正在生成摘要...",
     "summaryReady": "摘要已准备好携带",
     "switchMode": "切换模式",
     "switchWithContext": "携带上下文切换"
+  },
+  "carriedContext": {
+    "title": "来自上一次对话的上下文",
+    "contextHint": "此摘要提供了您之前对话的上下文。AI 在回复时会参考这些内容。",
+    "justNow": "刚刚",
+    "minutesAgo": "{count}分钟前",
+    "hoursAgo": "{count}小时前",
+    "daysAgo": "{count}天前"
   }
 }
