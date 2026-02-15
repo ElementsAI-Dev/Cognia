@@ -5,6 +5,16 @@ import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronRight, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -41,15 +51,21 @@ export function SessionGroup({
   onSessionClick: _onSessionClick,
   className,
 }: SessionGroupProps) {
-  const _t = useTranslations('sidebar');
+  const t = useTranslations('sidebar');
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteSession = useSessionStore((state) => state.deleteSession);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
 
   const handleDeleteAll = useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const confirmDeleteAll = useCallback(() => {
     sessions.forEach(session => {
       deleteSession(session.id);
     });
+    setShowDeleteConfirm(false);
   }, [sessions, deleteSession]);
 
   if (sessions.length === 0) return null;
@@ -109,10 +125,27 @@ export function SessionGroup({
               onClick={handleDeleteAll}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete All
+              {t('deleteAll') || 'Delete All'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('deleteAllConfirmTitle') || 'Delete all conversations?'}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('deleteAllConfirmDescription', { count: sessions.length }) || `${sessions.length} conversations and all their messages will be permanently deleted.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {t('delete') || 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <CollapsibleContent className="space-y-0.5">
@@ -129,12 +162,19 @@ export function SessionGroup({
 }
 
 export function useSessionGroups(sessions: Session[]) {
-  return useMemo(() => {
+  // Stable date boundaries — only recalculate every minute
+  const dateBoundaries = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return {
+      today: today.getTime(),
+      yesterday: today.getTime() - 24 * 60 * 60 * 1000,
+      lastWeek: today.getTime() - 7 * 24 * 60 * 60 * 1000,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Math.floor(Date.now() / 60000)]);
 
+  return useMemo(() => {
     const groups: Record<GroupType, Session[]> = {
       pinned: [],
       today: [],
@@ -144,21 +184,25 @@ export function useSessionGroups(sessions: Session[]) {
       custom: [],
     };
 
-    // Sort sessions by updatedAt descending
-    const sorted = [...sessions].sort((a, b) => 
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
+    // Sort sessions by updatedAt descending, avoid creating new Date per comparison
+    const sorted = [...sessions].sort((a, b) => {
+      const aTime = a.updatedAt instanceof Date ? a.updatedAt.getTime() : new Date(a.updatedAt).getTime();
+      const bTime = b.updatedAt instanceof Date ? b.updatedAt.getTime() : new Date(b.updatedAt).getTime();
+      return bTime - aTime;
+    });
 
     for (const session of sorted) {
-      const updatedAt = new Date(session.updatedAt);
+      const updatedAtTime = session.updatedAt instanceof Date
+        ? session.updatedAt.getTime()
+        : new Date(session.updatedAt).getTime();
 
       if (session.pinned) {
         groups.pinned.push(session);
-      } else if (updatedAt >= today) {
+      } else if (updatedAtTime >= dateBoundaries.today) {
         groups.today.push(session);
-      } else if (updatedAt >= yesterday) {
+      } else if (updatedAtTime >= dateBoundaries.yesterday) {
         groups.yesterday.push(session);
-      } else if (updatedAt >= lastWeek) {
+      } else if (updatedAtTime >= dateBoundaries.lastWeek) {
         groups.lastWeek.push(session);
       } else {
         groups.older.push(session);
@@ -166,7 +210,7 @@ export function useSessionGroups(sessions: Session[]) {
     }
 
     return groups;
-  }, [sessions]);
+  }, [sessions, dateBoundaries]);
 }
 
 export default SessionGroup;

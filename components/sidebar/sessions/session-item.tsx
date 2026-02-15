@@ -11,6 +11,16 @@ import { createDeepLink } from '@/lib/native/deep-link';
 import { useNativeStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -34,6 +44,7 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isDesktop = useNativeStore((state) => state.isDesktop);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
@@ -74,7 +85,12 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
   };
 
   const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
     deleteSession(session.id);
+    setShowDeleteConfirm(false);
   };
 
   const handleDuplicate = () => {
@@ -100,6 +116,7 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
   }
 
   return (
+    <>
     <div
       className={cn(
         'group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
@@ -187,6 +204,24 @@ export function SessionItem({ session, isActive, collapsed = false }: SessionIte
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('deleteConfirmTitle') || 'Delete conversation?'}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t('deleteConfirmDescription', { title: session.title }) || `"${session.title}" and all its messages will be permanently deleted.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {t('delete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

@@ -6,7 +6,7 @@
  * Full-featured screenshot editor with annotation tools.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { loggers } from '@/lib/logger';
@@ -51,10 +51,24 @@ export function ScreenshotEditor({
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
     null
   );
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [exportCanvasFn, setExportCanvasFn] = useState<(() => string | null) | null>(null);
   const [showMagnifier, setShowMagnifier] = useState(false);
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [canvasImageData, setCanvasImageData] = useState<ImageData | null>(null);
+
+  // Track container size via ResizeObserver (SSR-safe, responsive to window resize)
+  // Re-run when imageDimensions changes because containerRef div only mounts after image loads
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setContainerSize({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [imageDimensions]);
 
   // Store state
   const {
@@ -121,8 +135,28 @@ export function ScreenshotEditor({
     }
   }, [getFinalImageData]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     const finalData = getFinalImageData();
+    try {
+      // Use Tauri native save dialog when available
+      const { isTauri } = await import('@/lib/native/utils');
+      if (isTauri()) {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        const filePath = await save({
+          defaultPath: `screenshot-${Date.now()}.png`,
+          filters: [{ name: 'Images', extensions: ['png'] }],
+        });
+        if (filePath) {
+          const bytes = Uint8Array.from(atob(finalData), (c) => c.charCodeAt(0));
+          await writeFile(filePath, bytes);
+          return;
+        }
+      }
+    } catch {
+      // Fall through to browser download
+    }
+    // Fallback: browser download
     const link = document.createElement('a');
     link.href = `data:image/png;base64,${finalData}`;
     link.download = `screenshot-${Date.now()}.png`;
@@ -273,9 +307,9 @@ export function ScreenshotEditor({
     );
   }
 
-  // Calculate display dimensions (fit to viewport)
-  const maxWidth = window.innerWidth - 100;
-  const maxHeight = window.innerHeight - 200;
+  // Calculate display dimensions (fit to container)
+  const maxWidth = (containerSize.width || 800) - 100;
+  const maxHeight = (containerSize.height || 600) - 200;
   const scale = Math.min(
     maxWidth / imageDimensions.width,
     maxHeight / imageDimensions.height,

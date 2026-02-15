@@ -105,7 +105,7 @@ export function TaskDetails({
 
   const nextRunTimes = useMemo(() => {
     if (task.trigger.type === 'cron' && task.trigger.cronExpression) {
-      return getNextCronTimes(task.trigger.cronExpression, 5, new Date());
+      return getNextCronTimes(task.trigger.cronExpression, 5, new Date(), task.trigger.timezone);
     }
     return [];
   }, [task.trigger]);

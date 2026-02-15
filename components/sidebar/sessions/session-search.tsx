@@ -121,30 +121,29 @@ export function SessionSearch({ onResultsChange, collapsed, className }: Session
       // Search by query
       if (searchQuery.trim()) {
         const lowerQuery = searchQuery.toLowerCase();
-        const searchResults: Session[] = [];
+        const filteredIds = new Set(filtered.map(s => s.id));
 
-        for (const session of filtered) {
-          // Search in title
-          if (session.title.toLowerCase().includes(lowerQuery)) {
-            searchResults.push(session);
-            continue;
-          }
+        // Title matches
+        const titleMatches = filtered.filter(s =>
+          s.title.toLowerCase().includes(lowerQuery)
+        );
+        const titleMatchIds = new Set(titleMatches.map(s => s.id));
 
-          // Search in message content
-          try {
-            const messages = await messageRepository.getBySessionId(session.id);
-            const hasMatch = messages.some(m => 
-              m.content.toLowerCase().includes(lowerQuery)
-            );
-            if (hasMatch) {
-              searchResults.push(session);
-            }
-          } catch {
-            // Skip on error
-          }
+        // Message content matches via indexed search (avoids full-table scan)
+        try {
+          const messageResults = await messageRepository.searchMessages(searchQuery, {
+            sessionIds: filtered.filter(s => !titleMatchIds.has(s.id)).map(s => s.id),
+            limit: 100,
+          });
+          const messageMatchIds = new Set(messageResults.map(r => r.sessionId));
+
+          filtered = filtered.filter(s =>
+            titleMatchIds.has(s.id) || (messageMatchIds.has(s.id) && filteredIds.has(s.id))
+          );
+        } catch {
+          // Fallback to title-only matches on error
+          filtered = titleMatches;
         }
-
-        filtered = searchResults;
       }
 
       onResultsChange?.(filtered);

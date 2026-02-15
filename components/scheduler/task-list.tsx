@@ -5,7 +5,7 @@
  * Redesigned with left status border, colored type icons, and hover actions
  */
 
-import { useRef, useMemo } from 'react';
+import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslations } from 'next-intl';
 import {
@@ -113,22 +113,8 @@ export function TaskList({
     lessThanMinute: t('lessThanMinute') || '< 1 min',
   };
 
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      // Active tasks first
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (a.status !== 'active' && b.status === 'active') return 1;
-
-      // Then by next run time
-      if (a.nextRunAt && b.nextRunAt) {
-        return a.nextRunAt.getTime() - b.nextRunAt.getTime();
-      }
-      if (a.nextRunAt) return -1;
-      if (b.nextRunAt) return 1;
-
-      return 0;
-    });
-  }, [tasks]);
+  // Tasks are pre-sorted by the store (active-first + nextRunAt)
+  const sortedTasks = tasks;
 
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({

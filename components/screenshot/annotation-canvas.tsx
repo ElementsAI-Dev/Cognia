@@ -63,6 +63,7 @@ export function AnnotationCanvas({
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const cachedImageDataRef = useRef<ImageData | null>(null);
+  const renderRafRef = useRef<number | null>(null);
 
   // Dragging state
   const [isDragging, setIsDragging] = useState(false);
@@ -73,7 +74,7 @@ export function AnnotationCanvas({
   const [textInputPosition, setTextInputPosition] = useState<Point | null>(null);
 
   // Export canvas as base64 data URL (without selection highlight)
-  const exportCanvas = useCallback((): string | null => {
+  const exportCanvasRef = useRef<() => string | null>(() => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img) return null;
@@ -96,14 +97,14 @@ export function AnnotationCanvas({
     // Return as base64 (remove data:image/png;base64, prefix)
     const dataUrl = exportCanvas.toDataURL('image/png');
     return dataUrl.replace(/^data:image\/png;base64,/, '');
-  }, [width, height, annotations]);
+  });
 
   // Notify parent when canvas is ready
   useEffect(() => {
     if (onCanvasReady && imageRef.current) {
-      onCanvasReady(exportCanvas);
+      onCanvasReady(exportCanvasRef.current);
     }
-  }, [onCanvasReady, exportCanvas]);
+  }, [onCanvasReady, exportCanvasRef]);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
@@ -111,8 +112,8 @@ export function AnnotationCanvas({
   const freehandPointsRef = useRef<Array<[number, number]>>([]);
   const [freehandVersion, setFreehandVersion] = useState(0);
 
-  // Render main canvas
-  const renderCanvas = useCallback(() => {
+  // Core render function (called inside rAF)
+  const renderCanvasImmediate = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img) return;
@@ -127,26 +128,47 @@ export function AnnotationCanvas({
       drawAnnotation(ctx, annotation, annotation.id === selectedAnnotationId);
     });
 
-    // Cache ImageData for magnifier (avoids expensive getImageData on every mouse move)
-    cachedImageDataRef.current = ctx.getImageData(0, 0, width, height);
-  }, [annotations, width, height, selectedAnnotationId]);
+    // Only cache ImageData when magnifier is active (expensive operation)
+    if (onCursorMove) {
+      cachedImageDataRef.current = ctx.getImageData(0, 0, width, height);
+    }
+  }, [annotations, width, height, selectedAnnotationId, onCursorMove]);
+
+  // Schedule a render via rAF to coalesce rapid updates
+  const scheduleRender = useCallback(() => {
+    if (renderRafRef.current !== null) return; // already scheduled
+    renderRafRef.current = requestAnimationFrame(() => {
+      renderRafRef.current = null;
+      renderCanvasImmediate();
+    });
+  }, [renderCanvasImmediate]);
+
+  // Cleanup rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (renderRafRef.current !== null) {
+        cancelAnimationFrame(renderRafRef.current);
+      }
+    };
+  }, []);
 
   // Load image
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
       imageRef.current = img;
-      renderCanvas();
+      renderCanvasImmediate();
     };
     img.src = `data:image/png;base64,${imageData}`;
-  }, [imageData, renderCanvas]);
+  }, [imageData, renderCanvasImmediate]);
 
-  // Render when annotations change
+  // Schedule render when annotations or selection change
   useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]);
+    scheduleRender();
+  }, [scheduleRender]);
 
   // Create preview annotation helper
+  // freehandVersion is the proxy dep for freehandPointsRef (ref not in deps by design)
   const createPreviewAnnotation = useCallback((): Annotation | null => {
     if (!startPoint || !currentPoint) return null;
 
