@@ -2,7 +2,9 @@
 //!
 //! Monitors system resources and state.
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use sysinfo::Networks;
 
 /// System state information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,21 +84,23 @@ pub struct DisplayInfo {
 
 /// System monitor
 pub struct SystemMonitor {
-    #[cfg(target_os = "windows")]
-    _marker: std::marker::PhantomData<()>,
+    sys: Mutex<sysinfo::System>,
+    networks: Mutex<Networks>,
 }
 
 impl SystemMonitor {
     pub fn new() -> Self {
         log::debug!("Creating new SystemMonitor");
+        let mut sys = sysinfo::System::new_all();
+        // Initial CPU refresh so the first real call returns meaningful data
+        sys.refresh_cpu_all();
         Self {
-            #[cfg(target_os = "windows")]
-            _marker: std::marker::PhantomData,
+            sys: Mutex::new(sys),
+            networks: Mutex::new(Networks::new_with_refreshed_list()),
         }
     }
 
     /// Get current system state
-    #[cfg(target_os = "windows")]
     pub fn get_state(&self) -> SystemState {
         log::trace!("Retrieving system state");
         let state = SystemState {
@@ -121,49 +125,26 @@ impl SystemMonitor {
         state
     }
 
-    #[cfg(target_os = "windows")]
     fn get_cpu_usage(&self) -> f64 {
-        // Simplified CPU usage - would need PDH or WMI for accurate reading
-        0.0
+        use sysinfo::CpuRefreshKind;
+        let mut sys = self.sys.lock();
+        sys.refresh_cpu_specifics(CpuRefreshKind::nothing().with_cpu_usage());
+        let usage = sys.global_cpu_usage() as f64;
+        // Clamp to valid range
+        usage.clamp(0.0, 100.0)
     }
 
-    #[cfg(target_os = "windows")]
     fn get_memory_used(&self) -> u64 {
-        use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-
-        unsafe {
-            let mut mem_info = MEMORYSTATUSEX {
-                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
-                ..Default::default()
-            };
-
-            if GlobalMemoryStatusEx(&mut mem_info).is_ok() {
-                mem_info.ullTotalPhys - mem_info.ullAvailPhys
-            } else {
-                0
-            }
-        }
+        let mut sys = self.sys.lock();
+        sys.refresh_memory();
+        sys.used_memory()
     }
 
-    #[cfg(target_os = "windows")]
     fn get_memory_total(&self) -> u64 {
-        use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-
-        unsafe {
-            let mut mem_info = MEMORYSTATUSEX {
-                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
-                ..Default::default()
-            };
-
-            if GlobalMemoryStatusEx(&mut mem_info).is_ok() {
-                mem_info.ullTotalPhys
-            } else {
-                0
-            }
-        }
+        let sys = self.sys.lock();
+        sys.total_memory()
     }
 
-    #[cfg(target_os = "windows")]
     fn get_memory_percent(&self) -> f64 {
         let total = self.get_memory_total();
         if total > 0 {
@@ -173,67 +154,62 @@ impl SystemMonitor {
         }
     }
 
-    #[cfg(target_os = "windows")]
     fn get_disk_info(&self) -> Vec<DiskInfo> {
-        use windows::core::PCWSTR;
-        use windows::Win32::Storage::FileSystem::{GetDiskFreeSpaceExW, GetLogicalDrives};
-
-        let mut disks = Vec::new();
-
-        unsafe {
-            let drives = GetLogicalDrives();
-
-            for i in 0..26 {
-                if (drives & (1 << i)) != 0 {
-                    let letter = (b'A' + i as u8) as char;
-                    let path: Vec<u16> = format!("{}:\\", letter)
-                        .encode_utf16()
-                        .chain(std::iter::once(0))
-                        .collect();
-
-                    let mut free_bytes: u64 = 0;
-                    let mut total_bytes: u64 = 0;
-                    let mut total_free: u64 = 0;
-
-                    if GetDiskFreeSpaceExW(
-                        PCWSTR(path.as_ptr()),
-                        Some(&mut free_bytes),
-                        Some(&mut total_bytes),
-                        Some(&mut total_free),
-                    )
-                    .is_ok()
-                    {
-                        let used = total_bytes - free_bytes;
-                        let percent = if total_bytes > 0 {
-                            (used as f64 / total_bytes as f64) * 100.0
-                        } else {
-                            0.0
-                        };
-
-                        disks.push(DiskInfo {
-                            name: format!("{}:", letter),
-                            mount_point: format!("{}:\\", letter),
-                            total_bytes,
-                            used_bytes: used,
-                            free_bytes,
-                            usage_percent: percent,
-                        });
-                    }
+        use sysinfo::Disks;
+        let disks_list = Disks::new_with_refreshed_list();
+        disks_list
+            .iter()
+            .map(|d| {
+                let total = d.total_space();
+                let available = d.available_space();
+                let used = total.saturating_sub(available);
+                let percent = if total > 0 {
+                    (used as f64 / total as f64) * 100.0
+                } else {
+                    0.0
+                };
+                DiskInfo {
+                    name: d.name().to_string_lossy().to_string(),
+                    mount_point: d.mount_point().to_string_lossy().to_string(),
+                    total_bytes: total,
+                    used_bytes: used,
+                    free_bytes: available,
+                    usage_percent: percent,
                 }
+            })
+            .collect()
+    }
+
+    fn get_network_state(&self) -> NetworkState {
+        let mut networks = self.networks.lock();
+        networks.refresh(true);
+
+        let mut total_sent: u64 = 0;
+        let mut total_received: u64 = 0;
+        let mut has_interface = false;
+        let mut iface_name = String::new();
+
+        for (name, data) in networks.iter() {
+            has_interface = true;
+            total_sent += data.total_transmitted();
+            total_received += data.total_received();
+            // Pick first non-loopback interface name as connection type hint
+            if iface_name.is_empty() && !name.to_lowercase().contains("loopback") && !name.starts_with("lo") {
+                iface_name = name.clone();
             }
         }
 
-        disks
-    }
+        let connection_type = if iface_name.is_empty() {
+            "Unknown".to_string()
+        } else {
+            iface_name
+        };
 
-    #[cfg(target_os = "windows")]
-    fn get_network_state(&self) -> NetworkState {
-        // Simplified network state
         NetworkState {
-            is_connected: true,
-            connection_type: "Unknown".to_string(),
-            bytes_sent: 0,
-            bytes_received: 0,
+            is_connected: has_interface && (total_received > 0 || total_sent > 0),
+            connection_type,
+            bytes_sent: total_sent,
+            bytes_received: total_received,
         }
     }
 
@@ -275,47 +251,54 @@ impl SystemMonitor {
         }
     }
 
-    #[cfg(target_os = "windows")]
     fn get_uptime(&self) -> u64 {
-        use windows::Win32::System::SystemInformation::GetTickCount64;
-
-        unsafe { GetTickCount64() / 1000 }
+        sysinfo::System::uptime()
     }
 
-    #[cfg(target_os = "windows")]
     fn get_process_count(&self) -> u32 {
-        use windows::Win32::System::ProcessStatus::EnumProcesses;
-
-        unsafe {
-            let mut pids = vec![0u32; 1024];
-            let mut bytes_returned: u32 = 0;
-
-            if EnumProcesses(
-                pids.as_mut_ptr(),
-                (pids.len() * std::mem::size_of::<u32>()) as u32,
-                &mut bytes_returned,
-            )
-            .is_ok()
-            {
-                bytes_returned / std::mem::size_of::<u32>() as u32
-            } else {
-                0
-            }
-        }
+        use sysinfo::ProcessRefreshKind;
+        let mut sys = self.sys.lock();
+        sys.refresh_processes_specifics(
+            sysinfo::ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing(),
+        );
+        sys.processes().len() as u32
     }
 
     #[cfg(target_os = "windows")]
     fn get_power_mode(&self) -> PowerMode {
-        // Would need to query power scheme
-        PowerMode::Balanced
+        use windows::Win32::System::Power::GetSystemPowerStatus;
+        use windows::Win32::System::Power::SYSTEM_POWER_STATUS;
+
+        unsafe {
+            let mut status = SYSTEM_POWER_STATUS::default();
+            if GetSystemPowerStatus(&mut status).is_ok() {
+                // ACLineStatus: 0 = offline (battery), 1 = online (AC)
+                // SystemStatusFlag: 0 = no power saver, 1 = power saver active
+                if status.SystemStatusFlag == 1 {
+                    PowerMode::PowerSaver
+                } else if status.ACLineStatus == 1 {
+                    // On AC power — assume high performance or balanced
+                    PowerMode::HighPerformance
+                } else {
+                    PowerMode::Balanced
+                }
+            } else {
+                PowerMode::Unknown
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn get_power_mode(&self) -> PowerMode {
+        PowerMode::Unknown
     }
 
     #[cfg(target_os = "windows")]
     fn get_display_info(&self) -> Vec<DisplayInfo> {
         use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
-        use windows::Win32::Graphics::Gdi::{
-            EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
-        };
+        use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, HDC, HMONITOR};
 
         let mut displays = Vec::new();
 
@@ -325,6 +308,13 @@ impl SystemMonitor {
             _rect: *mut RECT,
             lparam: LPARAM,
         ) -> BOOL {
+            use windows::Win32::Graphics::Gdi::{
+                EnumDisplaySettingsW, MONITORINFOEXW, DEVMODEW, ENUM_CURRENT_SETTINGS,
+            };
+            use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
+            use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
+            use windows::core::PCWSTR;
+
             let displays = &mut *(lparam.0 as *mut Vec<DisplayInfo>);
 
             let mut info = MONITORINFOEXW {
@@ -347,14 +337,35 @@ impl SystemMonitor {
                         .unwrap_or(info.szDevice.len())],
                 );
 
+                // Get real refresh rate via EnumDisplaySettingsW
+                let mut devmode = DEVMODEW {
+                    dmSize: std::mem::size_of::<DEVMODEW>() as u16,
+                    ..Default::default()
+                };
+                let refresh_rate = if EnumDisplaySettingsW(
+                    PCWSTR(info.szDevice.as_ptr()),
+                    ENUM_CURRENT_SETTINGS,
+                    &mut devmode,
+                ).as_bool() {
+                    devmode.dmDisplayFrequency
+                } else {
+                    60
+                };
+
+                // Get real DPI / scale factor via GetDpiForMonitor
+                let mut dpi_x: u32 = 96;
+                let mut dpi_y: u32 = 96;
+                let _ = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y);
+                let scale_factor = dpi_x as f64 / 96.0;
+
                 displays.push(DisplayInfo {
                     index: displays.len(),
                     name,
                     width: (rect.right - rect.left) as u32,
                     height: (rect.bottom - rect.top) as u32,
-                    refresh_rate: 60, // Would need EnumDisplaySettings for actual rate
+                    refresh_rate,
                     is_primary,
-                    scale_factor: 1.0, // Would need GetDpiForMonitor
+                    scale_factor,
                 });
             }
 
@@ -373,28 +384,14 @@ impl SystemMonitor {
         displays
     }
 
-    // Non-Windows implementations
     #[cfg(not(target_os = "windows"))]
-    pub fn get_state(&self) -> SystemState {
-        log::trace!("Retrieving system state (non-Windows stub)");
-        SystemState {
-            cpu_usage: 0.0,
-            memory_used: 0,
-            memory_total: 0,
-            memory_percent: 0.0,
-            disks: Vec::new(),
-            network: NetworkState {
-                is_connected: false,
-                connection_type: "Unknown".to_string(),
-                bytes_sent: 0,
-                bytes_received: 0,
-            },
-            battery: None,
-            uptime_seconds: 0,
-            process_count: 0,
-            power_mode: PowerMode::Unknown,
-            displays: Vec::new(),
-        }
+    fn get_display_info(&self) -> Vec<DisplayInfo> {
+        Vec::new()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn get_battery_state(&self) -> Option<BatteryState> {
+        None
     }
 }
 

@@ -62,6 +62,19 @@ jest.mock('@/components/ui/input', () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input data-testid="rename-input" {...props} />,
 }));
 
+jest.mock('@/components/ui/alert-dialog', () => ({
+  AlertDialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => open ? <div data-testid="alert-dialog">{children}</div> : null,
+  AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  AlertDialogCancel: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  AlertDialogAction: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button data-testid="confirm-delete" onClick={onClick}>{children}</button>
+  ),
+}));
+
 describe('SessionItem', () => {
   const mockSession: Session = {
     id: 'session-1',
@@ -119,9 +132,18 @@ describe('SessionItem', () => {
     expect(mockDuplicateSession).toHaveBeenCalledWith('session-1');
   });
 
-  it('calls deleteSession when Delete is clicked', () => {
+  it('shows confirmation dialog when Delete is clicked', () => {
     render(<SessionItem {...defaultProps} />);
     fireEvent.click(screen.getByText('Delete'));
+    // Confirmation dialog should appear, deleteSession not called yet
+    expect(mockDeleteSession).not.toHaveBeenCalled();
+    expect(screen.getByTestId('alert-dialog')).toBeInTheDocument();
+  });
+
+  it('calls deleteSession when delete is confirmed', () => {
+    render(<SessionItem {...defaultProps} />);
+    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(screen.getByTestId('confirm-delete'));
     expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
   });
 

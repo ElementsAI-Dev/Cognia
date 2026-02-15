@@ -560,8 +560,20 @@ pub fn run() {
 
             // Initialize Jupyter State
             let jupyter_state = JupyterState::new();
+            let jupyter_cleanup_state = jupyter_state.clone();
             app.manage(jupyter_state);
             log::info!("Jupyter state initialized");
+
+            // Periodic Jupyter kernel cleanup (every 5 minutes)
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+                interval.tick().await; // skip first immediate tick
+                loop {
+                    interval.tick().await;
+                    log::debug!("Running periodic Jupyter kernel cleanup");
+                    jupyter_cleanup_state.perform_cleanup().await;
+                }
+            });
 
             // Initialize Git Credentials Manager
             let git_credentials_state: commands::devtools::git_credentials::CredentialManagerState =
@@ -814,40 +826,37 @@ pub fn run() {
             commands::window::selection::selection_export_history,
             commands::window::selection::selection_import_history,
             // Clipboard history commands
-            commands::window::selection::clipboard_get_history,
-            commands::window::selection::clipboard_search_history,
-            commands::window::selection::clipboard_get_pinned,
-            commands::window::selection::clipboard_pin_entry,
-            commands::window::selection::clipboard_unpin_entry,
-            commands::window::selection::clipboard_delete_entry,
-            commands::window::selection::clipboard_clear_unpinned,
-            commands::window::selection::clipboard_clear_all,
-            commands::window::selection::clipboard_copy_entry,
-            commands::window::selection::clipboard_check_update,
+            commands::window::clipboard_commands::clipboard_get_history,
+            commands::window::clipboard_commands::clipboard_search_history,
+            commands::window::clipboard_commands::clipboard_get_pinned,
+            commands::window::clipboard_commands::clipboard_pin_entry,
+            commands::window::clipboard_commands::clipboard_unpin_entry,
+            commands::window::clipboard_commands::clipboard_delete_entry,
+            commands::window::clipboard_commands::clipboard_clear_unpinned,
+            commands::window::clipboard_commands::clipboard_clear_all,
+            commands::window::clipboard_commands::clipboard_copy_entry,
+            commands::window::clipboard_commands::clipboard_check_update,
             // Clipboard context awareness commands
-            commands::window::selection::clipboard_analyze_content,
-            commands::window::selection::clipboard_get_current_with_analysis,
-            commands::window::selection::clipboard_transform_content,
-            commands::window::selection::clipboard_write_text,
-            commands::window::selection::clipboard_read_text,
-            commands::window::selection::clipboard_write_html,
-            commands::window::selection::clipboard_clear,
-            commands::window::selection::clipboard_get_suggested_actions,
-            commands::window::selection::clipboard_extract_entities,
-            commands::window::selection::clipboard_check_sensitive,
-            commands::window::selection::clipboard_get_stats,
-            commands::window::selection::clipboard_detect_category,
-            commands::window::selection::clipboard_detect_language,
+            commands::window::clipboard_commands::clipboard_analyze_content,
+            commands::window::clipboard_commands::clipboard_get_current_with_analysis,
+            commands::window::clipboard_commands::clipboard_transform_content,
+            commands::window::clipboard_commands::clipboard_write_text,
+            commands::window::clipboard_commands::clipboard_read_text,
+            commands::window::clipboard_commands::clipboard_write_html,
+            commands::window::clipboard_commands::clipboard_clear,
+            commands::window::clipboard_commands::clipboard_get_suggested_actions,
+            commands::window::clipboard_commands::clipboard_extract_entities,
+            commands::window::clipboard_commands::clipboard_check_sensitive,
+            commands::window::clipboard_commands::clipboard_get_stats,
+            commands::window::clipboard_commands::clipboard_detect_category,
+            commands::window::clipboard_commands::clipboard_detect_language,
             // Smart selection commands
-            commands::window::selection::selection_smart_expand,
-            commands::window::selection::selection_auto_expand,
-            commands::window::selection::selection_get_modes,
-            // AI processing commands
-            commands::window::selection::selection_ai_process,
-            commands::window::selection::selection_ai_process_stream,
-            commands::window::selection::selection_detect_text_type,
+            commands::window::smart_selection_commands::selection_smart_expand,
+            commands::window::smart_selection_commands::selection_auto_expand,
+            commands::window::smart_selection_commands::selection_get_modes,
+            // Text type detection & toolbar config
+            commands::window::smart_selection_commands::selection_detect_text_type,
             commands::window::selection::selection_get_toolbar_config,
-            commands::window::selection::selection_set_theme,
             commands::window::selection::selection_get_stats_summary,
             commands::window::selection::selection_time_since_last_detection,
             commands::window::selection::selection_get_last_text,
@@ -1162,6 +1171,7 @@ pub fn run() {
             commands::media::screen_recording::ffmpeg_check_hardware_acceleration,
             commands::media::screen_recording::ffmpeg_check_version,
             // Storage management commands
+            commands::media::screen_recording::storage_get_aggregated_status,
             commands::media::screen_recording::storage_get_stats,
             commands::media::screen_recording::storage_get_config,
             commands::media::screen_recording::storage_update_config,

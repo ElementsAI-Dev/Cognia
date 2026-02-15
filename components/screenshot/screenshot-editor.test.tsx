@@ -125,18 +125,25 @@ global.ClipboardItem = class MockClipboardItem {
   }
 } as unknown as typeof ClipboardItem;
 
-// Mock window dimensions
-Object.defineProperty(window, 'innerWidth', {
-  writable: true,
-  configurable: true,
-  value: 1920,
-});
-
-Object.defineProperty(window, 'innerHeight', {
-  writable: true,
-  configurable: true,
-  value: 1080,
-});
+// Mock ResizeObserver (not available in JSDOM)
+let resizeObserverCallback: ResizeObserverCallback | null = null;
+class MockResizeObserver {
+  constructor(callback: ResizeObserverCallback) {
+    resizeObserverCallback = callback;
+  }
+  observe() {
+    // Simulate initial observation with default size
+    if (resizeObserverCallback) {
+      resizeObserverCallback(
+        [{ contentRect: { width: 1920, height: 1080 } } as unknown as ResizeObserverEntry],
+        this as unknown as ResizeObserver
+      );
+    }
+  }
+  unobserve() {}
+  disconnect() { resizeObserverCallback = null; }
+}
+global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
 // Mock navigator.clipboard.write
 const mockClipboardWrite = jest.fn();
@@ -225,9 +232,6 @@ describe('ScreenshotEditor', () => {
       if (selector === selectAnnotationCount) return 0;
       return defaultMockState as unknown as ReturnType<typeof useEditorStore>;
     });
-    // Reset window dimensions
-    window.innerWidth = 1920;
-    window.innerHeight = 1080;
   });
 
   afterEach(() => {
@@ -386,10 +390,11 @@ describe('ScreenshotEditor', () => {
   });
 
   describe('Image Dimension Calculation', () => {
-    it('should calculate display dimensions to fit viewport', async () => {
-      window.innerWidth = 1000;
-      window.innerHeight = 800;
-
+    it('should calculate display dimensions to fit container', async () => {
+      // ResizeObserver mock fires with 1920x1080
+      // maxWidth = 1920 - 100 = 1820, maxHeight = 1080 - 200 = 880
+      // Image is 800x600, scale = min(1820/800, 880/600, 1) = min(2.275, 1.467, 1) = 1
+      // So display size should be 800x600 (no scaling needed)
       mockUseEditorStore.mockReturnValue(defaultMockState as unknown as ReturnType<typeof useEditorStore>);
 
       const { container } = render(
@@ -404,23 +409,16 @@ describe('ScreenshotEditor', () => {
         const canvasArea = container.querySelector('[style*="width"]') as HTMLElement;
         expect(canvasArea).toBeTruthy();
         const style = canvasArea?.style;
-        // Max width is 1000 - 100 = 900
-        // Max height is 800 - 200 = 600
-        // Scale should be min(900/800, 600/600, 1) = min(1.125, 1, 1) = 1
-        // So display size should be 800x600
         expect(style?.width).toBe('800px');
         expect(style?.height).toBe('600px');
       });
     });
 
-    it('should scale down large images', async () => {
-      window.innerWidth = 500;
-      window.innerHeight = 400;
-
+    it('should scale down large images to fit container', async () => {
       // Create a large mock image
       class LargeMockImage extends MockImage {
-        width = 2000;
-        height = 1500;
+        width = 4000;
+        height = 3000;
       }
       global.Image = LargeMockImage as unknown as typeof Image;
 
@@ -438,12 +436,11 @@ describe('ScreenshotEditor', () => {
         const canvasArea = container.querySelector('[style*="width"]') as HTMLElement;
         expect(canvasArea).toBeTruthy();
         const style = canvasArea?.style;
-        // Max width is 500 - 100 = 400
-        // Max height is 400 - 200 = 200
-        // Scale should be min(400/2000, 200/1500, 1) = min(0.2, 0.133, 1) = 0.133
-        // So display size should be approximately 266x200
-        expect(parseFloat(style?.width || '0')).toBeLessThan(400);
-        expect(parseFloat(style?.height || '0')).toBeLessThanOrEqual(200);
+        // maxWidth = 1920 - 100 = 1820, maxHeight = 1080 - 200 = 880
+        // scale = min(1820/4000, 880/3000, 1) = min(0.455, 0.293, 1) = 0.293
+        // displayWidth = 4000 * 0.293 = ~1173, displayHeight = 3000 * 0.293 = ~880
+        expect(parseFloat(style?.width || '0')).toBeLessThan(1920);
+        expect(parseFloat(style?.height || '0')).toBeLessThanOrEqual(880);
       });
     });
   });

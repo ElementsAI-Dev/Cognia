@@ -4,7 +4,7 @@
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 /// Focus session information
@@ -63,7 +63,7 @@ pub struct FocusTracker {
     /// Current focus session
     current_session: Arc<RwLock<Option<FocusSession>>>,
     /// Recent focus sessions
-    sessions: Arc<RwLock<Vec<FocusSession>>>,
+    sessions: Arc<RwLock<VecDeque<FocusSession>>>,
     /// Maximum sessions to keep
     max_sessions: usize,
     /// Whether tracking is enabled
@@ -75,7 +75,7 @@ impl FocusTracker {
         log::debug!("Creating new FocusTracker with max_sessions=1000");
         Self {
             current_session: Arc::new(RwLock::new(None)),
-            sessions: Arc::new(RwLock::new(Vec::new())),
+            sessions: Arc::new(RwLock::new(VecDeque::new())),
             max_sessions: 1000,
             is_tracking: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
@@ -158,11 +158,11 @@ impl FocusTracker {
 
             // Add to history
             let mut sessions = self.sessions.write();
-            sessions.push(session);
+            sessions.push_back(session);
 
             // Trim if needed
             while sessions.len() > self.max_sessions {
-                sessions.remove(0);
+                sessions.pop_front();
             }
         }
     }
@@ -187,7 +187,7 @@ impl FocusTracker {
 
     /// Get all sessions
     pub fn get_all_sessions(&self) -> Vec<FocusSession> {
-        self.sessions.read().clone()
+        self.sessions.read().iter().cloned().collect()
     }
 
     /// Get usage statistics for an application

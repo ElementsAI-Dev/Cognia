@@ -1,15 +1,14 @@
 //! Screen Recording Tauri commands
 
 use crate::screen_recording::{
-    ffmpeg, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo, FFmpegInstallGuide,
-    HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry, RecordingMetadata,
-    RecordingRegion, RecordingStats, RecordingStatus, RecordingToolbar, RecordingToolbarConfig,
-    RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig, StorageFile,
-    StorageFileType, StorageStats, ToolbarPosition, VideoConvertOptions, VideoInfo,
+    ffmpeg, AggregatedStorageStatus, AudioDevices, CleanupResult, EncodingSupport, FFmpegInfo,
+    FFmpegInstallGuide, HardwareAcceleration, MonitorInfo, RecordingConfig, RecordingHistoryEntry,
+    RecordingMetadata, RecordingRegion, RecordingStats, RecordingStatus, RecordingToolbar,
+    RecordingToolbarConfig, RecordingToolbarState, ScreenRecordingManager, SnapEdge, StorageConfig,
+    StorageFile, StorageFileType, StorageStats, ToolbarPosition, VideoConvertOptions, VideoInfo,
     VideoProcessingResult, VideoProcessor, VideoTrimOptions,
 };
 use tauri::State;
-use parking_lot::RwLock;
 
 /// Get current recording status
 #[tauri::command]
@@ -288,14 +287,9 @@ pub async fn video_check_encoding_support() -> Result<EncodingSupport, String> {
 }
 
 /// Cancel ongoing video processing
-/// Note: This currently returns false as FFmpeg processes run synchronously.
-/// For true cancellation, processing would need to be refactored to run in background tasks.
 #[tauri::command]
 pub async fn video_cancel_processing() -> Result<bool, String> {
-    log::info!("Video processing cancellation requested");
-    // Currently video processing runs synchronously via Command::output()
-    // True cancellation would require spawning processes and tracking them
-    Ok(false)
+    Ok(VideoProcessor::cancel_processing())
 }
 
 // ==================== FFmpeg Commands ====================
@@ -335,6 +329,14 @@ pub async fn storage_get_stats(
     Ok(manager.get_storage_stats())
 }
 
+/// Get aggregated storage status (stats + usage + exceeded + config in one call)
+#[tauri::command]
+pub async fn storage_get_aggregated_status(
+    manager: State<'_, ScreenRecordingManager>,
+) -> Result<AggregatedStorageStatus, String> {
+    Ok(manager.get_aggregated_storage_status())
+}
+
 /// Get storage configuration
 #[tauri::command]
 pub async fn storage_get_config(
@@ -346,10 +348,10 @@ pub async fn storage_get_config(
 /// Update storage configuration
 #[tauri::command]
 pub async fn storage_update_config(
-    manager: State<'_, RwLock<ScreenRecordingManager>>,
+    manager: State<'_, ScreenRecordingManager>,
     config: StorageConfig,
 ) -> Result<(), String> {
-    manager.write().update_storage_config(config);
+    manager.update_storage_config(config);
     Ok(())
 }
 

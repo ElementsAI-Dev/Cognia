@@ -63,7 +63,6 @@ type SuggestionConditionFn =
 
 /// A rule for generating suggestions
 struct SuggestionRule {
-    #[allow(dead_code)]
     name: String,
     condition: SuggestionConditionFn,
 }
@@ -360,6 +359,7 @@ impl SmartSuggestions {
             if let Some(suggestion) = (rule.condition)(system, activities) {
                 // Skip dismissed suggestions
                 if !self.dismissed.read().contains(&suggestion.action) {
+                    log::trace!("Rule '{}' triggered: {}", rule.name, suggestion.title);
                     suggestions.push(suggestion);
                 }
             }

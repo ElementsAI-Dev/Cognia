@@ -5,10 +5,11 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Maximum number of screenshots to keep in memory
-const MAX_SCREENSHOT_HISTORY: usize = 20;
+/// Maximum number of screenshots to keep in history
+const MAX_SCREENSHOT_HISTORY: usize = 100;
 
 /// Screenshot history entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,6 +100,7 @@ impl ScreenshotHistoryEntry {
 pub struct ScreenshotHistory {
     entries: Arc<RwLock<VecDeque<ScreenshotHistoryEntry>>>,
     max_size: usize,
+    persist_path: Option<PathBuf>,
 }
 
 impl ScreenshotHistory {
@@ -106,22 +108,78 @@ impl ScreenshotHistory {
         Self {
             entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_SCREENSHOT_HISTORY))),
             max_size: MAX_SCREENSHOT_HISTORY,
+            persist_path: None,
+        }
+    }
+
+    /// Create with file persistence. Loads existing history from disk.
+    pub fn new_with_persistence(path: PathBuf) -> Self {
+        let mut hist = Self {
+            entries: Arc::new(RwLock::new(VecDeque::with_capacity(MAX_SCREENSHOT_HISTORY))),
+            max_size: MAX_SCREENSHOT_HISTORY,
+            persist_path: Some(path),
+        };
+        hist.load_from_disk();
+        hist
+    }
+
+    /// Save history to disk as JSON
+    fn save_to_disk(&self) {
+        if let Some(ref path) = self.persist_path {
+            let entries = self.entries.read();
+            let data: Vec<&ScreenshotHistoryEntry> = entries.iter().collect();
+            match serde_json::to_string(&data) {
+                Ok(json) => {
+                    if let Some(parent) = path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    if let Err(e) = std::fs::write(path, json) {
+                        log::warn!("Failed to persist screenshot history: {}", e);
+                    }
+                }
+                Err(e) => log::warn!("Failed to serialize screenshot history: {}", e),
+            }
+        }
+    }
+
+    /// Load history from disk
+    fn load_from_disk(&mut self) {
+        if let Some(ref path) = self.persist_path {
+            if path.exists() {
+                match std::fs::read_to_string(path) {
+                    Ok(json) => match serde_json::from_str::<Vec<ScreenshotHistoryEntry>>(&json) {
+                        Ok(loaded) => {
+                            let mut entries = self.entries.write();
+                            entries.clear();
+                            for entry in loaded {
+                                entries.push_back(entry);
+                            }
+                            log::info!("Loaded {} screenshot history entries", entries.len());
+                        }
+                        Err(e) => log::warn!("Failed to parse screenshot history: {}", e),
+                    },
+                    Err(e) => log::warn!("Failed to read screenshot history file: {}", e),
+                }
+            }
         }
     }
 
     /// Add a new entry
     pub fn add(&self, entry: ScreenshotHistoryEntry) {
-        let mut entries = self.entries.write();
-        entries.push_front(entry);
+        {
+            let mut entries = self.entries.write();
+            entries.push_front(entry);
 
-        // Remove old non-pinned entries if over limit
-        while entries.len() > self.max_size {
-            if let Some(pos) = entries.iter().rposition(|e| !e.is_pinned) {
-                entries.remove(pos);
-            } else {
-                entries.pop_back();
+            // Remove old non-pinned entries if over limit
+            while entries.len() > self.max_size {
+                if let Some(pos) = entries.iter().rposition(|e| !e.is_pinned) {
+                    entries.remove(pos);
+                } else {
+                    entries.pop_back();
+                }
             }
         }
+        self.save_to_disk();
     }
 
     /// Get recent entries
@@ -181,79 +239,107 @@ impl ScreenshotHistory {
 
     /// Pin an entry
     pub fn pin_entry(&self, id: &str) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
-            entry.pin();
-            true
-        } else {
-            false
-        }
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+                entry.pin();
+                true
+            } else {
+                false
+            }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Unpin an entry
     pub fn unpin_entry(&self, id: &str) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
-            entry.unpin();
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+                entry.unpin();
             true
         } else {
             false
         }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Delete an entry
     pub fn delete_entry(&self, id: &str) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(pos) = entries.iter().position(|e| e.id == id) {
-            entries.remove(pos);
-            true
-        } else {
-            false
-        }
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(pos) = entries.iter().position(|e| e.id == id) {
+                entries.remove(pos);
+                true
+            } else {
+                false
+            }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Update entry label
     pub fn update_label(&self, id: &str, label: String) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
-            entry.set_label(label);
-            true
-        } else {
-            false
-        }
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+                entry.set_label(label);
+                true
+            } else {
+                false
+            }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Add tag to entry
     pub fn add_tag(&self, id: &str, tag: String) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
-            entry.add_tag(tag);
-            true
-        } else {
-            false
-        }
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+                entry.add_tag(tag);
+                true
+            } else {
+                false
+            }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Remove tag from entry
     pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
-        let mut entries = self.entries.write();
-        if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
-            entry.tags.retain(|t| t != tag);
-            true
-        } else {
-            false
-        }
+        let result = {
+            let mut entries = self.entries.write();
+            if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+                entry.tags.retain(|t| t != tag);
+                true
+            } else {
+                false
+            }
+        };
+        if result { self.save_to_disk(); }
+        result
     }
 
     /// Clear all non-pinned entries
     pub fn clear_unpinned(&self) {
-        let mut entries = self.entries.write();
-        entries.retain(|e| e.is_pinned);
+        {
+            let mut entries = self.entries.write();
+            entries.retain(|e| e.is_pinned);
+        }
+        self.save_to_disk();
     }
 
     /// Clear all entries
     pub fn clear_all(&self) {
         self.entries.write().clear();
+        self.save_to_disk();
     }
 
     /// Get history size
@@ -509,12 +595,12 @@ mod tests {
         let history = ScreenshotHistory::new();
 
         // Add more than MAX_SCREENSHOT_HISTORY entries
-        for i in 0..25 {
+        for i in 0..110 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
 
-        // Should be capped at MAX_SCREENSHOT_HISTORY (20)
-        assert!(history.len() <= 20);
+        // Should be capped at MAX_SCREENSHOT_HISTORY (100)
+        assert!(history.len() <= MAX_SCREENSHOT_HISTORY);
     }
 
     #[test]
@@ -528,7 +614,7 @@ mod tests {
         history.pin_entry(&pinned_id);
 
         // Add many more entries to trigger overflow
-        for i in 0..25 {
+        for i in 0..110 {
             history.add(ScreenshotHistoryEntry::new(i as u32, i as u32, "region"));
         }
 
@@ -586,5 +672,68 @@ mod tests {
 
         let all = history.get_all();
         assert_eq!(all.len(), 5);
+    }
+
+    #[test]
+    fn test_persistence_save_and_load() {
+        let dir = std::env::temp_dir().join(format!("cognia-test-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("screenshot-history.json");
+
+        // Create history with persistence and add entries
+        {
+            let history = ScreenshotHistory::new_with_persistence(path.clone());
+            let entry1 = ScreenshotHistoryEntry::new(1920, 1080, "fullscreen")
+                .with_window_title("Test Window".to_string());
+            let id1 = entry1.id.clone();
+            history.add(entry1);
+
+            let entry2 = ScreenshotHistoryEntry::new(800, 600, "region");
+            history.add(entry2);
+
+            history.pin_entry(&id1);
+
+            assert_eq!(history.len(), 2);
+            assert!(path.exists(), "History file should be created on disk");
+        }
+
+        // Load history from disk in a new instance
+        {
+            let history = ScreenshotHistory::new_with_persistence(path.clone());
+            assert_eq!(history.len(), 2, "Should load 2 entries from disk");
+
+            let pinned = history.get_pinned();
+            assert_eq!(pinned.len(), 1, "Pinned state should persist");
+            assert_eq!(pinned[0].width, 1920);
+            assert_eq!(pinned[0].window_title, Some("Test Window".to_string()));
+        }
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_persistence_missing_file() {
+        let path = std::env::temp_dir().join(format!("cognia-nonexistent-{}.json", uuid::Uuid::new_v4()));
+
+        // Should not panic when file doesn't exist
+        let history = ScreenshotHistory::new_with_persistence(path);
+        assert!(history.is_empty());
+    }
+
+    #[test]
+    fn test_persistence_corrupt_file() {
+        let dir = std::env::temp_dir().join(format!("cognia-test-corrupt-{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("screenshot-history.json");
+
+        // Write invalid JSON
+        std::fs::write(&path, "not valid json{{").unwrap();
+
+        // Should not panic, just start with empty history
+        let history = ScreenshotHistory::new_with_persistence(path);
+        assert!(history.is_empty());
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

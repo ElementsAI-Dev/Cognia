@@ -45,6 +45,7 @@ pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
 /// Screenshot configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,12 +129,21 @@ pub struct ScreenshotManager {
 
 impl ScreenshotManager {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
+        // Resolve persistent history file path from app data dir
+        let history = if let Ok(data_dir) = app_handle.path().app_data_dir() {
+            let history_path = data_dir.join("screenshot-history.json");
+            ScreenshotHistory::new_with_persistence(history_path)
+        } else {
+            log::warn!("Could not resolve app data dir; screenshot history will not persist");
+            ScreenshotHistory::new()
+        };
+
         Self {
             config: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotConfig::default())),
             capture: ScreenshotCapture::new(),
             ocr_engine: OcrEngine::new().ok(),
             windows_ocr: std::sync::Arc::new(parking_lot::RwLock::new(WindowsOcr::new())),
-            history: ScreenshotHistory::new(),
+            history,
             window_manager: std::sync::Arc::new(parking_lot::RwLock::new(WindowManager::new())),
             annotator: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotAnnotator::new(0, 0))),
             app_handle,
@@ -343,6 +353,34 @@ impl ScreenshotManager {
         self.history.update_label(id, label)
     }
 
+    /// Generate a proper thumbnail by resizing the image data
+    fn generate_thumbnail(image_data: &[u8], max_width: u32) -> Result<String, String> {
+        use image::ImageReader;
+        use std::io::Cursor;
+
+        let img = ImageReader::new(Cursor::new(image_data))
+            .with_guessed_format()
+            .map_err(|e| format!("Failed to read image format: {}", e))?
+            .decode()
+            .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+        let (w, h) = (img.width(), img.height());
+        let thumb = if w > max_width {
+            let new_h = (h as f64 * max_width as f64 / w as f64) as u32;
+            img.thumbnail(max_width, new_h)
+        } else {
+            img
+        };
+
+        let mut buf = Vec::new();
+        let mut cursor = Cursor::new(&mut buf);
+        thumb
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode thumbnail: {}", e))?;
+
+        Ok(base64::engine::general_purpose::STANDARD.encode(&buf))
+    }
+
     /// Add screenshot to history with enriched metadata using builder methods
     fn add_to_history(&self, result: &ScreenshotResult) {
         let mut entry = ScreenshotHistoryEntry::new(
@@ -363,10 +401,16 @@ impl ScreenshotManager {
             entry = entry.with_ocr_text(ocr_text.clone());
         }
 
-        // Generate thumbnail from image data
+        // Generate actual thumbnail from image data
         if !result.image_data.is_empty() {
-            let thumb = base64::engine::general_purpose::STANDARD.encode(&result.image_data[..result.image_data.len().min(4096)]);
-            entry = entry.with_thumbnail(thumb);
+            match Self::generate_thumbnail(&result.image_data, 256) {
+                Ok(thumb_base64) => {
+                    entry = entry.with_thumbnail(thumb_base64);
+                }
+                Err(e) => {
+                    log::warn!("Failed to generate thumbnail: {}", e);
+                }
+            }
         }
 
         self.history.add(entry);
