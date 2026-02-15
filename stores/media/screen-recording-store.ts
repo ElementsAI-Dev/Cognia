@@ -115,6 +115,10 @@ interface ScreenRecordingState {
   // Event listener cleanup functions
   _eventListeners: UnlistenFn[];
   _durationTimer: ReturnType<typeof setInterval> | null;
+  // Client-side duration tracking
+  _recordingStartedAt: number | null;
+  _totalPausedMs: number;
+  _pauseStartedAt: number | null;
 }
 
 interface ScreenRecordingActions {
@@ -214,6 +218,9 @@ const initialState: ScreenRecordingState = {
   error: null,
   _eventListeners: [],
   _durationTimer: null,
+  _recordingStartedAt: null,
+  _totalPausedMs: 0,
+  _pauseStartedAt: null,
 };
 
 export const useScreenRecordingStore = create<ScreenRecordingStore>()(
@@ -306,18 +313,18 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         const listeners: UnlistenFn[] = [];
 
         try {
-          // Duration polling helpers
+          // Client-side duration calculation (no IPC polling)
           const startDurationTimer = () => {
             const existing = get()._durationTimer;
             if (existing) clearInterval(existing);
-            const timer = setInterval(async () => {
-              try {
-                const dur = await getRecordingDuration();
-                set({ duration: dur });
-              } catch {
-                // Ignore polling errors
+            const timer = setInterval(() => {
+              const state = get();
+              if (state._recordingStartedAt && state.status === 'Recording') {
+                const now = performance.now();
+                const elapsed = now - state._recordingStartedAt - state._totalPausedMs;
+                set({ duration: Math.max(0, Math.round(elapsed)) });
               }
-            }, 1000);
+            }, 200);
             set({ _durationTimer: timer });
           };
 
@@ -336,18 +343,39 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             duration_ms: number;
           }>('recording-status-changed', (event) => {
             const newStatus = event.payload.status;
-            set({
+            const prevStatus = get().status;
+
+            const updates: Partial<ScreenRecordingState> = {
               status: newStatus,
               recordingId: event.payload.recording_id,
               duration: event.payload.duration_ms,
-            });
-            // Start/stop duration polling based on status
-            if (newStatus === 'Recording') {
+            };
+
+            if (newStatus === 'Recording' && prevStatus !== 'Recording') {
+              if (prevStatus === 'Paused') {
+                // Resuming: accumulate paused duration
+                const pauseStart = get()._pauseStartedAt;
+                if (pauseStart) {
+                  updates._totalPausedMs = get()._totalPausedMs + (performance.now() - pauseStart);
+                }
+                updates._pauseStartedAt = null;
+              } else {
+                // Fresh start: calibrate with backend duration
+                updates._recordingStartedAt = performance.now() - event.payload.duration_ms;
+                updates._totalPausedMs = 0;
+                updates._pauseStartedAt = null;
+              }
               startDurationTimer();
+            } else if (newStatus === 'Paused') {
+              updates._pauseStartedAt = performance.now();
             } else if (newStatus === 'Idle') {
               stopDurationTimer();
+              updates._recordingStartedAt = null;
+              updates._totalPausedMs = 0;
+              updates._pauseStartedAt = null;
             }
-            // Keep timer running during Paused - paused time is tracked server-side
+
+            set(updates);
           });
           listeners.push(unlistenStatus);
 

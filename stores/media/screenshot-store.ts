@@ -415,33 +415,47 @@ export const useScreenshotStore = create<ScreenshotStore>()(
       pinScreenshot: async (id) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        // Optimistic update
+        set({
+          history: prev.map((e) => (e.id === id ? { ...e, isPinned: true } : e)),
+          pinnedCount: prev.filter((e) => e.isPinned).length + 1,
+        });
         try {
           await screenshotApi.pinScreenshot(id);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to pin' });
+          set({ history: prev, pinnedCount: prev.filter((e) => e.isPinned).length, error: error instanceof Error ? error.message : 'Failed to pin' });
         }
       },
 
       unpinScreenshot: async (id) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        set({
+          history: prev.map((e) => (e.id === id ? { ...e, isPinned: false } : e)),
+          pinnedCount: Math.max(0, prev.filter((e) => e.isPinned).length - 1),
+        });
         try {
           await screenshotApi.unpinScreenshot(id);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to unpin' });
+          set({ history: prev, pinnedCount: prev.filter((e) => e.isPinned).length, error: error instanceof Error ? error.message : 'Failed to unpin' });
         }
       },
 
       deleteScreenshot: async (id) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        const filtered = prev.filter((e) => e.id !== id);
+        set({
+          history: filtered,
+          pinnedCount: filtered.filter((e) => e.isPinned).length,
+        });
         try {
           await screenshotApi.deleteScreenshot(id);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to delete' });
+          set({ history: prev, pinnedCount: prev.filter((e) => e.isPinned).length, error: error instanceof Error ? error.message : 'Failed to delete' });
         }
       },
 
@@ -459,33 +473,36 @@ export const useScreenshotStore = create<ScreenshotStore>()(
       addTag: async (id, tag) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        set({ history: prev.map((e) => (e.id === id ? { ...e, tags: [...e.tags, tag] } : e)) });
         try {
           await screenshotApi.addTag(id, tag);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to add tag' });
+          set({ history: prev, error: error instanceof Error ? error.message : 'Failed to add tag' });
         }
       },
 
       removeTag: async (id, tag) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        set({ history: prev.map((e) => (e.id === id ? { ...e, tags: e.tags.filter((t) => t !== tag) } : e)) });
         try {
           await screenshotApi.removeTag(id, tag);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to remove tag' });
+          set({ history: prev, error: error instanceof Error ? error.message : 'Failed to remove tag' });
         }
       },
 
       setLabel: async (id, label) => {
         if (!isTauri()) return;
 
+        const prev = get().history;
+        set({ history: prev.map((e) => (e.id === id ? { ...e, label } : e)) });
         try {
           await screenshotApi.setLabel(id, label);
-          await get().refreshHistory();
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to set label' });
+          set({ history: prev, error: error instanceof Error ? error.message : 'Failed to set label' });
         }
       },
 

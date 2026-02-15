@@ -59,6 +59,7 @@ jest.mock('@/lib/native/screen-recording', () => ({
     show_indicator: true,
     max_duration: 0,
     pause_on_minimize: false,
+    use_hardware_acceleration: true,
   }),
   updateRecordingConfig: jest.fn().mockResolvedValue(undefined),
   getRecordingMonitors: jest.fn().mockResolvedValue([
@@ -93,6 +94,20 @@ jest.mock('@/lib/native/screen-recording', () => ({
   getRecordingById: jest.fn().mockResolvedValue(null),
   searchRecordingsByTag: jest.fn().mockResolvedValue([]),
   updateRecordingToolbarState: jest.fn().mockResolvedValue(undefined),
+  updateStorageConfig: jest.fn().mockResolvedValue(undefined),
+  cleanupStorage: jest.fn().mockResolvedValue({ filesDeleted: 0, bytesFreed: 0 }),
+  getFFmpegInfo: jest.fn().mockResolvedValue({ available: true, version: '6.0', version_full: '6.0.0', path: '/usr/bin/ffmpeg', version_ok: true, encoders: [], decoders: [] }),
+  checkHardwareAcceleration: jest.fn().mockResolvedValue({ available: false, encoders: [] }),
+  checkFFmpegVersion: jest.fn().mockResolvedValue(true),
+  getFFmpegInstallGuide: jest.fn().mockResolvedValue({ platform: 'windows', download_url: '', instructions: [] }),
+  generateRecordingFilename: jest.fn().mockResolvedValue('recording.mp4'),
+  getRecordingPath: jest.fn().mockResolvedValue('/recordings/recording.mp4'),
+  getAggregatedStorageStatus: jest.fn().mockResolvedValue({
+    stats: { recordingsSize: 0, screenshotsSize: 0, recordingsCount: 0, screenshotsCount: 0, availableSpace: 100000, totalSpace: 500000 },
+    usagePercent: 0,
+    isExceeded: false,
+    config: { recordingsDir: '', screenshotsDir: '', organizeByDate: true, maxStorageGb: 10, autoCleanupDays: 30, preservePinned: true, semanticNaming: true },
+  }),
   getDefaultRecordingConfig: jest.fn().mockReturnValue({
     format: 'mp4',
     codec: 'h264',
@@ -107,6 +122,7 @@ jest.mock('@/lib/native/screen-recording', () => ({
     show_indicator: true,
     max_duration: 0,
     pause_on_minimize: false,
+    use_hardware_acceleration: true,
   }),
 }));
 
@@ -637,6 +653,10 @@ describe('useScreenRecordingStore - Edge Cases', () => {
   });
 
   describe('FFmpeg check', () => {
+    beforeEach(() => {
+      mocks.isTauri.mockReturnValue(true);
+    });
+
     it('should update ffmpegAvailable when checking', async () => {
       const mockCheckFFmpeg = screenRecordingModule.checkFFmpeg as jest.Mock;
       mockCheckFFmpeg.mockResolvedValueOnce(true);
@@ -709,6 +729,63 @@ describe('useScreenRecordingStore - Edge Cases', () => {
       });
 
       expect(result.current.showRecordingIndicator).toBe(false);
+    });
+  });
+
+  describe('client-side duration tracking state', () => {
+    it('should have initial duration tracking fields', () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      expect(result.current.duration).toBe(0);
+    });
+
+    it('should reset duration on stop', async () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      // Set a non-zero duration
+      act(() => {
+        useScreenRecordingStore.setState({ duration: 5000 });
+      });
+      expect(result.current.duration).toBe(5000);
+
+      // Stop should reset duration
+      await act(async () => {
+        await result.current.stop();
+      });
+
+      expect(result.current.duration).toBe(0);
+    });
+
+    it('should reset duration on cancel', async () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      act(() => {
+        useScreenRecordingStore.setState({ duration: 3000 });
+      });
+
+      await act(async () => {
+        await result.current.cancel();
+      });
+
+      expect(result.current.duration).toBe(0);
+    });
+  });
+
+  describe('config with hardware acceleration', () => {
+    it('should include use_hardware_acceleration in default config', () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      expect(result.current.config.use_hardware_acceleration).toBe(true);
+    });
+
+    it('should update hardware acceleration config', async () => {
+      const { result } = renderHook(() => useScreenRecordingStore());
+
+      await act(async () => {
+        await result.current.updateConfig({ use_hardware_acceleration: false });
+      });
+
+      expect(result.current.config.use_hardware_acceleration).toBe(false);
     });
   });
 });

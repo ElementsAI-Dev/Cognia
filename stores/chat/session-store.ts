@@ -27,6 +27,8 @@ import type {
   ChatFolder,
 } from '@/types';
 import { DEFAULT_FLOW_CANVAS_STATE } from '@/types/chat/flow-chat';
+import { messageRepository, agentTraceRepository, db } from '@/lib/db';
+import { loggers } from '@/lib/logger';
 
 // Mode history entry for tracking mode switches
 interface ModeHistoryEntry {
@@ -285,7 +287,18 @@ export const useSessionStore = create<SessionState>()(
         return session;
       },
 
-      deleteSession: (id) =>
+      deleteSession: (id) => {
+        // Clean up IndexedDB data asynchronously (messages, summaries, traces)
+        messageRepository.deleteBySessionId(id).catch((err) =>
+          loggers.chat.error('Failed to delete messages for session', err as Error)
+        );
+        db.summaries.where('sessionId').equals(id).delete().catch((err) =>
+          loggers.chat.error('Failed to delete summaries for session', err as Error)
+        );
+        agentTraceRepository.deleteBySessionId(id).catch((err) =>
+          loggers.chat.error('Failed to delete agent traces for session', err as Error)
+        );
+
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
           const newActiveId =
@@ -294,7 +307,8 @@ export const useSessionStore = create<SessionState>()(
           getPluginLifecycleHooks().dispatchOnSessionDelete(id);
 
           return { sessions: newSessions, activeSessionId: newActiveId };
-        }),
+        });
+      },
 
       updateSession: (id, updates) =>
         set((state) => {
@@ -377,6 +391,20 @@ export const useSessionStore = create<SessionState>()(
         for (const session of sessions) {
           getPluginLifecycleHooks().dispatchOnSessionClear(session.id);
         }
+
+        // Clean up IndexedDB data for all sessions
+        for (const session of sessions) {
+          messageRepository.deleteBySessionId(session.id).catch((err) =>
+            loggers.chat.error('Failed to delete messages for session', err as Error)
+          );
+          db.summaries.where('sessionId').equals(session.id).delete().catch((err) =>
+            loggers.chat.error('Failed to delete summaries for session', err as Error)
+          );
+          agentTraceRepository.deleteBySessionId(session.id).catch((err) =>
+            loggers.chat.error('Failed to delete agent traces for session', err as Error)
+          );
+        }
+
         set({ sessions: [], activeSessionId: null });
       },
 
@@ -1000,7 +1028,20 @@ export const useSessionStore = create<SessionState>()(
           selectedSessionIds: [],
         })),
 
-      bulkDeleteSessions: (ids) =>
+      bulkDeleteSessions: (ids) => {
+        // Clean up IndexedDB data for all deleted sessions
+        for (const id of ids) {
+          messageRepository.deleteBySessionId(id).catch((err) =>
+            loggers.chat.error('Failed to delete messages for session', err as Error)
+          );
+          db.summaries.where('sessionId').equals(id).delete().catch((err) =>
+            loggers.chat.error('Failed to delete summaries for session', err as Error)
+          );
+          agentTraceRepository.deleteBySessionId(id).catch((err) =>
+            loggers.chat.error('Failed to delete agent traces for session', err as Error)
+          );
+        }
+
         set((state) => {
           const idsToDelete = new Set(ids);
           const newActiveId =
@@ -1013,7 +1054,8 @@ export const useSessionStore = create<SessionState>()(
             activeSessionId: newActiveId,
             selectedSessionIds: state.selectedSessionIds.filter((id) => !idsToDelete.has(id)),
           };
-        }),
+        });
+      },
 
       bulkMoveSessions: (ids, folderId) =>
         set((state) => {
@@ -1206,43 +1248,48 @@ export const useSessionStore = create<SessionState>()(
         return state;
       },
       partialize: (state) => ({
-        sessions: state.sessions.map((s) => ({
-          ...s,
-          createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
-          updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
-          archivedAt: s.archivedAt instanceof Date ? s.archivedAt.toISOString() : s.archivedAt,
-          branches: s.branches?.map((b) => ({
-            ...b,
-            createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
-            updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
-          })),
-          goal: s.goal
-            ? {
-                ...s.goal,
-                createdAt:
-                  s.goal.createdAt instanceof Date
-                    ? s.goal.createdAt.toISOString()
-                    : s.goal.createdAt,
-                updatedAt:
-                  s.goal.updatedAt instanceof Date
-                    ? s.goal.updatedAt.toISOString()
-                    : s.goal.updatedAt,
-                completedAt:
-                  s.goal.completedAt instanceof Date
-                    ? s.goal.completedAt.toISOString()
-                    : s.goal.completedAt,
-                steps: s.goal.steps?.map((step) => ({
-                  ...step,
+        sessions: state.sessions.map((s) => {
+          // Exclude flowCanvasState (can be very large with many nodePositions)
+          // and carriedContext/historyContext (regenerable) to reduce localStorage size
+          const { flowCanvasState: _fcs, ...rest } = s;
+          return {
+            ...rest,
+            createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
+            updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
+            archivedAt: s.archivedAt instanceof Date ? s.archivedAt.toISOString() : s.archivedAt,
+            branches: s.branches?.map((b) => ({
+              ...b,
+              createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+              updatedAt: b.updatedAt instanceof Date ? b.updatedAt.toISOString() : b.updatedAt,
+            })),
+            goal: s.goal
+              ? {
+                  ...s.goal,
                   createdAt:
-                    step.createdAt instanceof Date ? step.createdAt.toISOString() : step.createdAt,
+                    s.goal.createdAt instanceof Date
+                      ? s.goal.createdAt.toISOString()
+                      : s.goal.createdAt,
+                  updatedAt:
+                    s.goal.updatedAt instanceof Date
+                      ? s.goal.updatedAt.toISOString()
+                      : s.goal.updatedAt,
                   completedAt:
-                    step.completedAt instanceof Date
-                      ? step.completedAt.toISOString()
-                      : step.completedAt,
-                })),
-              }
-            : undefined,
-        })),
+                    s.goal.completedAt instanceof Date
+                      ? s.goal.completedAt.toISOString()
+                      : s.goal.completedAt,
+                  steps: s.goal.steps?.map((step) => ({
+                    ...step,
+                    createdAt:
+                      step.createdAt instanceof Date ? step.createdAt.toISOString() : step.createdAt,
+                    completedAt:
+                      step.completedAt instanceof Date
+                        ? step.completedAt.toISOString()
+                        : step.completedAt,
+                  })),
+                }
+              : undefined,
+          };
+        }),
         activeSessionId: state.activeSessionId,
         modeHistory: state.modeHistory.map((h) => ({
           ...h,
@@ -1253,7 +1300,6 @@ export const useSessionStore = create<SessionState>()(
           createdAt: f.createdAt instanceof Date ? f.createdAt.toISOString() : f.createdAt,
           updatedAt: f.updatedAt instanceof Date ? f.updatedAt.toISOString() : f.updatedAt,
         })),
-        inputDrafts: state.inputDrafts,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.sessions) {

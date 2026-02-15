@@ -28,6 +28,9 @@ const log = loggers.store;
 // Deduplication guard for concurrent initialize() calls
 let initPromise: Promise<void> | null = null;
 
+// Deduplication guard for concurrent refreshAll() calls
+let refreshPromise: Promise<void> | null = null;
+
 // Scheduler system status
 export type SchedulerStatus = 'idle' | 'running' | 'stopped';
 
@@ -278,11 +281,16 @@ export const useSchedulerStore = create<SchedulerStore>()(
             tasks = await schedulerDb.getAllTasks();
           }
           
-          // Sort by next run time
+          // Sort: active tasks first, then by next run time
           tasks.sort((a, b) => {
-            if (!a.nextRunAt) return 1;
-            if (!b.nextRunAt) return -1;
-            return a.nextRunAt.getTime() - b.nextRunAt.getTime();
+            if (a.status === 'active' && b.status !== 'active') return -1;
+            if (a.status !== 'active' && b.status === 'active') return 1;
+            if (a.nextRunAt && b.nextRunAt) {
+              return a.nextRunAt.getTime() - b.nextRunAt.getTime();
+            }
+            if (a.nextRunAt) return -1;
+            if (b.nextRunAt) return 1;
+            return 0;
           });
           
           set({ tasks });
@@ -329,34 +337,48 @@ export const useSchedulerStore = create<SchedulerStore>()(
       },
 
       refreshAll: async () => {
-        set({ isLoading: true });
-        try {
-          const { filter, selectedTaskId } = get();
-          
-          // Fetch all data in parallel
-          const [tasks, statistics, executions] = await Promise.all([
-            Object.keys(filter).length > 0
-              ? schedulerDb.getFilteredTasks(filter)
-              : schedulerDb.getAllTasks(),
-            schedulerDb.getStatistics(),
-            selectedTaskId
-              ? schedulerDb.getTaskExecutions(selectedTaskId, 50)
-              : Promise.resolve(get().executions),
-          ]);
-          
-          // Sort tasks by next run time
-          tasks.sort((a, b) => {
-            if (!a.nextRunAt) return 1;
-            if (!b.nextRunAt) return -1;
-            return a.nextRunAt.getTime() - b.nextRunAt.getTime();
-          });
-          
-          // Single batched state update
-          set({ tasks, statistics, executions, isLoading: false });
-        } catch (error) {
-          log.error('SchedulerStore: Refresh all failed', error as Error);
-          set({ error: 'Failed to refresh scheduler data', isLoading: false });
-        }
+        // Deduplicate concurrent refreshAll calls
+        if (refreshPromise) return refreshPromise;
+
+        refreshPromise = (async () => {
+          set({ isLoading: true });
+          try {
+            const { filter, selectedTaskId } = get();
+            
+            // Fetch all data in parallel
+            const [tasks, statistics, executions] = await Promise.all([
+              Object.keys(filter).length > 0
+                ? schedulerDb.getFilteredTasks(filter)
+                : schedulerDb.getAllTasks(),
+              schedulerDb.getStatistics(),
+              selectedTaskId
+                ? schedulerDb.getTaskExecutions(selectedTaskId, 50)
+                : Promise.resolve(get().executions),
+            ]);
+            
+            // Sort: active tasks first, then by next run time
+            tasks.sort((a, b) => {
+              if (a.status === 'active' && b.status !== 'active') return -1;
+              if (a.status !== 'active' && b.status === 'active') return 1;
+              if (a.nextRunAt && b.nextRunAt) {
+                return a.nextRunAt.getTime() - b.nextRunAt.getTime();
+              }
+              if (a.nextRunAt) return -1;
+              if (b.nextRunAt) return 1;
+              return 0;
+            });
+            
+            // Single batched state update
+            set({ tasks, statistics, executions, isLoading: false });
+          } catch (error) {
+            log.error('SchedulerStore: Refresh all failed', error as Error);
+            set({ error: 'Failed to refresh scheduler data', isLoading: false });
+          } finally {
+            refreshPromise = null;
+          }
+        })();
+
+        return refreshPromise;
       },
 
       // ========== UI Actions ==========
@@ -401,7 +423,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
       bulkPause: async (taskIds) => {
         let count = 0;
         try {
-          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          const scheduler = getTaskScheduler();
           for (const taskId of taskIds) {
             const success = await scheduler.pauseTask(taskId);
             if (success) count++;
@@ -420,7 +442,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
       bulkResume: async (taskIds) => {
         let count = 0;
         try {
-          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          const scheduler = getTaskScheduler();
           for (const taskId of taskIds) {
             const success = await scheduler.resumeTask(taskId);
             if (success) count++;
@@ -439,7 +461,7 @@ export const useSchedulerStore = create<SchedulerStore>()(
       bulkDelete: async (taskIds) => {
         let count = 0;
         try {
-          const scheduler = (await import('@/lib/scheduler')).getTaskScheduler();
+          const scheduler = getTaskScheduler();
           for (const taskId of taskIds) {
             const success = await scheduler.deleteTask(taskId);
             if (success) count++;

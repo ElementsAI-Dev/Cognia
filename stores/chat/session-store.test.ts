@@ -15,6 +15,30 @@ const mockDispatchOnChatModeSwitch = jest.fn();
 const mockDispatchOnModelSwitch = jest.fn();
 const mockDispatchOnSystemPromptChange = jest.fn();
 
+// Mock database repositories and logger used by delete operations
+const mockDeleteBySessionId = jest.fn().mockResolvedValue(undefined);
+const mockDeleteTracesBySessionId = jest.fn().mockResolvedValue(0);
+
+jest.mock('@/lib/db', () => ({
+  messageRepository: {
+    deleteBySessionId: (...args: unknown[]) => mockDeleteBySessionId(...args),
+  },
+  agentTraceRepository: {
+    deleteBySessionId: (...args: unknown[]) => mockDeleteTracesBySessionId(...args),
+  },
+  db: {
+    summaries: {
+      where: () => ({ equals: () => ({ delete: () => Promise.resolve(0) }) }),
+    },
+  },
+}));
+
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    chat: { error: jest.fn() },
+  },
+}));
+
 jest.mock('@/lib/plugin', () => ({
   getPluginLifecycleHooks: () => ({
     dispatchOnSessionCreate: mockDispatchOnSessionCreate,
@@ -954,6 +978,61 @@ describe('useSessionStore', () => {
       });
 
       expect(mockDispatchOnSystemPromptChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('IndexedDB cleanup on deletion', () => {
+    it('should call messageRepository.deleteBySessionId when deleting a session', () => {
+      let session: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        session = useSessionStore.getState().createSession({ title: 'To Delete' });
+      });
+
+      act(() => {
+        useSessionStore.getState().deleteSession(session!.id);
+      });
+
+      expect(mockDeleteBySessionId).toHaveBeenCalledWith(session!.id);
+      expect(mockDeleteTracesBySessionId).toHaveBeenCalledWith(session!.id);
+    });
+
+    it('should cleanup IndexedDB for all sessions when deleteAllSessions is called', () => {
+      let s1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let s2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        s2 = useSessionStore.getState().createSession({ title: 'S2' });
+      });
+
+      act(() => {
+        useSessionStore.getState().deleteAllSessions();
+      });
+
+      expect(mockDeleteBySessionId).toHaveBeenCalledWith(s1!.id);
+      expect(mockDeleteBySessionId).toHaveBeenCalledWith(s2!.id);
+      expect(mockDeleteTracesBySessionId).toHaveBeenCalledWith(s1!.id);
+      expect(mockDeleteTracesBySessionId).toHaveBeenCalledWith(s2!.id);
+    });
+
+    it('should cleanup IndexedDB for bulk deleted sessions', () => {
+      let s1: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let s2: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      let s3: ReturnType<typeof useSessionStore.getState>['sessions'][0] | undefined;
+      act(() => {
+        s1 = useSessionStore.getState().createSession({ title: 'S1' });
+        s2 = useSessionStore.getState().createSession({ title: 'S2' });
+        s3 = useSessionStore.getState().createSession({ title: 'S3' });
+      });
+
+      act(() => {
+        useSessionStore.getState().bulkDeleteSessions([s1!.id, s2!.id]);
+      });
+
+      expect(mockDeleteBySessionId).toHaveBeenCalledWith(s1!.id);
+      expect(mockDeleteBySessionId).toHaveBeenCalledWith(s2!.id);
+      expect(mockDeleteBySessionId).not.toHaveBeenCalledWith(s3!.id);
+      expect(useSessionStore.getState().sessions).toHaveLength(1);
+      expect(useSessionStore.getState().sessions[0].id).toBe(s3!.id);
     });
   });
 });

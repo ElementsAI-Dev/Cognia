@@ -286,6 +286,228 @@ describe('Context Store', () => {
     });
   });
 
+  describe('Context History', () => {
+    const makeContext = (title: string, appName?: string): FullContext => ({
+      window: {
+        handle: 1,
+        title,
+        class_name: 'Test',
+        process_id: 1,
+        process_name: 'test',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        is_minimized: false,
+        is_maximized: false,
+        is_focused: true,
+        is_visible: true,
+      },
+      app: appName
+        ? {
+            app_type: 'Browser',
+            app_name: appName,
+            supports_text_input: true,
+            supports_rich_text: false,
+            is_dev_tool: false,
+            suggested_actions: [],
+            metadata: {},
+          }
+        : undefined,
+      timestamp: Date.now(),
+    });
+
+    it('should have empty history initially', () => {
+      const { result } = renderHook(() => useContextStore());
+      expect(result.current.contextHistory).toEqual([]);
+      expect(result.current.historyIndex).toBeNull();
+    });
+
+    it('should push to history when setting new context', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext(makeContext('Window A'));
+      });
+
+      expect(result.current.contextHistory).toHaveLength(1);
+      expect(result.current.contextHistory[0].context.window?.title).toBe('Window A');
+    });
+
+    it('should deduplicate consecutive identical contexts', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext(makeContext('Window A', 'App1'));
+      });
+      act(() => {
+        result.current.setContext(makeContext('Window A', 'App1'));
+      });
+
+      expect(result.current.contextHistory).toHaveLength(1);
+    });
+
+    it('should add to history when context differs', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext(makeContext('Window A'));
+      });
+      act(() => {
+        result.current.setContext(makeContext('Window B'));
+      });
+
+      expect(result.current.contextHistory).toHaveLength(2);
+    });
+
+    it('should cap history at MAX_CONTEXT_HISTORY', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      for (let i = 0; i < 25; i++) {
+        act(() => {
+          result.current.setContext(makeContext(`Window ${i}`));
+        });
+      }
+
+      expect(result.current.contextHistory).toHaveLength(20);
+      // Should retain the most recent entries
+      expect(result.current.contextHistory[19].context.window?.title).toBe('Window 24');
+    });
+
+    it('should reset historyIndex to null when new context arrives', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext(makeContext('Window A'));
+      });
+      act(() => {
+        result.current.setContext(makeContext('Window B'));
+      });
+      act(() => {
+        result.current.viewHistoryEntry(0);
+      });
+
+      expect(result.current.historyIndex).toBe(0);
+
+      act(() => {
+        result.current.setContext(makeContext('Window C'));
+      });
+
+      expect(result.current.historyIndex).toBeNull();
+    });
+  });
+
+  describe('viewHistoryEntry', () => {
+    it('should view a specific history entry', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext({
+          window: {
+            handle: 1, title: 'First', class_name: 'T', process_id: 1, process_name: 'p',
+            x: 0, y: 0, width: 100, height: 100,
+            is_minimized: false, is_maximized: false, is_focused: true, is_visible: true,
+          },
+          timestamp: Date.now(),
+        });
+      });
+      act(() => {
+        result.current.setContext({
+          window: {
+            handle: 2, title: 'Second', class_name: 'T', process_id: 2, process_name: 'p2',
+            x: 0, y: 0, width: 100, height: 100,
+            is_minimized: false, is_maximized: false, is_focused: true, is_visible: true,
+          },
+          timestamp: Date.now(),
+        });
+      });
+
+      act(() => {
+        result.current.viewHistoryEntry(0);
+      });
+
+      expect(result.current.historyIndex).toBe(0);
+      expect(result.current.context?.window?.title).toBe('First');
+    });
+
+    it('should ignore invalid index', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.viewHistoryEntry(99);
+      });
+
+      expect(result.current.historyIndex).toBeNull();
+    });
+  });
+
+  describe('viewLatest', () => {
+    it('should restore the latest context and clear historyIndex', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext({
+          window: {
+            handle: 1, title: 'Old', class_name: 'T', process_id: 1, process_name: 'p',
+            x: 0, y: 0, width: 100, height: 100,
+            is_minimized: false, is_maximized: false, is_focused: true, is_visible: true,
+          },
+          timestamp: Date.now(),
+        });
+      });
+      act(() => {
+        result.current.setContext({
+          window: {
+            handle: 2, title: 'Latest', class_name: 'T', process_id: 2, process_name: 'p2',
+            x: 0, y: 0, width: 100, height: 100,
+            is_minimized: false, is_maximized: false, is_focused: true, is_visible: true,
+          },
+          timestamp: Date.now(),
+        });
+      });
+
+      // Navigate back
+      act(() => {
+        result.current.viewHistoryEntry(0);
+      });
+      expect(result.current.context?.window?.title).toBe('Old');
+
+      // Restore latest
+      act(() => {
+        result.current.viewLatest();
+      });
+
+      expect(result.current.historyIndex).toBeNull();
+      expect(result.current.context?.window?.title).toBe('Latest');
+    });
+  });
+
+  describe('clearHistory', () => {
+    it('should clear history and reset historyIndex', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setContext({
+          window: {
+            handle: 1, title: 'T', class_name: 'T', process_id: 1, process_name: 'p',
+            x: 0, y: 0, width: 100, height: 100,
+            is_minimized: false, is_maximized: false, is_focused: true, is_visible: true,
+          },
+          timestamp: Date.now(),
+        });
+      });
+
+      expect(result.current.contextHistory).toHaveLength(1);
+
+      act(() => {
+        result.current.clearHistory();
+      });
+
+      expect(result.current.contextHistory).toEqual([]);
+      expect(result.current.historyIndex).toBeNull();
+    });
+  });
+
   describe('Selectors', () => {
     it('should select context', () => {
       const { result } = renderHook(() => useContextStore());

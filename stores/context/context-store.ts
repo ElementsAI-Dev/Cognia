@@ -16,6 +16,15 @@ import type {
   UiElement,
 } from '@/lib/native/context';
 
+/** Timestamped context snapshot stored in history */
+export interface ContextSnapshot {
+  context: FullContext;
+  timestamp: number;
+}
+
+/** Maximum number of context snapshots to retain */
+const MAX_CONTEXT_HISTORY = 20;
+
 export interface ContextStoreState {
   // Context data
   context: FullContext | null;
@@ -39,6 +48,10 @@ export interface ContextStoreState {
 
   // Timestamps
   lastUpdated: number | null;
+
+  // Context history
+  contextHistory: ContextSnapshot[];
+  historyIndex: number | null;
 }
 
 export interface ContextStoreActions {
@@ -60,8 +73,13 @@ export interface ContextStoreActions {
   setRefreshIntervalMs: (ms: number) => void;
   setCacheDurationMs: (ms: number) => void;
 
+  // History navigation
+  viewHistoryEntry: (index: number) => void;
+  viewLatest: () => void;
+
   // Clear
   clearContext: () => void;
+  clearHistory: () => void;
   reset: () => void;
 }
 
@@ -81,6 +99,8 @@ const initialState: ContextStoreState = {
   refreshIntervalMs: 5000,
   cacheDurationMs: 500,
   lastUpdated: null,
+  contextHistory: [],
+  historyIndex: null,
 };
 
 export const useContextStore = create<ContextStore>()(
@@ -89,14 +109,33 @@ export const useContextStore = create<ContextStore>()(
       ...initialState,
 
       setContext: (context) =>
-        set({
-          context,
-          window: context?.window ?? null,
-          app: context?.app ?? null,
-          file: context?.file ?? null,
-          browser: context?.browser ?? null,
-          editor: context?.editor ?? null,
-          lastUpdated: Date.now(),
+        set((state) => {
+          const now = Date.now();
+          // Push to history ring buffer (deduplicate by comparing window title)
+          let history = state.contextHistory;
+          if (context) {
+            const last = history[history.length - 1];
+            const isDuplicate = last &&
+              last.context.window?.title === context.window?.title &&
+              last.context.app?.app_name === context.app?.app_name;
+            if (!isDuplicate) {
+              history = [...history, { context, timestamp: now }];
+              if (history.length > MAX_CONTEXT_HISTORY) {
+                history = history.slice(-MAX_CONTEXT_HISTORY);
+              }
+            }
+          }
+          return {
+            context,
+            window: context?.window ?? null,
+            app: context?.app ?? null,
+            file: context?.file ?? null,
+            browser: context?.browser ?? null,
+            editor: context?.editor ?? null,
+            lastUpdated: now,
+            contextHistory: history,
+            historyIndex: null,
+          };
         }),
 
       setWindow: (window) => set({ window }),
@@ -113,6 +152,36 @@ export const useContextStore = create<ContextStore>()(
       setRefreshIntervalMs: (refreshIntervalMs) => set({ refreshIntervalMs }),
       setCacheDurationMs: (cacheDurationMs) => set({ cacheDurationMs }),
 
+      viewHistoryEntry: (index) =>
+        set((state) => {
+          const entry = state.contextHistory[index];
+          if (!entry) return state;
+          return {
+            context: entry.context,
+            window: entry.context.window ?? null,
+            app: entry.context.app ?? null,
+            file: entry.context.file ?? null,
+            browser: entry.context.browser ?? null,
+            editor: entry.context.editor ?? null,
+            historyIndex: index,
+          };
+        }),
+
+      viewLatest: () =>
+        set((state) => {
+          const last = state.contextHistory[state.contextHistory.length - 1];
+          if (!last) return { historyIndex: null };
+          return {
+            context: last.context,
+            window: last.context.window ?? null,
+            app: last.context.app ?? null,
+            file: last.context.file ?? null,
+            browser: last.context.browser ?? null,
+            editor: last.context.editor ?? null,
+            historyIndex: null,
+          };
+        }),
+
       clearContext: () =>
         set({
           context: null,
@@ -124,6 +193,8 @@ export const useContextStore = create<ContextStore>()(
           uiElements: [],
           lastUpdated: null,
         }),
+
+      clearHistory: () => set({ contextHistory: [], historyIndex: null }),
 
       reset: () => set(initialState),
     }),
