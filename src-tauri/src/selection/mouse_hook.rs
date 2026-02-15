@@ -23,9 +23,7 @@ pub enum MouseEvent {
     DragEnd {
         x: f64,
         y: f64,
-        #[allow(dead_code)]
         start_x: f64,
-        #[allow(dead_code)]
         start_y: f64,
     },
 }
@@ -105,7 +103,6 @@ impl MouseHook {
                         left_button_down.store(true, Ordering::SeqCst);
                         let (x, y) = get_mouse_position();
                         *last_position.write() = (x, y);
-                        log::trace!("[MouseHook] Left button pressed at ({:.0}, {:.0})", x, y);
                     }
                     EventType::ButtonRelease(rdev::Button::Left) => {
                         left_button_down.store(false, Ordering::SeqCst);
@@ -118,11 +115,6 @@ impl MouseHook {
                         let time_since_last = now.duration_since(*last_time).as_millis();
                         if time_since_last < MULTI_CLICK_TIMEOUT_MS {
                             *count = (*count + 1).min(3);
-                            log::trace!(
-                                "[MouseHook] Multi-click detected: count={}, time_since_last={}ms",
-                                *count,
-                                time_since_last
-                            );
                         } else {
                             *count = 1;
                         }
@@ -156,26 +148,15 @@ impl MouseHook {
                                     log::debug!("[MouseHook] Triple-click at ({:.0}, {:.0})", x, y);
                                     MouseEvent::TripleClick { x, y }
                                 }
-                                _ => {
-                                    log::trace!(
-                                        "[MouseHook] Left button released at ({:.0}, {:.0})",
-                                        x,
-                                        y
-                                    );
-                                    MouseEvent::LeftButtonUp { x, y }
-                                }
+                                _ => MouseEvent::LeftButtonUp { x, y }
                             }
                         };
 
                         // Send event if we have a receiver
                         if let Some(tx) = event_tx.read().as_ref() {
-                            if let Err(e) = tx.send(mouse_event.clone()) {
+                            if let Err(e) = tx.send(mouse_event) {
                                 log::debug!("[MouseHook] Failed to send mouse event: {}", e);
-                            } else {
-                                log::trace!("[MouseHook] Mouse event sent: {:?}", mouse_event);
                             }
-                        } else {
-                            log::trace!("[MouseHook] No event receiver configured");
                         }
                     }
                     _ => {}
@@ -229,8 +210,7 @@ impl MouseHook {
     }
 
     /// Reset the hook state without stopping
-    #[allow(dead_code)]
-    pub fn reset(&self) {
+    pub(crate) fn reset(&self) {
         log::debug!("[MouseHook] Resetting state");
         *self.click_count.write() = 0;
         *self.last_click_time.write() = Instant::now();
@@ -246,8 +226,7 @@ impl MouseHook {
     }
 
     /// Check if the hook is running
-    #[allow(dead_code)]
-    pub fn is_running(&self) -> bool {
+    pub(crate) fn is_running(&self) -> bool {
         self.is_running.load(Ordering::SeqCst)
     }
 }

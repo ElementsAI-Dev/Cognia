@@ -56,6 +56,7 @@ parking_lot = "0.12"
 arboard = "3"
 png = "0.17"
 base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 
 # Selection toolbar dependencies
 rdev = "0.5"
@@ -86,6 +87,9 @@ zip = "2.1"
 
 # Local provider detection
 which = "6.0"
+
+# System information (process management, CPU, memory)
+sysinfo = "0.33"
 
 # Checksum verification
 sha2 = "0.10"

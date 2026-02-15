@@ -1,10 +1,10 @@
 //! Process Management Module
 //!
 //! Provides local process operations for the agent:
-//! - List running processes
-//! - Get process details
+//! - List running processes (via sysinfo crate)
+//! - Get process details with CPU/memory
 //! - Start new processes (with restrictions)
-//! - Terminate processes
+//! - Terminate processes (graceful + force)
 //! - Monitor process status
 //!
 //! Security: All operations require explicit user approval and have allowlist restrictions.
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tokio::sync::RwLock;
 
 #[cfg(windows)]
@@ -20,39 +21,6 @@ mod windows;
 
 #[cfg(unix)]
 mod unix;
-
-#[cfg(test)]
-fn apply_filter_for_test(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
-    #[cfg(windows)]
-    {
-        windows::apply_filter(info, filter)
-    }
-    #[cfg(unix)]
-    {
-        unix::apply_filter(info, filter)
-    }
-    #[cfg(not(any(windows, unix)))]
-    {
-        let _ = (info, filter);
-        false
-    }
-}
-
-#[cfg(test)]
-fn sort_processes_for_test(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
-    #[cfg(windows)]
-    {
-        windows::sort_processes(processes, sort_by, desc);
-    }
-    #[cfg(unix)]
-    {
-        unix::sort_processes(processes, sort_by, desc);
-    }
-    #[cfg(not(any(windows, unix)))]
-    {
-        let _ = (processes, sort_by, desc);
-    }
-}
 
 /// Maximum number of processes to list at once
 pub const MAX_PROCESS_LIST: usize = 500;
@@ -249,6 +217,112 @@ impl Default for ProcessManagerConfig {
     }
 }
 
+/// Apply filter to a process (shared across all platforms)
+pub fn apply_filter(info: &ProcessInfo, filter: &ProcessFilter) -> bool {
+    if let Some(pid) = filter.pid {
+        if info.pid != pid {
+            return false;
+        }
+    }
+    if let Some(ref name) = filter.name {
+        if !info.name.to_lowercase().contains(&name.to_lowercase()) {
+            return false;
+        }
+    }
+    if let Some(parent_pid) = filter.parent_pid {
+        if info.parent_pid != Some(parent_pid) {
+            return false;
+        }
+    }
+    if let Some(ref user) = filter.user {
+        if let Some(ref info_user) = info.user {
+            if !info_user.to_lowercase().contains(&user.to_lowercase()) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    if let Some(min_cpu) = filter.min_cpu {
+        if let Some(cpu) = info.cpu_percent {
+            if cpu < min_cpu {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    if let Some(min_memory) = filter.min_memory {
+        if let Some(memory) = info.memory_bytes {
+            if memory < min_memory {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    true
+}
+
+/// Sort processes by field (shared across all platforms)
+pub fn sort_processes(processes: &mut [ProcessInfo], sort_by: ProcessSortField, desc: bool) {
+    processes.sort_by(|a, b| {
+        let cmp = match sort_by {
+            ProcessSortField::Pid => a.pid.cmp(&b.pid),
+            ProcessSortField::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            ProcessSortField::Cpu => {
+                let a_cpu = a.cpu_percent.unwrap_or(0.0);
+                let b_cpu = b.cpu_percent.unwrap_or(0.0);
+                a_cpu
+                    .partial_cmp(&b_cpu)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }
+            ProcessSortField::Memory => {
+                let a_mem = a.memory_bytes.unwrap_or(0);
+                let b_mem = b.memory_bytes.unwrap_or(0);
+                a_mem.cmp(&b_mem)
+            }
+            ProcessSortField::StartTime => {
+                let a_time = a.start_time.unwrap_or(0);
+                let b_time = b.start_time.unwrap_or(0);
+                a_time.cmp(&b_time)
+            }
+        };
+        if desc {
+            cmp.reverse()
+        } else {
+            cmp
+        }
+    });
+}
+
+/// Convert a sysinfo process to our ProcessInfo struct
+fn sysinfo_to_process_info(pid: &Pid, proc: &sysinfo::Process) -> ProcessInfo {
+    let num_cpus = sysinfo::System::new().cpus().len().max(1) as f32;
+    ProcessInfo {
+        pid: pid.as_u32(),
+        name: proc.name().to_string_lossy().to_string(),
+        exe_path: proc.exe().map(|p| p.to_string_lossy().to_string()),
+        cmd_line: {
+            let cmd: Vec<String> = proc.cmd().iter().map(|s| s.to_string_lossy().to_string()).collect();
+            if cmd.is_empty() { None } else { Some(cmd) }
+        },
+        parent_pid: proc.parent().map(|p| p.as_u32()),
+        cpu_percent: Some(proc.cpu_usage() / num_cpus),
+        memory_bytes: Some(proc.memory()),
+        status: match proc.status() {
+            sysinfo::ProcessStatus::Run => ProcessStatus::Running,
+            sysinfo::ProcessStatus::Sleep | sysinfo::ProcessStatus::Idle => ProcessStatus::Sleeping,
+            sysinfo::ProcessStatus::Stop => ProcessStatus::Stopped,
+            sysinfo::ProcessStatus::Zombie => ProcessStatus::Zombie,
+            _ => ProcessStatus::Unknown,
+        },
+        start_time: Some(proc.start_time()),
+        user: proc.user_id().map(|u| u.to_string()),
+        cwd: proc.cwd().map(|p| p.to_string_lossy().to_string()),
+    }
+}
+
 /// Process manager state
 pub struct ProcessManager {
     /// Configuration
@@ -257,6 +331,8 @@ pub struct ProcessManager {
     tracked_processes: Arc<RwLock<Vec<u32>>>,
     /// Config file path
     config_path: PathBuf,
+    /// sysinfo System instance for process queries
+    sys: Arc<RwLock<System>>,
 }
 
 impl ProcessManager {
@@ -269,7 +345,10 @@ impl ProcessManager {
 
         // Load or create config
         let config = if config_path.exists() {
-            log::debug!("Loading existing process manager config from {:?}", config_path);
+            log::debug!(
+                "Loading existing process manager config from {:?}",
+                config_path
+            );
             let content = tokio::fs::read_to_string(&config_path)
                 .await
                 .map_err(|e| ProcessError::Config(format!("Failed to read config: {}", e)))?;
@@ -280,10 +359,15 @@ impl ProcessManager {
             ProcessManagerConfig::default()
         };
 
+        // Initialize sysinfo with an initial refresh so CPU deltas are available
+        let mut sys = System::new_all();
+        sys.refresh_processes(ProcessesToUpdate::All, true);
+
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
             tracked_processes: Arc::new(RwLock::new(Vec::new())),
             config_path,
+            sys: Arc::new(RwLock::new(sys)),
         })
     }
 
@@ -297,7 +381,9 @@ impl ProcessManager {
         if let Some(parent) = self.config_path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| ProcessError::Config(format!("Failed to create config dir: {}", e)))?;
+                .map_err(|e| {
+                    ProcessError::Config(format!("Failed to create config dir: {}", e))
+                })?;
         }
 
         tokio::fs::write(&self.config_path, content)
@@ -308,7 +394,10 @@ impl ProcessManager {
     }
 
     /// Update configuration
-    pub async fn update_config(&self, new_config: ProcessManagerConfig) -> Result<(), ProcessError> {
+    pub async fn update_config(
+        &self,
+        new_config: ProcessManagerConfig,
+    ) -> Result<(), ProcessError> {
         {
             let mut config = self.config.write().await;
             *config = new_config;
@@ -398,29 +487,47 @@ impl ProcessManager {
         self.tracked_processes.read().await.clone()
     }
 
-    /// List running processes
-    pub async fn list_processes(&self, filter: Option<ProcessFilter>) -> Result<Vec<ProcessInfo>, ProcessError> {
+    /// List running processes using sysinfo
+    pub async fn list_processes(
+        &self,
+        filter: Option<ProcessFilter>,
+    ) -> Result<Vec<ProcessInfo>, ProcessError> {
         let config = self.config.read().await;
         if !config.enabled {
             return Err(ProcessError::Disabled);
         }
         drop(config);
 
-        #[cfg(windows)]
+        let filter = filter.unwrap_or_default();
+
+        // Refresh processes (this updates CPU deltas)
         {
-            windows::list_processes(filter).await
+            let mut sys = self.sys.write().await;
+            sys.refresh_processes(ProcessesToUpdate::All, true);
         }
-        #[cfg(unix)]
-        {
-            unix::list_processes(filter).await
+
+        let sys = self.sys.read().await;
+        let mut processes: Vec<ProcessInfo> = sys
+            .processes()
+            .iter()
+            .map(|(pid, proc)| sysinfo_to_process_info(pid, proc))
+            .filter(|info| apply_filter(info, &filter))
+            .collect();
+
+        // Sort if requested
+        if let Some(sort_by) = filter.sort_by {
+            let desc = filter.sort_desc.unwrap_or(false);
+            sort_processes(&mut processes, sort_by, desc);
         }
-        #[cfg(not(any(windows, unix)))]
-        {
-            Err(ProcessError::Unsupported("Platform not supported".to_string()))
-        }
+
+        // Apply limit
+        let limit = filter.limit.unwrap_or(MAX_PROCESS_LIST);
+        processes.truncate(limit);
+
+        Ok(processes)
     }
 
-    /// Get process by PID
+    /// Get process by PID using sysinfo
     pub async fn get_process(&self, pid: u32) -> Result<Option<ProcessInfo>, ProcessError> {
         let config = self.config.read().await;
         if !config.enabled {
@@ -428,22 +535,25 @@ impl ProcessManager {
         }
         drop(config);
 
-        #[cfg(windows)]
+        let sysinfo_pid = Pid::from_u32(pid);
+
+        // Refresh only the target process
         {
-            windows::get_process(pid).await
+            let mut sys = self.sys.write().await;
+            sys.refresh_processes(ProcessesToUpdate::Some(&[sysinfo_pid]), true);
         }
-        #[cfg(unix)]
-        {
-            unix::get_process(pid).await
-        }
-        #[cfg(not(any(windows, unix)))]
-        {
-            Err(ProcessError::Unsupported("Platform not supported".to_string()))
-        }
+
+        let sys = self.sys.read().await;
+        Ok(sys
+            .process(sysinfo_pid)
+            .map(|proc| sysinfo_to_process_info(&sysinfo_pid, proc)))
     }
 
     /// Start a new process
-    pub async fn start_process(&self, request: StartProcessRequest) -> Result<StartProcessResult, ProcessError> {
+    pub async fn start_process(
+        &self,
+        request: StartProcessRequest,
+    ) -> Result<StartProcessResult, ProcessError> {
         // Check if allowed
         if !self.is_program_allowed(&request.program).await {
             return Ok(StartProcessResult {
@@ -462,7 +572,9 @@ impl ProcessManager {
         #[cfg(unix)]
         let result = unix::start_process(request).await;
         #[cfg(not(any(windows, unix)))]
-        let result = Err(ProcessError::Unsupported("Platform not supported".to_string()));
+        let result = Err(ProcessError::Unsupported(
+            "Platform not supported".to_string(),
+        ));
 
         // Track if successful
         if let Ok(ref res) = result {
@@ -477,13 +589,19 @@ impl ProcessManager {
     }
 
     /// Terminate a process
-    pub async fn terminate_process(&self, request: TerminateProcessRequest) -> Result<TerminateProcessResult, ProcessError> {
+    pub async fn terminate_process(
+        &self,
+        request: TerminateProcessRequest,
+    ) -> Result<TerminateProcessResult, ProcessError> {
         // Check if allowed
         if !self.can_terminate(request.pid).await {
             return Ok(TerminateProcessResult {
                 success: false,
                 exit_code: None,
-                error: Some(format!("Not allowed to terminate process {}", request.pid)),
+                error: Some(format!(
+                    "Not allowed to terminate process {}",
+                    request.pid
+                )),
             });
         }
 
@@ -495,7 +613,9 @@ impl ProcessManager {
         #[cfg(unix)]
         let result = unix::terminate_process(request).await;
         #[cfg(not(any(windows, unix)))]
-        let result = Err(ProcessError::Unsupported("Platform not supported".to_string()));
+        let result = Err(ProcessError::Unsupported(
+            "Platform not supported".to_string(),
+        ));
 
         // Untrack if successful
         if let Ok(ref res) = result {
@@ -695,14 +815,14 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(apply_filter_for_test(&info, &filter));
+        assert!(apply_filter(&info, &filter));
 
         let mismatched = ProcessFilter {
             name: Some("node".to_string()),
             ..Default::default()
         };
 
-        assert!(!apply_filter_for_test(&info, &mismatched));
+        assert!(!apply_filter(&info, &mismatched));
     }
 
     #[test]
@@ -736,7 +856,7 @@ mod tests {
             },
         ];
 
-        sort_processes_for_test(&mut processes, ProcessSortField::Memory, true);
+        sort_processes(&mut processes, ProcessSortField::Memory, true);
 
         assert_eq!(processes[0].pid, 2);
         assert_eq!(processes[1].pid, 1);

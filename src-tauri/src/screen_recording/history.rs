@@ -6,6 +6,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const MAX_HISTORY_SIZE: usize = 100;
 
@@ -47,6 +48,8 @@ impl RecordingHistoryEntry {
 pub struct RecordingHistory {
     entries: RwLock<VecDeque<RecordingHistoryEntry>>,
     persist_path: Option<PathBuf>,
+    /// Dirty flag for debounced persistence
+    dirty: AtomicBool,
 }
 
 impl RecordingHistory {
@@ -55,6 +58,7 @@ impl RecordingHistory {
         Self {
             entries: RwLock::new(VecDeque::new()),
             persist_path: None,
+            dirty: AtomicBool::new(false),
         }
     }
 
@@ -88,11 +92,25 @@ impl RecordingHistory {
         Self {
             entries: RwLock::new(entries),
             persist_path: Some(persist_path),
+            dirty: AtomicBool::new(false),
         }
     }
 
-    /// Save history to disk if persistence is enabled
+    /// Mark history as dirty (needs saving)
+    fn mark_dirty(&self) {
+        self.dirty.store(true, Ordering::SeqCst);
+    }
+
+    /// Save history to disk if persistence is enabled and data is dirty
     fn save_to_disk(&self) {
+        if !self.dirty.load(Ordering::SeqCst) {
+            return;
+        }
+        self.flush();
+    }
+
+    /// Force save history to disk regardless of dirty flag
+    pub fn flush(&self) {
         if let Some(ref path) = self.persist_path {
             let entries = self.entries.read();
             let data: Vec<&RecordingHistoryEntry> = entries.iter().collect();
@@ -104,6 +122,7 @@ impl RecordingHistory {
                     if let Err(e) = std::fs::write(path, json) {
                         error!("[RecordingHistory] Failed to save history to disk: {}", e);
                     } else {
+                        self.dirty.store(false, Ordering::SeqCst);
                         debug!("[RecordingHistory] Saved {} entries to disk", entries.len());
                     }
                 }
@@ -152,6 +171,7 @@ impl RecordingHistory {
             entries.len()
         );
         drop(entries);
+        self.mark_dirty();
         self.save_to_disk();
     }
 
@@ -196,6 +216,7 @@ impl RecordingHistory {
             entry.is_pinned = true;
             info!("[RecordingHistory] Pinned entry: id={}", id);
             drop(entries);
+            self.mark_dirty();
             self.save_to_disk();
             true
         } else {
@@ -211,6 +232,7 @@ impl RecordingHistory {
             entry.is_pinned = false;
             info!("[RecordingHistory] Unpinned entry: id={}", id);
             drop(entries);
+            self.mark_dirty();
             self.save_to_disk();
             true
         } else {
@@ -254,6 +276,7 @@ impl RecordingHistory {
             }
             info!("[RecordingHistory] Entry deleted successfully: id={}", id);
             drop(entries);
+            self.mark_dirty();
             self.save_to_disk();
         } else {
             warn!("[RecordingHistory] Entry not found for deletion: id={}", id);
@@ -299,6 +322,7 @@ impl RecordingHistory {
         info!("[RecordingHistory] Clear completed: removed {} entries, deleted {} files, {} deletion failures, {} pinned entries retained",
             initial_count - entries.len(), deleted_files, failed_deletions, entries.len());
         drop(entries);
+        self.mark_dirty();
         self.save_to_disk();
     }
 
@@ -333,6 +357,7 @@ impl RecordingHistory {
                 entry.tags.push(tag.clone());
                 info!("[RecordingHistory] Tag '{}' added to entry: id={}", tag, id);
                 drop(entries);
+                self.mark_dirty();
                 self.save_to_disk();
             } else {
                 debug!(
@@ -366,6 +391,7 @@ impl RecordingHistory {
                     tag, id
                 );
                 drop(entries);
+                self.mark_dirty();
                 self.save_to_disk();
             } else {
                 debug!(
@@ -407,6 +433,15 @@ impl RecordingHistory {
 impl Default for RecordingHistory {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Drop for RecordingHistory {
+    fn drop(&mut self) {
+        if self.dirty.load(Ordering::SeqCst) {
+            debug!("[RecordingHistory] Flushing dirty history on drop");
+            self.flush();
+        }
     }
 }
 
@@ -522,6 +557,89 @@ mod tests {
 
         assert!(!file_path.exists());
         assert!(history.get_by_id("delete-test").is_none());
+    }
+
+    #[test]
+    fn test_history_dirty_flag_on_add() {
+        let dir = tempdir().unwrap();
+        let history = RecordingHistory::new_persistent(dir.path());
+        
+        // Initially not dirty
+        assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
+        
+        // After add, dirty should be false because save_to_disk was called
+        history.add(create_test_entry("dirty-1"));
+        assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
+        
+        // File should exist on disk
+        let persist_path = dir.path().join("recording_history.json");
+        assert!(persist_path.exists());
+    }
+
+    #[test]
+    fn test_history_flush_writes_to_disk() {
+        let dir = tempdir().unwrap();
+        let history = RecordingHistory::new_persistent(dir.path());
+        let persist_path = dir.path().join("recording_history.json");
+        
+        history.add(create_test_entry("flush-1"));
+        
+        // Verify file exists and contains entry
+        let data = fs::read_to_string(&persist_path).unwrap();
+        let entries: Vec<RecordingHistoryEntry> = serde_json::from_str(&data).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "flush-1");
+    }
+
+    #[test]
+    fn test_history_drop_flushes_dirty() {
+        let dir = tempdir().unwrap();
+        let persist_path = dir.path().join("recording_history.json");
+        
+        {
+            let history = RecordingHistory::new_persistent(dir.path());
+            history.add(create_test_entry("drop-1"));
+            history.add(create_test_entry("drop-2"));
+            // History is dropped here, should flush
+        }
+        
+        // Verify file exists and has both entries
+        let data = fs::read_to_string(&persist_path).unwrap();
+        let entries: Vec<RecordingHistoryEntry> = serde_json::from_str(&data).unwrap();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_history_persistent_load_after_save() {
+        let dir = tempdir().unwrap();
+        
+        // Create and populate history
+        {
+            let history = RecordingHistory::new_persistent(dir.path());
+            history.add(create_test_entry("persist-1"));
+            history.add(create_test_entry("persist-2"));
+        }
+        
+        // Load history from disk
+        let history = RecordingHistory::new_persistent(dir.path());
+        let entries = history.get_all();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_history_dirty_flag_on_pin() {
+        let dir = tempdir().unwrap();
+        let history = RecordingHistory::new_persistent(dir.path());
+        history.add(create_test_entry("pin-dirty-1"));
+        
+        // Pin should mark dirty and save
+        history.pin("pin-dirty-1");
+        assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
+        
+        // Verify pin persisted
+        let history2 = RecordingHistory::new_persistent(dir.path());
+        let entry = history2.get_by_id("pin-dirty-1").unwrap();
+        assert!(entry.is_pinned);
     }
 
     #[test]

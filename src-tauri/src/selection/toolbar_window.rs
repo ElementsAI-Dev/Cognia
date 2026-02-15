@@ -98,8 +98,7 @@ impl ToolbarWindow {
     }
 
     /// Get auto-hide timeout
-    #[allow(dead_code)]
-    pub fn get_auto_hide_timeout(&self) -> u64 {
+    pub(crate) fn get_auto_hide_timeout(&self) -> u64 {
         *self.auto_hide_ms.read()
     }
 
@@ -356,8 +355,7 @@ impl ToolbarWindow {
     }
 
     /// Update toolbar position without changing text
-    #[allow(dead_code)]
-    pub fn update_position(&self, x: i32, y: i32) -> Result<(), String> {
+    pub(crate) fn update_position(&self, x: i32, y: i32) -> Result<(), String> {
         if !self.is_visible() {
             log::trace!("[ToolbarWindow] update_position: toolbar not visible, skipping");
             return Ok(());
@@ -439,8 +437,7 @@ impl ToolbarWindow {
     }
 
     /// Hide the toolbar with a specific reason
-    #[allow(dead_code)]
-    pub fn hide_with_reason(&self, reason: &str) -> Result<(), String> {
+    pub(crate) fn hide_with_reason(&self, reason: &str) -> Result<(), String> {
         self.hide_internal(reason)
     }
 
@@ -588,8 +585,7 @@ impl ToolbarWindow {
     }
 
     /// Get time since toolbar was shown (in milliseconds)
-    #[allow(dead_code)]
-    pub fn get_visible_duration_ms(&self) -> Option<u64> {
+    pub(crate) fn get_visible_duration_ms(&self) -> Option<u64> {
         if !self.is_visible() {
             return None;
         }
@@ -599,8 +595,7 @@ impl ToolbarWindow {
     }
 
     /// Check if mouse is hovering over toolbar
-    #[allow(dead_code)]
-    pub fn is_hovered(&self) -> bool {
+    pub(crate) fn is_hovered(&self) -> bool {
         self.is_hovered.load(Ordering::SeqCst)
     }
 

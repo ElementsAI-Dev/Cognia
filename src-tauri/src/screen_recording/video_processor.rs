@@ -10,7 +10,14 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::AppHandle;
+
+/// Global cancel flag for video processing
+static CANCEL_FLAG: AtomicBool = AtomicBool::new(false);
+
+/// PID of the active FFmpeg process (0 = no active process)
+static ACTIVE_PID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// Video trim options
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +79,60 @@ impl VideoProcessor {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)
+    }
+
+    /// Cancel any ongoing video processing
+    pub fn cancel_processing() -> bool {
+        info!("[VideoProcessor] Processing cancellation requested");
+        CANCEL_FLAG.store(true, Ordering::SeqCst);
+
+        let pid = ACTIVE_PID.load(Ordering::SeqCst);
+        if pid != 0 {
+            info!("[VideoProcessor] Killing active FFmpeg process (PID: {})", pid);
+            Self::kill_process(pid);
+            ACTIVE_PID.store(0, Ordering::SeqCst);
+            true
+        } else {
+            debug!("[VideoProcessor] No active process to cancel");
+            false
+        }
+    }
+
+    /// Check if processing is currently active
+    pub fn is_processing() -> bool {
+        ACTIVE_PID.load(Ordering::SeqCst) != 0
+    }
+
+    /// Register an active child process PID for cancellation support
+    fn register_pid(pid: u32) {
+        CANCEL_FLAG.store(false, Ordering::SeqCst);
+        ACTIVE_PID.store(pid, Ordering::SeqCst);
+    }
+
+    /// Unregister the active process
+    fn unregister_pid() {
+        ACTIVE_PID.store(0, Ordering::SeqCst);
+    }
+
+    /// Check if cancellation was requested
+    fn is_cancelled() -> bool {
+        CANCEL_FLAG.load(Ordering::SeqCst)
+    }
+
+    /// Kill a process by PID (platform-specific)
+    fn kill_process(pid: u32) {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = Command::new("kill")
+                .args(["-9", &pid.to_string()])
+                .output();
+        }
     }
 
 
@@ -265,6 +326,9 @@ impl VideoProcessor {
             .spawn()
             .map_err(|e| format!("Failed to spawn FFmpeg: {}", e))?;
 
+        // Register PID for cancellation support
+        Self::register_pid(child.id());
+
         // Monitor progress in background
         if let Err(e) = monitor_ffmpeg_progress(app_handle, &mut child, "trim", Some(duration)) {
             warn!("[VideoProcessor] Progress monitoring failed: {}", e);
@@ -274,6 +338,16 @@ impl VideoProcessor {
         let status = child
             .wait()
             .map_err(|e| format!("Failed to wait for FFmpeg: {}", e))?;
+
+        Self::unregister_pid();
+
+        if Self::is_cancelled() {
+            let _ = std::fs::remove_file(&options.output_path);
+            let err = "Video processing was cancelled".to_string();
+            info!("[VideoProcessor] {}", err);
+            emit_processing_error(app_handle, "trim", &err);
+            return Err(err);
+        }
 
         if !status.success() {
             let err = "FFmpeg trim failed".to_string();
@@ -485,6 +559,9 @@ impl VideoProcessor {
             .spawn()
             .map_err(|e| format!("Failed to spawn FFmpeg: {}", e))?;
 
+        // Register PID for cancellation support
+        Self::register_pid(child.id());
+
         // Monitor progress in background
         if let Err(e) = monitor_ffmpeg_progress(app_handle, &mut child, "convert", input_duration) {
             warn!("[VideoProcessor] Progress monitoring failed: {}", e);
@@ -494,6 +571,16 @@ impl VideoProcessor {
         let status = child
             .wait()
             .map_err(|e| format!("Failed to wait for FFmpeg: {}", e))?;
+
+        Self::unregister_pid();
+
+        if Self::is_cancelled() {
+            let _ = std::fs::remove_file(&options.output_path);
+            let err = "Video processing was cancelled".to_string();
+            info!("[VideoProcessor] {}", err);
+            emit_processing_error(app_handle, "convert", &err);
+            return Err(err);
+        }
 
         if !status.success() {
             let err = "FFmpeg convert failed".to_string();
@@ -746,5 +833,53 @@ mod tests {
         let result = VideoProcessor::check_ffmpeg();
         // Result is environment-dependent, just verify it returns a bool
         assert!(result == true || result == false);
+    }
+
+    #[test]
+    fn test_cancel_processing_no_active_process() {
+        // Reset state
+        CANCEL_FLAG.store(false, Ordering::SeqCst);
+        ACTIVE_PID.store(0, Ordering::SeqCst);
+
+        let cancelled = VideoProcessor::cancel_processing();
+        assert!(!cancelled);
+        // Cancel flag should still be set even without active process
+        assert!(CANCEL_FLAG.load(Ordering::SeqCst));
+
+        // Reset
+        CANCEL_FLAG.store(false, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn test_is_processing_false_by_default() {
+        ACTIVE_PID.store(0, Ordering::SeqCst);
+        assert!(!VideoProcessor::is_processing());
+    }
+
+    #[test]
+    fn test_register_and_unregister_pid() {
+        VideoProcessor::register_pid(12345);
+        assert!(VideoProcessor::is_processing());
+        assert_eq!(ACTIVE_PID.load(Ordering::SeqCst), 12345);
+        assert!(!VideoProcessor::is_cancelled());
+
+        VideoProcessor::unregister_pid();
+        assert!(!VideoProcessor::is_processing());
+        assert_eq!(ACTIVE_PID.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn test_cancel_flag_reset_on_register() {
+        // Set cancel flag
+        CANCEL_FLAG.store(true, Ordering::SeqCst);
+        assert!(VideoProcessor::is_cancelled());
+
+        // Register new process should reset cancel flag
+        VideoProcessor::register_pid(99999);
+        assert!(!VideoProcessor::is_cancelled());
+
+        // Cleanup
+        VideoProcessor::unregister_pid();
+        CANCEL_FLAG.store(false, Ordering::SeqCst);
     }
 }

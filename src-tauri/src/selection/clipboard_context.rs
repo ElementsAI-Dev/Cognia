@@ -607,14 +607,15 @@ impl ClipboardContextAnalyzer {
 
         // If content is mostly a URL
         if url_count > 0 && trimmed.len() < 500 {
-            let url_entity = entities.iter().find(|e| e.entity_type == "url").unwrap();
-            if url_entity.value.len() as f32 / trimmed.len() as f32 > 0.8 {
-                scores.insert(ContentCategory::Url, 0.95);
-            } else {
-                scores.insert(
-                    ContentCategory::Url,
-                    0.5 + (url_count as f32 * 0.1).min(0.3),
-                );
+            if let Some(url_entity) = entities.iter().find(|e| e.entity_type == "url") {
+                if url_entity.value.len() as f32 / trimmed.len() as f32 > 0.8 {
+                    scores.insert(ContentCategory::Url, 0.95);
+                } else {
+                    scores.insert(
+                        ContentCategory::Url,
+                        0.5 + (url_count as f32 * 0.1).min(0.3),
+                    );
+                }
             }
         }
 
@@ -705,7 +706,7 @@ impl ClipboardContextAnalyzer {
 
         // Find primary and secondary categories
         let mut sorted: Vec<_> = scores.iter().collect();
-        sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let primary = sorted
             .first()
@@ -769,8 +770,9 @@ impl ClipboardContextAnalyzer {
         }
 
         // Check for SSN patterns (XXX-XX-XXXX)
-        let ssn_regex = Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap();
-        if ssn_regex.is_match(content) {
+        static SSN_REGEX: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap());
+        if SSN_REGEX.is_match(content) {
             return true;
         }
 

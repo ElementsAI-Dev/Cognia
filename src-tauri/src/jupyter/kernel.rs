@@ -765,62 +765,6 @@ impl JupyterKernel {
         }
     }
 
-    /// Extract display data from output (legacy fallback, display data is now extracted by the Python REPL)
-    #[allow(dead_code)]
-    fn extract_display_data(&self, output: &str) -> Vec<super::DisplayData> {
-        let mut display_data = vec![];
-
-        // Check for base64 encoded images (matplotlib)
-        if output.contains("data:image/png;base64,") {
-            trace!("Kernel {}: Found base64 PNG image in output", self.id);
-            if let Some(start) = output.find("data:image/png;base64,") {
-                if let Some(end) = output[start..]
-                    .find("\"")
-                    .or_else(|| output[start..].find("'"))
-                {
-                    let data = &output[start + 22..start + end];
-                    display_data.push(super::DisplayData {
-                        mime_type: "image/png".to_string(),
-                        data: data.to_string(),
-                    });
-                    debug!(
-                        "Kernel {}: Extracted PNG image, {} bytes",
-                        self.id,
-                        data.len()
-                    );
-                }
-            }
-        }
-
-        // Check for HTML output (pandas DataFrames)
-        if output.contains("<table") || output.contains("<div") {
-            trace!("Kernel {}: Found HTML content in output", self.id);
-            // Extract HTML content
-            if let (Some(start), Some(end)) = (output.find("<"), output.rfind(">")) {
-                let html = &output[start..=end];
-                display_data.push(super::DisplayData {
-                    mime_type: "text/html".to_string(),
-                    data: html.to_string(),
-                });
-                debug!(
-                    "Kernel {}: Extracted HTML content, {} bytes",
-                    self.id,
-                    html.len()
-                );
-            }
-        }
-
-        if !display_data.is_empty() {
-            debug!(
-                "Kernel {}: Extracted {} display data items",
-                self.id,
-                display_data.len()
-            );
-        }
-
-        display_data
-    }
-
     /// Get current variables in the kernel namespace.
     /// Queries the persistent REPL process directly for live variable state.
     pub async fn get_variables(&mut self) -> Result<Vec<super::VariableInfo>, String> {

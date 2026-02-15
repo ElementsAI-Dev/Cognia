@@ -19,7 +19,7 @@ pub mod window_snap;
 
 pub use error::RecordingError;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
-pub use storage::{CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
+pub use storage::{AggregatedStorageStatus, CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use toolbar::{RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition};
@@ -81,6 +81,23 @@ pub struct RecordingConfig {
     pub max_duration: u64,
     /// Whether to pause when window is minimized
     pub pause_on_minimize: bool,
+    /// Whether to use hardware acceleration if available (NVENC/QSV/AMF)
+    #[serde(default = "default_true")]
+    pub use_hardware_acceleration: bool,
+    /// Preferred encoder override (e.g. "h264_nvenc", "h264_qsv", "h264_amf")
+    /// If None, auto-detect best available encoder
+    #[serde(default)]
+    pub preferred_encoder: Option<String>,
+    /// System audio device name (None = default/auto)
+    #[serde(default)]
+    pub system_audio_device: Option<String>,
+    /// Microphone device name (None = default/auto)
+    #[serde(default)]
+    pub microphone_device: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for RecordingConfig {
@@ -100,6 +117,10 @@ impl Default for RecordingConfig {
             show_indicator: true,
             max_duration: 0, // Unlimited
             pause_on_minimize: false,
+            use_hardware_acceleration: true,
+            preferred_encoder: None,
+            system_audio_device: None,
+            microphone_device: None,
         }
     }
 }
@@ -168,7 +189,7 @@ pub struct ScreenRecordingManager {
     config: Arc<RwLock<RecordingConfig>>,
     recorder: ScreenRecorder,
     history: RecordingHistory,
-    storage: StorageManager,
+    storage: RwLock<StorageManager>,
     app_handle: AppHandle,
 }
 
@@ -252,7 +273,7 @@ impl ScreenRecordingManager {
             config: Arc::new(RwLock::new(config.clone())),
             recorder: ScreenRecorder::new(app_handle.clone()),
             history,
-            storage: StorageManager::new(storage_config),
+            storage: RwLock::new(StorageManager::new(storage_config)),
             app_handle,
         }
     }
@@ -554,50 +575,56 @@ impl ScreenRecordingManager {
     /// Get storage statistics
     pub fn get_storage_stats(&self) -> StorageStats {
         debug!("[ScreenRecording] Getting storage statistics");
-        self.storage.get_stats()
+        self.storage.read().get_stats()
     }
 
     /// Get storage configuration
     pub fn get_storage_config(&self) -> StorageConfig {
-        self.storage.get_config()
+        self.storage.read().get_config()
     }
 
     /// Update storage configuration
-    pub fn update_storage_config(&mut self, config: StorageConfig) {
+    pub fn update_storage_config(&self, config: StorageConfig) {
         info!("[ScreenRecording] Updating storage configuration");
-        self.storage.update_config(config);
+        self.storage.write().update_config(config);
     }
 
     /// Generate filename for a new recording
     pub fn generate_recording_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
-        self.storage.generate_recording_filename(mode, format, custom_name)
+        self.storage.read().generate_recording_filename(mode, format, custom_name)
     }
 
     /// Get full path for a recording file
     pub fn get_recording_path(&self, filename: &str) -> Result<String, String> {
-        self.storage.get_recording_path(filename)
+        self.storage.read().get_recording_path(filename)
             .map(|p| p.to_string_lossy().to_string())
     }
 
     /// Generate filename for a screenshot
     pub fn generate_screenshot_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
-        self.storage.generate_screenshot_filename(mode, format, custom_name)
+        self.storage.read().generate_screenshot_filename(mode, format, custom_name)
     }
 
     /// Get full path for a screenshot file
     pub fn get_screenshot_path(&self, filename: &str) -> Result<String, String> {
-        self.storage.get_screenshot_path(filename)
+        self.storage.read().get_screenshot_path(filename)
             .map(|p| p.to_string_lossy().to_string())
+    }
+
+    /// Get aggregated storage status (stats + usage + exceeded + config) in a single call
+    pub fn get_aggregated_storage_status(&self) -> AggregatedStorageStatus {
+        debug!("[ScreenRecording] Getting aggregated storage status");
+        self.storage.read().get_aggregated_status()
     }
 
     /// Check if storage limit is exceeded
     pub fn is_storage_exceeded(&self) -> bool {
-        self.storage.is_storage_exceeded()
+        self.storage.read().is_storage_exceeded()
     }
 
     /// Get storage usage percentage
     pub fn get_storage_usage_percent(&self) -> f32 {
-        self.storage.get_storage_usage_percent()
+        self.storage.read().get_storage_usage_percent()
     }
 
     /// Cleanup old files based on configuration
@@ -610,7 +637,7 @@ impl ScreenRecordingManager {
             .map(|e| e.id.clone())
             .collect();
         
-        self.storage.cleanup_old_files(&pinned_ids)
+        self.storage.read().cleanup_old_files(&pinned_ids)
     }
 
     /// List all storage files (recordings and screenshots)
@@ -623,7 +650,7 @@ impl ScreenRecordingManager {
             .map(|e| e.id.clone())
             .collect();
         
-        self.storage.list_files(file_type, &pinned_ids)
+        self.storage.read().list_files(file_type, &pinned_ids)
     }
 
     /// Get a single storage file by path
@@ -636,7 +663,7 @@ impl ScreenRecordingManager {
             .map(|e| e.id.clone())
             .collect();
         
-        self.storage.get_file(std::path::Path::new(file_path), &pinned_ids)
+        self.storage.read().get_file(std::path::Path::new(file_path), &pinned_ids)
     }
 
     /// Get app handle reference
@@ -731,6 +758,33 @@ mod tests {
         assert!(!config.capture_microphone);
         assert!(config.show_cursor);
         assert_eq!(config.countdown_seconds, 3);
+        // New hardware acceleration fields
+        assert!(config.use_hardware_acceleration);
+        assert!(config.preferred_encoder.is_none());
+        assert!(config.system_audio_device.is_none());
+        assert!(config.microphone_device.is_none());
+    }
+
+    #[test]
+    fn test_recording_config_hardware_acceleration_fields() {
+        let mut config = RecordingConfig::default();
+        config.use_hardware_acceleration = false;
+        config.preferred_encoder = Some("h264_nvenc".to_string());
+        config.system_audio_device = Some("Stereo Mix".to_string());
+        config.microphone_device = Some("USB Microphone".to_string());
+
+        assert!(!config.use_hardware_acceleration);
+        assert_eq!(config.preferred_encoder.as_deref(), Some("h264_nvenc"));
+        assert_eq!(config.system_audio_device.as_deref(), Some("Stereo Mix"));
+        assert_eq!(config.microphone_device.as_deref(), Some("USB Microphone"));
+
+        // Verify serialization round-trip preserves new fields
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: RecordingConfig = serde_json::from_str(&json).unwrap();
+        assert!(!deserialized.use_hardware_acceleration);
+        assert_eq!(deserialized.preferred_encoder.as_deref(), Some("h264_nvenc"));
+        assert_eq!(deserialized.system_audio_device.as_deref(), Some("Stereo Mix"));
+        assert_eq!(deserialized.microphone_device.as_deref(), Some("USB Microphone"));
     }
 
     #[test]

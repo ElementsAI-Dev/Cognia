@@ -23,7 +23,6 @@ mod types;
 
 // Re-export internal components for potential external use
 // These are used internally by SelectionDetector but exposed for direct access if needed
-#[allow(unused_imports)]
 pub use analyzer::TextAnalyzer;
 #[allow(unused_imports)]
 pub use expander::SelectionExpander;

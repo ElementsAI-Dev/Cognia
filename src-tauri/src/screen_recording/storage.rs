@@ -60,6 +60,17 @@ pub struct StorageStats {
     pub total_space: u64,
 }
 
+/// Aggregated storage status — combines stats, usage percent, and exceeded flag
+/// into a single response to eliminate redundant disk traversals
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AggregatedStorageStatus {
+    pub stats: StorageStats,
+    pub usage_percent: f32,
+    pub is_exceeded: bool,
+    pub config: StorageConfig,
+}
+
 /// File metadata for storage management
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -382,6 +393,28 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Get aggregated storage status in a single call (eliminates 3 separate IPC calls)
+    pub fn get_aggregated_status(&self) -> AggregatedStorageStatus {
+        let stats = self.get_stats();
+        let total_used = stats.recordings_size + stats.screenshots_size;
+        let max_bytes = (self.config.max_storage_gb * 1024.0 * 1024.0 * 1024.0) as u64;
+
+        let usage_percent = if self.config.max_storage_gb > 0.0 && max_bytes > 0 {
+            (total_used as f32 / max_bytes as f32) * 100.0
+        } else {
+            0.0
+        };
+
+        let is_exceeded = self.config.max_storage_gb > 0.0 && total_used > max_bytes;
+
+        AggregatedStorageStatus {
+            stats,
+            usage_percent,
+            is_exceeded,
+            config: self.config.clone(),
+        }
+    }
+
     /// Check if storage limit is exceeded
     pub fn is_storage_exceeded(&self) -> bool {
         if self.config.max_storage_gb <= 0.0 {
@@ -590,5 +623,60 @@ mod tests {
         let filename = manager.generate_screenshot_filename("window", "png", Some("MyWindow"));
         assert!(filename.starts_with("MyWindow_"));
         assert!(filename.ends_with(".png"));
+    }
+
+    #[test]
+    fn test_aggregated_storage_status() {
+        let config = StorageConfig::default();
+        let manager = StorageManager::new(config);
+        
+        let status = manager.get_aggregated_status();
+        
+        // Should return valid stats
+        assert_eq!(status.stats.recordings_count, 0);
+        assert_eq!(status.stats.screenshots_count, 0);
+        // With no files, usage should be 0
+        assert_eq!(status.usage_percent, 0.0);
+        assert!(!status.is_exceeded);
+        // Config should match
+        assert_eq!(status.config.max_storage_gb, 10.0);
+        assert!(status.config.organize_by_date);
+    }
+
+    #[test]
+    fn test_aggregated_storage_status_serialization() {
+        let status = AggregatedStorageStatus {
+            stats: StorageStats {
+                recordings_size: 1024,
+                screenshots_size: 512,
+                recordings_count: 2,
+                screenshots_count: 1,
+                available_space: 100_000_000,
+                total_space: 500_000_000,
+            },
+            usage_percent: 15.5,
+            is_exceeded: false,
+            config: StorageConfig::default(),
+        };
+
+        let json = serde_json::to_string(&status).unwrap();
+        let deserialized: AggregatedStorageStatus = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.stats.recordings_size, 1024);
+        assert_eq!(deserialized.stats.screenshots_count, 1);
+        assert!((deserialized.usage_percent - 15.5).abs() < 0.01);
+        assert!(!deserialized.is_exceeded);
+        assert_eq!(deserialized.config.max_storage_gb, 10.0);
+    }
+
+    #[test]
+    fn test_aggregated_status_unlimited_storage() {
+        let mut config = StorageConfig::default();
+        config.max_storage_gb = 0.0; // unlimited
+        let manager = StorageManager::new(config);
+        
+        let status = manager.get_aggregated_status();
+        assert_eq!(status.usage_percent, 0.0);
+        assert!(!status.is_exceeded);
     }
 }
