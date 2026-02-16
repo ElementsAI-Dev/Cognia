@@ -180,10 +180,10 @@ describe('useSelectionReceiver', () => {
       const onExplainRequest = jest.fn();
       renderHook(() => useSelectionReceiver({ onExplainRequest }));
 
-      await waitFor(() => expect(Object.keys(listeners)).toContain('selection-quick-explain'));
+      await waitFor(() => expect(Object.keys(listeners)).toContain('selection-quick-action'));
 
       await act(async () => {
-        listeners['selection-quick-explain']?.({ payload: { text: '需要解释' } });
+        listeners['selection-quick-action']?.({ payload: { text: '需要解释', action: 'explain' } });
       });
 
       expect(onExplainRequest).toHaveBeenCalledWith('需要解释');

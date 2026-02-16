@@ -326,7 +326,12 @@ impl GitProgress {
     }
 
     pub fn preparing(operation: &str) -> Self {
-        Self::new(operation, "preparing", 0, &format!("Preparing {}...", operation))
+        Self::new(
+            operation,
+            "preparing",
+            0,
+            &format!("Preparing {}...", operation),
+        )
     }
 
     pub fn running(operation: &str, progress: u32, message: &str) -> Self {
@@ -334,7 +339,12 @@ impl GitProgress {
     }
 
     pub fn finishing(operation: &str) -> Self {
-        Self::new(operation, "finishing", 90, &format!("Finishing {}...", operation))
+        Self::new(
+            operation,
+            "finishing",
+            90,
+            &format!("Finishing {}...", operation),
+        )
     }
 
     pub fn done(operation: &str) -> Self {
@@ -379,7 +389,7 @@ pub struct GitFullStatus {
 pub fn run_git_command(args: &[&str], cwd: Option<&str>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.args(args);
-    
+
     // Prevent credential prompts from blocking the process
     cmd.env("GIT_TERMINAL_PROMPT", "0");
 
@@ -682,7 +692,10 @@ pub async fn git_init(options: GitInitOptions) -> GitOperationResult<GitRepoInfo
 
 /// Clone a Git repository with progress events
 #[tauri::command]
-pub async fn git_clone(app: AppHandle, options: GitCloneOptions) -> GitOperationResult<GitRepoInfo> {
+pub async fn git_clone(
+    app: AppHandle,
+    options: GitCloneOptions,
+) -> GitOperationResult<GitRepoInfo> {
     log::info!(
         "Cloning Git repository from: {} to: {}",
         options.url,
@@ -714,7 +727,10 @@ pub async fn git_clone(app: AppHandle, options: GitCloneOptions) -> GitOperation
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
     // Emit running progress
-    emit_git_progress(&app, GitProgress::running("clone", 20, "Connecting to remote..."));
+    emit_git_progress(
+        &app,
+        GitProgress::running("clone", 20, "Connecting to remote..."),
+    );
 
     match run_git_command(&args_refs, None) {
         Ok(output) => {
@@ -924,7 +940,10 @@ pub async fn git_full_status(
                     name,
                     is_remote,
                     is_current: parts.get(2).map(|s| s.trim() == "*").unwrap_or(false),
-                    upstream: parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string()),
+                    upstream: parts
+                        .get(1)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string()),
                 })
             })
             .collect()
@@ -1264,11 +1283,11 @@ pub async fn git_diff_file(
     max_lines: Option<u32>,
 ) -> GitOperationResult<GitDiffInfo> {
     let mut args = vec!["diff"];
-    
+
     if staged.unwrap_or(false) {
         args.push("--staged");
     }
-    
+
     args.push("--");
     args.push(&file_path);
 
@@ -1279,7 +1298,7 @@ pub async fn git_diff_file(
             let mut deletions = 0;
             let mut line_count = 0;
             let max = max_lines.unwrap_or(5000) as usize;
-            
+
             let truncated_content: String = content
                 .lines()
                 .take_while(|line| {
@@ -1293,13 +1312,17 @@ pub async fn git_diff_file(
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
-            
+
             let final_content = if line_count > max {
-                format!("{}\n\n... (truncated, {} more lines)", truncated_content, line_count - max)
+                format!(
+                    "{}\n\n... (truncated, {} more lines)",
+                    truncated_content,
+                    line_count - max
+                )
             } else {
                 truncated_content
             };
-            
+
             GitOperationResult::success(GitDiffInfo {
                 path: file_path,
                 additions,
@@ -1339,10 +1362,11 @@ pub async fn git_stash_list(repo_path: String) -> GitOperationResult<Vec<GitStas
                             .and_then(|s| s.strip_suffix("}"))
                             .and_then(|s| s.parse::<u32>().ok())
                             .unwrap_or(0);
-                        
+
                         // Parse message which may contain branch info
                         let message = parts[1].to_string();
-                        let branch = if message.starts_with("WIP on ") || message.starts_with("On ") {
+                        let branch = if message.starts_with("WIP on ") || message.starts_with("On ")
+                        {
                             message.split(':').next().and_then(|s| {
                                 s.strip_prefix("WIP on ")
                                     .or_else(|| s.strip_prefix("On "))
@@ -1351,9 +1375,9 @@ pub async fn git_stash_list(repo_path: String) -> GitOperationResult<Vec<GitStas
                         } else {
                             None
                         };
-                        
+
                         let date = parts.get(2).map(|s| s.to_string());
-                        
+
                         Some(GitStashEntry {
                             index,
                             message,
@@ -1365,7 +1389,7 @@ pub async fn git_stash_list(repo_path: String) -> GitOperationResult<Vec<GitStas
                     }
                 })
                 .collect();
-            
+
             GitOperationResult::success(entries)
         }
         Err(e) => {
@@ -1821,7 +1845,10 @@ pub async fn git_export_data(options: GitExportOptions) -> GitOperationResult<Gi
     let export_dir = Path::new(&options.repo_path).join(&dir_name);
     if !export_dir.exists() {
         if let Err(e) = std::fs::create_dir_all(&export_dir) {
-            return GitOperationResult::error(format!("Failed to create {} directory: {}", dir_name, e));
+            return GitOperationResult::error(format!(
+                "Failed to create {} directory: {}",
+                dir_name, e
+            ));
         }
     }
 
@@ -1830,9 +1857,11 @@ pub async fn git_export_data(options: GitExportOptions) -> GitOperationResult<Gi
         let branch_name = options
             .branch_name
             .unwrap_or_else(|| format!("exports/{}", options.session_id));
-        if let Err(e) = run_git_command(&["checkout", "-b", &branch_name], Some(&options.repo_path)) {
+        if let Err(e) = run_git_command(&["checkout", "-b", &branch_name], Some(&options.repo_path))
+        {
             // Branch might already exist, try to switch to it
-            if let Err(e2) = run_git_command(&["checkout", &branch_name], Some(&options.repo_path)) {
+            if let Err(e2) = run_git_command(&["checkout", &branch_name], Some(&options.repo_path))
+            {
                 log::warn!("Could not create/switch branch: {} / {}", e, e2);
             }
         }
@@ -2187,7 +2216,9 @@ pub async fn git_revert(options: GitRevertOptions) -> GitOperationResult<GitComm
                                 output,
                             )
                         } else {
-                            GitOperationResult::error("Failed to parse revert commit info".to_string())
+                            GitOperationResult::error(
+                                "Failed to parse revert commit info".to_string(),
+                            )
                         }
                     }
                     Err(e) => GitOperationResult::error(e),
@@ -2314,11 +2345,9 @@ pub async fn git_tag_create(options: GitTagCreateOptions) -> GitOperationResult<
     match run_git_command(&args_refs, Some(&options.repo_path)) {
         Ok(output) => {
             // Get the tag info
-            let commit_hash = run_git_command(
-                &["rev-parse", &options.name],
-                Some(&options.repo_path),
-            )
-            .unwrap_or_default();
+            let commit_hash =
+                run_git_command(&["rev-parse", &options.name], Some(&options.repo_path))
+                    .unwrap_or_default();
 
             GitOperationResult::success_with_output(
                 GitTagInfo {
@@ -2396,7 +2425,10 @@ pub async fn git_cherry_pick(options: GitCherryPickOptions) -> GitOperationResul
                         author: String::new(),
                         author_email: String::new(),
                         date: String::new(),
-                        message: format!("Cherry-pick {} (staged, not committed)", options.commit_hash),
+                        message: format!(
+                            "Cherry-pick {} (staged, not committed)",
+                            options.commit_hash
+                        ),
                         message_body: None,
                     },
                     output,
@@ -2422,7 +2454,9 @@ pub async fn git_cherry_pick(options: GitCherryPickOptions) -> GitOperationResul
                                 output,
                             )
                         } else {
-                            GitOperationResult::error("Failed to parse cherry-pick commit info".to_string())
+                            GitOperationResult::error(
+                                "Failed to parse cherry-pick commit info".to_string(),
+                            )
                         }
                     }
                     Err(e) => GitOperationResult::error(e),
@@ -2490,7 +2524,10 @@ pub async fn git_show_commit(
                     author_email: parts[2].to_string(),
                     date: parts[3].to_string(),
                     message: parts[4].to_string(),
-                    message_body: parts.get(5).filter(|s| !s.is_empty()).map(|s| s.to_string()),
+                    message_body: parts
+                        .get(5)
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string()),
                 }
             } else {
                 return GitOperationResult::error("Failed to parse commit metadata".to_string());
@@ -2501,7 +2538,13 @@ pub async fn git_show_commit(
 
     // Get diff stats
     let stats = run_git_command(
-        &["diff-tree", "--no-commit-id", "--numstat", "-r", &commit_hash],
+        &[
+            "diff-tree",
+            "--no-commit-id",
+            "--numstat",
+            "-r",
+            &commit_hash,
+        ],
         Some(&repo_path),
     )
     .unwrap_or_default();
@@ -2525,23 +2568,20 @@ pub async fn git_show_commit(
 
     // Get diff content (truncated)
     let max = max_lines.unwrap_or(3000);
-    let diff_content = run_git_command(
-        &["show", "--format=", &commit_hash],
-        Some(&repo_path),
-    )
-    .map(|output| {
-        let lines: Vec<&str> = output.lines().collect();
-        if lines.len() > max as usize {
-            format!(
-                "{}\n\n... (truncated, {} more lines)",
-                lines[..max as usize].join("\n"),
-                lines.len() - max as usize
-            )
-        } else {
-            output
-        }
-    })
-    .ok();
+    let diff_content = run_git_command(&["show", "--format=", &commit_hash], Some(&repo_path))
+        .map(|output| {
+            let lines: Vec<&str> = output.lines().collect();
+            if lines.len() > max as usize {
+                format!(
+                    "{}\n\n... (truncated, {} more lines)",
+                    lines[..max as usize].join("\n"),
+                    lines.len() - max as usize
+                )
+            } else {
+                output
+            }
+        })
+        .ok();
 
     // Get parent hashes
     let parents = run_git_command(
@@ -2645,10 +2685,7 @@ pub async fn git_log_graph(
                 .map(|entry| {
                     let parts: Vec<&str> = entry.trim().splitn(7, '\x00').collect();
                     let parents = if parts.len() > 1 && !parts[1].is_empty() {
-                        parts[1]
-                            .split_whitespace()
-                            .map(|s| s.to_string())
-                            .collect()
+                        parts[1].split_whitespace().map(|s| s.to_string()).collect()
                     } else {
                         Vec::new()
                     };
@@ -2725,10 +2762,7 @@ pub struct GitRepoStats {
 #[tauri::command]
 pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStats> {
     // 1. Get contributor commit counts + emails
-    let shortlog = match run_git_command(
-        &["shortlog", "-sne", "--all"],
-        Some(&repo_path),
-    ) {
+    let shortlog = match run_git_command(&["shortlog", "-sne", "--all"], Some(&repo_path)) {
         Ok(output) => output,
         Err(e) => return GitOperationResult::error(e),
     };
@@ -2831,16 +2865,14 @@ pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStat
         }
     }
 
-    let mut contributors: Vec<GitContributorStats> =
-        contributors_map.into_values().collect();
+    let mut contributors: Vec<GitContributorStats> = contributors_map.into_values().collect();
     contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
 
     let total_commits: i32 = contributors.iter().map(|c| c.commits).sum();
     let total_contributors = contributors.len() as i32;
 
     // 4. Get daily activity (last year)
-    let mut activity_map: std::collections::HashMap<String, i32> =
-        std::collections::HashMap::new();
+    let mut activity_map: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
     if let Ok(dates_output) = run_git_command(
         &[
             "log",
@@ -2867,10 +2899,7 @@ pub async fn git_repo_stats(repo_path: String) -> GitOperationResult<GitRepoStat
     // 5. File type distribution
     let mut file_type_map: std::collections::HashMap<String, i32> =
         std::collections::HashMap::new();
-    if let Ok(ls_output) = run_git_command(
-        &["ls-files"],
-        Some(&repo_path),
-    ) {
+    if let Ok(ls_output) = run_git_command(&["ls-files"], Some(&repo_path)) {
         for line in ls_output.lines() {
             let path = line.trim();
             if let Some(ext) = path.rsplit('.').next() {
@@ -2933,21 +2962,18 @@ pub async fn git_checkpoint_create(
     let msg = message.unwrap_or_else(|| format!("Checkpoint {}", &timestamp[..19]));
 
     // Create a lightweight tag pointing to the stash object
-    if let Err(e) = run_git_command(
-        &["tag", "-a", &id, &hash, "-m", &msg],
-        Some(&repo_path),
-    ) {
+    if let Err(e) = run_git_command(&["tag", "-a", &id, &hash, "-m", &msg], Some(&repo_path)) {
         return GitOperationResult::error(format!("Failed to create checkpoint tag: {}", e));
     }
 
     // Get diff stats vs HEAD
-    let (files_changed, additions, deletions) =
-        if let Ok(stat) = run_git_command(&["diff", "--shortstat", "HEAD", &hash], Some(&repo_path))
-        {
-            parse_shortstat(&stat)
-        } else {
-            (0, 0, 0)
-        };
+    let (files_changed, additions, deletions) = if let Ok(stat) =
+        run_git_command(&["diff", "--shortstat", "HEAD", &hash], Some(&repo_path))
+    {
+        parse_shortstat(&stat)
+    } else {
+        (0, 0, 0)
+    };
 
     GitOperationResult::success(GitCheckpoint {
         id,
@@ -3015,10 +3041,7 @@ pub async fn git_checkpoint_restore(
     checkpoint_id: String,
 ) -> GitOperationResult<()> {
     // Get the hash the tag points to
-    let hash = match run_git_command(
-        &["rev-parse", &checkpoint_id],
-        Some(&repo_path),
-    ) {
+    let hash = match run_git_command(&["rev-parse", &checkpoint_id], Some(&repo_path)) {
         Ok(h) => h.trim().to_string(),
         Err(e) => return GitOperationResult::error(format!("Checkpoint not found: {}", e)),
     };

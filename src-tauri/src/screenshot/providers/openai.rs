@@ -55,9 +55,7 @@ impl OpenAiVisionProvider {
                 "Extract all visible text from this image, including labels, signs, \
                  captions, and any other sparse text elements."
             }
-            _ => {
-                "Extract all visible text from this image."
-            }
+            _ => "Extract all visible text from this image.",
         };
 
         let language_hint = options

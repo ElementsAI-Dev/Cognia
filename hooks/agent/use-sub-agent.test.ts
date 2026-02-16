@@ -51,6 +51,7 @@ import { useSubAgent } from './use-sub-agent';
 
 describe('useSubAgent', () => {
   const mockSubAgents: Record<string, unknown> = {};
+  const mockTemplates: Record<string, unknown> = {};
   const mockCreateSubAgent = jest.fn((input) => {
     const subAgent = {
       id: 'sub-agent-1',
@@ -68,6 +69,7 @@ describe('useSubAgent', () => {
     mockSubAgents[subAgent.id] = subAgent;
     return subAgent;
   });
+  const mockCreateFromTemplate = jest.fn().mockReturnValue(null);
   const mockUpdateSubAgent = jest.fn();
   const mockDeleteSubAgent = jest.fn();
   const mockSetSubAgentStatus = jest.fn();
@@ -78,16 +80,20 @@ describe('useSubAgent', () => {
   const mockCancelAllSubAgents = jest.fn();
   const mockClearCompletedSubAgents = jest.fn();
   const mockReorderSubAgents = jest.fn();
-  const mockGetSubAgentsByParent = jest.fn().mockReturnValue([]);
+  const mockUpdateMetrics = jest.fn();
+  const mockGetMetrics = jest.fn().mockReturnValue({});
 
   beforeEach(() => {
     jest.clearAllMocks();
     Object.keys(mockSubAgents).forEach((key) => delete mockSubAgents[key]);
+    Object.keys(mockTemplates).forEach((key) => delete mockTemplates[key]);
 
     (useSubAgentStore as unknown as jest.Mock).mockImplementation((selector) => {
       const state = {
         subAgents: mockSubAgents,
+        templates: mockTemplates,
         createSubAgent: mockCreateSubAgent,
+        createFromTemplate: mockCreateFromTemplate,
         updateSubAgent: mockUpdateSubAgent,
         deleteSubAgent: mockDeleteSubAgent,
         setSubAgentStatus: mockSetSubAgentStatus,
@@ -98,7 +104,8 @@ describe('useSubAgent', () => {
         cancelAllSubAgents: mockCancelAllSubAgents,
         clearCompletedSubAgents: mockClearCompletedSubAgents,
         reorderSubAgents: mockReorderSubAgents,
-        getSubAgentsByParent: mockGetSubAgentsByParent,
+        updateMetrics: mockUpdateMetrics,
+        getMetrics: mockGetMetrics,
       };
       if (typeof selector === 'function') {
         return selector(state);
@@ -117,6 +124,7 @@ describe('useSubAgent', () => {
       expect(result.current.failedSubAgents).toEqual([]);
       expect(result.current.isExecuting).toBe(false);
       expect(result.current.progress).toBe(0);
+      expect(result.current.templates).toEqual([]);
     });
   });
 
@@ -201,10 +209,8 @@ describe('useSubAgent', () => {
 
   describe('computed values', () => {
     it('should compute isExecuting based on active sub-agents', () => {
-      mockGetSubAgentsByParent.mockReturnValue([
-        { id: '1', status: 'running', progress: 50 },
-        { id: '2', status: 'pending', progress: 0 },
-      ]);
+      mockSubAgents['1'] = { id: '1', parentAgentId: 'parent-1', status: 'running', progress: 50, order: 0 };
+      mockSubAgents['2'] = { id: '2', parentAgentId: 'parent-1', status: 'pending', progress: 0, order: 1 };
 
       const { result } = renderHook(() => useSubAgent({ parentAgentId: 'parent-1' }));
 
@@ -213,10 +219,20 @@ describe('useSubAgent', () => {
     });
 
     it('should compute progress based on all sub-agents', () => {
-      mockGetSubAgentsByParent.mockReturnValue([
-        { id: '1', status: 'completed', progress: 100 },
-        { id: '2', status: 'running', progress: 50 },
-      ]);
+      mockSubAgents['1'] = {
+        id: '1',
+        parentAgentId: 'parent-1',
+        status: 'completed',
+        progress: 100,
+        order: 0,
+      };
+      mockSubAgents['2'] = {
+        id: '2',
+        parentAgentId: 'parent-1',
+        status: 'running',
+        progress: 50,
+        order: 1,
+      };
 
       const { result } = renderHook(() => useSubAgent({ parentAgentId: 'parent-1' }));
 
@@ -224,12 +240,28 @@ describe('useSubAgent', () => {
     });
 
     it('should filter completed and failed sub-agents', () => {
-      mockGetSubAgentsByParent.mockReturnValue([
-        { id: '1', status: 'completed', progress: 100 },
-        { id: '2', status: 'failed', progress: 30 },
-        { id: '3', status: 'timeout', progress: 20 },
-        { id: '4', status: 'running', progress: 50 },
-      ]);
+      mockSubAgents['1'] = {
+        id: '1',
+        parentAgentId: 'parent-1',
+        status: 'completed',
+        progress: 100,
+        order: 0,
+      };
+      mockSubAgents['2'] = { id: '2', parentAgentId: 'parent-1', status: 'failed', progress: 30, order: 1 };
+      mockSubAgents['3'] = {
+        id: '3',
+        parentAgentId: 'parent-1',
+        status: 'timeout',
+        progress: 20,
+        order: 2,
+      };
+      mockSubAgents['4'] = {
+        id: '4',
+        parentAgentId: 'parent-1',
+        status: 'running',
+        progress: 50,
+        order: 3,
+      };
 
       const { result } = renderHook(() => useSubAgent({ parentAgentId: 'parent-1' }));
 

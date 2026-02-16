@@ -1,16 +1,12 @@
 'use client';
 
 /**
- * Main chat page - new chat
+ * Main chat page — renders the central ChatContainer.
+ * Layout (sidebar, panels, error boundary) is provided by the parent ChatLayout.
  */
 
 import { ChatContainer } from '@/components/chat';
-import { ErrorBoundaryProvider } from '@/components/providers/core';
 
 export default function ChatPage() {
-  return (
-    <ErrorBoundaryProvider>
-      <ChatContainer />
-    </ErrorBoundaryProvider>
-  );
+  return <ChatContainer />;
 }

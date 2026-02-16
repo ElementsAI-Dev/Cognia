@@ -26,6 +26,7 @@ export { DesignerCard } from './core';
 export { DesignerBrowser } from './core';
 export { FloatingPromptBar } from './core';
 export { MobileDesignerLayout } from './core';
+export { DesignerMainWorkspace } from './workspace';
 
 // AI components
 export { AIChatPanel } from './ai';

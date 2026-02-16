@@ -268,7 +268,7 @@ function ArenaBattleViewComponent({
           <div
             className="grid gap-4 h-full"
             style={{
-              gridTemplateColumns: `repeat(${Math.min(displayContestants.length, 4)}, 1fr)`,
+              gridTemplateColumns: `repeat(${Math.min(displayContestants.length, 4)}, minmax(0, 1fr))`,
             }}
           >
             {displayContestants.map((contestant, index) => (

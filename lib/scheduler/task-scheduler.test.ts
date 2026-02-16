@@ -33,6 +33,7 @@ jest.mock('./scheduler-db', () => ({
     deleteTask: jest.fn().mockResolvedValue(true),
     getTask: jest.fn().mockResolvedValue(null),
     getAllTasks: jest.fn().mockResolvedValue([]),
+    getActiveEventTasks: jest.fn().mockResolvedValue([]),
     createExecution: jest.fn().mockResolvedValue(undefined),
     updateExecution: jest.fn().mockResolvedValue(undefined),
     getTaskExecutions: jest.fn().mockResolvedValue([]),
@@ -375,7 +376,7 @@ describe('TaskScheduler', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        mockSchedulerDb.getAllTasks.mockResolvedValueOnce([eventTask]);
+        mockSchedulerDb.getActiveEventTasks.mockResolvedValueOnce([eventTask]);
 
         await scheduler.triggerEventTask('test-event');
         

@@ -12,7 +12,7 @@ import {
   type ZoteroConfig,
   type ZoteroSyncResult,
 } from '@/lib/academic/zotero-integration';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.app;
@@ -32,11 +32,7 @@ export interface ZoteroActions {
 // Zotero Slice Creator
 // ============================================================================
 
-export function createZoteroSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): ZoteroActions {
-  return {
+export const createZoteroSlice: AcademicSliceCreator<ZoteroActions> = (set, get) => ({
     setZoteroConfig: (config) => {
       set((state) => ({
         settings: { ...state.settings, zoteroConfig: config },
@@ -139,5 +135,4 @@ export function createZoteroSlice(
 
       return results;
     },
-  };
-}
+});

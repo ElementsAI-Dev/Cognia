@@ -2,8 +2,6 @@
  * Native Tray API Tests
  */
 
-import { jest } from '@jest/globals';
-
 // Mock Tauri modules before importing the module under test
 jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(),
@@ -44,6 +42,7 @@ const mockIsTauri = isTauri as jest.MockedFunction<typeof isTauri>;
 describe('Native Tray API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(false);
   });
 
   describe('getTrayState', () => {

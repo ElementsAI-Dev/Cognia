@@ -12,6 +12,17 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       localProvidersTitle: 'Local Providers',
       localProvidersDescription: 'Run AI models locally on your machine',
+      scan: 'Scan',
+      installed: 'installed',
+      running: 'running',
+      quickSetup: 'Quick Setup',
+      browseModels: 'Browse Models',
+      'providerGroups.recommended': 'Recommended',
+      'providerGroups.recommendedDesc': 'Best for most users',
+      'providerGroups.advanced': 'Advanced',
+      'providerGroups.advancedDesc': 'For power users and server setups',
+      'providerGroups.specialized': 'Specialized',
+      'providerGroups.specializedDesc': 'For specific use cases',
     };
     return translations[key] || key;
   },

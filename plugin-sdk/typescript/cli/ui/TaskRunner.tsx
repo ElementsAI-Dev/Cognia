@@ -6,8 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
-import { StatusSpinner } from './Spinner.js';
-import { colors, symbols } from './theme.js';
+import { StatusSpinner } from './Spinner';
+import { colors, symbols } from './theme';
 
 export interface Task {
   /** Task ID */

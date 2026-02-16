@@ -7,7 +7,17 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { ImageSize, ImageQuality, ImageStyle } from '@/lib/ai';
-import type { TextLayerConfig, DrawingShapeConfig } from '@/types/media/image-studio';
+import type {
+  ImageAdjustments,
+  CropRegion,
+  ImageTransform,
+  BlendMode,
+  LayerType,
+  Layer,
+  TextLayerConfig,
+  DrawingShapeConfig,
+} from '@/types/media/image-studio';
+import { DEFAULT_IMAGE_ADJUSTMENTS } from '@/types/media/image-studio';
 
 /**
  * Editing tool types
@@ -23,38 +33,6 @@ export type EditingTool =
   | 'pan';
 
 /**
- * Image adjustment values
- */
-export interface ImageAdjustments {
-  brightness: number; // -100 to 100
-  contrast: number; // -100 to 100
-  saturation: number; // -100 to 100
-  hue: number; // -180 to 180
-  blur: number; // 0 to 100
-  sharpen: number; // 0 to 100
-}
-
-/**
- * Crop region
- */
-export interface CropRegion {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Transform state
- */
-export interface ImageTransform {
-  rotation: number; // degrees (0, 90, 180, 270)
-  flipHorizontal: boolean;
-  flipVertical: boolean;
-  scale: number;
-}
-
-/**
  * Mask drawing stroke
  */
 export interface MaskStroke {
@@ -65,43 +43,9 @@ export interface MaskStroke {
 }
 
 /**
- * Layer blend modes
+ * @deprecated Use `Layer` from `@/types/media/image-studio` instead.
  */
-export type BlendMode = 
-  | 'normal' 
-  | 'multiply' 
-  | 'screen' 
-  | 'overlay' 
-  | 'darken' 
-  | 'lighten' 
-  | 'color-dodge' 
-  | 'color-burn' 
-  | 'soft-light' 
-  | 'hard-light';
-
-/**
- * Layer types
- */
-export type LayerType = 'image' | 'mask' | 'adjustment' | 'text' | 'shape';
-
-/**
- * Layer in the editor
- */
-export interface EditorLayer {
-  id: string;
-  name: string;
-  type: LayerType;
-  visible: boolean;
-  opacity: number;
-  blendMode: BlendMode;
-  locked: boolean;
-  data?: string; // base64 or URL
-  thumbnail?: string;
-  adjustments?: Partial<ImageAdjustments>;
-  textConfig?: TextLayerConfig;
-  shapeConfig?: DrawingShapeConfig;
-  order: number;
-}
+export type EditorLayer = Layer;
 
 /**
  * Generated image with metadata
@@ -346,14 +290,7 @@ interface ImageStudioState {
   importState: (state: Partial<ImageStudioState>) => void;
 }
 
-const DEFAULT_ADJUSTMENTS: ImageAdjustments = {
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
-  hue: 0,
-  blur: 0,
-  sharpen: 0,
-};
+const DEFAULT_ADJUSTMENTS: ImageAdjustments = DEFAULT_IMAGE_ADJUSTMENTS;
 
 const DEFAULT_TRANSFORM: ImageTransform = {
   rotation: 0,

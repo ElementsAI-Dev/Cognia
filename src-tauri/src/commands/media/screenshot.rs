@@ -51,10 +51,7 @@ pub async fn screenshot_apply_annotations(
             .chunks(3)
             .flat_map(|chunk| [chunk[0], chunk[1], chunk[2], 255])
             .collect(),
-        png::ColorType::Grayscale => pixels
-            .iter()
-            .flat_map(|v| [*v, *v, *v, 255])
-            .collect(),
+        png::ColorType::Grayscale => pixels.iter().flat_map(|v| [*v, *v, *v, 255]).collect(),
         png::ColorType::GrayscaleAlpha => pixels
             .chunks(2)
             .flat_map(|chunk| [chunk[0], chunk[0], chunk[0], chunk[1]])
@@ -589,7 +586,9 @@ pub async fn screenshot_get_pinned_history(
 
 /// Clear all screenshot history
 #[tauri::command]
-pub async fn screenshot_clear_all_history(manager: State<'_, ScreenshotManager>) -> Result<(), String> {
+pub async fn screenshot_clear_all_history(
+    manager: State<'_, ScreenshotManager>,
+) -> Result<(), String> {
     manager.clear_all_history();
     Ok(())
 }

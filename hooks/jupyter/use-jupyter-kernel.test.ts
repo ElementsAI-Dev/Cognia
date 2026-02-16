@@ -4,42 +4,29 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useJupyterKernel } from './use-jupyter-kernel';
+import { kernelService } from '@/lib/jupyter/kernel';
 
 // Mock kernel service
-const mockCreateSession = jest.fn();
-const mockDeleteSession = jest.fn();
-const mockExecute = jest.fn();
-const mockExecuteCell = jest.fn();
-const mockRestartKernel = jest.fn();
-const mockInterruptKernel = jest.fn();
-
-const mockGetKernelStatus = jest.fn(() => Promise.resolve('idle'));
-const mockIsKernelAlive = jest.fn(() => Promise.resolve(true));
-const mockGetSessionById = jest.fn(() => Promise.resolve(null));
-const mockGetKernelConfig = jest.fn(() => Promise.resolve(null));
-const mockGetNotebookInfo = jest.fn(() => Promise.resolve({ fileName: 'test.ipynb', codeCells: 2, markdownCells: 1 }));
-const mockCleanup = jest.fn(() => Promise.resolve());
-
 jest.mock('@/lib/jupyter/kernel', () => ({
   kernelService: {
-    createSession: (...args: unknown[]) => mockCreateSession(...args),
-    deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
-    execute: (...args: unknown[]) => mockExecute(...args),
-    executeCell: (...args: unknown[]) => mockExecuteCell(...args),
-    restartKernel: (...args: unknown[]) => mockRestartKernel(...args),
-    interruptKernel: (...args: unknown[]) => mockInterruptKernel(...args),
+    createSession: jest.fn(),
+    deleteSession: jest.fn(),
+    execute: jest.fn(),
+    executeCell: jest.fn(),
+    restartKernel: jest.fn(),
+    interruptKernel: jest.fn(),
     getVariables: jest.fn(() => Promise.resolve([])),
     getCachedVariables: jest.fn(() => Promise.resolve([])),
     inspectVariable: jest.fn(),
     ensureKernel: jest.fn(() => Promise.resolve(true)),
     shutdownAll: jest.fn(() => Promise.resolve()),
     checkKernelAvailable: jest.fn(() => Promise.resolve(true)),
-    cleanup: mockCleanup,
-    getKernelStatus: mockGetKernelStatus,
-    isKernelAlive: mockIsKernelAlive,
-    getSessionById: mockGetSessionById,
-    getKernelConfig: mockGetKernelConfig,
-    getNotebookInfo: mockGetNotebookInfo,
+    cleanup: jest.fn(() => Promise.resolve()),
+    getKernelStatus: jest.fn(() => Promise.resolve('idle')),
+    isKernelAlive: jest.fn(() => Promise.resolve(true)),
+    getSessionById: jest.fn(() => Promise.resolve(null)),
+    getKernelConfig: jest.fn(() => Promise.resolve(null)),
+    getNotebookInfo: jest.fn(() => Promise.resolve({ fileName: 'test.ipynb', codeCells: 2, markdownCells: 1 })),
     // Required for hook initialization
     isAvailable: jest.fn(() => true),
     listSessions: jest.fn(() => Promise.resolve([])),
@@ -49,6 +36,19 @@ jest.mock('@/lib/jupyter/kernel', () => ({
     onCellOutput: jest.fn(() => Promise.resolve(() => {})),
   },
 }));
+
+const mockCreateSession = kernelService.createSession as jest.Mock;
+const mockDeleteSession = kernelService.deleteSession as jest.Mock;
+const mockExecute = kernelService.execute as jest.Mock;
+const mockExecuteCell = kernelService.executeCell as jest.Mock;
+const mockRestartKernel = kernelService.restartKernel as jest.Mock;
+const mockInterruptKernel = kernelService.interruptKernel as jest.Mock;
+const mockGetKernelStatus = kernelService.getKernelStatus as jest.Mock;
+const mockIsKernelAlive = kernelService.isKernelAlive as jest.Mock;
+const mockGetSessionById = kernelService.getSessionById as jest.Mock;
+const mockGetKernelConfig = kernelService.getKernelConfig as jest.Mock;
+const mockGetNotebookInfo = kernelService.getNotebookInfo as jest.Mock;
+const mockCleanup = kernelService.cleanup as jest.Mock;
 
 // Mock stores
 let mockStoreState = {

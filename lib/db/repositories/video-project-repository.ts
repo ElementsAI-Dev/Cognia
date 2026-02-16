@@ -4,7 +4,7 @@
 
 import { db, type DBVideoProject } from '../schema';
 import { withRetry } from '../utils';
-import type { VideoTrack } from '@/hooks/video-studio/use-video-editor';
+import type { VideoTrack } from '@/types/video-studio/types';
 
 export interface VideoProjectData {
   id: string;

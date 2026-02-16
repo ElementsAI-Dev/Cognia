@@ -169,16 +169,7 @@ impl ScreenshotAnnotator {
                     stroke_width,
                     filled,
                 } => {
-                    self.draw_ellipse(
-                        pixels,
-                        *cx,
-                        *cy,
-                        *rx,
-                        *ry,
-                        color,
-                        *stroke_width,
-                        *filled,
-                    )?;
+                    self.draw_ellipse(pixels, *cx, *cy, *rx, *ry, color, *stroke_width, *filled)?;
                 }
                 Annotation::Arrow {
                     start_x,
@@ -414,19 +405,26 @@ impl ScreenshotAnnotator {
                     continue;
                 }
                 let half_width = (rx as f64 * ratio.sqrt()) as i32;
-                for px in (cx_i - half_width).max(0)..(cx_i + half_width + 1).min(self.image_width as i32) {
+                for px in
+                    (cx_i - half_width).max(0)..(cx_i + half_width + 1).min(self.image_width as i32)
+                {
                     self.set_pixel(pixels, px as u32, py as u32, r, g, b, a);
                 }
             }
         } else {
             // Stroked ellipse: draw outline with thickness
             let stroke = stroke_width.max(1.0) as i32;
-            for py in (cy_i - ry_i - stroke).max(0)..(cy_i + ry_i + stroke + 1).min(self.image_height as i32) {
-                for px in (cx_i - rx_i - stroke).max(0)..(cx_i + rx_i + stroke + 1).min(self.image_width as i32) {
+            for py in (cy_i - ry_i - stroke).max(0)
+                ..(cy_i + ry_i + stroke + 1).min(self.image_height as i32)
+            {
+                for px in (cx_i - rx_i - stroke).max(0)
+                    ..(cx_i + rx_i + stroke + 1).min(self.image_width as i32)
+                {
                     let dx = (px - cx_i) as f64;
                     let dy = (py - cy_i) as f64;
                     // Normalized distance from ellipse boundary
-                    let dist = (dx * dx) / (rx as f64 * rx as f64) + (dy * dy) / (ry as f64 * ry as f64);
+                    let dist =
+                        (dx * dx) / (rx as f64 * rx as f64) + (dy * dy) / (ry as f64 * ry as f64);
                     let dist_sqrt = dist.sqrt();
                     // Check if pixel is on the ellipse border (within stroke width)
                     let half_stroke = stroke as f64 / (2.0 * rx.min(ry) as f64);
@@ -455,7 +453,9 @@ impl ScreenshotAnnotator {
         let thickness = stroke_width.max(1.0) as i32;
 
         // Draw line shaft
-        self.draw_thick_line(pixels, start_x, start_y, end_x, end_y, r, g, b, a, thickness);
+        self.draw_thick_line(
+            pixels, start_x, start_y, end_x, end_y, r, g, b, a, thickness,
+        );
 
         // Draw arrowhead
         let angle = (end_y - start_y).atan2(end_x - start_x);
@@ -468,7 +468,9 @@ impl ScreenshotAnnotator {
         let right_y = end_y - head_length * (angle + head_angle).sin();
 
         // Fill the arrowhead triangle
-        self.fill_triangle(pixels, end_x, end_y, left_x, left_y, right_x, right_y, r, g, b, a);
+        self.fill_triangle(
+            pixels, end_x, end_y, left_x, left_y, right_x, right_y, r, g, b, a,
+        );
 
         Ok(())
     }
@@ -518,8 +520,12 @@ impl ScreenshotAnnotator {
         // Draw background if specified
         if let Some(bg_color) = background {
             let (bg_r, bg_g, bg_b, bg_a) = parse_color(bg_color)?;
-            for py in (y_i - padding).max(0)..(y_i + char_height + padding).min(self.image_height as i32) {
-                for px in (x_i - padding).max(0)..(x_i + text_width + padding).min(self.image_width as i32) {
+            for py in
+                (y_i - padding).max(0)..(y_i + char_height + padding).min(self.image_height as i32)
+            {
+                for px in (x_i - padding).max(0)
+                    ..(x_i + text_width + padding).min(self.image_width as i32)
+                {
                     self.set_pixel(pixels, px as u32, py as u32, bg_r, bg_g, bg_b, bg_a);
                 }
             }
@@ -531,8 +537,12 @@ impl ScreenshotAnnotator {
             // Simple block representation: fill a smaller rectangle for each character
             let glyph_margin_x = (char_width as f64 * 0.15) as i32;
             let glyph_margin_y = (char_height as f64 * 0.1) as i32;
-            for py in (y_i + glyph_margin_y).max(0)..(y_i + char_height - glyph_margin_y).min(self.image_height as i32) {
-                for px in (cx + glyph_margin_x).max(0)..(cx + char_width - glyph_margin_x).min(self.image_width as i32) {
+            for py in (y_i + glyph_margin_y).max(0)
+                ..(y_i + char_height - glyph_margin_y).min(self.image_height as i32)
+            {
+                for px in (cx + glyph_margin_x).max(0)
+                    ..(cx + char_width - glyph_margin_x).min(self.image_width as i32)
+                {
                     self.set_pixel(pixels, px as u32, py as u32, r, g, b, a);
                 }
             }
@@ -579,8 +589,12 @@ impl ScreenshotAnnotator {
         for (ci, _ch) in num_str.chars().enumerate() {
             let gx = start_x + ci as i32 * num_char_w;
             let margin = (num_char_w as f64 * 0.15) as i32;
-            for py in (start_y + margin).max(0)..(start_y + num_char_h - margin).min(self.image_height as i32) {
-                for px in (gx + margin).max(0)..(gx + num_char_w - margin).min(self.image_width as i32) {
+            for py in (start_y + margin).max(0)
+                ..(start_y + num_char_h - margin).min(self.image_height as i32)
+            {
+                for px in
+                    (gx + margin).max(0)..(gx + num_char_w - margin).min(self.image_width as i32)
+                {
                     // White text
                     self.set_pixel(pixels, px as u32, py as u32, 255, 255, 255, 255);
                 }
@@ -620,7 +634,11 @@ impl ScreenshotAnnotator {
                 for ox in -half..=half {
                     let fx = px + ox;
                     let fy = py + oy;
-                    if fx >= 0 && fx < self.image_width as i32 && fy >= 0 && fy < self.image_height as i32 {
+                    if fx >= 0
+                        && fx < self.image_width as i32
+                        && fy >= 0
+                        && fy < self.image_height as i32
+                    {
                         self.set_pixel(pixels, fx as u32, fy as u32, r, g, b, a);
                     }
                 }
@@ -633,10 +651,16 @@ impl ScreenshotAnnotator {
     fn fill_triangle(
         &self,
         pixels: &mut [u8],
-        x1: f64, y1: f64,
-        x2: f64, y2: f64,
-        x3: f64, y3: f64,
-        r: u8, g: u8, b: u8, a: u8,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        x3: f64,
+        y3: f64,
+        r: u8,
+        g: u8,
+        b: u8,
+        a: u8,
     ) {
         let min_y = (y1.min(y2).min(y3) as i32).max(0);
         let max_y = (y1.max(y2).max(y3) as i32).min(self.image_height as i32 - 1);
@@ -1362,7 +1386,8 @@ mod tests {
         let annotator = ScreenshotAnnotator::new(40, 40);
         let mut pixels = vec![0u8; 40 * 40 * 4];
 
-        let result = annotator.draw_ellipse(&mut pixels, 20.0, 20.0, 10.0, 8.0, "#00FF00", 1.0, true);
+        let result =
+            annotator.draw_ellipse(&mut pixels, 20.0, 20.0, 10.0, 8.0, "#00FF00", 1.0, true);
         assert!(result.is_ok());
 
         // Center pixel should be green
@@ -1377,7 +1402,8 @@ mod tests {
         let annotator = ScreenshotAnnotator::new(40, 40);
         let mut pixels = vec![0u8; 40 * 40 * 4];
 
-        let result = annotator.draw_ellipse(&mut pixels, 20.0, 20.0, 10.0, 8.0, "#FF0000", 2.0, false);
+        let result =
+            annotator.draw_ellipse(&mut pixels, 20.0, 20.0, 10.0, 8.0, "#FF0000", 2.0, false);
         assert!(result.is_ok());
 
         // Center pixel should remain empty (stroked, not filled)
@@ -1444,7 +1470,9 @@ mod tests {
                     break;
                 }
             }
-            if any_colored { break; }
+            if any_colored {
+                break;
+            }
         }
         assert!(any_colored, "Text should have drawn some red pixels");
     }
@@ -1455,7 +1483,13 @@ mod tests {
         let mut pixels = vec![0u8; 100 * 40 * 4];
 
         let result = annotator.draw_text(
-            &mut pixels, 10.0, 30.0, "AB", 16.0, "#000000", Some("#FFFF00")
+            &mut pixels,
+            10.0,
+            30.0,
+            "AB",
+            16.0,
+            "#000000",
+            Some("#FFFF00"),
         );
         assert!(result.is_ok());
 
@@ -1469,7 +1503,9 @@ mod tests {
                     break;
                 }
             }
-            if has_yellow { break; }
+            if has_yellow {
+                break;
+            }
         }
         assert!(has_yellow, "Background should have drawn yellow pixels");
     }
@@ -1517,10 +1553,16 @@ mod tests {
 
         annotator.fill_triangle(
             &mut pixels,
-            15.0, 5.0,
-            5.0, 25.0,
-            25.0, 25.0,
-            0, 255, 0, 255,
+            15.0,
+            5.0,
+            5.0,
+            25.0,
+            25.0,
+            25.0,
+            0,
+            255,
+            0,
+            255,
         );
 
         // Center of triangle should be green
@@ -1543,38 +1585,71 @@ mod tests {
         }
 
         annotator.add_annotation(Annotation::Rectangle {
-            x: 5.0, y: 5.0, width: 10.0, height: 10.0,
-            color: "#FF0000".to_string(), stroke_width: 1.0, filled: true,
+            x: 5.0,
+            y: 5.0,
+            width: 10.0,
+            height: 10.0,
+            color: "#FF0000".to_string(),
+            stroke_width: 1.0,
+            filled: true,
         });
         annotator.add_annotation(Annotation::Ellipse {
-            cx: 50.0, cy: 50.0, rx: 15.0, ry: 10.0,
-            color: "#00FF00".to_string(), stroke_width: 2.0, filled: true,
+            cx: 50.0,
+            cy: 50.0,
+            rx: 15.0,
+            ry: 10.0,
+            color: "#00FF00".to_string(),
+            stroke_width: 2.0,
+            filled: true,
         });
         annotator.add_annotation(Annotation::Arrow {
-            start_x: 70.0, start_y: 10.0, end_x: 90.0, end_y: 30.0,
-            color: "#0000FF".to_string(), stroke_width: 2.0,
+            start_x: 70.0,
+            start_y: 10.0,
+            end_x: 90.0,
+            end_y: 30.0,
+            color: "#0000FF".to_string(),
+            stroke_width: 2.0,
         });
         annotator.add_annotation(Annotation::Freehand {
             points: vec![(10.0, 80.0), (20.0, 85.0), (30.0, 75.0)],
-            color: "#FF00FF".to_string(), stroke_width: 2.0,
+            color: "#FF00FF".to_string(),
+            stroke_width: 2.0,
         });
         annotator.add_annotation(Annotation::Text {
-            x: 40.0, y: 90.0, text: "OK".to_string(),
-            font_size: 12.0, color: "#000000".to_string(), background: None,
+            x: 40.0,
+            y: 90.0,
+            text: "OK".to_string(),
+            font_size: 12.0,
+            color: "#000000".to_string(),
+            background: None,
         });
         annotator.add_annotation(Annotation::Blur {
-            x: 60.0, y: 60.0, width: 15.0, height: 15.0, intensity: 0.5,
+            x: 60.0,
+            y: 60.0,
+            width: 15.0,
+            height: 15.0,
+            intensity: 0.5,
         });
         annotator.add_annotation(Annotation::Highlight {
-            x: 80.0, y: 80.0, width: 15.0, height: 15.0,
-            color: "#FFFF00".to_string(), opacity: 0.4,
+            x: 80.0,
+            y: 80.0,
+            width: 15.0,
+            height: 15.0,
+            color: "#FFFF00".to_string(),
+            opacity: 0.4,
         });
         annotator.add_annotation(Annotation::Marker {
-            x: 30.0, y: 30.0, number: 1,
-            color: "#FF6600".to_string(), size: 16.0,
+            x: 30.0,
+            y: 30.0,
+            number: 1,
+            color: "#FF6600".to_string(),
+            size: 16.0,
         });
 
         let result = annotator.apply_to_image(&mut pixels);
-        assert!(result.is_ok(), "apply_to_image with all annotation types should succeed");
+        assert!(
+            result.is_ok(),
+            "apply_to_image with all annotation types should succeed"
+        );
     }
 }

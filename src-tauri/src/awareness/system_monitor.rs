@@ -194,7 +194,10 @@ impl SystemMonitor {
             total_sent += data.total_transmitted();
             total_received += data.total_received();
             // Pick first non-loopback interface name as connection type hint
-            if iface_name.is_empty() && !name.to_lowercase().contains("loopback") && !name.starts_with("lo") {
+            if iface_name.is_empty()
+                && !name.to_lowercase().contains("loopback")
+                && !name.starts_with("lo")
+            {
                 iface_name = name.clone();
             }
         }
@@ -308,12 +311,12 @@ impl SystemMonitor {
             _rect: *mut RECT,
             lparam: LPARAM,
         ) -> BOOL {
+            use windows::core::PCWSTR;
+            use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
             use windows::Win32::Graphics::Gdi::{
-                EnumDisplaySettingsW, MONITORINFOEXW, DEVMODEW, ENUM_CURRENT_SETTINGS,
+                EnumDisplaySettingsW, DEVMODEW, ENUM_CURRENT_SETTINGS, MONITORINFOEXW,
             };
             use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
-            use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
-            use windows::core::PCWSTR;
 
             let displays = &mut *(lparam.0 as *mut Vec<DisplayInfo>);
 
@@ -346,7 +349,9 @@ impl SystemMonitor {
                     PCWSTR(info.szDevice.as_ptr()),
                     ENUM_CURRENT_SETTINGS,
                     &mut devmode,
-                ).as_bool() {
+                )
+                .as_bool()
+                {
                     devmode.dmDisplayFrequency
                 } else {
                     60

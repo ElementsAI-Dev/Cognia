@@ -5,27 +5,27 @@
  */
 
 // Types
-export * from './types.js';
+export * from './types';
 
 // Theme
-export * from './theme.js';
+export * from './theme';
 
 // Core components
-export * from './Spinner.js';
-export * from './TextInput.js';
-export * from './Select.js';
-export * from './MultiSelect.js';
-export * from './Confirm.js';
-export * from './Steps.js';
-export * from './FileTree.js';
-export * from './Badge.js';
-export * from './Header.js';
-export * from './TaskRunner.js';
+export * from './Spinner';
+export * from './TextInput';
+export * from './Select';
+export * from './MultiSelect';
+export * from './Confirm';
+export * from './Steps';
+export * from './FileTree';
+export * from './Badge';
+export * from './Header';
+export * from './TaskRunner';
 
 // @inkjs/ui wrapped components
-export * from './Alert.js';
-export * from './StatusMessage.js';
-export * from './ProgressBar.js';
+export * from './Alert';
+export * from './StatusMessage';
+export * from './ProgressBar';
 
 // Re-export ink for convenience
 export { Box, Text, useApp, useInput, render } from 'ink';

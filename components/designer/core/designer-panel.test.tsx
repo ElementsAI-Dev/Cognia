@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { DesignerPanel } from './designer-panel';
 
 // Mock next-intl
@@ -149,7 +149,7 @@ describe('DesignerPanel', () => {
 
   it('renders designer preview in preview mode', () => {
     render(<DesignerPanel {...defaultProps} />);
-    expect(screen.getByTestId('designer-preview')).toBeInTheDocument();
+    expect(screen.getByTestId('sandpack-preview')).toBeInTheDocument();
   });
 
   it('renders element tree when showElementTree is true', () => {
@@ -159,7 +159,8 @@ describe('DesignerPanel', () => {
 
   it('shows AI input when AI Edit button is clicked', () => {
     render(<DesignerPanel {...defaultProps} />);
-    fireEvent.click(screen.getByText('AI Edit'));
+    const toolbar = screen.getByTestId('designer-toolbar');
+    fireEvent.click(within(toolbar).getByRole('button', { name: 'AI Edit' }));
     // The placeholder uses the mocked translation key
     expect(screen.getByPlaceholderText('aiPlaceholder')).toBeInTheDocument();
   });

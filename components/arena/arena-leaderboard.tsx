@@ -67,16 +67,20 @@ function ConfidenceBar({
   rating,
   ci95Lower,
   ci95Upper,
+  scaleMin,
+  scaleMax,
 }: {
   rating: number;
   ci95Lower?: number;
   ci95Upper?: number;
+  scaleMin?: number;
+  scaleMax?: number;
 }) {
   const lower = ci95Lower || rating - 50;
   const upper = ci95Upper || rating + 50;
   const range = upper - lower;
-  const minRating = 1200;
-  const maxRating = 1800;
+  const minRating = scaleMin ?? 1200;
+  const maxRating = scaleMax ?? 1800;
   const scale = maxRating - minRating;
 
   const leftPercent = Math.max(0, Math.min(100, ((lower - minRating) / scale) * 100));
@@ -188,6 +192,20 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
   const handleExport = () => {
     exportLeaderboardData(sortedRatings, activeCategory);
   };
+
+  // Compute dynamic min/max scale from rating CI bounds (with padding)
+  const ciScale = useMemo(() => {
+    if (sortedRatings.length === 0) return { min: 1200, max: 1800 };
+    const allLowers = sortedRatings.map((r) => r.ci95Lower ?? r.rating - 50);
+    const allUppers = sortedRatings.map((r) => r.ci95Upper ?? r.rating + 50);
+    const dataMin = Math.min(...allLowers);
+    const dataMax = Math.max(...allUppers);
+    const padding = Math.max((dataMax - dataMin) * 0.1, 20);
+    return {
+      min: Math.floor(dataMin - padding),
+      max: Math.ceil(dataMax + padding),
+    };
+  }, [sortedRatings]);
 
   const SortHeader = ({ field, children }: { field: LeaderboardSortField; children: React.ReactNode }) => (
     <button
@@ -368,6 +386,8 @@ function ArenaLeaderboardComponent({ className, compact = false }: ArenaLeaderbo
                                 rating={displayRating}
                                 ci95Lower={rating.ci95Lower}
                                 ci95Upper={rating.ci95Upper}
+                                scaleMin={ciScale.min}
+                                scaleMax={ciScale.max}
                               />
                               <div className="text-[10px] text-muted-foreground text-center">
                                 {rating.ci95Lower ? Math.round(rating.ci95Lower) : '-'} -{' '}

@@ -3,18 +3,19 @@
  */
 
 import { withRetry } from './utils';
+import { loggers } from '@/lib/logger';
 
 describe('db/utils', () => {
-  let consoleWarnSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+    warnSpy = jest.spyOn(loggers.store, 'warn').mockImplementation();
   });
 
   afterEach(() => {
     jest.useRealTimers();
-    consoleWarnSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   describe('withRetry', () => {
@@ -113,8 +114,8 @@ describe('db/utils', () => {
       await jest.advanceTimersByTimeAsync(200);
       await promise;
 
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      expect(consoleWarnSpy.mock.calls[0][0]).toContain('Test operation failed');
+      expect(warnSpy).toHaveBeenCalled();
+      expect(warnSpy.mock.calls[0][0]).toContain('Test operation failed');
     });
   });
 });

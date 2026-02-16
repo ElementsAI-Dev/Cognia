@@ -88,7 +88,10 @@ impl VideoProcessor {
 
         let pid = ACTIVE_PID.load(Ordering::SeqCst);
         if pid != 0 {
-            info!("[VideoProcessor] Killing active FFmpeg process (PID: {})", pid);
+            info!(
+                "[VideoProcessor] Killing active FFmpeg process (PID: {})",
+                pid
+            );
             Self::kill_process(pid);
             ACTIVE_PID.store(0, Ordering::SeqCst);
             true
@@ -129,12 +132,9 @@ impl VideoProcessor {
         }
         #[cfg(not(target_os = "windows"))]
         {
-            let _ = Command::new("kill")
-                .args(["-9", &pid.to_string()])
-                .output();
+            let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
         }
     }
-
 
     /// Trim a video file
     pub fn trim_video(options: &VideoTrimOptions) -> Result<VideoProcessingResult, String> {
@@ -144,7 +144,9 @@ impl VideoProcessor {
         );
 
         if !Self::check_ffmpeg() {
-            return Err("FFmpeg is not available. Please install FFmpeg to process videos.".to_string());
+            return Err(
+                "FFmpeg is not available. Please install FFmpeg to process videos.".to_string(),
+            );
         }
 
         if !Path::new(&options.input_path).exists() {
@@ -248,7 +250,8 @@ impl VideoProcessor {
         );
 
         if !Self::check_ffmpeg() {
-            let err = "FFmpeg is not available. Please install FFmpeg to process videos.".to_string();
+            let err =
+                "FFmpeg is not available. Please install FFmpeg to process videos.".to_string();
             emit_processing_error(app_handle, "trim", &err);
             return Err(err);
         }
@@ -384,7 +387,9 @@ impl VideoProcessor {
         );
 
         if !Self::check_ffmpeg() {
-            return Err("FFmpeg is not available. Please install FFmpeg to process videos.".to_string());
+            return Err(
+                "FFmpeg is not available. Please install FFmpeg to process videos.".to_string(),
+            );
         }
 
         if !Path::new(&options.input_path).exists() {
@@ -483,7 +488,8 @@ impl VideoProcessor {
         );
 
         if !Self::check_ffmpeg() {
-            let err = "FFmpeg is not available. Please install FFmpeg to process videos.".to_string();
+            let err =
+                "FFmpeg is not available. Please install FFmpeg to process videos.".to_string();
             emit_processing_error(app_handle, "convert", &err);
             return Err(err);
         }
@@ -495,8 +501,8 @@ impl VideoProcessor {
         }
 
         // Get input duration for progress calculation
-        let input_duration = Self::get_video_duration(&options.input_path)
-            .map(|ms| ms as f64 / 1000.0);
+        let input_duration =
+            Self::get_video_duration(&options.input_path).map(|ms| ms as f64 / 1000.0);
 
         emit_processing_started(app_handle, "convert");
 

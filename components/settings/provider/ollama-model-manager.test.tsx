@@ -49,6 +49,7 @@ jest.mock('next-intl', () => ({
       ollamaDeleteTitle: 'Delete Model',
       ollamaDeleteDescription: 'Are you sure you want to delete {model}?',
       modelsCount: 'models',
+      running: 'Running',
     };
     return translations[key] || key;
   },
@@ -81,7 +82,7 @@ jest.mock('@/types/provider/ollama', () => ({
 jest.mock('@/components/ui/card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,
   CardContent: ({ children }: { children: React.ReactNode }) => <div data-testid="card-content">{children}</div>,
-  CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  CardDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CardTitle: ({ children }: { children: React.ReactNode }) => <h3>{children}</h3>,
 }));

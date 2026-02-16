@@ -65,7 +65,7 @@ pub struct Paper {
     pub id: String,
     pub provider_id: String,
     pub external_id: String,
-    
+
     // Basic metadata
     pub title: String,
     pub abstract_text: Option<String>,
@@ -78,26 +78,26 @@ pub struct Paper {
     pub volume: Option<String>,
     pub issue: Option<String>,
     pub pages: Option<String>,
-    
+
     // Classification
     pub categories: Option<Vec<String>>,
     pub keywords: Option<Vec<String>>,
     pub fields_of_study: Option<Vec<String>>,
-    
+
     // Metrics
     pub citation_count: Option<i32>,
     pub reference_count: Option<i32>,
     pub influential_citation_count: Option<i32>,
-    
+
     // URLs and access
     pub urls: Vec<PaperUrl>,
     pub pdf_url: Option<String>,
     pub open_access_url: Option<String>,
     pub is_open_access: Option<bool>,
-    
+
     // External IDs
     pub metadata: PaperMetadata,
-    
+
     // Timestamps
     pub created_at: String,
     pub updated_at: String,
@@ -108,7 +108,7 @@ impl Paper {
     pub fn new(provider_id: &str, external_id: &str, title: &str) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
         let id = format!("{}_{}", provider_id, external_id);
-        
+
         Self {
             id,
             provider_id: provider_id.to_string(),
@@ -150,31 +150,31 @@ impl Paper {
 pub struct LibraryPaper {
     #[serde(flatten)]
     pub paper: Paper,
-    
+
     // Library-specific fields
     pub library_id: String,
     pub added_at: String,
     pub last_accessed_at: Option<String>,
-    
+
     // Organization
     pub collections: Option<Vec<String>>,
     pub tags: Option<Vec<String>>,
-    
+
     // Reading progress
     pub reading_status: String, // unread, reading, completed, archived
-    pub priority: String, // low, medium, high, urgent
+    pub priority: String,       // low, medium, high, urgent
     pub reading_progress: Option<i32>, // 0-100
-    
+
     // User data
     pub user_rating: Option<i32>, // 1-5
     pub user_notes: Option<String>,
-    
+
     // Local storage
     pub local_pdf_path: Option<String>,
     pub local_full_text_path: Option<String>,
     pub has_cached_pdf: Option<bool>,
     pub has_cached_full_text: Option<bool>,
-    
+
     // AI analysis
     pub ai_summary: Option<String>,
     pub ai_key_insights: Option<Vec<String>>,
@@ -186,7 +186,7 @@ impl LibraryPaper {
     pub fn from_paper(paper: Paper) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
         let library_id = nanoid::nanoid!();
-        
+
         Self {
             paper,
             library_id,
@@ -260,9 +260,14 @@ pub struct PaperCollection {
 }
 
 impl PaperCollection {
-    pub fn new(name: String, description: Option<String>, color: Option<String>, parent_id: Option<String>) -> Self {
+    pub fn new(
+        name: String,
+        description: Option<String>,
+        color: Option<String>,
+        parent_id: Option<String>,
+    ) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
-        
+
         Self {
             id: nanoid::nanoid!(),
             name,
@@ -477,21 +482,21 @@ pub struct AcademicStatistics {
     pub total_collections: i32,
     pub total_annotations: i32,
     pub total_notes: i32,
-    
+
     pub papers_by_status: HashMap<String, i32>,
     pub papers_by_provider: HashMap<String, i32>,
     pub papers_by_year: HashMap<i32, i32>,
     pub papers_by_category: HashMap<String, i32>,
-    
+
     pub reading_streak: i32,
     pub papers_read_this_week: i32,
     pub papers_read_this_month: i32,
     pub average_reading_time: Option<i32>,
-    
+
     pub top_authors: Vec<AuthorCount>,
     pub top_venues: Vec<VenueCount>,
     pub top_keywords: Vec<KeywordCount>,
-    
+
     pub last_updated: String,
 }
 

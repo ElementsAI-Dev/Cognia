@@ -3,8 +3,12 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render } from './test-utils';
 import { StatusMessage } from './StatusMessage';
+
+jest.mock('@inkjs/ui', () => ({
+  StatusMessage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 describe('StatusMessage', () => {
   it('should render info status', () => {

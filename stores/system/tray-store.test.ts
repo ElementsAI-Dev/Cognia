@@ -20,6 +20,16 @@ describe('tray-store', () => {
     const { result } = renderHook(() => useTrayStore());
     act(() => {
       result.current.resetConfig();
+      result.current.setTrayState({
+        isBusy: false,
+        isRecording: false,
+        statusMessage: '就绪',
+      });
+      result.current.setIconState('normal');
+      useTrayStore.setState({
+        isSynced: false,
+        lastSyncAt: null,
+      });
     });
   });
 

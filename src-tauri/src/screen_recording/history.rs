@@ -65,13 +65,19 @@ impl RecordingHistory {
     /// Create a new RecordingHistory with disk persistence
     pub fn new_persistent(data_dir: &std::path::Path) -> Self {
         let persist_path = data_dir.join("recording_history.json");
-        info!("[RecordingHistory] Creating persistent history at: {:?}", persist_path);
+        info!(
+            "[RecordingHistory] Creating persistent history at: {:?}",
+            persist_path
+        );
 
         let entries = if persist_path.exists() {
             match std::fs::read_to_string(&persist_path) {
                 Ok(data) => match serde_json::from_str::<Vec<RecordingHistoryEntry>>(&data) {
                     Ok(loaded) => {
-                        info!("[RecordingHistory] Loaded {} entries from disk", loaded.len());
+                        info!(
+                            "[RecordingHistory] Loaded {} entries from disk",
+                            loaded.len()
+                        );
                         VecDeque::from(loaded)
                     }
                     Err(e) => {
@@ -563,14 +569,14 @@ mod tests {
     fn test_history_dirty_flag_on_add() {
         let dir = tempdir().unwrap();
         let history = RecordingHistory::new_persistent(dir.path());
-        
+
         // Initially not dirty
         assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
-        
+
         // After add, dirty should be false because save_to_disk was called
         history.add(create_test_entry("dirty-1"));
         assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
-        
+
         // File should exist on disk
         let persist_path = dir.path().join("recording_history.json");
         assert!(persist_path.exists());
@@ -581,9 +587,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let history = RecordingHistory::new_persistent(dir.path());
         let persist_path = dir.path().join("recording_history.json");
-        
+
         history.add(create_test_entry("flush-1"));
-        
+
         // Verify file exists and contains entry
         let data = fs::read_to_string(&persist_path).unwrap();
         let entries: Vec<RecordingHistoryEntry> = serde_json::from_str(&data).unwrap();
@@ -595,14 +601,14 @@ mod tests {
     fn test_history_drop_flushes_dirty() {
         let dir = tempdir().unwrap();
         let persist_path = dir.path().join("recording_history.json");
-        
+
         {
             let history = RecordingHistory::new_persistent(dir.path());
             history.add(create_test_entry("drop-1"));
             history.add(create_test_entry("drop-2"));
             // History is dropped here, should flush
         }
-        
+
         // Verify file exists and has both entries
         let data = fs::read_to_string(&persist_path).unwrap();
         let entries: Vec<RecordingHistoryEntry> = serde_json::from_str(&data).unwrap();
@@ -612,14 +618,14 @@ mod tests {
     #[test]
     fn test_history_persistent_load_after_save() {
         let dir = tempdir().unwrap();
-        
+
         // Create and populate history
         {
             let history = RecordingHistory::new_persistent(dir.path());
             history.add(create_test_entry("persist-1"));
             history.add(create_test_entry("persist-2"));
         }
-        
+
         // Load history from disk
         let history = RecordingHistory::new_persistent(dir.path());
         let entries = history.get_all();
@@ -631,11 +637,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let history = RecordingHistory::new_persistent(dir.path());
         history.add(create_test_entry("pin-dirty-1"));
-        
+
         // Pin should mark dirty and save
         history.pin("pin-dirty-1");
         assert!(!history.dirty.load(std::sync::atomic::Ordering::SeqCst));
-        
+
         // Verify pin persisted
         let history2 = RecordingHistory::new_persistent(dir.path());
         let entry = history2.get_by_id("pin-dirty-1").unwrap();

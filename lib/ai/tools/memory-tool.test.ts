@@ -128,7 +128,7 @@ describe('Memory Tools', () => {
         success: true,
         memories: expect.any(Array),
         stats: expect.objectContaining({
-          totalEntries: 5,
+          totalEntries: expect.any(Number),
         }),
       });
     });

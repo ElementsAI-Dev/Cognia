@@ -127,7 +127,10 @@ impl RecordingError {
     pub fn ffmpeg_version_too_old(version: &str, required: &str) -> Self {
         Self::new(
             RecordingErrorCode::FfmpegVersionTooOld,
-            format!("FFmpeg version {} is too old. Version {} or higher is required", version, required),
+            format!(
+                "FFmpeg version {} is too old. Version {} or higher is required",
+                version, required
+            ),
         )
         .with_suggestion("Please update FFmpeg to the latest version")
     }
@@ -148,24 +151,33 @@ impl RecordingError {
             Some(code) => format!("FFmpeg process crashed with exit code {}", code),
             None => "FFmpeg process crashed unexpectedly".to_string(),
         };
-        Self::new(RecordingErrorCode::FfmpegCrashed, msg)
-            .with_suggestion("Try recording again. If the problem persists, check FFmpeg installation")
+        Self::new(RecordingErrorCode::FfmpegCrashed, msg).with_suggestion(
+            "Try recording again. If the problem persists, check FFmpeg installation",
+        )
     }
 
     /// FFmpeg timeout
     pub fn ffmpeg_timeout(operation: &str, timeout_secs: u64) -> Self {
         Self::new(
             RecordingErrorCode::FfmpegTimeout,
-            format!("FFmpeg {} operation timed out after {} seconds", operation, timeout_secs),
+            format!(
+                "FFmpeg {} operation timed out after {} seconds",
+                operation, timeout_secs
+            ),
         )
-        .with_suggestion("The recording may have been saved partially. Try again with a shorter recording")
+        .with_suggestion(
+            "The recording may have been saved partially. Try again with a shorter recording",
+        )
     }
 
     /// Monitor not found
     pub fn monitor_not_found(index: usize, available: usize) -> Self {
         Self::new(
             RecordingErrorCode::MonitorNotFound,
-            format!("Monitor {} not found. Only {} monitors available", index, available),
+            format!(
+                "Monitor {} not found. Only {} monitors available",
+                index, available
+            ),
         )
         .with_suggestion("Select a valid monitor from the available list")
     }
@@ -208,11 +220,8 @@ impl RecordingError {
 
     /// Not paused
     pub fn not_paused() -> Self {
-        Self::new(
-            RecordingErrorCode::NotPaused,
-            "Recording is not paused",
-        )
-        .with_suggestion("Pause the recording first before resuming")
+        Self::new(RecordingErrorCode::NotPaused, "Recording is not paused")
+            .with_suggestion("Pause the recording first before resuming")
     }
 
     /// No save directory
@@ -263,8 +272,14 @@ mod tests {
 
     #[test]
     fn test_error_code_display() {
-        assert_eq!(RecordingErrorCode::FfmpegNotFound.to_string(), "FFMPEG_NOT_FOUND");
-        assert_eq!(RecordingErrorCode::AlreadyRecording.to_string(), "ALREADY_RECORDING");
+        assert_eq!(
+            RecordingErrorCode::FfmpegNotFound.to_string(),
+            "FFMPEG_NOT_FOUND"
+        );
+        assert_eq!(
+            RecordingErrorCode::AlreadyRecording.to_string(),
+            "ALREADY_RECORDING"
+        );
     }
 
     #[test]
@@ -279,7 +294,7 @@ mod tests {
         let err = RecordingError::new(RecordingErrorCode::Unknown, "Test error")
             .with_details("Some details")
             .with_suggestion("Try again");
-        
+
         assert_eq!(err.details, Some("Some details".to_string()));
         assert_eq!(err.suggestion, Some("Try again".to_string()));
     }
@@ -298,6 +313,9 @@ mod tests {
         let decoded: serde_json::Value = serde_json::from_str(&encoded).unwrap();
 
         assert_eq!(decoded["code"], "FfmpegNotFound");
-        assert!(decoded["message"].as_str().unwrap_or_default().contains("FFmpeg"));
+        assert!(decoded["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("FFmpeg"));
     }
 }

@@ -2,19 +2,35 @@
  * ToolHistoryPanel Component Tests
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { ToolHistoryPanel } from './tool-history-panel';
 import React from 'react';
 
 // Create a proper Zustand-like mock with subscription support for re-renders
-const createMockStore = () => {
+function createMockStore() {
   const listeners: Set<() => void> = new Set();
+  type MockUsageStat = {
+    toolId: string;
+    toolType: string;
+    toolName: string;
+    serverId?: string;
+    serverName?: string;
+    totalCalls: number;
+    successCalls: number;
+    errorCalls: number;
+    avgDuration: number;
+    frequentPrompts: Array<{ prompt: string; count: number; lastUsedAt: Date; successRate: number }>;
+    lastUsedAt: Date | null;
+    isFavorite: boolean;
+    isPinned: boolean;
+    displayOrder?: number;
+  };
   
   const mockState: {
     history: Array<Record<string, unknown>>;
-    usageStats: Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>;
+    usageStats: Record<string, MockUsageStat>;
     settings: Record<string, unknown>;
     isLoading: boolean;
     error: null;
@@ -28,7 +44,7 @@ const createMockStore = () => {
     getFrequentTools: (count: number) => Array<Record<string, unknown>>;
   } = {
     history: [] as Array<Record<string, unknown>>,
-    usageStats: {} as Record<string, { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean }>,
+    usageStats: {} as Record<string, MockUsageStat>,
     settings: {
       enabled: true,
       maxRecords: 1000,
@@ -51,7 +67,21 @@ const createMockStore = () => {
       const toolId = params.toolId as string;
       if (toolId) {
         if (!mockState.usageStats[toolId]) {
-          mockState.usageStats[toolId] = { totalCalls: 0, lastUsedAt: null, isFavorite: false, isPinned: false };
+          mockState.usageStats[toolId] = {
+            toolId,
+            toolType: (params.toolType as string) || 'mcp',
+            toolName: (params.toolName as string) || toolId,
+            serverId: params.serverId as string | undefined,
+            serverName: params.serverName as string | undefined,
+            totalCalls: 0,
+            successCalls: 0,
+            errorCalls: 0,
+            avgDuration: 0,
+            frequentPrompts: [],
+            lastUsedAt: null,
+            isFavorite: false,
+            isPinned: false,
+          };
         }
         mockState.usageStats = {
           ...mockState.usageStats,
@@ -65,10 +95,20 @@ const createMockStore = () => {
       listeners.forEach(listener => listener());
       return record;
     },
-    updateToolCallResultStatus: (id: string, result: string, output?: string, error?: string, duration?: number) => {
+    updateToolCallResultStatus: (id: string, result: string, output?: string, errorMessage?: string, duration?: number) => {
       mockState.history = mockState.history.map((h) => 
-        h.id === id ? { ...h, result, output, error, duration } : h
+        h.id === id ? { ...h, result, output, errorMessage, duration } : h
       );
+      const record = mockState.history.find((h) => h.id === id);
+      const toolId = record?.toolId as string | undefined;
+      if (toolId && mockState.usageStats[toolId]) {
+        const toolHistory = mockState.history.filter((h) => h.toolId === toolId);
+        mockState.usageStats[toolId] = {
+          ...mockState.usageStats[toolId],
+          successCalls: toolHistory.filter((h) => h.result === 'success').length,
+          errorCalls: toolHistory.filter((h) => h.result === 'error').length,
+        };
+      }
       listeners.forEach(listener => listener());
     },
     deleteRecord: (id: string) => {
@@ -81,21 +121,27 @@ const createMockStore = () => {
       listeners.forEach(listener => listener());
     },
     getRecentTools: (count: number) => {
-      return mockState.history.slice(0, count).map((h) => ({
-        toolId: h.toolId,
-        toolName: h.toolName,
-        serverId: h.serverId,
-        serverName: h.serverName,
-      }));
+      return Object.values(mockState.usageStats)
+        .filter((stats) => !!stats.lastUsedAt)
+        .sort((a, b) => {
+          const aTime = a.lastUsedAt ? a.lastUsedAt.getTime() : 0;
+          const bTime = b.lastUsedAt ? b.lastUsedAt.getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, count)
+        .map((stats) => ({
+          toolId: stats.toolId,
+          toolName: stats.toolName,
+          serverId: stats.serverId,
+          serverName: stats.serverName,
+          totalCalls: stats.totalCalls,
+        }));
     },
     getFrequentTools: (count: number) => {
       return Object.entries(mockState.usageStats)
-        .sort(([, a], [, b]) => (b as { totalCalls: number }).totalCalls - (a as { totalCalls: number }).totalCalls)
+        .sort(([, a], [, b]) => b.totalCalls - a.totalCalls)
         .slice(0, count)
-        .map(([toolId, stats]) => ({
-          toolId,
-          totalCalls: (stats as { totalCalls: number }).totalCalls,
-        }));
+        .map(([, stats]) => stats);
     },
   };
 
@@ -129,13 +175,11 @@ const createMockStore = () => {
   });
 
   return store;
-};
-
-const mockStore = createMockStore();
+}
 
 // Mock store
 jest.mock('@/stores', () => ({
-  useToolHistoryStore: mockStore,
+  useToolHistoryStore: createMockStore(),
   createToolId: (provider: string, name: string, serverId: string) => `${provider}:${serverId}:${name}`,
 }));
 
@@ -202,6 +246,41 @@ function addMockHistory() {
 
   return { record1, record2 };
 }
+
+async function expandHistoryItemByPrompt(prompt: string) {
+  const promptNode = await screen.findByText(prompt);
+  const historyItem = promptNode.closest('.group');
+  if (!historyItem) {
+    throw new Error(`Unable to find history item for prompt: ${prompt}`);
+  }
+  const clickableRow = historyItem.querySelector('.cursor-pointer');
+  if (!clickableRow) {
+    throw new Error(`Unable to find clickable row for prompt: ${prompt}`);
+  }
+  await userEvent.click(clickableRow as HTMLElement);
+  return historyItem;
+}
+
+beforeAll(() => {
+  if (!HTMLElement.prototype.hasPointerCapture) {
+    Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+      value: () => false,
+      configurable: true,
+    });
+  }
+  if (!HTMLElement.prototype.setPointerCapture) {
+    Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+      value: () => undefined,
+      configurable: true,
+    });
+  }
+  if (!HTMLElement.prototype.releasePointerCapture) {
+    Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
+      value: () => undefined,
+      configurable: true,
+    });
+  }
+});
 
 describe('ToolHistoryPanel', () => {
   beforeEach(() => {
@@ -316,7 +395,6 @@ describe('ToolHistoryPanel', () => {
 
     it('should expand item on click', async () => {
       addMockHistory();
-      const user = userEvent.setup();
 
       render(
         <TestWrapper>
@@ -324,11 +402,7 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      const historyItems = screen.getAllByText('search');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
+      await expandHistoryItemByPrompt('Find documents about AI');
 
       // Should show expanded content
       await waitFor(() => {
@@ -338,7 +412,6 @@ describe('ToolHistoryPanel', () => {
 
     it('should show output in expanded view', async () => {
       addMockHistory();
-      const user = userEvent.setup();
 
       render(
         <TestWrapper>
@@ -346,12 +419,7 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find the history item (not the badge in Recent section)
-      const historyItems = screen.getAllByText('search');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
+      await expandHistoryItemByPrompt('Find documents about AI');
 
       await waitFor(() => {
         expect(screen.getByText('Output:')).toBeInTheDocument();
@@ -361,7 +429,6 @@ describe('ToolHistoryPanel', () => {
 
     it('should show error message in expanded view', async () => {
       addMockHistory();
-      const user = userEvent.setup();
 
       render(
         <TestWrapper>
@@ -369,12 +436,7 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find the history item (not the badge in Recent section)
-      const historyItems = screen.getAllByText('analyze');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
+      await expandHistoryItemByPrompt('Analyze this data');
 
       await waitFor(() => {
         expect(screen.getByText('Error:')).toBeInTheDocument();
@@ -413,13 +475,15 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find and click the result filter
-      const resultSelect = screen.getByRole('combobox', { name: /Result/i });
+      // First select is the result filter
+      const [resultSelect] = screen.getAllByRole('combobox');
       await user.click(resultSelect);
       
+      const successOption = await screen.findByText('Success');
+      await user.click(successOption);
+
       await waitFor(() => {
-        const successOption = screen.getByText('Success');
-        user.click(successOption);
+        expect(screen.queryByText(/Analyze this data/i)).not.toBeInTheDocument();
       });
     });
 
@@ -438,10 +502,9 @@ describe('ToolHistoryPanel', () => {
       await user.type(searchInput, 'documents');
 
       // Clear the input
-      const clearButton = screen.getByRole('button', { name: /×/i });
-      if (clearButton) {
-        await user.click(clearButton);
-      }
+      const clearButton = searchInput.parentElement?.querySelector('button');
+      expect(clearButton).toBeTruthy();
+      await user.click(clearButton as HTMLButtonElement);
 
       await waitFor(() => {
         expect(searchInput).toHaveValue('');
@@ -461,17 +524,9 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find the history item (not the badge in Recent section)
-      const historyItems = screen.getAllByText('search');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
-
-      await waitFor(async () => {
-        const reuseButton = screen.getByText('Reuse Tool');
-        await user.click(reuseButton);
-      });
+      await expandHistoryItemByPrompt('Find documents about AI');
+      const reuseButton = await screen.findByText('Reuse Tool');
+      await user.click(reuseButton);
 
       await waitFor(() => {
         expect(onSelectTool).toHaveBeenCalled();
@@ -489,17 +544,9 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find the history item (not the badge in Recent section)
-      const historyItems = screen.getAllByText('search');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
-
-      await waitFor(async () => {
-        const usePromptButton = screen.getByText('Use Prompt');
-        await user.click(usePromptButton);
-      });
+      await expandHistoryItemByPrompt('Find documents about AI');
+      const usePromptButton = await screen.findByText('Use Prompt');
+      await user.click(usePromptButton);
 
       await waitFor(() => {
         expect(onInsertPrompt).toHaveBeenCalledWith('Find documents about AI');
@@ -516,21 +563,12 @@ describe('ToolHistoryPanel', () => {
         </TestWrapper>
       );
 
-      // Find the history item (not the badge in Recent section)
-      const historyItems = screen.getAllByText('search');
-      const historyItem = historyItems.find(el => el.closest('.group'))?.closest('.group');
-      if (historyItem) {
-        await user.click(historyItem);
-      }
-
-      await waitFor(async () => {
-        const deleteButton = screen.getAllByRole('button').find(
-          btn => btn.querySelector('svg')?.classList.contains('lucide-trash-2')
-        );
-        if (deleteButton) {
-          await user.click(deleteButton);
-        }
-      });
+      const historyItem = await expandHistoryItemByPrompt('Find documents about AI');
+      const deleteButton = within(historyItem).getAllByRole('button').find(
+        (btn) => !!btn.querySelector('svg.lucide-trash-2')
+      );
+      expect(deleteButton).toBeTruthy();
+      await user.click(deleteButton as HTMLButtonElement);
 
       await waitFor(() => {
         expect(useToolHistoryStore.getState().history).toHaveLength(1);

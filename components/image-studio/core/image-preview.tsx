@@ -18,8 +18,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Empty, EmptyDescription } from '@/components/ui/empty';
 import { ImageOff } from 'lucide-react';
-
-export type ComparisonMode = 'split-horizontal' | 'split-vertical' | 'side-by-side' | 'toggle';
+import type { ComparisonMode } from '@/types/media/image-studio';
 
 export interface ImagePreviewProps {
   originalImage: ImageData | null;
@@ -51,7 +50,7 @@ export function ImagePreview({
   zoom = 1,
   panX = 0,
   panY = 0,
-  comparisonMode = 'split-horizontal',
+  comparisonMode = 'slider-h',
   showHistogram = false,
   histogram,
   onZoomChange,
@@ -163,7 +162,7 @@ export function ImagePreview({
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const isHorizontal = comparisonMode === 'split-horizontal';
+      const isHorizontal = comparisonMode === 'slider-h';
 
       const position = isHorizontal
         ? ((e.clientX - rect.left) / rect.width) * 100
@@ -298,7 +297,7 @@ export function ImagePreview({
     }
 
     switch (comparisonMode) {
-      case 'split-horizontal':
+      case 'slider-h':
         return (
           <div className="relative w-full h-full overflow-hidden">
             {/* Edited image (full) */}
@@ -334,7 +333,7 @@ export function ImagePreview({
           </div>
         );
 
-      case 'split-vertical':
+      case 'slider-v':
         return (
           <div className="relative w-full h-full overflow-hidden">
             <canvas

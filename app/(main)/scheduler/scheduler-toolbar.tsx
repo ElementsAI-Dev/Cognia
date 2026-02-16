@@ -31,6 +31,8 @@ import {
 } from '@/components/scheduler';
 import type {
   ScheduledTask,
+  ScheduledTaskStatus,
+  TaskFilter,
   TaskExecution,
   TaskStatistics,
 } from '@/types/scheduler';
@@ -45,13 +47,13 @@ interface SchedulerToolbarProps {
   recentExecutions: TaskExecution[];
   schedulerStatus: SchedulerStatus;
   searchQuery: string;
-  statusFilter: string;
+  statusFilter: 'all' | ScheduledTaskStatus;
   isSelectMode: boolean;
   selectedTaskIds: Set<string>;
   onSearchQueryChange: (query: string) => void;
-  onStatusFilterChange: (status: string) => void;
+  onStatusFilterChange: (status: 'all' | ScheduledTaskStatus) => void;
   onClearFilter: () => void;
-  onSetFilter: (filter: { status?: string; search?: string }) => void;
+  onSetFilter: (filter: Partial<TaskFilter>) => void;
   onSelectTask: (taskId: string | null) => void;
   onToggleSelectMode: () => void;
   onBulkPause: () => void;
@@ -121,11 +123,11 @@ export function SchedulerToolbar({
 
         {/* Status Filter Chips */}
         <div className="flex items-center gap-1">
-          {[
+          {([
             { key: 'all', label: t('all') || 'All', count: tasks.length },
             { key: 'active', label: t('activeTasks') || 'Active', count: activeTasks.length },
             { key: 'paused', label: t('pausedTasks') || 'Paused', count: pausedTasks.length },
-          ].map((chip) => (
+          ] as const).map((chip) => (
             <button
               key={chip.key}
               type="button"

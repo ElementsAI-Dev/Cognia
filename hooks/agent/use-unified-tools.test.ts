@@ -14,6 +14,10 @@ jest.mock('@/stores', () => ({
         firecrawl: { apiKey: '' },
         openai: { apiKey: '' },
       },
+      searchProviders: {
+        tavily: { enabled: false, apiKey: '' },
+      },
+      defaultSearchProvider: 'tavily',
       vectorSettings: {
         embeddingProvider: 'openai',
         embeddingModel: 'text-embedding-3-small',

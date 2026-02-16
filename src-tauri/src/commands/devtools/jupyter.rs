@@ -366,7 +366,10 @@ pub async fn jupyter_execute_notebook(
 ) -> Result<Vec<KernelExecutionResult>, String> {
     let mut results: Vec<KernelExecutionResult> = Vec::new();
 
-    let stop_on_error = options.as_ref().and_then(|o| o.stop_on_error).unwrap_or(true);
+    let stop_on_error = options
+        .as_ref()
+        .and_then(|o| o.stop_on_error)
+        .unwrap_or(true);
     let timeout_ms = options.as_ref().and_then(|o| o.timeout).unwrap_or(60_000);
     let clear_outputs = options
         .as_ref()
@@ -629,7 +632,13 @@ pub async fn jupyter_shutdown_all(
     app: AppHandle,
     state: State<'_, JupyterState>,
 ) -> Result<(), String> {
-    emit_kernel_status(&app, "", "stopping", 0, Some("Shutting down all kernels..."));
+    emit_kernel_status(
+        &app,
+        "",
+        "stopping",
+        0,
+        Some("Shutting down all kernels..."),
+    );
 
     state.manager.shutdown_all().await;
 
@@ -726,14 +735,18 @@ pub async fn jupyter_open_notebook(path: String) -> Result<String, String> {
         return Err("File is not a .ipynb notebook".to_string());
     }
 
-    let content = std::fs::read_to_string(path_ref)
-        .map_err(|e| format!("Failed to read notebook: {}", e))?;
+    let content =
+        std::fs::read_to_string(path_ref).map_err(|e| format!("Failed to read notebook: {}", e))?;
 
     // Validate it's valid JSON
     serde_json::from_str::<serde_json::Value>(&content)
         .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
 
-    log::info!("Notebook opened successfully: {} ({} bytes)", path, content.len());
+    log::info!(
+        "Notebook opened successfully: {} ({} bytes)",
+        path,
+        content.len()
+    );
     Ok(content)
 }
 
@@ -743,8 +756,8 @@ pub async fn jupyter_save_notebook(path: String, content: String) -> Result<(), 
     log::info!("Saving notebook: {}", path);
 
     // Validate content is valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Invalid notebook JSON: {}", e))?;
 
     // Pretty-print for readability
     let formatted = serde_json::to_string_pretty(&parsed)
@@ -757,8 +770,7 @@ pub async fn jupyter_save_notebook(path: String, content: String) -> Result<(), 
             .map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
-    std::fs::write(path_ref, &formatted)
-        .map_err(|e| format!("Failed to write notebook: {}", e))?;
+    std::fs::write(path_ref, &formatted).map_err(|e| format!("Failed to write notebook: {}", e))?;
 
     log::info!(
         "Notebook saved successfully: {} ({} bytes)",
@@ -777,19 +789,16 @@ pub async fn jupyter_get_notebook_info(path: String) -> Result<serde_json::Value
         return Err(format!("File not found: {}", path));
     }
 
-    let metadata = std::fs::metadata(path_ref)
-        .map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let metadata =
+        std::fs::metadata(path_ref).map_err(|e| format!("Failed to read metadata: {}", e))?;
 
-    let content = std::fs::read_to_string(path_ref)
-        .map_err(|e| format!("Failed to read notebook: {}", e))?;
+    let content =
+        std::fs::read_to_string(path_ref).map_err(|e| format!("Failed to read notebook: {}", e))?;
 
-    let notebook: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Invalid notebook JSON: {}", e))?;
+    let notebook: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Invalid notebook JSON: {}", e))?;
 
-    let cell_count = notebook["cells"]
-        .as_array()
-        .map(|c| c.len())
-        .unwrap_or(0);
+    let cell_count = notebook["cells"].as_array().map(|c| c.len()).unwrap_or(0);
 
     let code_cells = notebook["cells"]
         .as_array()

@@ -174,3 +174,44 @@ export function buildWinRateMatrix(
 
   return result;
 }
+
+/**
+ * Approximate token pricing per 1M tokens (USD)
+ * Used for cost estimation in arena battles
+ */
+const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
+  'openai:gpt-4o': { input: 2.5, output: 10 },
+  'openai:gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'openai:o1': { input: 15, output: 60 },
+  'anthropic:claude-sonnet-4-20250514': { input: 3, output: 15 },
+  'anthropic:claude-opus-4-20250514': { input: 15, output: 75 },
+  'anthropic:claude-3-5-haiku-20241022': { input: 0.8, output: 4 },
+  'google:gemini-2.0-flash-exp': { input: 0.1, output: 0.4 },
+  'google:gemini-1.5-pro': { input: 1.25, output: 5 },
+  'deepseek:deepseek-chat': { input: 0.14, output: 0.28 },
+  'deepseek:deepseek-reasoner': { input: 0.55, output: 2.19 },
+  'groq:llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
+  'mistral:mistral-large-latest': { input: 2, output: 6 },
+  'xai:grok-3': { input: 3, output: 15 },
+};
+
+/**
+ * Compute estimated cost for a model based on token usage
+ * @param provider Provider name
+ * @param model Model name
+ * @param inputTokens Number of input (prompt) tokens
+ * @param outputTokens Number of output (completion) tokens
+ * @returns Estimated cost in USD, or undefined if pricing is unknown
+ */
+export function computeEstimatedCost(
+  provider: string,
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+): number | undefined {
+  const key = `${provider}:${model}`;
+  const pricing = TOKEN_PRICING[key];
+  if (!pricing) return undefined;
+
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}

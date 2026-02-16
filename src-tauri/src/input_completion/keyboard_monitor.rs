@@ -187,7 +187,7 @@ impl KeyboardMonitor {
     pub fn stop_with_timeout(&self, timeout_ms: u64) -> bool {
         log::info!("Stopping KeyboardMonitor with {}ms timeout", timeout_ms);
         self.stop_requested.store(true, Ordering::SeqCst);
-        
+
         let start = std::time::Instant::now();
         while self.is_running.load(Ordering::SeqCst) {
             if start.elapsed().as_millis() as u64 > timeout_ms {
@@ -451,17 +451,34 @@ mod tests {
     #[test]
     fn test_key_to_string_all_letters() {
         let letters = vec![
-            (Key::KeyA, "A"), (Key::KeyB, "B"), (Key::KeyC, "C"),
-            (Key::KeyD, "D"), (Key::KeyE, "E"), (Key::KeyF, "F"),
-            (Key::KeyG, "G"), (Key::KeyH, "H"), (Key::KeyI, "I"),
-            (Key::KeyJ, "J"), (Key::KeyK, "K"), (Key::KeyL, "L"),
-            (Key::KeyM, "M"), (Key::KeyN, "N"), (Key::KeyO, "O"),
-            (Key::KeyP, "P"), (Key::KeyQ, "Q"), (Key::KeyR, "R"),
-            (Key::KeyS, "S"), (Key::KeyT, "T"), (Key::KeyU, "U"),
-            (Key::KeyV, "V"), (Key::KeyW, "W"), (Key::KeyX, "X"),
-            (Key::KeyY, "Y"), (Key::KeyZ, "Z"),
+            (Key::KeyA, "A"),
+            (Key::KeyB, "B"),
+            (Key::KeyC, "C"),
+            (Key::KeyD, "D"),
+            (Key::KeyE, "E"),
+            (Key::KeyF, "F"),
+            (Key::KeyG, "G"),
+            (Key::KeyH, "H"),
+            (Key::KeyI, "I"),
+            (Key::KeyJ, "J"),
+            (Key::KeyK, "K"),
+            (Key::KeyL, "L"),
+            (Key::KeyM, "M"),
+            (Key::KeyN, "N"),
+            (Key::KeyO, "O"),
+            (Key::KeyP, "P"),
+            (Key::KeyQ, "Q"),
+            (Key::KeyR, "R"),
+            (Key::KeyS, "S"),
+            (Key::KeyT, "T"),
+            (Key::KeyU, "U"),
+            (Key::KeyV, "V"),
+            (Key::KeyW, "W"),
+            (Key::KeyX, "X"),
+            (Key::KeyY, "Y"),
+            (Key::KeyZ, "Z"),
         ];
-        
+
         for (key, expected) in letters {
             assert_eq!(KeyboardMonitor::key_to_string(&key), expected);
         }
@@ -470,12 +487,18 @@ mod tests {
     #[test]
     fn test_key_to_string_numbers() {
         let numbers = vec![
-            (Key::Num0, "0"), (Key::Num1, "1"), (Key::Num2, "2"),
-            (Key::Num3, "3"), (Key::Num4, "4"), (Key::Num5, "5"),
-            (Key::Num6, "6"), (Key::Num7, "7"), (Key::Num8, "8"),
+            (Key::Num0, "0"),
+            (Key::Num1, "1"),
+            (Key::Num2, "2"),
+            (Key::Num3, "3"),
+            (Key::Num4, "4"),
+            (Key::Num5, "5"),
+            (Key::Num6, "6"),
+            (Key::Num7, "7"),
+            (Key::Num8, "8"),
             (Key::Num9, "9"),
         ];
-        
+
         for (key, expected) in numbers {
             assert_eq!(KeyboardMonitor::key_to_string(&key), expected);
         }
@@ -484,12 +507,20 @@ mod tests {
     #[test]
     fn test_key_to_string_function_keys() {
         let f_keys = vec![
-            (Key::F1, "F1"), (Key::F2, "F2"), (Key::F3, "F3"),
-            (Key::F4, "F4"), (Key::F5, "F5"), (Key::F6, "F6"),
-            (Key::F7, "F7"), (Key::F8, "F8"), (Key::F9, "F9"),
-            (Key::F10, "F10"), (Key::F11, "F11"), (Key::F12, "F12"),
+            (Key::F1, "F1"),
+            (Key::F2, "F2"),
+            (Key::F3, "F3"),
+            (Key::F4, "F4"),
+            (Key::F5, "F5"),
+            (Key::F6, "F6"),
+            (Key::F7, "F7"),
+            (Key::F8, "F8"),
+            (Key::F9, "F9"),
+            (Key::F10, "F10"),
+            (Key::F11, "F11"),
+            (Key::F12, "F12"),
         ];
-        
+
         for (key, expected) in f_keys {
             assert_eq!(KeyboardMonitor::key_to_string(&key), expected);
         }
@@ -499,10 +530,19 @@ mod tests {
     fn test_key_to_string_modifiers() {
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Alt), "Alt");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::AltGr), "AltGr");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::ControlLeft), "ControlLeft");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::ControlRight), "ControlRight");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::ControlLeft),
+            "ControlLeft"
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::ControlRight),
+            "ControlRight"
+        );
         assert_eq!(KeyboardMonitor::key_to_string(&Key::ShiftLeft), "ShiftLeft");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::ShiftRight), "ShiftRight");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::ShiftRight),
+            "ShiftRight"
+        );
         assert_eq!(KeyboardMonitor::key_to_string(&Key::MetaLeft), "MetaLeft");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::MetaRight), "MetaRight");
     }
@@ -512,7 +552,10 @@ mod tests {
         assert_eq!(KeyboardMonitor::key_to_string(&Key::UpArrow), "UpArrow");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::DownArrow), "DownArrow");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::LeftArrow), "LeftArrow");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::RightArrow), "RightArrow");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::RightArrow),
+            "RightArrow"
+        );
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Home), "Home");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::End), "End");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::PageUp), "PageUp");
@@ -534,8 +577,14 @@ mod tests {
     fn test_key_to_string_punctuation() {
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Minus), "Minus");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Equal), "Equal");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::LeftBracket), "LeftBracket");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::RightBracket), "RightBracket");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::LeftBracket),
+            "LeftBracket"
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::RightBracket),
+            "RightBracket"
+        );
         assert_eq!(KeyboardMonitor::key_to_string(&Key::BackSlash), "BackSlash");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::SemiColon), "SemiColon");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Quote), "Quote");
@@ -551,14 +600,20 @@ mod tests {
         assert_eq!(KeyboardMonitor::key_to_string(&Key::Kp1), "Kp1");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::KpPlus), "KpPlus");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::KpMinus), "KpMinus");
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::KpMultiply), "KpMultiply");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::KpMultiply),
+            "KpMultiply"
+        );
         assert_eq!(KeyboardMonitor::key_to_string(&Key::KpDivide), "KpDivide");
         assert_eq!(KeyboardMonitor::key_to_string(&Key::KpReturn), "KpReturn");
     }
 
     #[test]
     fn test_key_to_string_unknown() {
-        assert_eq!(KeyboardMonitor::key_to_string(&Key::Unknown(123)), "Unknown(123)");
+        assert_eq!(
+            KeyboardMonitor::key_to_string(&Key::Unknown(123)),
+            "Unknown(123)"
+        );
     }
 
     #[test]
@@ -573,17 +628,34 @@ mod tests {
     #[test]
     fn test_key_to_char_letters_lowercase() {
         let letters = vec![
-            (Key::KeyA, 'a'), (Key::KeyB, 'b'), (Key::KeyC, 'c'),
-            (Key::KeyD, 'd'), (Key::KeyE, 'e'), (Key::KeyF, 'f'),
-            (Key::KeyG, 'g'), (Key::KeyH, 'h'), (Key::KeyI, 'i'),
-            (Key::KeyJ, 'j'), (Key::KeyK, 'k'), (Key::KeyL, 'l'),
-            (Key::KeyM, 'm'), (Key::KeyN, 'n'), (Key::KeyO, 'o'),
-            (Key::KeyP, 'p'), (Key::KeyQ, 'q'), (Key::KeyR, 'r'),
-            (Key::KeyS, 's'), (Key::KeyT, 't'), (Key::KeyU, 'u'),
-            (Key::KeyV, 'v'), (Key::KeyW, 'w'), (Key::KeyX, 'x'),
-            (Key::KeyY, 'y'), (Key::KeyZ, 'z'),
+            (Key::KeyA, 'a'),
+            (Key::KeyB, 'b'),
+            (Key::KeyC, 'c'),
+            (Key::KeyD, 'd'),
+            (Key::KeyE, 'e'),
+            (Key::KeyF, 'f'),
+            (Key::KeyG, 'g'),
+            (Key::KeyH, 'h'),
+            (Key::KeyI, 'i'),
+            (Key::KeyJ, 'j'),
+            (Key::KeyK, 'k'),
+            (Key::KeyL, 'l'),
+            (Key::KeyM, 'm'),
+            (Key::KeyN, 'n'),
+            (Key::KeyO, 'o'),
+            (Key::KeyP, 'p'),
+            (Key::KeyQ, 'q'),
+            (Key::KeyR, 'r'),
+            (Key::KeyS, 's'),
+            (Key::KeyT, 't'),
+            (Key::KeyU, 'u'),
+            (Key::KeyV, 'v'),
+            (Key::KeyW, 'w'),
+            (Key::KeyX, 'x'),
+            (Key::KeyY, 'y'),
+            (Key::KeyZ, 'z'),
         ];
-        
+
         for (key, expected) in letters {
             assert_eq!(KeyboardMonitor::key_to_char(&key, false), Some(expected));
         }
@@ -592,10 +664,14 @@ mod tests {
     #[test]
     fn test_key_to_char_letters_uppercase() {
         let letters = vec![
-            (Key::KeyA, 'A'), (Key::KeyB, 'B'), (Key::KeyC, 'C'),
-            (Key::KeyD, 'D'), (Key::KeyE, 'E'), (Key::KeyF, 'F'),
+            (Key::KeyA, 'A'),
+            (Key::KeyB, 'B'),
+            (Key::KeyC, 'C'),
+            (Key::KeyD, 'D'),
+            (Key::KeyE, 'E'),
+            (Key::KeyF, 'F'),
         ];
-        
+
         for (key, expected) in letters {
             assert_eq!(KeyboardMonitor::key_to_char(&key, true), Some(expected));
         }
@@ -604,12 +680,18 @@ mod tests {
     #[test]
     fn test_key_to_char_numbers_no_shift() {
         let numbers = vec![
-            (Key::Num0, '0'), (Key::Num1, '1'), (Key::Num2, '2'),
-            (Key::Num3, '3'), (Key::Num4, '4'), (Key::Num5, '5'),
-            (Key::Num6, '6'), (Key::Num7, '7'), (Key::Num8, '8'),
+            (Key::Num0, '0'),
+            (Key::Num1, '1'),
+            (Key::Num2, '2'),
+            (Key::Num3, '3'),
+            (Key::Num4, '4'),
+            (Key::Num5, '5'),
+            (Key::Num6, '6'),
+            (Key::Num7, '7'),
+            (Key::Num8, '8'),
             (Key::Num9, '9'),
         ];
-        
+
         for (key, expected) in numbers {
             assert_eq!(KeyboardMonitor::key_to_char(&key, false), Some(expected));
         }
@@ -618,12 +700,18 @@ mod tests {
     #[test]
     fn test_key_to_char_numbers_with_shift() {
         let symbols = vec![
-            (Key::Num0, ')'), (Key::Num1, '!'), (Key::Num2, '@'),
-            (Key::Num3, '#'), (Key::Num4, '$'), (Key::Num5, '%'),
-            (Key::Num6, '^'), (Key::Num7, '&'), (Key::Num8, '*'),
+            (Key::Num0, ')'),
+            (Key::Num1, '!'),
+            (Key::Num2, '@'),
+            (Key::Num3, '#'),
+            (Key::Num4, '$'),
+            (Key::Num5, '%'),
+            (Key::Num6, '^'),
+            (Key::Num7, '&'),
+            (Key::Num8, '*'),
             (Key::Num9, '('),
         ];
-        
+
         for (key, expected) in symbols {
             assert_eq!(KeyboardMonitor::key_to_char(&key, true), Some(expected));
         }
@@ -633,36 +721,69 @@ mod tests {
     fn test_key_to_char_punctuation_no_shift() {
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Minus, false), Some('-'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Equal, false), Some('='));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::LeftBracket, false), Some('['));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::RightBracket, false), Some(']'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::BackSlash, false), Some('\\'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::SemiColon, false), Some(';'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::LeftBracket, false),
+            Some('[')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::RightBracket, false),
+            Some(']')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::BackSlash, false),
+            Some('\\')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::SemiColon, false),
+            Some(';')
+        );
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Quote, false), Some('\''));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Comma, false), Some(','));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Dot, false), Some('.'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Slash, false), Some('/'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::BackQuote, false), Some('`'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::BackQuote, false),
+            Some('`')
+        );
     }
 
     #[test]
     fn test_key_to_char_punctuation_with_shift() {
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Minus, true), Some('_'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Equal, true), Some('+'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::LeftBracket, true), Some('{'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::RightBracket, true), Some('}'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::BackSlash, true), Some('|'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::SemiColon, true), Some(':'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::LeftBracket, true),
+            Some('{')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::RightBracket, true),
+            Some('}')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::BackSlash, true),
+            Some('|')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::SemiColon, true),
+            Some(':')
+        );
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Quote, true), Some('"'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Comma, true), Some('<'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Dot, true), Some('>'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Slash, true), Some('?'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::BackQuote, true), Some('~'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::BackQuote, true),
+            Some('~')
+        );
     }
 
     #[test]
     fn test_key_to_char_whitespace() {
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Space, false), Some(' '));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::Return, false), Some('\n'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::Return, false),
+            Some('\n')
+        );
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Tab, false), Some('\t'));
     }
 
@@ -671,9 +792,18 @@ mod tests {
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Kp0, false), Some('0'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::Kp1, false), Some('1'));
         assert_eq!(KeyboardMonitor::key_to_char(&Key::KpPlus, false), Some('+'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::KpMinus, false), Some('-'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::KpMultiply, false), Some('*'));
-        assert_eq!(KeyboardMonitor::key_to_char(&Key::KpDivide, false), Some('/'));
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::KpMinus, false),
+            Some('-')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::KpMultiply, false),
+            Some('*')
+        );
+        assert_eq!(
+            KeyboardMonitor::key_to_char(&Key::KpDivide, false),
+            Some('/')
+        );
     }
 
     #[test]
@@ -705,7 +835,7 @@ mod tests {
             alt: false,
             timestamp: 12345,
         };
-        
+
         assert_eq!(event.event_type, KeyEventType::KeyPress);
         assert_eq!(event.key, "A");
         assert_eq!(event.char, Some('a'));
@@ -725,7 +855,7 @@ mod tests {
             alt: true,
             timestamp: 12345,
         };
-        
+
         assert!(event.ctrl);
         assert!(event.alt);
         assert!(!event.shift);
@@ -742,7 +872,7 @@ mod tests {
             alt: false,
             timestamp: 99999,
         };
-        
+
         let cloned = event.clone();
         assert_eq!(cloned.event_type, event.event_type);
         assert_eq!(cloned.key, event.key);
@@ -760,7 +890,7 @@ mod tests {
             alt: false,
             timestamp: 0,
         };
-        
+
         let debug_str = format!("{:?}", event);
         assert!(debug_str.contains("KeyEvent"));
         assert!(debug_str.contains("KeyPress"));
@@ -770,7 +900,7 @@ mod tests {
     fn test_key_event_type_debug() {
         let press = KeyEventType::KeyPress;
         let release = KeyEventType::KeyRelease;
-        
+
         assert!(format!("{:?}", press).contains("KeyPress"));
         assert!(format!("{:?}", release).contains("KeyRelease"));
     }

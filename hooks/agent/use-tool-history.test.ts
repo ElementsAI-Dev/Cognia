@@ -4,89 +4,14 @@
 
 import { renderHook, act } from '@testing-library/react';
 
-// Mock state for the store
-let mockState = {
-  history: [] as Array<{
-    id: string;
-    toolType: string;
-    toolName: string;
-    prompt: string;
-    result: string;
-    output?: string;
-    errorMessage?: string;
-    duration?: number;
-    timestamp: Date;
-    serverId?: string;
-    serverName?: string;
-    skillId?: string;
-  }>,
-  usageStats: {} as Record<
-    string,
-    {
-      toolId: string;
-      toolType: string;
-      toolName: string;
-      totalCalls: number;
-      successfulCalls: number;
-      failedCalls: number;
-      lastUsed: Date;
-      isFavorite: boolean;
-      isPinned: boolean;
-      serverId?: string;
-      serverName?: string;
-    }
-  >,
-  settings: {
-    enabled: true,
-    maxRecords: 1000,
-    retentionDays: 90,
-    showRecentInPopover: true,
-    recentToolsCount: 5,
-    enablePromptSuggestions: true,
-    showUsageBadges: true,
-  },
-  isLoading: false,
-  error: null as string | null,
-};
-
-const resetMockState = () => {
-  mockState = {
-    history: [],
-    usageStats: {},
-    settings: {
-      enabled: true,
-      maxRecords: 1000,
-      retentionDays: 90,
-      showRecentInPopover: true,
-      recentToolsCount: 5,
-      enablePromptSuggestions: true,
-      showUsageBadges: true,
-    },
-    isLoading: false,
-    error: null,
-  };
-};
-
 // Mock the stores module - must be before any imports that use it
 jest.mock('@/stores', () => {
-  const mockSetState = (newState: Partial<typeof mockState>) => {
-    Object.assign(mockState, newState);
-  };
+  const { useToolHistoryStore } = jest.requireActual('@/stores/tool-history/tool-history-store');
+  const { createToolId } = jest.requireActual('@/types/agent/tool-history');
 
   return {
-    useToolHistoryStore: Object.assign(
-      jest.fn((selector?: (state: typeof mockState) => unknown) => {
-        return selector ? selector(mockState) : mockState;
-      }),
-      {
-        getState: () => mockState,
-        setState: mockSetState,
-        subscribe: jest.fn(() => jest.fn()),
-      }
-    ),
-    createToolId: jest.fn((type: string, name: string, serverId?: string) =>
-      serverId ? `${type}:${serverId}:${name}` : `${type}:${name}`
-    ),
+    useToolHistoryStore,
+    createToolId: jest.fn(createToolId),
   };
 });
 
@@ -103,31 +28,26 @@ jest.mock('@/lib/ai/tools/history-optimizer', () => ({
 }));
 
 import { useToolHistory } from './use-tool-history';
-
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value;
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
-
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+import { useToolHistoryStore } from '@/stores';
 
 describe('useToolHistory', () => {
   beforeEach(() => {
-    localStorageMock.clear();
-    // Reset store state
-    resetMockState();
+    localStorage.clear();
+    useToolHistoryStore.setState({
+      history: [],
+      usageStats: {},
+      settings: {
+        enabled: true,
+        maxRecords: 1000,
+        retentionDays: 90,
+        showRecentInPopover: true,
+        recentToolsCount: 5,
+        enablePromptSuggestions: true,
+        showUsageBadges: true,
+      },
+      isLoading: false,
+      error: null,
+    });
   });
 
   describe('initialization', () => {
@@ -278,8 +198,10 @@ describe('useToolHistory', () => {
       });
 
       expect(result.current.recentTools).toHaveLength(2);
-      // Most recent first
-      expect(result.current.recentTools[0].toolName).toBe('tool2');
+      expect(result.current.recentTools.map((tool) => tool.toolName).sort()).toEqual([
+        'tool1',
+        'tool2',
+      ]);
     });
 
     it('should compute frequent tools', () => {

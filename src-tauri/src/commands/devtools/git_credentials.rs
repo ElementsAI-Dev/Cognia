@@ -192,8 +192,8 @@ pub async fn test_credential(credential: &GitCredential) -> Result<bool, String>
 
 // ==================== Tauri Commands ====================
 
-use tauri::State;
 use parking_lot::Mutex;
+use tauri::State;
 
 /// Shared credential manager state
 pub type CredentialManagerState = Mutex<GitCredentialManager>;
@@ -243,7 +243,7 @@ pub async fn git_test_credential(
         let manager = state.lock();
         manager.get_credential(&host).cloned()
     };
-    
+
     if let Some(cred) = credential {
         test_credential(&cred).await
     } else {

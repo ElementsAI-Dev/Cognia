@@ -107,7 +107,7 @@ impl TesseractProvider {
     /// Get Tesseract PSM (Page Segmentation Mode) based on document hint
     fn get_psm(hint: &Option<DocumentHint>) -> Option<&'static str> {
         match hint {
-            Some(DocumentHint::DenseText) | Some(DocumentHint::Document) => Some("6"),  // Uniform block of text
+            Some(DocumentHint::DenseText) | Some(DocumentHint::Document) => Some("6"), // Uniform block of text
             Some(DocumentHint::SparseText) => Some("11"), // Sparse text, no particular order
             Some(DocumentHint::Screenshot) => Some("3"),  // Fully automatic (default)
             Some(DocumentHint::Receipt) => Some("4"),     // Single column of variable sizes
@@ -332,9 +332,18 @@ mod tests {
 
     #[test]
     fn test_psm_modes() {
-        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::DenseText)), Some("6"));
-        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::SparseText)), Some("11"));
-        assert_eq!(TesseractProvider::get_psm(&Some(DocumentHint::Receipt)), Some("4"));
+        assert_eq!(
+            TesseractProvider::get_psm(&Some(DocumentHint::DenseText)),
+            Some("6")
+        );
+        assert_eq!(
+            TesseractProvider::get_psm(&Some(DocumentHint::SparseText)),
+            Some("11")
+        );
+        assert_eq!(
+            TesseractProvider::get_psm(&Some(DocumentHint::Receipt)),
+            Some("4")
+        );
         assert_eq!(TesseractProvider::get_psm(&None), None);
     }
 

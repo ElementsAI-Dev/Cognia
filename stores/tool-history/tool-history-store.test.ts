@@ -270,22 +270,29 @@ describe('useToolHistoryStore', () => {
     it('should return recently used tools', () => {
       const { result } = renderHook(() => useToolHistoryStore());
 
-      act(() => {
-        result.current.recordToolCall({
-          toolId: 'mcp:server1:tool1',
-          toolType: 'mcp',
-          toolName: 'tool1',
-          prompt: 'Test 1',
-          result: 'success',
+      jest.useFakeTimers();
+      try {
+        act(() => {
+          jest.setSystemTime(new Date('2025-01-01T00:00:00.000Z'));
+          result.current.recordToolCall({
+            toolId: 'mcp:server1:tool1',
+            toolType: 'mcp',
+            toolName: 'tool1',
+            prompt: 'Test 1',
+            result: 'success',
+          });
+          jest.setSystemTime(new Date('2025-01-01T00:00:01.000Z'));
+          result.current.recordToolCall({
+            toolId: 'mcp:server1:tool2',
+            toolType: 'mcp',
+            toolName: 'tool2',
+            prompt: 'Test 2',
+            result: 'success',
+          });
         });
-        result.current.recordToolCall({
-          toolId: 'mcp:server1:tool2',
-          toolType: 'mcp',
-          toolName: 'tool2',
-          prompt: 'Test 2',
-          result: 'success',
-        });
-      });
+      } finally {
+        jest.useRealTimers();
+      }
 
       const recent = result.current.getRecentTools(5);
       expect(recent).toHaveLength(2);

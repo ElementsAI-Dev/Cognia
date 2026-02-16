@@ -326,6 +326,7 @@ describe('Language Type', () => {
 describe('New Sandbox API Functions', () => {
   beforeEach(() => {
     mockInvoke.mockClear();
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
   });
 
   describe('getAllLanguages', () => {

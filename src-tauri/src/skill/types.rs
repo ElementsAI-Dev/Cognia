@@ -258,7 +258,9 @@ impl std::fmt::Display for SkillError {
         match self {
             SkillError::NotFound(name) => write!(f, "Skill not found: {}", name),
             SkillError::AlreadyInstalled(name) => write!(f, "Skill already installed: {}", name),
-            SkillError::DownloadTimeout(secs) => write!(f, "Download timeout after {} seconds", secs),
+            SkillError::DownloadTimeout(secs) => {
+                write!(f, "Download timeout after {} seconds", secs)
+            }
             SkillError::Io(msg) => write!(f, "IO error: {}", msg),
             SkillError::Network(msg) => write!(f, "Network error: {}", msg),
             SkillError::Parse(msg) => write!(f, "Parse error: {}", msg),
@@ -485,7 +487,9 @@ impl SecurityScanReport {
     /// Sort findings by severity (most severe first)
     pub fn sort_findings(&mut self) {
         self.findings.sort_by(|a, b| {
-            b.severity.weight().cmp(&a.severity.weight())
+            b.severity
+                .weight()
+                .cmp(&a.severity.weight())
                 .then_with(|| a.file_path.cmp(&b.file_path))
                 .then_with(|| a.line.cmp(&b.line))
         });
@@ -536,7 +540,6 @@ impl Default for SecurityScanOptions {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -777,7 +780,8 @@ mod tests {
 
     #[test]
     fn test_security_scan_report_new() {
-        let report = SecurityScanReport::new("test-skill".to_string(), "/path/to/skill".to_string());
+        let report =
+            SecurityScanReport::new("test-skill".to_string(), "/path/to/skill".to_string());
         assert_eq!(report.skill_id, "test-skill");
         assert_eq!(report.scanned_path, "/path/to/skill");
         assert!(report.skill_name.is_none());
@@ -878,20 +882,18 @@ mod tests {
     #[test]
     fn test_security_scan_report_is_safe() {
         let mut report = SecurityScanReport::new("test".to_string(), "/path".to_string());
-        report.findings = vec![
-            SecurityFinding {
-                rule_id: "SEC001".to_string(),
-                title: "Info".to_string(),
-                description: "".to_string(),
-                severity: SecuritySeverity::Info,
-                category: SecurityCategory::Other,
-                file_path: "a.js".to_string(),
-                line: 1,
-                column: 1,
-                snippet: None,
-                suggestion: None,
-            },
-        ];
+        report.findings = vec![SecurityFinding {
+            rule_id: "SEC001".to_string(),
+            title: "Info".to_string(),
+            description: "".to_string(),
+            severity: SecuritySeverity::Info,
+            category: SecurityCategory::Other,
+            file_path: "a.js".to_string(),
+            line: 1,
+            column: 1,
+            snippet: None,
+            suggestion: None,
+        }];
 
         report.calculate_summary();
         assert!(report.summary.is_safe); // Only info findings = safe

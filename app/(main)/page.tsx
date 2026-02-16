@@ -1,26 +1,18 @@
 'use client';
 
 /**
- * Main chat page - new chat with shadcn/ui sidebar
+ * Root page — delegates to the ChatContainer.
+ *
+ * The primary chat UI lives at (main)/(chat)/page.tsx with its own layout
+ * that provides sidebar, panels, and error boundary. This root page exists
+ * as a fallback for the (main) route group and renders the same component.
+ *
+ * @see app/(main)/(chat)/layout.tsx  — Unified layout with sidebar & panels
+ * @see app/(main)/(chat)/page.tsx    — Primary chat page
  */
 
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/sidebar';
 import { ChatContainer } from '@/components/chat';
-import { ArtifactPanel } from '@/components/artifacts';
-import { CanvasPanel } from '@/components/canvas';
-import { BackgroundAgentPanel } from '@/components/agent';
 
 export default function Home() {
-  return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <ChatContainer />
-      </SidebarInset>
-      <ArtifactPanel />
-      <CanvasPanel />
-      <BackgroundAgentPanel />
-    </SidebarProvider>
-  );
+  return <ChatContainer />;
 }

@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 
 import type { ImageAdjustments, FilterPreset } from '@/types';
+import { FILTER_PRESETS, FILTER_CATEGORY_LABELS } from '@/lib/image-studio';
 
 export interface FiltersGalleryProps {
   imageUrl: string;
@@ -49,50 +50,8 @@ export interface FiltersGalleryProps {
   className?: string;
 }
 
-const FILTER_PRESETS: FilterPreset[] = [
-  // Basic
-  { id: 'none', name: 'Original', category: 'basic', adjustments: {} },
-  { id: 'vivid', name: 'Vivid', category: 'basic', adjustments: { saturation: 30, contrast: 15 }, description: 'Enhanced colors' },
-  { id: 'warm', name: 'Warm', category: 'basic', adjustments: { hue: 15, saturation: 10, brightness: 5 }, description: 'Warm tones' },
-  { id: 'cool', name: 'Cool', category: 'basic', adjustments: { hue: -20, saturation: -10, brightness: -5 }, description: 'Cool tones' },
-  { id: 'bright', name: 'Bright', category: 'basic', adjustments: { brightness: 20, contrast: 10 }, description: 'Brighter image' },
-  { id: 'contrast', name: 'High Contrast', category: 'basic', adjustments: { contrast: 40, brightness: -5 }, description: 'Dramatic contrast' },
-  
-  // Vintage
-  { id: 'sepia', name: 'Sepia', category: 'vintage', adjustments: { saturation: -50, hue: 30, brightness: 10 }, description: 'Classic sepia tone' },
-  { id: 'faded', name: 'Faded', category: 'vintage', adjustments: { contrast: -30, saturation: -30, brightness: 20 }, description: 'Washed out look' },
-  { id: 'retro', name: 'Retro', category: 'vintage', adjustments: { saturation: -20, contrast: 20, hue: 10 }, description: '70s style' },
-  { id: 'film', name: 'Film', category: 'vintage', adjustments: { contrast: 15, saturation: -15, brightness: 5 }, description: 'Analog film look' },
-  { id: 'polaroid', name: 'Polaroid', category: 'vintage', adjustments: { contrast: -10, saturation: 20, brightness: 15, hue: -5 }, description: 'Instant photo style' },
-  
-  // Cinematic
-  { id: 'dramatic', name: 'Dramatic', category: 'cinematic', adjustments: { contrast: 40, saturation: 20, brightness: -15 }, description: 'Bold and dramatic' },
-  { id: 'teal-orange', name: 'Teal & Orange', category: 'cinematic', adjustments: { hue: -15, saturation: 30, contrast: 20 }, description: 'Hollywood style' },
-  { id: 'noir', name: 'Noir', category: 'cinematic', adjustments: { contrast: 50, brightness: -20, saturation: -80 }, description: 'Dark and moody' },
-  { id: 'golden', name: 'Golden Hour', category: 'cinematic', adjustments: { hue: 20, saturation: 25, brightness: 10 }, description: 'Warm golden light' },
-  { id: 'cold-blue', name: 'Cold Blue', category: 'cinematic', adjustments: { hue: -30, saturation: 15, contrast: 20, brightness: -10 }, description: 'Cold cinematic' },
-  
-  // Artistic
-  { id: 'pop', name: 'Pop Art', category: 'artistic', adjustments: { saturation: 70, contrast: 40 }, description: 'Bold pop colors' },
-  { id: 'soft', name: 'Soft', category: 'artistic', adjustments: { contrast: -20, blur: 1, saturation: -15 }, description: 'Soft dreamy look' },
-  { id: 'sharp', name: 'Sharp', category: 'artistic', adjustments: { sharpen: 50, contrast: 10 }, description: 'Enhanced details' },
-  { id: 'muted', name: 'Muted', category: 'artistic', adjustments: { saturation: -40, contrast: -10 }, description: 'Subtle colors' },
-  { id: 'punch', name: 'Punch', category: 'artistic', adjustments: { saturation: 40, contrast: 30, sharpen: 20 }, description: 'Extra punch' },
-  
-  // Black & White
-  { id: 'bw', name: 'B&W', category: 'black-white', adjustments: { saturation: -100 }, description: 'Classic black & white' },
-  { id: 'bw-high', name: 'B&W High Contrast', category: 'black-white', adjustments: { saturation: -100, contrast: 50 }, description: 'Bold B&W' },
-  { id: 'bw-soft', name: 'B&W Soft', category: 'black-white', adjustments: { saturation: -100, contrast: -20, brightness: 10 }, description: 'Soft B&W' },
-  { id: 'bw-grain', name: 'B&W Film', category: 'black-white', adjustments: { saturation: -100, contrast: 30, sharpen: 30 }, description: 'Grainy film look' },
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  basic: 'Basic',
-  vintage: 'Vintage',
-  cinematic: 'Cinematic',
-  artistic: 'Artistic',
-  'black-white': 'B&W',
-};
+/** Use shared category labels from @/lib/image-studio */
+const CATEGORY_LABELS = FILTER_CATEGORY_LABELS;
 
 export function FiltersGallery({
   imageUrl,

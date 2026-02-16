@@ -217,7 +217,7 @@ export function InteractiveNotebook({
       if (!activeSession) return;
       const result = await inspectVariable(variableName, activeSession.id);
       if (result) {
-        loggers.jupyter.debug('Variable inspection:', result);
+        loggers.ai.debug('Variable inspection', { result });
       }
     },
     [activeSession, inspectVariable]

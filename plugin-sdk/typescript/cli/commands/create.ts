@@ -9,7 +9,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import React from 'react';
 import { render } from 'ink';
-import { CreateWizard, type CreateWizardData } from '../wizards/index.js';
+import { CreateWizard, type CreateWizardData } from '../wizards/index';
 
 export interface CreateOptions {
   template: 'basic' | 'tool' | 'command' | 'full';

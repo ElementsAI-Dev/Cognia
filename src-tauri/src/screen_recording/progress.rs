@@ -52,10 +52,13 @@ impl Default for VideoProcessingProgress {
 }
 
 /// Parse FFmpeg progress output
-pub fn parse_ffmpeg_progress(line: &str, total_duration: Option<f64>) -> Option<VideoProcessingProgress> {
+pub fn parse_ffmpeg_progress(
+    line: &str,
+    total_duration: Option<f64>,
+) -> Option<VideoProcessingProgress> {
     // FFmpeg progress output format:
     // frame=  123 fps=30 q=28.0 size=    1234kB time=00:00:05.12 bitrate=1234.5kbits/s speed=2.5x
-    
+
     let time_regex = Regex::new(r"time=(\d+):(\d+):(\d+\.?\d*)").ok()?;
     let speed_regex = Regex::new(r"speed=\s*(\d+\.?\d*x)").ok()?;
     let bitrate_regex = Regex::new(r"bitrate=\s*(\d+\.?\d*\w+/s)").ok()?;
@@ -130,14 +133,17 @@ pub fn monitor_ffmpeg_progress(
     operation: &str,
     total_duration: Option<f64>,
 ) -> Result<(), String> {
-    let stderr = child.stderr.take().ok_or("Failed to capture FFmpeg stderr")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("Failed to capture FFmpeg stderr")?;
     let reader = BufReader::new(stderr);
     let operation = operation.to_string();
     let app = app_handle.clone();
 
     // Read FFmpeg output in a separate thread
     let (tx, rx) = mpsc::channel();
-    
+
     thread::spawn(move || {
         for line in reader.lines().map_while(Result::ok) {
             if let Some(mut progress) = parse_ffmpeg_progress(&line, total_duration) {
@@ -167,7 +173,10 @@ pub fn monitor_ffmpeg_progress(
             if progress.complete || (progress.progress - last_progress).abs() > 0.01 {
                 last_progress = progress.progress;
                 let _ = app.emit("video-processing-progress", &progress);
-                debug!("[VideoProcessor] Progress: {:.1}%", progress.progress * 100.0);
+                debug!(
+                    "[VideoProcessor] Progress: {:.1}%",
+                    progress.progress * 100.0
+                );
             }
             if progress.complete {
                 info!("[VideoProcessor] Processing complete");
@@ -197,10 +206,13 @@ pub fn emit_processing_started(app_handle: &AppHandle, operation: &str) {
 
 /// Emit video processing completed event
 pub fn emit_processing_completed(app_handle: &AppHandle, operation: &str, output_path: &str) {
-    let _ = app_handle.emit("video-processing-completed", serde_json::json!({
-        "operation": operation,
-        "outputPath": output_path,
-    }));
+    let _ = app_handle.emit(
+        "video-processing-completed",
+        serde_json::json!({
+            "operation": operation,
+            "outputPath": output_path,
+        }),
+    );
 }
 
 /// Emit video processing error event
@@ -227,7 +239,7 @@ mod tests {
     fn test_parse_ffmpeg_progress() {
         let line = "frame=  123 fps=30 q=28.0 size=    1234kB time=00:00:05.12 bitrate=1234.5kbits/s speed=2.5x";
         let progress = parse_ffmpeg_progress(line, Some(10.0)).unwrap();
-        
+
         assert!((progress.current_time - 5.12).abs() < 0.01);
         assert!((progress.progress - 0.512).abs() < 0.01);
         assert_eq!(progress.speed, Some("2.5x".to_string()));
@@ -237,7 +249,7 @@ mod tests {
     fn test_parse_ffmpeg_progress_no_duration() {
         let line = "time=00:01:30.50 speed=1.0x";
         let progress = parse_ffmpeg_progress(line, None).unwrap();
-        
+
         assert!((progress.current_time - 90.5).abs() < 0.01);
         assert_eq!(progress.progress, 0.0); // No total duration
     }

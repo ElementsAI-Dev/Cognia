@@ -6,11 +6,13 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { RefreshCw } from 'lucide-react';
 import { useScheduler, useSystemScheduler } from '@/hooks/scheduler';
 import type {
   CreateScheduledTaskInput,
   CreateSystemTaskInput,
+  ScheduledTaskStatus,
   SystemTask,
 } from '@/types/scheduler';
 import { SchedulerHeader } from './scheduler-header';
@@ -94,7 +96,7 @@ export default function SchedulerPage() {
   const [isSelectMode, setIsSelectMode] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(filter.search || '');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ScheduledTaskStatus>('all');
 
   const isSystemView = schedulerTab === 'system';
 
@@ -416,7 +418,7 @@ export default function SchedulerPage() {
           />
           <AppSchedulerView
             tasks={tasks}
-            selectedTask={selectedTask}
+            selectedTask={selectedTask ?? null}
             executions={executions}
             isLoading={isLoading}
             isSelectMode={isSelectMode}

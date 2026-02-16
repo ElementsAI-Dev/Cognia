@@ -35,6 +35,50 @@ jest.mock('@/lib/monaco/snippets', () => ({
   registerEmmetSupport: jest.fn(() => []),
 }));
 
+jest.mock('@/lib/monaco/completion-providers', () => ({
+  registerAllCompletionProviders: jest.fn(() => []),
+}));
+
+jest.mock('@/lib/monaco/code-actions', () => ({
+  registerCodeActionProvider: jest.fn(() => []),
+}));
+
+jest.mock('@/lib/monaco/hover-provider', () => ({
+  registerEnhancedHoverProvider: jest.fn(() => []),
+}));
+
+jest.mock('@/lib/monaco/color-provider', () => ({
+  registerColorProvider: jest.fn(() => []),
+}));
+
+jest.mock('@/lib/monaco/symbol-provider', () => ({
+  registerDocumentSymbolProvider: jest.fn(() => []),
+}));
+
+const mockCreateMonacoLspAdapter = jest.fn((_options?: unknown) => ({
+  start: jest.fn(async () => ({
+    connected: false,
+    capabilities: {},
+    features: {
+      completion: false,
+      hover: false,
+      definition: false,
+      documentSymbols: false,
+      codeActions: false,
+      formatting: false,
+      workspaceSymbols: false,
+    },
+  })),
+  dispose: jest.fn(async () => undefined),
+}));
+jest.mock('@/lib/monaco/lsp/monaco-lsp-adapter', () => ({
+  createMonacoLspAdapter: (options: unknown) => mockCreateMonacoLspAdapter(options),
+}));
+
+jest.mock('@/lib/monaco/lsp/lsp-client', () => ({
+  isTauriRuntime: jest.fn(() => false),
+}));
+
 // Mock TypeScript config to prevent setEagerModelSync errors
 jest.mock('@/lib/monaco/typescript-config', () => ({
   setupTypeScript: jest.fn(),
@@ -44,12 +88,15 @@ jest.mock('@/lib/monaco/typescript-config', () => ({
 const mockDispose = jest.fn();
 const mockGetPosition = jest.fn(() => ({ lineNumber: 1, column: 1 }));
 const mockGetSelection = jest.fn(() => ({ isEmpty: () => true, startLineNumber: 1, endLineNumber: 1 }));
-const mockGetModel = jest.fn(() => ({
+const mockModel = {
   getValue: jest.fn(() => 'const test = "hello";'),
   getLineCount: jest.fn(() => 1),
   getValueInRange: jest.fn(() => ''),
   uri: { toString: () => 'file:///test.ts' },
-}));
+  dispose: jest.fn(),
+};
+const mockGetModel = jest.fn(() => mockModel);
+const mockCreateModel = jest.fn(() => mockModel);
 const mockEditor = {
   getValue: jest.fn(() => 'const test = "hello";'),
   setValue: jest.fn(),
@@ -71,10 +118,14 @@ const mockEditor = {
 const mockMonaco = {
   editor: {
     create: jest.fn(() => mockEditor),
+    createModel: mockCreateModel,
     setTheme: jest.fn(),
     setModelLanguage: jest.fn(),
     getModelMarkers: jest.fn(() => []),
     onDidChangeMarkers: jest.fn(() => ({ dispose: jest.fn() })),
+  },
+  Uri: {
+    parse: jest.fn((value: string) => ({ toString: () => value })),
   },
   MarkerSeverity: { Error: 8, Warning: 4, Info: 2 },
   KeyMod: { CtrlCmd: 2048, Shift: 1024, Alt: 512 },
@@ -358,6 +409,11 @@ describe('MonacoSandpackEditor', () => {
   });
 
   describe('new VSCode features', () => {
+    it('should show fallback LSP status in web runtime', async () => {
+      const { findByText } = render(<MonacoSandpackEditor />);
+      expect(await findByText('LSP: fallback')).toBeInTheDocument();
+    });
+
     it('should register keyboard shortcuts on init', async () => {
       await act(async () => {
         render(<MonacoSandpackEditor />);

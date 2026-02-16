@@ -26,11 +26,8 @@ export {
   selectIsEditing,
   selectHasUnsavedChanges,
   type EditingTool,
-  type ImageAdjustments,
-  type CropRegion,
-  type ImageTransform,
   type MaskStroke,
-  type EditorLayer,
+  type EditorLayer, // @deprecated - use Layer from @/types
   type StudioImage,
   type EditOperation,
   type GenerationSettings,
@@ -38,6 +35,15 @@ export {
   type ExportSettings,
   type ViewState,
 } from './image-studio-store';
+
+// Re-export types used by image studio from canonical source
+export type {
+  ImageAdjustments,
+  CropRegion,
+  ImageTransform,
+  Layer,
+  HistoryEntry,
+} from '@/types/media/image-studio';
 
 export {
   useScreenRecordingStore,

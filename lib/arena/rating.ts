@@ -92,6 +92,6 @@ export function preferencesToMatchups(preferences: ArenaPreference[]): Matchup[]
   return preferences.map((p) => ({
     winner: p.winner,
     loser: p.loser,
-    isTie: false,
+    isTie: p.isTie ?? false,
   }));
 }

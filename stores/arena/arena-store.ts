@@ -44,6 +44,7 @@ import {
   buildQualityIndicators,
   preferencesToMatchups,
 } from '@/lib/arena/rating';
+import { CATEGORY_IDS } from '@/lib/arena/constants';
 
 
 interface ArenaState {
@@ -742,6 +743,7 @@ export const useArenaStore = create<ArenaState>()(
             ci95Lower: ci.lower,
             ci95Upper: ci.upper,
             categoryRatings: {},
+            categoryBtScores: {},
             totalBattles: modelStats.total,
             wins: modelStats.wins,
             losses: modelStats.losses,
@@ -750,6 +752,25 @@ export const useArenaStore = create<ArenaState>()(
             stabilityScore: stability,
             updatedAt: new Date(),
           });
+        }
+
+        // Compute category-specific BT ratings
+        const categories = CATEGORY_IDS.filter((c): c is TaskCategory => c !== 'all');
+        for (const category of categories) {
+          const categoryPrefs = preferences.filter((p) => p.taskCategory === category);
+          if (categoryPrefs.length < 2) continue;
+
+          const categoryMatchups = preferencesToMatchups(categoryPrefs);
+          const categoryScores = computeBradleyTerryRatings(categoryMatchups);
+
+          for (const [modelId, catBtScore] of categoryScores) {
+            const existing = newRatings.find((r) => r.modelId === modelId);
+            if (existing) {
+              existing.categoryRatings[category] = btScoreToRating(catBtScore);
+              if (!existing.categoryBtScores) existing.categoryBtScores = {};
+              existing.categoryBtScores[category] = catBtScore;
+            }
+          }
         }
 
         set({ modelRatings: newRatings.sort((a, b) => b.rating - a.rating) });

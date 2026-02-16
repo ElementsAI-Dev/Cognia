@@ -97,7 +97,10 @@ impl MacOSScheduler {
         );
 
         for arg in args {
-            plist.push_str(&format!("        <string>{}</string>\n", Self::escape_xml(&arg)));
+            plist.push_str(&format!(
+                "        <string>{}</string>\n",
+                Self::escape_xml(&arg)
+            ));
         }
 
         plist.push_str("    </array>\n");
@@ -158,8 +161,14 @@ impl MacOSScheduler {
         }
 
         // Working directory
-        if let SystemTaskAction::ExecuteScript { working_dir: Some(dir), .. }
-        | SystemTaskAction::RunCommand { working_dir: Some(dir), .. } = &task.action
+        if let SystemTaskAction::ExecuteScript {
+            working_dir: Some(dir),
+            ..
+        }
+        | SystemTaskAction::RunCommand {
+            working_dir: Some(dir),
+            ..
+        } = &task.action
         {
             plist.push_str(&format!(
                 "    <key>WorkingDirectory</key>\n    <string>{}</string>\n",
@@ -224,7 +233,11 @@ impl MacOSScheduler {
                 let code_b64 =
                     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, code);
                 let cognia_path = Self::get_cognia_path();
-                let sandbox_flag = if *use_sandbox { "--sandbox" } else { "--native" };
+                let sandbox_flag = if *use_sandbox {
+                    "--sandbox"
+                } else {
+                    "--native"
+                };
 
                 let mut prog_args = vec![
                     "execute-script".to_string(),
@@ -272,7 +285,8 @@ impl MacOSScheduler {
             return None;
         }
 
-        let (minute, hour, day, _month, weekday) = (parts[0], parts[1], parts[2], parts[3], parts[4]);
+        let (minute, hour, day, _month, weekday) =
+            (parts[0], parts[1], parts[2], parts[3], parts[4]);
 
         let mut dict = String::from("    <dict>\n");
 
@@ -409,7 +423,9 @@ impl SystemScheduler for MacOSScheduler {
 
     async fn create_task(&self, input: CreateSystemTaskInput) -> Result<SystemTask> {
         if !self.available {
-            return Err(SchedulerError::NotAvailable("launchd not available".to_string()));
+            return Err(SchedulerError::NotAvailable(
+                "launchd not available".to_string(),
+            ));
         }
 
         // Ensure agents directory exists
@@ -468,18 +484,16 @@ impl SystemScheduler for MacOSScheduler {
         Ok(task)
     }
 
-    async fn update_task(
-        &self,
-        id: &str,
-        input: CreateSystemTaskInput,
-    ) -> Result<SystemTask> {
+    async fn update_task(&self, id: &str, input: CreateSystemTaskInput) -> Result<SystemTask> {
         self.delete_task(id).await?;
         self.create_task(input).await
     }
 
     async fn delete_task(&self, id: &str) -> Result<bool> {
         if !self.available {
-            return Err(SchedulerError::NotAvailable("launchd not available".to_string()));
+            return Err(SchedulerError::NotAvailable(
+                "launchd not available".to_string(),
+            ));
         }
 
         // Unload the agent
@@ -550,9 +564,7 @@ impl SystemScheduler for MacOSScheduler {
     async fn run_task_now(&self, id: &str) -> Result<TaskRunResult> {
         let start = std::time::Instant::now();
 
-        let output = Command::new("launchctl")
-            .args(["start", id])
-            .output()?;
+        let output = Command::new("launchctl").args(["start", id]).output()?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
 

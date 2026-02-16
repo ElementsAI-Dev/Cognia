@@ -191,6 +191,14 @@ jest.mock('@/stores', () => ({
   useLearningStore: () => ({
     getLearningSessionByChat: jest.fn(() => null),
   }),
+  useSkillStore: (selector: (state: unknown) => unknown) => {
+    const state = {
+      skills: {},
+      activeSkillIds: [],
+      getActiveSkills: jest.fn(() => []),
+    };
+    return selector ? selector(state) : state;
+  },
   useCustomThemeStore: (selector: (state: unknown) => unknown) => {
     const state = {
       themes: [],
@@ -492,11 +500,14 @@ jest.mock('@/components/search/source-verification-dialog', () => ({
 jest.mock('@/components/a2ui', () => ({
   A2UIMessageRenderer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   hasA2UIContent: jest.fn(() => false),
-  useA2UIMessageIntegration: () => ({ handleA2UIMessage: jest.fn() }),
+  useA2UIMessageIntegration: () => ({ processMessage: jest.fn() }),
 }));
 
 jest.mock('@/components/artifacts', () => ({
   MessageArtifacts: () => <div data-testid="message-artifacts">Artifacts</div>,
+  MessageAnalysisResults: () => (
+    <div data-testid="message-analysis-results">Analysis Results</div>
+  ),
 }));
 
 // ../message mock is defined earlier in the file

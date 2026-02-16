@@ -1,10 +1,10 @@
 //! Tauri commands for input completion
 
-use crate::input_completion::{
-    CompletionConfig, CompletionFeedback, CompletionResult, CompletionStatus,
-    CompletionSuggestion, ImeState, InputCompletionManager,
-};
 use crate::input_completion::types::CompletionStats;
+use crate::input_completion::{
+    CompletionConfig, CompletionFeedback, CompletionResult, CompletionStatus, CompletionSuggestion,
+    ImeState, InputCompletionManager,
+};
 use tauri::State;
 
 /// Start the input completion system

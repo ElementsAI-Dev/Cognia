@@ -7,7 +7,7 @@ import { CarriedContextBanner } from './carried-context-banner';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, values?: { count?: number }) => {
     const translations: Record<string, string> = {
       title: 'Carried Context',
       contextHint: 'This context was carried from your previous conversation.',
@@ -15,7 +15,11 @@ jest.mock('next-intl', () => ({
       modeAgent: 'Agent',
       modeResearch: 'Research',
       modeLearning: 'Learning',
+      justNow: 'just now',
     };
+    if (key === 'minutesAgo') return `${values?.count ?? 0}m ago`;
+    if (key === 'hoursAgo') return `${values?.count ?? 0}h ago`;
+    if (key === 'daysAgo') return `${values?.count ?? 0}d ago`;
     return translations[key] || key;
   },
 }));

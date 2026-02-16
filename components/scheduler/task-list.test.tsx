@@ -196,7 +196,7 @@ describe('TaskList', () => {
     expect(allTexts.length).toBe(0);
   });
 
-  it('should sort active tasks first', () => {
+  it('should preserve incoming task order', () => {
     const tasks = [
       createMockTask({ id: 'task-1', name: 'Paused Task', status: 'paused' }),
       createMockTask({ id: 'task-2', name: 'Active Task', status: 'active' }),
@@ -204,8 +204,8 @@ describe('TaskList', () => {
     render(<TaskList {...defaultProps} tasks={tasks} />);
 
     const cardTitles = screen.getAllByText(/Task$/);
-    expect(cardTitles[0].textContent).toBe('Active Task');
-    expect(cardTitles[1].textContent).toBe('Paused Task');
+    expect(cardTitles[0].textContent).toBe('Paused Task');
+    expect(cardTitles[1].textContent).toBe('Active Task');
   });
 
   it('should render colored type icon for each task type', () => {

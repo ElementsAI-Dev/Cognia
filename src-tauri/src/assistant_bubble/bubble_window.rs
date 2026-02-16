@@ -54,11 +54,11 @@ impl AssistantBubbleWindow {
             .app_data_dir()
             .map(|p| p.join("bubble_config.json"))
             .unwrap_or_else(|_| PathBuf::from("bubble_config.json"));
-        
+
         // Try to load existing config
         let config = Self::load_config_from_file(&config_path).unwrap_or_default();
         let position = config.x.zip(config.y);
-        
+
         Self {
             app_handle,
             is_visible: Arc::new(AtomicBool::new(false)),
@@ -69,7 +69,7 @@ impl AssistantBubbleWindow {
             config_path,
         }
     }
-    
+
     /// Load config from file
     fn load_config_from_file(path: &PathBuf) -> Option<BubbleConfig> {
         if path.exists() {
@@ -86,22 +86,25 @@ impl AssistantBubbleWindow {
         }
         None
     }
-    
+
     /// Save config to file
     pub fn save_config(&self) -> Result<(), String> {
         let config = self.config.read().clone();
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        
+
         std::fs::write(&self.config_path, content)
             .map_err(|e| format!("Failed to write config file: {}", e))?;
-        
-        log::debug!("[AssistantBubbleWindow] Config saved to {:?}", self.config_path);
+
+        log::debug!(
+            "[AssistantBubbleWindow] Config saved to {:?}",
+            self.config_path
+        );
         Ok(())
     }
 
@@ -126,23 +129,23 @@ impl AssistantBubbleWindow {
                 .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }))
                 .map_err(|e| format!("Failed to set bubble position: {}", e))?;
         }
-        
+
         *self.position.write() = Some((x, y));
-        
+
         // Also update config if remember_position is enabled
         let mut config = self.config.write();
         if config.remember_position {
             config.x = Some(x);
             config.y = Some(y);
         }
-        
+
         Ok(())
     }
 
     pub fn ensure_window_exists(&self) -> Result<(), String> {
         // Acquire lock to prevent concurrent window creation
         let _guard = self.creation_lock.lock();
-        
+
         // Double-check after acquiring lock
         if self
             .app_handle
@@ -207,7 +210,7 @@ impl AssistantBubbleWindow {
             tauri::WindowEvent::Moved(pos) => {
                 // Track position changes in memory only (no file I/O during drag)
                 *position.write() = Some((pos.x, pos.y));
-                
+
                 // Update in-memory config (file save deferred to drag end / destroy)
                 {
                     let mut cfg = config.write();
@@ -216,12 +219,15 @@ impl AssistantBubbleWindow {
                         cfg.y = Some(pos.y);
                     }
                 }
-                
+
                 // Emit position changed event
-                let _ = app_handle.emit("assistant-bubble-moved", serde_json::json!({
-                    "x": pos.x,
-                    "y": pos.y
-                }));
+                let _ = app_handle.emit(
+                    "assistant-bubble-moved",
+                    serde_json::json!({
+                        "x": pos.x,
+                        "y": pos.y
+                    }),
+                );
             }
             tauri::WindowEvent::Destroyed => {
                 // Window was destroyed, reset visibility state
@@ -233,30 +239,39 @@ impl AssistantBubbleWindow {
             }
             _ => {}
         });
-        
+
         // Restore position from config if available
         let config = self.config.read().clone();
         if config.remember_position {
             if let Some((saved_x, saved_y)) = config.x.zip(config.y) {
                 // Validate saved position is within current work area
-                let (work_w, work_h, work_x, work_y) = self.get_work_area_for_position(Some((saved_x, saved_y)));
+                let (work_w, work_h, work_x, work_y) =
+                    self.get_work_area_for_position(Some((saved_x, saved_y)));
                 let size = self.bubble_size_physical();
-                
+
                 // Clamp to work area bounds
-                let clamped_x = saved_x.max(work_x + BUBBLE_PADDING).min(work_x + work_w - size - BUBBLE_PADDING);
-                let clamped_y = saved_y.max(work_y + BUBBLE_PADDING).min(work_y + work_h - size - BUBBLE_PADDING);
-                
+                let clamped_x = saved_x
+                    .max(work_x + BUBBLE_PADDING)
+                    .min(work_x + work_w - size - BUBBLE_PADDING);
+                let clamped_y = saved_y
+                    .max(work_y + BUBBLE_PADDING)
+                    .min(work_y + work_h - size - BUBBLE_PADDING);
+
                 let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
                     x: clamped_x,
                     y: clamped_y,
                 }));
                 *self.position.write() = Some((clamped_x, clamped_y));
-                
+
                 if clamped_x != saved_x || clamped_y != saved_y {
                     log::debug!("[AssistantBubbleWindow] Restored and clamped position from ({}, {}) to ({}, {})", 
                         saved_x, saved_y, clamped_x, clamped_y);
                 } else {
-                    log::debug!("[AssistantBubbleWindow] Restored position to ({}, {})", saved_x, saved_y);
+                    log::debug!(
+                        "[AssistantBubbleWindow] Restored position to ({}, {})",
+                        saved_x,
+                        saved_y
+                    );
                 }
             }
         }
@@ -283,9 +298,12 @@ impl AssistantBubbleWindow {
     pub fn hide(&self) -> Result<(), String> {
         // Persist config before hiding (position may have changed since last save)
         if let Err(e) = self.save_config() {
-            log::warn!("[AssistantBubbleWindow] Failed to save config on hide: {}", e);
+            log::warn!(
+                "[AssistantBubbleWindow] Failed to save config on hide: {}",
+                e
+            );
         }
-        
+
         if let Some(window) = self
             .app_handle
             .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)
@@ -294,13 +312,15 @@ impl AssistantBubbleWindow {
                 .hide()
                 .map_err(|e| format!("Failed to hide assistant bubble: {}", e))?;
             self.is_visible.store(false, Ordering::SeqCst);
-            
+
             // Emit visibility changed event
-            let _ = self.app_handle.emit("assistant-bubble-visibility-changed", false);
+            let _ = self
+                .app_handle
+                .emit("assistant-bubble-visibility-changed", false);
         }
         Ok(())
     }
-    
+
     /// Minimize (fold) the bubble window
     pub fn minimize(&self) -> Result<(), String> {
         if let Some(window) = self
@@ -311,14 +331,14 @@ impl AssistantBubbleWindow {
                 .minimize()
                 .map_err(|e| format!("Failed to minimize assistant bubble: {}", e))?;
             self.is_minimized.store(true, Ordering::SeqCst);
-            
+
             // Emit minimized event
             let _ = self.app_handle.emit("assistant-bubble-minimized", true);
             log::debug!("[AssistantBubbleWindow] Window minimized");
         }
         Ok(())
     }
-    
+
     /// Unminimize (unfold) the bubble window
     pub fn unminimize(&self) -> Result<(), String> {
         if let Some(window) = self
@@ -329,19 +349,19 @@ impl AssistantBubbleWindow {
                 .unminimize()
                 .map_err(|e| format!("Failed to unminimize assistant bubble: {}", e))?;
             self.is_minimized.store(false, Ordering::SeqCst);
-            
+
             // Emit unminimized event
             let _ = self.app_handle.emit("assistant-bubble-minimized", false);
             log::debug!("[AssistantBubbleWindow] Window unminimized");
         }
         Ok(())
     }
-    
+
     /// Check if bubble is minimized
     pub fn is_minimized(&self) -> bool {
         self.is_minimized.load(Ordering::SeqCst)
     }
-    
+
     /// Toggle minimized state
     pub fn toggle_minimize(&self) -> Result<bool, String> {
         if self.is_minimized() {
@@ -380,28 +400,34 @@ impl AssistantBubbleWindow {
     }
 
     /// Calculate optimal position for chat widget relative to bubble
-    pub fn calculate_chat_widget_position(&self, widget_width: i32, widget_height: i32) -> (i32, i32) {
-        let bubble_pos = self.get_position().unwrap_or_else(|| self.default_position());
+    pub fn calculate_chat_widget_position(
+        &self,
+        widget_width: i32,
+        widget_height: i32,
+    ) -> (i32, i32) {
+        let bubble_pos = self
+            .get_position()
+            .unwrap_or_else(|| self.default_position());
         let bubble_size = self.bubble_size_physical();
         let (work_w, work_h, work_x, work_y) = self.get_primary_work_area();
-        
+
         // Gap between bubble and widget
         const GAP: i32 = 12;
-        
+
         // Calculate bubble center
         let bubble_center_x = bubble_pos.0 + bubble_size / 2;
         let bubble_center_y = bubble_pos.1 + bubble_size / 2;
-        
+
         // Determine best position (prefer above-left of bubble)
         let mut x: i32;
         let mut y: i32;
-        
+
         // Check if there's enough space above the bubble
         let space_above = bubble_pos.1 - work_y;
         let space_below = (work_y + work_h) - (bubble_pos.1 + bubble_size);
         let space_left = bubble_pos.0 - work_x;
         let space_right = (work_x + work_w) - (bubble_pos.0 + bubble_size);
-        
+
         // Vertical positioning
         if space_above >= widget_height + GAP {
             // Position above bubble
@@ -413,7 +439,7 @@ impl AssistantBubbleWindow {
             // Center vertically
             y = bubble_center_y - widget_height / 2;
         }
-        
+
         // Horizontal positioning - align right edge with bubble right edge
         if space_left >= widget_width - bubble_size {
             // Align right edges
@@ -425,11 +451,11 @@ impl AssistantBubbleWindow {
             // Center horizontally on bubble
             x = bubble_center_x - widget_width / 2;
         }
-        
+
         // Ensure window stays within work area
         x = x.max(work_x + 10).min(work_x + work_w - widget_width - 10);
         y = y.max(work_y + 10).min(work_y + work_h - widget_height - 10);
-        
+
         (x, y)
     }
 
@@ -451,7 +477,7 @@ impl AssistantBubbleWindow {
             let scale = window.scale_factor().unwrap_or(1.0);
             return (BUBBLE_SIZE * scale).round() as i32;
         }
-        
+
         // Fall back to DPI-based scale factor for the current position
         let scale = self.get_scale_factor_for_position(None);
         (BUBBLE_SIZE * scale).round() as i32
@@ -460,12 +486,15 @@ impl AssistantBubbleWindow {
     /// Destroy the bubble window and clean up resources
     pub fn destroy(&self) -> Result<(), String> {
         log::debug!("[AssistantBubbleWindow] destroy() called");
-        
+
         // Save config before destroying
         if let Err(e) = self.save_config() {
-            log::warn!("[AssistantBubbleWindow] Failed to save config on destroy: {}", e);
+            log::warn!(
+                "[AssistantBubbleWindow] Failed to save config on destroy: {}",
+                e
+            );
         }
-        
+
         if let Some(window) = self
             .app_handle
             .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)
@@ -476,13 +505,13 @@ impl AssistantBubbleWindow {
                 .destroy()
                 .map_err(|e| format!("Failed to destroy bubble window: {}", e))?;
         }
-        
+
         self.is_visible.store(false, Ordering::SeqCst);
         self.is_minimized.store(false, Ordering::SeqCst);
         log::info!("[AssistantBubbleWindow] Window destroyed");
         Ok(())
     }
-    
+
     /// Recreate the window if it was destroyed unexpectedly
     pub fn recreate_if_needed(&self) -> Result<bool, String> {
         if self
@@ -497,7 +526,7 @@ impl AssistantBubbleWindow {
             Ok(false)
         }
     }
-    
+
     /// Sync visibility state with actual window state
     /// Call this if you suspect the state might be out of sync
     pub fn sync_visibility(&self) {
@@ -506,9 +535,9 @@ impl AssistantBubbleWindow {
             .get_webview_window(ASSISTANT_BUBBLE_WINDOW_LABEL)
             .map(|w| w.is_visible().unwrap_or(false))
             .unwrap_or(false);
-        
+
         let stored_visible = self.is_visible.load(Ordering::SeqCst);
-        
+
         if actual_visible != stored_visible {
             log::warn!(
                 "[AssistantBubbleWindow] Visibility state mismatch: stored={}, actual={}. Syncing.",
@@ -523,7 +552,7 @@ impl AssistantBubbleWindow {
     fn get_primary_work_area(&self) -> (i32, i32, i32, i32) {
         self.get_work_area_for_position(None)
     }
-    
+
     /// Get work area for a specific position, or use bubble position / primary monitor as fallback
     /// Returns (width, height, x, y) in physical pixels
     pub fn get_work_area_for_position(&self, position: Option<(i32, i32)>) -> (i32, i32, i32, i32) {
@@ -537,12 +566,14 @@ impl AssistantBubbleWindow {
 
             unsafe {
                 // Get the position to check - either provided, bubble position, or (0,0) for primary
-                let (check_x, check_y) = position
-                    .or_else(|| *self.position.read())
-                    .unwrap_or((0, 0));
-                
-                let point = POINT { x: check_x, y: check_y };
-                
+                let (check_x, check_y) =
+                    position.or_else(|| *self.position.read()).unwrap_or((0, 0));
+
+                let point = POINT {
+                    x: check_x,
+                    y: check_y,
+                };
+
                 // Use MONITOR_DEFAULTTONEAREST to get the monitor containing/nearest to this point
                 let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
 
@@ -560,9 +591,10 @@ impl AssistantBubbleWindow {
                         rect.top,
                     );
                 }
-                
+
                 // If that fails, try primary monitor
-                let primary_monitor = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+                let primary_monitor =
+                    MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
                 if GetMonitorInfoW(primary_monitor, &mut info).as_bool() {
                     let rect = info.rcWork;
                     return (
@@ -583,7 +615,7 @@ impl AssistantBubbleWindow {
         // Fallback
         (1920, 1080, 0, 0)
     }
-    
+
     /// Get the DPI scale factor for a specific position
     #[cfg(target_os = "windows")]
     pub fn get_scale_factor_for_position(&self, position: Option<(i32, i32)>) -> f64 {
@@ -592,41 +624,52 @@ impl AssistantBubbleWindow {
         use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 
         unsafe {
-            let (check_x, check_y) = position
-                .or_else(|| *self.position.read())
-                .unwrap_or((0, 0));
-            
-            let point = POINT { x: check_x, y: check_y };
+            let (check_x, check_y) = position.or_else(|| *self.position.read()).unwrap_or((0, 0));
+
+            let point = POINT {
+                x: check_x,
+                y: check_y,
+            };
             let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
-            
+
             let mut dpi_x: u32 = 96;
             let mut dpi_y: u32 = 96;
-            
+
             if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
                 return dpi_x as f64 / 96.0;
             }
         }
-        
+
         1.0
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     pub fn get_scale_factor_for_position(&self, _position: Option<(i32, i32)>) -> f64 {
         1.0
     }
-    
+
     /// Ensure bubble stays within the current monitor's work area
     pub fn clamp_to_work_area(&self) -> Result<(), String> {
         if let Some((x, y)) = self.get_position() {
             let (work_w, work_h, work_x, work_y) = self.get_work_area_for_position(Some((x, y)));
             let size = self.bubble_size_physical();
-            
-            let new_x = x.max(work_x + BUBBLE_PADDING).min(work_x + work_w - size - BUBBLE_PADDING);
-            let new_y = y.max(work_y + BUBBLE_PADDING).min(work_y + work_h - size - BUBBLE_PADDING);
-            
+
+            let new_x = x
+                .max(work_x + BUBBLE_PADDING)
+                .min(work_x + work_w - size - BUBBLE_PADDING);
+            let new_y = y
+                .max(work_y + BUBBLE_PADDING)
+                .min(work_y + work_h - size - BUBBLE_PADDING);
+
             if new_x != x || new_y != y {
                 self.set_position(new_x, new_y)?;
-                log::debug!("[AssistantBubbleWindow] Clamped position from ({}, {}) to ({}, {})", x, y, new_x, new_y);
+                log::debug!(
+                    "[AssistantBubbleWindow] Clamped position from ({}, {}) to ({}, {})",
+                    x,
+                    y,
+                    new_x,
+                    new_y
+                );
             }
         }
         Ok(())

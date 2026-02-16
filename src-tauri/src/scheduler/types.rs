@@ -82,10 +82,7 @@ pub enum SystemTaskTrigger {
         user: Option<String>,
     },
     /// Run on system event (Windows only)
-    OnEvent {
-        source: String,
-        event_id: u32,
-    },
+    OnEvent { source: String, event_id: u32 },
 }
 
 /// Action to perform when task triggers
@@ -270,7 +267,14 @@ pub struct SchedulerCapabilities {
 impl SystemTask {
     /// Generate a unique task ID
     pub fn generate_id() -> SystemTaskId {
-        format!("cognia-task-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("0000"))
+        format!(
+            "cognia-task-{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .split('-')
+                .next()
+                .unwrap_or("0000")
+        )
     }
 
     /// Check if this task requires administrator privileges
@@ -288,12 +292,8 @@ impl SystemTask {
         }
 
         match &self.action {
-            SystemTaskAction::RunCommand { command, .. } => {
-                Self::is_privileged_path(command)
-            }
-            SystemTaskAction::LaunchApp { path, .. } => {
-                Self::is_privileged_path(path)
-            }
+            SystemTaskAction::RunCommand { command, .. } => Self::is_privileged_path(command),
+            SystemTaskAction::LaunchApp { path, .. } => Self::is_privileged_path(path),
             SystemTaskAction::ExecuteScript { use_sandbox, .. } => {
                 // Scripts without sandbox need more scrutiny
                 !use_sandbox
@@ -323,7 +323,7 @@ impl SystemTask {
     /// Check if a path requires elevated privileges
     fn is_privileged_path(path: &str) -> bool {
         let path_lower = path.to_lowercase();
-        
+
         // Windows system paths
         if path_lower.starts_with("c:\\windows")
             || path_lower.starts_with("c:\\program files")
@@ -350,18 +350,28 @@ impl SystemTask {
         let mut warnings = Vec::new();
 
         if self.run_level == RunLevel::Administrator {
-            warnings.push("此任务将以管理员权限运行 / This task will run with administrator privileges".to_string());
+            warnings.push(
+                "此任务将以管理员权限运行 / This task will run with administrator privileges"
+                    .to_string(),
+            );
         }
 
         if matches!(self.trigger, SystemTaskTrigger::OnBoot { .. }) {
-            warnings.push("此任务将在系统启动时运行 / This task will run at system boot".to_string());
+            warnings
+                .push("此任务将在系统启动时运行 / This task will run at system boot".to_string());
         }
 
         if matches!(self.trigger, SystemTaskTrigger::OnLogon { .. }) {
-            warnings.push("此任务将在用户登录时运行 / This task will run at user logon".to_string());
+            warnings
+                .push("此任务将在用户登录时运行 / This task will run at user logon".to_string());
         }
 
-        if let SystemTaskAction::ExecuteScript { use_sandbox, language, .. } = &self.action {
+        if let SystemTaskAction::ExecuteScript {
+            use_sandbox,
+            language,
+            ..
+        } = &self.action
+        {
             if !use_sandbox {
                 warnings.push(format!(
                     "脚本将在沙盒外运行，可访问完整系统 / {} script will run outside sandbox with full system access",

@@ -25,9 +25,9 @@ pub mod macos;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+use log::info;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use log::info;
 
 pub use error::{Result, SchedulerError};
 pub use service::SystemScheduler;
@@ -224,8 +224,8 @@ impl SchedulerState {
         let requires_admin = temp_task.check_requires_admin();
         let risk_level = temp_task.calculate_risk_level();
 
-        let needs_confirmation = matches!(risk_level, RiskLevel::High | RiskLevel::Critical)
-            || requires_admin;
+        let needs_confirmation =
+            matches!(risk_level, RiskLevel::High | RiskLevel::Critical) || requires_admin;
 
         if needs_confirmation && !confirmed {
             let confirmation = TaskConfirmationRequest {

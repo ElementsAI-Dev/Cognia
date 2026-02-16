@@ -18,8 +18,8 @@ import {
   colors,
   symbols,
   generateFileTree,
-} from '../ui/index.js';
-import { useWizard } from './hooks/useWizard.js';
+} from '../ui/index';
+import { useWizard } from './hooks/useWizard';
 
 // Template definitions
 const TEMPLATES = [

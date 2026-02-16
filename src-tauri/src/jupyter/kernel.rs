@@ -438,8 +438,9 @@ impl JupyterKernel {
                     .unwrap_or_default();
 
                 // Parse error from Python REPL
-                let error = parsed["error"].as_object().map(|err| {
-                    super::ExecutionError {
+                let error = parsed["error"]
+                    .as_object()
+                    .map(|err| super::ExecutionError {
                         ename: err
                             .get("ename")
                             .and_then(|v| v.as_str())
@@ -459,8 +460,7 @@ impl JupyterKernel {
                                     .collect()
                             })
                             .unwrap_or_default(),
-                    }
-                });
+                    });
 
                 if success {
                     info!(
@@ -603,12 +603,7 @@ impl JupyterKernel {
 
         tokio::time::timeout(timeout_duration, read_future)
             .await
-            .map_err(|_| {
-                format!(
-                    "Execution timed out after {}s",
-                    timeout_duration.as_secs()
-                )
-            })?
+            .map_err(|_| format!("Execution timed out after {}s", timeout_duration.as_secs()))?
     }
 
     /// Get Python executable path
@@ -880,21 +875,14 @@ impl JupyterKernel {
                 warn!("Kernel {}: Failed to kill process: {}", self.id, e);
             }
             // Wait briefly for process to exit
-            let _ = tokio::time::timeout(
-                Duration::from_secs(2),
-                process.wait(),
-            )
-            .await;
+            let _ = tokio::time::timeout(Duration::from_secs(2), process.wait()).await;
         }
         self.process.take();
 
         // Clean up temp script file
         if let Some(ref script_path) = self.script_path {
             if let Err(e) = std::fs::remove_file(script_path) {
-                debug!(
-                    "Kernel {}: Could not remove temp script: {}",
-                    self.id, e
-                );
+                debug!("Kernel {}: Could not remove temp script: {}", self.id, e);
             }
         }
         self.script_path.take();
@@ -930,10 +918,7 @@ impl JupyterKernel {
                 #[cfg(unix)]
                 {
                     // Send SIGINT to the Python process - triggers KeyboardInterrupt
-                    debug!(
-                        "Kernel {}: Sending SIGINT to process {}",
-                        self.id, pid
-                    );
+                    debug!("Kernel {}: Sending SIGINT to process {}", self.id, pid);
                     unsafe {
                         libc::kill(pid as i32, libc::SIGINT);
                     }

@@ -174,10 +174,10 @@ describe('useScreenRecording', () => {
     it('should format seconds correctly', () => {
       const { result } = renderHook(() => useScreenRecording({ autoInitialize: false }));
 
-      expect(result.current.formatDuration(0)).toBe('00:00');
-      expect(result.current.formatDuration(5000)).toBe('00:05');
-      expect(result.current.formatDuration(65000)).toBe('01:05');
-      expect(result.current.formatDuration(3665000)).toBe('01:01:05');
+      expect(result.current.formatDuration(0)).toBe('0:00');
+      expect(result.current.formatDuration(5000)).toBe('0:05');
+      expect(result.current.formatDuration(65000)).toBe('1:05');
+      expect(result.current.formatDuration(3665000)).toBe('1:01:05');
     });
   });
 

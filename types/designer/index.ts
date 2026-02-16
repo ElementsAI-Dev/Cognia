@@ -4,3 +4,4 @@
 
 export * from './designer';
 export * from './designer-dnd';
+export * from './lsp';

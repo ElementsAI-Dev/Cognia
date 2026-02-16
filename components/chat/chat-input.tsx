@@ -14,162 +14,38 @@
 
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send, Paperclip, Square, Loader2, Mic, Wand2, Zap, FileText, History } from 'lucide-react';
+import { Send, Square, Loader2 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSettingsStore, useRecentFilesStore, usePromptTemplateStore, useChatStore } from '@/stores';
 import {
-  RecentFilesPopover,
   MentionPopover,
-  ToolHistoryPanel,
   SlashCommandPopover,
   EmojiPopover,
 } from './popovers';
 import type { SlashCommandDefinition } from '@/types/chat/slash-commands';
 import type { EmojiData } from '@/types/chat/input-completion';
-import type { RecentFile } from '@/stores/system';
 import type { MentionItem, SelectedMention, ParsedToolCall } from '@/types/mcp';
-import { useSpeech } from '@/hooks';
 import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
+import { useFileUpload } from '@/hooks/chat/use-file-upload';
+import { useVoiceInput } from '@/hooks/chat/use-voice-input';
 import { cn } from '@/lib/utils';
-import { transcribeViaApi, formatDuration } from '@/lib/ai/media/speech-api';
 import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
 import { useCompletionSettingsStore, selectGhostTextOpacity } from '@/stores/settings/completion-settings-store';
-import { getLanguageFlag } from '@/types/media/speech';
-import { nanoid } from 'nanoid';
 import { AttachmentsPreview } from './chat-input/attachments-preview';
 import { UploadErrorAlert } from './chat-input/upload-error-alert';
 import { DragOverlay } from './chat-input/drag-overlay';
 import { PreviewDialog } from './chat-input/preview-dialog';
 import { BottomToolbar } from './chat-input/bottom-toolbar';
-import { formatFileSize, getFileType } from './chat-input/utils';
+import { InputToolbar } from './chat-input/input-toolbar';
+import { getCaretCoordinates } from './chat-input/utils';
 import { PromptTemplateSelector } from '@/components/prompt';
+import type { Attachment, UploadSettings } from './chat-input/types';
+import { DEFAULT_UPLOAD_SETTINGS } from './chat-input/types';
 
-// Helper to get caret coordinates in textarea for mention popover positioning
-function getCaretCoordinates(textarea: HTMLTextAreaElement): DOMRect | null {
-  const { selectionStart } = textarea;
-  if (selectionStart === null) return null;
-
-  const mirror = document.createElement('div');
-  const computed = window.getComputedStyle(textarea);
-
-  const styles = [
-    'fontFamily',
-    'fontSize',
-    'fontWeight',
-    'fontStyle',
-    'letterSpacing',
-    'textTransform',
-    'wordSpacing',
-    'textIndent',
-    'whiteSpace',
-    'wordWrap',
-    'lineHeight',
-    'padding',
-    'border',
-    'boxSizing',
-  ] as const;
-
-  mirror.style.position = 'absolute';
-  mirror.style.visibility = 'hidden';
-  mirror.style.overflow = 'hidden';
-  mirror.style.width = computed.width;
-
-  styles.forEach((style) => {
-    (mirror.style as unknown as Record<string, string>)[style] = computed.getPropertyValue(
-      style.replace(/([A-Z])/g, '-$1').toLowerCase()
-    );
-  });
-
-  const textBeforeCursor = textarea.value.substring(0, selectionStart);
-  mirror.textContent = textBeforeCursor;
-
-  const marker = document.createElement('span');
-  marker.textContent = '|';
-  mirror.appendChild(marker);
-
-  document.body.appendChild(mirror);
-
-  const textareaRect = textarea.getBoundingClientRect();
-  const markerRect = marker.getBoundingClientRect();
-
-  document.body.removeChild(mirror);
-
-  return new DOMRect(
-    textareaRect.left + markerRect.left - mirror.getBoundingClientRect().left,
-    textareaRect.top + markerRect.top - mirror.getBoundingClientRect().top,
-    0,
-    parseInt(computed.lineHeight) || parseInt(computed.fontSize) * 1.2
-  );
-}
-
-export interface Attachment {
-  id: string;
-  name: string;
-  type: 'image' | 'audio' | 'video' | 'file' | 'archive';
-  url: string;
-  size: number;
-  mimeType: string;
-  file?: File;
-}
-
-export interface UploadSettings {
-  maxFileSize: number; // in bytes
-  maxFiles: number;
-  allowedTypes: string[]; // MIME types or patterns like 'image/*'
-}
-
-const DEFAULT_UPLOAD_SETTINGS: UploadSettings = {
-  maxFileSize: 50 * 1024 * 1024, // 50MB
-  maxFiles: 10,
-  allowedTypes: ['*/*'], // Allow all by default
-};
-
-// Speech Recognition types
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  onstart: ((this: SpeechRecognition, ev: Event) => void) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => void) | null;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-type SpeechRecognitionResultList = {
-  readonly length: number;
-  [index: number]: SpeechRecognitionResult;
-};
-
-type SpeechRecognitionResult = {
-  readonly length: number;
-  [index: number]: SpeechRecognitionAlternative;
-  isFinal: boolean;
-};
-
-type SpeechRecognitionAlternative = {
-  transcript: string;
-  confidence: number;
-};
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: { new (): SpeechRecognition };
-    webkitSpeechRecognition: { new (): SpeechRecognition };
-  }
-}
+// Re-export for backward compatibility
+export type { Attachment, UploadSettings } from './chat-input/types';
 
 interface ChatInputProps {
   value: string;
@@ -255,13 +131,10 @@ export function ChatInput({
   const t = useTranslations('chatInput');
   const tPlaceholders = useTranslations('placeholders');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const sendOnEnter = useSettingsStore((state) => state.sendOnEnter);
   const simplifiedModeSettings = useSettingsStore((state) => state.simplifiedModeSettings);
   const isSimplifiedMode = simplifiedModeSettings.enabled;
-  const addRecentFile = useRecentFilesStore((state) => state.addFile);
   const allRecentFiles = useRecentFilesStore((state) => state.recentFiles);
   const initializePromptTemplates = usePromptTemplateStore((state) => state.initializeDefaults);
   const recordTemplateUsage = usePromptTemplateStore((state) => state.recordUsage);
@@ -301,6 +174,51 @@ export function ChatInput({
     conversationContext,
   });
 
+  // File upload hook
+  const {
+    attachments,
+    setAttachments,
+    isDragging,
+    uploadError,
+    setUploadError,
+    previewAttachment,
+    setPreviewAttachment,
+    fileInputRef,
+    dropZoneRef,
+    addFiles,
+    removeAttachment,
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handlePaste,
+    openFileDialog,
+  } = useFileUpload({ uploadSettings });
+
+  const isProcessing = isLoading || isStreaming;
+  const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
+
+  // Voice input hook
+  const {
+    isListening,
+    isRecording,
+    isTranscribing,
+    interimTranscript,
+    speechSupported,
+    speechLanguage,
+    speechError,
+    recordingDuration,
+    toggleVoice,
+  } = useVoiceInput({
+    value,
+    onChange,
+    onSubmit,
+    canSend,
+    attachments,
+    setAttachments,
+    parseToolCalls,
+  });
+
   // Mention popover positioning
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
@@ -329,7 +247,6 @@ export function ChatInput({
     query: completionState.activeProvider === 'emoji' ? completionState.query : '',
     selectedIndex: completionState.activeProvider === 'emoji' ? completionState.selectedIndex : 0,
   }), [completionState.isOpen, completionState.activeProvider, completionState.query, completionState.selectedIndex]);
-  const _emojiAnchorRect = null; // EmojiPopover uses Radix positioning
 
   // Ghost text from unified completion
   const ghostText = completionState.ghostText;
@@ -337,57 +254,6 @@ export function ChatInput({
   useEffect(() => {
     initializePromptTemplates();
   }, [initializePromptTemplates]);
-
-
-  // Attachments state
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // Voice input with enhanced speech hook
-  const {
-    isListening,
-    isRecording,
-    transcript: _speechTranscript,
-    interimTranscript,
-    startListening,
-    stopListening,
-    resetTranscript,
-    sttSupported: speechSupported,
-    currentProvider: speechProvider,
-    currentLanguage: speechLanguage,
-    error: speechError,
-    audioBlob,
-    recordingDuration,
-  } = useSpeech({
-    onResult: (text, isFinal) => {
-      if (isFinal && text.trim()) {
-        const currentValue = valueRef.current;
-        onChangeRef.current(currentValue + (currentValue ? ' ' : '') + text);
-      }
-    },
-    onAutoSend: (text) => {
-      if (text.trim() && canSend) {
-        onSubmit(
-          text,
-          attachments.length > 0 ? attachments : undefined,
-          parseToolCalls(text).length > 0 ? parseToolCalls(text) : undefined
-        );
-        onChange('');
-        setAttachments([]);
-        resetTranscript();
-      }
-    },
-  });
-
-  // State for Whisper transcription loading
-  const [isTranscribing, setIsTranscribing] = useState(false);
-
-  // Preview state
-  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
-
-  const isProcessing = isLoading || isStreaming;
-  const canSend = (value.trim().length > 0 || attachments.length > 0) && !isProcessing && !disabled;
 
   // Handle input change - delegates to unified completion system
   const handleInputChange = useCallback(
@@ -528,245 +394,6 @@ export function ChatInput({
     }
   }, [handleSelectionChange]);
 
-  // Store refs for speech recognition callbacks
-  const valueRef = useRef(value);
-  const onChangeRef = useRef(onChange);
-
-  // Keep refs updated
-  useEffect(() => {
-    valueRef.current = value;
-    onChangeRef.current = onChange;
-  }, [value, onChange]);
-
-  // Handle Whisper transcription when audio blob is available
-  useEffect(() => {
-    if (!audioBlob || speechProvider !== 'openai') return;
-
-    const transcribe = async () => {
-      setIsTranscribing(true);
-      try {
-        const result = await transcribeViaApi(audioBlob, {
-          language: speechLanguage,
-        });
-
-        if (result.success && result.text) {
-          const currentValue = valueRef.current;
-          onChangeRef.current(currentValue + (currentValue ? ' ' : '') + result.text);
-        } else if (result.error) {
-          console.error('Transcription error:', result.error);
-        }
-      } catch (err) {
-        console.error('Failed to transcribe:', err);
-      } finally {
-        setIsTranscribing(false);
-        resetTranscript();
-      }
-    };
-
-    transcribe();
-  }, [audioBlob, speechProvider, speechLanguage, resetTranscript]);
-
-  // Validate file
-  const validateFile = useCallback(
-    (file: File): string | null => {
-      if (file.size > uploadSettings.maxFileSize) {
-        return `File "${file.name}" exceeds maximum size of ${formatFileSize(uploadSettings.maxFileSize)}`;
-      }
-      if (!uploadSettings.allowedTypes.includes('*/*')) {
-        const isAllowed = uploadSettings.allowedTypes.some((type) => {
-          if (type.endsWith('/*')) {
-            return file.type.startsWith(type.slice(0, -1));
-          }
-          return file.type === type;
-        });
-        if (!isAllowed) {
-          return `File type "${file.type}" is not allowed`;
-        }
-      }
-      return null;
-    },
-    [uploadSettings]
-  );
-
-  // Use ref for attachments length to avoid recreating addFiles on every change
-  const attachmentsLengthRef = useRef(attachments.length);
-  useEffect(() => {
-    attachmentsLengthRef.current = attachments.length;
-  }, [attachments.length]);
-
-  // Add files - use ref for attachments.length to keep callback stable
-  const addFiles = useCallback(
-    (files: FileList | File[]) => {
-      const fileArray = Array.from(files);
-      const remainingSlots = uploadSettings.maxFiles - attachmentsLengthRef.current;
-
-      if (fileArray.length > remainingSlots) {
-        setUploadError(
-          `Can only add ${remainingSlots} more files. Maximum is ${uploadSettings.maxFiles}.`
-        );
-        return;
-      }
-
-      const newAttachments: Attachment[] = [];
-      for (const file of fileArray) {
-        const error = validateFile(file);
-        if (error) {
-          setUploadError(error);
-          continue;
-        }
-
-        const attachment: Attachment = {
-          id: nanoid(),
-          name: file.name,
-          type: getFileType(file.type),
-          url: URL.createObjectURL(file),
-          size: file.size,
-          mimeType: file.type,
-          file,
-        };
-        newAttachments.push(attachment);
-
-        // Track in recent files with proper type
-        const fileType = getFileType(file.type);
-        const recentFileType =
-          fileType === 'image'
-            ? 'image'
-            : fileType === 'audio'
-              ? 'audio'
-              : fileType === 'video'
-                ? 'video'
-                : 'file';
-        addRecentFile({
-          name: file.name,
-          path: file.name,
-          type: recentFileType,
-          mimeType: file.type,
-          size: file.size,
-          url: attachment.url,
-        });
-      }
-
-      if (newAttachments.length > 0) {
-        setAttachments((prev) => [...prev, ...newAttachments]);
-        setUploadError(null);
-      }
-    },
-    [uploadSettings.maxFiles, validateFile, addRecentFile]
-  );
-
-  // Cleanup URL objects on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      // Cleanup all attachment URLs when component unmounts
-      attachments.forEach((attachment) => {
-        if (attachment.url) {
-          URL.revokeObjectURL(attachment.url);
-        }
-      });
-    };
-  }, [attachments]);
-
-  // Remove attachment
-  const removeAttachment = useCallback((id: string) => {
-    setAttachments((prev) => {
-      const attachment = prev.find((a) => a.id === id);
-      if (attachment?.url) {
-        URL.revokeObjectURL(attachment.url);
-      }
-      return prev.filter((a) => a.id !== id);
-    });
-  }, []);
-
-  // Handle drag events
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.currentTarget === dropZoneRef.current) {
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      const { files } = e.dataTransfer;
-      if (files?.length) {
-        addFiles(files);
-      }
-    },
-    [addFiles]
-  );
-
-  // Global drag-drop
-  useEffect(() => {
-    const handleGlobalDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types.includes('Files')) {
-        e.preventDefault();
-        setIsDragging(true);
-      }
-    };
-
-    const handleGlobalDrop = (e: DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      if (e.dataTransfer?.files?.length) {
-        addFiles(e.dataTransfer.files);
-      }
-    };
-
-    const handleGlobalDragLeave = (e: DragEvent) => {
-      if (e.relatedTarget === null) {
-        setIsDragging(false);
-      }
-    };
-
-    document.addEventListener('dragover', handleGlobalDragOver);
-    document.addEventListener('drop', handleGlobalDrop);
-    document.addEventListener('dragleave', handleGlobalDragLeave);
-
-    return () => {
-      document.removeEventListener('dragover', handleGlobalDragOver);
-      document.removeEventListener('drop', handleGlobalDrop);
-      document.removeEventListener('dragleave', handleGlobalDragLeave);
-    };
-  }, [addFiles]);
-
-  // Handle paste
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      const files: File[] = [];
-      for (const item of items) {
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) files.push(file);
-        }
-      }
-
-      if (files.length > 0) {
-        e.preventDefault();
-        addFiles(files);
-      }
-    },
-    [addFiles]
-  );
-
   const handleSubmit = useCallback(() => {
     if (!canSend) return;
     // Parse tool calls from the message
@@ -779,7 +406,7 @@ export function ChatInput({
     onChange('');
     setAttachments([]);
     textareaRef.current?.focus();
-  }, [canSend, value, attachments, onSubmit, onChange, parseToolCalls]);
+  }, [canSend, value, attachments, onSubmit, onChange, parseToolCalls, setAttachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // If mention popover is open, let it handle navigation keys
@@ -809,27 +436,19 @@ export function ChatInput({
     onStop?.();
   };
 
-  const toggleVoice = useCallback(() => {
-    if (isListening || isRecording) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  }, [isListening, isRecording, startListening, stopListening]);
-
-  const openFileDialog = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  // Cleanup blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      attachments.forEach((a) => {
-        if (a.url) URL.revokeObjectURL(a.url);
+  // MCP tools click handler for InputToolbar
+  const handleMcpToolsClick = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const pos = textarea.selectionStart || value.length;
+      const newValue = value.slice(0, pos) + '@' + value.slice(pos);
+      handleInputChange(newValue);
+      requestAnimationFrame(() => {
+        textarea.setSelectionRange(pos + 1, pos + 1);
+        textarea.focus();
       });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup only on unmount
-  }, []);
+    }
+  }, [value, handleInputChange]);
 
   return (
     <div
@@ -897,47 +516,35 @@ export function ChatInput({
             selectedIndex={emojiState.selectedIndex}
             onSelectedIndexChange={() => {}}
           />
-          {/* Attachment button - hidden in simplified mode when hideAttachmentButton is set */}
-          {!(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={isProcessing || disabled}
-                  onClick={openFileDialog}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('attachFile', { current: attachments.length, max: uploadSettings.maxFiles })}
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* Recent files button - hidden in simplified mode when hideAttachmentButton is set */}
-          {showRecentFiles &&
-            recentFiles.length > 0 &&
-            !(isSimplifiedMode && simplifiedModeSettings.hideAttachmentButton) && (
-              <RecentFilesPopover
-                onSelectFile={(file: RecentFile) => {
-                  // Create attachment from recent file
-                  const attachment: Attachment = {
-                    id: nanoid(),
-                    name: file.name,
-                    type:
-                      file.type === 'image' ? 'image' : file.type === 'document' ? 'file' : 'file',
-                    url: file.url || '',
-                    size: file.size,
-                    mimeType: file.mimeType,
-                  };
-                  setAttachments((prev) => [...prev, attachment]);
-                }}
-                disabled={isProcessing || disabled}
-              />
-            )}
+          {/* Input Toolbar: attachment, recent files, voice, template, optimizer, MCP, tool history */}
+          <InputToolbar
+            isProcessing={isProcessing}
+            disabled={disabled}
+            isSimplifiedMode={isSimplifiedMode}
+            hideAttachmentButton={simplifiedModeSettings.hideAttachmentButton}
+            hideAdvancedInputControls={simplifiedModeSettings.hideAdvancedInputControls}
+            attachmentsCount={attachments.length}
+            maxFiles={uploadSettings.maxFiles}
+            openFileDialog={openFileDialog}
+            setAttachments={setAttachments}
+            showRecentFiles={showRecentFiles}
+            recentFiles={recentFiles}
+            speechSupported={speechSupported}
+            isListening={isListening}
+            isRecording={isRecording}
+            isTranscribing={isTranscribing}
+            recordingDuration={recordingDuration}
+            speechLanguage={speechLanguage}
+            toggleVoice={toggleVoice}
+            onOpenTemplateSelector={() => setTemplateSelectorOpen(true)}
+            onOptimizePrompt={onOptimizePrompt}
+            hasInput={!!value.trim()}
+            isMcpAvailable={isMcpAvailable}
+            onMcpToolsClick={handleMcpToolsClick}
+            value={value}
+            onChange={onChange}
+            textareaRef={textareaRef}
+          />
 
           {/* Hidden file input */}
           <input
@@ -953,148 +560,6 @@ export function ChatInput({
               }
             }}
           />
-
-          {/* Voice input button */}
-          {speechSupported && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    'h-8 w-8 shrink-0 transition-colors relative',
-                    (isListening || isRecording) && 'bg-red-500/20 text-red-500 animate-pulse',
-                    isTranscribing && 'bg-blue-500/20 text-blue-500'
-                  )}
-                  disabled={isProcessing || disabled || isTranscribing}
-                  onClick={toggleVoice}
-                >
-                  <Mic className="h-4 w-4" />
-                  {/* Recording duration indicator */}
-                  {isRecording && recordingDuration > 0 && (
-                    <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1 min-w-5 text-center">
-                      {formatDuration(recordingDuration)}
-                    </span>
-                  )}
-                  {/* Language indicator */}
-                  {(isListening || isRecording) && (
-                    <span className="absolute -bottom-1 -right-1 text-[10px]">
-                      {getLanguageFlag(speechLanguage)}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isTranscribing
-                  ? t('processing')
-                  : isListening || isRecording
-                    ? t('stopListening')
-                    : t('voiceInput')}
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* Prompt template picker - hidden in simplified mode when hideAdvancedInputControls is set */}
-          {!(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  disabled={isProcessing || disabled}
-                  onClick={() => setTemplateSelectorOpen(true)}
-                >
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('insertTemplate')}</TooltipContent>
-            </Tooltip>
-          )}
-
-          {/* Prompt optimizer button - hidden in simplified mode when hideAdvancedInputControls is set */}
-          {onOptimizePrompt &&
-            value.trim() &&
-            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    disabled={isProcessing || disabled}
-                    onClick={onOptimizePrompt}
-                  >
-                    <Wand2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('optimizePrompt')}</TooltipContent>
-              </Tooltip>
-            )}
-
-          {/* MCP Tools button - hidden in simplified mode when hideAdvancedInputControls is set */}
-          {isMcpAvailable &&
-            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 text-primary"
-                    disabled={isProcessing || disabled}
-                    onClick={() => {
-                      const textarea = textareaRef.current;
-                      if (textarea) {
-                        const pos = textarea.selectionStart || value.length;
-                        const newValue = value.slice(0, pos) + '@' + value.slice(pos);
-                        handleInputChange(newValue);
-                        requestAnimationFrame(() => {
-                          textarea.setSelectionRange(pos + 1, pos + 1);
-                          textarea.focus();
-                        });
-                      }
-                    }}
-                  >
-                    <Zap className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('useMcpTools')}</TooltipContent>
-              </Tooltip>
-            )}
-
-          {/* Tool History button - hidden in simplified mode when hideAdvancedInputControls is set */}
-          {isMcpAvailable &&
-            !(isSimplifiedMode && simplifiedModeSettings.hideAdvancedInputControls) && (
-              <ToolHistoryPanel
-                asPopover
-                trigger={
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        disabled={isProcessing || disabled}
-                      >
-                        <History className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('toolHistory')}</TooltipContent>
-                  </Tooltip>
-                }
-                onInsertPrompt={(prompt) => {
-                  onChange(value ? `${value}\n${prompt}` : prompt);
-                  textareaRef.current?.focus();
-                }}
-                onSelectTool={(toolId, prompt) => {
-                  const toolParts = toolId.split(':');
-                  const mention =
-                    toolParts.length >= 3 ? `@${toolParts[1]}:${toolParts[2]}` : `@${toolId}`;
-                  onChange(value ? `${value}\n${mention} ${prompt}` : `${mention} ${prompt}`);
-                  textareaRef.current?.focus();
-                }}
-              />
-            )}
 
           {/* Textarea with character counter */}
           <div className="relative flex-1">
@@ -1121,7 +586,7 @@ export function ChatInput({
               aria-describedby={speechError ? 'speech-error' : undefined}
             />
             {/* AI Ghost text overlay */}
-            {ghostText && textareaRef.current && (
+            {ghostText && (
               <GhostTextOverlay
                 text={ghostText}
                 textareaRef={textareaRef as React.RefObject<HTMLTextAreaElement>}

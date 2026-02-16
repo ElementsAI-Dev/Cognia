@@ -279,7 +279,8 @@ pub async fn local_provider_list_models(
     base_url: Option<String>,
 ) -> Result<Vec<LocalModelInfo>, String> {
     let url = normalize_base_url(&base_url.unwrap_or_else(|| provider_id.default_base_url()));
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let models_url = format!("{}{}", url, provider_id.models_endpoint());
     let response = client
@@ -339,7 +340,10 @@ pub async fn local_provider_list_models(
                 .filter_map(|m| {
                     Some(LocalModelInfo {
                         id: m.get("id")?.as_str()?.to_string(),
-                        object: m.get("object").and_then(|o| o.as_str()).map(|s| s.to_string()),
+                        object: m
+                            .get("object")
+                            .and_then(|o| o.as_str())
+                            .map(|s| s.to_string()),
                         created: m.get("created").and_then(|c| c.as_i64()),
                         owned_by: m
                             .get("owned_by")
@@ -421,16 +425,35 @@ fn get_common_install_paths(provider_id: LocalProviderId) -> Vec<PathBuf> {
 
         match provider_id {
             LocalProviderId::Ollama => {
-                paths.push(PathBuf::from(&local_app_data).join("Programs").join("Ollama").join("ollama.exe"));
+                paths.push(
+                    PathBuf::from(&local_app_data)
+                        .join("Programs")
+                        .join("Ollama")
+                        .join("ollama.exe"),
+                );
             }
             LocalProviderId::Lmstudio => {
-                paths.push(PathBuf::from(&local_app_data).join("Programs").join("LM Studio").join("LM Studio.exe"));
+                paths.push(
+                    PathBuf::from(&local_app_data)
+                        .join("Programs")
+                        .join("LM Studio")
+                        .join("LM Studio.exe"),
+                );
             }
             LocalProviderId::Jan => {
-                paths.push(PathBuf::from(&local_app_data).join("Programs").join("Jan").join("Jan.exe"));
+                paths.push(
+                    PathBuf::from(&local_app_data)
+                        .join("Programs")
+                        .join("Jan")
+                        .join("Jan.exe"),
+                );
             }
             LocalProviderId::Koboldcpp => {
-                paths.push(PathBuf::from(&user_profile).join("koboldcpp").join("koboldcpp.exe"));
+                paths.push(
+                    PathBuf::from(&user_profile)
+                        .join("koboldcpp")
+                        .join("koboldcpp.exe"),
+                );
             }
             _ => {}
         }
@@ -465,7 +488,12 @@ fn get_common_install_paths(provider_id: LocalProviderId) -> Vec<PathBuf> {
                 paths.push(PathBuf::from("/usr/bin/ollama"));
             }
             LocalProviderId::Jan => {
-                paths.push(PathBuf::from(&home).join(".local").join("share").join("Jan"));
+                paths.push(
+                    PathBuf::from(&home)
+                        .join(".local")
+                        .join("share")
+                        .join("Jan"),
+                );
             }
             _ => {}
         }
@@ -487,7 +515,8 @@ pub async fn local_provider_pull_model(
     match provider_id {
         LocalProviderId::Localai => {
             // LocalAI model installation
-            let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+            let client = get_client_for_url(&url)
+                .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
             let response = client
                 .post(format!("{}/models/apply", url))
                 .json(&serde_json::json!({
@@ -519,7 +548,8 @@ pub async fn local_provider_pull_model(
         }
         LocalProviderId::Jan => {
             // Jan model download via API
-            let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+            let client = get_client_for_url(&url)
+                .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
             let response = client
                 .post(format!("{}/v1/models/download", url))
                 .json(&serde_json::json!({
@@ -551,7 +581,8 @@ pub async fn local_provider_delete_model(
     model_name: String,
 ) -> Result<bool, String> {
     let url = normalize_base_url(&base_url.unwrap_or_else(|| provider_id.default_base_url()));
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     match provider_id {
         LocalProviderId::Localai => {

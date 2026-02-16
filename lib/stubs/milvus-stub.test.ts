@@ -3,7 +3,16 @@
  * Browser stub for @zilliz/milvus2-sdk-node
  */
 
+jest.mock('@/lib/logger', () => ({
+  loggers: {
+    app: {
+      warn: jest.fn(),
+    },
+  },
+}));
+
 import { MilvusClient, DataType } from './milvus-stub';
+import { loggers } from '@/lib/logger';
 
 describe('milvus-stub', () => {
   describe('DataType', () => {
@@ -30,18 +39,15 @@ describe('milvus-stub', () => {
 
   describe('MilvusClient', () => {
     let client: MilvusClient;
+    const appWarn = loggers.app.warn as jest.Mock;
 
     beforeEach(() => {
-      jest.spyOn(console, 'warn').mockImplementation();
+      appWarn.mockClear();
       client = new MilvusClient({});
     });
 
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
     it('should log warning on construction', () => {
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(appWarn).toHaveBeenCalledWith(
         'MilvusClient is not available in browser environment'
       );
     });

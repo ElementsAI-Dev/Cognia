@@ -3,8 +3,17 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render } from './test-utils';
 import { Alert } from './Alert';
+
+jest.mock('@inkjs/ui', () => ({
+  Alert: ({ title, children }: { title?: string; children: React.ReactNode }) => (
+    <>
+      {title}
+      {children}
+    </>
+  ),
+}));
 
 describe('Alert', () => {
   it('should render info alert', () => {

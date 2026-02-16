@@ -353,7 +353,6 @@ pub struct EnhanceConfig {
     pub quality: EnhanceQuality,
 }
 
-
 // ========== Package Configuration ==========
 
 /// Target platform for packaging
@@ -386,7 +385,6 @@ pub struct PackageConfig {
     #[serde(default)]
     pub output_filename: Option<String>,
 }
-
 
 // ========== Job Management ==========
 
@@ -459,7 +457,6 @@ pub struct JobProgress {
     #[serde(default)]
     pub current_file: Option<String>,
 }
-
 
 /// Skill generation job
 #[derive(Debug, Clone, Serialize, Deserialize)]

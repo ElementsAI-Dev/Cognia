@@ -529,6 +529,7 @@ export function resetRoutingStats(): void {
  */
 export function clearRoutingCache(): void {
   routingCache.clear();
+  semanticCache.clear();
 }
 
 /**

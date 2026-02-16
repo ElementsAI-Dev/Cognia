@@ -101,7 +101,7 @@ describe('LocalProviderSetupWizard', () => {
     it('should navigate to install step when Next is clicked', async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      const nextButton = screen.getByText('Next');
+      const nextButton = screen.getByText(/next/i);
       fireEvent.click(nextButton);
 
       await waitFor(() => {
@@ -115,7 +115,7 @@ describe('LocalProviderSetupWizard', () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
       // Navigate to install step
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
 
       await waitFor(() => {
         expect(screen.getByText('Installation Steps')).toBeInTheDocument();
@@ -128,7 +128,7 @@ describe('LocalProviderSetupWizard', () => {
     it('should show ollama serve command for ollama provider', async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
 
       await waitFor(() => {
         expect(screen.getByText('ollama serve')).toBeInTheDocument();
@@ -138,13 +138,13 @@ describe('LocalProviderSetupWizard', () => {
     it('should navigate back to download step', async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
 
       await waitFor(() => {
         expect(screen.getByText('Installation Steps')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Back'));
+      fireEvent.click(screen.getByText(/back/i));
 
       await waitFor(() => {
         expect(screen.getByText('Install Ollama')).toBeInTheDocument();
@@ -154,12 +154,12 @@ describe('LocalProviderSetupWizard', () => {
     it('should navigate to configure step when Next is clicked', async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      fireEvent.click(screen.getByText('Next')); // Go to install
+      fireEvent.click(screen.getByText(/next/i)); // Go to install
       await waitFor(() => {
         expect(screen.getByText('Installation Steps')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Next')); // Go to configure
+      fireEvent.click(screen.getByText(/next/i)); // Go to configure
 
       await waitFor(() => {
         expect(screen.getByText('Configuration')).toBeInTheDocument();
@@ -170,9 +170,9 @@ describe('LocalProviderSetupWizard', () => {
   describe('Step 3: Configure', () => {
     const navigateToConfigure = async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
-      fireEvent.click(screen.getByText('Next')); // Download -> Install
+      fireEvent.click(screen.getByText(/next/i)); // Download -> Install
       await waitFor(() => expect(screen.getByText('Installation Steps')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next')); // Install -> Configure
+      fireEvent.click(screen.getByText(/next/i)); // Install -> Configure
       await waitFor(() => expect(screen.getByText('Configuration')).toBeInTheDocument());
     };
 
@@ -198,14 +198,14 @@ describe('LocalProviderSetupWizard', () => {
     it('should show documentation link', async () => {
       await navigateToConfigure();
 
-      const docsLink = screen.getByRole('link', { name: /View Documentation/i });
+      const docsLink = screen.getByRole('link', { name: /viewDocumentation/i });
       expect(docsLink).toHaveAttribute('href', 'https://ollama.ai/docs');
     });
 
     it('should navigate to verify step when Next is clicked', async () => {
       await navigateToConfigure();
 
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
 
       await waitFor(() => {
         // Look for the heading specifically
@@ -217,11 +217,11 @@ describe('LocalProviderSetupWizard', () => {
   describe('Step 4: Verify', () => {
     const navigateToVerify = async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
-      fireEvent.click(screen.getByText('Next')); // Download -> Install
+      fireEvent.click(screen.getByText(/next/i)); // Download -> Install
       await waitFor(() => expect(screen.getByText('Installation Steps')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next')); // Install -> Configure
+      fireEvent.click(screen.getByText(/next/i)); // Install -> Configure
       await waitFor(() => expect(screen.getByText('Configuration')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next')); // Configure -> Verify
+      fireEvent.click(screen.getByText(/next/i)); // Configure -> Verify
       // Look for the heading specifically since "Verify Connection" appears as both heading and button
       await waitFor(() => expect(screen.getByRole('heading', { name: /Verify Connection/i })).toBeInTheDocument());
     };
@@ -289,7 +289,7 @@ describe('LocalProviderSetupWizard', () => {
     it('should allow skipping verification', async () => {
       await navigateToVerify();
 
-      const skipButton = screen.getByText('Skip for Now');
+      const skipButton = screen.getByText(/skip for now|skipForNow/i);
       fireEvent.click(skipButton);
 
       await waitFor(() => {
@@ -317,13 +317,13 @@ describe('LocalProviderSetupWizard', () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
       // Navigate through all steps
-      fireEvent.click(screen.getByText('Next')); // Download -> Install
+      fireEvent.click(screen.getByText(/next/i)); // Download -> Install
       await waitFor(() => expect(screen.getByText('Installation Steps')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next')); // Install -> Configure
+      fireEvent.click(screen.getByText(/next/i)); // Install -> Configure
       await waitFor(() => expect(screen.getByText('Configuration')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next')); // Configure -> Verify
+      fireEvent.click(screen.getByText(/next/i)); // Configure -> Verify
       await waitFor(() => expect(screen.getByRole('heading', { name: /Verify Connection/i })).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Skip for Now')); // Verify -> Complete
+      fireEvent.click(screen.getByText(/skip for now|skipForNow/i)); // Verify -> Complete
 
       await waitFor(() => {
         expect(screen.getByText('Setup Complete!')).toBeInTheDocument();
@@ -336,16 +336,16 @@ describe('LocalProviderSetupWizard', () => {
       render(<LocalProviderSetupWizard providerId="ollama" onComplete={onComplete} />);
 
       // Navigate to complete step
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByText('Installation Steps')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByText('Configuration')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByRole('heading', { name: /Verify Connection/i })).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Skip for Now'));
+      fireEvent.click(screen.getByText(/skip for now|skipForNow/i));
       await waitFor(() => expect(screen.getByText('Setup Complete!')).toBeInTheDocument());
 
-      const getStartedButton = screen.getByText('Get Started');
+      const getStartedButton = screen.getByText(/get started|getStarted/i);
       fireEvent.click(getStartedButton);
 
       expect(onComplete).toHaveBeenCalled();
@@ -355,11 +355,11 @@ describe('LocalProviderSetupWizard', () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
       // Navigate through steps with verification
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByText('Installation Steps')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByText('Configuration')).toBeInTheDocument());
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
       await waitFor(() => expect(screen.getByRole('heading', { name: /Verify Connection/i })).toBeInTheDocument());
 
       const verifyButton = screen.getByRole('button', { name: /Verify Connection/i });
@@ -378,7 +378,7 @@ describe('LocalProviderSetupWizard', () => {
     it('should copy command to clipboard when copy button is clicked', async () => {
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      fireEvent.click(screen.getByText('Next')); // Go to install
+      fireEvent.click(screen.getByText(/next/i)); // Go to install
 
       await waitFor(() => {
         expect(screen.getByText('ollama serve')).toBeInTheDocument();
@@ -405,7 +405,7 @@ describe('LocalProviderSetupWizard', () => {
 
       render(<LocalProviderSetupWizard providerId="ollama" />);
 
-      fireEvent.click(screen.getByText('Next'));
+      fireEvent.click(screen.getByText(/next/i));
 
       await waitFor(() => {
         expect(screen.getByText('ollama serve')).toBeInTheDocument();
@@ -459,3 +459,4 @@ describe('LocalProviderSetupWizard', () => {
     });
   });
 });
+

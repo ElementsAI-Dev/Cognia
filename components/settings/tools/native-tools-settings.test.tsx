@@ -25,6 +25,7 @@ jest.mock('lucide-react', () => ({
   Activity: () => <span data-testid="icon-activity">Activity</span>,
   Terminal: () => <span data-testid="icon-terminal">Terminal</span>,
   Video: () => <span data-testid="icon-video">Video</span>,
+  Cpu: () => <span data-testid="icon-cpu">Cpu</span>,
 }));
 
 // Mock native components
@@ -46,6 +47,9 @@ jest.mock('@/components/native', () => ({
   ),
   SandboxPanel: ({ className }: { className?: string }) => (
     <div data-testid="sandbox-panel" className={className}>Sandbox Panel</div>
+  ),
+  ProcessSettingsPanel: ({ className }: { className?: string }) => (
+    <div data-testid="process-panel" className={className}>Process Panel</div>
   ),
 }));
 
@@ -104,6 +108,20 @@ jest.mock('@/components/ui/label', () => ({
 
 jest.mock('@/components/ui/separator', () => ({
   Separator: () => <hr data-testid="separator" />,
+}));
+
+jest.mock('@/stores/system', () => ({
+  useNativeStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      nativeToolsConfig: {
+        clipboardHistoryEnabled: true,
+        clipboardHistorySize: 100,
+        screenshotOcrEnabled: true,
+        focusTrackingEnabled: true,
+        contextRefreshInterval: 5,
+      },
+      setNativeToolsConfig: jest.fn(),
+    }),
 }));
 
 describe('NativeToolsSettings', () => {

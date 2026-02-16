@@ -4,6 +4,9 @@
  */
 
 export * from './use-video-editor';
+export * from './use-track-management';
+export * from './use-playback';
+export * from './use-clip-effects';
 export * from './use-video-timeline';
 export * from './use-video-subtitles';
 export * from './use-recording-mode';

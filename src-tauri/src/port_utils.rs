@@ -39,7 +39,7 @@ pub fn find_process_on_port(port: u16) -> Option<(u32, String)> {
         .ok()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Parse netstat output to find PID
     // Format: TCP    127.0.0.1:3000    0.0.0.0:0    LISTENING    12345
     for line in stdout.lines() {
@@ -64,7 +64,10 @@ pub fn find_process_on_port(port: u16) -> Option<(u32, String)> {
 #[cfg(windows)]
 fn get_process_name_windows(pid: u32) -> Option<String> {
     let output = Command::new("cmd")
-        .args(["/C", &format!("tasklist /FI \"PID eq {}\" /FO CSV /NH", pid)])
+        .args([
+            "/C",
+            &format!("tasklist /FI \"PID eq {}\" /FO CSV /NH", pid),
+        ])
         .output()
         .ok()?;
 
@@ -81,13 +84,13 @@ pub fn find_process_on_port(port: u16) -> Option<(u32, String)> {
     if let Some(result) = find_process_with_lsof(port) {
         return Some(result);
     }
-    
+
     // Fallback to ss/netstat on Linux
     #[cfg(target_os = "linux")]
     if let Some(result) = find_process_with_ss(port) {
         return Some(result);
     }
-    
+
     None
 }
 
@@ -100,38 +103,42 @@ fn find_process_with_lsof(port: u16) -> Option<(u32, String)> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let pid_str = stdout.trim();
-    
+
     if pid_str.is_empty() {
         return None;
     }
-    
+
     // lsof -t might return multiple PIDs, take the first one
     let first_pid = pid_str.lines().next()?;
     let pid = first_pid.parse::<u32>().ok()?;
-    
+
     // Get process name
     let name_output = Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "comm="])
         .output()
         .ok()?;
-    
+
     let process_name = String::from_utf8_lossy(&name_output.stdout)
         .trim()
         .to_string();
-    
-    Some((pid, if process_name.is_empty() { "Unknown".to_string() } else { process_name }))
+
+    Some((
+        pid,
+        if process_name.is_empty() {
+            "Unknown".to_string()
+        } else {
+            process_name
+        },
+    ))
 }
 
 #[cfg(all(unix, target_os = "linux"))]
 fn find_process_with_ss(port: u16) -> Option<(u32, String)> {
     // ss -tlnp | grep :port
-    let output = Command::new("ss")
-        .args(["-tlnp"])
-        .output()
-        .ok()?;
+    let output = Command::new("ss").args(["-tlnp"]).output().ok()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     for line in stdout.lines() {
         if line.contains(&format!(":{}", port)) {
             // Parse ss output to find PID
@@ -145,12 +152,19 @@ fn find_process_with_ss(port: u16) -> Option<(u32, String)> {
                             .args(["-p", &pid.to_string(), "-o", "comm="])
                             .output()
                             .ok()?;
-                        
+
                         let process_name = String::from_utf8_lossy(&name_output.stdout)
                             .trim()
                             .to_string();
-                        
-                        return Some((pid, if process_name.is_empty() { "Unknown".to_string() } else { process_name }));
+
+                        return Some((
+                            pid,
+                            if process_name.is_empty() {
+                                "Unknown".to_string()
+                            } else {
+                                process_name
+                            },
+                        ));
                     }
                 }
             }
@@ -163,7 +177,7 @@ fn find_process_with_ss(port: u16) -> Option<(u32, String)> {
 #[cfg(windows)]
 pub fn kill_process(pid: u32) -> Result<(), String> {
     log::info!("Attempting to kill process with PID: {}", pid);
-    
+
     let output = Command::new("taskkill")
         .args(["/F", "/PID", &pid.to_string()])
         .output()
@@ -185,7 +199,7 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
 #[cfg(unix)]
 pub fn kill_process(pid: u32) -> Result<(), String> {
     log::info!("Attempting to kill process with PID: {}", pid);
-    
+
     // Try SIGTERM first for graceful shutdown
     let result = Command::new("kill")
         .args(["-15", &pid.to_string()])
@@ -195,12 +209,10 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
         Ok(output) if output.status.success() => {
             // Wait a bit and check if process is gone
             std::thread::sleep(std::time::Duration::from_millis(500));
-            
+
             // Check if process still exists
-            let check = Command::new("kill")
-                .args(["-0", &pid.to_string()])
-                .output();
-            
+            let check = Command::new("kill").args(["-0", &pid.to_string()]).output();
+
             if let Ok(check_output) = check {
                 if !check_output.status.success() {
                     log::info!("Successfully killed process with PID: {} (SIGTERM)", pid);
@@ -211,13 +223,11 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
                 log::info!("Successfully killed process with PID: {} (SIGTERM)", pid);
                 return Ok(());
             }
-            
+
             // Process still alive, try SIGKILL
             log::warn!("Process {} still alive after SIGTERM, trying SIGKILL", pid);
-            let kill_result = Command::new("kill")
-                .args(["-9", &pid.to_string()])
-                .output();
-            
+            let kill_result = Command::new("kill").args(["-9", &pid.to_string()]).output();
+
             match kill_result {
                 Ok(output) if output.status.success() => {
                     log::info!("Successfully killed process with PID: {} (SIGKILL)", pid);
@@ -233,13 +243,14 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
             // Try SIGKILL as fallback
-            let kill_result = Command::new("kill")
-                .args(["-9", &pid.to_string()])
-                .output();
-            
+            let kill_result = Command::new("kill").args(["-9", &pid.to_string()]).output();
+
             match kill_result {
                 Ok(output) if output.status.success() => {
-                    log::info!("Successfully killed process with PID: {} (SIGKILL fallback)", pid);
+                    log::info!(
+                        "Successfully killed process with PID: {} (SIGKILL fallback)",
+                        pid
+                    );
                     Ok(())
                 }
                 _ => Err(format!("Failed to kill process {}: {}", pid, stderr)),
@@ -253,28 +264,33 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
 /// Returns Ok(true) if port was freed, Ok(false) if port was already free
 pub fn ensure_port_available(port: u16) -> Result<bool, String> {
     log::info!("Checking if port {} is available...", port);
-    
+
     if !is_port_in_use(port) {
         log::info!("Port {} is available", port);
         return Ok(false);
     }
-    
-    log::warn!("Port {} is in use, attempting to find and kill the occupying process", port);
-    
+
+    log::warn!(
+        "Port {} is in use, attempting to find and kill the occupying process",
+        port
+    );
+
     // Find the process using the port
     match find_process_on_port(port) {
         Some((pid, process_name)) => {
             log::info!(
                 "Found process '{}' (PID: {}) using port {}",
-                process_name, pid, port
+                process_name,
+                pid,
+                port
             );
-            
+
             // Kill the process
             kill_process(pid)?;
-            
+
             // Wait a bit for the port to be released
             std::thread::sleep(std::time::Duration::from_millis(500));
-            
+
             // Verify the port is now available
             if is_port_in_use(port) {
                 // Try one more time with a longer wait
@@ -286,8 +302,13 @@ pub fn ensure_port_available(port: u16) -> Result<bool, String> {
                     ));
                 }
             }
-            
-            log::info!("Port {} is now available after killing process {} ({})", port, pid, process_name);
+
+            log::info!(
+                "Port {} is now available after killing process {} ({})",
+                port,
+                pid,
+                process_name
+            );
             Ok(true)
         }
         None => {
@@ -317,7 +338,7 @@ pub fn check_port_status(port: u16) -> PortCheckResult {
     } else {
         (None, None)
     };
-    
+
     PortCheckResult {
         port,
         in_use,

@@ -257,10 +257,7 @@ impl ContextManager {
     /// Set cache duration
     pub fn set_cache_duration(&self, ms: u64) {
         let old_duration = *self.cache_duration_ms.read();
-        debug!(
-            "Cache duration changed: {}ms -> {}ms",
-            old_duration, ms
-        );
+        debug!("Cache duration changed: {}ms -> {}ms", old_duration, ms);
         *self.cache_duration_ms.write() = ms;
     }
 

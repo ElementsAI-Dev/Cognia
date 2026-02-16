@@ -4,7 +4,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // PDF Actions Type
@@ -20,11 +20,7 @@ export interface PdfActions {
 // PDF Slice Creator
 // ============================================================================
 
-export function createPdfSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): PdfActions {
-  return {
+export const createPdfSlice: AcademicSliceCreator<PdfActions> = (set, get) => ({
     downloadPdf: async (paperId, pdfUrl) => {
       set({ isLoading: true, error: null });
       try {
@@ -56,5 +52,4 @@ export function createPdfSlice(
         throw error;
       }
     },
-  };
-}
+});

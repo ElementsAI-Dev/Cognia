@@ -68,3 +68,13 @@ export {
   type UseCompressionOptions,
   type UseCompressionReturn,
 } from './use-compression';
+export {
+  useFileUpload,
+  type UseFileUploadOptions,
+  type UseFileUploadReturn,
+} from './use-file-upload';
+export {
+  useVoiceInput,
+  type UseVoiceInputOptions,
+  type UseVoiceInputReturn,
+} from './use-voice-input';

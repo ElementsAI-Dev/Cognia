@@ -73,7 +73,7 @@ function ArenaInlineBattleComponent({
       <div
         className="grid gap-3 flex-1 min-h-0"
         style={{
-          gridTemplateColumns: `repeat(${Math.min(battle.contestants.length, 4)}, 1fr)`,
+          gridTemplateColumns: `repeat(${Math.min(battle.contestants.length, 4)}, minmax(0, 1fr))`,
           minHeight: '300px',
         }}
       >

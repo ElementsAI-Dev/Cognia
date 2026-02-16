@@ -677,7 +677,7 @@ export function PluginMarketplace({
                   <div 
                     key={plugin.id}
                     className="animate-in fade-in-0 slide-in-from-bottom-2"
-                    style={index < PAGE_SIZE ? { animationDelay: `${Math.min(index, 10) * 30}ms`, animationFillMode: 'backwards' } : { animationDuration: '150ms' }}
+                    style={{ animationDelay: `calc(min(${index}, 10) * 30ms)`, animationFillMode: index < PAGE_SIZE ? 'backwards' : undefined }}
                   >
                     <PluginGridCard
                       plugin={plugin}
@@ -702,7 +702,7 @@ export function PluginMarketplace({
                   <div 
                     key={plugin.id}
                     className="animate-in fade-in-0 slide-in-from-left-2"
-                    style={index < PAGE_SIZE ? { animationDelay: `${Math.min(index, 10) * 20}ms`, animationFillMode: 'backwards' } : { animationDuration: '150ms' }}
+                    style={{ animationDelay: `calc(min(${index}, 10) * 20ms)`, animationFillMode: index < PAGE_SIZE ? 'backwards' : undefined }}
                   >
                     <PluginListItem
                       plugin={plugin}

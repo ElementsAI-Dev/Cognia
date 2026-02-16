@@ -9,6 +9,8 @@ import { useSettingsStore } from '@/stores/settings';
 import { getProviderModel, type ProviderName } from '@/lib/ai/core/client';
 import { streamText } from 'ai';
 import { classifyTaskRuleBased } from '@/lib/ai/generation/auto-router';
+import { ARENA_KNOWN_MODELS } from '@/lib/arena/constants';
+import { computeEstimatedCost } from '@/lib/arena/stats';
 import type { ArenaBattle, ArenaContestant, ArenaWinReason, ModelSelection } from '@/types/arena';
 
 const abortControllers = new Map<string, AbortController>();
@@ -121,10 +123,19 @@ export function useArena(options: UseArenaOptions = {}) {
         inputTokens = Number(usageRecord?.promptTokens ?? usageRecord?.inputTokens ?? 0);
         outputTokens = Number(usageRecord?.completionTokens ?? usageRecord?.outputTokens ?? 0);
 
+        // Compute estimated cost from token usage
+        const estimatedCost = computeEstimatedCost(
+          contestant.provider,
+          contestant.model,
+          inputTokens,
+          outputTokens
+        );
+
         // Update contestant with final data
         updateContestant(battleId, contestant.id, {
           response: fullText,
           status: 'completed',
+          estimatedCost,
           tokenCount: {
             input: inputTokens,
             output: outputTokens,
@@ -287,24 +298,27 @@ export function useArena(options: UseArenaOptions = {}) {
   const getAvailableModels = useCallback((): ModelSelection[] => {
     const models: ModelSelection[] = [];
 
-    const modelPresets: Array<{ provider: ProviderName; model: string; displayName: string }> = [
-      { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
-      { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o Mini' },
-      { provider: 'anthropic', model: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4' },
-      { provider: 'anthropic', model: 'claude-3-5-haiku-20241022', displayName: 'Claude 3.5 Haiku' },
-      { provider: 'google', model: 'gemini-2.0-flash-exp', displayName: 'Gemini 2.0 Flash' },
-      { provider: 'google', model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro' },
-      { provider: 'deepseek', model: 'deepseek-chat', displayName: 'DeepSeek Chat' },
-      { provider: 'deepseek', model: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner' },
-      { provider: 'groq', model: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B' },
-      { provider: 'mistral', model: 'mistral-large-latest', displayName: 'Mistral Large' },
-      { provider: 'xai', model: 'grok-3', displayName: 'Grok 3' },
-    ];
-
-    for (const preset of modelPresets) {
+    for (const preset of ARENA_KNOWN_MODELS) {
       const settings = providerSettings[preset.provider];
       if (settings?.apiKey || preset.provider === 'ollama') {
         models.push(preset);
+      }
+    }
+
+    // Also discover additional models from provider settings
+    for (const [providerKey, settings] of Object.entries(providerSettings)) {
+      if (!settings?.apiKey && providerKey !== 'ollama') continue;
+      const customModels = (settings as unknown as Record<string, unknown>).availableModels;
+      if (Array.isArray(customModels)) {
+        for (const m of customModels) {
+          if (typeof m === 'string' && !models.some(e => e.provider === providerKey && e.model === m)) {
+            models.push({
+              provider: providerKey as ProviderName,
+              model: m,
+              displayName: m,
+            });
+          }
+        }
       }
     }
 

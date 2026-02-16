@@ -43,8 +43,8 @@ impl SkillService {
             SkillStore::default()
         };
 
-        let http_client = crate::http::create_proxy_client()
-            .context("Failed to create HTTP client")?;
+        let http_client =
+            crate::http::create_proxy_client().context("Failed to create HTTP client")?;
 
         Ok(Self {
             http_client,
@@ -78,14 +78,18 @@ impl SkillService {
     /// Add a repository
     pub async fn add_repo(&self, repo: SkillRepo) -> Result<()> {
         let mut store = self.store.write().await;
-        
+
         // Check if already exists
-        if let Some(existing) = store.repos.iter_mut().find(|r| r.owner == repo.owner && r.name == repo.name) {
+        if let Some(existing) = store
+            .repos
+            .iter_mut()
+            .find(|r| r.owner == repo.owner && r.name == repo.name)
+        {
             *existing = repo;
         } else {
             store.repos.push(repo);
         }
-        
+
         drop(store);
         self.save_store().await
     }
@@ -93,7 +97,9 @@ impl SkillService {
     /// Remove a repository
     pub async fn remove_repo(&self, owner: &str, name: &str) -> Result<()> {
         let mut store = self.store.write().await;
-        store.repos.retain(|r| !(r.owner == owner && r.name == name));
+        store
+            .repos
+            .retain(|r| !(r.owner == owner && r.name == name));
         drop(store);
         self.save_store().await
     }
@@ -101,7 +107,11 @@ impl SkillService {
     /// Toggle repository enabled state
     pub async fn toggle_repo(&self, owner: &str, name: &str, enabled: bool) -> Result<()> {
         let mut store = self.store.write().await;
-        if let Some(repo) = store.repos.iter_mut().find(|r| r.owner == owner && r.name == name) {
+        if let Some(repo) = store
+            .repos
+            .iter_mut()
+            .find(|r| r.owner == owner && r.name == name)
+        {
             repo.enabled = enabled;
         }
         drop(store);
@@ -114,7 +124,12 @@ impl SkillService {
     pub async fn discover_skills(&self) -> Result<Vec<DiscoverableSkill>> {
         let repos = {
             let store = self.store.read().await;
-            store.repos.iter().filter(|r| r.enabled).cloned().collect::<Vec<_>>()
+            store
+                .repos
+                .iter()
+                .filter(|r| r.enabled)
+                .cloned()
+                .collect::<Vec<_>>()
         };
 
         let mut all_skills = Vec::new();
@@ -122,7 +137,12 @@ impl SkillService {
         for repo in repos {
             match self.fetch_repo_skills(&repo).await {
                 Ok(skills) => all_skills.extend(skills),
-                Err(e) => log::warn!("Failed to fetch skills from {}/{}: {}", repo.owner, repo.name, e),
+                Err(e) => log::warn!(
+                    "Failed to fetch skills from {}/{}: {}",
+                    repo.owner,
+                    repo.name,
+                    e
+                ),
             }
         }
 
@@ -146,12 +166,9 @@ impl SkillService {
 
     /// Fetch skills from a single repository
     async fn fetch_repo_skills(&self, repo: &SkillRepo) -> Result<Vec<DiscoverableSkill>> {
-        let temp_dir = timeout(
-            std::time::Duration::from_secs(60),
-            self.download_repo(repo),
-        )
-        .await
-        .map_err(|_| anyhow!("Download timeout after 60 seconds"))??;
+        let temp_dir = timeout(std::time::Duration::from_secs(60), self.download_repo(repo))
+            .await
+            .map_err(|_| anyhow!("Download timeout after 60 seconds"))??;
 
         let mut skills = Vec::new();
         self.scan_dir_recursive(&temp_dir, &temp_dir, repo, &mut skills)?;
@@ -289,7 +306,10 @@ impl SkillService {
             let source = temp_dir.join(&skill.directory);
             if !source.exists() {
                 let _ = fs::remove_dir_all(&temp_dir);
-                return Err(anyhow!("Skill directory not found in repository: {}", skill.directory));
+                return Err(anyhow!(
+                    "Skill directory not found in repository: {}",
+                    skill.directory
+                ));
             }
 
             Self::copy_dir_recursive(&source, &dest)?;
@@ -329,9 +349,16 @@ impl SkillService {
     }
 
     /// Install skill from local path
-    pub async fn install_local_skill(&self, source_path: &Path, name: Option<&str>) -> Result<InstalledSkill> {
+    pub async fn install_local_skill(
+        &self,
+        source_path: &Path,
+        name: Option<&str>,
+    ) -> Result<InstalledSkill> {
         if !source_path.exists() {
-            return Err(anyhow!("Source path does not exist: {}", source_path.display()));
+            return Err(anyhow!(
+                "Source path does not exist: {}",
+                source_path.display()
+            ));
         }
 
         let skill_md = source_path.join("SKILL.md");
@@ -388,7 +415,10 @@ impl SkillService {
         }
         self.save_store().await?;
 
-        log::info!("Local skill {} installed successfully", installed_skill.name);
+        log::info!(
+            "Local skill {} installed successfully",
+            installed_skill.name
+        );
 
         Ok(installed_skill)
     }
@@ -460,7 +490,12 @@ impl SkillService {
     }
 
     /// Update skill metadata
-    pub async fn update_skill(&self, id: &str, category: Option<String>, tags: Option<Vec<String>>) -> Result<()> {
+    pub async fn update_skill(
+        &self,
+        id: &str,
+        category: Option<String>,
+        tags: Option<Vec<String>>,
+    ) -> Result<()> {
         let mut store = self.store.write().await;
         if let Some(skill) = store.skills.values_mut().find(|s| s.id == id) {
             if let Some(cat) = category {
@@ -479,7 +514,10 @@ impl SkillService {
     // ========== Skill Validation with SkillError ==========
 
     /// Get an installed skill or return SkillError
-    pub async fn get_skill_or_error(&self, id: &str) -> std::result::Result<InstalledSkill, SkillError> {
+    pub async fn get_skill_or_error(
+        &self,
+        id: &str,
+    ) -> std::result::Result<InstalledSkill, SkillError> {
         let store = self.store.read().await;
         store
             .skills
@@ -490,7 +528,10 @@ impl SkillService {
     }
 
     /// Validate skill can be installed (not already installed)
-    pub async fn validate_install(&self, skill: &DiscoverableSkill) -> std::result::Result<(), SkillError> {
+    pub async fn validate_install(
+        &self,
+        skill: &DiscoverableSkill,
+    ) -> std::result::Result<(), SkillError> {
         let install_name = Path::new(&skill.directory)
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
@@ -504,7 +545,11 @@ impl SkillService {
     }
 
     /// Check download with timeout, returns SkillError::DownloadTimeout on timeout
-    pub async fn check_download_timeout<T, F>(&self, duration_secs: u64, future: F) -> std::result::Result<T, SkillError>
+    pub async fn check_download_timeout<T, F>(
+        &self,
+        duration_secs: u64,
+        future: F,
+    ) -> std::result::Result<T, SkillError>
     where
         F: std::future::Future<Output = std::result::Result<T, SkillError>>,
     {
@@ -580,7 +625,11 @@ impl SkillService {
     pub fn read_skill_resource(&self, directory: &str, resource_path: &str) -> Result<String> {
         let file_path = self.ssot_dir.join(directory).join(resource_path);
         if !file_path.exists() {
-            return Err(anyhow!("Resource not found: {}/{}", directory, resource_path));
+            return Err(anyhow!(
+                "Resource not found: {}/{}",
+                directory,
+                resource_path
+            ));
         }
         Ok(fs::read_to_string(file_path)?)
     }
@@ -597,13 +646,13 @@ impl SkillService {
         for entry in fs::read_dir(&self.ssot_dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if !path.is_dir() {
                 continue;
             }
 
             let dir_name = entry.file_name().to_string_lossy().to_string();
-            
+
             // Skip hidden directories
             if dir_name.starts_with('.') {
                 continue;
@@ -673,7 +722,9 @@ impl SkillService {
         // Save to store
         {
             let mut store = self.store.write().await;
-            store.skills.insert(directory.to_string(), installed_skill.clone());
+            store
+                .skills
+                .insert(directory.to_string(), installed_skill.clone());
         }
         self.save_store().await?;
 
@@ -685,22 +736,26 @@ impl SkillService {
     /// Get all skills (merged view of discoverable, installed, and local)
     pub async fn get_all_skills(&self) -> Result<Vec<Skill>> {
         let installed = self.get_installed_skills().await;
-        let installed_dirs: std::collections::HashSet<_> = installed.iter().map(|s| s.directory.clone()).collect();
+        let installed_dirs: std::collections::HashSet<_> =
+            installed.iter().map(|s| s.directory.clone()).collect();
 
-        let mut skills: Vec<Skill> = installed.into_iter().map(|s| Skill {
-            key: s.id.clone(),
-            name: s.name,
-            description: s.description.unwrap_or_default(),
-            directory: s.directory,
-            readme_url: s.readme_url,
-            installed: true,
-            enabled: Some(s.enabled),
-            repo_owner: s.repo_owner,
-            repo_name: s.repo_name,
-            repo_branch: s.repo_branch,
-            category: s.category,
-            tags: Some(s.tags),
-        }).collect();
+        let mut skills: Vec<Skill> = installed
+            .into_iter()
+            .map(|s| Skill {
+                key: s.id.clone(),
+                name: s.name,
+                description: s.description.unwrap_or_default(),
+                directory: s.directory,
+                readme_url: s.readme_url,
+                installed: true,
+                enabled: Some(s.enabled),
+                repo_owner: s.repo_owner,
+                repo_name: s.repo_name,
+                repo_branch: s.repo_branch,
+                category: s.category,
+                tags: Some(s.tags),
+            })
+            .collect();
 
         // Try to get discoverable skills (don't fail if network error)
         if let Ok(discoverable) = self.discover_skills().await {
@@ -752,75 +807,72 @@ impl SkillService {
         let all = self.get_all_skills().await?;
         let query = filters.query.unwrap_or_default().to_lowercase();
 
-        let filtered: Vec<Skill> = all
-            .into_iter()
-            .filter(|skill| {
-                // Text search
-                let matches_query = query.is_empty()
-                    || skill.name.to_lowercase().contains(&query)
-                    || skill.description.to_lowercase().contains(&query)
-                    || skill.tags.as_ref().is_some_and(|tags| {
-                        tags.iter().any(|t| t.to_lowercase().contains(&query))
-                    });
+        let filtered: Vec<Skill> =
+            all.into_iter()
+                .filter(|skill| {
+                    // Text search
+                    let matches_query = query.is_empty()
+                        || skill.name.to_lowercase().contains(&query)
+                        || skill.description.to_lowercase().contains(&query)
+                        || skill.tags.as_ref().is_some_and(|tags| {
+                            tags.iter().any(|t| t.to_lowercase().contains(&query))
+                        });
 
-                if !matches_query {
-                    return false;
-                }
-
-                // Category filter
-                if let Some(ref cat) = filters.category {
-                    if skill.category.as_ref() != Some(cat) {
+                    if !matches_query {
                         return false;
                     }
-                }
 
-                // Installed filter
-                if let Some(installed) = filters.installed {
-                    if skill.installed != installed {
-                        return false;
+                    // Category filter
+                    if let Some(ref cat) = filters.category {
+                        if skill.category.as_ref() != Some(cat) {
+                            return false;
+                        }
                     }
-                }
 
-                // Enabled filter
-                if let Some(enabled) = filters.enabled {
-                    if skill.enabled != Some(enabled) {
-                        return false;
+                    // Installed filter
+                    if let Some(installed) = filters.installed {
+                        if skill.installed != installed {
+                            return false;
+                        }
                     }
-                }
 
-                // Tags filter
-                if let Some(ref filter_tags) = filters.tags {
-                    if !filter_tags.is_empty() {
-                        match skill.tags.as_ref() {
-                            Some(skill_tags) => {
-                                if !filter_tags.iter().all(|ft| skill_tags.contains(ft)) {
+                    // Enabled filter
+                    if let Some(enabled) = filters.enabled {
+                        if skill.enabled != Some(enabled) {
+                            return false;
+                        }
+                    }
+
+                    // Tags filter
+                    if let Some(ref filter_tags) = filters.tags {
+                        if !filter_tags.is_empty() {
+                            match skill.tags.as_ref() {
+                                Some(skill_tags) => {
+                                    if !filter_tags.iter().all(|ft| skill_tags.contains(ft)) {
+                                        return false;
+                                    }
+                                }
+                                None => {
+                                    // Skill has no tags but filter expects some
                                     return false;
                                 }
                             }
-                            None => {
-                                // Skill has no tags but filter expects some
-                                return false;
-                            }
                         }
                     }
-                }
 
-                true
-            })
-            .collect();
+                    true
+                })
+                .collect();
 
         Ok(filtered)
     }
 
     /// Get skill state (legacy compatibility)
     pub async fn get_skill_state(&self, id: &str) -> Option<SkillState> {
-        self
-            .get_installed_skill(id)
-            .await
-            .map(|_| SkillState {
-                installed: true,
-                installed_at: chrono::Utc::now(),
-            })
+        self.get_installed_skill(id).await.map(|_| SkillState {
+            installed: true,
+            installed_at: chrono::Utc::now(),
+        })
     }
 
     // ========== Download Helpers ==========
@@ -845,7 +897,10 @@ impl SkillService {
                 repo.owner, repo.name, branch
             );
 
-            match self.check_download_timeout(300, self.download_and_extract(&url, &temp_path)).await {
+            match self
+                .check_download_timeout(300, self.download_and_extract(&url, &temp_path))
+                .await
+            {
                 Ok(_) => return Ok(temp_path),
                 Err(e) => {
                     last_error = Some(e);
@@ -854,42 +909,62 @@ impl SkillService {
             }
         }
 
-        let error = last_error
-            .map(anyhow::Error::from)
-            .unwrap_or_else(|| anyhow!(SkillError::Network("All branches failed to download".to_string())));
+        let error = last_error.map(anyhow::Error::from).unwrap_or_else(|| {
+            anyhow!(SkillError::Network(
+                "All branches failed to download".to_string()
+            ))
+        });
         Err(error)
     }
 
     /// Download and extract ZIP archive
-    async fn download_and_extract(&self, url: &str, dest: &Path) -> std::result::Result<(), SkillError> {
+    async fn download_and_extract(
+        &self,
+        url: &str,
+        dest: &Path,
+    ) -> std::result::Result<(), SkillError> {
         let response = self.http_client.get(url).send().await?;
-        
+
         if !response.status().is_success() {
-            return Err(SkillError::Network(format!("Download failed with status: {}", response.status())));
+            return Err(SkillError::Network(format!(
+                "Download failed with status: {}",
+                response.status()
+            )));
         }
 
         let bytes = response.bytes().await?;
         let cursor = Cursor::new(bytes);
-        let mut archive = ZipArchive::new(cursor).map_err(|e| SkillError::Parse(format!("Invalid ZIP archive: {}", e)))?;
+        let mut archive = ZipArchive::new(cursor)
+            .map_err(|e| SkillError::Parse(format!("Invalid ZIP archive: {}", e)))?;
 
         // Get root directory name
         let root_name = if !archive.is_empty() {
-            let first_file = archive.by_index(0).map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
-            first_file.name().split('/').next().unwrap_or("").to_string()
+            let first_file = archive
+                .by_index(0)
+                .map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
+            first_file
+                .name()
+                .split('/')
+                .next()
+                .unwrap_or("")
+                .to_string()
         } else {
             return Err(SkillError::Parse("Empty archive".to_string()));
         };
 
         // Extract files
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
+            let mut file = archive
+                .by_index(i)
+                .map_err(|e| SkillError::Parse(format!("Archive error: {}", e)))?;
             let file_path = file.name();
 
-            let relative_path = if let Some(stripped) = file_path.strip_prefix(&format!("{}/", root_name)) {
-                stripped
-            } else {
-                continue;
-            };
+            let relative_path =
+                if let Some(stripped) = file_path.strip_prefix(&format!("{}/", root_name)) {
+                    stripped
+                } else {
+                    continue;
+                };
 
             if relative_path.is_empty() {
                 continue;
@@ -978,16 +1053,16 @@ mod tests {
     #[tokio::test]
     async fn test_add_repo() {
         let (service, _temp) = create_test_service();
-        
+
         let repo = SkillRepo {
             owner: "test-owner".to_string(),
             name: "test-repo".to_string(),
             branch: "main".to_string(),
             enabled: true,
         };
-        
+
         service.add_repo(repo).await.unwrap();
-        
+
         let repos = service.list_repos().await;
         assert_eq!(repos.len(), 3);
         assert!(repos.iter().any(|r| r.owner == "test-owner"));
@@ -996,7 +1071,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_repo_update_existing() {
         let (service, _temp) = create_test_service();
-        
+
         let repo1 = SkillRepo {
             owner: "test".to_string(),
             name: "repo".to_string(),
@@ -1004,7 +1079,7 @@ mod tests {
             enabled: true,
         };
         service.add_repo(repo1).await.unwrap();
-        
+
         let repo2 = SkillRepo {
             owner: "test".to_string(),
             name: "repo".to_string(),
@@ -1012,7 +1087,7 @@ mod tests {
             enabled: false,
         };
         service.add_repo(repo2).await.unwrap();
-        
+
         let repos = service.list_repos().await;
         let test_repo = repos.iter().find(|r| r.owner == "test").unwrap();
         assert_eq!(test_repo.branch, "develop");
@@ -1022,9 +1097,9 @@ mod tests {
     #[tokio::test]
     async fn test_remove_repo() {
         let (service, _temp) = create_test_service();
-        
+
         service.remove_repo("anthropics", "skills").await.unwrap();
-        
+
         let repos = service.list_repos().await;
         assert_eq!(repos.len(), 1);
         assert!(!repos.iter().any(|r| r.owner == "anthropics"));
@@ -1033,9 +1108,12 @@ mod tests {
     #[tokio::test]
     async fn test_toggle_repo() {
         let (service, _temp) = create_test_service();
-        
-        service.toggle_repo("anthropics", "skills", false).await.unwrap();
-        
+
+        service
+            .toggle_repo("anthropics", "skills", false)
+            .await
+            .unwrap();
+
         let repos = service.list_repos().await;
         let repo = repos.iter().find(|r| r.owner == "anthropics").unwrap();
         assert!(!repo.enabled);
@@ -1051,13 +1129,13 @@ mod tests {
     #[tokio::test]
     async fn test_install_local_skill() {
         let (service, temp) = create_test_service();
-        
+
         // Create a local skill directory
         let skill_dir = temp.path().join("local-skill");
         create_skill_md(&skill_dir, "local-test", "A local test skill");
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
+
         assert_eq!(installed.name, "local-test");
         assert!(installed.id.starts_with("local:"));
         assert!(installed.enabled);
@@ -1066,45 +1144,51 @@ mod tests {
     #[tokio::test]
     async fn test_install_local_skill_with_custom_name() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("my-skill");
         create_skill_md(&skill_dir, "original-name", "A skill");
-        
-        let installed = service.install_local_skill(&skill_dir, Some("custom-name")).await.unwrap();
-        
+
+        let installed = service
+            .install_local_skill(&skill_dir, Some("custom-name"))
+            .await
+            .unwrap();
+
         assert_eq!(installed.directory, "custom-name");
     }
 
     #[tokio::test]
     async fn test_install_local_skill_already_installed() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("test-skill");
         create_skill_md(&skill_dir, "test", "Test skill");
-        
+
         service.install_local_skill(&skill_dir, None).await.unwrap();
-        
+
         // Try to install again
         let result = service.install_local_skill(&skill_dir, None).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already installed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("already installed"));
     }
 
     #[tokio::test]
     async fn test_uninstall_skill() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("to-uninstall");
         create_skill_md(&skill_dir, "uninstall-test", "Will be uninstalled");
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
+
         // Verify installed
         assert!(service.get_installed_skill(&installed.id).await.is_some());
-        
+
         // Uninstall
         service.uninstall_skill(&installed.id).await.unwrap();
-        
+
         // Verify removed
         assert!(service.get_installed_skill(&installed.id).await.is_none());
     }
@@ -1138,7 +1222,7 @@ mod tests {
     #[tokio::test]
     async fn test_uninstall_nonexistent_skill() {
         let (service, _temp) = create_test_service();
-        
+
         let result = service.uninstall_skill("nonexistent").await;
         assert!(result.is_err());
     }
@@ -1146,18 +1230,18 @@ mod tests {
     #[tokio::test]
     async fn test_enable_disable_skill() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("toggle-skill");
         create_skill_md(&skill_dir, "toggle-test", "Toggle test");
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
         assert!(installed.enabled);
-        
+
         // Disable
         service.disable_skill(&installed.id).await.unwrap();
         let skill = service.get_installed_skill(&installed.id).await.unwrap();
         assert!(!skill.enabled);
-        
+
         // Enable
         service.enable_skill(&installed.id).await.unwrap();
         let skill = service.get_installed_skill(&installed.id).await.unwrap();
@@ -1167,18 +1251,21 @@ mod tests {
     #[tokio::test]
     async fn test_update_skill_metadata() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("update-skill");
         create_skill_md(&skill_dir, "update-test", "Update test");
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
-        service.update_skill(
-            &installed.id,
-            Some("development".to_string()),
-            Some(vec!["tag1".to_string(), "tag2".to_string()]),
-        ).await.unwrap();
-        
+
+        service
+            .update_skill(
+                &installed.id,
+                Some("development".to_string()),
+                Some(vec!["tag1".to_string(), "tag2".to_string()]),
+            )
+            .await
+            .unwrap();
+
         let skill = service.get_installed_skill(&installed.id).await.unwrap();
         assert_eq!(skill.category, Some("development".to_string()));
         assert_eq!(skill.tags, vec!["tag1", "tag2"]);
@@ -1187,12 +1274,12 @@ mod tests {
     #[tokio::test]
     async fn test_read_skill_content() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("content-skill");
         create_skill_md(&skill_dir, "content-test", "Content test");
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
+
         let content = service.read_skill_content(&installed.directory).unwrap();
         assert!(content.contains("name: content-test"));
         assert!(content.contains("Skill content here"));
@@ -1201,17 +1288,17 @@ mod tests {
     #[tokio::test]
     async fn test_list_skill_resources() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("resource-skill");
         create_skill_md(&skill_dir, "resource-test", "Resource test");
-        
+
         // Add extra resource files
         fs::write(skill_dir.join("helper.js"), "// helper").unwrap();
         fs::create_dir_all(skill_dir.join("scripts")).unwrap();
         fs::write(skill_dir.join("scripts/build.sh"), "#!/bin/bash").unwrap();
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
+
         let resources = service.list_skill_resources(&installed.directory).unwrap();
         assert!(resources.contains(&"SKILL.md".to_string()));
         assert!(resources.contains(&"helper.js".to_string()));
@@ -1220,26 +1307,28 @@ mod tests {
     #[tokio::test]
     async fn test_read_skill_resource() {
         let (service, temp) = create_test_service();
-        
+
         let skill_dir = temp.path().join("read-resource-skill");
         create_skill_md(&skill_dir, "read-resource-test", "Test");
         fs::write(skill_dir.join("config.json"), r#"{"key": "value"}"#).unwrap();
-        
+
         let installed = service.install_local_skill(&skill_dir, None).await.unwrap();
-        
-        let content = service.read_skill_resource(&installed.directory, "config.json").unwrap();
+
+        let content = service
+            .read_skill_resource(&installed.directory, "config.json")
+            .unwrap();
         assert!(content.contains("\"key\": \"value\""));
     }
 
     #[tokio::test]
     async fn test_scan_local_skills() {
         let (service, _temp) = create_test_service();
-        
+
         // Create an unregistered skill directly in SSOT
         let ssot = service.get_ssot_dir().to_path_buf();
         let unregistered = ssot.join("unregistered-skill");
         create_skill_md(&unregistered, "unregistered", "Not registered");
-        
+
         let local = service.scan_local_skills().await.unwrap();
         assert_eq!(local.len(), 1);
         assert_eq!(local[0].directory, "unregistered-skill");
@@ -1249,17 +1338,17 @@ mod tests {
     #[tokio::test]
     async fn test_register_local_skill() {
         let (service, _temp) = create_test_service();
-        
+
         // Create skill directly in SSOT
         let ssot = service.get_ssot_dir().to_path_buf();
         let skill_dir = ssot.join("register-me");
         create_skill_md(&skill_dir, "register-test", "To be registered");
-        
+
         let installed = service.register_local_skill("register-me").await.unwrap();
-        
+
         assert_eq!(installed.name, "register-test");
         assert!(installed.id.starts_with("local:"));
-        
+
         // Should no longer appear in local scan
         let local = service.scan_local_skills().await.unwrap();
         assert!(local.iter().all(|s| s.directory != "register-me"));
@@ -1269,7 +1358,7 @@ mod tests {
     fn test_parse_skill_metadata() {
         let temp = TempDir::new().unwrap();
         let skill_md = temp.path().join("SKILL.md");
-        
+
         let content = r#"---
 name: test-skill
 description: A test skill description
@@ -1284,17 +1373,20 @@ tags:
 This is the skill content.
 "#;
         fs::write(&skill_md, content).unwrap();
-        
+
         let meta = SkillService::parse_skill_metadata(&skill_md).unwrap();
         assert_eq!(meta.name, Some("test-skill".to_string()));
-        assert_eq!(meta.description, Some("A test skill description".to_string()));
+        assert_eq!(
+            meta.description,
+            Some("A test skill description".to_string())
+        );
     }
 
     #[test]
     fn test_parse_skill_metadata_minimal() {
         let temp = TempDir::new().unwrap();
         let skill_md = temp.path().join("SKILL.md");
-        
+
         let content = r#"---
 name: minimal
 ---
@@ -1302,7 +1394,7 @@ name: minimal
 Content only.
 "#;
         fs::write(&skill_md, content).unwrap();
-        
+
         let meta = SkillService::parse_skill_metadata(&skill_md).unwrap();
         assert_eq!(meta.name, Some("minimal".to_string()));
         assert!(meta.description.is_none());
@@ -1312,9 +1404,9 @@ Content only.
     fn test_parse_skill_metadata_no_frontmatter() {
         let temp = TempDir::new().unwrap();
         let skill_md = temp.path().join("SKILL.md");
-        
+
         fs::write(&skill_md, "Just content, no frontmatter.").unwrap();
-        
+
         let meta = SkillService::parse_skill_metadata(&skill_md).unwrap();
         assert!(meta.name.is_none());
     }
@@ -1324,39 +1416,42 @@ Content only.
         let temp = TempDir::new().unwrap();
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
-        
+
         // Create source structure
         fs::create_dir_all(src.join("sub")).unwrap();
         fs::write(src.join("file.txt"), "content").unwrap();
         fs::write(src.join("sub/nested.txt"), "nested content").unwrap();
-        
+
         SkillService::copy_dir_recursive(&src, &dest).unwrap();
-        
+
         assert!(dest.join("file.txt").exists());
         assert!(dest.join("sub/nested.txt").exists());
-        assert_eq!(fs::read_to_string(dest.join("file.txt")).unwrap(), "content");
+        assert_eq!(
+            fs::read_to_string(dest.join("file.txt")).unwrap(),
+            "content"
+        );
     }
 
     #[tokio::test]
     async fn test_get_all_skills() {
         let (service, temp) = create_test_service();
-        
+
         // Install some local skills
         let skill1 = temp.path().join("skill1");
         create_skill_md(&skill1, "skill-one", "First skill");
         service.install_local_skill(&skill1, None).await.unwrap();
-        
+
         let skill2 = temp.path().join("skill2");
         create_skill_md(&skill2, "skill-two", "Second skill");
         service.install_local_skill(&skill2, None).await.unwrap();
-        
+
         let all = service.get_all_skills().await.unwrap();
-        
+
         // Should have at least our 2 installed skills
         assert!(all.len() >= 2);
         assert!(all.iter().any(|s| s.name == "skill-one"));
         assert!(all.iter().any(|s| s.name == "skill-two"));
-        
+
         // Installed skills should be marked as installed
         let skill_one = all.iter().find(|s| s.name == "skill-one").unwrap();
         assert!(skill_one.installed);
@@ -1366,7 +1461,7 @@ Content only.
     async fn test_store_persistence() {
         let temp = TempDir::new().unwrap();
         let data_dir = temp.path().to_path_buf();
-        
+
         // Create service and add data
         {
             let service = SkillService::new(data_dir.clone()).unwrap();
@@ -1374,7 +1469,7 @@ Content only.
             create_skill_md(&skill_dir, "persist-test", "Persist test");
             service.install_local_skill(&skill_dir, None).await.unwrap();
         }
-        
+
         // Create new service instance and verify data persisted
         {
             let service = SkillService::new(data_dir).unwrap();

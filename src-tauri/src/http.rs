@@ -132,10 +132,7 @@ pub fn set_global_proxy(proxy_url: Option<String>) {
 
 /// Get the current global proxy URL.
 pub fn get_global_proxy() -> Option<String> {
-    GLOBAL_PROXY_URL
-        .read()
-        .ok()
-        .and_then(|guard| guard.clone())
+    GLOBAL_PROXY_URL.read().ok().and_then(|guard| guard.clone())
 }
 
 /// Check if a URL target should bypass the proxy (e.g., localhost).
@@ -233,9 +230,7 @@ pub fn create_proxy_client_quick() -> Result<Client, reqwest::Error> {
 /// Create a proxy-aware HTTP client with custom timeout.
 ///
 /// If the target URL is localhost, proxy is bypassed automatically.
-pub fn create_proxy_client_with_timeout(
-    timeout_secs: u64,
-) -> Result<Client, reqwest::Error> {
+pub fn create_proxy_client_with_timeout(timeout_secs: u64) -> Result<Client, reqwest::Error> {
     let builder = Client::builder()
         .user_agent(DEFAULT_USER_AGENT)
         .timeout(Duration::from_secs(timeout_secs))
@@ -339,7 +334,9 @@ mod tests {
         assert!(should_bypass_proxy("http://127.0.0.1:8080/health"));
         assert!(should_bypass_proxy("http://[::1]:3000/"));
         assert!(!should_bypass_proxy("https://api.openai.com/v1/models"));
-        assert!(!should_bypass_proxy("https://api.anthropic.com/v1/messages"));
+        assert!(!should_bypass_proxy(
+            "https://api.anthropic.com/v1/messages"
+        ));
     }
 
     #[test]

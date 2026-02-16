@@ -267,7 +267,7 @@ describe('ImageCropper', () => {
     });
 
     it('should accept initial transform', () => {
-      const initialTransform = { rotation: 90, flipHorizontal: true, flipVertical: false };
+      const initialTransform = { rotation: 90, flipHorizontal: true, flipVertical: false, scale: 1 };
       const { container } = render(<ImageCropper {...defaultProps} initialTransform={initialTransform} />);
       expect(container).toBeInTheDocument();
     });

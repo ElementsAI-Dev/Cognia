@@ -131,7 +131,11 @@ pub struct A2UIComponentDef {
 pub struct PluginToolDef {
     pub name: String,
     pub description: String,
-    #[serde(rename = "parametersSchema", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "parametersSchema",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub parameters_schema: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
@@ -189,87 +193,90 @@ pub struct PluginManifest {
     pub name: String,
     pub version: String,
     pub description: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<PluginAuthorField>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
-    
+
     #[serde(rename = "type")]
     pub plugin_type: PluginType,
-    
+
     pub capabilities: Vec<PluginCapability>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords: Option<Vec<String>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main: Option<String>,
-    
+
     #[serde(rename = "pythonMain", skip_serializing_if = "Option::is_none")]
     pub python_main: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub styles: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, String>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub engines: Option<PluginEngines>,
-    
+
     #[serde(rename = "pythonDependencies", skip_serializing_if = "Option::is_none")]
     pub python_dependencies: Option<Vec<String>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<PluginPermissionField>>,
-    
-    #[serde(rename = "optionalPermissions", skip_serializing_if = "Option::is_none")]
+
+    #[serde(
+        rename = "optionalPermissions",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub optional_permissions: Option<Vec<PluginPermissionField>>,
-    
+
     #[serde(rename = "configSchema", skip_serializing_if = "Option::is_none")]
     pub config_schema: Option<serde_json::Value>,
-    
+
     #[serde(rename = "defaultConfig", skip_serializing_if = "Option::is_none")]
     pub default_config: Option<serde_json::Value>,
-    
+
     #[serde(rename = "a2uiComponents", skip_serializing_if = "Option::is_none")]
     pub a2ui_components: Option<Vec<A2UIComponentDef>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<PluginToolDef>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modes: Option<Vec<PluginModeDef>>,
-    
+
     #[serde(rename = "activateOnStartup", skip_serializing_if = "Option::is_none")]
     pub activate_on_startup: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub screenshots: Option<Vec<String>>,
-    
+
     #[serde(rename = "activationEvents", skip_serializing_if = "Option::is_none")]
     pub activation_events: Option<Vec<String>>,
-    
+
     #[serde(rename = "scheduledTasks", skip_serializing_if = "Option::is_none")]
     pub scheduled_tasks: Option<Vec<serde_json::Value>>,
-    
+
     #[serde(rename = "a2uiTemplates", skip_serializing_if = "Option::is_none")]
     pub a2ui_templates: Option<Vec<serde_json::Value>>,
-    
+
     #[serde(rename = "minAppVersion", skip_serializing_if = "Option::is_none")]
     pub min_app_version: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commands: Option<Vec<PluginCommandDef>>,
 }
@@ -343,31 +350,31 @@ pub struct PluginInstallOptions {
 pub enum PluginError {
     #[error("Plugin not found: {0}")]
     NotFound(String),
-    
+
     #[error("Invalid manifest: {0}")]
     InvalidManifest(String),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-    
+
     #[error("Python error: {0}")]
     Python(String),
-    
+
     #[error("Plugin already exists: {0}")]
     AlreadyExists(String),
-    
+
     #[error("Dependency error: {0}")]
     Dependency(String),
-    
+
     #[error("Network error: {0}")]
     Network(String),
-    
+
     #[error("Signature verification failed: {0}")]
     SignatureVerification(String),
-    
+
     #[error("Version mismatch: {0}")]
     VersionMismatch(String),
 }
@@ -813,12 +820,15 @@ pub struct WindowOptions {
 pub enum PluginApiRequest {
     // Network API
     #[serde(rename = "network:fetch")]
-    NetworkFetch { url: String, options: Option<NetworkRequestOptions> },
+    NetworkFetch {
+        url: String,
+        options: Option<NetworkRequestOptions>,
+    },
     #[serde(rename = "network:download")]
     NetworkDownload { url: String, dest_path: String },
     #[serde(rename = "network:upload")]
     NetworkUpload { url: String, file_path: String },
-    
+
     // Filesystem API
     #[serde(rename = "fs:readText")]
     FsReadText { path: String },
@@ -831,9 +841,15 @@ pub enum PluginApiRequest {
     #[serde(rename = "fs:exists")]
     FsExists { path: String },
     #[serde(rename = "fs:mkdir")]
-    FsMkdir { path: String, recursive: Option<bool> },
+    FsMkdir {
+        path: String,
+        recursive: Option<bool>,
+    },
     #[serde(rename = "fs:remove")]
-    FsRemove { path: String, recursive: Option<bool> },
+    FsRemove {
+        path: String,
+        recursive: Option<bool>,
+    },
     #[serde(rename = "fs:copy")]
     FsCopy { src: String, dest: String },
     #[serde(rename = "fs:move")]
@@ -842,7 +858,7 @@ pub enum PluginApiRequest {
     FsReadDir { path: String },
     #[serde(rename = "fs:stat")]
     FsStat { path: String },
-    
+
     // Clipboard API
     #[serde(rename = "clipboard:readText")]
     ClipboardReadText,
@@ -851,32 +867,48 @@ pub enum PluginApiRequest {
     #[serde(rename = "clipboard:readImage")]
     ClipboardReadImage,
     #[serde(rename = "clipboard:writeImage")]
-    ClipboardWriteImage { data: Vec<u8>, format: Option<String> },
+    ClipboardWriteImage {
+        data: Vec<u8>,
+        format: Option<String>,
+    },
     #[serde(rename = "clipboard:clear")]
     ClipboardClear,
-    
+
     // Shell API
     #[serde(rename = "shell:execute")]
-    ShellExecute { command: String, options: Option<ShellOptions> },
+    ShellExecute {
+        command: String,
+        options: Option<ShellOptions>,
+    },
     #[serde(rename = "shell:spawn")]
-    ShellSpawn { command: String, args: Option<Vec<String>>, options: Option<SpawnOptions> },
+    ShellSpawn {
+        command: String,
+        args: Option<Vec<String>>,
+        options: Option<SpawnOptions>,
+    },
     #[serde(rename = "shell:open")]
     ShellOpen { path: String },
     #[serde(rename = "shell:showInFolder")]
     ShellShowInFolder { path: String },
-    
+
     // Database API
     #[serde(rename = "db:query")]
-    DbQuery { sql: String, params: Option<Vec<serde_json::Value>> },
+    DbQuery {
+        sql: String,
+        params: Option<Vec<serde_json::Value>>,
+    },
     #[serde(rename = "db:execute")]
-    DbExecute { sql: String, params: Option<Vec<serde_json::Value>> },
+    DbExecute {
+        sql: String,
+        params: Option<Vec<serde_json::Value>>,
+    },
     #[serde(rename = "db:createTable")]
     DbCreateTable { name: String, schema: TableSchema },
     #[serde(rename = "db:dropTable")]
     DbDropTable { name: String },
     #[serde(rename = "db:tableExists")]
     DbTableExists { name: String },
-    
+
     // Secrets API
     #[serde(rename = "secrets:store")]
     SecretsStore { key: String, value: String },
@@ -886,7 +918,7 @@ pub enum PluginApiRequest {
     SecretsDelete { key: String },
     #[serde(rename = "secrets:has")]
     SecretsHas { key: String },
-    
+
     // Window API
     #[serde(rename = "window:create")]
     WindowCreate { options: WindowOptions },
@@ -895,7 +927,11 @@ pub enum PluginApiRequest {
     #[serde(rename = "window:setTitle")]
     WindowSetTitle { window_id: String, title: String },
     #[serde(rename = "window:setSize")]
-    WindowSetSize { window_id: String, width: u32, height: u32 },
+    WindowSetSize {
+        window_id: String,
+        width: u32,
+        height: u32,
+    },
     #[serde(rename = "window:setPosition")]
     WindowSetPosition { window_id: String, x: i32, y: i32 },
     #[serde(rename = "window:center")]

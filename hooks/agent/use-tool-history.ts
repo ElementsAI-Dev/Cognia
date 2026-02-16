@@ -176,17 +176,17 @@ export function useToolHistory(options: UseToolHistoryOptions = {}): UseToolHist
   // Computed values
   const recentTools = useMemo(
     () => storeGetRecentTools(recentLimit),
-    [storeGetRecentTools, recentLimit]
+    [storeGetRecentTools, recentLimit, usageStats]
   );
 
   const frequentTools = useMemo(
     () => storeGetFrequentTools(frequentLimit),
-    [storeGetFrequentTools, frequentLimit]
+    [storeGetFrequentTools, frequentLimit, usageStats]
   );
 
-  const favorites = useMemo(() => storeGetFavorites(), [storeGetFavorites]);
+  const favorites = useMemo(() => storeGetFavorites(), [storeGetFavorites, usageStats]);
 
-  const pinnedTools = useMemo(() => storeGetPinnedTools(), [storeGetPinnedTools]);
+  const pinnedTools = useMemo(() => storeGetPinnedTools(), [storeGetPinnedTools, usageStats]);
 
   // Actions
   const recordCall = useCallback(

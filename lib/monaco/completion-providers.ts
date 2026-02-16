@@ -726,11 +726,14 @@ export function registerJSXAttributeCompletion(
  * Register all custom completion providers for Monaco
  * Returns array of disposables for cleanup
  */
-export function registerAllCompletionProviders(monaco: typeof Monaco): Monaco.IDisposable[] {
+export function registerAllCompletionProviders(
+  monaco: typeof Monaco,
+  languages?: string[]
+): Monaco.IDisposable[] {
   return [
-    ...registerImportPathCompletion(monaco),
-    ...registerTailwindCompletion(monaco),
-    ...registerJSXAttributeCompletion(monaco),
+    ...registerImportPathCompletion(monaco, languages),
+    ...registerTailwindCompletion(monaco, languages),
+    ...registerJSXAttributeCompletion(monaco, languages),
   ];
 }
 

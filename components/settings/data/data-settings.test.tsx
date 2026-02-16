@@ -28,6 +28,15 @@ jest.mock('@/stores', () => {
       return selector(state);
     },
     useArtifactStore: artifactStore,
+    useBackupStore: (selector: (state: Record<string, unknown>) => unknown) => {
+      const state = {
+        markBackupComplete: jest.fn(),
+        dismissReminder: jest.fn(),
+        shouldShowReminder: jest.fn(() => false),
+        daysSinceLastBackup: jest.fn(() => null),
+      };
+      return selector(state);
+    },
   };
 });
 
@@ -141,7 +150,7 @@ describe('DataSettings', () => {
 
   it('displays localStorage info', () => {
     render(<DataSettings />);
-    expect(screen.getByText('LocalStorage')).toBeInTheDocument();
+    expect(screen.getByText('Local Storage')).toBeInTheDocument();
   });
 
   it('displays IndexedDB info', () => {

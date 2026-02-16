@@ -5,6 +5,7 @@
  */
 
 import type { ProviderName } from '@/types/provider';
+import { parseModelId } from '@/lib/arena/rating';
 
 /**
  * Matchup result from a battle
@@ -63,23 +64,8 @@ export const BT_SCALE_FACTOR = 400; // Convert BT to ELO-like scale
 export const BT_CONVERGENCE_THRESHOLD = 1e-6;
 export const BT_MAX_ITERATIONS = 100;
 
-/**
- * Get model identifier from provider and model
- */
-export function getModelId(provider: ProviderName, model: string): string {
-  return `${provider}:${model}`;
-}
-
-/**
- * Parse model identifier to provider and model
- */
-export function parseModelId(modelId: string): { provider: ProviderName; model: string } {
-  const [provider, ...modelParts] = modelId.split(':');
-  return {
-    provider: provider as ProviderName,
-    model: modelParts.join(':'),
-  };
-}
+// Re-export from canonical source for backwards compatibility
+export { getModelId, parseModelId } from '@/lib/arena/rating';
 
 /**
  * Convert Bradley-Terry score to ELO-like rating
@@ -174,7 +160,7 @@ export function computeBradleyTerryRatings(
     return result;
   }
 
-  // Initialize scores to 0 (all models equal)
+  // Initialize BT scores to 0 (all models equal)
   const scores = new Map<string, number>();
   for (const model of modelList) {
     scores.set(model, 0);
@@ -209,14 +195,22 @@ export function computeBradleyTerryRatings(
     totalGames.get(loser)!.set(winner, totalGames.get(loser)!.get(winner)! + 1);
   }
 
-  // MM algorithm iteration
+  // MM algorithm iteration in positive strength space.
+  // This avoids log(0) and +/-Infinity when a model has zero wins.
+  const EPSILON = 1e-12;
+  const strengths = new Map<string, number>();
+  for (const model of modelList) {
+    strengths.set(model, 1);
+  }
+
   for (let iter = 0; iter < maxIterations; iter++) {
-    const newScores = new Map<string, number>();
+    const newStrengths = new Map<string, number>();
     let maxChange = 0;
 
     for (const i of modelList) {
       let numerator = 0;
       let denominator = 0;
+      const si = strengths.get(i)!;
 
       for (const j of modelList) {
         if (i === j) continue;
@@ -225,25 +219,31 @@ export function computeBradleyTerryRatings(
         if (nij === 0) continue;
 
         const wij = wins.get(i)!.get(j) || 0;
-        const pi = Math.exp(scores.get(i)!);
-        const pj = Math.exp(scores.get(j)!);
+        const sj = strengths.get(j)!;
 
         numerator += wij;
-        denominator += nij * pj / (pi + pj);
+        denominator += nij / (si + sj);
       }
 
-      // Update score
-      const newScore = denominator > 0 ? Math.log(numerator / denominator) : 0;
-      newScores.set(i, newScore);
+      // Update strength. Keep finite even for models with no wins.
+      const newStrength = denominator > 0 ? Math.max(numerator / denominator, EPSILON) : si;
+      newStrengths.set(i, newStrength);
 
-      const change = Math.abs(newScore - scores.get(i)!);
+      const previousScore = Math.log(Math.max(si, EPSILON));
+      const newScore = Math.log(newStrength);
+      const change = Math.abs(newScore - previousScore);
       maxChange = Math.max(maxChange, change);
     }
 
-    // Normalize scores (set mean to 0)
-    const mean = Array.from(newScores.values()).reduce((a, b) => a + b, 0) / newScores.size;
-    for (const [model, score] of newScores) {
-      scores.set(model, score - mean);
+    // Normalize strengths to geometric mean = 1 (equivalent to mean BT score = 0).
+    const meanLogStrength =
+      Array.from(newStrengths.values()).reduce((sum, s) => sum + Math.log(Math.max(s, EPSILON)), 0) /
+      newStrengths.size;
+
+    for (const [model, strength] of newStrengths) {
+      const normalizedStrength = Math.exp(Math.log(Math.max(strength, EPSILON)) - meanLogStrength);
+      strengths.set(model, normalizedStrength);
+      scores.set(model, Math.log(normalizedStrength));
     }
 
     // Check convergence

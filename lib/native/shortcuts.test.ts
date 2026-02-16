@@ -53,7 +53,7 @@ describe('Shortcuts - registerShortcut', () => {
 
     const result = await registerShortcut('CommandOrControl+N', handler);
     expect(result).toBe(true);
-    expect(register).toHaveBeenCalledWith('CommandOrControl+N', expect.any(Function));
+    expect(register).toHaveBeenCalledWith(normalizeShortcut('CommandOrControl+N'), expect.any(Function));
   });
 
   it('should return false on registration error', async () => {
@@ -101,7 +101,7 @@ describe('Shortcuts - unregisterShortcut', () => {
 
     const result = await unregisterShortcut('CommandOrControl+N');
     expect(result).toBe(true);
-    expect(unregister).toHaveBeenCalledWith('CommandOrControl+N');
+    expect(unregister).toHaveBeenCalledWith(normalizeShortcut('CommandOrControl+N'));
   });
 
   it('should return false on unregistration error', async () => {
@@ -165,7 +165,7 @@ describe('Shortcuts - isShortcutRegistered', () => {
 
     const result = await isShortcutRegistered('CommandOrControl+N');
     expect(result).toBe(true);
-    expect(isRegistered).toHaveBeenCalledWith('CommandOrControl+N');
+    expect(isRegistered).toHaveBeenCalledWith(normalizeShortcut('CommandOrControl+N'));
   });
 
   it('should return false on error', async () => {

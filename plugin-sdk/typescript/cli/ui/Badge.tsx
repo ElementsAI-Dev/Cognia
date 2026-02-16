@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { colors, symbols } from './theme.js';
-import type { BadgeVariant } from './types.js';
+import { colors, symbols } from './theme';
+import type { BadgeVariant } from './types';
 
 export interface BadgeProps {
   /** Badge variant/color */

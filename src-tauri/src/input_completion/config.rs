@@ -90,8 +90,8 @@ impl Default for AdaptiveDebounceConfig {
             enabled: true,
             min_debounce_ms: 200,
             max_debounce_ms: 800,
-            fast_typing_threshold: 5.0,  // 5 chars/sec = fast
-            slow_typing_threshold: 1.0,  // 1 char/sec = slow
+            fast_typing_threshold: 5.0, // 5 chars/sec = fast
+            slow_typing_threshold: 1.0, // 1 char/sec = slow
         }
     }
 }
@@ -183,7 +183,7 @@ mod tests {
         let config = CompletionConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let parsed: CompletionConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.enabled, config.enabled);
         assert_eq!(parsed.model.model_id, config.model.model_id);
     }
@@ -226,7 +226,7 @@ mod tests {
             temperature: 0.5,
             timeout_secs: 10,
         };
-        
+
         assert_eq!(model.provider, CompletionProvider::Custom);
         assert_eq!(model.endpoint, Some("http://localhost:8080".to_string()));
         assert_eq!(model.api_key, Some("test-key".to_string()));
@@ -253,7 +253,7 @@ mod tests {
             auto_dismiss_ms: 0,
             show_accept_hint: false,
         };
-        
+
         assert!(!ui.show_inline_preview);
         assert_eq!(ui.max_suggestions, 5);
         assert_eq!(ui.auto_dismiss_ms, 0);
@@ -270,7 +270,7 @@ mod tests {
             skip_with_modifiers: false,
             adaptive_debounce: AdaptiveDebounceConfig::default(),
         };
-        
+
         assert_eq!(trigger.debounce_ms, 200);
         assert!(trigger.trigger_on_word_boundary);
         assert_eq!(trigger.skip_chars.len(), 3);
@@ -286,11 +286,11 @@ mod tests {
             (CompletionProvider::Auto, "\"auto\""),
             (CompletionProvider::Custom, "\"custom\""),
         ];
-        
+
         for (provider, expected_json) in providers {
             let json = serde_json::to_string(&provider).unwrap();
             assert_eq!(json, expected_json);
-            
+
             let parsed: CompletionProvider = serde_json::from_str(&json).unwrap();
             assert_eq!(parsed, provider);
         }
@@ -335,10 +335,10 @@ mod tests {
                 show_accept_hint: false,
             },
         };
-        
+
         let json = serde_json::to_string_pretty(&config).unwrap();
         let parsed: CompletionConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.enabled, config.enabled);
         assert_eq!(parsed.model.provider, config.model.provider);
         assert_eq!(parsed.model.model_id, config.model.model_id);
@@ -361,7 +361,7 @@ mod tests {
         let model = CompletionModelConfig::default();
         let json = serde_json::to_string(&model).unwrap();
         let parsed: CompletionModelConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.provider, model.provider);
         assert_eq!(parsed.model_id, model.model_id);
         assert_eq!(parsed.max_tokens, model.max_tokens);
@@ -372,7 +372,7 @@ mod tests {
         let ui = CompletionUiConfig::default();
         let json = serde_json::to_string(&ui).unwrap();
         let parsed: CompletionUiConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.show_inline_preview, ui.show_inline_preview);
         assert_eq!(parsed.ghost_text_opacity, ui.ghost_text_opacity);
     }
@@ -382,7 +382,7 @@ mod tests {
         let trigger = CompletionTriggerConfig::default();
         let json = serde_json::to_string(&trigger).unwrap();
         let parsed: CompletionTriggerConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.debounce_ms, trigger.debounce_ms);
         assert_eq!(parsed.min_context_length, trigger.min_context_length);
     }

@@ -72,9 +72,10 @@ describe('Time Tools Plugin', () => {
       const agentApi = context.agent as unknown as { _tools: Map<string, { execute: (args: Record<string, unknown>, ctx: unknown) => Promise<unknown> }> };
       const tool = agentApi._tools.get('time_now');
 
-      const result = await tool!.execute({}, toolContext) as { success: boolean; iso: string };
+      const result = await tool!.execute({}, toolContext) as { success: boolean; timestamp: string; formatted: string };
       expect(result.success).toBe(true);
-      expect(result.iso).toBeDefined();
+      expect(result.timestamp).toBeDefined();
+      expect(result.formatted).toBeDefined();
     });
   });
 

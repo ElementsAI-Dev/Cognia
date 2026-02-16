@@ -12,3 +12,5 @@ export * from './code-actions';
 export * from './hover-provider';
 export * from './color-provider';
 export * from './symbol-provider';
+export * from './lsp/lsp-client';
+export * from './lsp/monaco-lsp-adapter';

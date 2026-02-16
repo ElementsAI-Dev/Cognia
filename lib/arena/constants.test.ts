@@ -1,6 +1,39 @@
-import { WIN_REASONS, CATEGORY_IDS } from './constants';
+import { WIN_REASONS, CATEGORY_IDS, ARENA_KNOWN_MODELS } from './constants';
 
 describe('arena constants', () => {
+  describe('ARENA_KNOWN_MODELS', () => {
+    it('should have at least one entry', () => {
+      expect(ARENA_KNOWN_MODELS.length).toBeGreaterThan(0);
+    });
+
+    it('should have required fields for every entry', () => {
+      for (const entry of ARENA_KNOWN_MODELS) {
+        expect(entry.provider).toBeTruthy();
+        expect(entry.model).toBeTruthy();
+        expect(entry.displayName).toBeTruthy();
+      }
+    });
+
+    it('should have unique provider:model combinations', () => {
+      const ids = ARENA_KNOWN_MODELS.map((e) => `${e.provider}:${e.model}`);
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(ids.length);
+    });
+
+    it('should include known major providers', () => {
+      const providers = new Set(ARENA_KNOWN_MODELS.map((e) => e.provider));
+      expect(providers.has('openai')).toBe(true);
+      expect(providers.has('anthropic')).toBe(true);
+      expect(providers.has('google')).toBe(true);
+    });
+
+    it('should have displayName without provider prefix', () => {
+      for (const entry of ARENA_KNOWN_MODELS) {
+        expect(entry.displayName).not.toContain(':');
+      }
+    });
+  });
+
   describe('WIN_REASONS', () => {
     it('should contain expected win reasons', () => {
       expect(WIN_REASONS).toContain('quality');

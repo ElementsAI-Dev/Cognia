@@ -17,8 +17,8 @@ import {
   Spinner,
   colors,
   symbols,
-} from '../ui/index.js';
-import { useWizard } from './hooks/useWizard.js';
+} from '../ui/index';
+import { useWizard } from './hooks/useWizard';
 
 export interface InitWizardData {
   id: string;

@@ -6,6 +6,15 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 
+// Mock next/dynamic to avoid async loading behavior in tests
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: () => {
+    const Monaco = require('@monaco-editor/react').default;
+    return Monaco;
+  },
+}));
+
 // Mock Monaco editor
 jest.mock('@monaco-editor/react', () => ({
   __esModule: true,
@@ -34,7 +43,6 @@ jest.mock('@/lib/export/diagram/diagram-export', () => ({
 
 // Mock useCopy and useMermaid hooks
 jest.mock('@/hooks/ui', () => ({
-  ...jest.requireActual('@/hooks/ui'),
   useCopy: () => ({
     copy: jest.fn().mockResolvedValue(undefined),
     isCopying: false,
@@ -164,7 +172,7 @@ describe('MermaidEditorModal', () => {
     );
     
     // Change the code first to enable save
-    const editor = screen.getByTestId('monaco-editor');
+    const editor = screen.getByRole('textbox');
     fireEvent.change(editor, { target: { value: 'graph LR\nA-->B' } });
     
     // Click save
@@ -185,16 +193,12 @@ describe('MermaidEditorModal', () => {
       />
     );
     
-    // Find and click close button by aria-label
-    const closeButtons = screen.getAllByRole('button');
-    const closeButton = closeButtons.find(
-      (btn) => btn.getAttribute('aria-label')?.includes('Close') || btn.textContent === ''
+    const closeButton = screen.getAllByRole('button').find(
+      (btn) => !!btn.querySelector('svg.lucide-x.h-4.w-4')
     );
-    
-    if (closeButton) {
-      fireEvent.click(closeButton);
-      expect(handleOpenChange).toHaveBeenCalledWith(false);
-    }
+    expect(closeButton).toBeTruthy();
+    fireEvent.click(closeButton as HTMLButtonElement);
+    expect(handleOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('should show unsaved indicator when code changes', async () => {
@@ -208,7 +212,7 @@ describe('MermaidEditorModal', () => {
     );
     
     // Change the code
-    const editor = screen.getByTestId('monaco-editor');
+    const editor = screen.getByRole('textbox');
     fireEvent.change(editor, { target: { value: 'graph LR\nA-->B' } });
     
     await waitFor(() => {
@@ -224,13 +228,18 @@ describe('MermaidEditorModal', () => {
       />
     );
     
-    // Find fullscreen button
-    const fullscreenButton = screen.getByRole('button', { name: /fullscreen/i });
-    fireEvent.click(fullscreenButton);
+    const fullscreenButton = screen.getAllByRole('button').find(
+      (btn) => !!btn.querySelector('svg.lucide-maximize-2')
+    );
+    expect(fullscreenButton).toBeTruthy();
+    fireEvent.click(fullscreenButton as HTMLButtonElement);
     
-    // After clicking, the button should now show "Exit fullscreen"
+    // After clicking, icon should toggle to minimize
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /exit fullscreen/i })).toBeInTheDocument();
+      const minimizeButton = screen.getAllByRole('button').find(
+        (btn) => !!btn.querySelector('svg.lucide-minimize-2')
+      );
+      expect(minimizeButton).toBeTruthy();
     });
   });
 });

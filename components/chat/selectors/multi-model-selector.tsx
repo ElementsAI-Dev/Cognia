@@ -19,9 +19,11 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSettingsStore } from '@/stores';
-import { ARENA_MODEL_PRESETS } from '@/types/arena';
+import { ARENA_KNOWN_MODELS } from '@/lib/arena/constants';
+import { getProviderColor } from '@/lib/arena/color';
 import { cn } from '@/lib/utils';
 import type { ArenaModelConfig } from '@/types/chat/multi-model';
+import { ARENA_MODEL_PRESETS } from '@/types/arena';
 import type { ProviderName } from '@/types/provider';
 
 interface MultiModelSelectorProps {
@@ -38,29 +40,8 @@ interface ModelPreset {
   displayName: string;
 }
 
-const MODEL_PRESETS: ModelPreset[] = [
-  { provider: 'openai', model: 'gpt-4o', displayName: 'GPT-4o' },
-  { provider: 'openai', model: 'gpt-4o-mini', displayName: 'GPT-4o Mini' },
-  { provider: 'anthropic', model: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4' },
-  { provider: 'anthropic', model: 'claude-3-5-haiku-20241022', displayName: 'Claude 3.5 Haiku' },
-  { provider: 'google', model: 'gemini-2.0-flash-exp', displayName: 'Gemini 2.0 Flash' },
-  { provider: 'google', model: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro' },
-  { provider: 'deepseek', model: 'deepseek-chat', displayName: 'DeepSeek Chat' },
-  { provider: 'deepseek', model: 'deepseek-reasoner', displayName: 'DeepSeek Reasoner' },
-  { provider: 'groq', model: 'llama-3.3-70b-versatile', displayName: 'Llama 3.3 70B' },
-  { provider: 'mistral', model: 'mistral-large-latest', displayName: 'Mistral Large' },
-  { provider: 'xai', model: 'grok-3', displayName: 'Grok 3' },
-];
-
-const PROVIDER_COLORS: Record<string, string> = {
-  openai: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  anthropic: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  google: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  deepseek: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  groq: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  mistral: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  xai: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-};
+// Use centralized model list
+const MODEL_PRESETS: ModelPreset[] = ARENA_KNOWN_MODELS;
 
 export function MultiModelSelector({
   models,
@@ -148,11 +129,6 @@ export function MultiModelSelector({
     },
     [models]
   );
-
-  // Get provider badge color
-  const getProviderColor = (provider: string) => {
-    return PROVIDER_COLORS[provider] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-  };
 
   return (
     <div className={cn('flex items-center gap-2 flex-wrap', className)}>

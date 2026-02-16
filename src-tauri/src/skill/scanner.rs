@@ -1,4 +1,4 @@
-﻿//! Skill Security Scanner
+//! Skill Security Scanner
 
 use crate::skill::types::{
     SecurityCategory, SecurityFinding, SecurityScanOptions, SecurityScanReport, SecuritySeverity,
@@ -157,28 +157,44 @@ fn get_security_rules() -> Vec<SecurityRule> {
 }
 
 fn compile_rules(rules: &[SecurityRule]) -> Vec<(SecurityRule, Regex)> {
-    rules.iter().filter_map(|rule| {
-        Regex::new(rule.pattern).ok().map(|re| (rule.clone(), re))
-    }).collect()
+    rules
+        .iter()
+        .filter_map(|rule| Regex::new(rule.pattern).ok().map(|re| (rule.clone(), re)))
+        .collect()
 }
 
 fn should_scan_file(path: &Path, options: &SecurityScanOptions) -> bool {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
     for pattern in &options.skip_patterns {
-        if path.to_string_lossy().contains(pattern) { return false; }
+        if path.to_string_lossy().contains(pattern) {
+            return false;
+        }
     }
     if let Ok(meta) = fs::metadata(path) {
-        if meta.len() > options.max_file_size { return false; }
+        if meta.len() > options.max_file_size {
+            return false;
+        }
     }
-    let skip_ext = ["png","jpg","gif","ico","pdf","zip","exe","dll","so"];
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-    if skip_ext.contains(&ext.as_str()) { return false; }
-    if file_name.starts_with('.') && file_name != ".env" { return false; }
+    let skip_ext = ["png", "jpg", "gif", "ico", "pdf", "zip", "exe", "dll", "so"];
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if skip_ext.contains(&ext.as_str()) {
+        return false;
+    }
+    if file_name.starts_with('.') && file_name != ".env" {
+        return false;
+    }
     true
 }
 
 fn get_extension(path: &Path) -> String {
-    path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase()
+    path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase()
 }
 
 fn rule_applies(rule: &SecurityRule, ext: &str) -> bool {
@@ -189,19 +205,39 @@ fn extract_snippet(content: &str, line_num: usize) -> String {
     let lines: Vec<&str> = content.lines().collect();
     let start = line_num.saturating_sub(2);
     let end = (line_num + 3).min(lines.len());
-    lines[start..end].iter().enumerate().map(|(i, l)| {
-        let n = start + i + 1;
-        if n == line_num + 1 { format!("> {} | {}", n, l) } else { format!("  {} | {}", n, l) }
-    }).collect::<Vec<_>>().join("\n")
+    lines[start..end]
+        .iter()
+        .enumerate()
+        .map(|(i, l)| {
+            let n = start + i + 1;
+            if n == line_num + 1 {
+                format!("> {} | {}", n, l)
+            } else {
+                format!("  {} | {}", n, l)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
-fn scan_file(path: &Path, base: &Path, rules: &[(SecurityRule, Regex)], findings: &mut Vec<SecurityFinding>) -> Result<()> {
+fn scan_file(
+    path: &Path,
+    base: &Path,
+    rules: &[(SecurityRule, Regex)],
+    findings: &mut Vec<SecurityFinding>,
+) -> Result<()> {
     let content = fs::read_to_string(path).with_context(|| format!("Read {}", path.display()))?;
-    let rel = path.strip_prefix(base).unwrap_or(path).to_string_lossy().to_string();
+    let rel = path
+        .strip_prefix(base)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
     let ext = get_extension(path);
     for (line_idx, line) in content.lines().enumerate() {
         for (rule, re) in rules {
-            if !rule_applies(rule, &ext) { continue; }
+            if !rule_applies(rule, &ext) {
+                continue;
+            }
             if let Some(m) = re.find(line) {
                 findings.push(SecurityFinding {
                     rule_id: rule.id.to_string(),
@@ -221,17 +257,26 @@ fn scan_file(path: &Path, base: &Path, rules: &[(SecurityRule, Regex)], findings
     Ok(())
 }
 
-fn collect_files(dir: &Path, files: &mut Vec<std::path::PathBuf>, opts: &SecurityScanOptions) -> Result<()> {
+fn collect_files(
+    dir: &Path,
+    files: &mut Vec<std::path::PathBuf>,
+    opts: &SecurityScanOptions,
+) -> Result<()> {
     if !dir.is_dir() {
-        if should_scan_file(dir, opts) { files.push(dir.to_path_buf()); }
+        if should_scan_file(dir, opts) {
+            files.push(dir.to_path_buf());
+        }
         return Ok(());
     }
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if opts.skip_patterns.iter().any(|p| name == p) { continue; }
-        if path.is_dir() { collect_files(&path, files, opts)?; }
-        else if should_scan_file(&path, opts) && files.len() < opts.max_files as usize {
+        if opts.skip_patterns.iter().any(|p| name == p) {
+            continue;
+        }
+        if path.is_dir() {
+            collect_files(&path, files, opts)?;
+        } else if should_scan_file(&path, opts) && files.len() < opts.max_files as usize {
             files.push(path);
         }
     }
@@ -244,7 +289,9 @@ pub struct SkillSecurityScanner {
 }
 
 impl Default for SkillSecurityScanner {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SkillSecurityScanner {
@@ -254,13 +301,19 @@ impl SkillSecurityScanner {
         Self { rules, compiled }
     }
 
-    pub fn rule_count(&self) -> usize { self.rules.len() }
+    pub fn rule_count(&self) -> usize {
+        self.rules.len()
+    }
 
     pub fn scan(&self, path: &Path, opts: &SecurityScanOptions) -> Result<SecurityScanReport> {
         let start = Instant::now();
-        let id = path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
+        let id = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
         let mut report = SecurityScanReport::new(id, path.to_string_lossy().to_string());
-        
+
         let skill_md = path.join("SKILL.md");
         if skill_md.exists() {
             if let Ok(c) = fs::read_to_string(&skill_md) {
@@ -294,9 +347,16 @@ impl SkillSecurityScanner {
         Ok(report)
     }
 
-    pub fn scan_installed(&self, ssot: &Path, dir: &str, opts: &SecurityScanOptions) -> Result<SecurityScanReport> {
+    pub fn scan_installed(
+        &self,
+        ssot: &Path,
+        dir: &str,
+        opts: &SecurityScanOptions,
+    ) -> Result<SecurityScanReport> {
         let p = ssot.join(dir);
-        if !p.exists() { anyhow::bail!("Skill not found: {}", dir); }
+        if !p.exists() {
+            anyhow::bail!("Skill not found: {}", dir);
+        }
         self.scan(&p, opts)
     }
 }

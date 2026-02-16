@@ -8,6 +8,50 @@ import { UsageSettings } from './usage-settings';
 
 // Mock stores
 const mockClearUsageRecords = jest.fn();
+const mockUsageRecords: UsageRecord[] = [
+  {
+    id: '1',
+    sessionId: 'session-1',
+    messageId: 'msg-1',
+    provider: 'openai',
+    model: 'gpt-4o',
+    tokens: { prompt: 6000, completion: 2000, total: 8000 },
+    cost: 0.12,
+    createdAt: new Date('2024-01-01T10:00:00Z'),
+  },
+  {
+    id: '2',
+    sessionId: 'session-1',
+    messageId: 'msg-2',
+    provider: 'anthropic',
+    model: 'claude-3-sonnet',
+    tokens: { prompt: 1500, completion: 500, total: 2000 },
+    cost: 0.03,
+    createdAt: new Date('2024-01-01T11:00:00Z'),
+  },
+];
+
+jest.mock('@/stores', () => ({
+  useUsageStore: (
+    selector: (state: { records: UsageRecord[]; clearUsageRecords: () => void }) => unknown
+  ) =>
+    selector({
+      records: mockUsageRecords,
+      clearUsageRecords: mockClearUsageRecords,
+    }),
+  useSettingsStore: (selector: (state: { language: string }) => unknown) =>
+    selector({ language: 'en' }),
+}));
+
+jest.mock('@/stores/system/usage-store', () => ({
+  useUsageStore: (selector: (state: { getPerformanceMetrics: () => unknown }) => unknown) =>
+    selector({
+      getPerformanceMetrics: () => ({
+        avgLatency: 120,
+        errorRate: 0,
+      }),
+    }),
+}));
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -116,47 +160,18 @@ jest.mock('@/components/ui/badge', () => ({
   ),
 }));
 
+jest.mock('@/components/chat/utils/usage-analytics-card', () => ({
+  UsageAnalyticsCard: () => <div data-testid="usage-analytics-card" />,
+}));
+
+jest.mock('./quota-settings', () => ({
+  QuotaSettings: () => <div data-testid="quota-settings" />,
+}));
+
 describe('UsageSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
-  // Modified mock to align with component's records-based calculation
-  jest.mock('@/stores', () => ({
-    useUsageStore: (
-      selector: (state: { records: UsageRecord[]; clearUsageRecords: jest.Mock }) => unknown
-    ) => {
-      const state = {
-        records: [
-          {
-            id: '1',
-            sessionId: 'session-1',
-            messageId: 'msg-1',
-            provider: 'openai',
-            model: 'gpt-4o',
-            tokens: { prompt: 6000, completion: 2000, total: 8000 },
-            cost: 0.12,
-            createdAt: new Date('2024-01-01T10:00:00Z'),
-          },
-          {
-            id: '2',
-            sessionId: 'session-1',
-            messageId: 'msg-2',
-            provider: 'anthropic',
-            model: 'claude-3-sonnet',
-            tokens: { prompt: 1500, completion: 500, total: 2000 },
-            cost: 0.03,
-            createdAt: new Date('2024-01-01T11:00:00Z'),
-          },
-        ],
-        clearUsageRecords: mockClearUsageRecords,
-      };
-      return selector(state);
-    },
-    useSettingsStore: (selector: (state: { language: string }) => unknown) => {
-      return selector({ language: 'en' });
-    },
-  }));
 
   it('renders without crashing', () => {
     render(<UsageSettings />);

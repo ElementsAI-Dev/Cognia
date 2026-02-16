@@ -21,6 +21,7 @@ import {
   getProxyProviderModel,
   logProxyStatus,
 } from './proxy-client';
+import { loggers } from '@/lib/logger';
 
 // Mock proxy-fetch module
 jest.mock('@/lib/network/proxy-fetch', () => ({
@@ -333,21 +334,21 @@ describe('proxy-client', () => {
   });
 
   describe('logProxyStatus', () => {
-    let consoleSpy: jest.SpyInstance;
+    let infoSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      infoSpy = jest.spyOn(loggers.ai, 'info').mockImplementation();
     });
 
     afterEach(() => {
-      consoleSpy.mockRestore();
+      infoSpy.mockRestore();
     });
 
     it('should log proxy enabled status', () => {
       logProxyStatus();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[AI Client] Proxy enabled')
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Proxy enabled:')
       );
     });
 
@@ -357,7 +358,7 @@ describe('proxy-client', () => {
 
       logProxyStatus();
 
-      expect(consoleSpy).toHaveBeenCalledWith('[AI Client] Proxy disabled');
+      expect(infoSpy).toHaveBeenCalledWith('Proxy disabled');
     });
   });
 });

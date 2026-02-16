@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid';
 import { persist } from 'zustand/middleware';
 import { loggers } from '@/lib/logger';
 import { videoProjectRepository } from '@/lib/db/repositories/video-project-repository';
-import type { VideoTrack } from '@/hooks/video-studio/use-video-editor';
+import type { VideoTrack } from '@/types/video-studio/types';
 import {
   DEFAULT_VIDEO_PROCESSING_SETTINGS,
   type VideoProcessingSettings,

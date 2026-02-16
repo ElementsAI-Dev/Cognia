@@ -10,6 +10,32 @@ import type {
   MultiModelMessage,
 } from '@/types/chat/multi-model';
 
+// Mock react-virtuoso to render all items in tests
+jest.mock('react-virtuoso', () => ({
+  Virtuoso: ({
+    data = [],
+    itemContent,
+    components,
+    className,
+  }: {
+    data?: unknown[];
+    itemContent: (index: number) => React.ReactNode;
+    components?: { Footer?: React.ComponentType };
+    className?: string;
+  }) => (
+    <div className={className} data-testid="virtuoso-scroller">
+      <div data-testid="virtuoso-item-list">
+        {data.map((_, index) => (
+          <div key={index} data-testid={`virtuoso-item-${index}`}>
+            {itemContent(index)}
+          </div>
+        ))}
+      </div>
+      {components?.Footer ? <components.Footer /> : null}
+    </div>
+  ),
+}));
+
 // Mock next-intl
 jest.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {

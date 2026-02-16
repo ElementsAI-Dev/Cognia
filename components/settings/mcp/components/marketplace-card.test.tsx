@@ -93,7 +93,7 @@ describe('MarketplaceCard', () => {
 
   it('renders source badge', () => {
     renderWithProviders(<MarketplaceCard {...defaultProps} />);
-    expect(screen.getByText('npm')).toBeInTheDocument();
+    expect(screen.getByText(mockItem.source)).toBeInTheDocument();
   });
 
   it('renders star count', () => {

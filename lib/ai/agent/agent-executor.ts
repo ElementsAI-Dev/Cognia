@@ -210,23 +210,29 @@ export function parseReActResponse(response: string, format: ReActFormat): {
     actionDescription?: string;
     observation?: string;
   } = {};
+  const normalizeBlock = (value: string) =>
+    value
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trim();
 
   // Extract Thought
   const thoughtMatch = response.match(/Thought:\s*([\s\S]*?)(?=\n(?:Action|Observation)|$)/i);
   if (thoughtMatch) {
-    result.thought = thoughtMatch[1].trim();
+    result.thought = normalizeBlock(thoughtMatch[1]);
   }
 
   // Extract Action
   const actionMatch = response.match(/Action:\s*([\s\S]*?)(?=\n(?:Thought|Observation)|$)/i);
   if (actionMatch) {
-    result.actionDescription = actionMatch[1].trim();
+    result.actionDescription = normalizeBlock(actionMatch[1]);
   }
 
   // Extract Observation
   const observationMatch = response.match(/Observation:\s*([\s\S]*?)(?=\n(?:Thought|Action)|$)/i);
   if (observationMatch) {
-    result.observation = observationMatch[1].trim();
+    result.observation = normalizeBlock(observationMatch[1]);
   }
 
   return result;
@@ -682,9 +688,12 @@ export async function executeAgent(
     enableAgentTrace,
   } = config;
 
-  // Get agent trace settings from store if not explicitly provided
-  const agentTraceSettings = useSettingsStore.getState().agentTraceSettings;
-  const effectiveEnableAgentTrace = enableAgentTrace ?? agentTraceSettings.enabled;
+  // Get agent trace settings from store if not explicitly provided.
+  // Some test mocks may not fully implement Zustand's getState/shape.
+  const settingsState = typeof useSettingsStore.getState === 'function'
+    ? useSettingsStore.getState()
+    : null;
+  const effectiveEnableAgentTrace = enableAgentTrace ?? settingsState?.agentTraceSettings?.enabled ?? true;
 
   // Memory configuration
   const enableMemoryValue = config.enableMemory ?? false;
@@ -792,7 +801,7 @@ export async function executeAgent(
 
   const cleanupToolCalls = (reason: string) => {
     for (const toolCall of toolCallTracker.values()) {
-      if (toolCall.status === 'pending' || toolCall.status === 'running') {
+      if (toolCall.status === 'pending' || toolCall.status === 'running' || toolCall.status === 'queued') {
         toolCall.status = 'error';
         toolCall.error = reason;
         toolCall.completedAt = new Date();

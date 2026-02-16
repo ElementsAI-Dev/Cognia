@@ -210,6 +210,11 @@ function BattleCard({
                         {contestant.tokenCount.total} {t('tokens')}
                       </div>
                     )}
+                    {contestant.estimatedCost != null && (
+                      <div className="text-emerald-600 dark:text-emerald-400">
+                        ${contestant.estimatedCost.toFixed(4)}
+                      </div>
+                    )}
                     <Badge
                       variant="outline"
                       className={cn(
@@ -224,6 +229,40 @@ function BattleCard({
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Battle parameters */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
+            {battle.taskClassification?.category && (
+              <div className="flex items-center gap-1">
+                <span className="font-medium">{t('category')}:</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {battle.taskClassification.category}
+                </Badge>
+              </div>
+            )}
+            {battle.conversationMode && (
+              <div>
+                <span className="font-medium">{t('mode')}:</span>{' '}
+                {battle.conversationMode === 'multi' ? t('multiTurn') : t('singleTurn')}
+              </div>
+            )}
+            {battle.modelParameters?.temperature != null && (
+              <div>
+                <span className="font-medium">Temp:</span> {battle.modelParameters.temperature}
+              </div>
+            )}
+            {battle.modelParameters?.maxTokens != null && (
+              <div>
+                <span className="font-medium">Max tokens:</span> {battle.modelParameters.maxTokens}
+              </div>
+            )}
+            {battle.mode && (
+              <div>
+                <span className="font-medium">{t('battleMode')}:</span>{' '}
+                {battle.mode === 'blind' ? t('blind') : t('open')}
+              </div>
+            )}
           </div>
 
           {/* Winner info */}

@@ -77,6 +77,14 @@ import { registerCodeActionProvider } from '@/lib/monaco/code-actions';
 import { registerEnhancedHoverProvider } from '@/lib/monaco/hover-provider';
 import { registerColorProvider } from '@/lib/monaco/color-provider';
 import { registerDocumentSymbolProvider } from '@/lib/monaco/symbol-provider';
+import {
+  createMonacoLspAdapter,
+  type MonacoLspAdapter,
+  type MonacoLspFeatureSupport,
+  type MonacoLspStartResult,
+} from '@/lib/monaco/lsp/monaco-lsp-adapter';
+import { isTauriRuntime } from '@/lib/monaco/lsp/lsp-client';
+import type { LspSessionStatus } from '@/types/designer/lsp';
 import type * as Monaco from 'monaco-editor';
 
 interface MonacoSandpackEditorProps {
@@ -174,6 +182,90 @@ const LANGUAGE_DISPLAY_MAP: Record<string, string> = {
   plaintext: 'Plain Text',
 };
 
+const MODEL_LANGUAGE_EXTENSION_MAP: Record<string, string> = {
+  typescript: 'ts',
+  javascript: 'js',
+  typescriptreact: 'tsx',
+  javascriptreact: 'jsx',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  json: 'json',
+  markdown: 'md',
+  python: 'py',
+  rust: 'rs',
+  go: 'go',
+  java: 'java',
+  kotlin: 'kt',
+  swift: 'swift',
+  cpp: 'cpp',
+  c: 'c',
+  csharp: 'cs',
+  php: 'php',
+  ruby: 'rb',
+  shell: 'sh',
+  sql: 'sql',
+  yaml: 'yml',
+  xml: 'xml',
+  dockerfile: 'dockerfile',
+  graphql: 'graphql',
+  mermaid: 'mmd',
+  plaintext: 'txt',
+};
+
+const EMPTY_LSP_FEATURES: MonacoLspFeatureSupport = {
+  completion: false,
+  hover: false,
+  definition: false,
+  documentSymbols: false,
+  codeActions: false,
+  formatting: false,
+  workspaceSymbols: false,
+};
+
+function createDisconnectedLspStartResult(): MonacoLspStartResult {
+  return {
+    connected: false,
+    capabilities: {},
+    features: { ...EMPTY_LSP_FEATURES },
+  };
+}
+
+function getModelExtension(monacoLanguage: string): string {
+  return MODEL_LANGUAGE_EXTENSION_MAP[monacoLanguage] ?? 'txt';
+}
+
+function getModelRootUri(modelUri: string): string {
+  const slashIndex = modelUri.lastIndexOf('/');
+  if (slashIndex <= 'file://'.length) {
+    return 'file:///workspace';
+  }
+  return modelUri.slice(0, slashIndex);
+}
+
+function isLspSupportedLanguage(monacoLanguage: string): boolean {
+  return (
+    monacoLanguage === 'typescript' ||
+    monacoLanguage === 'javascript' ||
+    monacoLanguage === 'typescriptreact' ||
+    monacoLanguage === 'javascriptreact'
+  );
+}
+
+function getLspLanguageId(monacoLanguage: string): string {
+  if (monacoLanguage === 'typescriptreact') return 'typescript';
+  if (monacoLanguage === 'javascriptreact') return 'javascript';
+  return monacoLanguage;
+}
+
+function getDesignerLspEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const raw = localStorage.getItem('cognia-designer-lsp-enabled');
+  // Default enabled unless explicitly set to false.
+  return raw !== 'false';
+}
+
 export function MonacoSandpackEditor({
   className,
   language = 'typescript',
@@ -190,6 +282,9 @@ export function MonacoSandpackEditor({
   const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const snippetDisposablesRef = useRef<Monaco.IDisposable[]>([]);
+  const languageFeatureDisposablesRef = useRef<Monaco.IDisposable[]>([]);
+  const ownedModelRef = useRef<Monaco.editor.ITextModel | null>(null);
+  const modelIdRef = useRef(`sandpack-${Math.random().toString(36).slice(2, 10)}`);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +313,9 @@ export function MonacoSandpackEditor({
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const preloadedRef = useRef(false);
   const typescriptConfiguredRef = useRef(false);
+  const lspAdapterRef = useRef<MonacoLspAdapter | null>(null);
+  const [lspStatus, setLspStatus] = useState<LspSessionStatus>('disabled');
+  const [lspStatusDetail, setLspStatusDetail] = useState<string>('');
 
   const code = useDesignerStore((state) => state.code);
   const setCode = useDesignerStore((state) => state.setCode);
@@ -342,6 +440,154 @@ export function MonacoSandpackEditor({
     editor.trigger('keyboard', actionId, null);
   }, []);
 
+  const runWorkspaceSymbolSearch = useCallback(async () => {
+    const adapter = lspAdapterRef.current;
+    const editor = monacoEditorRef.current;
+    if (!adapter || !editor || !monacoRef.current) {
+      setLspStatusDetail('LSP session is unavailable');
+      return;
+    }
+
+    const featureSupport = adapter.getFeatureSupport();
+    if (!featureSupport.workspaceSymbols) {
+      setLspStatusDetail('Current language server does not support workspace symbols');
+      return;
+    }
+
+    const query = window.prompt('Search workspace symbols', '');
+    if (!query || !query.trim()) {
+      return;
+    }
+
+    try {
+      const symbols = await adapter.workspaceSymbols(query.trim());
+      if (symbols.length === 0) {
+        setLspStatusDetail(`No workspace symbols found for "${query.trim()}"`);
+        return;
+      }
+
+      const firstSymbol = symbols[0];
+      const activeModel = editor.getModel();
+      if (activeModel && firstSymbol.location.uri === activeModel.uri.toString()) {
+        const start = firstSymbol.location.range.start;
+        editor.setPosition({
+          lineNumber: start.line + 1,
+          column: start.character + 1,
+        });
+        editor.revealLineInCenter(start.line + 1);
+        editor.focus();
+      }
+
+      setLspStatusDetail(`Workspace symbols: ${symbols.length} result(s) for "${query.trim()}"`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Workspace symbol lookup failed';
+      setLspStatusDetail(message);
+    }
+  }, []);
+
+  const disposeLanguageFeatureProviders = useCallback(() => {
+    for (const disposable of languageFeatureDisposablesRef.current) {
+      disposable.dispose();
+    }
+    languageFeatureDisposablesRef.current = [];
+  }, []);
+
+  const registerLanguageFeatureProviders = useCallback(
+    (
+      monaco: typeof Monaco,
+      monacoLanguage: string,
+      lspStartResult: MonacoLspStartResult
+    ) => {
+      disposeLanguageFeatureProviders();
+
+      const fallbackToLocal = !lspStartResult.connected;
+      const useLocalCompletion = fallbackToLocal || !lspStartResult.features.completion;
+      const useLocalCodeActions = fallbackToLocal || !lspStartResult.features.codeActions;
+      const useLocalHover = fallbackToLocal || !lspStartResult.features.hover;
+      const useLocalSymbols = fallbackToLocal || !lspStartResult.features.documentSymbols;
+
+      const disposables: Monaco.IDisposable[] = [
+        ...registerColorProvider(monaco, [monacoLanguage]),
+      ];
+
+      if (useLocalCompletion) {
+        disposables.push(...registerAllCompletionProviders(monaco, [monacoLanguage]));
+      }
+      if (useLocalCodeActions) {
+        disposables.push(...registerCodeActionProvider(monaco, [monacoLanguage]));
+      }
+      if (useLocalHover) {
+        disposables.push(...registerEnhancedHoverProvider(monaco, [monacoLanguage]));
+      }
+      if (useLocalSymbols) {
+        disposables.push(...registerDocumentSymbolProvider(monaco, [monacoLanguage]));
+      }
+
+      languageFeatureDisposablesRef.current = disposables;
+    },
+    [disposeLanguageFeatureProviders]
+  );
+
+  const disposeLspAdapter = useCallback(async () => {
+    if (!lspAdapterRef.current) return;
+    await lspAdapterRef.current.dispose();
+    lspAdapterRef.current = null;
+  }, []);
+
+  const startLspAdapterForLanguage = useCallback(
+    async (
+      monaco: typeof Monaco,
+      editor: Monaco.editor.IStandaloneCodeEditor,
+      monacoLanguage: string
+    ): Promise<MonacoLspStartResult> => {
+      const canUseTauriLsp =
+        isTauriRuntime() && getDesignerLspEnabled() && isLspSupportedLanguage(monacoLanguage);
+
+      if (!canUseTauriLsp) {
+        if (!isLspSupportedLanguage(monacoLanguage)) {
+          setLspStatus('disabled');
+          setLspStatusDetail('LSP currently supports TS/JS language family');
+        } else if (!isTauriRuntime()) {
+          setLspStatus('fallback');
+          setLspStatusDetail('Web mode: using Monaco built-in language features');
+        } else if (!getDesignerLspEnabled()) {
+          setLspStatus('disabled');
+          setLspStatusDetail('LSP disabled by preference');
+        } else {
+          setLspStatus('fallback');
+          setLspStatusDetail('Using Monaco built-in language features');
+        }
+        return createDisconnectedLspStartResult();
+      }
+
+      try {
+        const model = editor.getModel();
+        const rootUri = model ? getModelRootUri(model.uri.toString()) : 'file:///workspace';
+
+        setLspStatus('starting');
+        setLspStatusDetail('');
+        lspAdapterRef.current = createMonacoLspAdapter({
+          monaco,
+          editor,
+          languageId: getLspLanguageId(monacoLanguage),
+          rootUri,
+          onStatusChange: (status, detail) => {
+            setLspStatus(status);
+            setLspStatusDetail(detail || '');
+          },
+        });
+        return await lspAdapterRef.current.start();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to start LSP';
+        setLspStatus('fallback');
+        setLspStatusDetail(message);
+        lspAdapterRef.current = null;
+        return createDisconnectedLspStartResult();
+      }
+    },
+    []
+  );
+
   // Initialize Monaco editor with progress tracking
   const initMonaco = useCallback(async () => {
     try {
@@ -361,31 +607,24 @@ export function MonacoSandpackEditor({
       
       setLoadingProgress(40);
 
-      // Register snippets and Emmet support
-      snippetDisposablesRef.current = [
-        ...registerAllSnippets(monaco),
-        ...registerEmmetSupport(monaco),
-        // Register advanced completion providers (import paths, Tailwind CSS, JSX attributes)
-        ...registerAllCompletionProviders(monaco),
-        // Register code actions (quick fixes, refactoring)
-        ...registerCodeActionProvider(monaco),
-        // Register enhanced hover provider (Tailwind CSS→CSS, color preview, unit conversion)
-        ...registerEnhancedHoverProvider(monaco),
-        // Register color provider (inline color decorations and color picker)
-        ...registerColorProvider(monaco),
-        // Register document symbol provider (Go to Symbol, breadcrumbs)
-        ...registerDocumentSymbolProvider(monaco),
-      ];
+      const monacoLanguage = getMonacoLanguage(language);
+
+      snippetDisposablesRef.current = [...registerAllSnippets(monaco), ...registerEmmetSupport(monaco)];
 
       setLoadingProgress(50);
       
       if (!editorRef.current) return;
 
+      const modelUri = monaco.Uri.parse(
+        `file:///workspace/designer/${modelIdRef.current}.${getModelExtension(monacoLanguage)}`
+      );
+      const model = monaco.editor.createModel(code, monacoLanguage, modelUri);
+      ownedModelRef.current = model;
+
       // Create editor with optimized designer settings
       const editor = monaco.editor.create(editorRef.current, {
         ...MONACO_DESIGNER_OPTIONS,
-        value: code,
-        language: getMonacoLanguage(language),
+        model,
         theme: getMonacoTheme(theme),
         readOnly,
         lineNumbers: showLineNumbers ? 'on' : 'off',
@@ -404,6 +643,8 @@ export function MonacoSandpackEditor({
       setLoadingProgress(70);
 
       monacoEditorRef.current = editor;
+      const lspStartResult = await startLspAdapterForLanguage(monaco, editor, monacoLanguage);
+      registerLanguageFeatureProviders(monaco, monacoLanguage, lspStartResult);
 
       // Listen for content changes with auto-save
       editor.onDidChangeModelContent(() => {
@@ -468,6 +709,16 @@ export function MonacoSandpackEditor({
       // Command Palette: Ctrl/Cmd + Shift + P
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => {
         editor.trigger('keyboard', 'editor.action.quickCommand', null);
+      });
+
+      // LSP workspace symbols (command palette action)
+      editor.addAction({
+        id: 'editor.action.lspWorkspaceSymbols',
+        label: 'LSP: Search Workspace Symbols',
+        keybindings: [],
+        run: () => {
+          void runWorkspaceSymbolSearch();
+        },
       });
 
       // Go to Line: Ctrl/Cmd + G
@@ -647,7 +898,7 @@ export function MonacoSandpackEditor({
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, language, theme, readOnly, showLineNumbers, setCode, parseCodeToElements, onSave, onFormat, executeAction, updateStats, updateDiagnostics, t]);
+  }, [code, language, theme, readOnly, showLineNumbers, setCode, parseCodeToElements, onSave, onFormat, executeAction, updateStats, updateDiagnostics, t, startLspAdapterForLanguage, registerLanguageFeatureProviders, runWorkspaceSymbolSearch]);
 
   // Initialize Monaco editor
   useEffect(() => {
@@ -662,6 +913,8 @@ export function MonacoSandpackEditor({
 
     return () => {
       mounted = false;
+      void disposeLspAdapter();
+      disposeLanguageFeatureProviders();
       // Dispose snippet providers
       for (const d of snippetDisposablesRef.current) {
         d.dispose();
@@ -670,8 +923,13 @@ export function MonacoSandpackEditor({
       if (monacoEditorRef.current) {
         (monacoEditorRef.current as { dispose: () => void }).dispose();
       }
+      monacoEditorRef.current = null;
+      if (ownedModelRef.current) {
+        ownedModelRef.current.dispose();
+        ownedModelRef.current = null;
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update editor value when code changes externally
@@ -703,10 +961,16 @@ export function MonacoSandpackEditor({
     if (monaco && editor) {
       const model = editor.getModel();
       if (model) {
-        monaco.editor.setModelLanguage(model, getMonacoLanguage(language));
+        const nextMonacoLanguage = getMonacoLanguage(language);
+        monaco.editor.setModelLanguage(model, nextMonacoLanguage);
+        void (async () => {
+          await disposeLspAdapter();
+          const lspStartResult = await startLspAdapterForLanguage(monaco, editor, nextMonacoLanguage);
+          registerLanguageFeatureProviders(monaco, nextMonacoLanguage, lspStartResult);
+        })();
       }
     }
-  }, [language]);
+  }, [language, disposeLspAdapter, startLspAdapterForLanguage, registerLanguageFeatureProviders]);
 
   // Update readOnly state
   useEffect(() => {
@@ -1138,6 +1402,11 @@ export function MonacoSandpackEditor({
                           const model = editor.getModel();
                           if (model) {
                             monaco.editor.setModelLanguage(model, id);
+                            void (async () => {
+                              await disposeLspAdapter();
+                              const lspStartResult = await startLspAdapterForLanguage(monaco, editor, id);
+                              registerLanguageFeatureProviders(monaco, id, lspStartResult);
+                            })();
                           }
                         }
                       }}
@@ -1147,6 +1416,23 @@ export function MonacoSandpackEditor({
                   ))}
                 </PopoverContent>
               </Popover>
+
+              <Separator orientation="vertical" className="h-3.5" />
+
+              {/* LSP Status */}
+              <span
+                className={cn(
+                  'px-1 py-0.5 rounded-sm',
+                  lspStatus === 'connected' && 'text-emerald-600',
+                  lspStatus === 'starting' && 'text-blue-500',
+                  lspStatus === 'fallback' && 'text-amber-600',
+                  lspStatus === 'error' && 'text-destructive',
+                  lspStatus === 'disabled' && 'text-muted-foreground'
+                )}
+                title={lspStatusDetail || 'Language service status'}
+              >
+                LSP: {lspStatus}
+              </span>
 
               <Separator orientation="vertical" className="h-3.5" />
 

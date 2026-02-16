@@ -2,7 +2,9 @@
 //!
 //! Exposes Tauri commands for managing external agent processes and terminals.
 
-use super::process::{ExternalAgentProcessManager, ExternalAgentProcessState, ExternalAgentSpawnConfig};
+use super::process::{
+    ExternalAgentProcessManager, ExternalAgentProcessState, ExternalAgentSpawnConfig,
+};
 use super::terminal::AcpTerminalManager;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
@@ -35,57 +37,69 @@ pub async fn spawn_external_agent(
 ) -> Result<String, String> {
     let manager = state.0.lock().await;
     let id = config.id.clone();
-    
+
     let result = manager.spawn(config).await;
-    
+
     if result.is_ok() {
         // Emit spawn event with Starting state
-        let _ = app.emit("external-agent://spawn", serde_json::json!({
-            "agentId": id,
-            "status": "starting"
-        }));
-        
+        let _ = app.emit(
+            "external-agent://spawn",
+            serde_json::json!({
+                "agentId": id,
+                "status": "starting"
+            }),
+        );
+
         // Transition to Running state
         let _ = manager.set_running(&id).await;
-        
+
         // Emit state change to Running
-        let _ = app.emit("external-agent://state-change", serde_json::json!({
-            "agentId": id,
-            "state": "Running"
-        }));
-        
+        let _ = app.emit(
+            "external-agent://state-change",
+            serde_json::json!({
+                "agentId": id,
+                "state": "Running"
+            }),
+        );
+
         // Start background task to emit stdout/stderr events
         let manager_clone = state.0.clone();
         let app_clone = app.clone();
         let id_clone = id.clone();
-        
+
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-                
+
                 let manager = manager_clone.lock().await;
-                
+
                 // Check if process is still running using is_running method
                 let is_running = manager.is_running(&id_clone).await.unwrap_or(false);
-                
+
                 if is_running {
                     // Get stdout lines and emit
                     if let Ok(lines) = manager.receive_stdout(&id_clone).await {
                         for line in lines {
-                            let _ = app_clone.emit("external-agent://stdout", serde_json::json!({
-                                "agentId": id_clone,
-                                "data": line
-                            }));
+                            let _ = app_clone.emit(
+                                "external-agent://stdout",
+                                serde_json::json!({
+                                    "agentId": id_clone,
+                                    "data": line
+                                }),
+                            );
                         }
                     }
-                    
+
                     // Get stderr lines and emit
                     if let Ok(lines) = manager.receive_stderr(&id_clone).await {
                         for line in lines {
-                            let _ = app_clone.emit("external-agent://stderr", serde_json::json!({
-                                "agentId": id_clone,
-                                "data": line
-                            }));
+                            let _ = app_clone.emit(
+                                "external-agent://stderr",
+                                serde_json::json!({
+                                    "agentId": id_clone,
+                                    "data": line
+                                }),
+                            );
                         }
                     }
                 } else {
@@ -95,28 +109,37 @@ pub async fn spawn_external_agent(
                         Some(ExternalAgentProcessState::Failed) => "Failed",
                         _ => "Stopped",
                     };
-                    
-                    let _ = app_clone.emit("external-agent://state-change", serde_json::json!({
-                        "agentId": id_clone,
-                        "state": exit_state
-                    }));
-                    
-                    let _ = app_clone.emit("external-agent://exit", serde_json::json!({
-                        "agentId": id_clone,
-                        "code": 0
-                    }));
+
+                    let _ = app_clone.emit(
+                        "external-agent://state-change",
+                        serde_json::json!({
+                            "agentId": id_clone,
+                            "state": exit_state
+                        }),
+                    );
+
+                    let _ = app_clone.emit(
+                        "external-agent://exit",
+                        serde_json::json!({
+                            "agentId": id_clone,
+                            "code": 0
+                        }),
+                    );
                     break;
                 }
             }
         });
     } else {
         // Spawn failed - this happens before process is created
-        let _ = app.emit("external-agent://state-change", serde_json::json!({
-            "agentId": id,
-            "state": "Failed"
-        }));
+        let _ = app.emit(
+            "external-agent://state-change",
+            serde_json::json!({
+                "agentId": id,
+                "state": "Failed"
+            }),
+        );
     }
-    
+
     result
 }
 
@@ -140,14 +163,17 @@ pub async fn kill_external_agent(
 ) -> Result<(), String> {
     let manager = state.0.lock().await;
     let result = manager.kill(&agent_id).await;
-    
+
     if result.is_ok() {
-        let _ = app.emit("external-agent://exit", serde_json::json!({
-            "agentId": agent_id,
-            "code": 0
-        }));
+        let _ = app.emit(
+            "external-agent://exit",
+            serde_json::json!({
+                "agentId": agent_id,
+                "code": 0
+            }),
+        );
     }
-    
+
     result
 }
 
@@ -159,7 +185,7 @@ pub async fn get_external_agent_status(
 ) -> Result<String, String> {
     let manager = state.0.lock().await;
     let status = manager.status(&agent_id).await;
-    
+
     match status {
         Some(state) => Ok(format!("{:?}", state)),
         None => Err(format!("Agent {} not found", agent_id)),
@@ -214,14 +240,17 @@ pub async fn set_external_agent_running(
 ) -> Result<(), String> {
     let manager = state.0.lock().await;
     let result = manager.set_running(&agent_id).await;
-    
+
     if result.is_ok() {
-        let _ = app.emit("external-agent://state-change", serde_json::json!({
-            "agentId": agent_id,
-            "state": "Running"
-        }));
+        let _ = app.emit(
+            "external-agent://state-change",
+            serde_json::json!({
+                "agentId": agent_id,
+                "state": "Running"
+            }),
+        );
     }
-    
+
     result
 }
 
@@ -234,22 +263,23 @@ pub async fn set_external_agent_failed(
 ) -> Result<(), String> {
     let manager = state.0.lock().await;
     let result = manager.set_failed(&agent_id).await;
-    
+
     if result.is_ok() {
-        let _ = app.emit("external-agent://state-change", serde_json::json!({
-            "agentId": agent_id,
-            "state": "Failed"
-        }));
+        let _ = app.emit(
+            "external-agent://state-change",
+            serde_json::json!({
+                "agentId": agent_id,
+                "state": "Failed"
+            }),
+        );
     }
-    
+
     result
 }
 
 /// Kill all external agent processes
 #[tauri::command]
-pub async fn kill_all_external_agents(
-    state: State<'_, ExternalAgentState>,
-) -> Result<(), String> {
+pub async fn kill_all_external_agents(state: State<'_, ExternalAgentState>) -> Result<(), String> {
     let manager = state.0.lock().await;
     manager.kill_all().await
 }
@@ -267,7 +297,10 @@ pub async fn acp_terminal_create(
     cwd: Option<String>,
     state: State<'_, AcpTerminalState>,
 ) -> Result<String, String> {
-    state.0.create(&session_id, &command, &args, cwd.as_deref()).await
+    state
+        .0
+        .create(&session_id, &command, &args, cwd.as_deref())
+        .await
 }
 
 /// Get output from an ACP terminal
@@ -359,8 +392,6 @@ pub async fn acp_terminal_get_info(
 
 /// List all terminal IDs
 #[tauri::command]
-pub async fn acp_terminal_list(
-    state: State<'_, AcpTerminalState>,
-) -> Result<Vec<String>, String> {
+pub async fn acp_terminal_list(state: State<'_, AcpTerminalState>) -> Result<Vec<String>, String> {
     Ok(state.0.list().await)
 }

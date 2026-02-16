@@ -3,9 +3,9 @@
 //! Commands for controlling the selection toolbar from the frontend.
 
 use crate::selection::{
-    Selection, SelectionConfig, SelectionContext, SelectionExpansion,
-    SelectionHistoryEntry, SelectionHistoryStats, SelectionManager, SelectionMode,
-    SelectionPayload, SelectionStatus, SourceAppInfo,
+    Selection, SelectionConfig, SelectionContext, SelectionExpansion, SelectionHistoryEntry,
+    SelectionHistoryStats, SelectionManager, SelectionMode, SelectionPayload, SelectionStatus,
+    SourceAppInfo,
 };
 use tauri::{Emitter, State};
 
@@ -122,9 +122,7 @@ pub async fn selection_update_config(
 
 /// Save selection configuration to file
 #[tauri::command]
-pub async fn selection_save_config(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn selection_save_config(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.save_config()
 }
 
@@ -185,7 +183,7 @@ pub async fn selection_get_toolbar_state(
     if manager.toolbar_window.is_visible() {
         let text = manager.toolbar_window.get_selected_text();
         let (x, y) = manager.toolbar_window.get_position();
-        
+
         if let Some(text) = text {
             return Ok(Some(serde_json::json!({
                 "text": text,
@@ -504,9 +502,7 @@ pub async fn selection_get_last_text(
 
 /// Clear the last detected text
 #[tauri::command]
-pub async fn selection_clear_last_text(
-    manager: State<'_, SelectionManager>,
-) -> Result<(), String> {
+pub async fn selection_clear_last_text(manager: State<'_, SelectionManager>) -> Result<(), String> {
     manager.detector.clear_last_text();
     Ok(())
 }

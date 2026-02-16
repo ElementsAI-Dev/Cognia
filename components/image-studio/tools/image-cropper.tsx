@@ -101,7 +101,7 @@ export function ImageCropper({
     initialCrop || { x: 0, y: 0, width: 100, height: 100 }
   );
   const [transform, setTransform] = useState<ImageTransform>(
-    initialTransform || { rotation: 0, flipHorizontal: false, flipVertical: false }
+    initialTransform || { rotation: 0, flipHorizontal: false, flipVertical: false, scale: 1 }
   );
   const [aspectRatio, setAspectRatio] = useState<number | null>(initialAspectRatio);
   const [isDragging, setIsDragging] = useState(false);
@@ -540,7 +540,7 @@ export function ImageCropper({
   }, []);
 
   const handleResetTransform = useCallback(() => {
-    setTransform({ rotation: 0, flipHorizontal: false, flipVertical: false });
+    setTransform({ rotation: 0, flipHorizontal: false, flipVertical: false, scale: 1 });
     setCrop({ x: 0, y: 0, width: imageSize.width, height: imageSize.height });
   }, [imageSize]);
 

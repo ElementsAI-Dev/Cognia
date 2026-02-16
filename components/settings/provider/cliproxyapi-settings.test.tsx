@@ -10,8 +10,80 @@ import * as cliproxyapi from '@/lib/ai/providers/cliproxyapi';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      serverStatus: 'Server Status',
+      managementWebUI: 'Management WebUI',
+      connected: 'Connected',
+      endpoint: 'Endpoint',
+      latency: 'Latency',
+      clickRefreshToTest: 'Click refresh to test',
+      openWebUI: 'Open WebUI',
+      webUIDescription: 'Access and manage CLIProxyAPI',
+      availableModels: 'Available Models',
+      modelsAvailableThrough: 'Models available through the gateway',
+      clickRefreshToLoad: 'Click refresh to load',
+      serverConfiguration: 'Server Configuration',
+      host: 'Host',
+      port: 'Port',
+      routingStrategy: 'Routing Strategy',
+      autoSwitchProject: 'Auto-switch Project',
+      autoSwitchPreview: 'Auto-switch to Preview Model',
+      keepaliveInterval: 'Keepalive Interval (s)',
+      bootstrapRetries: 'Bootstrap Retries',
+      managementKey: 'Management Key (Optional)',
+      managementKeyPlaceholder: 'Optional key',
+      viewDocumentation: 'View full configuration documentation',
+    };
+    return translations[key] || key;
+  },
 }));
+
+// Mock settings store with setState/getState API used by this test file
+jest.mock('@/stores', () => {
+  const storeState: {
+    providerSettings: Record<string, unknown>;
+    updateProviderSettings: (providerId: string, updates: Record<string, unknown>) => void;
+  } = {
+    providerSettings: {},
+    updateProviderSettings: (providerId: string, updates: Record<string, unknown>) => {
+      const previous = (storeState.providerSettings[providerId] as Record<string, unknown>) || {};
+      const previousCliProxy =
+        (previous.cliProxyAPISettings as Record<string, unknown> | undefined) || {};
+      const nextCliProxy =
+        (updates.cliProxyAPISettings as Record<string, unknown> | undefined) || {};
+
+      storeState.providerSettings[providerId] = {
+        ...previous,
+        ...updates,
+        cliProxyAPISettings: {
+          ...previousCliProxy,
+          ...nextCliProxy,
+        },
+      };
+    },
+  };
+
+  const useSettingsStore = ((selector?: (state: typeof storeState) => unknown) => {
+    return selector ? selector(storeState) : storeState;
+  }) as ((selector?: (state: typeof storeState) => unknown) => unknown) & {
+    setState: (partial: Partial<typeof storeState>) => void;
+    getState: () => typeof storeState;
+  };
+
+  useSettingsStore.setState = (partial: Partial<typeof storeState>) => {
+    if (partial.providerSettings) {
+      storeState.providerSettings = partial.providerSettings as Record<string, unknown>;
+    }
+    if (partial.updateProviderSettings) {
+      storeState.updateProviderSettings = partial.updateProviderSettings;
+    }
+  };
+
+  useSettingsStore.getState = () => storeState;
+
+  return { useSettingsStore };
+});
 
 // Mock the CLIProxyAPI library
 jest.mock('@/lib/ai/providers/cliproxyapi', () => ({

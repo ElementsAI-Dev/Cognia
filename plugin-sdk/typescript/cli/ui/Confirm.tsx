@@ -6,8 +6,8 @@
 
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { colors, symbols } from './theme.js';
-import type { Key } from './types.js';
+import { colors, symbols } from './theme';
+import type { Key } from './types';
 
 export interface ConfirmProps {
   /** Question to ask */

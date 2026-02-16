@@ -4,16 +4,19 @@
 //! AI skills from documentation, GitHub repositories, and PDFs.
 
 use crate::skill_seekers::{
-    EnhanceConfig, EnhanceSkillInput, GeneratedSkill, GitHubScrapeConfig,
-    PackageSkillInput, PageEstimation, PresetConfig,
-    ScrapeGitHubInput, ScrapePdfInput, ScrapeWebsiteInput, SkillGenerationJob,
-    SkillSeekersService, SkillSeekersServiceConfig, SkillSeekersState, WebsiteScrapeConfig,
+    EnhanceConfig, EnhanceSkillInput, GeneratedSkill, GitHubScrapeConfig, PackageSkillInput,
+    PageEstimation, PresetConfig, ScrapeGitHubInput, ScrapePdfInput, ScrapeWebsiteInput,
+    SkillGenerationJob, SkillSeekersService, SkillSeekersServiceConfig, SkillSeekersState,
+    WebsiteScrapeConfig,
 };
 use std::path::PathBuf;
 use tauri::{AppHandle, State};
 
 /// Create skill seekers service for app state
-pub fn create_skill_seekers_service(app_data_dir: PathBuf, app_handle: AppHandle) -> SkillSeekersState {
+pub fn create_skill_seekers_service(
+    app_data_dir: PathBuf,
+    app_handle: AppHandle,
+) -> SkillSeekersState {
     match SkillSeekersService::new(app_data_dir) {
         Ok(mut service) => {
             service.set_app_handle(app_handle);
@@ -74,7 +77,10 @@ pub async fn skill_seekers_update_config(
     config: SkillSeekersServiceConfig,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.update_config(config).await.map_err(|e| e.to_string())
+    service
+        .update_config(config)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// List available preset configurations
@@ -83,7 +89,10 @@ pub async fn skill_seekers_list_presets(
     state: State<'_, SkillSeekersState>,
 ) -> Result<Vec<PresetConfig>, String> {
     let service = state.0.read().await;
-    service.list_preset_configs().await.map_err(|e| e.to_string())
+    service
+        .list_preset_configs()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== Scraping Commands ==========
@@ -95,7 +104,10 @@ pub async fn skill_seekers_scrape_website(
     input: ScrapeWebsiteInput,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    service.scrape_website(input).await.map_err(|e| e.to_string())
+    service
+        .scrape_website(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Scrape a GitHub repository
@@ -105,7 +117,10 @@ pub async fn skill_seekers_scrape_github(
     input: ScrapeGitHubInput,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    service.scrape_github(input).await.map_err(|e| e.to_string())
+    service
+        .scrape_github(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Extract from a PDF document
@@ -127,7 +142,10 @@ pub async fn skill_seekers_enhance(
     input: EnhanceSkillInput,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.enhance_skill(input).await.map_err(|e| e.to_string())
+    service
+        .enhance_skill(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Package a skill for a target platform
@@ -137,7 +155,10 @@ pub async fn skill_seekers_package(
     input: PackageSkillInput,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    service.package_skill(input).await.map_err(|e| e.to_string())
+    service
+        .package_skill(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== Utility Commands ==========
@@ -163,7 +184,10 @@ pub async fn skill_seekers_validate_config(
     config_path: String,
 ) -> Result<bool, String> {
     let service = state.0.read().await;
-    service.validate_config(&config_path).await.map_err(|e| e.to_string())
+    service
+        .validate_config(&config_path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== Job Management Commands ==========
@@ -280,7 +304,7 @@ pub async fn skill_seekers_quick_generate_website(
     auto_install: bool,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    
+
     let input = ScrapeWebsiteInput {
         config: WebsiteScrapeConfig {
             name,
@@ -296,8 +320,11 @@ pub async fn skill_seekers_quick_generate_website(
         package: None,
         auto_install,
     };
-    
-    service.scrape_website(input).await.map_err(|e| e.to_string())
+
+    service
+        .scrape_website(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Quick generate skill from GitHub repo (uses defaults)
@@ -309,7 +336,7 @@ pub async fn skill_seekers_quick_generate_github(
     auto_install: bool,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    
+
     let input = ScrapeGitHubInput {
         config: GitHubScrapeConfig {
             repo,
@@ -323,8 +350,11 @@ pub async fn skill_seekers_quick_generate_github(
         package: None,
         auto_install,
     };
-    
-    service.scrape_github(input).await.map_err(|e| e.to_string())
+
+    service
+        .scrape_github(input)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Quick generate skill from preset config
@@ -336,7 +366,7 @@ pub async fn skill_seekers_quick_generate_preset(
     auto_install: bool,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    
+
     let input = ScrapeWebsiteInput {
         config: WebsiteScrapeConfig::default(),
         preset_config: Some(preset_name),
@@ -348,6 +378,9 @@ pub async fn skill_seekers_quick_generate_preset(
         package: None,
         auto_install,
     };
-    
-    service.scrape_website(input).await.map_err(|e| e.to_string())
+
+    service
+        .scrape_website(input)
+        .await
+        .map_err(|e| e.to_string())
 }

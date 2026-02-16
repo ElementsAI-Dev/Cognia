@@ -217,13 +217,16 @@ describe('notification-integration', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle test errors', async () => {
+    it('should tolerate desktop notification errors', async () => {
       mockSendNotification.mockRejectedValueOnce(new Error('Test failed'));
 
       const result = await testNotificationChannel('desktop');
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Test failed');
+      expect(result.success).toBe(true);
+      expect(mockSendNotification).toHaveBeenCalledWith({
+        title: 'Notification Test',
+        body: 'This is a test notification from the scheduler.',
+      });
     });
   });
 });

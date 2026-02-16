@@ -663,7 +663,15 @@ impl ClipboardContextAnalyzer {
         }
 
         // Check for Python code (doesn't use braces)
-        let python_indicators = ["def ", "class ", "import ", "if __name__", "print(", "elif ", "except:"];
+        let python_indicators = [
+            "def ",
+            "class ",
+            "import ",
+            "if __name__",
+            "print(",
+            "elif ",
+            "except:",
+        ];
         let python_count = python_indicators
             .iter()
             .filter(|i| content.contains(*i))
@@ -770,8 +778,7 @@ impl ClipboardContextAnalyzer {
         }
 
         // Check for SSN patterns (XXX-XX-XXXX)
-        static SSN_REGEX: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap());
+        static SSN_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap());
         if SSN_REGEX.is_match(content) {
             return true;
         }

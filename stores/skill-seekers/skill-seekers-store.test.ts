@@ -442,15 +442,11 @@ describe('SkillSeekersStore - Job Management', () => {
   it('should handle refreshJobs error gracefully', async () => {
     skillSeekersApi.listJobs.mockRejectedValue(new Error('API error'));
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
     const store = useSkillSeekersStore.getState();
 
     await store.refreshJobs();
 
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(useSkillSeekersStore.getState().error).toBe(null);
   });
 
   it('should cancel job and refresh', async () => {
@@ -512,16 +508,12 @@ describe('SkillSeekersStore - Job Management', () => {
   it('should handle cleanupJobs error gracefully', async () => {
     skillSeekersApi.cleanupJobs.mockRejectedValue(new Error('Cleanup failed'));
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
     const store = useSkillSeekersStore.getState();
 
     const count = await store.cleanupJobs();
 
     expect(count).toBe(0);
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(useSkillSeekersStore.getState().error).toBe(null);
   });
 });
 
@@ -553,15 +545,11 @@ describe('SkillSeekersStore - Preset Management', () => {
   it('should handle refreshPresets error gracefully', async () => {
     skillSeekersApi.listPresets.mockRejectedValue(new Error('API error'));
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
     const store = useSkillSeekersStore.getState();
 
     await store.refreshPresets();
 
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(useSkillSeekersStore.getState().error).toBe(null);
   });
 });
 
@@ -610,15 +598,11 @@ describe('SkillSeekersStore - Generated Skills Management', () => {
   it('should handle refreshGeneratedSkills error gracefully', async () => {
     skillSeekersApi.listGenerated.mockRejectedValue(new Error('API error'));
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
     const store = useSkillSeekersStore.getState();
 
     await store.refreshGeneratedSkills();
 
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(useSkillSeekersStore.getState().error).toBe(null);
   });
 });
 
@@ -737,15 +721,11 @@ describe('SkillSeekersStore - Config and UI State', () => {
   it('should handle refreshConfig error gracefully', async () => {
     skillSeekersApi.getConfig.mockRejectedValue(new Error('API error'));
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
     const store = useSkillSeekersStore.getState();
 
     await store.refreshConfig();
 
-    expect(consoleErrorSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(useSkillSeekersStore.getState().error).toBe(null);
   });
 });
 

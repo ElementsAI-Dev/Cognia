@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { Box, Text } from 'ink';
 import InkTextInput from 'ink-text-input';
-import { colors, symbols } from './theme.js';
+import { colors, symbols } from './theme';
 
 export interface TextInputProps {
   /** Label displayed before input */

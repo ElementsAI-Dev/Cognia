@@ -161,9 +161,9 @@ impl WindowManager {
         use windows::Win32::System::ProcessStatus::GetModuleBaseNameW;
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         use windows::Win32::UI::WindowsAndMessaging::{
-            EnumWindows, GetWindowLongW, GetWindowRect, GetWindowTextLengthW,
-            GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed,
-            GWL_EXSTYLE, WS_EX_TOOLWINDOW,
+            EnumWindows, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+            GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed, GWL_EXSTYLE,
+            WS_EX_TOOLWINDOW,
         };
 
         let mut windows: Vec<WindowInfo> = Vec::new();
@@ -1153,9 +1153,9 @@ impl WindowManager {
         }
 
         // Deduplicate guides
-        result.guides.dedup_by(|a, b| {
-            a.orientation == b.orientation && a.position == b.position
-        });
+        result
+            .guides
+            .dedup_by(|a, b| a.orientation == b.orientation && a.position == b.position);
 
         result
     }
@@ -1378,15 +1378,13 @@ mod tests {
             width: 800,
             height: 600,
             snapped: true,
-            guides: vec![
-                SnapGuide {
-                    orientation: "vertical".to_string(),
-                    position: 100,
-                    start: 0,
-                    end: 1080,
-                    source: "Screen".to_string(),
-                },
-            ],
+            guides: vec![SnapGuide {
+                orientation: "vertical".to_string(),
+                position: 100,
+                start: 0,
+                end: 1080,
+                source: "Screen".to_string(),
+            }],
         };
 
         let json = serde_json::to_string(&result).unwrap();

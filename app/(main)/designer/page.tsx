@@ -13,9 +13,8 @@ import { useDesignerStore } from '@/stores/designer';
 import { useDebouncedCallback } from '@/hooks/utils/use-debounce';
 import { useMediaQuery } from '@/hooks/ui/use-media-query';
 import {
-  ReactSandbox,
   MonacoSandpackEditor,
-  DesignerPreview,
+  DesignerMainWorkspace,
   ResponsiveControls,
   ElementTree,
   StylePanel,
@@ -535,7 +534,13 @@ export default function DesignerPage() {
             /* Mobile: Tab-based layout */
             <MobileDesignerLayout
               previewContent={
-                <DesignerPreview className="h-full" />
+                <DesignerMainWorkspace
+                  mode={designerMode === 'code' ? 'preview' : designerMode}
+                  framework={framework}
+                  onCodeChange={handleCodeChange}
+                  onRequestAIEdit={() => setShowAIPanel(true)}
+                  className="h-full"
+                />
               }
               codeContent={
                 <MonacoSandpackEditor
@@ -576,34 +581,13 @@ export default function DesignerPage() {
               {/* Main Preview/Editor Panel */}
               <ResizablePanel defaultSize={showElementTree || showStylePanel || showHistoryPanel ? 64 : 100} data-tour="designer-canvas">
                 <div className="flex flex-col h-full min-h-0">
-                  {designerMode === 'code' ? (
-                    /* Code mode: MonacoSandpackEditor + ReactSandbox preview split */
-                    <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-                      <ResizablePanel defaultSize={55} minSize={30}>
-                        <MonacoSandpackEditor
-                          onSave={(savedCode) => handleCodeChange(savedCode ?? '')}
-                          showStatusBar
-                          showToolbar
-                        />
-                      </ResizablePanel>
-                      <ResizableHandle withHandle />
-                      <ResizablePanel defaultSize={45} minSize={25}>
-                        <ReactSandbox
-                          code={code}
-                          onCodeChange={handleCodeChange}
-                          showEditor={false}
-                          showPreview
-                          showFileExplorer
-                          showConsole={false}
-                          framework={framework}
-                          onAIEdit={() => setShowAIPanel(true)}
-                        />
-                      </ResizablePanel>
-                    </ResizablePanelGroup>
-                  ) : (
-                    /* Preview/Design mode: DesignerPreview with full interactive features */
-                    <DesignerPreview className="flex-1 min-h-0" />
-                  )}
+                  <DesignerMainWorkspace
+                    mode={designerMode}
+                    framework={framework}
+                    onCodeChange={handleCodeChange}
+                    onRequestAIEdit={() => setShowAIPanel(true)}
+                    className="flex-1 min-h-0"
+                  />
                   {/* Floating AI Prompt Bar */}
                   {showAIPanel && (
                     <div className="p-3 border-t bg-background/95 backdrop-blur-sm">

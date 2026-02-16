@@ -3,7 +3,7 @@
  * Uses dagre for automatic graph layout
  */
 
-import { Graph } from 'dagre-d3-es/src/graphlib/index.js';
+import { Graph } from 'dagre-d3-es/src/graphlib/graph.js';
 import { layout } from 'dagre-d3-es/src/dagre/index.js';
 import type { UIMessage } from '@/types/core/message';
 import type { ConversationBranch } from '@/types/core/session';
@@ -122,48 +122,108 @@ function calculateDagreLayout(
   options: FlowLayoutOptions
 ): Map<string, { x: number; y: number }> {
   const { direction, nodeWidth, nodeHeight, horizontalSpacing, verticalSpacing } = options;
+  // In some runtime/test environments, dagre graph constructor interop can fail.
+  // Fall back to deterministic layered layout instead of throwing.
+  try {
+    // Create a new dagre graph
+    const g = new Graph();
 
-  // Create a new dagre graph
-  const g = new Graph();
-  
-  // Set graph options
-  g.setGraph({
-    rankdir: direction,
-    nodesep: horizontalSpacing,
-    ranksep: verticalSpacing,
-    marginx: 50,
-    marginy: 50,
-  });
-  
-  // Default to assigning a new object as a label for each edge
-  g.setDefaultEdgeLabel(() => ({}));
+    // Set graph options
+    g.setGraph({
+      rankdir: direction,
+      nodesep: horizontalSpacing,
+      ranksep: verticalSpacing,
+      marginx: 50,
+      marginy: 50,
+    });
 
-  // Add nodes to the graph
-  for (const [id, _node] of hierarchy) {
-    g.setNode(id, { width: nodeWidth, height: nodeHeight });
-  }
+    // Default to assigning a new object as a label for each edge
+    g.setDefaultEdgeLabel(() => ({}));
 
-  // Add edges based on hierarchy
-  for (const [id, node] of hierarchy) {
-    if (node.parentId) {
-      g.setEdge(node.parentId, id);
+    // Add nodes to the graph
+    for (const [id, _node] of hierarchy) {
+      g.setNode(id, { width: nodeWidth, height: nodeHeight });
     }
+
+    // Add edges based on hierarchy
+    for (const [id, node] of hierarchy) {
+      if (node.parentId) {
+        g.setEdge(node.parentId, id);
+      }
+    }
+
+    // Calculate layout
+    layout(g, {});
+
+    // Extract positions
+    const positions = new Map<string, { x: number; y: number }>();
+
+    for (const nodeId of g.nodes()) {
+      const nodeData = g.node(nodeId);
+      if (nodeData) {
+        // dagre positions are centered, adjust to top-left for ReactFlow
+        positions.set(nodeId, {
+          x: nodeData.x - nodeWidth / 2,
+          y: nodeData.y - nodeHeight / 2,
+        });
+      }
+    }
+
+    return positions;
+  } catch {
+    return calculateFallbackLayout(hierarchy, options);
+  }
+}
+
+function calculateFallbackLayout(
+  hierarchy: Map<string, MessageHierarchy>,
+  options: FlowLayoutOptions
+): Map<string, { x: number; y: number }> {
+  const { direction, nodeWidth, nodeHeight, horizontalSpacing, verticalSpacing } = options;
+  const levels = new Map<number, string[]>();
+
+  for (const [id, node] of hierarchy) {
+    const level = node.depth;
+    const existing = levels.get(level) || [];
+    existing.push(id);
+    levels.set(level, existing);
   }
 
-  // Calculate layout
-  layout(g, {});
+  for (const [level, ids] of levels) {
+    ids.sort((a, b) => {
+      const aIndex = hierarchy.get(a)?.index ?? 0;
+      const bIndex = hierarchy.get(b)?.index ?? 0;
+      return aIndex - bIndex;
+    });
+    levels.set(level, ids);
+  }
 
-  // Extract positions
   const positions = new Map<string, { x: number; y: number }>();
-  
-  for (const nodeId of g.nodes()) {
-    const nodeData = g.node(nodeId);
-    if (nodeData) {
-      // dagre positions are centered, adjust to top-left for ReactFlow
-      positions.set(nodeId, {
-        x: nodeData.x - nodeWidth / 2,
-        y: nodeData.y - nodeHeight / 2,
-      });
+
+  for (const [level, ids] of levels) {
+    const primaryGap = direction === 'LR' || direction === 'RL'
+      ? nodeHeight + verticalSpacing
+      : nodeWidth + horizontalSpacing;
+    const start = -((ids.length - 1) * primaryGap) / 2;
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const primary = start + i * primaryGap;
+      const secondary = level * (
+        direction === 'LR' || direction === 'RL'
+          ? nodeWidth + horizontalSpacing
+          : nodeHeight + verticalSpacing
+      );
+
+      if (direction === 'TB') {
+        positions.set(id, { x: primary, y: secondary });
+      } else if (direction === 'BT') {
+        positions.set(id, { x: primary, y: -secondary });
+      } else if (direction === 'LR') {
+        positions.set(id, { x: secondary, y: primary });
+      } else {
+        positions.set(id, { x: -secondary, y: primary });
+      }
     }
   }
 

@@ -74,9 +74,7 @@ pub async fn context_get_editor(
 
 /// Check if the current context is a code editor
 #[tauri::command]
-pub async fn context_is_code_editor(
-    manager: State<'_, ContextManager>,
-) -> Result<bool, String> {
+pub async fn context_is_code_editor(manager: State<'_, ContextManager>) -> Result<bool, String> {
     match manager.get_editor_context() {
         Ok(ctx) => Ok(ctx.is_code_editor()),
         Err(_) => Ok(false),

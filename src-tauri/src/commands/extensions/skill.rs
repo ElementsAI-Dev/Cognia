@@ -29,7 +29,9 @@ pub fn create_skill_service(app_data_dir: PathBuf) -> SkillServiceState {
 
 /// List all configured skill repositories
 #[tauri::command]
-pub async fn skill_list_repos(state: State<'_, SkillServiceState>) -> Result<Vec<SkillRepo>, String> {
+pub async fn skill_list_repos(
+    state: State<'_, SkillServiceState>,
+) -> Result<Vec<SkillRepo>, String> {
     let service = state.0.read().await;
     Ok(service.list_repos().await)
 }
@@ -58,7 +60,10 @@ pub async fn skill_remove_repo(
     name: String,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.remove_repo(&owner, &name).await.map_err(|e| e.to_string())
+    service
+        .remove_repo(&owner, &name)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Toggle repository enabled state
@@ -70,7 +75,10 @@ pub async fn skill_toggle_repo(
     enabled: bool,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.toggle_repo(&owner, &name, enabled).await.map_err(|e| e.to_string())
+    service
+        .toggle_repo(&owner, &name, enabled)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== Discovery Commands ==========
@@ -93,7 +101,9 @@ pub async fn skill_get_all(state: State<'_, SkillServiceState>) -> Result<Vec<Sk
 
 /// Discover all skills (discoverable + installed + local)
 #[tauri::command]
-pub async fn skill_discover_all(state: State<'_, SkillServiceState>) -> Result<SkillDiscoveryResult, String> {
+pub async fn skill_discover_all(
+    state: State<'_, SkillServiceState>,
+) -> Result<SkillDiscoveryResult, String> {
     let service = state.0.read().await;
     service.discover_all().await.map_err(|e| e.to_string())
 }
@@ -105,7 +115,10 @@ pub async fn skill_search(
     filters: SkillSearchFilters,
 ) -> Result<Vec<Skill>, String> {
     let service = state.0.read().await;
-    service.search_skills(filters).await.map_err(|e| e.to_string())
+    service
+        .search_skills(filters)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Scan for local unregistered skills
@@ -139,7 +152,10 @@ pub async fn skill_install(
         repo_name: input.repo,
         repo_branch,
     };
-    service.install_skill(&skill).await.map_err(|e| e.to_string())
+    service
+        .install_skill(&skill)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Install a skill from local path
@@ -164,7 +180,10 @@ pub async fn skill_register_local(
     directory: String,
 ) -> Result<InstalledSkill, String> {
     let service = state.0.read().await;
-    service.register_local_skill(&directory).await.map_err(|e| e.to_string())
+    service
+        .register_local_skill(&directory)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Uninstall a skill
@@ -174,7 +193,10 @@ pub async fn skill_uninstall(
     id: String,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.uninstall_skill(&id).await.map_err(|e| e.to_string())
+    service
+        .uninstall_skill(&id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== State Management Commands ==========
@@ -205,7 +227,10 @@ pub async fn skill_get_required(
     id: String,
 ) -> Result<InstalledSkill, String> {
     let service = state.0.read().await;
-    service.get_skill_or_error(&id).await.map_err(|e: SkillError| e.to_string())
+    service
+        .get_skill_or_error(&id)
+        .await
+        .map_err(|e: SkillError| e.to_string())
 }
 
 /// Get skill state (legacy compatibility)
@@ -215,7 +240,10 @@ pub async fn skill_get_state(
     id: String,
 ) -> Result<SkillState, String> {
     let service = state.0.read().await;
-    service.get_skill_state(&id).await.ok_or_else(|| "Skill not found".to_string())
+    service
+        .get_skill_state(&id)
+        .await
+        .ok_or_else(|| "Skill not found".to_string())
 }
 
 /// Validate if a skill can be installed
@@ -238,25 +266,22 @@ pub async fn skill_validate_install(
         repo_name: input.repo,
         repo_branch,
     };
-    service.validate_install(&skill).await.map_err(|e: SkillError| e.to_string())
+    service
+        .validate_install(&skill)
+        .await
+        .map_err(|e: SkillError| e.to_string())
 }
 
 /// Enable a skill
 #[tauri::command]
-pub async fn skill_enable(
-    state: State<'_, SkillServiceState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn skill_enable(state: State<'_, SkillServiceState>, id: String) -> Result<(), String> {
     let service = state.0.read().await;
     service.enable_skill(&id).await.map_err(|e| e.to_string())
 }
 
 /// Disable a skill
 #[tauri::command]
-pub async fn skill_disable(
-    state: State<'_, SkillServiceState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn skill_disable(state: State<'_, SkillServiceState>, id: String) -> Result<(), String> {
     let service = state.0.read().await;
     service.disable_skill(&id).await.map_err(|e| e.to_string())
 }
@@ -270,7 +295,10 @@ pub async fn skill_update(
     tags: Option<Vec<String>>,
 ) -> Result<(), String> {
     let service = state.0.read().await;
-    service.update_skill(&id, category, tags).await.map_err(|e| e.to_string())
+    service
+        .update_skill(&id, category, tags)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 // ========== Content Commands ==========
@@ -282,7 +310,9 @@ pub async fn skill_read_content(
     directory: String,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    service.read_skill_content(&directory).map_err(|e| e.to_string())
+    service
+        .read_skill_content(&directory)
+        .map_err(|e| e.to_string())
 }
 
 /// Write skill content (SKILL.md)
@@ -305,7 +335,9 @@ pub async fn skill_list_resources(
     directory: String,
 ) -> Result<Vec<String>, String> {
     let service = state.0.read().await;
-    service.list_skill_resources(&directory).map_err(|e| e.to_string())
+    service
+        .list_skill_resources(&directory)
+        .map_err(|e| e.to_string())
 }
 
 /// Read a skill resource file
@@ -316,7 +348,9 @@ pub async fn skill_read_resource(
     resource_path: String,
 ) -> Result<String, String> {
     let service = state.0.read().await;
-    service.read_skill_resource(&directory, &resource_path).map_err(|e| e.to_string())
+    service
+        .read_skill_resource(&directory, &resource_path)
+        .map_err(|e| e.to_string())
 }
 
 /// Write a skill resource file
@@ -335,9 +369,7 @@ pub async fn skill_write_resource(
 
 /// Get SSOT directory path
 #[tauri::command]
-pub async fn skill_get_ssot_dir(
-    state: State<'_, SkillServiceState>,
-) -> Result<String, String> {
+pub async fn skill_get_ssot_dir(state: State<'_, SkillServiceState>) -> Result<String, String> {
     let service = state.0.read().await;
     Ok(service.get_ssot_dir().to_string_lossy().to_string())
 }

@@ -9,7 +9,7 @@ import type {
   PaperAnnotation,
   AcademicProviderType,
 } from '@/types/academic';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // Annotation Actions Type
@@ -31,11 +31,7 @@ export interface AnnotationActions {
 // Annotation Slice Creator
 // ============================================================================
 
-export function createAnnotationSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  _get: () => AcademicState
-): AnnotationActions {
-  return {
+export const createAnnotationSlice: AcademicSliceCreator<AnnotationActions> = (set, _get) => ({
     addAnnotation: async (paperId, annotation) => {
       try {
         const result = await invoke<PaperAnnotation>('academic_add_annotation', {
@@ -117,5 +113,4 @@ export function createAnnotationSlice(
         return [];
       }
     },
-  };
-}
+});

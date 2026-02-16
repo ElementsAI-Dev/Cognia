@@ -36,8 +36,7 @@ import {
   EyeOff,
   RotateCcw,
 } from 'lucide-react';
-
-export type ComparisonMode = 'slider-h' | 'slider-v' | 'side-by-side' | 'onion-skin' | 'toggle';
+import type { ComparisonMode } from '@/types/media/image-studio';
 
 export interface ImageComparisonProps {
   beforeImage: string;

@@ -46,12 +46,9 @@ import {
   Globe, 
   ExternalLink, 
   Clock,
-  ShieldCheck,
-  Shield,
-  ShieldAlert,
-  ShieldQuestion,
 } from 'lucide-react';
 import type { CredibilityLevel, SourceVerification } from '@/types/search';
+import { credibilityConfig } from './credibility-utils';
 
 export interface WebSource {
   id: string;
@@ -63,28 +60,7 @@ export interface WebSource {
   verification?: SourceVerification;
 }
 
-// Credibility icon and style configuration (labels are i18n)
-const credibilityIcons: Record<CredibilityLevel, {
-  icon: React.ReactNode;
-  className: string;
-}> = {
-  high: {
-    icon: <ShieldCheck className="h-3 w-3" />,
-    className: 'text-green-600 bg-green-500/10 border-green-500/20',
-  },
-  medium: {
-    icon: <Shield className="h-3 w-3" />,
-    className: 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20',
-  },
-  low: {
-    icon: <ShieldAlert className="h-3 w-3" />,
-    className: 'text-red-600 bg-red-500/10 border-red-500/20',
-  },
-  unknown: {
-    icon: <ShieldQuestion className="h-3 w-3" />,
-    className: 'text-gray-600 bg-gray-500/10 border-gray-500/20',
-  },
-};
+
 
 interface SourcesDisplayProps {
   sources: WebSource[];
@@ -143,7 +119,7 @@ function SourceItem({ source, index, showVerificationBadges = false }: SourceIte
   const hostname = getHostname(source.url);
   const verification = source.verification;
   const credibility = verification?.credibilityLevel || 'unknown';
-  const iconConfig = credibilityIcons[credibility];
+  const iconConfig = credibilityConfig[credibility];
 
   return (
     <Source href={source.url} title={source.title}>
@@ -162,7 +138,7 @@ function SourceItem({ source, index, showVerificationBadges = false }: SourceIte
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', iconConfig.className)}>
+                        <div className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded border', iconConfig.badgeClassName)}>
                           {iconConfig.icon}
                         </div>
                       </TooltipTrigger>

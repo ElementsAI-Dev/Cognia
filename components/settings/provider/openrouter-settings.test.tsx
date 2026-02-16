@@ -7,7 +7,25 @@ import { OpenRouterSettings } from './openrouter-settings';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string) => {
+    const translations: Record<string, string> = {
+      openRouterCredits: 'OpenRouter Credits',
+      total: 'Total',
+      used: 'Used',
+      remaining: 'Remaining',
+      clickRefreshToLoad: 'Click refresh to load credits',
+      availableModels: 'Available Models',
+      openRouterModelsDesc: 'Browse available models on OpenRouter',
+      'byok.title': 'Bring Your Own Keys (BYOK)',
+      'byok.description': 'Configure provider keys',
+      'byok.addProviderKey': 'Add Provider Key',
+      'providerOrdering.title': 'Provider Ordering',
+      appAttribution: 'App Attribution',
+      siteUrl: 'Site URL',
+      siteName: 'Site Name',
+    };
+    return translations[key] || key;
+  },
 }));
 
 // Mock nanoid
@@ -133,6 +151,11 @@ jest.mock('@/components/ui/separator', () => ({
 describe('OpenRouterSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCredits.mockResolvedValue({
+      credits: 10,
+      credits_used: 2,
+      credits_remaining: 8,
+    });
     mockSettings = {
       enabled: true,
       apiKey: 'test-api-key',
@@ -140,6 +163,7 @@ describe('OpenRouterSettings', () => {
         credits: 10.0,
         creditsUsed: 2.0,
         creditsRemaining: 8.0,
+        creditsLastFetched: 123,
         byokKeys: [],
         providerOrdering: { enabled: false, allowFallbacks: true, order: [] },
       },
@@ -205,11 +229,17 @@ describe('OpenRouterSettings', () => {
 describe('OpenRouterSettings BYOK', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCredits.mockResolvedValue({
+      credits: 10,
+      credits_used: 2,
+      credits_remaining: 8,
+    });
     mockSettings = {
       enabled: true,
       apiKey: 'test-api-key',
       openRouterSettings: {
         credits: 10.0,
+        creditsLastFetched: 123,
         byokKeys: [
           { id: 'key1', provider: 'openai', config: 'sk-test', enabled: true, alwaysUse: false },
         ],
@@ -239,10 +269,17 @@ describe('OpenRouterSettings BYOK', () => {
 describe('OpenRouterSettings error handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCredits.mockResolvedValue({
+      credits: 10,
+      credits_used: 2,
+      credits_remaining: 8,
+    });
     mockSettings = {
       enabled: true,
       apiKey: 'test-api-key',
-      openRouterSettings: {},
+      openRouterSettings: {
+        creditsLastFetched: 123,
+      },
     };
   });
 
@@ -256,9 +293,11 @@ describe('OpenRouterSettings error handling', () => {
     mockSettings = {
       enabled: true,
       apiKey: 'test-api-key',
-      openRouterSettings: {},
+      openRouterSettings: {
+        creditsLastFetched: 123,
+      },
     };
     render(<OpenRouterSettings />);
-    expect(screen.getByText('Click refresh to load credits')).toBeInTheDocument();
+    expect(screen.getAllByText('Click refresh to load credits').length).toBeGreaterThan(0);
   });
 });

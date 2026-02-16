@@ -55,6 +55,12 @@ interface PluginCardProps {
   onUninstall: () => void;
   onViewDetails?: () => void;
   showFavorite?: boolean;
+  /** Whether to show gradient background effect */
+  showGradientBackground?: boolean;
+  /** Whether to enable hover animation */
+  enableHoverAnimation?: boolean;
+  /** Animation delay in ms for staggered entry */
+  animationDelay?: number;
 }
 
 const capabilityIcons: Record<PluginCapability, React.ReactNode> = {
@@ -82,6 +88,9 @@ export function PluginCard({
   onUninstall,
   onViewDetails,
   showFavorite = true,
+  showGradientBackground = true,
+  enableHoverAnimation = true,
+  animationDelay = 0,
 }: PluginCardProps) {
   const t = useTranslations('pluginCard');
   const { manifest, status, error } = plugin;
@@ -232,12 +241,30 @@ export function PluginCard({
   return (
     <Card
       className={cn(
-        'group relative overflow-hidden transition-all duration-200',
+        'group relative overflow-hidden transition-all duration-300',
         isBackgroundActive ? TRANSPARENCY_CONFIG.card : undefined,
-        'hover:border-primary/50 hover:shadow-md',
-        isError && 'border-destructive/50 hover:border-destructive'
+        // Enhanced hover effects
+        enableHoverAnimation && 'hover:shadow-lg hover:-translate-y-0.5',
+        'hover:border-primary/40',
+        isError && 'border-destructive/50 hover:border-destructive',
+        // Enabled state ring effect
+        isEnabled && 'ring-1 ring-primary/20 bg-primary/5',
+        // Entry animation
+        'animate-in fade-in slide-in-from-bottom-4'
       )}
+      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'backwards' }}
     >
+      {/* Status gradient bar at top */}
+      {showGradientBackground && (
+        <div
+          className={cn(
+            'absolute top-0 left-0 right-0 h-1 transition-opacity duration-300',
+            isEnabled ? 'bg-gradient-to-r from-primary/50 to-primary/20' :
+            isError ? 'bg-gradient-to-r from-destructive/50 to-destructive/20' :
+            'bg-transparent'
+          )}
+        />
+      )}
 
       <CardHeader className="relative p-4 sm:p-5 pb-3">
         <div className="flex items-start justify-between gap-2">

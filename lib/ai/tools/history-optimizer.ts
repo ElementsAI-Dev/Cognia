@@ -146,7 +146,9 @@ export function getPromptSuggestions(
 
   // Filter history for this tool
   const toolHistory = history.filter(r => r.toolId === toolId);
-  if (toolHistory.length === 0) return [];
+  if (toolHistory.length === 0 && (!stats?.frequentPrompts || stats.frequentPrompts.length === 0)) {
+    return [];
+  }
 
   // Get successful calls
   const successfulCalls = toolHistory.filter(r => r.result === 'success');

@@ -7,7 +7,13 @@ import { useImageEditor } from './use-image-editor';
 
 // Mock the stores
 jest.mock('@/stores', () => ({
-  useImageStudioStore: jest.fn(() => ({})),
+  useImageStudioStore: jest.fn(() => ({
+    selectedImageId: null,
+    addToHistory: jest.fn(),
+    undo: jest.fn(),
+    redo: jest.fn(),
+    clearHistory: jest.fn(),
+  })),
 }));
 
 // Mock the media registry
@@ -18,6 +24,52 @@ jest.mock('@/lib/plugin/api/media-api', () => ({
     getFilter: jest.fn(() => null),
   })),
 }));
+
+class MockOffscreenCanvas {
+  width: number;
+  height: number;
+  private imageData: ImageData;
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.imageData = new ImageData(new Uint8ClampedArray(width * height * 4), width, height);
+  }
+
+  getContext(type: string) {
+    if (type !== '2d') return null;
+
+    return {
+      drawImage: jest.fn(),
+      putImageData: jest.fn((data: ImageData) => {
+        this.imageData = data;
+      }),
+      getImageData: jest.fn((_x = 0, _y = 0, w = this.width, h = this.height) => {
+        if (w === this.imageData.width && h === this.imageData.height) {
+          return this.imageData;
+        }
+        return new ImageData(new Uint8ClampedArray(w * h * 4), w, h);
+      }),
+      save: jest.fn(),
+      restore: jest.fn(),
+      translate: jest.fn(),
+      rotate: jest.fn(),
+      scale: jest.fn(),
+      filter: 'none',
+    };
+  }
+
+  convertToBlob(options?: { type?: string }) {
+    return Promise.resolve(new Blob(['mock'], { type: options?.type ?? 'image/png' }));
+  }
+}
+
+(global as unknown as { OffscreenCanvas: typeof MockOffscreenCanvas }).OffscreenCanvas =
+  MockOffscreenCanvas;
+
+HTMLCanvasElement.prototype.toDataURL = jest.fn(
+  () => 'data:image/png;base64,mockdata'
+) as unknown as typeof HTMLCanvasElement.prototype.toDataURL;
 
 // Helper to create a test ImageData
 function createTestImageData(width = 100, height = 100): ImageData {

@@ -12,14 +12,12 @@ use crate::mcp::protocol::jsonrpc::{
     error_codes, methods, JsonRpcError as RpcError, JsonRpcMessage, JsonRpcNotification,
     JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION,
 };
-use crate::mcp::protocol::sampling::{
-    SamplingCreateMessageRequest, SamplingCreateMessageResponse,
-};
 use crate::mcp::protocol::prompts::{PromptsGetParams, PromptsGetResponse, PromptsListResponse};
 use crate::mcp::protocol::resources::{
     ResourceTemplate, ResourcesListResponse, ResourcesReadParams, ResourcesReadResponse,
     ResourcesTemplatesListResponse,
 };
+use crate::mcp::protocol::sampling::{SamplingCreateMessageRequest, SamplingCreateMessageResponse};
 use crate::mcp::protocol::tools::{ToolsCallParams, ToolsCallResponse, ToolsListResponse};
 use crate::mcp::transport::sse::SseTransport;
 use crate::mcp::transport::stdio::StdioTransport;
@@ -50,7 +48,8 @@ pub struct McpClient {
     /// Client roots exposed to the server
     roots: Arc<TokioMutex<Vec<Root>>>,
     /// Pending sampling requests awaiting frontend response (request_id_string → RequestId)
-    pending_sampling_requests: Arc<TokioMutex<HashMap<String, crate::mcp::protocol::jsonrpc::RequestId>>>,
+    pending_sampling_requests:
+        Arc<TokioMutex<HashMap<String, crate::mcp::protocol::jsonrpc::RequestId>>>,
 }
 
 impl McpClient {
@@ -216,8 +215,11 @@ impl McpClient {
                                                     request.id,
                                                     serde_json::json!({ "roots": roots_val }),
                                                 );
-                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
-                                                    if let Err(e) = transport.send(&resp_msg).await {
+                                                if let Ok(resp_msg) =
+                                                    serde_json::to_string(&response)
+                                                {
+                                                    if let Err(e) = transport.send(&resp_msg).await
+                                                    {
                                                         log::error!("Failed to send roots/list response: {}", e);
                                                     }
                                                 }
@@ -226,9 +228,14 @@ impl McpClient {
                                                 log::error!("Failed to serialize roots: {}", e);
                                                 let response = JsonRpcResponse::error(
                                                     request.id,
-                                                    RpcError::internal_error(format!("Serialization failed: {}", e)),
+                                                    RpcError::internal_error(format!(
+                                                        "Serialization failed: {}",
+                                                        e
+                                                    )),
                                                 );
-                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                if let Ok(resp_msg) =
+                                                    serde_json::to_string(&response)
+                                                {
                                                     let _ = transport.send(&resp_msg).await;
                                                 }
                                             }
@@ -240,16 +247,27 @@ impl McpClient {
                                                 log::warn!("Sampling request missing parameters");
                                                 let response = JsonRpcResponse::error(
                                                     request.id,
-                                                    RpcError::invalid_params("Missing sampling parameters"),
+                                                    RpcError::invalid_params(
+                                                        "Missing sampling parameters",
+                                                    ),
                                                 );
-                                                if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                if let Ok(resp_msg) =
+                                                    serde_json::to_string(&response)
+                                                {
                                                     let _ = transport.send(&resp_msg).await;
                                                 }
                                             }
                                             Some(params) => {
                                                 // Validate params structure
-                                                if let Err(parse_err) = serde_json::from_value::<SamplingCreateMessageRequest>(params.clone()) {
-                                                    log::warn!("Invalid sampling request parameters: {}", parse_err);
+                                                if let Err(parse_err) = serde_json::from_value::<
+                                                    SamplingCreateMessageRequest,
+                                                >(
+                                                    params.clone()
+                                                ) {
+                                                    log::warn!(
+                                                        "Invalid sampling request parameters: {}",
+                                                        parse_err
+                                                    );
                                                     let response = JsonRpcResponse::error(
                                                         request.id,
                                                         RpcError::with_data(
@@ -258,7 +276,9 @@ impl McpClient {
                                                             serde_json::json!({ "parse_error": parse_err.to_string() }),
                                                         ),
                                                     );
-                                                    if let Ok(resp_msg) = serde_json::to_string(&response) {
+                                                    if let Ok(resp_msg) =
+                                                        serde_json::to_string(&response)
+                                                    {
                                                         let _ = transport.send(&resp_msg).await;
                                                     }
                                                 } else {
@@ -267,20 +287,28 @@ impl McpClient {
                                                         crate::mcp::protocol::jsonrpc::RequestId::String(s) => s.clone(),
                                                     };
                                                     log::info!("Received sampling/createMessage request: id={}", req_id_str);
-                                                    pending_sampling.lock().await.insert(req_id_str.clone(), request.id.clone());
+                                                    pending_sampling.lock().await.insert(
+                                                        req_id_str.clone(),
+                                                        request.id.clone(),
+                                                    );
 
                                                     let sampling_notification = JsonRpcNotification {
                                                         jsonrpc: crate::mcp::protocol::jsonrpc::JSONRPC_VERSION.to_string(),
                                                         method: methods::SAMPLING_CREATE_MESSAGE.to_string(),
                                                         params: request.params,
                                                     };
-                                                    let _ = notification_tx.send(sampling_notification).await;
+                                                    let _ = notification_tx
+                                                        .send(sampling_notification)
+                                                        .await;
                                                 }
                                             }
                                         }
                                     }
                                     _ => {
-                                        log::warn!("Unhandled server→client request: {}", request.method);
+                                        log::warn!(
+                                            "Unhandled server→client request: {}",
+                                            request.method
+                                        );
                                         let response = JsonRpcResponse::error(
                                             request.id,
                                             RpcError::method_not_found(&request.method),
@@ -685,11 +713,11 @@ impl McpClient {
         let request_id = {
             let mut pending = self.pending_sampling_requests.lock().await;
             pending.remove(request_id_str).ok_or_else(|| {
-                log::error!("No pending sampling request found for id: {}", request_id_str);
-                McpError::ProtocolError(format!(
-                    "No pending sampling request: {}",
+                log::error!(
+                    "No pending sampling request found for id: {}",
                     request_id_str
-                ))
+                );
+                McpError::ProtocolError(format!("No pending sampling request: {}", request_id_str))
             })?
         };
 
@@ -724,7 +752,10 @@ impl McpClient {
         }
         self.send_notification(methods::NOTIFICATION_CANCELLED, Some(params))
             .await?;
-        log::debug!("Cancellation notification sent for request '{}'", request_id);
+        log::debug!(
+            "Cancellation notification sent for request '{}'",
+            request_id
+        );
         Ok(())
     }
 

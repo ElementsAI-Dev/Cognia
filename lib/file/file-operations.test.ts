@@ -61,7 +61,9 @@ describe('File Operations', () => {
       const result = await readTextFile('/path/to/file.txt');
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('File operations require Tauri desktop environment');
+      expect(result.error).toBe(
+        'File operations require Tauri desktop environment or a browser with OPFS support'
+      );
       expect(result.path).toBe('/path/to/file.txt');
     });
 
@@ -89,7 +91,9 @@ describe('File Operations', () => {
       const result = await writeTextFile('/path/to/file.txt', 'content');
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('File operations require Tauri desktop environment');
+      expect(result.error).toBe(
+        'File operations require Tauri desktop environment or a browser with OPFS support'
+      );
     });
 
     it('accepts FileOperationOptions', async () => {
@@ -111,7 +115,9 @@ describe('File Operations', () => {
       const result = await listDirectory('/path/to/dir');
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('File operations require Tauri desktop environment');
+      expect(result.error).toBe(
+        'File operations require Tauri desktop environment or a browser with OPFS support'
+      );
     });
   });
 
@@ -130,7 +136,9 @@ describe('File Operations', () => {
       const result = await deleteFile('/path/to/file');
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('File operations require Tauri desktop environment');
+      expect(result.error).toBe(
+        'File operations require Tauri desktop environment or a browser with OPFS support'
+      );
     });
   });
 
@@ -140,7 +148,9 @@ describe('File Operations', () => {
       const result = await createDirectory('/path/to/dir');
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('File operations require Tauri desktop environment');
+      expect(result.error).toBe(
+        'File operations require Tauri desktop environment or a browser with OPFS support'
+      );
     });
 
     it('accepts recursive parameter', async () => {
@@ -358,32 +368,57 @@ describe('Path Safety', () => {
   it('readTextFile rejects path traversal attempts', async () => {
     const result = await readTextFile('../../../etc/passwd');
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
-    expect(result.error).toContain('path traversal');
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+      expect(result.error).toContain('path traversal');
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 
   it('writeTextFile rejects path traversal attempts', async () => {
     const result = await writeTextFile('../../dangerous/path', 'content');
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 
   it('deleteFile rejects path traversal attempts', async () => {
     const result = await deleteFile('../../../etc/passwd');
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 
   it('copyFile rejects path traversal in source', async () => {
     const result = await copyFile('../../bad/source', '/safe/dest');
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 
   it('copyFile rejects path traversal in destination', async () => {
     const result = await copyFile('/safe/source', '../../bad/dest');
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.PATH_TRAVERSAL);
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 });
 
@@ -397,7 +432,12 @@ describe('File Size Limits', () => {
     const largeContent = 'x'.repeat(200 * 1024 * 1024); // 200MB
     const result = await writeTextFile('/test.txt', largeContent, { maxSize: 1024 });
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe(FileErrorCode.FILE_TOO_LARGE);
+    if (isInTauri()) {
+      expect(result.errorCode).toBe(FileErrorCode.FILE_TOO_LARGE);
+    } else {
+      expect(result.errorCode).toBe(FileErrorCode.UNKNOWN);
+      expect(result.error).toContain('Tauri desktop environment');
+    }
   });
 
   it('readBinaryFile accepts maxSize option', async () => {

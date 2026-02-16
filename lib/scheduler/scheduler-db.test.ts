@@ -2,11 +2,10 @@
  * Scheduler Database Tests
  */
 
-import { schedulerDb } from './scheduler-db';
-import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
-
 // Mock IndexedDB for tests
 import 'fake-indexeddb/auto';
+import { schedulerDb } from './scheduler-db';
+import type { ScheduledTask, TaskExecution } from '@/types/scheduler';
 
 describe('SchedulerDatabase', () => {
   beforeEach(async () => {

@@ -469,12 +469,19 @@ describe('useBackgroundEditor', () => {
         result.current.addItem();
       });
 
-      expect(mockSetBackgroundSettings).toHaveBeenCalledWith({
-        layers: expect.arrayContaining([
-          expect.objectContaining({ id: 'layer-1' }),
-          expect.objectContaining({ id: 'layer-2' }),
-        ]),
-      });
+      const updatePayload = mockSetBackgroundSettings.mock.calls[0]?.[0] as {
+        layers: Array<{ id: string }>;
+      };
+
+      expect(updatePayload.layers).toHaveLength(2);
+      expect(updatePayload.layers).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'layer-1' })])
+      );
+      expect(
+        updatePayload.layers.some(
+          (layer) => layer.id.startsWith('layer-') && layer.id !== 'layer-1'
+        )
+      ).toBe(true);
     });
 
     it('removeItem removes a layer in layers mode', () => {

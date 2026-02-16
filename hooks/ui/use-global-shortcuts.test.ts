@@ -14,6 +14,7 @@ jest.mock('@/lib/native/shortcuts', () => ({
   registerShortcut: jest.fn().mockResolvedValue(true),
   unregisterShortcut: jest.fn().mockResolvedValue(true),
   unregisterAllShortcuts: jest.fn().mockResolvedValue(undefined),
+  registerShortcutWithConflictCheck: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const mockShortcuts = [
@@ -27,6 +28,8 @@ jest.mock('@/stores/system', () => ({
     shortcuts: mockShortcuts,
     shortcutsEnabled: true,
     updateShortcut: jest.fn(),
+    conflictResolutionMode: 'auto-resolve',
+    detectConflicts: jest.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -43,6 +46,10 @@ const mockUnregisterShortcut = shortcutsLib.unregisterShortcut as jest.MockedFun
 const mockUnregisterAll = shortcutsLib.unregisterAllShortcuts as jest.MockedFunction<
   typeof shortcutsLib.unregisterAllShortcuts
 >;
+const mockRegisterShortcutWithConflictCheck =
+  shortcutsLib.registerShortcutWithConflictCheck as jest.MockedFunction<
+    typeof shortcutsLib.registerShortcutWithConflictCheck
+  >;
 
 describe('useGlobalShortcuts', () => {
   beforeEach(() => {
@@ -204,7 +211,11 @@ describe('useGlobalShortcuts', () => {
         await result.current.toggleShortcut('3', true);
       });
 
-      expect(mockRegisterShortcut).toHaveBeenCalledWith('Ctrl+,', onOpenSettings);
+      expect(mockRegisterShortcutWithConflictCheck).toHaveBeenCalledWith('Ctrl+,', onOpenSettings, {
+        owner: 'global-shortcuts',
+        action: undefined,
+        forceOverride: false,
+      });
     });
 
     it('should unregister shortcut when disabling', async () => {

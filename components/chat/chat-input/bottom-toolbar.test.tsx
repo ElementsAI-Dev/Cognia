@@ -281,12 +281,12 @@ describe('BottomToolbar', () => {
 
   describe('hideThinkingToggle prop', () => {
     it('displays thinking toggle by default', () => {
-      render(<BottomToolbar {...defaultProps} />);
+      render(<BottomToolbar {...defaultProps} modelName="o1" />);
       expect(screen.getByText('Think')).toBeInTheDocument();
     });
 
     it('hides thinking toggle when hideThinkingToggle is true', () => {
-      render(<BottomToolbar {...defaultProps} hideThinkingToggle={true} />);
+      render(<BottomToolbar {...defaultProps} modelName="o1" hideThinkingToggle={true} />);
       expect(screen.queryByText('Think')).not.toBeInTheDocument();
     });
   });

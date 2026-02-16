@@ -3,9 +3,7 @@
 use async_trait::async_trait;
 
 use super::error::Result;
-use super::types::{
-    CreateSystemTaskInput, SchedulerCapabilities, SystemTask, TaskRunResult,
-};
+use super::types::{CreateSystemTaskInput, SchedulerCapabilities, SystemTask, TaskRunResult};
 
 /// Trait for platform-specific scheduler implementations
 #[async_trait]
@@ -57,7 +55,13 @@ pub const TASK_PREFIX: &str = "Cognia_";
 pub fn generate_task_name(name: &str) -> String {
     let sanitized: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     format!("{}{}", TASK_PREFIX, sanitized)
 }

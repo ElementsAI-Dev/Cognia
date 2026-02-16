@@ -7,7 +7,7 @@ import { KeyboardSettings } from './keyboard-settings';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
+  useTranslations: () => (key: string, values?: { defaultValue?: string }) => {
     const translations: Record<string, string> = {
       title: 'Keyboard Shortcuts',
       description: 'View and customize keyboard shortcuts',
@@ -16,24 +16,37 @@ jest.mock('next-intl', () => ({
       editing: 'Editing',
       system: 'System',
     };
-    return translations[key] || key;
+    return translations[key] || values?.defaultValue || key;
   },
 }));
 
-// Mock hooks
-jest.mock('@/hooks/ui', () => ({
-  useKeyboardShortcuts: () => ({
-    shortcuts: [
-      { key: 'n', description: 'New chat', category: 'chat', modifiers: ['ctrl'] },
-      { key: 's', description: 'Save', category: 'editing', modifiers: ['ctrl'] },
-      { key: 'k', description: 'Quick search', category: 'navigation', modifiers: ['ctrl'] },
-      { key: '?', description: 'Show help', category: 'system', modifiers: ['ctrl', 'shift'] },
+jest.mock('@/lib/utils', () => ({
+  ...jest.requireActual('@/lib/utils'),
+  isTauri: () => false,
+}));
+
+jest.mock('@/lib/ui/keyboard-constants', () => ({
+  CATEGORY_COLORS: {
+    navigation: 'bg-blue-500',
+    chat: 'bg-green-500',
+    editing: 'bg-purple-500',
+    system: 'bg-orange-500',
+  },
+  formatShortcutDisplay: (shortcut: string) => shortcut,
+  getShortcutsByCategory: () => ({
+    chat: [
+      { id: 'newChat', labelKey: 'newChat', defaultLabel: 'New chat', defaultKey: 'Ctrl+N' },
+    ],
+    navigation: [
+      { id: 'quickSearch', labelKey: 'quickSearch', defaultLabel: 'Quick search', defaultKey: 'Ctrl+K' },
+    ],
+    editing: [
+      { id: 'save', labelKey: 'save', defaultLabel: 'Save', defaultKey: 'Ctrl+S' },
+    ],
+    system: [
+      { id: 'showHelp', labelKey: 'showHelp', defaultLabel: 'Show help', defaultKey: 'Ctrl+Shift+?' },
     ],
   }),
-  formatShortcut: (shortcut: { key: string; modifiers?: string[] }) => {
-    const mods = shortcut.modifiers?.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join('+') || '';
-    return mods ? `${mods}+${shortcut.key.toUpperCase()}` : shortcut.key.toUpperCase();
-  },
 }));
 
 // Mock stores
@@ -41,11 +54,20 @@ jest.mock('@/stores', () => ({
   useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       customShortcuts: {},
+      disabledShortcuts: {},
       setCustomShortcut: jest.fn(),
+      setShortcutEnabled: jest.fn(),
       resetShortcuts: jest.fn(),
+      resetShortcut: jest.fn(),
     };
     return selector(state);
   },
+  useNativeStore: () => ({
+    shortcuts: [],
+    shortcutsEnabled: true,
+    updateShortcut: jest.fn(),
+    setShortcutsEnabled: jest.fn(),
+  }),
 }));
 
 // Mock UI components

@@ -10,7 +10,7 @@ import type {
   PaperReadingStatus,
   PaperAnalysisResult,
 } from '@/types/academic';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // Library State Type
@@ -67,11 +67,7 @@ export interface LibraryActions {
 // Library Slice Creator
 // ============================================================================
 
-export function createLibrarySlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): LibraryActions {
-  return {
+export const createLibrarySlice: AcademicSliceCreator<LibraryActions> = (set, get) => ({
     addToLibrary: async (paper, collectionId) => {
       set({ isLoading: true, error: null });
       try {
@@ -306,5 +302,4 @@ export function createLibrarySlice(
         };
       });
     },
-  };
-}
+});

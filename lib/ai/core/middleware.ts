@@ -639,7 +639,12 @@ export function checkToolCallSafety(
     'spawn',
     'file_delete',
     'file_write',
+    'start_process',
     'process_terminate',
+    'start_processes_parallel',
+    'terminate_processes_parallel',
+    'start_processes_async',
+    'terminate_processes_async',
   ];
 
   if (dangerousTools.some(dt => toolName.includes(dt))) {

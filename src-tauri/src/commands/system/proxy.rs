@@ -406,11 +406,26 @@ pub async fn proxy_test_multi(
     test_urls: Option<Vec<String>>,
 ) -> Result<MultiEndpointTestResult, String> {
     let default_urls = vec![
-        ("https://www.google.com/generate_204".to_string(), "Google (204)".to_string()),
-        ("https://www.gstatic.com/generate_204".to_string(), "Google Static (204)".to_string()),
-        ("https://cp.cloudflare.com/".to_string(), "Cloudflare".to_string()),
-        ("https://www.msftconnecttest.com/connecttest.txt".to_string(), "Microsoft".to_string()),
-        ("https://captive.apple.com/".to_string(), "Apple Captive".to_string()),
+        (
+            "https://www.google.com/generate_204".to_string(),
+            "Google (204)".to_string(),
+        ),
+        (
+            "https://www.gstatic.com/generate_204".to_string(),
+            "Google Static (204)".to_string(),
+        ),
+        (
+            "https://cp.cloudflare.com/".to_string(),
+            "Cloudflare".to_string(),
+        ),
+        (
+            "https://www.msftconnecttest.com/connecttest.txt".to_string(),
+            "Microsoft".to_string(),
+        ),
+        (
+            "https://captive.apple.com/".to_string(),
+            "Apple Captive".to_string(),
+        ),
     ];
 
     let urls: Vec<(String, String)> = test_urls
@@ -453,7 +468,11 @@ pub async fn proxy_test_multi(
                     success,
                     latency: Some(latency),
                     status_code: Some(status),
-                    error: if success { None } else { Some(format!("HTTP {}", status)) },
+                    error: if success {
+                        None
+                    } else {
+                        Some(format!("HTTP {}", status))
+                    },
                 }
             }
             Err(e) => EndpointTestResult {
@@ -470,7 +489,11 @@ pub async fn proxy_test_multi(
 
     // Get IP info if at least one endpoint succeeded
     let (ip, location) = if successful_count > 0 {
-        get_ip_info(&client).await.ok().map(|(ip, loc)| (Some(ip), Some(loc))).unwrap_or((None, None))
+        get_ip_info(&client)
+            .await
+            .ok()
+            .map(|(ip, loc)| (Some(ip), Some(loc)))
+            .unwrap_or((None, None))
     } else {
         (None, None)
     };
@@ -704,12 +727,14 @@ pub struct ProxiedRequestOutput {
 }
 
 /// Make an HTTP request through proxy
-/// 
+///
 /// This command allows the frontend to make HTTP requests that actually
 /// go through the configured proxy, unlike browser fetch which ignores
 /// application proxy settings.
 #[tauri::command]
-pub async fn proxy_http_request(input: ProxiedRequestInput) -> Result<ProxiedRequestOutput, String> {
+pub async fn proxy_http_request(
+    input: ProxiedRequestInput,
+) -> Result<ProxiedRequestOutput, String> {
     let client = if let Some(ref proxy_url) = input.proxy_url {
         crate::http::create_client_with_proxy(proxy_url, input.timeout_secs)
             .map_err(|e| format!("Failed to create proxy client: {}", e))?
@@ -718,7 +743,7 @@ pub async fn proxy_http_request(input: ProxiedRequestInput) -> Result<ProxiedReq
     };
 
     let method = input.method.as_deref().unwrap_or("GET").to_uppercase();
-    
+
     let mut request = match method.as_str() {
         "GET" => client.get(&input.url),
         "POST" => client.post(&input.url),
@@ -754,7 +779,7 @@ pub async fn proxy_http_request(input: ProxiedRequestInput) -> Result<ProxiedReq
     })?;
 
     let status = response.status().as_u16();
-    
+
     // Collect response headers
     let mut resp_headers = std::collections::HashMap::new();
     for (key, value) in response.headers().iter() {

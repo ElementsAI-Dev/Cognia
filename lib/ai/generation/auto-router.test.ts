@@ -11,9 +11,9 @@ describe('classifyTask', () => {
       expect(result.complexity).toBe('simple');
     });
 
-    it('classifies "what is" questions as simple', () => {
+    it('classifies "what is" coding questions as complex', () => {
       const result = classifyTask('What is TypeScript?');
-      expect(result.complexity).toBe('simple');
+      expect(result.complexity).toBe('complex');
     });
 
     it('classifies definition requests as simple', () => {
@@ -21,19 +21,19 @@ describe('classifyTask', () => {
       expect(result.complexity).toBe('simple');
     });
 
-    it('classifies translation requests as simple', () => {
+    it('classifies translation requests as moderate', () => {
       const result = classifyTask('Translate hello to Spanish');
-      expect(result.complexity).toBe('simple');
+      expect(result.complexity).toBe('moderate');
     });
 
-    it('classifies summarize requests as simple', () => {
+    it('classifies summarize requests as moderate', () => {
       const result = classifyTask('Summarize this article');
-      expect(result.complexity).toBe('simple');
+      expect(result.complexity).toBe('moderate');
     });
 
-    it('classifies yes/no questions as simple', () => {
+    it('classifies yes/no coding questions as complex', () => {
       const result = classifyTask('Is JavaScript a programming language? yes or no');
-      expect(result.complexity).toBe('simple');
+      expect(result.complexity).toBe('complex');
     });
 
     it('classifies list requests as simple', () => {

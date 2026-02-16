@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import React from 'react';
 import { render } from 'ink';
-import { InitWizard, type InitWizardData } from '../wizards/index.js';
+import { InitWizard, type InitWizardData } from '../wizards/index';
 
 export interface InitOptions {
   force: boolean;

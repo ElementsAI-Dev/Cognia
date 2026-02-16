@@ -263,12 +263,10 @@ impl OcrProvider for GoogleVisionProvider {
         // DOCUMENT_TEXT_DETECTION is better for dense text/documents
         // TEXT_DETECTION is better for sparse text in photos/screenshots
         let feature_type = match options.document_hint {
-            Some(DocumentHint::DenseText) | Some(DocumentHint::Document) | Some(DocumentHint::Handwriting) => {
-                "DOCUMENT_TEXT_DETECTION"
-            }
-            Some(DocumentHint::SparseText) | Some(DocumentHint::Screenshot) => {
-                "TEXT_DETECTION"
-            }
+            Some(DocumentHint::DenseText)
+            | Some(DocumentHint::Document)
+            | Some(DocumentHint::Handwriting) => "DOCUMENT_TEXT_DETECTION",
+            Some(DocumentHint::SparseText) | Some(DocumentHint::Screenshot) => "TEXT_DETECTION",
             _ => "DOCUMENT_TEXT_DETECTION", // Default to document detection for best coverage
         };
 
@@ -304,9 +302,10 @@ impl OcrProvider for GoogleVisionProvider {
 
             // Handle authentication errors specifically
             if status.as_u16() == 401 || status.as_u16() == 403 {
-                return Err(OcrError::authentication_error(
-                    format!("Google Vision API authentication failed ({}): {}", status, body),
-                ));
+                return Err(OcrError::authentication_error(format!(
+                    "Google Vision API authentication failed ({}): {}",
+                    status, body
+                )));
             }
             if status.as_u16() == 429 {
                 return Err(OcrError::new(
@@ -343,94 +342,97 @@ impl OcrProvider for GoogleVisionProvider {
         }
 
         // Extract text and regions
-        let (text, regions, language, confidence) = if let Some(full_text) = response.full_text_annotation {
-            let text = full_text.text.clone();
-            let mut regions = Vec::new();
-            let mut confidence_sum = 0.0;
-            let mut confidence_count = 0;
+        let (text, regions, language, confidence) =
+            if let Some(full_text) = response.full_text_annotation {
+                let text = full_text.text.clone();
+                let mut regions = Vec::new();
+                let mut confidence_sum = 0.0;
+                let mut confidence_count = 0;
 
-            for page in &full_text.pages {
-                for block in &page.blocks {
-                    for para in &block.paragraphs {
-                        if options.word_level {
-                            for word in &para.words {
-                                let word_text: String =
-                                    word.symbols.iter().map(|s| s.text.as_str()).collect();
-                                if let Some(ref bbox) = word.bounding_box {
+                for page in &full_text.pages {
+                    for block in &page.blocks {
+                        for para in &block.paragraphs {
+                            if options.word_level {
+                                for word in &para.words {
+                                    let word_text: String =
+                                        word.symbols.iter().map(|s| s.text.as_str()).collect();
+                                    if let Some(ref bbox) = word.bounding_box {
+                                        regions.push(OcrRegion {
+                                            text: word_text,
+                                            bounds: bbox.to_bounds(),
+                                            confidence: word.confidence,
+                                            region_type: OcrRegionType::Word,
+                                        });
+                                    }
+                                    confidence_sum += word.confidence;
+                                    confidence_count += 1;
+                                }
+                            } else {
+                                // Paragraph level
+                                let para_text: String = para
+                                    .words
+                                    .iter()
+                                    .map(|w| {
+                                        w.symbols
+                                            .iter()
+                                            .map(|s| s.text.as_str())
+                                            .collect::<String>()
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+
+                                if let Some(ref bbox) = para.bounding_box {
                                     regions.push(OcrRegion {
-                                        text: word_text,
+                                        text: para_text,
                                         bounds: bbox.to_bounds(),
-                                        confidence: word.confidence,
-                                        region_type: OcrRegionType::Word,
+                                        confidence: para.confidence,
+                                        region_type: OcrRegionType::Paragraph,
                                     });
                                 }
-                                confidence_sum += word.confidence;
+                                confidence_sum += para.confidence;
                                 confidence_count += 1;
                             }
-                        } else {
-                            // Paragraph level
-                            let para_text: String = para
-                                .words
-                                .iter()
-                                .map(|w| {
-                                    w.symbols
-                                        .iter()
-                                        .map(|s| s.text.as_str())
-                                        .collect::<String>()
-                                })
-                                .collect::<Vec<_>>()
-                                .join(" ");
-
-                            if let Some(ref bbox) = para.bounding_box {
-                                regions.push(OcrRegion {
-                                    text: para_text,
-                                    bounds: bbox.to_bounds(),
-                                    confidence: para.confidence,
-                                    region_type: OcrRegionType::Paragraph,
-                                });
-                            }
-                            confidence_sum += para.confidence;
-                            confidence_count += 1;
                         }
                     }
                 }
-            }
 
-            let avg_confidence = if confidence_count > 0 {
-                confidence_sum / confidence_count as f64
-            } else {
-                0.9
-            };
+                let avg_confidence = if confidence_count > 0 {
+                    confidence_sum / confidence_count as f64
+                } else {
+                    0.9
+                };
 
-            (text, regions, None, avg_confidence)
-        } else if !response.text_annotations.is_empty() {
-            // Use TEXT_DETECTION results
-            let first = &response.text_annotations[0];
-            let text = first.description.clone();
-            let language = first.locale.clone();
+                (text, regions, None, avg_confidence)
+            } else if !response.text_annotations.is_empty() {
+                // Use TEXT_DETECTION results
+                let first = &response.text_annotations[0];
+                let text = first.description.clone();
+                let language = first.locale.clone();
 
-            // Skip first annotation (full text) and use the rest as word regions
-            let regions: Vec<OcrRegion> = response
-                .text_annotations
-                .iter()
-                .skip(1)
-                .filter_map(|ann| {
-                    ann.bounding_poly.as_ref().map(|bbox| OcrRegion {
-                        text: ann.description.clone(),
-                        bounds: bbox.to_bounds(),
-                        confidence: 0.9, // TEXT_DETECTION doesn't provide confidence
-                        region_type: OcrRegionType::Word,
+                // Skip first annotation (full text) and use the rest as word regions
+                let regions: Vec<OcrRegion> = response
+                    .text_annotations
+                    .iter()
+                    .skip(1)
+                    .filter_map(|ann| {
+                        ann.bounding_poly.as_ref().map(|bbox| OcrRegion {
+                            text: ann.description.clone(),
+                            bounds: bbox.to_bounds(),
+                            confidence: 0.9, // TEXT_DETECTION doesn't provide confidence
+                            region_type: OcrRegionType::Word,
+                        })
                     })
-                })
-                .collect();
+                    .collect();
 
-            let conf = if regions.is_empty() { 0.9 } else {
-                regions.iter().map(|r| r.confidence).sum::<f64>() / regions.len() as f64
+                let conf = if regions.is_empty() {
+                    0.9
+                } else {
+                    regions.iter().map(|r| r.confidence).sum::<f64>() / regions.len() as f64
+                };
+                (text, regions, language, conf)
+            } else {
+                (String::new(), vec![], None, 0.0)
             };
-            (text, regions, language, conf)
-        } else {
-            (String::new(), vec![], None, 0.0)
-        };
 
         Ok(OcrResult {
             text,

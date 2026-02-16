@@ -8,8 +8,8 @@ use tauri::State;
 use tokio::sync::RwLock;
 
 use crate::plugin::{
-    PluginManager, PluginScanResult, PluginInstallOptions, PluginState,
-    PythonToolRegistration, PythonRuntimeInfo, PythonPluginInfo,
+    PluginInstallOptions, PluginManager, PluginScanResult, PluginState, PythonPluginInfo,
+    PythonRuntimeInfo, PythonToolRegistration,
 };
 
 /// Plugin manager state
@@ -22,13 +22,14 @@ pub async fn plugin_python_initialize(
     python_path: Option<String>,
 ) -> Result<(), String> {
     let mut manager = state.0.write().await;
-    manager.initialize_python(python_path).await.map_err(|e| e.to_string())
+    manager
+        .initialize_python(python_path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn plugin_get_directory(
-    state: State<'_, PluginManagerState>,
-) -> Result<String, String> {
+pub async fn plugin_get_directory(state: State<'_, PluginManagerState>) -> Result<String, String> {
     let manager = state.0.read().await;
     Ok(manager.plugin_dir().to_string_lossy().to_string())
 }
@@ -57,7 +58,10 @@ pub async fn plugin_install(
         install_type,
         plugin_dir,
     };
-    manager.install_plugin(options).await.map_err(|e| e.to_string())
+    manager
+        .install_plugin(options)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Uninstall a plugin
@@ -68,7 +72,10 @@ pub async fn plugin_uninstall(
     plugin_path: String,
 ) -> Result<(), String> {
     let manager = state.0.read().await;
-    manager.uninstall_plugin(&plugin_id, &plugin_path).await.map_err(|e| e.to_string())
+    manager
+        .uninstall_plugin(&plugin_id, &plugin_path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Load a Python plugin
@@ -81,7 +88,8 @@ pub async fn plugin_python_load(
     dependencies: Option<Vec<String>>,
 ) -> Result<(), String> {
     let manager = state.0.read().await;
-    manager.load_python_plugin(&plugin_id, &plugin_path, &main_module, dependencies)
+    manager
+        .load_python_plugin(&plugin_id, &plugin_path, &main_module, dependencies)
         .await
         .map_err(|e| e.to_string())
 }
@@ -93,7 +101,10 @@ pub async fn plugin_python_get_tools(
     plugin_id: String,
 ) -> Result<Vec<PythonToolRegistration>, String> {
     let manager = state.0.read().await;
-    manager.get_python_tools(&plugin_id).await.map_err(|e| e.to_string())
+    manager
+        .get_python_tools(&plugin_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Call a Python plugin tool
@@ -105,7 +116,8 @@ pub async fn plugin_python_call_tool(
     args: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let manager = state.0.read().await;
-    manager.call_python_tool(&plugin_id, &tool_name, args)
+    manager
+        .call_python_tool(&plugin_id, &tool_name, args)
         .await
         .map_err(|e| e.to_string())
 }
@@ -119,7 +131,8 @@ pub async fn plugin_python_call(
     args: Vec<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     let manager = state.0.read().await;
-    manager.call_python_function(&plugin_id, &function_name, args)
+    manager
+        .call_python_function(&plugin_id, &function_name, args)
         .await
         .map_err(|e| e.to_string())
 }
@@ -133,7 +146,8 @@ pub async fn plugin_python_eval(
     locals: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let manager = state.0.read().await;
-    manager.eval_python(&plugin_id, &code, locals)
+    manager
+        .eval_python(&plugin_id, &code, locals)
         .await
         .map_err(|e| e.to_string())
 }
@@ -159,7 +173,8 @@ pub async fn plugin_python_module_call(
     args: Vec<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     let manager = state.0.read().await;
-    manager.call_python_function(&plugin_id, &function_name, args)
+    manager
+        .call_python_function(&plugin_id, &function_name, args)
         .await
         .map_err(|e| e.to_string())
 }
@@ -175,7 +190,8 @@ pub async fn plugin_python_module_getattr(
     let manager = state.0.read().await;
     // Use eval to get the attribute
     let code = format!("plugin.{}", attr_name);
-    manager.eval_python(&plugin_id, &code, serde_json::json!({}))
+    manager
+        .eval_python(&plugin_id, &code, serde_json::json!({}))
         .await
         .map_err(|e| e.to_string())
 }
@@ -205,7 +221,10 @@ pub async fn plugin_python_runtime_info(
     state: State<'_, PluginManagerState>,
 ) -> Result<PythonRuntimeInfo, String> {
     let manager = state.0.read().await;
-    manager.get_python_runtime_info().await.map_err(|e| e.to_string())
+    manager
+        .get_python_runtime_info()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Check if a Python plugin is initialized
@@ -215,7 +234,10 @@ pub async fn plugin_python_is_initialized(
     plugin_id: String,
 ) -> Result<bool, String> {
     let manager = state.0.read().await;
-    manager.is_python_plugin_initialized(&plugin_id).await.map_err(|e| e.to_string())
+    manager
+        .is_python_plugin_initialized(&plugin_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get Python plugin info
@@ -225,7 +247,10 @@ pub async fn plugin_python_get_info(
     plugin_id: String,
 ) -> Result<Option<PythonPluginInfo>, String> {
     let manager = state.0.read().await;
-    manager.get_python_plugin_info(&plugin_id).await.map_err(|e| e.to_string())
+    manager
+        .get_python_plugin_info(&plugin_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Unload a Python plugin
@@ -235,7 +260,10 @@ pub async fn plugin_python_unload(
     plugin_id: String,
 ) -> Result<(), String> {
     let manager = state.0.read().await;
-    manager.unload_python_plugin(&plugin_id).await.map_err(|e| e.to_string())
+    manager
+        .unload_python_plugin(&plugin_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// List loaded Python plugins
@@ -244,7 +272,10 @@ pub async fn plugin_python_list(
     state: State<'_, PluginManagerState>,
 ) -> Result<Vec<String>, String> {
     let manager = state.0.read().await;
-    manager.list_python_plugins().await.map_err(|e| e.to_string())
+    manager
+        .list_python_plugins()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Show notification (for plugins)

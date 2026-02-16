@@ -5,9 +5,10 @@
 use tauri::State;
 
 use crate::process::{
-    ProcessFilter, ProcessInfo, ProcessManager, ProcessManagerConfig,
-    ProcessSortField, StartProcessRequest, StartProcessResult, TerminateProcessRequest,
-    TerminateProcessResult,
+    ProcessFilter, ProcessInfo, ProcessManager, ProcessManagerConfig, ProcessOperation,
+    ProcessSortField, StartProcessBatchRequest, StartProcessBatchResult, StartProcessRequest,
+    StartProcessResult, TerminateProcessBatchRequest, TerminateProcessBatchResult,
+    TerminateProcessRequest, TerminateProcessResult,
 };
 
 /// List running processes
@@ -61,6 +62,82 @@ pub async fn process_terminate(
         .map_err(|e| e.to_string())
 }
 
+/// Start multiple processes in parallel
+#[tauri::command]
+pub async fn process_start_batch(
+    request: StartProcessBatchRequest,
+    state: State<'_, ProcessManager>,
+) -> Result<StartProcessBatchResult, String> {
+    log::info!(
+        "Starting process batch: {} requests (maxConcurrency={:?})",
+        request.requests.len(),
+        request.max_concurrency
+    );
+    state
+        .start_process_batch(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Terminate multiple processes in parallel
+#[tauri::command]
+pub async fn process_terminate_batch(
+    request: TerminateProcessBatchRequest,
+    state: State<'_, ProcessManager>,
+) -> Result<TerminateProcessBatchResult, String> {
+    log::info!(
+        "Terminating process batch: {} requests (maxConcurrency={:?})",
+        request.requests.len(),
+        request.max_concurrency
+    );
+    state
+        .terminate_process_batch(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Submit async start batch operation
+#[tauri::command]
+pub async fn process_start_batch_async(
+    request: StartProcessBatchRequest,
+    state: State<'_, ProcessManager>,
+) -> Result<ProcessOperation, String> {
+    state
+        .start_process_batch_async(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Submit async terminate batch operation
+#[tauri::command]
+pub async fn process_terminate_batch_async(
+    request: TerminateProcessBatchRequest,
+    state: State<'_, ProcessManager>,
+) -> Result<ProcessOperation, String> {
+    state
+        .terminate_process_batch_async(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get async operation by ID
+#[tauri::command]
+pub async fn process_get_operation(
+    operation_id: String,
+    state: State<'_, ProcessManager>,
+) -> Result<Option<ProcessOperation>, String> {
+    Ok(state.get_operation(&operation_id).await)
+}
+
+/// List async operations (most recent first)
+#[tauri::command]
+pub async fn process_list_operations(
+    limit: Option<usize>,
+    state: State<'_, ProcessManager>,
+) -> Result<Vec<ProcessOperation>, String> {
+    Ok(state.list_operations(limit).await)
+}
+
 /// Get process manager configuration
 #[tauri::command]
 pub async fn process_get_config(
@@ -75,11 +152,11 @@ pub async fn process_update_config(
     config: ProcessManagerConfig,
     state: State<'_, ProcessManager>,
 ) -> Result<(), String> {
-    log::info!("Updating process manager config: enabled={}", config.enabled);
-    state
-        .update_config(config)
-        .await
-        .map_err(|e| e.to_string())
+    log::info!(
+        "Updating process manager config: enabled={}",
+        config.enabled
+    );
+    state.update_config(config).await.map_err(|e| e.to_string())
 }
 
 /// Check if a program is allowed
@@ -111,10 +188,7 @@ pub async fn process_set_enabled(
 ) -> Result<(), String> {
     let mut config = state.get_config().await;
     config.enabled = enabled;
-    state
-        .update_config(config)
-        .await
-        .map_err(|e| e.to_string())
+    state.update_config(config).await.map_err(|e| e.to_string())
 }
 
 /// Search processes by name

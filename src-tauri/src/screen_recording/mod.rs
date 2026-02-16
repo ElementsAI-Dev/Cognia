@@ -19,10 +19,15 @@ pub mod window_snap;
 
 pub use error::RecordingError;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
-pub use storage::{AggregatedStorageStatus, CleanupResult, StorageConfig, StorageFile, StorageFileType, StorageManager, StorageStats};
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
-pub use toolbar::{RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition};
+pub use storage::{
+    AggregatedStorageStatus, CleanupResult, StorageConfig, StorageFile, StorageFileType,
+    StorageManager, StorageStats,
+};
+pub use toolbar::{
+    RecordingToolbar, RecordingToolbarConfig, RecordingToolbarState, ToolbarPosition,
+};
 
 use toolbar::ToolbarPosition as ToolbarPos;
 pub use video_processor::{
@@ -242,13 +247,17 @@ impl ScreenRecordingManager {
         }
 
         let config = RecordingConfig {
-            save_directory: recordings_dir.as_ref().map(|p| p.to_string_lossy().to_string()),
+            save_directory: recordings_dir
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
             ..Default::default()
         };
 
         // Initialize storage manager
         let storage_config = StorageConfig {
-            recordings_dir: recordings_dir.clone().unwrap_or_else(|| PathBuf::from("recordings")),
+            recordings_dir: recordings_dir
+                .clone()
+                .unwrap_or_else(|| PathBuf::from("recordings")),
             screenshots_dir: screenshots_dir.unwrap_or_else(|| PathBuf::from("screenshots")),
             organize_by_date: true,
             max_storage_gb: 10.0,
@@ -478,7 +487,10 @@ impl ScreenRecordingManager {
         if result {
             info!("[ScreenRecording] Recording pinned successfully: id={}", id);
         } else {
-            warn!("[ScreenRecording] Failed to pin recording (not found): id={}", id);
+            warn!(
+                "[ScreenRecording] Failed to pin recording (not found): id={}",
+                id
+            );
         }
         result
     }
@@ -488,9 +500,15 @@ impl ScreenRecordingManager {
         info!("[ScreenRecording] Unpinning recording: id={}", id);
         let result = self.history.unpin(id);
         if result {
-            info!("[ScreenRecording] Recording unpinned successfully: id={}", id);
+            info!(
+                "[ScreenRecording] Recording unpinned successfully: id={}",
+                id
+            );
         } else {
-            warn!("[ScreenRecording] Failed to unpin recording (not found): id={}", id);
+            warn!(
+                "[ScreenRecording] Failed to unpin recording (not found): id={}",
+                id
+            );
         }
         result
     }
@@ -509,24 +527,42 @@ impl ScreenRecordingManager {
 
     /// Add a tag to a recording
     pub fn add_tag(&self, id: &str, tag: String) -> bool {
-        info!("[ScreenRecording] Adding tag '{}' to recording: id={}", tag, id);
+        info!(
+            "[ScreenRecording] Adding tag '{}' to recording: id={}",
+            tag, id
+        );
         let result = self.history.add_tag(id, tag.clone());
         if result {
-            info!("[ScreenRecording] Tag '{}' added successfully: id={}", tag, id);
+            info!(
+                "[ScreenRecording] Tag '{}' added successfully: id={}",
+                tag, id
+            );
         } else {
-            warn!("[ScreenRecording] Failed to add tag (recording not found): id={}", id);
+            warn!(
+                "[ScreenRecording] Failed to add tag (recording not found): id={}",
+                id
+            );
         }
         result
     }
 
     /// Remove a tag from a recording
     pub fn remove_tag(&self, id: &str, tag: &str) -> bool {
-        info!("[ScreenRecording] Removing tag '{}' from recording: id={}", tag, id);
+        info!(
+            "[ScreenRecording] Removing tag '{}' from recording: id={}",
+            tag, id
+        );
         let result = self.history.remove_tag(id, tag);
         if result {
-            info!("[ScreenRecording] Tag '{}' removed successfully: id={}", tag, id);
+            info!(
+                "[ScreenRecording] Tag '{}' removed successfully: id={}",
+                tag, id
+            );
         } else {
-            warn!("[ScreenRecording] Failed to remove tag (recording not found): id={}", id);
+            warn!(
+                "[ScreenRecording] Failed to remove tag (recording not found): id={}",
+                id
+            );
         }
         result
     }
@@ -538,7 +574,7 @@ impl ScreenRecordingManager {
         let total_size = self.history.get_total_size();
         let total_duration_ms = self.history.get_total_duration();
         let pinned_count = entries.iter().filter(|e| e.is_pinned).count();
-        
+
         let stats = RecordingStats {
             total_size,
             total_duration_ms,
@@ -590,24 +626,42 @@ impl ScreenRecordingManager {
     }
 
     /// Generate filename for a new recording
-    pub fn generate_recording_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
-        self.storage.read().generate_recording_filename(mode, format, custom_name)
+    pub fn generate_recording_filename(
+        &self,
+        mode: &str,
+        format: &str,
+        custom_name: Option<&str>,
+    ) -> String {
+        self.storage
+            .read()
+            .generate_recording_filename(mode, format, custom_name)
     }
 
     /// Get full path for a recording file
     pub fn get_recording_path(&self, filename: &str) -> Result<String, String> {
-        self.storage.read().get_recording_path(filename)
+        self.storage
+            .read()
+            .get_recording_path(filename)
             .map(|p| p.to_string_lossy().to_string())
     }
 
     /// Generate filename for a screenshot
-    pub fn generate_screenshot_filename(&self, mode: &str, format: &str, custom_name: Option<&str>) -> String {
-        self.storage.read().generate_screenshot_filename(mode, format, custom_name)
+    pub fn generate_screenshot_filename(
+        &self,
+        mode: &str,
+        format: &str,
+        custom_name: Option<&str>,
+    ) -> String {
+        self.storage
+            .read()
+            .generate_screenshot_filename(mode, format, custom_name)
     }
 
     /// Get full path for a screenshot file
     pub fn get_screenshot_path(&self, filename: &str) -> Result<String, String> {
-        self.storage.read().get_screenshot_path(filename)
+        self.storage
+            .read()
+            .get_screenshot_path(filename)
             .map(|p| p.to_string_lossy().to_string())
     }
 
@@ -630,40 +684,48 @@ impl ScreenRecordingManager {
     /// Cleanup old files based on configuration
     pub fn cleanup_old_files(&self) -> Result<CleanupResult, String> {
         info!("[ScreenRecording] Running storage cleanup");
-        let pinned_ids: Vec<String> = self.history
+        let pinned_ids: Vec<String> = self
+            .history
             .get_all()
             .iter()
             .filter(|e| e.is_pinned)
             .map(|e| e.id.clone())
             .collect();
-        
+
         self.storage.read().cleanup_old_files(&pinned_ids)
     }
 
     /// List all storage files (recordings and screenshots)
     pub fn list_storage_files(&self, file_type: Option<StorageFileType>) -> Vec<StorageFile> {
-        debug!("[ScreenRecording] Listing storage files, type filter: {:?}", file_type);
-        let pinned_ids: Vec<String> = self.history
+        debug!(
+            "[ScreenRecording] Listing storage files, type filter: {:?}",
+            file_type
+        );
+        let pinned_ids: Vec<String> = self
+            .history
             .get_all()
             .iter()
             .filter(|e| e.is_pinned)
             .map(|e| e.id.clone())
             .collect();
-        
+
         self.storage.read().list_files(file_type, &pinned_ids)
     }
 
     /// Get a single storage file by path
     pub fn get_storage_file(&self, file_path: &str) -> Option<StorageFile> {
         debug!("[ScreenRecording] Getting storage file: {}", file_path);
-        let pinned_ids: Vec<String> = self.history
+        let pinned_ids: Vec<String> = self
+            .history
             .get_all()
             .iter()
             .filter(|e| e.is_pinned)
             .map(|e| e.id.clone())
             .collect();
-        
-        self.storage.read().get_file(std::path::Path::new(file_path), &pinned_ids)
+
+        self.storage
+            .read()
+            .get_file(std::path::Path::new(file_path), &pinned_ids)
     }
 
     /// Get app handle reference
@@ -682,26 +744,24 @@ impl ScreenRecordingManager {
     }
 
     /// Calculate toolbar position coordinates for a given preset
-    pub fn calculate_toolbar_position(&self, position: ToolbarPos, monitor_width: u32, monitor_height: u32, toolbar_width: u32, toolbar_height: u32) -> (i32, i32) {
+    pub fn calculate_toolbar_position(
+        &self,
+        position: ToolbarPos,
+        monitor_width: u32,
+        monitor_height: u32,
+        toolbar_width: u32,
+        toolbar_height: u32,
+    ) -> (i32, i32) {
         let padding = 16;
         match position {
-            ToolbarPos::TopCenter => (
-                ((monitor_width - toolbar_width) / 2) as i32,
-                padding,
-            ),
+            ToolbarPos::TopCenter => (((monitor_width - toolbar_width) / 2) as i32, padding),
             ToolbarPos::BottomCenter => (
                 ((monitor_width - toolbar_width) / 2) as i32,
                 (monitor_height - toolbar_height) as i32 - padding,
             ),
             ToolbarPos::TopLeft => (padding, padding),
-            ToolbarPos::TopRight => (
-                (monitor_width - toolbar_width) as i32 - padding,
-                padding,
-            ),
-            ToolbarPos::BottomLeft => (
-                padding,
-                (monitor_height - toolbar_height) as i32 - padding,
-            ),
+            ToolbarPos::TopRight => ((monitor_width - toolbar_width) as i32 - padding, padding),
+            ToolbarPos::BottomLeft => (padding, (monitor_height - toolbar_height) as i32 - padding),
             ToolbarPos::BottomRight => (
                 (monitor_width - toolbar_width) as i32 - padding,
                 (monitor_height - toolbar_height) as i32 - padding,
@@ -782,9 +842,18 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: RecordingConfig = serde_json::from_str(&json).unwrap();
         assert!(!deserialized.use_hardware_acceleration);
-        assert_eq!(deserialized.preferred_encoder.as_deref(), Some("h264_nvenc"));
-        assert_eq!(deserialized.system_audio_device.as_deref(), Some("Stereo Mix"));
-        assert_eq!(deserialized.microphone_device.as_deref(), Some("USB Microphone"));
+        assert_eq!(
+            deserialized.preferred_encoder.as_deref(),
+            Some("h264_nvenc")
+        );
+        assert_eq!(
+            deserialized.system_audio_device.as_deref(),
+            Some("Stereo Mix")
+        );
+        assert_eq!(
+            deserialized.microphone_device.as_deref(),
+            Some("USB Microphone")
+        );
     }
 
     #[test]

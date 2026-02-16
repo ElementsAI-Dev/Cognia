@@ -7,22 +7,22 @@
 //! - AI-powered text completion suggestions
 //! - Overlay window for displaying suggestions
 
-mod config;
 mod completion_service;
+mod config;
 mod ime_state;
 mod keyboard_monitor;
 pub mod types;
 
-pub use config::CompletionConfig;
 pub use completion_service::CompletionService;
-pub use ime_state::{ImeState, ImeMonitor};
+pub use config::CompletionConfig;
+pub use ime_state::{ImeMonitor, ImeState};
 // Note: InputMode is used in tests but not re-exported to avoid unused import warning
 #[cfg(test)]
 use ime_state::InputMode;
-pub use keyboard_monitor::{KeyboardMonitor, KeyEvent, KeyEventType};
+pub use keyboard_monitor::{KeyEvent, KeyEventType, KeyboardMonitor};
 pub use types::{
-    CompletionContext, CompletionFeedback, CompletionResult, CompletionSuggestion,
-    CompletionStatus, InputCompletionEvent,
+    CompletionContext, CompletionFeedback, CompletionResult, CompletionStatus,
+    CompletionSuggestion, InputCompletionEvent,
 };
 
 use parking_lot::RwLock;
@@ -32,7 +32,7 @@ use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 
 /// Input Completion Manager
-/// 
+///
 /// Coordinates IME state detection, keyboard monitoring, and AI completion.
 pub struct InputCompletionManager {
     /// Application handle
@@ -61,12 +61,12 @@ impl InputCompletionManager {
     /// Create a new InputCompletionManager
     pub fn new(app_handle: AppHandle) -> Self {
         log::info!("Creating InputCompletionManager");
-        
+
         let config = Arc::new(RwLock::new(CompletionConfig::default()));
         let ime_monitor = Arc::new(ImeMonitor::new());
         let keyboard_monitor = Arc::new(KeyboardMonitor::new());
         let completion_service = Arc::new(CompletionService::new());
-        
+
         Self {
             app_handle,
             config,
@@ -96,9 +96,11 @@ impl InputCompletionManager {
 
         log::info!("Starting InputCompletionManager");
         self.is_running.store(true, Ordering::SeqCst);
-        
+
         // Emit started event
-        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Started);
+        let _ = self
+            .app_handle
+            .emit("input-completion://event", InputCompletionEvent::Started);
 
         // Start keyboard monitoring
         let (key_tx, mut key_rx) = mpsc::unbounded_channel::<KeyEvent>();
@@ -153,21 +155,23 @@ impl InputCompletionManager {
     pub fn stop(&self) {
         log::info!("Stopping InputCompletionManager");
         self.is_running.store(false, Ordering::SeqCst);
-        
+
         // Emit stopped event
-        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Stopped);
-        
+        let _ = self
+            .app_handle
+            .emit("input-completion://event", InputCompletionEvent::Stopped);
+
         // Stop keyboard monitor with timeout for graceful shutdown
         if self.keyboard_monitor.is_running() {
             self.keyboard_monitor.stop_with_timeout(2000);
         }
         self.ime_monitor.stop();
-        
+
         // Cancel any pending debounce
         if let Some(handle) = self.debounce_handle.write().take() {
             handle.abort();
         }
-        
+
         // Clear state
         self.input_buffer.write().clear();
         *self.current_suggestion.write() = None;
@@ -227,7 +231,7 @@ impl InputCompletionManager {
         last_key_timestamp: &Arc<AtomicU64>,
     ) {
         let cfg = config.read().clone();
-        
+
         // Skip if IME is composing (user is typing CJK characters)
         let ime_state = ime_monitor.get_state();
         if ime_state.is_composing {
@@ -241,33 +245,37 @@ impl InputCompletionManager {
                 if key_event.key == "Tab" {
                     if let Some(suggestion) = current_suggestion.read().clone() {
                         log::debug!("Accepting completion suggestion");
-                        
+
                         // Emit accept event using structured event type
-                        let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Accept(suggestion.clone()));
-                        
+                        let _ = app_handle.emit(
+                            "input-completion://event",
+                            InputCompletionEvent::Accept(suggestion.clone()),
+                        );
+
                         // Clear current suggestion
                         *current_suggestion.write() = None;
                         input_buffer.write().clear();
-                        
+
                         return;
                     }
                 }
 
                 // Handle Escape - dismiss suggestion
-                if key_event.key == "Escape"
-                    && current_suggestion.read().is_some()
-                {
+                if key_event.key == "Escape" && current_suggestion.read().is_some() {
                     log::debug!("Dismissing completion suggestion");
                     *current_suggestion.write() = None;
-                    
-                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
+
+                    let _ =
+                        app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
                     return;
                 }
 
                 // Handle character input
                 if let Some(ch) = key_event.char {
                     // Skip if modifier keys are held and skip_with_modifiers is enabled
-                    if cfg.trigger.skip_with_modifiers && (key_event.ctrl || key_event.alt || key_event.shift) {
+                    if cfg.trigger.skip_with_modifiers
+                        && (key_event.ctrl || key_event.alt || key_event.shift)
+                    {
                         log::trace!("Skipping completion: modifier key held");
                         return;
                     }
@@ -289,13 +297,13 @@ impl InputCompletionManager {
 
                     let mut buffer = input_buffer.write();
                     buffer.push(ch);
-                    
+
                     // Limit buffer size
                     if buffer.len() > cfg.trigger.max_context_length {
                         let excess = buffer.len() - cfg.trigger.max_context_length;
                         buffer.drain(0..excess);
                     }
-                    
+
                     log::trace!("Input buffer updated: {} chars", buffer.len());
                 }
 
@@ -303,10 +311,11 @@ impl InputCompletionManager {
                 if key_event.key == "Backspace" {
                     let mut buffer = input_buffer.write();
                     buffer.pop();
-                    
+
                     // Clear suggestion on backspace
                     *current_suggestion.write() = None;
-                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
+                    let _ =
+                        app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
                 }
             }
             KeyEventType::KeyRelease => {
@@ -314,13 +323,13 @@ impl InputCompletionManager {
                 let buffer = input_buffer.read();
                 let buffer_len = buffer.len();
                 let buffer_text = buffer.clone();
-                
+
                 // Check word boundary trigger if enabled
                 if cfg.trigger.trigger_on_word_boundary {
                     // Only trigger if the last character is a word boundary
                     if let Some(last_char) = buffer.chars().last() {
-                        let is_word_boundary = last_char.is_whitespace() 
-                            || last_char == '.' 
+                        let is_word_boundary = last_char.is_whitespace()
+                            || last_char == '.'
                             || last_char == ','
                             || last_char == ';'
                             || last_char == ':'
@@ -330,7 +339,7 @@ impl InputCompletionManager {
                             || last_char == '}'
                             || last_char == '['
                             || last_char == ']';
-                        
+
                         if !is_word_boundary {
                             log::trace!("Skipping completion: not at word boundary");
                             drop(buffer);
@@ -339,18 +348,27 @@ impl InputCompletionManager {
                     }
                 }
                 drop(buffer);
-                
+
                 if buffer_len >= cfg.trigger.min_context_length {
                     // Try prefix cache matching first (instant, no API call needed)
                     // If user types characters that match an existing cached suggestion,
                     // return the remaining portion immediately
-                    if let Some(prefix_result) = completion_service.get_cached_by_prefix(&buffer_text) {
+                    if let Some(prefix_result) =
+                        completion_service.get_cached_by_prefix(&buffer_text)
+                    {
                         if let Some(suggestion) = prefix_result.suggestions.first() {
-                            log::debug!("Prefix cache hit: {}", suggestion.text.chars().take(50).collect::<String>());
+                            log::debug!(
+                                "Prefix cache hit: {}",
+                                suggestion.text.chars().take(50).collect::<String>()
+                            );
                             *current_suggestion.write() = Some(suggestion.clone());
-                            let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Suggestion(suggestion.clone()));
+                            let _ = app_handle.emit(
+                                "input-completion://event",
+                                InputCompletionEvent::Suggestion(suggestion.clone()),
+                            );
                             // Update timestamp for adaptive debounce
-                            last_key_timestamp.store(key_event.timestamp.max(0) as u64, Ordering::Relaxed);
+                            last_key_timestamp
+                                .store(key_event.timestamp.max(0) as u64, Ordering::Relaxed);
                             return;
                         }
                     }
@@ -362,12 +380,9 @@ impl InputCompletionManager {
 
                     // Compute adaptive debounce delay based on typing speed
                     let current_ts = key_event.timestamp.max(0) as u64;
-                    let debounce_ms = Self::compute_adaptive_debounce(
-                        &cfg,
-                        last_key_timestamp,
-                        current_ts,
-                    );
-                    
+                    let debounce_ms =
+                        Self::compute_adaptive_debounce(&cfg, last_key_timestamp, current_ts);
+
                     // Update last key timestamp for next adaptive debounce calculation
                     last_key_timestamp.store(current_ts, Ordering::Relaxed);
 
@@ -379,7 +394,7 @@ impl InputCompletionManager {
 
                     let handle = tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_millis(debounce_ms)).await;
-                        
+
                         // Request completion
                         let context = CompletionContext {
                             text: buffer_text,
@@ -389,20 +404,32 @@ impl InputCompletionManager {
                             ime_state: Some(ime_state),
                         };
 
-                        match completion_service.get_completion(&context, &model_config).await {
+                        match completion_service
+                            .get_completion(&context, &model_config)
+                            .await
+                        {
                             Ok(result) => {
                                 if let Some(suggestion) = result.suggestions.first() {
-                                    log::debug!("Got completion suggestion: {}", suggestion.text.chars().take(50).collect::<String>());
-                                    
+                                    log::debug!(
+                                        "Got completion suggestion: {}",
+                                        suggestion.text.chars().take(50).collect::<String>()
+                                    );
+
                                     *current_suggestion.write() = Some(suggestion.clone());
-                                    
+
                                     // Emit suggestion event using structured event type
-                                    let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Suggestion(suggestion.clone()));
+                                    let _ = app_handle.emit(
+                                        "input-completion://event",
+                                        InputCompletionEvent::Suggestion(suggestion.clone()),
+                                    );
                                 }
                             }
                             Err(e) => {
                                 log::warn!("Completion request failed: {}", e);
-                                let _ = app_handle.emit("input-completion://event", InputCompletionEvent::Error(e));
+                                let _ = app_handle.emit(
+                                    "input-completion://event",
+                                    InputCompletionEvent::Error(e),
+                                );
                             }
                         }
                     });
@@ -435,7 +462,9 @@ impl InputCompletionManager {
     /// Dismiss current suggestion
     pub fn dismiss_suggestion(&self) {
         *self.current_suggestion.write() = None;
-        let _ = self.app_handle.emit("input-completion://event", InputCompletionEvent::Dismiss);
+        let _ = self
+            .app_handle
+            .emit("input-completion://event", InputCompletionEvent::Dismiss);
     }
 
     /// Update configuration
@@ -467,7 +496,7 @@ impl InputCompletionManager {
     /// Manually trigger completion for given text
     pub async fn trigger_completion(&self, text: &str) -> Result<CompletionResult, String> {
         let config = self.config.read().clone();
-        
+
         let context = CompletionContext {
             text: text.to_string(),
             cursor_position: None,
@@ -476,7 +505,9 @@ impl InputCompletionManager {
             ime_state: Some(self.ime_monitor.get_state()),
         };
 
-        self.completion_service.get_completion(&context, &config.model).await
+        self.completion_service
+            .get_completion(&context, &config.model)
+            .await
     }
 
     /// Get completion service statistics
@@ -548,12 +579,9 @@ mod tests {
 
     #[test]
     fn test_completion_suggestion_creation() {
-        let suggestion = CompletionSuggestion::new(
-            "test completion".to_string(),
-            0.9,
-            CompletionType::Line,
-        );
-        
+        let suggestion =
+            CompletionSuggestion::new("test completion".to_string(), 0.9, CompletionType::Line);
+
         assert_eq!(suggestion.text, "test completion");
         assert_eq!(suggestion.confidence, 0.9);
         assert!(!suggestion.id.is_empty());
@@ -567,7 +595,7 @@ mod tests {
             has_suggestion: false,
             buffer_length: 10,
         };
-        
+
         assert!(status.is_running);
         assert!(!status.has_suggestion);
         assert_eq!(status.buffer_length, 10);
@@ -590,7 +618,7 @@ mod tests {
             alt: false,
             timestamp: 12345,
         };
-        
+
         assert_eq!(event.key, "A");
         assert_eq!(event.char, Some('a'));
     }
@@ -604,7 +632,7 @@ mod tests {
             InputMode::Korean,
             InputMode::Other("Thai".to_string()),
         ];
-        
+
         for mode in modes {
             let json = serde_json::to_string(&mode).unwrap();
             let parsed: InputMode = serde_json::from_str(&json).unwrap();
@@ -621,7 +649,7 @@ mod tests {
             CompletionProvider::Auto,
             CompletionProvider::Custom,
         ];
-        
+
         for provider in providers {
             let json = serde_json::to_string(&provider).unwrap();
             let parsed: CompletionProvider = serde_json::from_str(&json).unwrap();
@@ -680,7 +708,7 @@ mod tests {
             language: Some("rust".to_string()),
             ime_state: None,
         };
-        
+
         assert_eq!(context.language, Some("rust".to_string()));
         assert_eq!(context.file_path, Some("main.rs".to_string()));
     }
@@ -693,7 +721,7 @@ mod tests {
             InputCompletionEvent::Dismiss,
             InputCompletionEvent::Error("test error".to_string()),
         ];
-        
+
         for event in events {
             let json = serde_json::to_string(&event).unwrap();
             assert!(!json.is_empty());
@@ -708,7 +736,7 @@ mod tests {
             CompletionType::Word,
             CompletionType::Snippet,
         ];
-        
+
         for t in types {
             let json = serde_json::to_string(&t).unwrap();
             let parsed: CompletionType = serde_json::from_str(&json).unwrap();
@@ -726,7 +754,7 @@ mod tests {
             composition_string: Some("zhong wen".to_string()),
             candidates: vec!["中文".to_string()],
         };
-        
+
         assert!(state.is_active);
         assert!(state.is_composing);
         assert_eq!(state.candidates.len(), 1);
@@ -740,10 +768,10 @@ mod tests {
             has_suggestion: true,
             buffer_length: 25,
         };
-        
+
         let json = serde_json::to_string(&status).unwrap();
         let parsed: CompletionStatus = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.is_running, status.is_running);
         assert_eq!(parsed.buffer_length, status.buffer_length);
     }
@@ -752,20 +780,16 @@ mod tests {
     fn test_config_clone() {
         let config = CompletionConfig::default();
         let cloned = config.clone();
-        
+
         assert_eq!(config.enabled, cloned.enabled);
         assert_eq!(config.model.model_id, cloned.model.model_id);
     }
 
     #[test]
     fn test_suggestion_clone() {
-        let suggestion = CompletionSuggestion::new(
-            "test".to_string(),
-            0.8,
-            CompletionType::Line,
-        );
+        let suggestion = CompletionSuggestion::new("test".to_string(), 0.8, CompletionType::Line);
         let cloned = suggestion.clone();
-        
+
         assert_eq!(suggestion.text, cloned.text);
         assert_eq!(suggestion.id, cloned.id);
     }

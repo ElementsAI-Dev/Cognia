@@ -1,5 +1,5 @@
 //! DBLP API provider implementation
-//! 
+//!
 //! API Documentation: https://dblp.org/faq/13501473.html
 
 use super::AcademicProvider;
@@ -111,7 +111,7 @@ impl DblpAuthor {
             DblpAuthor::Complex { text, .. } => text.clone().unwrap_or_default(),
         }
     }
-    
+
     fn pid(&self) -> Option<String> {
         match self {
             DblpAuthor::Simple(_) => None,
@@ -139,16 +139,19 @@ impl DblpLinks {
 impl From<DblpInfo> for Paper {
     fn from(info: DblpInfo) -> Self {
         let key = info.key.clone().unwrap_or_default();
-        let title = info.title.map(|t| t.as_str().to_string()).unwrap_or_default();
-        
+        let title = info
+            .title
+            .map(|t| t.as_str().to_string())
+            .unwrap_or_default();
+
         let mut paper = Paper::new("dblp", &key, &title);
-        
+
         paper.year = info.year.and_then(|y| y.parse().ok());
         paper.venue = info.venue;
         paper.pages = info.pages;
         paper.volume = info.volume;
         paper.issue = info.number;
-        
+
         // Determine if conference or journal based on type
         if let Some(ref pub_type) = info.pub_type {
             if pub_type.contains("Conference") || pub_type.contains("Proceedings") {
@@ -157,7 +160,7 @@ impl From<DblpInfo> for Paper {
                 paper.journal = paper.venue.clone();
             }
         }
-        
+
         // Parse authors
         if let Some(authors) = info.authors {
             if let Some(author_list) = authors.author {
@@ -169,20 +172,23 @@ impl From<DblpInfo> for Paper {
                         email: None,
                         orcid: None,
                     }],
-                    DblpAuthorList::Multiple(list) => list.into_iter().map(|a| PaperAuthor {
-                        name: a.name(),
-                        author_id: a.pid(),
-                        affiliation: None,
-                        email: None,
-                        orcid: None,
-                    }).collect(),
+                    DblpAuthorList::Multiple(list) => list
+                        .into_iter()
+                        .map(|a| PaperAuthor {
+                            name: a.name(),
+                            author_id: a.pid(),
+                            affiliation: None,
+                            email: None,
+                            orcid: None,
+                        })
+                        .collect(),
                 };
             }
         }
-        
+
         paper.metadata.doi = info.doi;
         paper.metadata.dblp_key = Some(key);
-        
+
         // Add URLs
         if let Some(links) = info.ee {
             for link in links.all() {
@@ -193,20 +199,20 @@ impl From<DblpInfo> for Paper {
                 } else {
                     "other"
                 };
-                
+
                 paper.urls.push(PaperUrl {
                     url: link.to_string(),
                     url_type: url_type.to_string(),
                     source: "dblp".to_string(),
                     is_open_access: None,
                 });
-                
+
                 if url_type == "pdf" && paper.pdf_url.is_none() {
                     paper.pdf_url = Some(link.to_string());
                 }
             }
         }
-        
+
         if let Some(url) = info.url {
             paper.urls.push(PaperUrl {
                 url,
@@ -215,7 +221,7 @@ impl From<DblpInfo> for Paper {
                 is_open_access: None,
             });
         }
-        
+
         paper
     }
 }
@@ -225,7 +231,7 @@ impl AcademicProvider for DblpProvider {
     fn provider_id(&self) -> &str {
         "dblp"
     }
-    
+
     fn info(&self) -> ProviderInfo {
         ProviderInfo {
             id: "dblp".to_string(),
@@ -245,34 +251,39 @@ impl AcademicProvider for DblpProvider {
             },
         }
     }
-    
+
     fn is_enabled(&self) -> bool {
         self.enabled
     }
-    
+
     fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
-    
+
     fn set_api_key(&mut self, _api_key: Option<String>) {
         // DBLP doesn't require an API key
     }
-    
+
     async fn test_connection(&self) -> Result<bool, String> {
         let url = format!("{}/publ/api?q=test&h=1&format=json", DBLP_API_URL);
-        
-        match create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?.get(&url).send().await {
+
+        match create_proxy_client()
+            .map_err(|e| format!("HTTP client error: {}", e))?
+            .get(&url)
+            .send()
+            .await
+        {
             Ok(response) => Ok(response.status().is_success()),
             Err(e) => Err(format!("Connection test failed: {}", e)),
         }
     }
-    
+
     async fn search(&self, query: &str, options: &SearchOptions) -> Result<SearchResult, String> {
         let start_time = std::time::Instant::now();
-        
+
         let limit = options.limit.unwrap_or(20).min(1000);
         let offset = options.offset.unwrap_or(0);
-        
+
         let url = format!(
             "{}/publ/api?q={}&h={}&f={}&format=json",
             DBLP_API_URL,
@@ -280,38 +291,40 @@ impl AcademicProvider for DblpProvider {
             limit,
             offset
         );
-        
+
         log::debug!("DBLP search URL: {}", url);
-        
-        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
+
+        let response = create_proxy_client()
+            .map_err(|e| format!("HTTP client error: {}", e))?
             .get(&url)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
-        
+
         if !response.status().is_success() {
             return Err(format!("API returned status: {}", response.status()));
         }
-        
+
         let data: DblpSearchResponse = response
             .json()
             .await
             .map_err(|e| format!("Failed to parse response: {}", e))?;
-        
+
         let hits = data.result.and_then(|r| r.hits);
-        
-        let total: i32 = hits.as_ref()
+
+        let total: i32 = hits
+            .as_ref()
             .and_then(|h| h.total.as_ref())
             .and_then(|t| t.parse().ok())
             .unwrap_or(0);
-        
+
         let mut papers: Vec<Paper> = hits
             .and_then(|h| h.hit)
             .unwrap_or_default()
             .into_iter()
             .filter_map(|h| h.info.map(Paper::from))
             .collect();
-        
+
         // Apply year filter post-search
         if let Some(year_from) = options.year_from {
             papers.retain(|p| p.year.map(|y| y >= year_from).unwrap_or(false));
@@ -319,7 +332,7 @@ impl AcademicProvider for DblpProvider {
         if let Some(year_to) = options.year_to {
             papers.retain(|p| p.year.map(|y| y <= year_to).unwrap_or(false));
         }
-        
+
         Ok(SearchResult {
             papers,
             total_results: total,
@@ -329,22 +342,23 @@ impl AcademicProvider for DblpProvider {
             search_time_ms: start_time.elapsed().as_millis() as u64,
         })
     }
-    
+
     async fn get_paper(&self, paper_id: &str) -> Result<Paper, String> {
         // DBLP uses keys like "journals/cacm/Knuth74"
         // We need to construct the info URL
         let url = format!("https://dblp.org/rec/{}.json", paper_id);
-        
-        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
+
+        let response = create_proxy_client()
+            .map_err(|e| format!("HTTP client error: {}", e))?
             .get(&url)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
-        
+
         if !response.status().is_success() {
             return Err(format!("Paper '{}' not found", paper_id));
         }
-        
+
         // DBLP returns a different format for single records
         // We'll do a search by key instead
         let search_url = format!(
@@ -352,22 +366,23 @@ impl AcademicProvider for DblpProvider {
             DBLP_API_URL,
             urlencoding::encode(paper_id)
         );
-        
-        let response = create_proxy_client().map_err(|e| format!("HTTP client error: {}", e))?
+
+        let response = create_proxy_client()
+            .map_err(|e| format!("HTTP client error: {}", e))?
             .get(&search_url)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
-        
+
         if !response.status().is_success() {
             return Err(format!("API returned status: {}", response.status()));
         }
-        
+
         let data: DblpSearchResponse = response
             .json()
             .await
             .map_err(|e| format!("Failed to parse response: {}", e))?;
-        
+
         data.result
             .and_then(|r| r.hits)
             .and_then(|h| h.hit)

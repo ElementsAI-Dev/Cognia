@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { ModelManager } from './model-manager';
 
 // Mock Tauri API
@@ -24,13 +24,20 @@ beforeAll(() => {
   Object.defineProperty(window, '__TAURI_INTERNALS__', {
     value: {},
     writable: true,
+    configurable: true,
   });
 });
 
 afterAll(() => {
+  if (originalTauriInternals === undefined) {
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    return;
+  }
+
   Object.defineProperty(window, '__TAURI_INTERNALS__', {
     value: originalTauriInternals,
     writable: true,
+    configurable: true,
   });
 });
 
@@ -133,7 +140,7 @@ describe('ModelManager', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Installed')).toBeInTheDocument();
+        expect(screen.getByText(/^installed$/i)).toBeInTheDocument();
       });
     });
 
@@ -178,7 +185,7 @@ describe('ModelManager', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: 'All' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /all\s*models/i })).toBeInTheDocument();
       });
     });
 
@@ -347,17 +354,17 @@ describe('ModelManager', () => {
 
       // Open settings and set proxy
       await waitFor(() => {
-        expect(screen.getByText('Settings')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText('Settings'));
+      fireEvent.click(screen.getByRole('button', { name: /settings/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Detect')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /detect/i })).toBeInTheDocument();
       });
 
       // Click detect to set proxy URL
-      const detectButton = screen.getByText('Detect');
+      const detectButton = screen.getByRole('button', { name: /detect/i });
       await act(async () => {
         fireEvent.click(detectButton);
       });
@@ -511,11 +518,9 @@ describe('ModelManager', () => {
   describe('Non-Tauri Environment', () => {
     it('should not load models when not in Tauri environment', async () => {
       // Temporarily remove __TAURI_INTERNALS__ (Tauri v2)
+      const hadTauriInternals = '__TAURI_INTERNALS__' in window;
       const originalTauriInternals = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-      Object.defineProperty(window, '__TAURI_INTERNALS__', {
-        value: undefined,
-        writable: true,
-      });
+      delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
       mockInvoke.mockClear();
 
@@ -527,10 +532,13 @@ describe('ModelManager', () => {
       expect(mockInvoke).not.toHaveBeenCalled();
 
       // Restore
-      Object.defineProperty(window, '__TAURI_INTERNALS__', {
-        value: originalTauriInternals,
-        writable: true,
-      });
+      if (hadTauriInternals) {
+        Object.defineProperty(window, '__TAURI_INTERNALS__', {
+          value: originalTauriInternals,
+          writable: true,
+          configurable: true,
+        });
+      }
     });
   });
 
@@ -579,20 +587,19 @@ describe('ModelManager', () => {
       const proxyInput = screen.getByPlaceholderText('http://127.0.0.1:7890');
       fireEvent.change(proxyInput, { target: { value: 'http://127.0.0.1:7890' } });
 
-      // Find and click the test button (has Wifi icon)
-      const buttons = screen.getAllByRole('button');
-      const testButton = buttons.find(btn => {
-        const hasWifiIcon = btn.querySelector('svg');
-        return hasWifiIcon && !btn.textContent?.includes('Detect');
+      // The proxy row contains exactly two buttons: Detect and Test.
+      const proxyRow = proxyInput.parentElement;
+      expect(proxyRow).toBeTruthy();
+      const rowButtons = within(proxyRow as HTMLElement).getAllByRole('button');
+      expect(rowButtons).toHaveLength(2);
+
+      await act(async () => {
+        fireEvent.click(rowButtons[1]);
       });
 
-      if (testButton) {
-        await act(async () => {
-          fireEvent.click(testButton);
-        });
-
+      await waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith('model_test_proxy', { proxyUrl: 'http://127.0.0.1:7890' });
-      }
+      });
     });
   });
 });

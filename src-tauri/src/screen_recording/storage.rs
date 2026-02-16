@@ -121,7 +121,7 @@ impl StorageManager {
     ) -> String {
         let now = Local::now();
         let time_str = now.format("%H-%M-%S").to_string();
-        
+
         let base_name = if self.config.semantic_naming {
             match custom_name {
                 Some(name) => format!("{}_{}", name, time_str),
@@ -151,7 +151,7 @@ impl StorageManager {
     ) -> String {
         let now = Local::now();
         let time_str = now.format("%H-%M-%S").to_string();
-        
+
         let base_name = if self.config.semantic_naming {
             match custom_name {
                 Some(name) => format!("{}_{}", name, time_str),
@@ -179,7 +179,7 @@ impl StorageManager {
         if self.config.organize_by_date {
             let date_folder = Local::now().format("%Y-%m-%d").to_string();
             path = path.join(&date_folder);
-            
+
             if !path.exists() {
                 fs::create_dir_all(&path)
                     .map_err(|e| format!("Failed to create date folder: {}", e))?;
@@ -197,7 +197,7 @@ impl StorageManager {
         if self.config.organize_by_date {
             let date_folder = Local::now().format("%Y-%m-%d").to_string();
             path = path.join(&date_folder);
-            
+
             if !path.exists() {
                 fs::create_dir_all(&path)
                     .map_err(|e| format!("Failed to create date folder: {}", e))?;
@@ -210,8 +210,10 @@ impl StorageManager {
 
     /// Calculate storage statistics
     pub fn get_stats(&self) -> StorageStats {
-        let (recordings_size, recordings_count) = self.calculate_dir_size(&self.config.recordings_dir);
-        let (screenshots_size, screenshots_count) = self.calculate_dir_size(&self.config.screenshots_dir);
+        let (recordings_size, recordings_count) =
+            self.calculate_dir_size(&self.config.recordings_dir);
+        let (screenshots_size, screenshots_count) =
+            self.calculate_dir_size(&self.config.screenshots_dir);
 
         // Get disk space
         let (available_space, total_space) = self.get_disk_space();
@@ -255,8 +257,8 @@ impl StorageManager {
         {
             use std::ffi::OsStr;
             use std::os::windows::ffi::OsStrExt;
-            use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
             use windows::core::PCWSTR;
+            use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
             let path = self.config.recordings_dir.to_string_lossy();
             let root = if path.len() >= 2 && path.chars().nth(1) == Some(':') {
@@ -344,8 +346,7 @@ impl StorageManager {
             return Ok(());
         }
 
-        let entries = fs::read_dir(dir)
-            .map_err(|e| format!("Failed to read directory: {}", e))?;
+        let entries = fs::read_dir(dir).map_err(|e| format!("Failed to read directory: {}", e))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -353,7 +354,7 @@ impl StorageManager {
             if path.is_dir() {
                 // Recursively clean subdirectories
                 self.cleanup_directory(&path, cutoff, pinned_ids, result)?;
-                
+
                 // Remove empty directories
                 if let Ok(mut entries) = fs::read_dir(&path) {
                     if entries.next().is_none() {
@@ -366,15 +367,13 @@ impl StorageManager {
                 if let Ok(metadata) = entry.metadata() {
                     if let Ok(modified) = metadata.modified() {
                         let modified_time: DateTime<Local> = modified.into();
-                        
+
                         if modified_time < cutoff {
                             // Check if pinned
-                            let filename = path.file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or("");
-                            
-                            let is_pinned = self.config.preserve_pinned && 
-                                pinned_ids.iter().any(|id| filename.contains(id));
+                            let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+                            let is_pinned = self.config.preserve_pinned
+                                && pinned_ids.iter().any(|id| filename.contains(id));
 
                             if !is_pinned {
                                 let size = metadata.len();
@@ -442,20 +441,34 @@ impl StorageManager {
     }
 
     /// List all storage files (recordings and screenshots)
-    /// 
+    ///
     /// Returns a list of StorageFile objects with metadata for each file.
     /// Optionally filter by file type.
-    pub fn list_files(&self, file_type: Option<StorageFileType>, pinned_ids: &[String]) -> Vec<StorageFile> {
+    pub fn list_files(
+        &self,
+        file_type: Option<StorageFileType>,
+        pinned_ids: &[String],
+    ) -> Vec<StorageFile> {
         let mut files = Vec::new();
 
         // List recordings if no filter or filter is Recording
         if file_type.is_none() || file_type == Some(StorageFileType::Recording) {
-            self.collect_files_from_dir(&self.config.recordings_dir, StorageFileType::Recording, pinned_ids, &mut files);
+            self.collect_files_from_dir(
+                &self.config.recordings_dir,
+                StorageFileType::Recording,
+                pinned_ids,
+                &mut files,
+            );
         }
 
         // List screenshots if no filter or filter is Screenshot
         if file_type.is_none() || file_type == Some(StorageFileType::Screenshot) {
-            self.collect_files_from_dir(&self.config.screenshots_dir, StorageFileType::Screenshot, pinned_ids, &mut files);
+            self.collect_files_from_dir(
+                &self.config.screenshots_dir,
+                StorageFileType::Screenshot,
+                pinned_ids,
+                &mut files,
+            );
         }
 
         // Sort by modified time (newest first)
@@ -479,29 +492,29 @@ impl StorageManager {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                
+
                 if path.is_dir() {
                     // Recursively collect from subdirectories
                     self.collect_files_from_dir(&path, default_type.clone(), pinned_ids, files);
                 } else if let Ok(metadata) = entry.metadata() {
                     // Determine file type based on extension
                     let file_type = self.determine_file_type(&path, &default_type);
-                    
+
                     // Check if pinned
-                    let filename = path.file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("");
+                    let filename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
                     let is_pinned = pinned_ids.iter().any(|id| filename.contains(id));
 
                     // Get timestamps
-                    let created = metadata.created()
+                    let created = metadata
+                        .created()
                         .map(|t| {
                             let datetime: DateTime<Local> = t.into();
                             datetime.timestamp()
                         })
                         .unwrap_or(0);
-                    
-                    let modified = metadata.modified()
+
+                    let modified = metadata
+                        .modified()
                         .map(|t| {
                             let datetime: DateTime<Local> = t.into();
                             datetime.timestamp()
@@ -523,7 +536,8 @@ impl StorageManager {
 
     /// Determine file type based on extension
     fn determine_file_type(&self, path: &Path, default_type: &StorageFileType) -> StorageFileType {
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase())
             .unwrap_or_default();
@@ -543,7 +557,7 @@ impl StorageManager {
         }
 
         let metadata = fs::metadata(file_path).ok()?;
-        
+
         // Determine file type
         let is_recording = file_path.starts_with(&self.config.recordings_dir);
         let default_type = if is_recording {
@@ -554,20 +568,20 @@ impl StorageManager {
         let file_type = self.determine_file_type(file_path, &default_type);
 
         // Check if pinned
-        let filename = file_path.file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let filename = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let is_pinned = pinned_ids.iter().any(|id| filename.contains(id));
 
         // Get timestamps
-        let created = metadata.created()
+        let created = metadata
+            .created()
             .map(|t| {
                 let datetime: DateTime<Local> = t.into();
                 datetime.timestamp()
             })
             .unwrap_or(0);
-        
-        let modified = metadata.modified()
+
+        let modified = metadata
+            .modified()
             .map(|t| {
                 let datetime: DateTime<Local> = t.into();
                 datetime.timestamp()
@@ -609,7 +623,7 @@ mod tests {
     fn test_generate_recording_filename() {
         let config = StorageConfig::default();
         let manager = StorageManager::new(config);
-        
+
         let filename = manager.generate_recording_filename("fullscreen", "mp4", None);
         assert!(filename.starts_with("Fullscreen_"));
         assert!(filename.ends_with(".mp4"));
@@ -619,7 +633,7 @@ mod tests {
     fn test_generate_screenshot_filename() {
         let config = StorageConfig::default();
         let manager = StorageManager::new(config);
-        
+
         let filename = manager.generate_screenshot_filename("window", "png", Some("MyWindow"));
         assert!(filename.starts_with("MyWindow_"));
         assert!(filename.ends_with(".png"));
@@ -629,9 +643,9 @@ mod tests {
     fn test_aggregated_storage_status() {
         let config = StorageConfig::default();
         let manager = StorageManager::new(config);
-        
+
         let status = manager.get_aggregated_status();
-        
+
         // Should return valid stats
         assert_eq!(status.stats.recordings_count, 0);
         assert_eq!(status.stats.screenshots_count, 0);
@@ -674,7 +688,7 @@ mod tests {
         let mut config = StorageConfig::default();
         config.max_storage_gb = 0.0; // unlimited
         let manager = StorageManager::new(config);
-        
+
         let status = manager.get_aggregated_status();
         assert_eq!(status.usage_percent, 0.0);
         assert!(!status.is_exceeded);

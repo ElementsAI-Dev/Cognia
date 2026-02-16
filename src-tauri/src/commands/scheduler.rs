@@ -2,12 +2,12 @@
 //!
 //! Provides commands for creating, managing, and executing system-level scheduled tasks.
 
-use tauri::State;
 use log::{debug, error, info};
+use tauri::State;
 
 use crate::scheduler::{
-    CreateSystemTaskInput, SchedulerCapabilities,
-    SchedulerState, SystemTask, SystemTaskId, TaskConfirmationRequest, TaskRunResult,
+    CreateSystemTaskInput, SchedulerCapabilities, SchedulerState, SystemTask, SystemTaskId,
+    TaskConfirmationRequest, TaskRunResult,
 };
 
 /// Response type for operations that may require confirmation
@@ -60,7 +60,9 @@ pub async fn scheduler_create_task(
     match state.create_task_with_confirmation(input, confirmed).await {
         Ok(Ok(task)) => {
             info!("System task created successfully: {}", task.id);
-            Ok(TaskOperationResponse::Success { task: Box::new(task) })
+            Ok(TaskOperationResponse::Success {
+                task: Box::new(task),
+            })
         }
         Ok(Err(confirmation)) => {
             debug!("Task creation requires confirmation: {:?}", confirmation);
@@ -91,7 +93,9 @@ pub async fn scheduler_update_task(
     match state.update_task(&task_id, input, confirmed).await {
         Ok(Ok(task)) => {
             info!("System task updated successfully: {}", task.id);
-            Ok(TaskOperationResponse::Success { task: Box::new(task) })
+            Ok(TaskOperationResponse::Success {
+                task: Box::new(task),
+            })
         }
         Ok(Err(confirmation)) => {
             debug!("Task update requires confirmation: {:?}", confirmation);
@@ -246,9 +250,7 @@ pub async fn scheduler_get_pending_confirmations(
 
 /// Request admin elevation
 #[tauri::command]
-pub async fn scheduler_request_elevation(
-    state: State<'_, SchedulerState>,
-) -> Result<bool, String> {
+pub async fn scheduler_request_elevation(state: State<'_, SchedulerState>) -> Result<bool, String> {
     match state.request_elevation().await {
         Ok(elevated) => Ok(elevated),
         Err(e) => Err(e.to_string()),
@@ -302,7 +304,9 @@ pub fn scheduler_validate_task(
         }
         crate::scheduler::SystemTaskTrigger::Interval { seconds } => {
             if *seconds < 60 {
-                warnings.push("Intervals less than 60 seconds may impact system performance".to_string());
+                warnings.push(
+                    "Intervals less than 60 seconds may impact system performance".to_string(),
+                );
             }
         }
         crate::scheduler::SystemTaskTrigger::Once { run_at } => {
@@ -323,7 +327,10 @@ pub fn scheduler_validate_task(
                 errors.push("Script language is required".to_string());
             }
             // Security warning for scripts
-            warnings.push("Scripts will be executed with the privileges specified. Review carefully.".to_string());
+            warnings.push(
+                "Scripts will be executed with the privileges specified. Review carefully."
+                    .to_string(),
+            );
         }
         crate::scheduler::SystemTaskAction::RunCommand { command, .. } => {
             if command.is_empty() {

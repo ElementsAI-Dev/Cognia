@@ -19,38 +19,10 @@ import {
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { useSettingsStore } from '@/stores';
-import { 
-  ShieldCheck, 
-  Shield, 
-  ShieldAlert, 
-  ShieldQuestion 
-} from 'lucide-react';
 import type { SourcesPart as SourcesPartType } from '@/types/core/message';
 import type { CredibilityLevel } from '@/types/search';
 import { cn } from '@/lib/utils';
-
-// Credibility icon and style configuration (labels are i18n)
-const credibilityIcons: Record<CredibilityLevel, {
-  icon: React.ReactNode;
-  className: string;
-}> = {
-  high: {
-    icon: <ShieldCheck className="h-3 w-3" />,
-    className: 'text-green-600',
-  },
-  medium: {
-    icon: <Shield className="h-3 w-3" />,
-    className: 'text-yellow-600',
-  },
-  low: {
-    icon: <ShieldAlert className="h-3 w-3" />,
-    className: 'text-red-600',
-  },
-  unknown: {
-    icon: <ShieldQuestion className="h-3 w-3" />,
-    className: 'text-gray-600',
-  },
-};
+import { credibilityConfig } from './credibility-utils';
 
 interface SourcesPartProps {
   part: SourcesPartType;
@@ -78,7 +50,7 @@ export function SourcesPart({ part }: SourcesPartProps) {
         {part.sources.map((source) => {
           const verification = source.verification;
           const credibility = verification?.credibilityLevel || 'unknown';
-          const iconConfig = credibilityIcons[credibility];
+          const iconConfig = credibilityConfig[credibility];
 
           return (
             <Source key={source.id} href={source.url} title={source.title}>
@@ -89,7 +61,7 @@ export function SourcesPart({ part }: SourcesPartProps) {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className={cn('inline-flex', iconConfig.className)}>
+                          <span className={cn('inline-flex', iconConfig.textClassName)}>
                             {iconConfig.icon}
                           </span>
                         </TooltipTrigger>

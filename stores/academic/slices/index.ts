@@ -22,3 +22,7 @@ export type { ProviderActions } from './provider-slice';
 
 export { createZoteroSlice } from './zotero-slice';
 export type { ZoteroActions } from './zotero-slice';
+
+export { createUiSlice, initialUiState } from './ui-slice';
+
+export { createAppSlice, initialAppState } from './app-slice';

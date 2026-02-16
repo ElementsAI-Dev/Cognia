@@ -161,10 +161,7 @@ pub async fn mcp_get_roots(
     manager: State<'_, McpManager>,
     server_id: String,
 ) -> Result<Vec<crate::mcp::types::Root>, McpErrorInfo> {
-    manager
-        .get_roots(&server_id)
-        .await
-        .map_err(|e| (&e).into())
+    manager.get_roots(&server_id).await.map_err(|e| (&e).into())
 }
 
 /// List resource templates from an MCP server
@@ -190,7 +187,13 @@ pub async fn mcp_complete(
     argument_value: String,
 ) -> Result<serde_json::Value, McpErrorInfo> {
     manager
-        .complete(&server_id, &ref_type, &ref_name, &argument_name, &argument_value)
+        .complete(
+            &server_id,
+            &ref_type,
+            &ref_name,
+            &argument_name,
+            &argument_value,
+        )
         .await
         .map_err(|e| (&e).into())
 }
@@ -424,9 +427,7 @@ pub async fn mcp_set_server_auto_start(
 
 /// Get MCP configuration file path
 #[tauri::command]
-pub async fn mcp_get_config_path(
-    manager: State<'_, McpManager>,
-) -> Result<String, McpErrorInfo> {
+pub async fn mcp_get_config_path(manager: State<'_, McpManager>) -> Result<String, McpErrorInfo> {
     Ok(manager.get_config_path())
 }
 
@@ -440,9 +441,7 @@ pub async fn mcp_get_full_config(
 
 /// Shutdown MCP manager gracefully
 #[tauri::command]
-pub async fn mcp_shutdown(
-    manager: State<'_, McpManager>,
-) -> Result<(), McpErrorInfo> {
+pub async fn mcp_shutdown(manager: State<'_, McpManager>) -> Result<(), McpErrorInfo> {
     manager.shutdown().await;
     Ok(())
 }

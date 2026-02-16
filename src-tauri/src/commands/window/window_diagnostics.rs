@@ -53,14 +53,8 @@ pub struct WindowsDiagnostics {
 /// Get state of a specific window by label
 fn get_window_state(app: &tauri::AppHandle, label: &str) -> Option<WindowState> {
     app.get_webview_window(label).map(|window| {
-        let position = window
-            .outer_position()
-            .ok()
-            .map(|p| (p.x, p.y));
-        let size = window
-            .outer_size()
-            .ok()
-            .map(|s| (s.width, s.height));
+        let position = window.outer_position().ok().map(|p| (p.x, p.y));
+        let size = window.outer_size().ok().map(|s| (s.width, s.height));
         let is_visible = window.is_visible().unwrap_or(false);
         let is_minimized = window.is_minimized().unwrap_or(false);
         let is_focused = window.is_focused().unwrap_or(false);
@@ -79,9 +73,7 @@ fn get_window_state(app: &tauri::AppHandle, label: &str) -> Option<WindowState> 
 
 /// Get comprehensive diagnostics for all windows
 #[tauri::command]
-pub async fn window_get_diagnostics(
-    app: tauri::AppHandle,
-) -> Result<WindowsDiagnostics, String> {
+pub async fn window_get_diagnostics(app: tauri::AppHandle) -> Result<WindowsDiagnostics, String> {
     let main_window = get_window_state(&app, "main");
     let bubble_window = get_window_state(&app, "assistant-bubble");
     let chat_widget = get_window_state(&app, "chat-widget");
@@ -138,18 +130,13 @@ pub async fn window_get_state(
 
 /// Check if a window exists
 #[tauri::command]
-pub async fn window_exists(
-    app: tauri::AppHandle,
-    label: String,
-) -> Result<bool, String> {
+pub async fn window_exists(app: tauri::AppHandle, label: String) -> Result<bool, String> {
     Ok(app.get_webview_window(&label).is_some())
 }
 
 /// Force sync all window manager states with actual window states
 #[tauri::command]
-pub async fn window_sync_all_states(
-    app: tauri::AppHandle,
-) -> Result<(), String> {
+pub async fn window_sync_all_states(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
         manager.sync_visibility();
         log::debug!("[WindowDiagnostics] Synced bubble window state");
@@ -168,9 +155,7 @@ pub async fn window_sync_all_states(
 
 /// Save all window configurations to disk
 #[tauri::command]
-pub async fn window_save_all_configs(
-    app: tauri::AppHandle,
-) -> Result<(), String> {
+pub async fn window_save_all_configs(app: tauri::AppHandle) -> Result<(), String> {
     let mut errors = Vec::new();
 
     if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
@@ -201,9 +186,7 @@ pub async fn window_save_all_configs(
 
 /// Attempt to recreate any destroyed windows
 #[tauri::command]
-pub async fn window_recreate_destroyed(
-    app: tauri::AppHandle,
-) -> Result<Vec<String>, String> {
+pub async fn window_recreate_destroyed(app: tauri::AppHandle) -> Result<Vec<String>, String> {
     let mut recreated = Vec::new();
 
     if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {

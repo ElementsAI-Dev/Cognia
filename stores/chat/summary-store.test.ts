@@ -126,10 +126,10 @@ describe('useSummaryStore', () => {
   });
 
   describe('setCurrentSession', () => {
-    it('should set current session ID', () => {
+    it('should set current session ID', async () => {
       const { result } = renderHook(() => useSummaryStore());
 
-      act(() => {
+      await act(async () => {
         result.current.setCurrentSession('session-123');
       });
 
@@ -184,8 +184,11 @@ describe('useSummaryStore', () => {
       const { result } = renderHook(() => useSummaryStore());
 
       act(() => {
-        result.current.setCurrentSession('session-123');
-        useSummaryStore.setState({ error: 'Test error', isLoading: true });
+        useSummaryStore.setState({
+          currentSessionId: 'session-123',
+          error: 'Test error',
+          isLoading: true,
+        });
       });
 
       act(() => {

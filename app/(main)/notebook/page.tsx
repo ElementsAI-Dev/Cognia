@@ -195,7 +195,7 @@ export default function NotebookPage() {
         autoInstallKernel: true,
       });
     } catch (err) {
-      loggers.jupyter.error('Failed to create session:', err);
+      loggers.app.error('Failed to create session:', err);
     }
   }, [selectedEnvPath, createSession, checkKernelAvailable, ensureKernel]);
 
@@ -204,7 +204,7 @@ export default function NotebookPage() {
     try {
       await restartKernel(activeSession.id);
     } catch (err) {
-      loggers.jupyter.error('Failed to restart kernel:', err);
+      loggers.app.error('Failed to restart kernel:', err);
     }
   }, [activeSession, restartKernel]);
 
@@ -213,7 +213,7 @@ export default function NotebookPage() {
     try {
       await interruptKernel(activeSession.id);
     } catch (err) {
-      loggers.jupyter.error('Failed to interrupt kernel:', err);
+      loggers.app.error('Failed to interrupt kernel:', err);
     }
   }, [activeSession, interruptKernel]);
 
@@ -222,7 +222,7 @@ export default function NotebookPage() {
     try {
       await deleteSession(activeSession.id);
     } catch (err) {
-      loggers.jupyter.error('Failed to delete session:', err);
+      loggers.app.error('Failed to delete session:', err);
     }
   }, [activeSession, deleteSession]);
 
@@ -232,7 +232,7 @@ export default function NotebookPage() {
       clearVariables();
       clearExecutionHistory();
     } catch (err) {
-      loggers.jupyter.error('Failed to shutdown all kernels:', err);
+      loggers.app.error('Failed to shutdown all kernels:', err);
     }
   }, [shutdownAll, clearVariables, clearExecutionHistory]);
 
@@ -242,7 +242,7 @@ export default function NotebookPage() {
       clearVariables();
       clearExecutionHistory();
     } catch (err) {
-      loggers.jupyter.error('Failed to cleanup:', err);
+      loggers.app.error('Failed to cleanup:', err);
     }
   }, [cleanup, clearVariables, clearExecutionHistory]);
 
@@ -327,7 +327,7 @@ export default function NotebookPage() {
         });
       }
     } catch (err) {
-      loggers.jupyter.error('Failed to open notebook:', err);
+      loggers.app.error('Failed to open notebook:', err);
     }
   }, [t, getNotebookInfo]);
 
@@ -362,7 +362,7 @@ export default function NotebookPage() {
           setIsDirty(false);
         });
       } catch (err) {
-        loggers.jupyter.error('Failed to save notebook:', err);
+        loggers.app.error('Failed to save notebook:', err);
       } finally {
         setIsSaving(false);
       }
@@ -813,7 +813,7 @@ export default function NotebookPage() {
                               onClick={() => handleSwitchSession(session.id)}
                             >
                               <div className="flex items-center justify-between">
-                                                <span
+                                <span
                                   className="text-xs font-medium truncate"
                                   onDoubleClick={(e) => {
                                     const el = e.currentTarget;

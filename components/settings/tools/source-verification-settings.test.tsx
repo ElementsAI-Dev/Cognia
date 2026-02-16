@@ -44,8 +44,8 @@ const createMockState = (overrides = {}) => ({
 let mockState = createMockState();
 
 jest.mock('@/stores', () => ({
-  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    return selector(mockState);
+  useSettingsStore: (selector?: (state: Record<string, unknown>) => unknown) => {
+    return selector ? selector(mockState) : mockState;
   },
 }));
 
@@ -582,7 +582,10 @@ describe('SourceVerificationSettings', () => {
       render(<SourceVerificationSettings />);
       const inputs = screen.getAllByTestId('input');
       expect(inputs.length).toBeGreaterThan(0);
-      expect(inputs[0]).toHaveAttribute('placeholder', 'example.com');
+      expect(inputs[0]).toHaveAttribute(
+        'placeholder',
+        expect.stringMatching(/example\.com|trustedDomainPlaceholder/i)
+      );
     });
 
     it('renders add button for trusted domains', () => {

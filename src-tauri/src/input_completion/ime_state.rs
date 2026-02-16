@@ -92,7 +92,7 @@ impl ImeMonitor {
             while is_running.load(Ordering::SeqCst) {
                 // Poll IME state
                 let new_state = Self::poll_ime_state();
-                
+
                 // Update state if changed
                 let mut current = state.write();
                 if current.is_active != new_state.is_active
@@ -130,9 +130,9 @@ impl ImeMonitor {
     /// Poll the current IME state from the system
     #[cfg(windows)]
     fn poll_ime_state() -> ImeState {
+        use windows::Win32::Foundation::*;
         use windows::Win32::UI::Input::Ime::*;
         use windows::Win32::UI::WindowsAndMessaging::*;
-        use windows::Win32::Foundation::*;
 
         unsafe {
             // Get the foreground window
@@ -149,12 +149,7 @@ impl ImeMonitor {
 
             // Check if IME is open (Chinese mode vs English mode)
             // IMC_GETOPENSTATUS = 0x0005
-            let status = SendMessageW(
-                ime_wnd,
-                WM_IME_CONTROL,
-                WPARAM(0x0005),
-                LPARAM(0),
-            );
+            let status = SendMessageW(ime_wnd, WM_IME_CONTROL, WPARAM(0x0005), LPARAM(0));
 
             let is_active = status.0 != 0;
 
@@ -169,7 +164,7 @@ impl ImeMonitor {
                 let comp_len = ImmGetCompositionStringW(himc, GCS_COMPSTR, None, 0);
                 if comp_len > 0 {
                     is_composing = true;
-                    
+
                     // Get the composition string
                     let mut buffer = vec![0u16; (comp_len as usize / 2) + 1];
                     let buffer_size = (buffer.len() * 2) as u32;
@@ -179,7 +174,7 @@ impl ImeMonitor {
                         Some(buffer.as_mut_ptr() as *mut _),
                         buffer_size,
                     );
-                    
+
                     if result > 0 {
                         let len = result as usize / 2;
                         composition_string = Some(String::from_utf16_lossy(&buffer[..len]));
@@ -211,46 +206,56 @@ impl ImeMonitor {
     #[cfg(target_os = "macos")]
     fn poll_ime_state() -> ImeState {
         use std::process::Command;
-        
+
         // Use macOS command to detect current input source
         // This approach is more reliable than trying to link against Carbon framework
         let output = Command::new("defaults")
-            .args(["read", "com.apple.HIToolbox", "AppleCurrentKeyboardLayoutInputSourceID"])
+            .args([
+                "read",
+                "com.apple.HIToolbox",
+                "AppleCurrentKeyboardLayoutInputSourceID",
+            ])
             .output();
-        
+
         match output {
             Ok(result) => {
                 let input_source = String::from_utf8_lossy(&result.stdout).trim().to_string();
-                
+
                 // Detect input mode based on input source ID
-                let (is_active, input_mode, ime_name) = if input_source.contains("Pinyin") 
-                    || input_source.contains("Chinese") 
+                let (is_active, input_mode, ime_name) = if input_source.contains("Pinyin")
+                    || input_source.contains("Chinese")
                     || input_source.contains("Simplified")
                     || input_source.contains("Traditional")
                     || input_source.contains("Wubi")
                 {
                     (true, InputMode::Chinese, Some("macOS Chinese".to_string()))
-                } else if input_source.contains("Japanese") 
+                } else if input_source.contains("Japanese")
                     || input_source.contains("Hiragana")
                     || input_source.contains("Katakana")
                     || input_source.contains("Romaji")
                 {
-                    (true, InputMode::Japanese, Some("macOS Japanese".to_string()))
-                } else if input_source.contains("Korean") 
-                    || input_source.contains("Hangul")
-                {
+                    (
+                        true,
+                        InputMode::Japanese,
+                        Some("macOS Japanese".to_string()),
+                    )
+                } else if input_source.contains("Korean") || input_source.contains("Hangul") {
                     (true, InputMode::Korean, Some("macOS Korean".to_string()))
-                } else if input_source.contains("ABC") 
-                    || input_source.contains("US") 
+                } else if input_source.contains("ABC")
+                    || input_source.contains("US")
                     || input_source.contains("British")
                     || input_source.contains("Australian")
                 {
                     (false, InputMode::English, None)
                 } else {
                     // Unknown input source, assume not CJK
-                    (false, InputMode::Other(input_source.clone()), Some(input_source))
+                    (
+                        false,
+                        InputMode::Other(input_source.clone()),
+                        Some(input_source),
+                    )
                 };
-                
+
                 ImeState {
                     is_active,
                     is_composing: false, // macOS doesn't expose composition state easily
@@ -271,70 +276,72 @@ impl ImeMonitor {
     #[cfg(target_os = "linux")]
     fn poll_ime_state() -> ImeState {
         use std::process::Command;
-        
+
         // Try IBus first (most common on GNOME/Ubuntu)
         if let Some(state) = Self::poll_ibus_state() {
             return state;
         }
-        
+
         // Try Fcitx (common on KDE and Chinese distributions)
         if let Some(state) = Self::poll_fcitx_state() {
             return state;
         }
-        
+
         // Fallback: check environment variables for IME hints
         Self::poll_linux_env_ime()
     }
-    
+
     #[cfg(target_os = "linux")]
     fn poll_ibus_state() -> Option<ImeState> {
         use std::process::Command;
-        
+
         // Query IBus for current input method using ibus command with timeout
         let output = Command::new("timeout")
             .args(["0.5", "ibus", "read-config", "general/preload_engines"])
             .output()
             .ok()?;
-        
+
         // Also try to get the current engine with timeout
         let engine_output = Command::new("timeout")
             .args(["0.5", "ibus", "engine"])
             .output()
             .ok();
-        
+
         let current_engine = engine_output
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_default();
-        
+
         if current_engine.is_empty() {
             return None;
         }
-        
-        let (is_active, input_mode, ime_name) = if current_engine.contains("pinyin") 
+
+        let (is_active, input_mode, ime_name) = if current_engine.contains("pinyin")
             || current_engine.contains("chinese")
             || current_engine.contains("rime")
             || current_engine.contains("wubi")
             || current_engine.contains("libpinyin")
         {
             (true, InputMode::Chinese, Some(current_engine.clone()))
-        } else if current_engine.contains("anthy") 
+        } else if current_engine.contains("anthy")
             || current_engine.contains("mozc")
             || current_engine.contains("kkc")
         {
             (true, InputMode::Japanese, Some(current_engine.clone()))
-        } else if current_engine.contains("hangul") 
-            || current_engine.contains("korean")
-        {
+        } else if current_engine.contains("hangul") || current_engine.contains("korean") {
             (true, InputMode::Korean, Some(current_engine.clone()))
-        } else if current_engine.contains("xkb") 
+        } else if current_engine.contains("xkb")
             || current_engine.contains("us")
             || current_engine.contains("en")
         {
             (false, InputMode::English, None)
         } else {
-            (false, InputMode::Other(current_engine.clone()), Some(current_engine))
+            (
+                false,
+                InputMode::Other(current_engine.clone()),
+                Some(current_engine),
+            )
         };
-        
+
         Some(ImeState {
             is_active,
             is_composing: false, // IBus doesn't expose this via CLI easily
@@ -344,60 +351,60 @@ impl ImeMonitor {
             candidates: Vec::new(),
         })
     }
-    
+
     #[cfg(target_os = "linux")]
     fn poll_fcitx_state() -> Option<ImeState> {
         use std::process::Command;
-        
+
         // Try fcitx5-remote first (Fcitx5) with timeout
         let output = Command::new("timeout")
             .args(["0.5", "fcitx5-remote", "-n"]) // Get current input method name
             .output();
-        
+
         let current_im = match output {
-            Ok(o) if o.status.success() => {
-                String::from_utf8_lossy(&o.stdout).trim().to_string()
-            }
+            Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
             _ => {
                 // Fallback to fcitx-remote (Fcitx4) with timeout
                 let output4 = Command::new("timeout")
                     .args(["0.5", "fcitx-remote", "-n"])
                     .output()
                     .ok()?;
-                    
+
                 if !output4.status.success() {
                     return None;
                 }
                 String::from_utf8_lossy(&output4.stdout).trim().to_string()
             }
         };
-        
+
         if current_im.is_empty() {
             return None;
         }
-        
-        let (is_active, input_mode, ime_name) = if current_im.contains("pinyin") 
+
+        let (is_active, input_mode, ime_name) = if current_im.contains("pinyin")
             || current_im.contains("rime")
             || current_im.contains("chinese")
             || current_im.contains("wubi")
             || current_im.contains("shuangpin")
         {
             (true, InputMode::Chinese, Some(current_im.clone()))
-        } else if current_im.contains("anthy") 
+        } else if current_im.contains("anthy")
             || current_im.contains("mozc")
             || current_im.contains("kkc")
         {
             (true, InputMode::Japanese, Some(current_im.clone()))
         } else if current_im.contains("hangul") {
             (true, InputMode::Korean, Some(current_im.clone()))
-        } else if current_im.contains("keyboard") 
-            || current_im.contains("us")
-        {
+        } else if current_im.contains("keyboard") || current_im.contains("us") {
             (false, InputMode::English, None)
         } else {
-            (false, InputMode::Other(current_im.clone()), Some(current_im))
+            (
+                false,
+                InputMode::Other(current_im.clone()),
+                Some(current_im),
+            )
         };
-        
+
         Some(ImeState {
             is_active,
             is_composing: false,
@@ -407,22 +414,27 @@ impl ImeMonitor {
             candidates: Vec::new(),
         })
     }
-    
+
     #[cfg(target_os = "linux")]
     fn poll_linux_env_ime() -> ImeState {
         // Check environment variables for IME configuration
         let gtk_im = std::env::var("GTK_IM_MODULE").unwrap_or_default();
         let qt_im = std::env::var("QT_IM_MODULE").unwrap_or_default();
         let xmodifiers = std::env::var("XMODIFIERS").unwrap_or_default();
-        
+
         // Detect if an IME framework is configured
-        let has_ime = !gtk_im.is_empty() 
+        let has_ime = !gtk_im.is_empty()
             && (gtk_im.contains("ibus") || gtk_im.contains("fcitx") || gtk_im.contains("scim"));
-        
+
         if has_ime {
-            log::trace!("Detected IME framework: GTK={}, QT={}, XMODIFIERS={}", gtk_im, qt_im, xmodifiers);
+            log::trace!(
+                "Detected IME framework: GTK={}, QT={}, XMODIFIERS={}",
+                gtk_im,
+                qt_im,
+                xmodifiers
+            );
         }
-        
+
         // Without being able to query the actual state, return conservative default
         ImeState::default()
     }
@@ -563,11 +575,7 @@ mod tests {
             input_mode: InputMode::Chinese,
             ime_name: Some("Sogou Pinyin".to_string()),
             composition_string: Some("zhong wen".to_string()),
-            candidates: vec![
-                "中文".to_string(),
-                "重温".to_string(),
-                "钟文".to_string(),
-            ],
+            candidates: vec!["中文".to_string(), "重温".to_string(), "钟文".to_string()],
         };
 
         assert_eq!(state.candidates.len(), 3);
@@ -599,13 +607,13 @@ mod tests {
     #[test]
     fn test_ime_monitor_get_state_thread_safe() {
         let monitor = Arc::new(ImeMonitor::new());
-        
+
         let monitor_clone = monitor.clone();
         let handle = std::thread::spawn(move || {
             let state = monitor_clone.get_state();
             assert!(!state.is_active);
         });
-        
+
         handle.join().unwrap();
     }
 

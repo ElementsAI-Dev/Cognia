@@ -65,12 +65,7 @@ pub fn get_status(repo_path: &str) -> Git2Result<GitRepoInfo> {
     let (remote_name, remote_url) = repo
         .find_remote("origin")
         .ok()
-        .map(|r| {
-            (
-                Some("origin".to_string()),
-                r.url().map(|u| u.to_string()),
-            )
-        })
+        .map(|r| (Some("origin".to_string()), r.url().map(|u| u.to_string())))
         .unwrap_or((None, None));
 
     // Check for uncommitted changes

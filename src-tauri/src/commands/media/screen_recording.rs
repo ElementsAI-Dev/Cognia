@@ -277,7 +277,12 @@ pub async fn video_generate_thumbnail_with_progress(
     output_path: String,
     timestamp_ms: u64,
 ) -> Result<String, String> {
-    VideoProcessor::generate_thumbnail_with_progress(&video_path, &output_path, timestamp_ms, &app_handle)
+    VideoProcessor::generate_thumbnail_with_progress(
+        &video_path,
+        &output_path,
+        timestamp_ms,
+        &app_handle,
+    )
 }
 
 /// Check encoding support
@@ -442,7 +447,9 @@ pub async fn storage_get_file(
 pub async fn recording_get_app_data_dir(
     manager: State<'_, ScreenRecordingManager>,
 ) -> Result<Option<String>, String> {
-    Ok(manager.get_app_data_dir().map(|p| p.to_string_lossy().to_string()))
+    Ok(manager
+        .get_app_data_dir()
+        .map(|p| p.to_string_lossy().to_string()))
 }
 
 /// Get recordings directory path
@@ -450,7 +457,9 @@ pub async fn recording_get_app_data_dir(
 pub async fn recording_get_recordings_dir(
     manager: State<'_, ScreenRecordingManager>,
 ) -> Result<Option<String>, String> {
-    Ok(manager.get_recordings_dir().map(|p| p.to_string_lossy().to_string()))
+    Ok(manager
+        .get_recordings_dir()
+        .map(|p| p.to_string_lossy().to_string()))
 }
 
 /// Calculate toolbar position coordinates for a given preset
@@ -463,24 +472,26 @@ pub async fn recording_calculate_toolbar_position(
     toolbar_width: u32,
     toolbar_height: u32,
 ) -> Result<(i32, i32), String> {
-    Ok(manager.calculate_toolbar_position(position, monitor_width, monitor_height, toolbar_width, toolbar_height))
+    Ok(manager.calculate_toolbar_position(
+        position,
+        monitor_width,
+        monitor_height,
+        toolbar_width,
+        toolbar_height,
+    ))
 }
 
 // ==================== Recording Toolbar Commands ====================
 
 /// Show the recording toolbar
 #[tauri::command]
-pub async fn recording_toolbar_show(
-    toolbar: State<'_, RecordingToolbar>,
-) -> Result<(), String> {
+pub async fn recording_toolbar_show(toolbar: State<'_, RecordingToolbar>) -> Result<(), String> {
     toolbar.show()
 }
 
 /// Hide the recording toolbar
 #[tauri::command]
-pub async fn recording_toolbar_hide(
-    toolbar: State<'_, RecordingToolbar>,
-) -> Result<(), String> {
+pub async fn recording_toolbar_hide(toolbar: State<'_, RecordingToolbar>) -> Result<(), String> {
     toolbar.hide()
 }
 
@@ -585,9 +596,7 @@ pub async fn recording_toolbar_is_hovered(
 
 /// Destroy the toolbar window
 #[tauri::command]
-pub async fn recording_toolbar_destroy(
-    toolbar: State<'_, RecordingToolbar>,
-) -> Result<(), String> {
+pub async fn recording_toolbar_destroy(toolbar: State<'_, RecordingToolbar>) -> Result<(), String> {
     toolbar.destroy()
 }
 

@@ -58,20 +58,10 @@ fn create_tray_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
         true,
         None::<&str>,
     )?;
-    let bubble_show_item = MenuItem::with_id(
-        app,
-        "bubble-show",
-        "💬 显示悬浮气泡",
-        true,
-        None::<&str>,
-    )?;
-    let bubble_hide_item = MenuItem::with_id(
-        app,
-        "bubble-hide",
-        "🔽 隐藏悬浮气泡",
-        true,
-        None::<&str>,
-    )?;
+    let bubble_show_item =
+        MenuItem::with_id(app, "bubble-show", "💬 显示悬浮气泡", true, None::<&str>)?;
+    let bubble_hide_item =
+        MenuItem::with_id(app, "bubble-hide", "🔽 隐藏悬浮气泡", true, None::<&str>)?;
     let bubble_toggle_minimize_item = MenuItem::with_id(
         app,
         "bubble-toggle-minimize",
@@ -519,8 +509,12 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                 match manager.toggle_minimize() {
                     Ok(minimized) => {
                         log::info!(
-                            "Assistant bubble {}", 
-                            if minimized { "minimized (folded)" } else { "restored (unfolded)" }
+                            "Assistant bubble {}",
+                            if minimized {
+                                "minimized (folded)"
+                            } else {
+                                "restored (unfolded)"
+                            }
                         );
                     }
                     Err(e) => {

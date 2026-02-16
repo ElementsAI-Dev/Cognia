@@ -8,9 +8,9 @@ use super::{
 };
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
-use std::process::{Child, Command, Stdio};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -82,7 +82,10 @@ impl ScreenRecorder {
         let mut process = self.ffmpeg_process.write();
         if let Some(ref mut child) = *process {
             let pid = child.id();
-            warn!("[ScreenRecorder] Force killing FFmpeg process (PID: {:?})", pid);
+            warn!(
+                "[ScreenRecorder] Force killing FFmpeg process (PID: {:?})",
+                pid
+            );
 
             if let Err(e) = child.kill() {
                 error!("[ScreenRecorder] Failed to kill FFmpeg process: {}", e);
@@ -91,13 +94,19 @@ impl ScreenRecorder {
             // Wait briefly for process to terminate
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    info!("[ScreenRecorder] FFmpeg process terminated with status: {:?}", status);
+                    info!(
+                        "[ScreenRecorder] FFmpeg process terminated with status: {:?}",
+                        status
+                    );
                 }
                 Ok(None) => {
                     warn!("[ScreenRecorder] FFmpeg process still running after kill signal");
                 }
                 Err(e) => {
-                    error!("[ScreenRecorder] Error checking FFmpeg process status: {}", e);
+                    error!(
+                        "[ScreenRecorder] Error checking FFmpeg process status: {}",
+                        e
+                    );
                 }
             }
         }
@@ -198,7 +207,8 @@ impl ScreenRecorder {
             .and_then(|i| monitors.get(i))
             .or_else(|| monitors.iter().find(|m| m.is_primary))
             .ok_or_else(|| {
-                let err = RecordingError::monitor_not_found(monitor_index.unwrap_or(0), monitors.len());
+                let err =
+                    RecordingError::monitor_not_found(monitor_index.unwrap_or(0), monitors.len());
                 String::from(err)
             })?;
 
@@ -702,10 +712,16 @@ impl ScreenRecorder {
                             }
                         }
                     }
-                    debug!("[ScreenRecorder] FFmpeg enumerated {} audio devices", microphones.len());
+                    debug!(
+                        "[ScreenRecorder] FFmpeg enumerated {} audio devices",
+                        microphones.len()
+                    );
                 }
                 Err(e) => {
-                    warn!("[ScreenRecorder] Failed to enumerate audio devices via FFmpeg: {}", e);
+                    warn!(
+                        "[ScreenRecorder] Failed to enumerate audio devices via FFmpeg: {}",
+                        e
+                    );
                 }
             }
 
@@ -757,7 +773,10 @@ impl ScreenRecorder {
             let c_title = CString::new(title).ok()?;
             let hwnd = FindWindowA(std::ptr::null(), c_title.as_ptr() as *const u8);
             if hwnd == 0 {
-                debug!("[ScreenRecorder] Window '{}' not found via FindWindowA", title);
+                debug!(
+                    "[ScreenRecorder] Window '{}' not found via FindWindowA",
+                    title
+                );
                 return None;
             }
 
@@ -773,7 +792,10 @@ impl ScreenRecorder {
                     return Some((width, height));
                 }
             }
-            debug!("[ScreenRecorder] GetClientRect failed for window '{}'", title);
+            debug!(
+                "[ScreenRecorder] GetClientRect failed for window '{}'",
+                title
+            );
             None
         }
     }
@@ -837,27 +859,32 @@ impl ScreenRecorder {
 
         // Auto-detect hardware acceleration
         let hw = ffmpeg::check_hardware_acceleration();
-        debug!("[ScreenRecorder] Hardware acceleration: nvidia={}, qsv={}, amf={}", hw.nvidia, hw.intel_qsv, hw.amd_amf);
+        debug!(
+            "[ScreenRecorder] Hardware acceleration: nvidia={}, qsv={}, amf={}",
+            hw.nvidia, hw.intel_qsv, hw.amd_amf
+        );
 
         match config.codec.as_str() {
             "h264" | _ if config.codec != "h265" && config.codec != "vp9" => {
                 if hw.nvidia {
                     info!("[ScreenRecorder] Using NVENC hardware encoder");
-                    ("h264_nvenc".into(), vec![
-                        "-preset".into(), "p4".into(),
-                        "-tune".into(), "ll".into(),
-                        "-rc".into(), "vbr".into(),
-                    ])
+                    (
+                        "h264_nvenc".into(),
+                        vec![
+                            "-preset".into(),
+                            "p4".into(),
+                            "-tune".into(),
+                            "ll".into(),
+                            "-rc".into(),
+                            "vbr".into(),
+                        ],
+                    )
                 } else if hw.intel_qsv {
                     info!("[ScreenRecorder] Using Intel QSV hardware encoder");
-                    ("h264_qsv".into(), vec![
-                        "-preset".into(), "veryfast".into(),
-                    ])
+                    ("h264_qsv".into(), vec!["-preset".into(), "veryfast".into()])
                 } else if hw.amd_amf {
                     info!("[ScreenRecorder] Using AMD AMF hardware encoder");
-                    ("h264_amf".into(), vec![
-                        "-quality".into(), "speed".into(),
-                    ])
+                    ("h264_amf".into(), vec!["-quality".into(), "speed".into()])
                 } else {
                     debug!("[ScreenRecorder] No hardware encoder available, using libx264");
                     ("libx264".into(), vec!["-preset".into(), "ultrafast".into()])
@@ -865,7 +892,10 @@ impl ScreenRecorder {
             }
             "h265" => {
                 if hw.nvidia {
-                    ("hevc_nvenc".into(), vec!["-preset".into(), "p4".into(), "-tune".into(), "ll".into()])
+                    (
+                        "hevc_nvenc".into(),
+                        vec!["-preset".into(), "p4".into(), "-tune".into(), "ll".into()],
+                    )
                 } else if hw.intel_qsv {
                     ("hevc_qsv".into(), vec!["-preset".into(), "veryfast".into()])
                 } else if hw.amd_amf {
@@ -876,7 +906,15 @@ impl ScreenRecorder {
             }
             "vp9" => {
                 // VP9 has limited hardware acceleration; use software
-                ("libvpx-vp9".into(), vec!["-deadline".into(), "realtime".into(), "-cpu-used".into(), "8".into()])
+                (
+                    "libvpx-vp9".into(),
+                    vec![
+                        "-deadline".into(),
+                        "realtime".into(),
+                        "-cpu-used".into(),
+                        "8".into(),
+                    ],
+                )
             }
             _ => Self::software_encoder_for_codec(&config.codec),
         }
@@ -885,7 +923,15 @@ impl ScreenRecorder {
     fn software_encoder_for_codec(codec: &str) -> (String, Vec<String>) {
         match codec {
             "h265" => ("libx265".into(), vec!["-preset".into(), "ultrafast".into()]),
-            "vp9" => ("libvpx-vp9".into(), vec!["-deadline".into(), "realtime".into(), "-cpu-used".into(), "8".into()]),
+            "vp9" => (
+                "libvpx-vp9".into(),
+                vec![
+                    "-deadline".into(),
+                    "realtime".into(),
+                    "-cpu-used".into(),
+                    "8".into(),
+                ],
+            ),
             _ => ("libx264".into(), vec!["-preset".into(), "ultrafast".into()]),
         }
     }
@@ -900,9 +946,19 @@ impl ScreenRecorder {
                 debug!("[ScreenRecorder] Adding system audio capture");
                 // Try WASAPI loopback first (lower latency), fallback to dshow
                 if let Some(ref device) = config.system_audio_device {
-                    args.extend(["-f".into(), "dshow".into(), "-i".into(), format!("audio={}", device)]);
+                    args.extend([
+                        "-f".into(),
+                        "dshow".into(),
+                        "-i".into(),
+                        format!("audio={}", device),
+                    ]);
                 } else {
-                    args.extend(["-f".into(), "dshow".into(), "-i".into(), "audio=virtual-audio-capturer".into()]);
+                    args.extend([
+                        "-f".into(),
+                        "dshow".into(),
+                        "-i".into(),
+                        "audio=virtual-audio-capturer".into(),
+                    ]);
                 }
                 // Audio sync filter
                 args.extend(["-af".into(), "aresample=async=1".into()]);
@@ -911,7 +967,12 @@ impl ScreenRecorder {
             if config.capture_microphone {
                 if let Some(ref device) = config.microphone_device {
                     debug!("[ScreenRecorder] Adding microphone capture: {}", device);
-                    args.extend(["-f".into(), "dshow".into(), "-i".into(), format!("audio={}", device)]);
+                    args.extend([
+                        "-f".into(),
+                        "dshow".into(),
+                        "-i".into(),
+                        format!("audio={}", device),
+                    ]);
                 }
             }
         }
@@ -968,7 +1029,12 @@ impl ScreenRecorder {
         #[cfg(target_os = "macos")]
         {
             debug!("[ScreenRecorder] FFmpeg input: avfoundation");
-            args.extend(["-f".into(), "avfoundation".into(), "-i".into(), "1:none".into()]);
+            args.extend([
+                "-f".into(),
+                "avfoundation".into(),
+                "-i".into(),
+                "1:none".into(),
+            ]);
         }
 
         #[cfg(target_os = "linux")]
@@ -997,9 +1063,17 @@ impl ScreenRecorder {
             if encoder.contains("nvenc") {
                 args.extend(["-cq".into(), ((100 - config.quality) / 2).to_string()]);
             } else if encoder.contains("qsv") {
-                args.extend(["-global_quality".into(), ((100 - config.quality) / 2).to_string()]);
+                args.extend([
+                    "-global_quality".into(),
+                    ((100 - config.quality) / 2).to_string(),
+                ]);
             } else if encoder.contains("amf") {
-                args.extend(["-rc".into(), "cqp".into(), "-qp".into(), ((100 - config.quality) / 2).to_string()]);
+                args.extend([
+                    "-rc".into(),
+                    "cqp".into(),
+                    "-qp".into(),
+                    ((100 - config.quality) / 2).to_string(),
+                ]);
             } else {
                 args.extend(["-crf".into(), ((100 - config.quality) / 2).to_string()]);
             }
@@ -1123,9 +1197,17 @@ impl ScreenRecorder {
             if encoder.contains("nvenc") {
                 args.extend(["-cq".into(), ((100 - config.quality) / 2).to_string()]);
             } else if encoder.contains("qsv") {
-                args.extend(["-global_quality".into(), ((100 - config.quality) / 2).to_string()]);
+                args.extend([
+                    "-global_quality".into(),
+                    ((100 - config.quality) / 2).to_string(),
+                ]);
             } else if encoder.contains("amf") {
-                args.extend(["-rc".into(), "cqp".into(), "-qp".into(), ((100 - config.quality) / 2).to_string()]);
+                args.extend([
+                    "-rc".into(),
+                    "cqp".into(),
+                    "-qp".into(),
+                    ((100 - config.quality) / 2).to_string(),
+                ]);
             } else {
                 args.extend(["-crf".into(), ((100 - config.quality) / 2).to_string()]);
             }
@@ -1190,7 +1272,10 @@ impl ScreenRecorder {
     }
 
     fn stop_ffmpeg_with_timeout(&self, timeout: Duration) -> Result<(), String> {
-        info!("[ScreenRecorder] Stopping FFmpeg process with timeout: {:?}", timeout);
+        info!(
+            "[ScreenRecorder] Stopping FFmpeg process with timeout: {:?}",
+            timeout
+        );
         let mut process = self.ffmpeg_process.write();
         if let Some(ref mut child) = *process {
             let pid = child.id();
@@ -1216,10 +1301,13 @@ impl ScreenRecorder {
             }
 
             // Wait for process to finish with timeout
-            debug!("[ScreenRecorder] Waiting for FFmpeg process to exit (timeout: {:?})", timeout);
+            debug!(
+                "[ScreenRecorder] Waiting for FFmpeg process to exit (timeout: {:?})",
+                timeout
+            );
             let start = std::time::Instant::now();
             let poll_interval = Duration::from_millis(100);
-            
+
             loop {
                 match child.try_wait() {
                     Ok(Some(status)) => {
@@ -1346,7 +1434,7 @@ impl Drop for ScreenRecorder {
     fn drop(&mut self) {
         info!("[ScreenRecorder] Dropping ScreenRecorder instance");
         self.is_dropping.store(true, Ordering::SeqCst);
-        
+
         // Check if there's an active recording
         let state = self.state.read();
         let has_active_recording = matches!(
@@ -1355,25 +1443,31 @@ impl Drop for ScreenRecorder {
         );
         let output_path = state.output_path.clone();
         drop(state);
-        
+
         if has_active_recording {
             warn!("[ScreenRecorder] Dropping with active recording - cleaning up");
-            
+
             // Force kill FFmpeg process with short timeout
             self.force_kill_ffmpeg();
-            
+
             // Delete partial file if exists
             if let Some(ref path) = output_path {
-                info!("[ScreenRecorder] Cleaning up partial recording file: {}", path);
+                info!(
+                    "[ScreenRecorder] Cleaning up partial recording file: {}",
+                    path
+                );
                 if let Err(e) = std::fs::remove_file(path) {
-                    warn!("[ScreenRecorder] Failed to delete partial file during cleanup: {}", e);
+                    warn!(
+                        "[ScreenRecorder] Failed to delete partial file during cleanup: {}",
+                        e
+                    );
                 }
             }
         } else {
             // Still ensure FFmpeg is cleaned up
             self.force_kill_ffmpeg();
         }
-        
+
         info!("[ScreenRecorder] ScreenRecorder dropped successfully");
     }
 }
@@ -1443,42 +1537,42 @@ fn resume_process_unix(pid: u32) -> Result<(), String> {
 #[cfg(target_os = "windows")]
 fn suspend_process_windows(pid: u32) -> Result<(), String> {
     use std::ffi::CString;
-    
+
     type FarProc = unsafe extern "system" fn() -> isize;
     type NtSuspendProcessFn = unsafe extern "system" fn(isize) -> i32;
-    
+
     extern "system" {
         fn LoadLibraryA(name: *const u8) -> isize;
         fn GetProcAddress(module: isize, name: *const u8) -> Option<FarProc>;
         fn OpenProcess(access: u32, inherit: i32, pid: u32) -> isize;
         fn CloseHandle(handle: isize) -> i32;
     }
-    
+
     unsafe {
         let lib_name = CString::new("ntdll.dll").unwrap();
         let module = LoadLibraryA(lib_name.as_ptr() as *const u8);
         if module == 0 {
             return Err("Failed to load ntdll.dll".to_string());
         }
-        
+
         let func_name = CString::new("NtSuspendProcess").unwrap();
         let func = GetProcAddress(module, func_name.as_ptr() as *const u8);
         let func = func.ok_or("Failed to get NtSuspendProcess")?;
-        
+
         let handle = OpenProcess(0x0800, 0, pid); // PROCESS_SUSPEND_RESUME
         if handle == 0 {
             return Err(format!("Failed to open process {}", pid));
         }
-        
+
         let nt_suspend: NtSuspendProcessFn = std::mem::transmute(func);
         let status = nt_suspend(handle);
         CloseHandle(handle);
-        
+
         if status != 0 {
             return Err(format!("NtSuspendProcess failed with status {}", status));
         }
     }
-    
+
     debug!("[ScreenRecorder] Process {} suspended", pid);
     Ok(())
 }
@@ -1486,42 +1580,42 @@ fn suspend_process_windows(pid: u32) -> Result<(), String> {
 #[cfg(target_os = "windows")]
 fn resume_process_windows(pid: u32) -> Result<(), String> {
     use std::ffi::CString;
-    
+
     type FarProc = unsafe extern "system" fn() -> isize;
     type NtResumeProcessFn = unsafe extern "system" fn(isize) -> i32;
-    
+
     extern "system" {
         fn LoadLibraryA(name: *const u8) -> isize;
         fn GetProcAddress(module: isize, name: *const u8) -> Option<FarProc>;
         fn OpenProcess(access: u32, inherit: i32, pid: u32) -> isize;
         fn CloseHandle(handle: isize) -> i32;
     }
-    
+
     unsafe {
         let lib_name = CString::new("ntdll.dll").unwrap();
         let module = LoadLibraryA(lib_name.as_ptr() as *const u8);
         if module == 0 {
             return Err("Failed to load ntdll.dll".to_string());
         }
-        
+
         let func_name = CString::new("NtResumeProcess").unwrap();
         let func = GetProcAddress(module, func_name.as_ptr() as *const u8);
         let func = func.ok_or("Failed to get NtResumeProcess")?;
-        
+
         let handle = OpenProcess(0x0800, 0, pid); // PROCESS_SUSPEND_RESUME
         if handle == 0 {
             return Err(format!("Failed to open process {}", pid));
         }
-        
+
         let nt_resume: NtResumeProcessFn = std::mem::transmute(func);
         let status = nt_resume(handle);
         CloseHandle(handle);
-        
+
         if status != 0 {
             return Err(format!("NtResumeProcess failed with status {}", status));
         }
     }
-    
+
     debug!("[ScreenRecorder] Process {} resumed", pid);
     Ok(())
 }

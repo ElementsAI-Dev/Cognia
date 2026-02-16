@@ -63,8 +63,8 @@ impl ScreenshotCapture {
     #[cfg(target_os = "windows")]
     pub fn capture_screen(&self, monitor_index: Option<usize>) -> Result<ScreenshotResult, String> {
         use windows::Win32::UI::WindowsAndMessaging::{
-            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
-            SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+            GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+            SM_YVIRTUALSCREEN,
         };
 
         unsafe {
@@ -346,7 +346,8 @@ impl ScreenshotCapture {
                 let scale_factor = {
                     let mut dpi_x: u32 = 96;
                     let mut dpi_y: u32 = 96;
-                    if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
+                    if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok()
+                    {
                         dpi_x as f64 / 96.0
                     } else {
                         1.0

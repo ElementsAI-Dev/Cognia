@@ -15,6 +15,7 @@ import { useSettingsStore } from '@/stores';
 import type { TTSProvider } from '@/types/media/tts';
 import type { TTSResponse } from '@/types/media/tts';
 import { TTS_PROVIDERS } from '@/types/media/tts';
+import { DEFAULT_SPEECH_SETTINGS } from '@/types/media/speech';
 import { generateOpenAITTS } from '@/lib/ai/tts/providers/openai-tts';
 import { generateGeminiTTS } from '@/lib/ai/tts/providers/gemini-tts';
 import { generateEdgeTTS } from '@/lib/ai/tts/providers/edge-tts';
@@ -63,8 +64,12 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
   const { useSettings = true, onStart, onEnd, onError, onProgress } = options;
 
   // Get settings from store
-  const speechSettings = useSettingsStore((state) => state.speechSettings);
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
+  const speechSettings =
+    useSettingsStore((state) => state.speechSettings) ?? DEFAULT_SPEECH_SETTINGS;
+  const providerSettings = (useSettingsStore((state) => state.providerSettings) ?? {}) as Record<
+    string,
+    { apiKey?: string }
+  >;
 
   // Merge provider from options or settings
   const currentProvider = options.provider ?? (useSettings ? speechSettings.ttsProvider : 'system');

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Alert as InkAlert } from '@inkjs/ui';
-import type { StatusVariant } from './types.js';
+import type { StatusVariant } from './types';
 
 export interface AlertProps {
   /** Alert variant determines color and icon */

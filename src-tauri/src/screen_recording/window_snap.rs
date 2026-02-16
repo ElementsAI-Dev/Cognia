@@ -111,9 +111,7 @@ impl WindowSnap {
                 let y = work_y + (work_height - window_height) / 2;
                 (x, y)
             }
-            SnapEdge::TopLeft => {
-                (work_x + padding, work_y + padding)
-            }
+            SnapEdge::TopLeft => (work_x + padding, work_y + padding),
             SnapEdge::TopRight => {
                 let x = work_x + work_width - window_width - padding;
                 let y = work_y + padding;
@@ -216,9 +214,14 @@ mod tests {
     fn test_detect_snap_edge_top() {
         // Window at top center, within threshold
         let edge = WindowSnap::detect_snap_edge(
-            800, 10, // x, y - close to top
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            800,
+            10, // x, y - close to top
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             THRESHOLD,
         );
         assert_eq!(edge, Some(SnapEdge::Top));
@@ -228,9 +231,14 @@ mod tests {
     fn test_detect_snap_edge_bottom() {
         // Window at bottom center
         let edge = WindowSnap::detect_snap_edge(
-            800, 1080 - 56 - 10, // x, y - close to bottom
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            800,
+            1080 - 56 - 10, // x, y - close to bottom
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             THRESHOLD,
         );
         assert_eq!(edge, Some(SnapEdge::Bottom));
@@ -239,9 +247,14 @@ mod tests {
     #[test]
     fn test_detect_snap_edge_top_left_corner() {
         let edge = WindowSnap::detect_snap_edge(
-            10, 10, // x, y - close to top-left
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            10,
+            10, // x, y - close to top-left
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             THRESHOLD,
         );
         assert_eq!(edge, Some(SnapEdge::TopLeft));
@@ -251,9 +264,14 @@ mod tests {
     fn test_detect_snap_edge_none() {
         // Window in the middle, not near any edge
         let edge = WindowSnap::detect_snap_edge(
-            500, 500,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            500,
+            500,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             THRESHOLD,
         );
         assert_eq!(edge, None);
@@ -263,8 +281,12 @@ mod tests {
     fn test_calculate_snapped_position_top() {
         let (x, y) = WindowSnap::calculate_snapped_position(
             SnapEdge::Top,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             PADDING,
         );
         // Should be centered horizontally, at top with padding
@@ -276,8 +298,12 @@ mod tests {
     fn test_calculate_snapped_position_bottom_right() {
         let (x, y) = WindowSnap::calculate_snapped_position(
             SnapEdge::BottomRight,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             PADDING,
         );
         assert_eq!(x, WORK_WIDTH - WINDOW_WIDTH - PADDING);
@@ -288,12 +314,18 @@ mod tests {
     fn test_apply_magnetic_snap() {
         // Window close to top edge
         let (x, y, edge) = WindowSnap::apply_magnetic_snap(
-            800, 10,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
-            THRESHOLD, PADDING,
+            800,
+            10,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
+            THRESHOLD,
+            PADDING,
         );
-        
+
         assert_eq!(edge, Some(SnapEdge::Top));
         assert_eq!(x, 800); // X should remain unchanged when snapping to top
         assert_eq!(y, PADDING); // Should snap to top with padding
@@ -303,12 +335,18 @@ mod tests {
     fn test_apply_magnetic_snap_no_snap() {
         // Window in the middle
         let (x, y, edge) = WindowSnap::apply_magnetic_snap(
-            500, 500,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
-            THRESHOLD, PADDING,
+            500,
+            500,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
+            THRESHOLD,
+            PADDING,
         );
-        
+
         assert_eq!(edge, None);
         assert_eq!(x, 500); // Should return original position
         assert_eq!(y, 500);
@@ -318,9 +356,14 @@ mod tests {
     fn test_clamp_to_work_area() {
         // Window outside left edge
         let (x, y) = WindowSnap::clamp_to_work_area(
-            -100, 500,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            -100,
+            500,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             PADDING,
         );
         assert_eq!(x, PADDING);
@@ -330,9 +373,14 @@ mod tests {
     #[test]
     fn test_clamp_to_work_area_outside_bottom() {
         let (x, y) = WindowSnap::clamp_to_work_area(
-            500, 2000,
-            WINDOW_WIDTH, WINDOW_HEIGHT,
-            WORK_X, WORK_Y, WORK_WIDTH, WORK_HEIGHT,
+            500,
+            2000,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            WORK_X,
+            WORK_Y,
+            WORK_WIDTH,
+            WORK_HEIGHT,
             PADDING,
         );
         assert_eq!(x, 500);

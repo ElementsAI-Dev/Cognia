@@ -119,7 +119,7 @@ import { ExternalAgentSettings, AgentTeamSettings } from '@/components/settings/
 import { ObservabilitySettings } from '@/components/observability';
 import { SelectionToolbarSettings } from '@/components/selection-toolbar/settings-panel';
 import { PromptTemplateManager, PromptMarketplaceBrowser } from '@/components/prompt';
-import { PluginSettingsPage } from '@/components/plugin';
+import { PluginPageContent } from '@/components/plugin';
 import { CompletionSettings } from '@/components/input-completion';
 import { TransformersSettings } from '@/components/settings/transformers/transformers-settings';
 
@@ -664,7 +664,11 @@ export default function SettingsPage() {
       case 'skills':
         return <SkillSettings />;
       case 'plugins':
-        return <PluginSettingsPage />;
+        return (
+          <div className="h-[calc(100vh-8rem)]">
+            <PluginPageContent />
+          </div>
+        );
       case 'desktop':
         return <DesktopSettings />;
       case 'environment':

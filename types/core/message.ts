@@ -134,10 +134,12 @@ export type MessagePart =
 export interface Attachment {
   id: string;
   name: string;
-  type: 'image' | 'audio' | 'video' | 'file' | 'document';
+  type: 'image' | 'audio' | 'video' | 'file' | 'document' | 'archive';
   url: string;
   size: number;
   mimeType: string;
+  /** Raw File object, available before upload or for local previews */
+  file?: File;
 }
 
 export interface Source {

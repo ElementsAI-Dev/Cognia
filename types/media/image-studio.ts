@@ -18,6 +18,7 @@ export interface ImageTransform {
   rotation: number;
   flipHorizontal: boolean;
   flipVertical: boolean;
+  scale: number;
 }
 
 // ============================================================================
@@ -150,7 +151,17 @@ export type ComparisonMode = 'slider-h' | 'slider-v' | 'side-by-side' | 'onion-s
 // ============================================================================
 
 export type LayerType = 'image' | 'mask' | 'adjustment' | 'text' | 'shape';
-export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten';
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'soft-light'
+  | 'hard-light';
 
 export interface LayerConfig {
   id: string;
@@ -161,6 +172,18 @@ export interface LayerConfig {
   opacity: number;
   blendMode: BlendMode;
   order: number;
+}
+
+/**
+ * Full layer with optional data fields — extends LayerConfig.
+ * Used by store, layers panel, and consuming components.
+ */
+export interface Layer extends LayerConfig {
+  data?: string; // base64 or URL
+  thumbnail?: string;
+  adjustments?: Partial<ImageAdjustments>;
+  textConfig?: TextLayerConfig;
+  shapeConfig?: DrawingShapeConfig;
 }
 
 // ============================================================================
@@ -188,4 +211,12 @@ export interface HistoryEntryConfig {
   description: string;
   timestamp: number;
   thumbnail?: string;
+}
+
+/**
+ * Full history entry with optional metadata — extends HistoryEntryConfig.
+ * Used by history panel and consuming components.
+ */
+export interface HistoryEntry extends HistoryEntryConfig {
+  metadata?: Record<string, unknown>;
 }

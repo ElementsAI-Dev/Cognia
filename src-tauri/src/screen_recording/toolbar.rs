@@ -208,9 +208,7 @@ impl RecordingToolbar {
                 let y = work_y + work_h - height - EDGE_PADDING;
                 (x, y)
             }
-            ToolbarPosition::TopLeft => {
-                (work_x + EDGE_PADDING, work_y + EDGE_PADDING)
-            }
+            ToolbarPosition::TopLeft => (work_x + EDGE_PADDING, work_y + EDGE_PADDING),
             ToolbarPosition::TopRight => {
                 let x = work_x + work_w - width - EDGE_PADDING;
                 let y = work_y + EDGE_PADDING;
@@ -283,37 +281,56 @@ impl RecordingToolbar {
                     // Check for edge snapping and apply magnetic snap
                     let config = config_arc.read();
                     if config.auto_dock {
-                        if let Some(window) = app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
+                        if let Some(window) = app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL)
+                        {
                             let (work_w, work_h, work_x, work_y) = get_work_area_static();
-                            let size = window.outer_size().unwrap_or(tauri::PhysicalSize { width: TOOLBAR_WIDTH as u32, height: TOOLBAR_HEIGHT as u32 });
-                            
+                            let size = window.outer_size().unwrap_or(tauri::PhysicalSize {
+                                width: TOOLBAR_WIDTH as u32,
+                                height: TOOLBAR_HEIGHT as u32,
+                            });
+
                             // Use apply_magnetic_snap for automatic snapping behavior
                             let (snap_x, snap_y, edge) = WindowSnap::apply_magnetic_snap(
-                                pos.x, pos.y,
-                                size.width as i32, size.height as i32,
-                                work_x, work_y, work_w, work_h,
-                                SNAP_THRESHOLD, EDGE_PADDING,
+                                pos.x,
+                                pos.y,
+                                size.width as i32,
+                                size.height as i32,
+                                work_x,
+                                work_y,
+                                work_w,
+                                work_h,
+                                SNAP_THRESHOLD,
+                                EDGE_PADDING,
                             );
-                            
+
                             if let Some(snap_edge) = edge {
                                 // Apply the snapped position if within threshold
                                 if snap_x != pos.x || snap_y != pos.y {
                                     let _ = window.set_position(tauri::Position::Physical(
-                                        tauri::PhysicalPosition { x: snap_x, y: snap_y }
+                                        tauri::PhysicalPosition {
+                                            x: snap_x,
+                                            y: snap_y,
+                                        },
                                     ));
                                 }
                                 *snapped_edge.write() = Some(snap_edge);
-                                let _ = app_handle.emit("recording-toolbar://snapped", serde_json::json!({ "edge": snap_edge }));
+                                let _ = app_handle.emit(
+                                    "recording-toolbar://snapped",
+                                    serde_json::json!({ "edge": snap_edge }),
+                                );
                             } else {
                                 *snapped_edge.write() = None;
                             }
                         }
                     }
 
-                    let _ = app_handle.emit("recording-toolbar://position-changed", serde_json::json!({
-                        "x": pos.x,
-                        "y": pos.y
-                    }));
+                    let _ = app_handle.emit(
+                        "recording-toolbar://position-changed",
+                        serde_json::json!({
+                            "x": pos.x,
+                            "y": pos.y
+                        }),
+                    );
                 }
                 tauri::WindowEvent::Destroyed => {
                     log::debug!("[RecordingToolbar] Window destroyed");
@@ -330,7 +347,9 @@ impl RecordingToolbar {
         self.ensure_window_exists()?;
 
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
-            window.show().map_err(|e| format!("Failed to show toolbar: {}", e))?;
+            window
+                .show()
+                .map_err(|e| format!("Failed to show toolbar: {}", e))?;
             let _ = window.set_always_on_top(true);
             self.is_visible.store(true, Ordering::SeqCst);
 
@@ -346,7 +365,9 @@ impl RecordingToolbar {
     pub fn hide(&self) -> Result<(), String> {
         self.cancel_auto_hide();
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
-            window.hide().map_err(|e| format!("Failed to hide toolbar: {}", e))?;
+            window
+                .hide()
+                .map_err(|e| format!("Failed to hide toolbar: {}", e))?;
             self.is_visible.store(false, Ordering::SeqCst);
 
             let _ = self.app_handle.emit("recording-toolbar://hide", ());
@@ -364,15 +385,23 @@ impl RecordingToolbar {
         let (work_w, work_h, work_x, work_y) = self.get_primary_work_area();
         let (width, height) = self.get_toolbar_size();
         let (clamped_x, clamped_y) = WindowSnap::clamp_to_work_area(
-            x, y,
-            width as i32, height as i32,
-            work_x, work_y, work_w, work_h,
+            x,
+            y,
+            width as i32,
+            height as i32,
+            work_x,
+            work_y,
+            work_w,
+            work_h,
             EDGE_PADDING,
         );
 
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
             window
-                .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: clamped_x, y: clamped_y }))
+                .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: clamped_x,
+                    y: clamped_y,
+                }))
                 .map_err(|e| format!("Failed to set position: {}", e))?;
         }
         *self.position.write() = (clamped_x, clamped_y);
@@ -397,13 +426,23 @@ impl RecordingToolbar {
         let height = height as i32;
 
         let (x, y) = WindowSnap::calculate_snapped_position(
-            edge, width, height, work_x, work_y, work_w, work_h, EDGE_PADDING,
+            edge,
+            width,
+            height,
+            work_x,
+            work_y,
+            work_w,
+            work_h,
+            EDGE_PADDING,
         );
 
         self.set_position(x, y)?;
         *self.snapped_edge.write() = Some(edge);
 
-        let _ = self.app_handle.emit("recording-toolbar://snapped", serde_json::json!({ "edge": edge }));
+        let _ = self.app_handle.emit(
+            "recording-toolbar://snapped",
+            serde_json::json!({ "edge": edge }),
+        );
         log::debug!("[RecordingToolbar] Snapped to {:?} at ({}, {})", edge, x, y);
 
         Ok(())
@@ -424,7 +463,9 @@ impl RecordingToolbar {
                 .map_err(|e| format!("Failed to resize toolbar: {}", e))?;
         }
 
-        let _ = self.app_handle.emit("recording-toolbar://compact-toggled", is_compact);
+        let _ = self
+            .app_handle
+            .emit("recording-toolbar://compact-toggled", is_compact);
         log::debug!("[RecordingToolbar] Compact mode: {}", is_compact);
 
         Ok(is_compact)
@@ -432,7 +473,7 @@ impl RecordingToolbar {
 
     pub fn update_recording_state(&self, is_recording: bool, is_paused: bool, duration_ms: u64) {
         let formatted = format_duration(duration_ms);
-        
+
         {
             let mut state = self.state.write();
             state.is_recording = is_recording;
@@ -441,12 +482,15 @@ impl RecordingToolbar {
             state.formatted_duration = formatted.clone();
         }
 
-        let _ = self.app_handle.emit("recording-toolbar://state-updated", serde_json::json!({
-            "isRecording": is_recording,
-            "isPaused": is_paused,
-            "durationMs": duration_ms,
-            "formattedDuration": formatted,
-        }));
+        let _ = self.app_handle.emit(
+            "recording-toolbar://state-updated",
+            serde_json::json!({
+                "isRecording": is_recording,
+                "isPaused": is_paused,
+                "durationMs": duration_ms,
+                "formattedDuration": formatted,
+            }),
+        );
     }
 
     pub fn set_hovered(&self, hovered: bool) {
@@ -484,7 +528,10 @@ impl RecordingToolbar {
             return;
         }
 
-        log::trace!("[RecordingToolbar] Scheduling auto-hide in {}ms", timeout_ms);
+        log::trace!(
+            "[RecordingToolbar] Scheduling auto-hide in {}ms",
+            timeout_ms
+        );
         self.cancel_auto_hide();
 
         let cancel_token = CancellationToken::new();
@@ -524,7 +571,9 @@ impl RecordingToolbar {
 
         if let Some(window) = self.app_handle.get_webview_window(RECORDING_TOOLBAR_LABEL) {
             let _ = window.hide();
-            window.destroy().map_err(|e| format!("Failed to destroy toolbar: {}", e))?;
+            window
+                .destroy()
+                .map_err(|e| format!("Failed to destroy toolbar: {}", e))?;
         }
 
         self.is_visible.store(false, Ordering::SeqCst);

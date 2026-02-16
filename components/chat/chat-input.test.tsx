@@ -118,8 +118,18 @@ jest.mock('nanoid', () => ({
 
 // Mock react-textarea-autosize
 jest.mock('react-textarea-autosize', () => {
-  return React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
-    function TextareaAutosize(props, ref) {
+  type TextareaAutosizeMockProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+    maxRows?: number;
+    minRows?: number;
+    cacheMeasurements?: boolean;
+    onHeightChange?: (height: number, meta: { rowHeight: number }) => void;
+  };
+
+  return React.forwardRef<HTMLTextAreaElement, TextareaAutosizeMockProps>(
+    function TextareaAutosize(
+      { maxRows: _maxRows, minRows: _minRows, cacheMeasurements: _cacheMeasurements, onHeightChange: _onHeightChange, ...props },
+      ref
+    ) {
       return <textarea ref={ref} {...props} />;
     }
   );

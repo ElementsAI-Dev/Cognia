@@ -5,6 +5,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useMcpServerActions } from './use-mcp-server-actions';
 import { useMcpStore } from '@/stores/mcp';
+import { toast } from 'sonner';
 import type { McpServerState } from '@/types/mcp';
 
 // Mock the MCP store
@@ -13,16 +14,20 @@ jest.mock('@/stores/mcp', () => ({
 }));
 
 // Mock sonner toast
-const mockToast = {
-  error: jest.fn(),
-  success: jest.fn(),
-  warning: jest.fn(),
-};
 jest.mock('sonner', () => ({
-  toast: mockToast,
+  toast: {
+    error: jest.fn(),
+    success: jest.fn(),
+    warning: jest.fn(),
+  },
 }));
 
 const mockUseMcpStore = useMcpStore as jest.MockedFunction<typeof useMcpStore>;
+const mockToast = toast as unknown as {
+  error: jest.Mock;
+  success: jest.Mock;
+  warning: jest.Mock;
+};
 
 describe('useMcpServerActions', () => {
   const mockServer: McpServerState = {

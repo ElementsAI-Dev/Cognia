@@ -5,8 +5,8 @@
 //! handwriting recognition, and multilingual document understanding.
 
 use crate::screenshot::ocr_provider::{
-    OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType, OcrRegion,
-    OcrRegionType, OcrResult, DocumentHint,
+    DocumentHint, OcrBounds, OcrError, OcrErrorCode, OcrOptions, OcrProvider, OcrProviderType,
+    OcrRegion, OcrRegionType, OcrResult,
 };
 use async_trait::async_trait;
 use base64::Engine;
@@ -72,9 +72,7 @@ impl AnthropicVisionProvider {
                 "Extract all visible text from this image, including labels, signs, \
                  captions, and any other sparse text elements."
             }
-            _ => {
-                "Extract all visible text from this image."
-            }
+            _ => "Extract all visible text from this image.",
         };
 
         let language_hint = options
@@ -211,9 +209,7 @@ impl OcrProvider for AnthropicVisionProvider {
         }
 
         let client = crate::http::create_proxy_client_with_timeout(self.timeout_secs)
-            .map_err(|e| {
-                OcrError::network_error(format!("Failed to create HTTP client: {}", e))
-            })?;
+            .map_err(|e| OcrError::network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         // Detect media type from image data
         let media_type = detect_media_type(image_data);
@@ -274,18 +270,14 @@ impl OcrProvider for AnthropicVisionProvider {
                         OcrErrorCode::RateLimitExceeded,
                         error_response.error.message,
                     ),
-                    "invalid_request_error" => OcrError::new(
-                        OcrErrorCode::ProviderError,
-                        error_response.error.message,
-                    ),
+                    "invalid_request_error" => {
+                        OcrError::new(OcrErrorCode::ProviderError, error_response.error.message)
+                    }
                     "overloaded_error" => OcrError::new(
                         OcrErrorCode::ProviderError,
                         "Anthropic API is temporarily overloaded. Please try again.",
                     ),
-                    _ => OcrError::new(
-                        OcrErrorCode::ProviderError,
-                        error_response.error.message,
-                    ),
+                    _ => OcrError::new(OcrErrorCode::ProviderError, error_response.error.message),
                 });
             }
 
@@ -479,15 +471,15 @@ mod tests {
 
     #[test]
     fn test_with_timeout() {
-        let provider = AnthropicVisionProvider::new("key".to_string(), None, None)
-            .with_timeout(120);
+        let provider =
+            AnthropicVisionProvider::new("key".to_string(), None, None).with_timeout(120);
         assert_eq!(provider.timeout_secs, 120);
     }
 
     #[test]
     fn test_with_max_tokens() {
-        let provider = AnthropicVisionProvider::new("key".to_string(), None, None)
-            .with_max_tokens(8192);
+        let provider =
+            AnthropicVisionProvider::new("key".to_string(), None, None).with_max_tokens(8192);
         assert_eq!(provider.max_tokens, 8192);
     }
 }

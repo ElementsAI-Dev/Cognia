@@ -319,7 +319,10 @@ describe('AddDocumentModal - File Handling', () => {
     );
 
     const fileInput = container.querySelector('input[type="file"]');
-    expect(fileInput).toHaveAttribute('accept', '.txt,.md,.json,.csv,.xml,.html,.htm');
+    expect(fileInput).toHaveAttribute(
+      'accept',
+      '.txt,.md,.json,.csv,.xml,.html,.htm,.pdf,.docx,.doc,.xlsx,.xls'
+    );
   });
 
   it('allows multiple file selection', () => {

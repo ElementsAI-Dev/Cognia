@@ -12,6 +12,8 @@ jest.mock('next-intl', () => ({
     const translations: Record<string, string> = {
       connected: 'Connected',
       disconnected: 'Not connected',
+      configuration: 'Configuration',
+      serverUrl: 'Server URL',
     };
     return translations[key] || key;
   },

@@ -297,7 +297,9 @@ impl SkillSeekersService {
     /// Scrape a documentation website
     pub async fn scrape_website(&self, input: ScrapeWebsiteInput) -> Result<String> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let job_id = Uuid::new_v4().to_string();
@@ -352,8 +354,14 @@ impl SkillSeekersService {
         args.push(self.output_dir.to_string_lossy().to_string());
 
         // Run the command
-        self.run_skill_seekers_command(&job_id, args, input.enhance, input.package, input.auto_install)
-            .await?;
+        self.run_skill_seekers_command(
+            &job_id,
+            args,
+            input.enhance,
+            input.package,
+            input.auto_install,
+        )
+        .await?;
 
         Ok(job_id)
     }
@@ -361,12 +369,20 @@ impl SkillSeekersService {
     /// Scrape a GitHub repository
     pub async fn scrape_github(&self, input: ScrapeGitHubInput) -> Result<String> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let job_id = Uuid::new_v4().to_string();
         let skill_name = input.config.name.clone().unwrap_or_else(|| {
-            input.config.repo.split('/').next_back().unwrap_or("repo").to_string()
+            input
+                .config
+                .repo
+                .split('/')
+                .next_back()
+                .unwrap_or("repo")
+                .to_string()
         });
 
         // Create job
@@ -411,8 +427,14 @@ impl SkillSeekersService {
         args.push(self.output_dir.to_string_lossy().to_string());
 
         // Run the command
-        self.run_skill_seekers_command(&job_id, args, input.enhance, input.package, input.auto_install)
-            .await?;
+        self.run_skill_seekers_command(
+            &job_id,
+            args,
+            input.enhance,
+            input.package,
+            input.auto_install,
+        )
+        .await?;
 
         Ok(job_id)
     }
@@ -420,7 +442,9 @@ impl SkillSeekersService {
     /// Extract from a PDF document
     pub async fn scrape_pdf(&self, input: ScrapePdfInput) -> Result<String> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let job_id = Uuid::new_v4().to_string();
@@ -448,8 +472,14 @@ impl SkillSeekersService {
         args.push(self.output_dir.to_string_lossy().to_string());
 
         // Run the command
-        self.run_skill_seekers_command(&job_id, args, input.enhance, input.package, input.auto_install)
-            .await?;
+        self.run_skill_seekers_command(
+            &job_id,
+            args,
+            input.enhance,
+            input.package,
+            input.auto_install,
+        )
+        .await?;
 
         Ok(job_id)
     }
@@ -459,7 +489,9 @@ impl SkillSeekersService {
     /// Enhance an existing skill
     pub async fn enhance_skill(&self, input: EnhanceSkillInput) -> Result<()> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let mut args = vec!["enhance".to_string(), input.skill_dir.clone()];
@@ -504,7 +536,9 @@ impl SkillSeekersService {
     /// Package a skill for a target platform
     pub async fn package_skill(&self, input: PackageSkillInput) -> Result<String> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let mut args = vec!["package".to_string(), input.skill_dir.clone()];
@@ -646,9 +680,15 @@ impl SkillSeekersService {
     }
 
     /// Estimate page count for a URL
-    pub async fn estimate_pages(&self, url: &str, config_name: Option<&str>) -> Result<PageEstimation> {
+    pub async fn estimate_pages(
+        &self,
+        url: &str,
+        config_name: Option<&str>,
+    ) -> Result<PageEstimation> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let mut args = vec!["estimate".to_string()];
@@ -667,19 +707,23 @@ impl SkillSeekersService {
         // Try to parse JSON output, fall back to defaults if parsing fails
         let estimation = if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&output) {
             PageEstimation {
-                estimated_pages: parsed.get("estimated_pages")
+                estimated_pages: parsed
+                    .get("estimated_pages")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(100) as u32,
-                estimated_minutes: parsed.get("estimated_minutes")
+                estimated_minutes: parsed
+                    .get("estimated_minutes")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(15) as u32,
-                has_llms_txt: parsed.get("has_llms_txt")
+                has_llms_txt: parsed
+                    .get("has_llms_txt")
                     .and_then(|v| v.as_bool())
                     .unwrap_or_else(|| output.contains("llms.txt")),
             }
         } else {
             // Fallback: try to extract numbers from text output
-            let pages = output.lines()
+            let pages = output
+                .lines()
                 .find(|l| l.contains("pages") || l.contains("Pages"))
                 .and_then(|l| l.split_whitespace().find_map(|w| w.parse::<u32>().ok()))
                 .unwrap_or(100);
@@ -690,14 +734,16 @@ impl SkillSeekersService {
                 has_llms_txt: output.contains("llms.txt"),
             }
         };
-        
+
         Ok(estimation)
     }
 
     /// Validate a configuration file
     pub async fn validate_config(&self, config_path: &str) -> Result<bool> {
         if !self.is_installed().await {
-            return Err(anyhow!("skill-seekers is not installed. Call install() first."));
+            return Err(anyhow!(
+                "skill-seekers is not installed. Call install() first."
+            ));
         }
 
         let args = vec!["validate".to_string(), config_path.to_string()];
@@ -742,13 +788,18 @@ impl SkillSeekersService {
 
     /// Resume a paused job
     pub async fn resume_job(&self, job_id: &str) -> Result<()> {
-        let job = self.get_job(job_id).await.ok_or_else(|| anyhow!("Job not found"))?;
+        let job = self
+            .get_job(job_id)
+            .await
+            .ok_or_else(|| anyhow!("Job not found"))?;
 
         if job.status != JobStatus::Paused {
             return Err(anyhow!("Job is not paused"));
         }
 
-        let checkpoint_id = job.checkpoint_id.ok_or_else(|| anyhow!("No checkpoint available"))?;
+        let checkpoint_id = job
+            .checkpoint_id
+            .ok_or_else(|| anyhow!("No checkpoint available"))?;
 
         let args = vec!["resume".to_string(), checkpoint_id];
 
@@ -831,7 +882,9 @@ impl SkillSeekersService {
         }
 
         // Spawn the process
-        let child = cmd.spawn().context("Failed to spawn skill-seekers process")?;
+        let child = cmd
+            .spawn()
+            .context("Failed to spawn skill-seekers process")?;
 
         // Store the child process
         {
@@ -1052,11 +1105,13 @@ impl SkillSeekersService {
 
         // Pattern: "Scraping page 50/100..."
         if line.contains("Scraping page") {
-            if let Some(caps) = line
-                .split("Scraping page")
-                .nth(1)
-                .and_then(|s| s.trim().split('/').collect::<Vec<_>>().first().map(|v| v.trim()))
-            {
+            if let Some(caps) = line.split("Scraping page").nth(1).and_then(|s| {
+                s.trim()
+                    .split('/')
+                    .collect::<Vec<_>>()
+                    .first()
+                    .map(|v| v.trim())
+            }) {
                 if let Ok(current) = caps.parse::<u32>() {
                     let total = line
                         .split('/')
@@ -1064,7 +1119,9 @@ impl SkillSeekersService {
                         .and_then(|s| s.split(|c: char| !c.is_ascii_digit()).next())
                         .and_then(|s| s.parse::<u32>().ok());
 
-                    let percent = total.map(|t| ((current as f32 / t as f32) * 100.0) as u8).unwrap_or(50);
+                    let percent = total
+                        .map(|t| ((current as f32 / t as f32) * 100.0) as u8)
+                        .unwrap_or(50);
 
                     return Some(JobProgress {
                         phase: JobPhase::Scraping,

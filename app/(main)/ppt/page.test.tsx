@@ -5,6 +5,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const applySelector = <TState, TResult>(
+  selector: ((state: TState) => TResult) | undefined,
+  state: TState
+) => (typeof selector === 'function' ? selector(state) : state);
+
 // Mock next/navigation
 const mockPush = jest.fn();
 const mockSearchParams = new URLSearchParams();
@@ -31,21 +36,25 @@ jest.mock('@/stores', () => ({
         setActivePresentation: jest.fn(),
         deletePresentation: jest.fn(),
       };
-      return selector(state);
+      return applySelector(selector, state);
     }),
     {
       getState: () => ({
         updatePresentation: jest.fn(),
+        addPresentation: jest.fn(),
       }),
     }
   ),
   usePPTEditorStore: jest.fn((selector) => {
     const state = {
       loadPresentation: jest.fn(),
+      clearPresentation: jest.fn(),
       presentation: null,
     };
-    return selector(state);
+    return applySelector(selector, state);
   }),
+  selectActivePresentation: (state: { presentations: Record<string, unknown>; activePresentationId?: string | null }) =>
+    state.activePresentationId ? state.presentations[state.activePresentationId] ?? null : null,
 }));
 
 // Mock usePPTGeneration hook
@@ -68,6 +77,9 @@ jest.mock('@/components/ppt', () => ({
       Quick Action
     </button>
   ),
+  PPTPreview: () => <div data-testid="ppt-preview">PPT Preview</div>,
+  SlideshowView: () => <div data-testid="slideshow-view">Slideshow View</div>,
+  SlideContent: () => <div data-testid="slide-content">Slide Content</div>,
 }));
 
 // Import after mocks
@@ -182,7 +194,7 @@ describe('PPT Page with presentations', () => {
         setActivePresentation: jest.fn(),
         deletePresentation: jest.fn(),
       };
-      return selector(state);
+      return applySelector(selector, state);
     });
   });
 
@@ -239,15 +251,16 @@ describe('PPT Page with URL parameters', () => {
         setActivePresentation: jest.fn(),
         deletePresentation: jest.fn(),
       };
-      return selector(state);
+      return applySelector(selector, state);
     });
 
     usePPTEditorStore.mockImplementation((selector: (state: unknown) => unknown) => {
       const state = {
         loadPresentation: mockLoadPresentation,
+        clearPresentation: jest.fn(),
         presentation: mockPresentations['ppt-url'],
       };
-      return selector(state);
+      return applySelector(selector, state);
     });
   });
 

@@ -244,7 +244,11 @@ impl Transport for StdioTransport {
                 );
             }
             Err(e) => {
-                log::warn!("Failed to kill MCP server process (PID: {:?}): {}", process_pid, e);
+                log::warn!(
+                    "Failed to kill MCP server process (PID: {:?}): {}",
+                    process_pid,
+                    e
+                );
             }
         }
 

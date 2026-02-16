@@ -15,28 +15,44 @@ const mockUpdateProviderSettings = jest.fn();
 const mockUpdateCustomProvider = jest.fn();
 const mockAddApiKey = jest.fn();
 const mockRemoveApiKey = jest.fn();
+const mockReorderApiKeys = jest.fn();
 const mockSetApiKeyRotation = jest.fn();
 const mockResetApiKeyStats = jest.fn();
+const mockSetProviderViewMode = jest.fn();
+const mockSetProviderSortBy = jest.fn();
+const mockSetProviderSortOrder = jest.fn();
+const mockSetProviderCategoryFilter = jest.fn();
+
+const mockSettingsState = {
+  providerSettings: {
+    openai: { apiKey: 'test-key', enabled: true },
+    anthropic: { apiKey: '', enabled: false },
+    google: { apiKey: '', enabled: false },
+    ollama: { enabled: true, baseURL: 'http://localhost:11434' },
+  },
+  language: 'en',
+  customProviders: {},
+  updateProviderSettings: mockUpdateProviderSettings,
+  updateCustomProvider: mockUpdateCustomProvider,
+  addApiKey: mockAddApiKey,
+  removeApiKey: mockRemoveApiKey,
+  reorderApiKeys: mockReorderApiKeys,
+  setApiKeyRotation: mockSetApiKeyRotation,
+  resetApiKeyStats: mockResetApiKeyStats,
+  providerUIPreferences: {
+    viewMode: 'cards',
+    sortBy: 'name',
+    sortOrder: 'asc',
+    categoryFilter: 'all',
+  },
+  setProviderViewMode: mockSetProviderViewMode,
+  setProviderSortBy: mockSetProviderSortBy,
+  setProviderSortOrder: mockSetProviderSortOrder,
+  setProviderCategoryFilter: mockSetProviderCategoryFilter,
+};
 
 jest.mock('@/stores', () => ({
-  useSettingsStore: (selector: (state: Record<string, unknown>) => unknown) => {
-    const state = {
-      providerSettings: {
-        openai: { apiKey: 'test-key', enabled: true },
-        anthropic: { apiKey: '', enabled: false },
-        google: { apiKey: '', enabled: false },
-        ollama: { enabled: true, baseURL: 'http://localhost:11434' },
-      },
-      customProviders: {},
-      updateProviderSettings: mockUpdateProviderSettings,
-      updateCustomProvider: mockUpdateCustomProvider,
-      addApiKey: mockAddApiKey,
-      removeApiKey: mockRemoveApiKey,
-      setApiKeyRotation: mockSetApiKeyRotation,
-      resetApiKeyStats: mockResetApiKeyStats,
-    };
-    return selector(state);
-  },
+  useSettingsStore: jest.fn((selector: (state: typeof mockSettingsState) => unknown) => selector(mockSettingsState)),
 }));
 
 // Mock provider types
@@ -88,6 +104,7 @@ jest.mock('@/components/ui/sonner', () => ({
 // Mock API key rotation
 jest.mock('@/lib/ai/infrastructure/api-key-rotation', () => ({
   maskApiKey: (key: string) => key ? `${key.slice(0, 4)}...${key.slice(-4)}` : '',
+  isValidApiKeyFormat: () => true,
 }));
 
 // Mock child components
@@ -196,7 +213,7 @@ jest.mock('@/components/ui/select', () => ({
   ),
   SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => (
-    <option value={value}>{children}</option>
+    <div data-value={value}>{children}</div>
   ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   SelectValue: () => <span>Value</span>,
@@ -215,6 +232,12 @@ jest.mock('@/lib/utils', () => ({
 describe('ProviderSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSettingsState.providerUIPreferences = {
+      viewMode: 'cards',
+      sortBy: 'name',
+      sortOrder: 'asc',
+      categoryFilter: 'all',
+    };
   });
 
   it('renders provider settings component', () => {
@@ -239,10 +262,8 @@ describe('ProviderSettings', () => {
   });
 
   it('shows local providers section when local tab is selected', async () => {
+    mockSettingsState.providerUIPreferences.categoryFilter = 'local';
     render(<ProviderSettings />);
-    const localTab = screen.getAllByRole('tab').find((el) => el.textContent?.includes('local'));
-    expect(localTab).toBeTruthy();
-    fireEvent.click(localTab as HTMLElement);
     expect(await screen.findByTestId('local-provider-settings')).toBeInTheDocument();
   });
 
@@ -258,7 +279,7 @@ describe('ProviderSettings', () => {
 
   it('displays add provider button', () => {
     render(<ProviderSettings />);
-    expect(screen.getByText('addProvider')).toBeInTheDocument();
+    expect(screen.getByText('addCustom')).toBeInTheDocument();
   });
 
   it('renders provider import/export component', () => {

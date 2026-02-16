@@ -24,7 +24,7 @@
  */
 
 // Main components (from core/)
-export { ChatContainer, ChatHeader, ChatDesignerPanel } from './core';
+export { ChatContainer, ChatHeader, ChatDesignerPanel, VirtualizedChatMessageList, type VirtualizedChatMessageListProps } from './core';
 export { ChatInput } from './chat-input';
 
 // Welcome components
@@ -87,6 +87,8 @@ export {
   PendingMessagesQueue,
   type PendingMessage,
   QuotedContent,
+  ChatMessageItem,
+  type ChatMessageItemProps,
 } from './message';
 
 // Utility components
@@ -111,6 +113,8 @@ export {
   LearningToolPart,
   isLearningTool,
   LEARNING_TOOL_NAMES,
+  MessagePartsRenderer,
+  type MessagePartsRendererProps,
 } from './message-parts';
 
 // Workflow components (from workflow/)

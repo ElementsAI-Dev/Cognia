@@ -265,9 +265,18 @@ fn get_git_info(path: &str) -> Result<VcsInfo, String> {
 
 fn get_jj_info(path: &str) -> Result<VcsInfo, String> {
     // Get current commit ID
-    let revision = run_command("jj", &["log", "-r", "@", "--no-graph", "-T", "commit_id"], Some(path))?;
+    let revision = run_command(
+        "jj",
+        &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+        Some(path),
+    )?;
     // Get branch/bookmark if any
-    let branch = run_command("jj", &["log", "-r", "@", "--no-graph", "-T", "bookmarks"], Some(path)).ok();
+    let branch = run_command(
+        "jj",
+        &["log", "-r", "@", "--no-graph", "-T", "bookmarks"],
+        Some(path),
+    )
+    .ok();
     // Jujutsu repos may be backed by Git
     let remote_url = run_command("git", &["remote", "get-url", "origin"], Some(path)).ok();
     let repo_root = run_command("jj", &["workspace", "root"], Some(path))?;
@@ -298,7 +307,7 @@ fn get_hg_info(path: &str) -> Result<VcsInfo, String> {
 
 fn get_svn_info(path: &str) -> Result<VcsInfo, String> {
     let info_output = run_command("svn", &["info"], Some(path))?;
-    
+
     let mut revision = String::new();
     let mut remote_url = None;
     let mut repo_root = String::new();
@@ -400,13 +409,17 @@ fn parse_git_blame_line(output: &str) -> Vec<VcsBlameLineInfo> {
     lines
 }
 
-fn get_hg_blame(path: &str, file_path: &str, line_number: Option<u32>) -> Result<Vec<VcsBlameLineInfo>, String> {
+fn get_hg_blame(
+    path: &str,
+    file_path: &str,
+    line_number: Option<u32>,
+) -> Result<Vec<VcsBlameLineInfo>, String> {
     let output = run_command("hg", &["annotate", "-u", "-d", "-n", file_path], Some(path))?;
-    
+
     let mut lines = Vec::new();
     for (idx, line) in output.lines().enumerate() {
         let line_num = (idx + 1) as u32;
-        
+
         // Skip if we're looking for a specific line
         if let Some(target) = line_number {
             if line_num != target {
@@ -419,7 +432,7 @@ fn get_hg_blame(path: &str, file_path: &str, line_number: Option<u32>) -> Result
         if parts.len() == 2 {
             let meta = parts[0];
             let content = parts[1].to_string();
-            
+
             // Extract author, date, revision from meta
             let meta_parts: Vec<&str> = meta.split_whitespace().collect();
             if meta_parts.len() >= 3 {
@@ -437,13 +450,17 @@ fn get_hg_blame(path: &str, file_path: &str, line_number: Option<u32>) -> Result
     Ok(lines)
 }
 
-fn get_svn_blame(path: &str, file_path: &str, line_number: Option<u32>) -> Result<Vec<VcsBlameLineInfo>, String> {
+fn get_svn_blame(
+    path: &str,
+    file_path: &str,
+    line_number: Option<u32>,
+) -> Result<Vec<VcsBlameLineInfo>, String> {
     let output = run_command("svn", &["blame", "-v", file_path], Some(path))?;
-    
+
     let mut lines = Vec::new();
     for (idx, line) in output.lines().enumerate() {
         let line_num = (idx + 1) as u32;
-        
+
         if let Some(target) = line_number {
             if line_num != target {
                 continue;

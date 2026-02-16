@@ -6,5 +6,5 @@ pub mod manager;
 pub mod python;
 pub mod types;
 
-pub use manager::{PluginManager, PythonRuntimeInfo, PythonPluginInfo};
+pub use manager::{PluginManager, PythonPluginInfo, PythonRuntimeInfo};
 pub use types::*;

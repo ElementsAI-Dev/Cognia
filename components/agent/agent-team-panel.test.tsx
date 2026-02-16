@@ -51,6 +51,18 @@ jest.mock('./agent-team-config-editor', () => ({
   AgentTeamConfigEditor: () => <div data-testid="config-editor">Config</div>,
 }));
 
+jest.mock('./agent-team-task-board', () => ({
+  AgentTeamTaskBoard: () => <div data-testid="task-board">Task Board</div>,
+}));
+
+jest.mock('./agent-team-analytics', () => ({
+  AgentTeamAnalytics: () => <div data-testid="analytics">Analytics</div>,
+}));
+
+jest.mock('./agent-team-result-card', () => ({
+  AgentTeamResultCard: () => <div data-testid="result-card">Result</div>,
+}));
+
 jest.mock('./agent-team-graph', () => ({
   AgentTeamGraph: () => <div data-testid="team-graph">Graph</div>,
 }));

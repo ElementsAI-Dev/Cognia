@@ -88,17 +88,17 @@ impl ExternalAgentProcess {
             .write_all(message.as_bytes())
             .await
             .map_err(|e| format!("Failed to write to stdin: {}", e))?;
-        
+
         self.stdin
             .write_all(b"\n")
             .await
             .map_err(|e| format!("Failed to write newline: {}", e))?;
-        
+
         self.stdin
             .flush()
             .await
             .map_err(|e| format!("Failed to flush stdin: {}", e))?;
-        
+
         Ok(())
     }
 
@@ -279,16 +279,22 @@ impl ExternalAgentProcessManager {
 
     /// Send a message to a process
     pub async fn send(&self, id: &str, message: &str) -> Result<(), String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
         process.send(message).await
     }
 
     /// Receive stdout from a process
     pub async fn receive_stdout(&self, id: &str) -> Result<Vec<String>, String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
-        
+
         let mut lines = Vec::new();
         while let Some(line) = process.receive_stdout().await {
             lines.push(line);
@@ -298,16 +304,19 @@ impl ExternalAgentProcessManager {
 
     /// Kill a process
     pub async fn kill(&self, id: &str) -> Result<(), String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         {
             let mut process = process.lock().await;
             process.kill().await?;
         }
-        
+
         // Remove from manager
         let mut processes = self.processes.write().await;
         processes.remove(id);
-        
+
         log::info!("External agent {} killed", id);
         Ok(())
     }
@@ -343,9 +352,12 @@ impl ExternalAgentProcessManager {
 
     /// Receive stderr from a process
     pub async fn receive_stderr(&self, id: &str) -> Result<Vec<String>, String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
-        
+
         let mut lines = Vec::new();
         while let Some(line) = process.receive_stderr().await {
             lines.push(line);
@@ -355,21 +367,30 @@ impl ExternalAgentProcessManager {
 
     /// Check if a process is still running
     pub async fn is_running(&self, id: &str) -> Result<bool, String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
         Ok(process.is_running().await)
     }
 
     /// Get detailed info about a process
     pub async fn get_info(&self, id: &str) -> Result<serde_json::Value, String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let process = process.lock().await;
         Ok(process.get_info())
     }
 
     /// Transition a process to Running state
     pub async fn set_running(&self, id: &str) -> Result<(), String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
         process.set_running();
         Ok(())
@@ -377,7 +398,10 @@ impl ExternalAgentProcessManager {
 
     /// Transition a process to Failed state
     pub async fn set_failed(&self, id: &str) -> Result<(), String> {
-        let process = self.get(id).await.ok_or(format!("Agent {} not found", id))?;
+        let process = self
+            .get(id)
+            .await
+            .ok_or(format!("Agent {} not found", id))?;
         let mut process = process.lock().await;
         process.set_failed();
         Ok(())

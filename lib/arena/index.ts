@@ -2,7 +2,8 @@
  * Arena library exports
  */
 
-export { WIN_REASONS, CATEGORY_IDS } from './constants';
+export { WIN_REASONS, CATEGORY_IDS, ARENA_KNOWN_MODELS } from './constants';
+export type { ArenaModelPresetEntry } from './constants';
 export { formatBattleDate, formatBattleDuration } from './format';
 export {
   getWinRateColor,
@@ -14,6 +15,7 @@ export { computeWordDiff, computeSimilarity } from './diff';
 export {
   computeArenaStats,
   buildWinRateMatrix,
+  computeEstimatedCost,
 } from './stats';
 export type {
   ComputedArenaStats,

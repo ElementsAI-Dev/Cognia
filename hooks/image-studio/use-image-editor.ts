@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useRef, useState, useEffect } from 'react';
+import { nanoid } from 'nanoid';
 import { useImageStudioStore } from '@/stores';
 import { getMediaRegistry } from '@/lib/plugin/api/media-api';
 import type {
@@ -119,10 +120,6 @@ function createOffscreenCanvas(width: number, height: number): OffscreenCanvas {
   return new OffscreenCanvas(width, height);
 }
 
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
-
 export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEditorReturn {
   const { initialImageUrl, maxHistorySize = 50, onImageChange, onError } = options;
 
@@ -148,18 +145,18 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<OffscreenCanvas | null>(null);
 
-  const _storeActions = useImageStudioStore();
+  const storeActions = useImageStudioStore();
 
   // Derived state
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
   const isDirty = historyIndex > 0;
 
-  // Add to history
+  // Add to history — also syncs metadata to store
   const addToHistory = useCallback(
     (type: ImageHistoryEntry['type'], description: string, imageData: ImageData) => {
       const entry: ImageHistoryEntry = {
-        id: generateId(),
+        id: nanoid(),
         type,
         description,
         imageData,
@@ -179,8 +176,18 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
       });
 
       setHistoryIndex((prev) => Math.min(prev + 1, maxHistorySize - 1));
+
+      // Sync metadata to store for History Panel display
+      const selectedId = storeActions.selectedImageId;
+      if (selectedId) {
+        storeActions.addToHistory({
+          type: type as 'adjust' | 'crop' | 'rotate' | 'flip' | 'filter' | 'text' | 'draw',
+          imageId: selectedId,
+          description,
+        });
+      }
     },
-    [historyIndex, maxHistorySize]
+    [historyIndex, maxHistorySize, storeActions]
   );
 
   // Set error
@@ -260,7 +267,7 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
         // Reset history with initial state
         setHistory([
           {
-            id: generateId(),
+            id: nanoid(),
             type: 'load',
             description: 'Image loaded',
             imageData,
@@ -301,7 +308,7 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
 
       setHistory([
         {
-          id: generateId(),
+          id: nanoid(),
           type: 'load',
           description: 'Image loaded',
           imageData,
@@ -569,7 +576,7 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
     [state]
   );
 
-  // History operations
+  // History operations — sync to store for History Panel
   const undo = useCallback(() => {
     if (!canUndo) return;
     const newIndex = historyIndex - 1;
@@ -582,8 +589,9 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
         height: entry.imageData.height,
       }));
       setHistoryIndex(newIndex);
+      storeActions.undo();
     }
-  }, [canUndo, history, historyIndex]);
+  }, [canUndo, history, historyIndex, storeActions]);
 
   const redo = useCallback(() => {
     if (!canRedo) return;
@@ -597,14 +605,15 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
         height: entry.imageData.height,
       }));
       setHistoryIndex(newIndex);
+      storeActions.redo();
     }
-  }, [canRedo, history, historyIndex]);
+  }, [canRedo, history, historyIndex, storeActions]);
 
   const clearHistory = useCallback(() => {
     if (state.imageData) {
       setHistory([
         {
-          id: generateId(),
+          id: nanoid(),
           type: 'load',
           description: 'History cleared',
           imageData: state.imageData,
@@ -612,8 +621,9 @@ export function useImageEditor(options: UseImageEditorOptions = {}): UseImageEdi
         },
       ]);
       setHistoryIndex(0);
+      storeActions.clearHistory();
     }
-  }, [state.imageData]);
+  }, [state.imageData, storeActions]);
 
   const goToHistoryIndex = useCallback(
     (index: number) => {

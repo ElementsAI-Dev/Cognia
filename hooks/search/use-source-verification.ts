@@ -9,6 +9,7 @@ import {
   generateVerificationReport,
   getRootDomain,
   extractDomain,
+  verifySource,
   enhanceSearchResponse,
 } from '@/lib/search/source-verification';
 import type {
@@ -74,7 +75,16 @@ export function useSourceVerification(
         }
 
         // Use enhanceSearchResponse to get base verification data
-        const enhanced = enhanceSearchResponse(searchResponse, { includeReport: false });
+        const enhanced =
+          typeof enhanceSearchResponse === 'function'
+            ? enhanceSearchResponse(searchResponse, { includeReport: false })
+            : {
+                ...searchResponse,
+                results: searchResponse.results.map((result) => ({
+                  ...result,
+                  verification: verifySource(result.url),
+                })),
+              };
 
         // Apply user settings (trust/block lists, auto-filter) on top
         const enhancedResults: VerifiedSearchResult[] = enhanced.results.map((result) => {

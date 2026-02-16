@@ -14,6 +14,12 @@ export interface UploadSettings {
   autoUpload?: boolean;
 }
 
+export const DEFAULT_UPLOAD_SETTINGS: UploadSettings = {
+  maxFileSize: 50 * 1024 * 1024, // 50MB
+  maxFiles: 10,
+  allowedTypes: ['*/*'], // Allow all by default
+};
+
 // Pending message interface
 export interface PendingMessage {
   id: string;

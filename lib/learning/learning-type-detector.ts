@@ -109,7 +109,8 @@ const CATEGORY_PATTERNS: Record<LearningCategory, string[]> = {
   domain: [
     '领域', '专业', '行业',
     'domain', 'field', 'industry',
-    'machine learning', 'data science', 'ai', 'blockchain',
+    '机器学习', '深度学习', '人工智能',
+    'machine learning', 'deep learning', 'data science', 'ai', 'artificial intelligence', 'blockchain',
   ],
   project: [
     '项目', '实战', '实践', '开发',

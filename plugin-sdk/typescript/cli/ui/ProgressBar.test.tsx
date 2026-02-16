@@ -3,8 +3,17 @@
  */
 
 import React from 'react';
-import { render } from 'ink-testing-library';
+import { render } from './test-utils';
 import { ProgressBar } from './ProgressBar';
+
+jest.mock('@inkjs/ui', () => ({
+  ProgressBar: () => null,
+}));
+
+jest.mock('ink', () => ({
+  Box: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Text: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 describe('ProgressBar', () => {
   it('should render with value', () => {

@@ -5,7 +5,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { PaperCollection } from '@/types/academic';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // Collection Actions Type
@@ -24,11 +24,7 @@ export interface CollectionActions {
 // Collection Slice Creator
 // ============================================================================
 
-export function createCollectionSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): CollectionActions {
-  return {
+export const createCollectionSlice: AcademicSliceCreator<CollectionActions> = (set, get) => ({
     createCollection: async (name, description, color) => {
       set({ isLoading: true, error: null });
       try {
@@ -132,5 +128,4 @@ export function createCollectionSlice(
         set({ error: error instanceof Error ? error.message : String(error) });
       }
     },
-  };
-}
+});

@@ -33,6 +33,11 @@ const mockWebDAVStoreState = {
 jest.mock('@/stores/sync', () => ({
   useSyncStore: () => ({
     ...mockWebDAVStoreState,
+    webdavConfig: {
+      maxBackups: 10,
+      syncDataTypes: [],
+      ...mockWebDAVStoreState.webdavConfig,
+    },
     setWebDAVConfig: mockSetWebDAVConfig,
   }),
 }));
@@ -438,7 +443,11 @@ describe('WebDAVConfigForm with auto sync enabled', () => {
 
   it('displays sync interval slider when auto sync is enabled', () => {
     render(<WebDAVConfigForm />);
-    expect(screen.getByTestId('slider')).toBeInTheDocument();
+    const syncIntervalSlider = screen
+      .getAllByTestId('slider')
+      .find((slider) => slider.getAttribute('max') === '120');
+
+    expect(syncIntervalSlider).toBeInTheDocument();
   });
 
   it('displays current sync interval value', () => {
@@ -448,8 +457,12 @@ describe('WebDAVConfigForm with auto sync enabled', () => {
 
   it('calls setWebDAVConfig when sync interval is changed', () => {
     render(<WebDAVConfigForm />);
-    const slider = screen.getByTestId('slider');
-    fireEvent.change(slider, { target: { value: '60' } });
+    const syncIntervalSlider = screen
+      .getAllByTestId('slider')
+      .find((slider) => slider.getAttribute('max') === '120');
+
+    expect(syncIntervalSlider).toBeDefined();
+    fireEvent.change(syncIntervalSlider!, { target: { value: '60' } });
     expect(mockSetWebDAVConfig).toHaveBeenCalledWith({ syncInterval: 60 });
   });
 });

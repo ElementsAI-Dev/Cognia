@@ -90,23 +90,23 @@ describe('ImagePreview', () => {
   });
 
   describe('comparison modes', () => {
-    it('should render split-horizontal mode', () => {
+    it('should render slider-h mode', () => {
       const { container } = render(
         <ImagePreview
           originalImage={originalImage}
           editedImage={editedImage}
-          comparisonMode="split-horizontal"
+          comparisonMode="slider-h"
         />
       );
       expect(container.querySelectorAll('canvas').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should render split-vertical mode', () => {
+    it('should render slider-v mode', () => {
       const { container } = render(
         <ImagePreview
           originalImage={originalImage}
           editedImage={editedImage}
-          comparisonMode="split-vertical"
+          comparisonMode="slider-v"
         />
       );
       expect(container.querySelectorAll('canvas').length).toBeGreaterThanOrEqual(1);

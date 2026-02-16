@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { nanoid } from 'nanoid';
 import type { ImageAdjustments } from '@/types/media/image-studio';
 
 export interface BatchImage {
@@ -103,8 +104,6 @@ export interface BatchEditState {
   reset: () => void;
 }
 
-const generateId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
 const initialState = {
   jobs: [],
   presets: [],
@@ -119,7 +118,7 @@ export const useBatchEditStore = create<BatchEditState>()(
       ...initialState,
 
       createJob: (name, outputDirectory) => {
-        const id = generateId();
+        const id = nanoid();
         const job: BatchJob = {
           id,
           name,
@@ -227,7 +226,7 @@ export const useBatchEditStore = create<BatchEditState>()(
       },
 
       createPreset: (preset) => {
-        const id = generateId();
+        const id = nanoid();
         const now = Date.now();
         const newPreset: BatchPreset = {
           ...preset,

@@ -33,9 +33,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { ZoomControls } from '../common/zoom-controls';
-
-type EditorMode = 'timeline' | 'trim' | 'effects' | 'transitions' | 'subtitles' | 'color' | 'speed' | 'markers' | 'audio' | 'layers';
-type SidePanelTab = 'effects' | 'color' | 'audio' | 'layers';
+import type { EditorMode, SidePanelTab } from '@/types/video-studio/types';
 
 export interface EditorToolbarProps {
   editorMode: EditorMode;

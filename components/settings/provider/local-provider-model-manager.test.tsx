@@ -28,7 +28,7 @@ const mockCancelPull = jest.fn();
 const mockDeleteModel = jest.fn().mockResolvedValue(true);
 const mockStopModel = jest.fn().mockResolvedValue(true);
 
-jest.mock('@/hooks/use-local-provider', () => ({
+jest.mock('@/hooks/provider/use-local-provider', () => ({
   useLocalProvider: jest.fn(() => ({
     providerId: 'ollama',
     config: {
@@ -99,7 +99,7 @@ describe('LocalProviderModelManager', () => {
   it('should render provider name and status', () => {
     renderWithProviders(<LocalProviderModelManager providerId="ollama" />);
 
-    expect(screen.getByText('Ollama Models')).toBeInTheDocument();
+    expect(screen.getByText((content) => content === 'providerModels' || content === 'Ollama Models')).toBeInTheDocument();
     // Status indicator is present (i18n text may vary in test environment)
     const statusIndicator = document.querySelector('.bg-green-500');
     expect(statusIndicator).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe('LocalProviderModelManager', () => {
 describe('LocalProviderModelManager - Disconnected State', () => {
   beforeEach(() => {
     // Override mock for disconnected state
-    const { useLocalProvider } = jest.requireMock('@/hooks/use-local-provider');
+    const { useLocalProvider } = jest.requireMock('@/hooks/provider/use-local-provider');
     useLocalProvider.mockReturnValue({
       providerId: 'ollama',
       config: {
@@ -250,19 +250,19 @@ describe('LocalProviderModelManager - Disconnected State', () => {
   it('should show not running message when disconnected', () => {
     renderWithProviders(<LocalProviderModelManager providerId="ollama" />);
 
-    expect(screen.getByText(/Ollama is not running/)).toBeInTheDocument();
+    expect(screen.getByText(/providerNotRunning/i)).toBeInTheDocument();
   });
 
   it('should show install link when disconnected', () => {
     renderWithProviders(<LocalProviderModelManager providerId="ollama" />);
 
-    expect(screen.getByText(/Install Ollama/)).toBeInTheDocument();
+    expect(screen.getByText(/installProvider/i)).toBeInTheDocument();
   });
 });
 
 describe('LocalProviderModelManager - Pulling State', () => {
   beforeEach(() => {
-    const { useLocalProvider } = jest.requireMock('@/hooks/use-local-provider');
+    const { useLocalProvider } = jest.requireMock('@/hooks/provider/use-local-provider');
     useLocalProvider.mockReturnValue({
       providerId: 'ollama',
       config: {

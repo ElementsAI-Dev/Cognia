@@ -44,7 +44,7 @@ import {
   Copy,
   GripVertical,
 } from 'lucide-react';
-import type { VideoTrack, VideoClip } from '@/hooks/video-studio/use-video-editor';
+import type { VideoTrack, VideoClip } from '@/types/video-studio/types';
 
 export interface VideoTimelineProps {
   tracks: VideoTrack[];

@@ -248,7 +248,9 @@ impl ScreenshotHistory {
                 false
             }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -258,12 +260,14 @@ impl ScreenshotHistory {
             let mut entries = self.entries.write();
             if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
                 entry.unpin();
-            true
-        } else {
-            false
-        }
+                true
+            } else {
+                false
+            }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -278,7 +282,9 @@ impl ScreenshotHistory {
                 false
             }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -293,7 +299,9 @@ impl ScreenshotHistory {
                 false
             }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -308,7 +316,9 @@ impl ScreenshotHistory {
                 false
             }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -323,7 +333,9 @@ impl ScreenshotHistory {
                 false
             }
         };
-        if result { self.save_to_disk(); }
+        if result {
+            self.save_to_disk();
+        }
         result
     }
 
@@ -525,12 +537,12 @@ mod tests {
 
         assert!(history.add_tag(&id, "bug".to_string()));
         assert!(history.add_tag(&id, "ui".to_string()));
-        
+
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.tags.len(), 2);
 
         assert!(history.remove_tag(&id, "bug"));
-        
+
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.tags.len(), 1);
         assert!(found.tags.contains(&"ui".to_string()));
@@ -548,7 +560,7 @@ mod tests {
 
         // Try to remove a tag that doesn't exist
         assert!(history.remove_tag(&id, "nonexistent"));
-        
+
         let found = history.get_by_id(&id).unwrap();
         assert_eq!(found.tags.len(), 1);
     }
@@ -713,7 +725,8 @@ mod tests {
 
     #[test]
     fn test_persistence_missing_file() {
-        let path = std::env::temp_dir().join(format!("cognia-nonexistent-{}.json", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("cognia-nonexistent-{}.json", uuid::Uuid::new_v4()));
 
         // Should not panic when file doesn't exist
         let history = ScreenshotHistory::new_with_persistence(path);
@@ -722,7 +735,8 @@ mod tests {
 
     #[test]
     fn test_persistence_corrupt_file() {
-        let dir = std::env::temp_dir().join(format!("cognia-test-corrupt-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("cognia-test-corrupt-{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("screenshot-history.json");
 

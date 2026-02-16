@@ -1,7 +1,7 @@
 //! Types for input completion module
 
-use serde::{Deserialize, Serialize};
 use super::ime_state::ImeState;
+use serde::{Deserialize, Serialize};
 
 /// Context for requesting a completion
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -181,7 +181,6 @@ pub enum FeedbackRating {
     Irrelevant,
 }
 
-
 impl CompletionSuggestion {
     /// Create a new suggestion
     pub fn new(text: String, confidence: f64, completion_type: CompletionType) -> Self {
@@ -201,12 +200,9 @@ mod tests {
 
     #[test]
     fn test_completion_suggestion_new() {
-        let suggestion = CompletionSuggestion::new(
-            "hello world".to_string(),
-            0.9,
-            CompletionType::Line,
-        );
-        
+        let suggestion =
+            CompletionSuggestion::new("hello world".to_string(), 0.9, CompletionType::Line);
+
         assert_eq!(suggestion.text, "hello world");
         assert_eq!(suggestion.display_text, "hello world");
         assert_eq!(suggestion.confidence, 0.9);
@@ -216,31 +212,21 @@ mod tests {
 
     #[test]
     fn test_completion_suggestion_block_type() {
-        let suggestion = CompletionSuggestion::new(
-            "line1\nline2".to_string(),
-            0.8,
-            CompletionType::Block,
-        );
+        let suggestion =
+            CompletionSuggestion::new("line1\nline2".to_string(), 0.8, CompletionType::Block);
         assert_eq!(suggestion.completion_type, CompletionType::Block);
     }
 
     #[test]
     fn test_completion_suggestion_word_type() {
-        let suggestion = CompletionSuggestion::new(
-            "word".to_string(),
-            0.7,
-            CompletionType::Word,
-        );
+        let suggestion = CompletionSuggestion::new("word".to_string(), 0.7, CompletionType::Word);
         assert_eq!(suggestion.completion_type, CompletionType::Word);
     }
 
     #[test]
     fn test_completion_suggestion_snippet_type() {
-        let suggestion = CompletionSuggestion::new(
-            "fn ${1:name}()".to_string(),
-            0.6,
-            CompletionType::Snippet,
-        );
+        let suggestion =
+            CompletionSuggestion::new("fn ${1:name}()".to_string(), 0.6, CompletionType::Snippet);
         assert_eq!(suggestion.completion_type, CompletionType::Snippet);
     }
 
@@ -268,7 +254,7 @@ mod tests {
             language: Some("rust".to_string()),
             ime_state: None,
         };
-        
+
         assert_eq!(context.text, "fn main()");
         assert!(context.cursor_position.is_some());
         let pos = context.cursor_position.unwrap();
@@ -286,7 +272,7 @@ mod tests {
             line: Some(1),
             column: Some(10),
         };
-        
+
         assert_eq!(pos.x, 50);
         assert_eq!(pos.y, 100);
         assert_eq!(pos.line, Some(1));
@@ -304,19 +290,15 @@ mod tests {
 
     #[test]
     fn test_completion_result_with_suggestions() {
-        let suggestion = CompletionSuggestion::new(
-            "test".to_string(),
-            0.9,
-            CompletionType::Line,
-        );
-        
+        let suggestion = CompletionSuggestion::new("test".to_string(), 0.9, CompletionType::Line);
+
         let result = CompletionResult {
             suggestions: vec![suggestion],
             latency_ms: 150,
             model: "test-model".to_string(),
             cached: true,
         };
-        
+
         assert_eq!(result.suggestions.len(), 1);
         assert_eq!(result.latency_ms, 150);
         assert_eq!(result.model, "test-model");
@@ -341,7 +323,7 @@ mod tests {
             has_suggestion: true,
             buffer_length: 10,
         };
-        
+
         assert!(status.is_running);
         assert!(status.has_suggestion);
         assert_eq!(status.buffer_length, 10);
@@ -371,7 +353,7 @@ mod tests {
             cache_hit_rate: 0.3,
             feedback_stats: FeedbackStats::default(),
         };
-        
+
         assert_eq!(stats.total_requests, 100);
         assert_eq!(stats.successful_completions, 80);
         assert_eq!(stats.cache_hit_rate, 0.3);
@@ -379,11 +361,7 @@ mod tests {
 
     #[test]
     fn test_completion_event_suggestion() {
-        let suggestion = CompletionSuggestion::new(
-            "test".to_string(),
-            0.9,
-            CompletionType::Line,
-        );
+        let suggestion = CompletionSuggestion::new("test".to_string(), 0.9, CompletionType::Line);
         let event = InputCompletionEvent::Suggestion(suggestion.clone());
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("Suggestion"));
@@ -392,11 +370,8 @@ mod tests {
 
     #[test]
     fn test_completion_event_accept() {
-        let suggestion = CompletionSuggestion::new(
-            "accepted".to_string(),
-            0.8,
-            CompletionType::Line,
-        );
+        let suggestion =
+            CompletionSuggestion::new("accepted".to_string(), 0.8, CompletionType::Line);
         let event = InputCompletionEvent::Accept(suggestion);
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("Accept"));
@@ -448,10 +423,10 @@ mod tests {
             language: Some("rust".to_string()),
             ime_state: None,
         };
-        
+
         let json = serde_json::to_string(&context).unwrap();
         let parsed: CompletionContext = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.text, context.text);
         assert_eq!(parsed.file_path, context.file_path);
         assert_eq!(parsed.language, context.language);
@@ -469,10 +444,10 @@ mod tests {
             model: "model".to_string(),
             cached: false,
         };
-        
+
         let json = serde_json::to_string(&result).unwrap();
         let parsed: CompletionResult = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.suggestions.len(), 1);
         assert_eq!(parsed.latency_ms, result.latency_ms);
         assert_eq!(parsed.model, result.model);
@@ -486,10 +461,10 @@ mod tests {
             has_suggestion: false,
             buffer_length: 5,
         };
-        
+
         let json = serde_json::to_string(&status).unwrap();
         let parsed: CompletionStatus = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.is_running, status.is_running);
         assert_eq!(parsed.has_suggestion, status.has_suggestion);
         assert_eq!(parsed.buffer_length, status.buffer_length);
@@ -503,7 +478,7 @@ mod tests {
             CompletionType::Word,
             CompletionType::Snippet,
         ];
-        
+
         for t in types {
             let json = serde_json::to_string(&t).unwrap();
             let parsed: CompletionType = serde_json::from_str(&json).unwrap();

@@ -71,7 +71,11 @@ impl AcpTerminal {
     /// Get accumulated output as string
     pub async fn get_output_string(&mut self) -> String {
         let outputs = self.collect_output().await;
-        outputs.iter().map(|o| o.text.as_str()).collect::<Vec<_>>().join("")
+        outputs
+            .iter()
+            .map(|o| o.text.as_str())
+            .collect::<Vec<_>>()
+            .join("")
     }
 
     /// Check if the terminal is still running
@@ -254,7 +258,11 @@ impl AcpTerminalManager {
         let mut terminals = self.terminals.write().await;
         terminals.insert(terminal_id.clone(), Arc::new(Mutex::new(terminal)));
 
-        log::info!("[ACP Terminal] Created terminal {} for session {}", terminal_id, session_id);
+        log::info!(
+            "[ACP Terminal] Created terminal {} for session {}",
+            terminal_id,
+            session_id
+        );
 
         Ok(terminal_id)
     }
@@ -397,9 +405,18 @@ mod tests {
 
         // Test creating a simple echo command
         #[cfg(windows)]
-        let result = manager.create("test-session", "cmd", &["/c".to_string(), "echo".to_string(), "hello".to_string()], None).await;
+        let result = manager
+            .create(
+                "test-session",
+                "cmd",
+                &["/c".to_string(), "echo".to_string(), "hello".to_string()],
+                None,
+            )
+            .await;
         #[cfg(not(windows))]
-        let result = manager.create("test-session", "echo", &["hello".to_string()], None).await;
+        let result = manager
+            .create("test-session", "echo", &["hello".to_string()], None)
+            .await;
 
         assert!(result.is_ok());
         let terminal_id = result.unwrap();

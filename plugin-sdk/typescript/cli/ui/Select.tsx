@@ -7,7 +7,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import SelectInput from 'ink-select-input';
-import { colors, symbols } from './theme.js';
+import { colors, symbols } from './theme';
 
 export interface SelectOption<T = string> {
   label: string;

@@ -98,16 +98,16 @@ describe('TraySettings', () => {
   describe('when not in Tauri environment', () => {
     it('renders not available message', () => {
       renderWithProviders(<TraySettings />);
-      expect(screen.getByText('System Tray Settings')).toBeInTheDocument();
+      expect(screen.getByText('System Tray')).toBeInTheDocument();
       expect(
-        screen.getByText('This feature is only available in the desktop app')
+        screen.getByText('System tray settings are only available in the desktop app')
       ).toBeInTheDocument();
     });
 
     it('shows download hint', () => {
       renderWithProviders(<TraySettings />);
       expect(
-        screen.getByText('Please download the desktop app to use system tray features')
+        screen.getByText('Download the desktop app to access system tray settings')
       ).toBeInTheDocument();
     });
   });

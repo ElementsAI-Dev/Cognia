@@ -27,12 +27,67 @@ jest.mock('@/stores', () => {
     },
     isLoading: false,
     error: null,
-    toggleFavorite: jest.fn(),
-    togglePinned: jest.fn(),
+    toggleFavorite: jest.fn((toolId: string, toolType = 'mcp', toolName = 'unknown', serverId?: string, serverName?: string) => {
+      const existing = mockState.usageStats[toolId];
+      if (existing) {
+        mockState.usageStats[toolId] = {
+          ...existing,
+          isFavorite: !existing.isFavorite,
+        };
+        return;
+      }
+      mockState.usageStats[toolId] = {
+        toolId,
+        toolType,
+        toolName,
+        serverId,
+        serverName,
+        totalCalls: 0,
+        successCalls: 0,
+        errorCalls: 0,
+        avgDuration: 0,
+        frequentPrompts: [],
+        isFavorite: true,
+        isPinned: false,
+        lastUsedAt: null,
+      } as unknown as { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean };
+    }),
+    togglePinned: jest.fn((toolId: string) => {
+      const existing = mockState.usageStats[toolId];
+      if (!existing) return;
+      mockState.usageStats[toolId] = {
+        ...existing,
+        isPinned: !existing.isPinned,
+      };
+    }),
     recordToolCall: jest.fn((params: Record<string, unknown>) => {
       const id = `record-${Date.now()}`;
-      const record = { id, ...params };
+      const now = new Date();
+      const record = { id, calledAt: now, ...params };
       mockState.history.push(record);
+      const toolId = String(params.toolId);
+      const existing = mockState.usageStats[toolId];
+      mockState.usageStats[toolId] = existing
+        ? {
+            ...existing,
+            totalCalls: existing.totalCalls + 1,
+            lastUsedAt: now,
+          }
+        : ({
+            toolId,
+            toolType: params.toolType,
+            toolName: params.toolName,
+            serverId: params.serverId,
+            serverName: params.serverName,
+            totalCalls: 1,
+            successCalls: 0,
+            errorCalls: 0,
+            avgDuration: 0,
+            frequentPrompts: [],
+            isFavorite: false,
+            isPinned: false,
+            lastUsedAt: now,
+          } as unknown as { totalCalls: number; lastUsedAt: Date | null; isFavorite: boolean; isPinned: boolean });
       return record;
     }),
     updateToolCallResultStatus: jest.fn(),
@@ -677,6 +732,7 @@ describe('MentionPopover History Features', () => {
     it('should navigate with arrow keys', async () => {
       const items = createMockMentionItems();
       const grouped = createGroupedMentions(items);
+      const user = userEvent.setup();
 
       render(
         <TestWrapper>
@@ -691,16 +747,13 @@ describe('MentionPopover History Features', () => {
         </TestWrapper>
       );
 
-      // First item should be selected
-      const firstItem = screen.getByText('search').closest('[data-selected="true"]');
-      expect(firstItem).toBeInTheDocument();
-
-      // Press arrow down
-      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      // Move selection down once, then confirm selection
+      await user.keyboard('{ArrowDown}{Enter}');
 
       await waitFor(() => {
-        const secondItem = screen.getByText('analyze').closest('[data-selected="true"]');
-        expect(secondItem).toBeInTheDocument();
+        expect(mockOnSelect).toHaveBeenCalledWith(
+          expect.objectContaining({ label: 'analyze' })
+        );
       });
     });
 

@@ -23,6 +23,11 @@ jest.mock('lucide-react', () => {
     Download: icon('Download'),
     Filter: icon('Filter'),
     CheckSquare: icon('CheckSquare'),
+    Cpu: icon('Cpu'),
+    ListOrdered: icon('ListOrdered'),
+    History: icon('History'),
+    Activity: icon('Activity'),
+    Sparkles: icon('Sparkles'),
   };
 });
 

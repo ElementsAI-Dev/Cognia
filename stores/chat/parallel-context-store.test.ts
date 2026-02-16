@@ -4,6 +4,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import {
+  type IsolatedSessionContext,
   useParallelContextStore,
   selectSessionContext,
   selectContextCount,
@@ -22,21 +23,28 @@ describe('ParallelContextStore', () => {
     it('should create context on first access', () => {
       const { result } = renderHook(() => useParallelContextStore());
 
-      const context = result.current.getContext('session-1');
+      let context: IsolatedSessionContext | undefined;
+      act(() => {
+        context = result.current.getContext('session-1');
+      });
 
       expect(context).toBeDefined();
-      expect(context.sessionId).toBe('session-1');
-      expect(context.workingMemory).toEqual([]);
-      expect(context.isActive).toBe(true);
+      expect(context?.sessionId).toBe('session-1');
+      expect(context?.workingMemory).toEqual([]);
+      expect(context?.isActive).toBe(true);
     });
 
     it('should return existing context on subsequent access', () => {
       const { result } = renderHook(() => useParallelContextStore());
 
-      const context1 = result.current.getContext('session-1');
-      const context2 = result.current.getContext('session-1');
+      let context1: IsolatedSessionContext | undefined;
+      let context2: IsolatedSessionContext | undefined;
+      act(() => {
+        context1 = result.current.getContext('session-1');
+        context2 = result.current.getContext('session-1');
+      });
 
-      expect(context1.sessionId).toBe(context2.sessionId);
+      expect(context1?.sessionId).toBe(context2?.sessionId);
     });
 
     it('should check if context exists', () => {
@@ -44,7 +52,9 @@ describe('ParallelContextStore', () => {
 
       expect(result.current.hasContext('session-1')).toBe(false);
 
-      result.current.getContext('session-1');
+      act(() => {
+        result.current.getContext('session-1');
+      });
 
       expect(result.current.hasContext('session-1')).toBe(true);
     });
@@ -52,8 +62,10 @@ describe('ParallelContextStore', () => {
     it('should clear specific context', () => {
       const { result } = renderHook(() => useParallelContextStore());
 
-      result.current.getContext('session-1');
-      result.current.getContext('session-2');
+      act(() => {
+        result.current.getContext('session-1');
+        result.current.getContext('session-2');
+      });
 
       act(() => {
         result.current.clearContext('session-1');
@@ -66,8 +78,10 @@ describe('ParallelContextStore', () => {
     it('should clear all contexts', () => {
       const { result } = renderHook(() => useParallelContextStore());
 
-      result.current.getContext('session-1');
-      result.current.getContext('session-2');
+      act(() => {
+        result.current.getContext('session-1');
+        result.current.getContext('session-2');
+      });
 
       act(() => {
         result.current.clearAllContexts();

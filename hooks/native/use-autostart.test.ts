@@ -3,6 +3,7 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { loggers } from '@/lib/logger';
 
 // Extend globalThis for Tauri detection in tests
 declare global {
@@ -44,7 +45,7 @@ describe('useAutostart', () => {
     });
 
     it('should warn when trying to enable', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const warnSpy = jest.spyOn(loggers.native, 'warn').mockImplementation();
       const { result } = renderHook(() => useAutostart());
 
       await waitFor(() => {
@@ -55,12 +56,12 @@ describe('useAutostart', () => {
         await result.current.enable();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
-      consoleSpy.mockRestore();
+      expect(warnSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
+      warnSpy.mockRestore();
     });
 
     it('should warn when trying to disable', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const warnSpy = jest.spyOn(loggers.native, 'warn').mockImplementation();
       const { result } = renderHook(() => useAutostart());
 
       await waitFor(() => {
@@ -71,12 +72,12 @@ describe('useAutostart', () => {
         await result.current.disable();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
-      consoleSpy.mockRestore();
+      expect(warnSpy).toHaveBeenCalledWith('Autostart is only available in Tauri environment');
+      warnSpy.mockRestore();
     });
 
     it('should provide toggle function', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const warnSpy = jest.spyOn(loggers.native, 'warn').mockImplementation();
       const { result } = renderHook(() => useAutostart());
 
       await waitFor(() => {
@@ -88,8 +89,8 @@ describe('useAutostart', () => {
         await result.current.toggle();
       });
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
 
     it('should provide refresh function', async () => {

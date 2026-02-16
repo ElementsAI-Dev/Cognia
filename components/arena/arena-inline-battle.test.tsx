@@ -364,7 +364,7 @@ describe('ArenaInlineBattle', () => {
       render(<ArenaInlineBattle battleId="battle-1" />);
       const grid = document.querySelector('[style*="grid-template-columns"]') as HTMLElement;
       expect(grid).toBeInTheDocument();
-      expect(grid?.style.gridTemplateColumns).toBe('repeat(2, 1fr)');
+      expect(grid?.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
     });
 
     it('caps grid columns at 4', () => {
@@ -380,7 +380,7 @@ describe('ArenaInlineBattle', () => {
       });
       render(<ArenaInlineBattle battleId="battle-1" />);
       const grid = document.querySelector('[style*="grid-template-columns"]') as HTMLElement;
-      expect(grid?.style.gridTemplateColumns).toBe('repeat(4, 1fr)');
+      expect(grid?.style.gridTemplateColumns).toBe('repeat(4, minmax(0, 1fr))');
     });
   });
 });

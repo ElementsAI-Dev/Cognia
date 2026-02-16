@@ -218,7 +218,10 @@ impl McpConfigManager {
     /// Get all server configurations
     pub fn get_all_servers(&self) -> HashMap<String, McpServerConfig> {
         let config = self.config.read();
-        config.servers().map(|(k, v)| (k.clone(), v.clone())).collect()
+        config
+            .servers()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
     }
 
     /// Get servers marked for auto-start

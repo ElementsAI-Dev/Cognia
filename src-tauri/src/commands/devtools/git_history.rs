@@ -155,11 +155,7 @@ impl GitHistoryManager {
 
     /// Get all repositories with history
     pub fn get_repositories(&self) -> Vec<String> {
-        let mut repos: Vec<String> = self
-            .history
-            .iter()
-            .map(|r| r.repo_path.clone())
-            .collect();
+        let mut repos: Vec<String> = self.history.iter().map(|r| r.repo_path.clone()).collect();
         repos.sort();
         repos.dedup();
         repos
@@ -245,7 +241,11 @@ pub async fn git_undo_last(
 
     let operation = match manager.get_last_undoable(&repo_path) {
         Some(op) => op.clone(),
-        None => return Ok(GitOperationResult::error("No undoable operation found".to_string())),
+        None => {
+            return Ok(GitOperationResult::error(
+                "No undoable operation found".to_string(),
+            ))
+        }
     };
 
     // Perform the undo based on operation type
@@ -273,7 +273,9 @@ pub async fn git_undo_last(
         GitOperationType::Unstage => {
             // Re-stage the affected files
             if operation.affected_files.is_empty() {
-                return Ok(GitOperationResult::error("Cannot redo unstage: no files recorded".to_string()));
+                return Ok(GitOperationResult::error(
+                    "Cannot redo unstage: no files recorded".to_string(),
+                ));
             }
             let mut args = vec!["add", "--"];
             for file in &operation.affected_files {
@@ -286,7 +288,9 @@ pub async fn git_undo_last(
             if let Some(ref before) = operation.before_ref {
                 run_git_command(&["checkout", before], Some(&repo_path))
             } else {
-                return Ok(GitOperationResult::error("Cannot undo checkout: no previous ref recorded".to_string()));
+                return Ok(GitOperationResult::error(
+                    "Cannot undo checkout: no previous ref recorded".to_string(),
+                ));
             }
         }
         GitOperationType::Reset => {
@@ -294,7 +298,9 @@ pub async fn git_undo_last(
             if let Some(ref before) = operation.before_ref {
                 run_git_command(&["reset", "--hard", before], Some(&repo_path))
             } else {
-                return Ok(GitOperationResult::error("Cannot undo reset: no previous ref recorded".to_string()));
+                return Ok(GitOperationResult::error(
+                    "Cannot undo reset: no previous ref recorded".to_string(),
+                ));
             }
         }
         _ => {
@@ -333,36 +339,38 @@ pub async fn git_reflog(
 ) -> Result<GitOperationResult<Vec<ReflogEntry>>, String> {
     let count = max_count.unwrap_or(20);
 
-    Ok(match run_git_command(
-        &[
-            "reflog",
-            &format!("-{}", count),
-            "--format=%H%x00%gd%x00%gs%x00%ci",
-        ],
-        Some(&repo_path),
-    ) {
-        Ok(output) => {
-            let entries: Vec<ReflogEntry> = output
-                .lines()
-                .filter_map(|line| {
-                    let parts: Vec<&str> = line.split('\x00').collect();
-                    if parts.len() >= 4 {
-                        Some(ReflogEntry {
-                            hash: parts[0].to_string(),
-                            short_hash: parts[0].chars().take(7).collect(),
-                            selector: parts[1].to_string(),
-                            action: parts[2].to_string(),
-                            date: parts[3].to_string(),
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            GitOperationResult::success(entries)
-        }
-        Err(e) => GitOperationResult::error(e),
-    })
+    Ok(
+        match run_git_command(
+            &[
+                "reflog",
+                &format!("-{}", count),
+                "--format=%H%x00%gd%x00%gs%x00%ci",
+            ],
+            Some(&repo_path),
+        ) {
+            Ok(output) => {
+                let entries: Vec<ReflogEntry> = output
+                    .lines()
+                    .filter_map(|line| {
+                        let parts: Vec<&str> = line.split('\x00').collect();
+                        if parts.len() >= 4 {
+                            Some(ReflogEntry {
+                                hash: parts[0].to_string(),
+                                short_hash: parts[0].chars().take(7).collect(),
+                                selector: parts[1].to_string(),
+                                action: parts[2].to_string(),
+                                date: parts[3].to_string(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                GitOperationResult::success(entries)
+            }
+            Err(e) => GitOperationResult::error(e),
+        },
+    )
 }
 
 /// Reflog entry
@@ -382,10 +390,12 @@ pub async fn git_recover_to_reflog(
     repo_path: String,
     selector: String,
 ) -> Result<GitOperationResult<()>, String> {
-    Ok(match run_git_command(&["reset", "--hard", &selector], Some(&repo_path)) {
-        Ok(output) => GitOperationResult::ok_with_output(output),
-        Err(e) => GitOperationResult::error(e),
-    })
+    Ok(
+        match run_git_command(&["reset", "--hard", &selector], Some(&repo_path)) {
+            Ok(output) => GitOperationResult::ok_with_output(output),
+            Err(e) => GitOperationResult::error(e),
+        },
+    )
 }
 
 #[cfg(test)]

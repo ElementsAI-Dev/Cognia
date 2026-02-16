@@ -22,6 +22,9 @@ describe('ToolCallManager', () => {
   });
 
   afterEach(() => {
+    for (const pending of manager.getPendingResults()) {
+      pending.promise.catch(() => {});
+    }
     manager.cancelPending();
     resetGlobalToolCallManager();
   });
@@ -439,6 +442,9 @@ describe('ToolCallManager', () => {
 
       expect(mgr.hasPending()).toBe(true);
 
+      for (const pending of mgr.getPendingResults()) {
+        pending.promise.catch(() => {});
+      }
       mgr.cancelPending();
 
       // Give time for cancellation to process

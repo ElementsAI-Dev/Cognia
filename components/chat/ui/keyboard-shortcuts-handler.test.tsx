@@ -176,7 +176,7 @@ describe('formatShortcut', () => {
   it('formats shortcut without modifiers', () => {
     const shortcut: KeyboardShortcut = {
       id: 'test-3',
-      key: 'Escape',
+      key: 'escape',
       action: jest.fn(),
       description: 'Test',
       category: 'system',

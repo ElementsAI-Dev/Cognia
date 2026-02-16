@@ -13,6 +13,7 @@ import {
   TELEMETRY_PRESETS,
   type TelemetrySpanData,
 } from './telemetry';
+import { loggers } from '@/lib/logger';
 
 describe('Telemetry', () => {
   describe('createTelemetryConfig', () => {
@@ -117,16 +118,16 @@ describe('Telemetry', () => {
   });
 
   describe('createConsoleTelemetryCollector', () => {
-    let consoleSpy: jest.SpyInstance;
+    let infoSpy: jest.SpyInstance;
     let errorSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      infoSpy = jest.spyOn(loggers.ai, 'info').mockImplementation();
+      errorSpy = jest.spyOn(loggers.ai, 'error').mockImplementation();
     });
 
     afterEach(() => {
-      consoleSpy.mockRestore();
+      infoSpy.mockRestore();
       errorSpy.mockRestore();
     });
 
@@ -136,11 +137,11 @@ describe('Telemetry', () => {
       const span = collector.startSpan('ai.generateText');
       span.end();
       
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('Starting'),
         undefined
       );
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('Completed'),
       );
     });
@@ -162,7 +163,7 @@ describe('Telemetry', () => {
       
       collector.startSpan('test').end();
       
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining('[Custom]'),
         undefined
       );

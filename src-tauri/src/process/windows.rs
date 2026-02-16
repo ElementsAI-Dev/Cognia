@@ -15,7 +15,9 @@ use windows::Win32::System::Threading::{
 };
 
 /// Start a new process
-pub async fn start_process(request: StartProcessRequest) -> Result<StartProcessResult, ProcessError> {
+pub async fn start_process(
+    request: StartProcessRequest,
+) -> Result<StartProcessResult, ProcessError> {
     let start = Instant::now();
 
     let mut cmd = Command::new(&request.program);
@@ -73,11 +75,7 @@ pub async fn start_process(request: StartProcessRequest) -> Result<StartProcessR
         // Run and capture output
         let timeout_secs = request.timeout_secs.unwrap_or(30);
 
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(timeout_secs),
-            cmd.output(),
-        )
-        .await
+        match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), cmd.output()).await
         {
             Ok(Ok(output)) => Ok(StartProcessResult {
                 success: output.status.success(),
@@ -111,12 +109,15 @@ pub async fn start_process(request: StartProcessRequest) -> Result<StartProcessR
 }
 
 /// Terminate a process
-pub async fn terminate_process(request: TerminateProcessRequest) -> Result<TerminateProcessResult, ProcessError> {
+pub async fn terminate_process(
+    request: TerminateProcessRequest,
+) -> Result<TerminateProcessResult, ProcessError> {
     tokio::task::spawn_blocking(move || {
         unsafe {
             let access_rights = PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION;
-            let handle = OpenProcess(access_rights, false, request.pid)
-                .map_err(|e| ProcessError::PermissionDenied(format!("Cannot open process: {}", e)))?;
+            let handle = OpenProcess(access_rights, false, request.pid).map_err(|e| {
+                ProcessError::PermissionDenied(format!("Cannot open process: {}", e))
+            })?;
 
             if handle.is_invalid() {
                 return Err(ProcessError::NotFound(request.pid));

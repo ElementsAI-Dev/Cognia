@@ -2,7 +2,7 @@
  * Region Selector Page Tests
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RegionSelectorPage from './page';
 
 // Mock Tauri event API
@@ -37,42 +37,46 @@ describe('RegionSelectorPage', () => {
       render(<RegionSelectorPage />);
       
       // Instructions should be visible
-      expect(screen.getByText(/点击并拖拽以选择区域/)).toBeInTheDocument();
-      expect(screen.getByText(/按 ESC 取消/)).toBeInTheDocument();
+      expect(screen.getByText('instructions.clickAndDrag')).toBeInTheDocument();
+      expect(screen.getByText('shortcuts')).toBeInTheDocument();
     });
 
     it('should have cancel button', () => {
       render(<RegionSelectorPage />);
       
-      expect(screen.getByRole('button', { name: /取消/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'cancel' })).toBeInTheDocument();
     });
 
     it('should not show confirm button initially', () => {
       render(<RegionSelectorPage />);
       
       // Confirm button should not be visible without a selection
-      expect(screen.queryByRole('button', { name: /确认选区/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'confirm' })).not.toBeInTheDocument();
     });
   });
 
   describe('keyboard shortcuts', () => {
-    it('should emit cancel event on Escape key', () => {
+    it('should emit cancel event on Escape key', async () => {
       render(<RegionSelectorPage />);
       
       fireEvent.keyDown(window, { key: 'Escape' });
-      
-      expect(mockEmit).toHaveBeenCalledWith('region-selection-cancelled', {});
+
+      await waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith('region-selection-cancelled', {});
+      });
     });
   });
 
   describe('cancel button', () => {
-    it('should emit cancel event when clicked', () => {
+    it('should emit cancel event when clicked', async () => {
       render(<RegionSelectorPage />);
       
-      const cancelButton = screen.getByRole('button', { name: /取消/ });
+      const cancelButton = screen.getByRole('button', { name: 'cancel' });
       fireEvent.click(cancelButton);
-      
-      expect(mockEmit).toHaveBeenCalledWith('region-selection-cancelled', {});
+
+      await waitFor(() => {
+        expect(mockEmit).toHaveBeenCalledWith('region-selection-cancelled', {});
+      });
     });
   });
 
@@ -104,13 +108,15 @@ describe('RegionSelectorPage', () => {
   });
 
   describe('event listeners', () => {
-    it('should listen for region-selection-started event', () => {
+    it('should listen for region-selection-started event', async () => {
       render(<RegionSelectorPage />);
-      
-      expect(mockListen).toHaveBeenCalledWith(
-        'region-selection-started',
-        expect.any(Function)
-      );
+
+      await waitFor(() => {
+        expect(mockListen).toHaveBeenCalledWith(
+          'region-selection-started',
+          expect.any(Function)
+        );
+      });
     });
   });
 });

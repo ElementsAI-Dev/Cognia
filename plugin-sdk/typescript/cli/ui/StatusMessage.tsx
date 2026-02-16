@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { StatusMessage as InkStatusMessage } from '@inkjs/ui';
-import type { StatusVariant } from './types.js';
+import type { StatusVariant } from './types';
 
 export interface StatusMessageProps {
   /** Status variant determines color and icon */

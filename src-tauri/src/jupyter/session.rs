@@ -509,7 +509,10 @@ impl SharedSessionManager {
         self.0.write().await.get_variables(session_id).await
     }
 
-    pub async fn get_cached_variables(&self, session_id: &str) -> Result<Vec<VariableInfo>, String> {
+    pub async fn get_cached_variables(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<VariableInfo>, String> {
         trace!("SharedSessionManager: Acquiring read lock for get_cached_variables");
         self.0.read().await.get_cached_variables(session_id)
     }
@@ -551,7 +554,11 @@ impl SharedSessionManager {
 
     pub async fn cleanup_idle_kernels(&self, timeout_secs: u64) {
         trace!("SharedSessionManager: Acquiring write lock for cleanup_idle_kernels");
-        self.0.write().await.cleanup_idle_kernels(timeout_secs).await
+        self.0
+            .write()
+            .await
+            .cleanup_idle_kernels(timeout_secs)
+            .await
     }
 
     /// Get kernel status for a session
@@ -615,7 +622,11 @@ mod tests {
 
         manager.kernels.insert(
             kernel_id.clone(),
-            JupyterKernel::new(kernel_id.clone(), "/path/to/env".to_string(), KernelConfig::default()),
+            JupyterKernel::new(
+                kernel_id.clone(),
+                "/path/to/env".to_string(),
+                KernelConfig::default(),
+            ),
         );
 
         manager.sessions.insert(

@@ -10,7 +10,16 @@ import {
   createTopMemoryProcessesTool,
   createStartProcessTool,
   createTerminateProcessTool,
+  createStartProcessesParallelTool,
+  createTerminateProcessesParallelTool,
+  createStartProcessesAsyncTool,
+  createTerminateProcessesAsyncTool,
   createCheckProgramTool,
+  createProcessStatusTool,
+  createSetProcessEnabledTool,
+  createGetTrackedProcessesTool,
+  createGetProcessOperationTool,
+  createListProcessOperationsTool,
   getProcessToolsSystemPrompt,
   getProcessToolsPromptSnippet,
 } from './process-tools';
@@ -24,6 +33,12 @@ jest.mock('@/lib/native/process', () => ({
     get: jest.fn(),
     start: jest.fn(),
     terminate: jest.fn(),
+    startBatch: jest.fn(),
+    terminateBatch: jest.fn(),
+    startBatchAsync: jest.fn(),
+    terminateBatchAsync: jest.fn(),
+    getOperation: jest.fn(),
+    listOperations: jest.fn(),
     getConfig: jest.fn(),
     updateConfig: jest.fn(),
     isProgramAllowed: jest.fn(),
@@ -51,8 +66,17 @@ describe('Process Tools', () => {
       expect(tools.search_processes).toBeDefined();
       expect(tools.get_process).toBeDefined();
       expect(tools.start_process).toBeDefined();
+      expect(tools.start_processes_parallel).toBeDefined();
+      expect(tools.start_processes_async).toBeDefined();
       expect(tools.check_program_allowed).toBeDefined();
       expect(tools.terminate_process).toBeDefined();
+      expect(tools.terminate_processes_parallel).toBeDefined();
+      expect(tools.terminate_processes_async).toBeDefined();
+      expect(tools.get_process_manager_status).toBeDefined();
+      expect(tools.set_process_manager_enabled).toBeDefined();
+      expect(tools.get_tracked_processes).toBeDefined();
+      expect(tools.get_process_operation).toBeDefined();
+      expect(tools.list_process_operations).toBeDefined();
     });
 
     it('returns only list tools when others disabled', () => {
@@ -69,7 +93,16 @@ describe('Process Tools', () => {
       expect(tools.search_processes).toBeUndefined();
       expect(tools.get_process).toBeUndefined();
       expect(tools.start_process).toBeUndefined();
+      expect(tools.start_processes_parallel).toBeUndefined();
+      expect(tools.start_processes_async).toBeUndefined();
       expect(tools.terminate_process).toBeUndefined();
+      expect(tools.terminate_processes_parallel).toBeUndefined();
+      expect(tools.terminate_processes_async).toBeUndefined();
+      expect(tools.get_process_manager_status).toBeDefined();
+      expect(tools.set_process_manager_enabled).toBeDefined();
+      expect(tools.get_tracked_processes).toBeDefined();
+      expect(tools.get_process_operation).toBeDefined();
+      expect(tools.list_process_operations).toBeDefined();
     });
 
     it('returns default tools when no config provided', () => {
@@ -80,7 +113,16 @@ describe('Process Tools', () => {
       expect(tools.search_processes).toBeDefined();
       expect(tools.get_process).toBeDefined();
       expect(tools.start_process).toBeDefined();
+      expect(tools.start_processes_parallel).toBeDefined();
+      expect(tools.start_processes_async).toBeDefined();
       expect(tools.terminate_process).toBeDefined();
+      expect(tools.terminate_processes_parallel).toBeDefined();
+      expect(tools.terminate_processes_async).toBeDefined();
+      expect(tools.get_process_manager_status).toBeDefined();
+      expect(tools.set_process_manager_enabled).toBeDefined();
+      expect(tools.get_tracked_processes).toBeDefined();
+      expect(tools.get_process_operation).toBeDefined();
+      expect(tools.list_process_operations).toBeDefined();
     });
   });
 
@@ -167,12 +209,120 @@ describe('Process Tools', () => {
     });
   });
 
+  describe('createStartProcessesParallelTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createStartProcessesParallelTool();
+
+      expect(tool.name).toBe('start_processes_parallel');
+      expect(tool.description).toContain('parallel');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(true);
+    });
+  });
+
+  describe('createTerminateProcessesParallelTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createTerminateProcessesParallelTool();
+
+      expect(tool.name).toBe('terminate_processes_parallel');
+      expect(tool.description).toContain('parallel');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(true);
+    });
+  });
+
+  describe('createStartProcessesAsyncTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createStartProcessesAsyncTool();
+
+      expect(tool.name).toBe('start_processes_async');
+      expect(tool.description).toContain('asynchronous');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(true);
+    });
+  });
+
+  describe('createTerminateProcessesAsyncTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createTerminateProcessesAsyncTool();
+
+      expect(tool.name).toBe('terminate_processes_async');
+      expect(tool.description).toContain('asynchronous');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(true);
+    });
+  });
+
   describe('createCheckProgramTool', () => {
     it('creates a tool with correct properties', () => {
       const tool = createCheckProgramTool();
 
       expect(tool.name).toBe('check_program_allowed');
       expect(tool.description).toContain('allowed');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(false);
+    });
+  });
+
+  describe('createProcessStatusTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createProcessStatusTool();
+
+      expect(tool.name).toBe('get_process_manager_status');
+      expect(tool.description).toContain('status');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(false);
+    });
+  });
+
+  describe('createSetProcessEnabledTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createSetProcessEnabledTool();
+
+      expect(tool.name).toBe('set_process_manager_enabled');
+      expect(tool.description).toContain('Enable or disable');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(true);
+    });
+  });
+
+  describe('createGetTrackedProcessesTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createGetTrackedProcessesTool();
+
+      expect(tool.name).toBe('get_tracked_processes');
+      expect(tool.description).toContain('tracked');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(false);
+    });
+  });
+
+  describe('createGetProcessOperationTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createGetProcessOperationTool();
+
+      expect(tool.name).toBe('get_process_operation');
+      expect(tool.description).toContain('operation');
+      expect(tool.parameters).toBeDefined();
+      expect(tool.execute).toBeInstanceOf(Function);
+      expect(tool.requiresApproval).toBe(false);
+    });
+  });
+
+  describe('createListProcessOperationsTool', () => {
+    it('creates a tool with correct properties', () => {
+      const tool = createListProcessOperationsTool();
+
+      expect(tool.name).toBe('list_process_operations');
+      expect(tool.description).toContain('operations');
       expect(tool.parameters).toBeDefined();
       expect(tool.execute).toBeInstanceOf(Function);
       expect(tool.requiresApproval).toBe(false);
@@ -186,6 +336,8 @@ describe('Process Tools', () => {
       expect(typeof prompt).toBe('string');
       expect(prompt.length).toBeGreaterThan(0);
       expect(prompt).toContain('Process Management');
+      expect(prompt).toContain('start_processes_parallel');
+      expect(prompt).toContain('get_process_operation');
     });
   });
 
@@ -196,6 +348,8 @@ describe('Process Tools', () => {
       expect(typeof snippet).toBe('string');
       expect(snippet.length).toBeGreaterThan(0);
       expect(snippet).toContain('Process Management');
+      expect(snippet).toContain('start_processes_async');
+      expect(snippet).toContain('list_process_operations');
     });
   });
 
@@ -206,11 +360,20 @@ describe('Process Tools', () => {
       expect(createSearchProcessesTool().requiresApproval).toBe(false);
       expect(createTopMemoryProcessesTool().requiresApproval).toBe(false);
       expect(createCheckProgramTool().requiresApproval).toBe(false);
+      expect(createProcessStatusTool().requiresApproval).toBe(false);
+      expect(createGetTrackedProcessesTool().requiresApproval).toBe(false);
+      expect(createGetProcessOperationTool().requiresApproval).toBe(false);
+      expect(createListProcessOperationsTool().requiresApproval).toBe(false);
     });
 
     it('write tools require approval', () => {
       expect(createStartProcessTool().requiresApproval).toBe(true);
       expect(createTerminateProcessTool().requiresApproval).toBe(true);
+      expect(createStartProcessesParallelTool().requiresApproval).toBe(true);
+      expect(createTerminateProcessesParallelTool().requiresApproval).toBe(true);
+      expect(createStartProcessesAsyncTool().requiresApproval).toBe(true);
+      expect(createTerminateProcessesAsyncTool().requiresApproval).toBe(true);
+      expect(createSetProcessEnabledTool().requiresApproval).toBe(true);
     });
   });
 });

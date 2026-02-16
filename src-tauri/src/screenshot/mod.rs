@@ -145,7 +145,9 @@ impl ScreenshotManager {
             windows_ocr: std::sync::Arc::new(parking_lot::RwLock::new(WindowsOcr::new())),
             history,
             window_manager: std::sync::Arc::new(parking_lot::RwLock::new(WindowManager::new())),
-            annotator: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotAnnotator::new(0, 0))),
+            annotator: std::sync::Arc::new(parking_lot::RwLock::new(ScreenshotAnnotator::new(
+                0, 0,
+            ))),
             app_handle,
         }
     }
@@ -522,7 +524,9 @@ impl ScreenshotManager {
 
     /// Get child elements of a window (for element-level detection)
     pub fn get_child_elements(&self, hwnd: isize, max_depth: u32) -> Vec<ElementInfo> {
-        self.window_manager.read().get_child_elements(hwnd, max_depth)
+        self.window_manager
+            .read()
+            .get_child_elements(hwnd, max_depth)
     }
 
     /// Calculate snapped selection rectangle during region selection

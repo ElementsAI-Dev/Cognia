@@ -8,13 +8,17 @@ import { useMermaid } from './use-mermaid';
 
 // Mock mermaid
 jest.mock('mermaid', () => ({
+  __esModule: true,
   default: {
     initialize: jest.fn(),
     render: jest.fn().mockResolvedValue({ svg: '<svg>test</svg>' }),
   },
 }));
 
-const mockedMermaid = mermaid as jest.Mocked<typeof mermaid>;
+const mockedMermaid = mermaid as unknown as {
+  initialize: jest.Mock;
+  render: jest.Mock;
+};
 
 describe('useMermaid', () => {
   beforeEach(() => {

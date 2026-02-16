@@ -130,12 +130,12 @@ describe('OpenRouterKeyManagement', () => {
 
   it('displays title', () => {
     render(<OpenRouterKeyManagement />);
-    expect(screen.getByText('API Key Management')).toBeInTheDocument();
+    expect(screen.getByText('keyManagement.title')).toBeInTheDocument();
   });
 
   it('shows provisioning key input', () => {
     render(<OpenRouterKeyManagement />);
-    expect(screen.getByText('Provisioning API Key')).toBeInTheDocument();
+    expect(screen.getByText('keyManagement.provisioningApiKey')).toBeInTheDocument();
     const inputs = screen.getAllByTestId('input');
     expect(inputs.length).toBeGreaterThan(0);
   });
@@ -184,7 +184,7 @@ describe('OpenRouterKeyManagement', () => {
     render(<OpenRouterKeyManagement />);
     
     await waitFor(() => {
-      expect(screen.getByText('No API keys found. Create one to get started.')).toBeInTheDocument();
+      expect(screen.getByText('keyManagement.noKeysFound')).toBeInTheDocument();
     });
   });
 
@@ -237,7 +237,7 @@ describe('OpenRouterKeyManagement key operations', () => {
     render(<OpenRouterKeyManagement />);
     
     await waitFor(() => {
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getByText('active')).toBeInTheDocument();
     });
   });
 });

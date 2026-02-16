@@ -102,8 +102,8 @@ const config: Config = {
   // A set of global variables that need to be available in all test environments
   // globals: {},
 
-  // The maximum amount of workers used to run your tests. Reduced to prevent OOM crashes
-  maxWorkers: 2,
+  // Run single-worker by default to avoid heap spikes in long full-suite runs
+  maxWorkers: 1,
 
   // Increase memory for workers - helps prevent OOM crashes
   workerIdleMemoryLimit: "512MB",
@@ -140,6 +140,8 @@ const config: Config = {
   moduleNameMapper: {
     // Handle module aliases (this will be automatically configured for you by Next.js)
     "^@/(.*)$": "<rootDir>/$1",
+    "^@cognia/plugin-sdk$": "<rootDir>/plugin-sdk/typescript/src/index.ts",
+    "^@cognia/plugin-sdk/(.*)$": "<rootDir>/plugin-sdk/typescript/src/$1",
 
     // Handle CSS imports (with CSS modules)
     "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
@@ -191,6 +193,10 @@ const config: Config = {
     
     // Mock recharts for chart rendering tests
     "^recharts$": "<rootDir>/__mocks__/recharts.js",
+
+    // Mock ink and @inkjs/ui ESM modules used by plugin-sdk CLI tests
+    "^ink$": "<rootDir>/plugin-sdk/typescript/__mocks__/ink.js",
+    "^@inkjs/ui$": "<rootDir>/__mocks__/@inkjs/ui.js",
     
     // Mock react-markdown ESM module
     "^react-markdown$": "<rootDir>/__mocks__/react-markdown.js",
@@ -214,6 +220,11 @@ const config: Config = {
     // Mock dagre-d3-es ESM module (pnpm nested node_modules breaks transformIgnorePatterns)
     "^dagre-d3-es$": "<rootDir>/__mocks__/dagre-d3-es.js",
     "^dagre-d3-es/(.*)$": "<rootDir>/__mocks__/dagre-d3-es.js",
+    
+    // Mock react-vega and vega-embed ESM modules
+    "^react-vega$": "<rootDir>/__mocks__/react-vega.js",
+    "^react-vega/(.*)$": "<rootDir>/__mocks__/react-vega.js",
+    "^vega-embed$": "<rootDir>/__mocks__/vega-embed.js",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

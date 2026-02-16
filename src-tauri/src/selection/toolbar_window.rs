@@ -174,7 +174,7 @@ impl ToolbarWindow {
     pub fn ensure_window_exists(&self) -> Result<(), String> {
         // Acquire lock to prevent concurrent window creation
         let _guard = self.creation_lock.lock();
-        
+
         // Double-check after acquiring lock
         if self
             .app_handle
@@ -216,7 +216,7 @@ impl ToolbarWindow {
         let selected_text = self.selected_text.clone();
         let is_hovered = self.is_hovered.clone();
         let auto_hide_cancel = self.auto_hide_cancel.clone();
-        
+
         window.on_window_event(move |event| {
             if let tauri::WindowEvent::Destroyed = event {
                 // Window was destroyed, reset state
@@ -309,9 +309,12 @@ impl ToolbarWindow {
         // Emit event to frontend - if window was just created, add a delay for frontend to initialize
         let app_handle = self.app_handle.clone();
         let emit_delay = if window_existed { 0 } else { 150 }; // 150ms delay for new windows
-        
+
         if emit_delay > 0 {
-            log::debug!("[ToolbarWindow] Window newly created, delaying event emission by {}ms", emit_delay);
+            log::debug!(
+                "[ToolbarWindow] Window newly created, delaying event emission by {}ms",
+                emit_delay
+            );
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(emit_delay)).await;
                 let _ = app_handle.emit(
@@ -442,7 +445,7 @@ impl ToolbarWindow {
     }
 
     /// Calculate the best position for the toolbar
-    /// 
+    ///
     /// The toolbar window is larger than the visible content to accommodate popup panels.
     /// This method positions the window so that the visible toolbar bar appears close to the cursor.
     fn calculate_position(&self, mouse_x: i32, mouse_y: i32, scale_factor: f64) -> (i32, i32) {
@@ -452,13 +455,14 @@ impl ToolbarWindow {
             mouse_y,
             scale_factor
         );
-        
+
         // Get current window dimensions based on build mode
         let (window_width, _window_height) = get_current_dimensions();
         let window_width = (window_width * scale_factor).round() as i32;
-        
+
         // Calculate the actual visible content dimensions (toolbar bar + padding)
-        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
+        let content_height =
+            ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
         let layout_padding = (LAYOUT_PADDING * scale_factor).round() as i32;
 
         // Get screen dimensions for the monitor containing the cursor
@@ -486,7 +490,7 @@ impl ToolbarWindow {
         // appears just above the cursor
         let space_above = mouse_y - screen_y - SCREEN_EDGE_PADDING;
         let space_below = (screen_y + screen_height) - mouse_y - SCREEN_EDGE_PADDING;
-        
+
         let adjusted_y = if space_above >= content_height + CURSOR_OFFSET_Y {
             // Enough space above: position window so content bottom edge is above cursor
             // Window top = cursor_y - cursor_offset - content_height - layout_padding
@@ -504,14 +508,22 @@ impl ToolbarWindow {
             } else {
                 // Position below cursor, clamped to screen
                 let y = mouse_y + CURSOR_OFFSET_Y + 20;
-                let max_y = screen_y + screen_height - content_height - layout_padding - SCREEN_EDGE_PADDING;
+                let max_y = screen_y + screen_height
+                    - content_height
+                    - layout_padding
+                    - SCREEN_EDGE_PADDING;
                 y.min(max_y).max(screen_y + SCREEN_EDGE_PADDING)
             }
         };
 
         log::trace!(
             "[ToolbarWindow] Position: ({}, {}) -> ({}, {}), space_above={}, space_below={}",
-            mouse_x, mouse_y, adjusted_x, adjusted_y, space_above, space_below
+            mouse_x,
+            mouse_y,
+            adjusted_x,
+            adjusted_y,
+            space_above,
+            space_below
         );
 
         (adjusted_x, adjusted_y)
@@ -608,14 +620,14 @@ impl ToolbarWindow {
     pub fn get_position(&self) -> (i32, i32) {
         *self.position.read()
     }
-    
+
     /// Destroy the toolbar window and clean up resources
     pub fn destroy(&self) -> Result<(), String> {
         log::debug!("[ToolbarWindow] destroy() called");
-        
+
         // Cancel any pending auto-hide
         self.cancel_auto_hide();
-        
+
         if let Some(window) = self.app_handle.get_webview_window(TOOLBAR_WINDOW_LABEL) {
             // Hide first to avoid visual glitch
             let _ = window.hide();
@@ -623,16 +635,16 @@ impl ToolbarWindow {
                 .destroy()
                 .map_err(|e| format!("Failed to destroy toolbar window: {}", e))?;
         }
-        
+
         // Reset state
         self.is_visible.store(false, Ordering::SeqCst);
         self.is_hovered.store(false, Ordering::SeqCst);
         *self.selected_text.write() = None;
-        
+
         log::info!("[ToolbarWindow] Window destroyed");
         Ok(())
     }
-    
+
     /// Sync visibility state with actual window state
     pub fn sync_visibility(&self) {
         let actual_visible = self
@@ -640,9 +652,9 @@ impl ToolbarWindow {
             .get_webview_window(TOOLBAR_WINDOW_LABEL)
             .map(|w| w.is_visible().unwrap_or(false))
             .unwrap_or(false);
-        
+
         let stored_visible = self.is_visible.load(Ordering::SeqCst);
-        
+
         if actual_visible != stored_visible {
             log::warn!(
                 "[ToolbarWindow] Visibility state mismatch: stored={}, actual={}. Syncing.",
@@ -650,7 +662,7 @@ impl ToolbarWindow {
                 actual_visible
             );
             self.is_visible.store(actual_visible, Ordering::SeqCst);
-            
+
             // If not visible, clear selected text
             if !actual_visible {
                 *self.selected_text.write() = None;
@@ -718,14 +730,15 @@ mod tests {
         let (window_width, _) = get_current_dimensions();
         let scale_factor = 1.0;
         let window_width = (window_width * scale_factor).round() as i32;
-        
+
         // Calculate content height (used for positioning)
-        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
+        let content_height =
+            ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
         let layout_padding = (LAYOUT_PADDING * scale_factor).round() as i32;
 
         // Horizontal: toolbar should be centered on cursor
         let toolbar_x = mouse_x - window_width / 2;
-        
+
         // Vertical: position so content bottom is above cursor
         // Formula: mouse_y - CURSOR_OFFSET_Y - content_height - layout_padding
         let toolbar_y = mouse_y - CURSOR_OFFSET_Y - content_height - layout_padding;
@@ -771,15 +784,16 @@ mod tests {
     fn test_toolbar_below_cursor_when_near_top() {
         // When not enough space above, toolbar should go below cursor
         let scale_factor = 1.0;
-        let content_height = ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
+        let content_height =
+            ((TOOLBAR_CONTENT_HEIGHT + LAYOUT_PADDING * 2.0) * scale_factor).round() as i32;
 
         // Use a position near top of screen
         let screen_y = 0;
         let mouse_y: i32 = 50;
-        
+
         // Calculate space above cursor
         let space_above = mouse_y - screen_y - SCREEN_EDGE_PADDING;
-        
+
         // Space above (50 - 0 - 10 = 40) is less than content_height (80) + offset (8)
         assert!(space_above < content_height + CURSOR_OFFSET_Y);
 

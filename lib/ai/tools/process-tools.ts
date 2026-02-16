@@ -17,6 +17,7 @@ import {
   processService,
   isProcessManagementAvailable,
   type ProcessInfo,
+  type ProcessOperation,
 } from '@/lib/native/process';
 
 // ==================== Tool Input Schemas ====================
@@ -59,6 +60,65 @@ const terminateProcessInputSchema = z.object({
 
 const checkProgramInputSchema = z.object({
   program: z.string().describe('Program name to check if allowed'),
+});
+
+const processStatusInputSchema = z.object({});
+
+const setProcessEnabledInputSchema = z.object({
+  enabled: z.boolean().describe('Whether process management should be enabled'),
+});
+
+const trackedProcessesInputSchema = z.object({
+  includeDetails: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe('Include process details for tracked PIDs if process management is enabled'),
+  limit: z
+    .number()
+    .optional()
+    .default(200)
+    .describe('Maximum process rows to fetch when includeDetails=true'),
+});
+
+const startProcessesParallelInputSchema = z.object({
+  requests: z
+    .array(startProcessInputSchema)
+    .min(1)
+    .max(100)
+    .describe('Process start request list to execute in parallel'),
+  maxConcurrency: z
+    .number()
+    .int()
+    .min(1)
+    .max(16)
+    .optional()
+    .default(4)
+    .describe('Maximum number of concurrent start operations'),
+});
+
+const terminateProcessesParallelInputSchema = z.object({
+  requests: z
+    .array(terminateProcessInputSchema)
+    .min(1)
+    .max(200)
+    .describe('Process terminate request list to execute in parallel'),
+  maxConcurrency: z
+    .number()
+    .int()
+    .min(1)
+    .max(16)
+    .optional()
+    .default(4)
+    .describe('Maximum number of concurrent terminate operations'),
+});
+
+const getProcessOperationInputSchema = z.object({
+  operationId: z.string().describe('Async process operation ID to query'),
+});
+
+const listProcessOperationsInputSchema = z.object({
+  limit: z.number().int().min(1).max(200).optional().default(20).describe('Maximum operations to return'),
 });
 
 // ==================== Result Types ====================
@@ -522,6 +582,521 @@ Use this before attempting to start a process to verify it's permitted.`,
   };
 }
 
+/**
+ * Start multiple processes in parallel tool
+ */
+export function createStartProcessesParallelTool(): AgentTool {
+  return {
+    name: 'start_processes_parallel',
+    description: `Start multiple processes in parallel with bounded concurrency.
+Use this when you need to launch several programs efficiently.
+Available only in desktop environment. Requires user approval.`,
+    parameters: startProcessesParallelInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'start_processes_parallel',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof startProcessesParallelInputSchema>;
+        const isEnabled = await processService.isEnabled();
+
+        if (!isEnabled) {
+          return {
+            success: false,
+            action: 'start_processes_parallel',
+            message: 'Process management is disabled. Enable it in settings first.',
+            error: 'Process management disabled',
+          };
+        }
+
+        const result = await processService.startBatch({
+          requests: input.requests,
+          maxConcurrency: input.maxConcurrency,
+        });
+
+        return {
+          success: result.failureCount === 0,
+          action: 'start_processes_parallel',
+          message: `Batch start completed: ${result.successCount}/${result.total} succeeded`,
+          data: {
+            total: result.total,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            results: result.results.map((item) => ({
+              index: item.index,
+              program: item.program,
+              success: item.result.success,
+              pid: item.result.pid,
+              error: item.result.error,
+            })),
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'start_processes_parallel',
+          message: 'Failed to execute parallel process start',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: true,
+  };
+}
+
+/**
+ * Terminate multiple processes in parallel tool
+ */
+export function createTerminateProcessesParallelTool(): AgentTool {
+  return {
+    name: 'terminate_processes_parallel',
+    description: `Terminate multiple processes in parallel with bounded concurrency.
+Use this when cleaning up multiple PIDs efficiently.
+Available only in desktop environment. Requires user approval.`,
+    parameters: terminateProcessesParallelInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'terminate_processes_parallel',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof terminateProcessesParallelInputSchema>;
+        const isEnabled = await processService.isEnabled();
+
+        if (!isEnabled) {
+          return {
+            success: false,
+            action: 'terminate_processes_parallel',
+            message: 'Process management is disabled. Enable it in settings first.',
+            error: 'Process management disabled',
+          };
+        }
+
+        const result = await processService.terminateBatch({
+          requests: input.requests,
+          maxConcurrency: input.maxConcurrency,
+        });
+
+        return {
+          success: result.failureCount === 0,
+          action: 'terminate_processes_parallel',
+          message: `Batch terminate completed: ${result.successCount}/${result.total} succeeded`,
+          data: {
+            total: result.total,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            results: result.results.map((item) => ({
+              index: item.index,
+              pid: item.pid,
+              success: item.result.success,
+              exitCode: item.result.exitCode,
+              error: item.result.error,
+            })),
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'terminate_processes_parallel',
+          message: 'Failed to execute parallel process termination',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: true,
+  };
+}
+
+/**
+ * Submit async start batch operation tool
+ */
+export function createStartProcessesAsyncTool(): AgentTool {
+  return {
+    name: 'start_processes_async',
+    description: `Submit a process start batch as an asynchronous operation.
+Returns an operation ID immediately; use get_process_operation to poll result.
+Available only in desktop environment. Requires user approval.`,
+    parameters: startProcessesParallelInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'start_processes_async',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof startProcessesParallelInputSchema>;
+        const isEnabled = await processService.isEnabled();
+
+        if (!isEnabled) {
+          return {
+            success: false,
+            action: 'start_processes_async',
+            message: 'Process management is disabled. Enable it in settings first.',
+            error: 'Process management disabled',
+          };
+        }
+
+        const operation = await processService.startBatchAsync({
+          requests: input.requests,
+          maxConcurrency: input.maxConcurrency,
+        });
+
+        return {
+          success: true,
+          action: 'start_processes_async',
+          message: `Async start operation submitted: ${operation.operationId}`,
+          data: formatProcessOperation(operation),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'start_processes_async',
+          message: 'Failed to submit async process start operation',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: true,
+  };
+}
+
+/**
+ * Submit async terminate batch operation tool
+ */
+export function createTerminateProcessesAsyncTool(): AgentTool {
+  return {
+    name: 'terminate_processes_async',
+    description: `Submit a process terminate batch as an asynchronous operation.
+Returns an operation ID immediately; use get_process_operation to poll result.
+Available only in desktop environment. Requires user approval.`,
+    parameters: terminateProcessesParallelInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'terminate_processes_async',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof terminateProcessesParallelInputSchema>;
+        const isEnabled = await processService.isEnabled();
+
+        if (!isEnabled) {
+          return {
+            success: false,
+            action: 'terminate_processes_async',
+            message: 'Process management is disabled. Enable it in settings first.',
+            error: 'Process management disabled',
+          };
+        }
+
+        const operation = await processService.terminateBatchAsync({
+          requests: input.requests,
+          maxConcurrency: input.maxConcurrency,
+        });
+
+        return {
+          success: true,
+          action: 'terminate_processes_async',
+          message: `Async terminate operation submitted: ${operation.operationId}`,
+          data: formatProcessOperation(operation),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'terminate_processes_async',
+          message: 'Failed to submit async process terminate operation',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: true,
+  };
+}
+
+/**
+ * Process manager status tool
+ */
+export function createProcessStatusTool(): AgentTool {
+  return {
+    name: 'get_process_manager_status',
+    description: `Get process manager status and configuration.
+Returns whether process management is enabled, tracked process count, and current policy config.`,
+    parameters: processStatusInputSchema,
+    execute: async (): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'get_process_manager_status',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const [enabled, trackedPids, config] = await Promise.all([
+          processService.isEnabled(),
+          processService.getTracked(),
+          processService.getConfig(),
+        ]);
+
+        return {
+          success: true,
+          action: 'get_process_manager_status',
+          message: `Process management is ${enabled ? 'enabled' : 'disabled'}`,
+          data: {
+            enabled,
+            trackedCount: trackedPids.length,
+            trackedPids,
+            config,
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'get_process_manager_status',
+          message: 'Failed to get process manager status',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Enable or disable process manager tool
+ */
+export function createSetProcessEnabledTool(): AgentTool {
+  return {
+    name: 'set_process_manager_enabled',
+    description: `Enable or disable process management globally.
+Use this when process tools are blocked because the manager is disabled.
+Requires user approval because it changes system tool permissions.`,
+    parameters: setProcessEnabledInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'set_process_manager_enabled',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof setProcessEnabledInputSchema>;
+        await processService.setEnabled(input.enabled);
+        const config = await processService.getConfig();
+
+        return {
+          success: true,
+          action: 'set_process_manager_enabled',
+          message: `Process management ${input.enabled ? 'enabled' : 'disabled'}`,
+          data: {
+            enabled: input.enabled,
+            config,
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'set_process_manager_enabled',
+          message: 'Failed to update process manager status',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: true,
+  };
+}
+
+/**
+ * Get tracked process list tool
+ */
+export function createGetTrackedProcessesTool(): AgentTool {
+  return {
+    name: 'get_tracked_processes',
+    description: `Get process IDs tracked by the process manager (typically started by this app).
+Optionally include process details for tracked IDs when process management is enabled.`,
+    parameters: trackedProcessesInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'get_tracked_processes',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof trackedProcessesInputSchema>;
+        const [trackedPids, isEnabled] = await Promise.all([
+          processService.getTracked(),
+          processService.isEnabled(),
+        ]);
+
+        if (!input.includeDetails || trackedPids.length === 0 || !isEnabled) {
+          return {
+            success: true,
+            action: 'get_tracked_processes',
+            message: `Found ${trackedPids.length} tracked processes`,
+            data: {
+              trackedCount: trackedPids.length,
+              trackedPids,
+              includeDetails: false,
+              detailsAvailable: isEnabled,
+            },
+          };
+        }
+
+        const processes = await processService.list({
+          limit: Math.max(input.limit, trackedPids.length),
+        });
+        const trackedSet = new Set(trackedPids);
+        const trackedProcesses = processes
+          .filter((process) => trackedSet.has(process.pid))
+          .map(formatProcessInfo);
+
+        return {
+          success: true,
+          action: 'get_tracked_processes',
+          message: `Found ${trackedProcesses.length} tracked processes with details`,
+          data: {
+            trackedCount: trackedPids.length,
+            trackedPids,
+            includeDetails: true,
+            processes: trackedProcesses,
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'get_tracked_processes',
+          message: 'Failed to get tracked processes',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * Get process async operation tool
+ */
+export function createGetProcessOperationTool(): AgentTool {
+  return {
+    name: 'get_process_operation',
+    description: `Get async batch process operation status/result by operation ID.
+Use this to poll submitted async start/terminate operations.`,
+    parameters: getProcessOperationInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'get_process_operation',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof getProcessOperationInputSchema>;
+        const operation = await processService.getOperation(input.operationId);
+
+        if (!operation) {
+          return {
+            success: false,
+            action: 'get_process_operation',
+            message: `Operation ${input.operationId} not found`,
+            error: 'Operation not found',
+          };
+        }
+
+        return {
+          success: true,
+          action: 'get_process_operation',
+          message: `Operation ${operation.operationId} is ${operation.status}`,
+          data: formatProcessOperation(operation),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'get_process_operation',
+          message: 'Failed to get process operation',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: false,
+  };
+}
+
+/**
+ * List process async operations tool
+ */
+export function createListProcessOperationsTool(): AgentTool {
+  return {
+    name: 'list_process_operations',
+    description: `List recent async process operations (most recent first).
+Use this to inspect pending/running/completed batch operations.`,
+    parameters: listProcessOperationsInputSchema,
+    execute: async (args): Promise<ProcessToolResult> => {
+      if (!isProcessManagementAvailable()) {
+        return {
+          success: false,
+          action: 'list_process_operations',
+          message: 'Process management requires Tauri desktop environment',
+          error: 'Not available in browser',
+        };
+      }
+
+      try {
+        const input = args as z.infer<typeof listProcessOperationsInputSchema>;
+        const operations = await processService.listOperations(input.limit);
+
+        return {
+          success: true,
+          action: 'list_process_operations',
+          message: `Found ${operations.length} operations`,
+          data: {
+            count: operations.length,
+            operations: operations.map(formatProcessOperation),
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          action: 'list_process_operations',
+          message: 'Failed to list process operations',
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    requiresApproval: false,
+  };
+}
+
 // ==================== Utility Functions ====================
 
 /**
@@ -542,6 +1117,34 @@ function formatProcessInfo(process: ProcessInfo): Record<string, unknown> {
   };
 }
 
+function formatProcessOperation(operation: ProcessOperation): Record<string, unknown> {
+  return {
+    operationId: operation.operationId,
+    operationType: operation.operationType,
+    status: operation.status,
+    createdAt: operation.createdAt,
+    startedAt: operation.startedAt,
+    completedAt: operation.completedAt,
+    error: operation.error,
+    result:
+      operation.result?.kind === 'startBatch'
+        ? {
+            kind: 'startBatch',
+            total: operation.result.payload.total,
+            successCount: operation.result.payload.successCount,
+            failureCount: operation.result.payload.failureCount,
+          }
+        : operation.result?.kind === 'terminateBatch'
+          ? {
+              kind: 'terminateBatch',
+              total: operation.result.payload.total,
+              successCount: operation.result.payload.successCount,
+              failureCount: operation.result.payload.failureCount,
+            }
+          : undefined,
+  };
+}
+
 // ==================== Tool Initialization ====================
 
 export interface ProcessToolsConfig {
@@ -555,6 +1158,14 @@ export interface ProcessToolsConfig {
   enableStart?: boolean;
   /** Enable terminating processes */
   enableTerminate?: boolean;
+  /** Enable process manager status/config tools */
+  enableStatus?: boolean;
+  /** Enable tracked process query tool */
+  enableTracking?: boolean;
+  /** Enable parallel batch process tools */
+  enableBatch?: boolean;
+  /** Enable async operation submission/query tools */
+  enableAsyncOperations?: boolean;
 }
 
 /**
@@ -567,6 +1178,10 @@ export function initializeProcessTools(config: ProcessToolsConfig = {}): Record<
     enableGet = true,
     enableStart = true,
     enableTerminate = true,
+    enableStatus = true,
+    enableTracking = true,
+    enableBatch = true,
+    enableAsyncOperations = true,
   } = config;
 
   const tools: Record<string, AgentTool> = {};
@@ -587,10 +1202,36 @@ export function initializeProcessTools(config: ProcessToolsConfig = {}): Record<
   if (enableStart) {
     tools.start_process = createStartProcessTool();
     tools.check_program_allowed = createCheckProgramTool();
+    if (enableBatch) {
+      tools.start_processes_parallel = createStartProcessesParallelTool();
+    }
+    if (enableAsyncOperations) {
+      tools.start_processes_async = createStartProcessesAsyncTool();
+    }
   }
 
   if (enableTerminate) {
     tools.terminate_process = createTerminateProcessTool();
+    if (enableBatch) {
+      tools.terminate_processes_parallel = createTerminateProcessesParallelTool();
+    }
+    if (enableAsyncOperations) {
+      tools.terminate_processes_async = createTerminateProcessesAsyncTool();
+    }
+  }
+
+  if (enableStatus) {
+    tools.get_process_manager_status = createProcessStatusTool();
+    tools.set_process_manager_enabled = createSetProcessEnabledTool();
+  }
+
+  if (enableTracking) {
+    tools.get_tracked_processes = createGetTrackedProcessesTool();
+  }
+
+  if (enableAsyncOperations) {
+    tools.get_process_operation = createGetProcessOperationTool();
+    tools.list_process_operations = createListProcessOperationsTool();
   }
 
   return tools;
@@ -612,7 +1253,16 @@ You have access to tools for managing local processes on the user's computer.
 - **top_memory_processes**: Get processes using the most memory
 - **start_process**: Start a new program (requires approval, restricted to allowlist)
 - **terminate_process**: Stop a running process (requires approval, restricted by default)
+- **start_processes_parallel**: Start multiple programs in parallel (requires approval)
+- **terminate_processes_parallel**: Terminate multiple processes in parallel (requires approval)
+- **start_processes_async**: Submit async start batch and return operation ID (requires approval)
+- **terminate_processes_async**: Submit async terminate batch and return operation ID (requires approval)
+- **get_process_operation**: Query one async operation by operation ID
+- **list_process_operations**: List recent async operations
 - **check_program_allowed**: Check if a program is allowed to be started
+- **get_process_manager_status**: Get process manager status/config and tracked count
+- **set_process_manager_enabled**: Enable/disable process management (requires approval)
+- **get_tracked_processes**: List tracked process IDs (optionally with details)
 
 ### Security Notes:
 - Process management must be enabled in settings before use
@@ -660,13 +1310,54 @@ These tools are ONLY available in the Tauri desktop environment.
    - Optional: force, timeoutSecs
    - REQUIRES APPROVAL
 
-7. **check_program_allowed** - Verify program permissions
+7. **start_processes_parallel** - Start multiple programs in parallel
+   - Required: requests[]
+   - Optional: maxConcurrency
+   - REQUIRES APPROVAL
+
+8. **terminate_processes_parallel** - Terminate multiple processes in parallel
+   - Required: requests[]
+   - Optional: maxConcurrency
+   - REQUIRES APPROVAL
+
+9. **start_processes_async** - Submit async start batch
+   - Required: requests[]
+   - Optional: maxConcurrency
+   - Returns: operationId/status immediately
+   - REQUIRES APPROVAL
+
+10. **terminate_processes_async** - Submit async terminate batch
+   - Required: requests[]
+   - Optional: maxConcurrency
+   - Returns: operationId/status immediately
+   - REQUIRES APPROVAL
+
+11. **get_process_operation** - Query async operation by ID
+   - Required: operationId
+
+12. **list_process_operations** - List recent async operations
+   - Optional: limit
+
+13. **check_program_allowed** - Verify program permissions
    - Required: program
+
+14. **get_process_manager_status** - Read process manager status
+   - No required parameters
+   - Returns: enabled flag, tracked process list/count, runtime config
+
+15. **set_process_manager_enabled** - Enable/disable process manager
+   - Required: enabled (boolean)
+   - REQUIRES APPROVAL
+
+16. **get_tracked_processes** - Read tracked process IDs
+   - Optional: includeDetails, limit
+   - Returns: tracked PIDs and optional process details
 
 ### Best Practices:
 - Always check if process management is enabled first
 - Use search_processes before attempting to terminate unknown processes
 - Check if a program is allowed before trying to start it
+- Use *_processes_async for long-running multi-process tasks and poll with get_process_operation
 - Use force=false first for graceful termination
 - Provide clear explanations to users before requesting approval
 `;

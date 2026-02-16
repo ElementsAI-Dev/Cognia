@@ -10,7 +10,7 @@ import type {
   AggregatedSearchResult,
   AcademicProviderType,
 } from '@/types/academic';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // Search State Type
@@ -56,140 +56,139 @@ export interface SearchActions {
 // Search Slice Creator
 // ============================================================================
 
-export function createSearchSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): SearchActions {
-  return {
-    setSearchQuery: (query) => {
-      set((state) => ({
-        search: { ...state.search, query },
-      }));
-    },
+export const createSearchSlice: AcademicSliceCreator<SearchActions> = (set, get) => ({
+  setSearchQuery: (query) => {
+    set((state) => ({
+      search: { ...state.search, query },
+    }));
+  },
 
-    setSearchFilter: (filter) => {
+  setSearchFilter: (filter) => {
+    set((state) => ({
+      search: {
+        ...state.search,
+        filter: { ...state.search.filter, ...filter },
+      },
+    }));
+  },
+
+  searchPapers: async (query) => {
+    const state = get();
+    const searchQuery = query ?? state.search.query;
+
+    if (!searchQuery.trim()) {
       set((state) => ({
         search: {
           ...state.search,
-          filter: { ...state.search.filter, ...filter },
+          results: [],
+          totalResults: 0,
+          searchError: null,
         },
       }));
-    },
+      return;
+    }
 
-    searchPapers: async (query) => {
-      const state = get();
-      const searchQuery = query ?? state.search.query;
+    set((state) => ({
+      search: { ...state.search, isSearching: true, searchError: null },
+    }));
 
-      if (!searchQuery.trim()) {
-        set((state) => ({
-          search: {
-            ...state.search,
-            results: [],
-            totalResults: 0,
-            searchError: null,
-          },
-        }));
-        return;
-      }
-
-      set((state) => ({
-        search: { ...state.search, isSearching: true, searchError: null },
-      }));
-
-      try {
-        const result = await invoke<AggregatedSearchResult>('academic_search', {
-          query: searchQuery,
-          options: {
-            ...state.search.filter,
-            providers: state.settings.defaultProviders,
-            sort_by: state.search.filter.sortBy || 'relevance',
-            sort_order: state.search.filter.sortOrder || 'desc',
-            limit: state.settings.defaultSearchLimit,
-          },
-        });
-
-        set((state) => ({
-          search: {
-            ...state.search,
-            results: result.papers,
-            totalResults: result.totalResults,
-            isSearching: false,
-            lastSearchTime: result.searchTime,
-          },
-        }));
-      } catch (error) {
-        set((state) => ({
-          search: {
-            ...state.search,
-            isSearching: false,
-            searchError: error instanceof Error ? error.message : String(error),
-          },
-        }));
-      }
-    },
-
-    searchWithProvider: async (provider, query) => {
-      set((state) => ({
-        search: { ...state.search, isSearching: true, searchError: null },
-      }));
-
-      try {
-        const result = await invoke<{
-          papers: Paper[];
-          totalResults: number;
-          searchTime: number;
-        }>('academic_search_provider', {
-          providerId: provider,
-          query,
-          options: {
-            ...get().search.filter,
-            sort_by: 'relevance',
-            sort_order: 'desc',
-            limit: get().settings.defaultSearchLimit,
-          },
-        });
-
-        set((state) => ({
-          search: {
-            ...state.search,
-            results: result.papers,
-            totalResults: result.totalResults,
-            isSearching: false,
-            lastSearchTime: result.searchTime,
-          },
-        }));
-      } catch (error) {
-        set((state) => ({
-          search: {
-            ...state.search,
-            isSearching: false,
-            searchError: error instanceof Error ? error.message : String(error),
-          },
-        }));
-      }
-    },
-
-    clearSearchResults: () => {
-      set((state) => ({
-        search: { ...initialSearchState, query: state.search.query, filter: state.search.filter },
-      }));
-    },
-
-    addSearchHistory: (query) => {
-      if (!query.trim()) return;
-      set((state) => {
-        const history = state.search.searchHistory.filter((q) => q !== query);
-        const newHistory = [query, ...history].slice(0, 20);
-        return {
-          search: { ...state.search, searchHistory: newHistory },
-        };
+    try {
+      const result = await invoke<AggregatedSearchResult>('academic_search', {
+        query: searchQuery,
+        options: {
+          ...state.search.filter,
+          providers: state.settings.defaultProviders,
+          sort_by: state.search.filter.sortBy || 'relevance',
+          sort_order: state.search.filter.sortOrder || 'desc',
+          limit: state.settings.defaultSearchLimit,
+        },
       });
-    },
 
-    clearSearchHistory: () => {
       set((state) => ({
-        search: { ...state.search, searchHistory: [] },
+        search: {
+          ...state.search,
+          results: result.papers,
+          totalResults: result.totalResults,
+          isSearching: false,
+          lastSearchTime: result.searchTime,
+        },
       }));
-    },
-  };
-}
+    } catch (error) {
+      set((state) => ({
+        search: {
+          ...state.search,
+          isSearching: false,
+          searchError: error instanceof Error ? error.message : String(error),
+        },
+      }));
+    }
+  },
+
+  searchWithProvider: async (provider, query) => {
+    set((state) => ({
+      search: { ...state.search, isSearching: true, searchError: null },
+    }));
+
+    try {
+      const result = await invoke<{
+        papers: Paper[];
+        totalResults: number;
+        searchTime: number;
+      }>('academic_search_provider', {
+        providerId: provider,
+        query,
+        options: {
+          ...get().search.filter,
+          sort_by: 'relevance',
+          sort_order: 'desc',
+          limit: get().settings.defaultSearchLimit,
+        },
+      });
+
+      set((state) => ({
+        search: {
+          ...state.search,
+          results: result.papers,
+          totalResults: result.totalResults,
+          isSearching: false,
+          lastSearchTime: result.searchTime,
+        },
+      }));
+    } catch (error) {
+      set((state) => ({
+        search: {
+          ...state.search,
+          isSearching: false,
+          searchError: error instanceof Error ? error.message : String(error),
+        },
+      }));
+    }
+  },
+
+  clearSearchResults: () => {
+    set((state) => ({
+      search: {
+        ...initialSearchState,
+        query: state.search.query,
+        filter: state.search.filter,
+      },
+    }));
+  },
+
+  addSearchHistory: (query) => {
+    if (!query.trim()) return;
+    set((state) => {
+      const history = state.search.searchHistory.filter((q) => q !== query);
+      const newHistory = [query, ...history].slice(0, 20);
+      return {
+        search: { ...state.search, searchHistory: newHistory },
+      };
+    });
+  },
+
+  clearSearchHistory: () => {
+    set((state) => ({
+      search: { ...state.search, searchHistory: [] },
+    }));
+  },
+});

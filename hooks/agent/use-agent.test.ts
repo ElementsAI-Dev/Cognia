@@ -38,7 +38,10 @@ jest.mock('@/stores', () => ({
     const state = {
       settings: {
         embeddingProvider: 'openai',
+        defaultCollectionName: '',
       },
+      collections: [],
+      getCollectionNames: jest.fn(() => []),
     };
     return selector(state);
   }),
@@ -65,11 +68,14 @@ const mockCreateAgent = jest.fn();
 
 jest.mock('@/lib/ai/agent', () => ({
   executeAgent: (...args: unknown[]) => mockExecuteAgent(...args),
+  executeContextAwareAgent: (...args: unknown[]) => mockExecuteAgent(...args),
   executeAgentLoop: (...args: unknown[]) => mockExecuteAgentLoop(...args),
   createAgent: (...args: unknown[]) => mockCreateAgent(...args),
   createMcpToolsFromStore: jest.fn(() => ({})),
   createRAGSearchTool: jest.fn(() => ({})),
+  createListRAGCollectionsTool: jest.fn(() => ({})),
   buildRAGConfigFromSettings: jest.fn(() => undefined),
+  getMcpToolsWithSelection: jest.fn(() => ({ tools: {}, selection: { wasLimited: false } })),
 }));
 
 jest.mock('@/lib/skills/executor', () => ({

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { colors, symbols, borders } from './theme.js';
+import { colors, symbols, borders } from './theme';
 
 export interface HeaderProps {
   /** Main title */

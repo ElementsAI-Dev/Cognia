@@ -53,7 +53,8 @@ import { ProjectSettingsPanel, DEFAULT_PROJECT_SETTINGS, type ProjectSettings } 
 import { ExportDialog, type ExportSettings } from '../export/export-dialog';
 import { AudioMixerPanel, type AudioTrack } from '../audio/audio-mixer-panel';
 import { LayerPanel, type VideoLayer } from '../composition/layer-panel';
-import { useVideoEditor, type VideoClip } from '@/hooks/video-studio/use-video-editor';
+import { useVideoEditor } from '@/hooks/video-studio/use-video-editor';
+import type { VideoClip, EditorMode, SidePanelTab } from '@/types/video-studio/types';
 import { useVideoTimeline } from '@/hooks/video-studio/use-video-timeline';
 import { useVideoSubtitles } from '@/hooks/video-studio/use-video-subtitles';
 import { useVideoEditorStore } from '@/stores/media';
@@ -66,10 +67,6 @@ export interface VideoEditorPanelProps {
   onSave?: () => void;
   className?: string;
 }
-
-type EditorMode = 'timeline' | 'trim' | 'effects' | 'transitions' | 'subtitles' | 'color' | 'speed' | 'markers' | 'audio' | 'layers';
-
-type SidePanelTab = 'effects' | 'color' | 'audio' | 'layers';
 
 export function VideoEditorPanel({
   initialVideoUrl,

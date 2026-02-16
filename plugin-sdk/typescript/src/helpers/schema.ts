@@ -55,6 +55,16 @@ export const Schema = {
   },
 
   /**
+   * Enum schema type (string enum)
+   *
+   * @param values - Allowed string values
+   * @param description - Parameter description for AI
+   */
+  enum(values: string[], description?: string) {
+    return { type: 'string' as const, enum: values, description };
+  },
+
+  /**
    * Number schema type
    *
    * @param description - Parameter description for AI

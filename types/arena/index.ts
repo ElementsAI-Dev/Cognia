@@ -114,13 +114,13 @@ export interface ArenaContestant {
   startedAt?: Date;
   /** Completion time */
   completedAt?: Date;
-  /** Legacy: start time as timestamp */
+  /** @deprecated Use `startedAt` instead */
   startTime?: number;
-  /** Legacy: end time as timestamp */
+  /** @deprecated Use `completedAt` instead */
   endTime?: number;
-  /** Legacy: latency in ms */
+  /** @deprecated Use `latencyMs` instead */
   latency?: number;
-  /** Legacy: token counts */
+  /** @deprecated Use `tokenCount` instead */
   tokenCounts?: { input: number; output: number; total: number };
 }
 
@@ -428,7 +428,7 @@ export const ARENA_MODEL_PRESETS: ArenaModelPreset[] = [
     models: [
       { provider: 'openai', model: 'gpt-4o' },
       { provider: 'anthropic', model: 'claude-sonnet-4-20250514' },
-      { provider: 'google', model: 'gemini-1.5-pro' },
+      { provider: 'google', model: 'gemini-2.0-flash-exp' },
     ],
   },
   {

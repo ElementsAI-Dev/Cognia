@@ -36,6 +36,11 @@ const mockGitHubStoreState = {
 jest.mock('@/stores/sync', () => ({
   useSyncStore: () => ({
     ...mockGitHubStoreState,
+    githubConfig: {
+      maxBackups: 10,
+      syncDataTypes: [],
+      ...mockGitHubStoreState.githubConfig,
+    },
     setGitHubConfig: mockSetGitHubConfig,
   }),
 }));
@@ -573,13 +578,19 @@ describe('GitHubConfigForm with auto sync enabled', () => {
 
   it('displays sync interval slider when auto sync is enabled', () => {
     render(<GitHubConfigForm />);
-    expect(screen.getByTestId('slider')).toBeInTheDocument();
+    const syncIntervalSlider = screen
+      .getAllByTestId('slider')
+      .find((slider) => slider.getAttribute('max') === '240');
+    expect(syncIntervalSlider).toBeInTheDocument();
   });
 
   it('calls setGitHubConfig when sync interval is changed', () => {
     render(<GitHubConfigForm />);
-    const slider = screen.getByTestId('slider');
-    fireEvent.change(slider, { target: { value: '120' } });
+    const syncIntervalSlider = screen
+      .getAllByTestId('slider')
+      .find((slider) => slider.getAttribute('max') === '240');
+    expect(syncIntervalSlider).toBeDefined();
+    fireEvent.change(syncIntervalSlider!, { target: { value: '120' } });
     expect(mockSetGitHubConfig).toHaveBeenCalledWith({ syncInterval: 120 });
   });
 });

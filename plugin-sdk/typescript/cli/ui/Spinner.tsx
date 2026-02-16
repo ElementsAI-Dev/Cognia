@@ -7,7 +7,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import InkSpinner from 'ink-spinner';
-import { colors, symbols } from './theme.js';
+import { colors, symbols } from './theme';
 
 export interface SpinnerProps {
   /** Status text to display next to spinner */

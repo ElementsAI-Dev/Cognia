@@ -3,6 +3,11 @@
 /**
  * MultiColumnChat - Multi-column chat view for arena mode
  * Displays parallel responses from multiple AI models side-by-side
+ *
+ * NOTE: This component is used inside `ChatContainer` for inline arena comparisons.
+ * For the full-featured battle dialog (with voting, blind mode, etc.), see
+ * `components/arena/arena-battle-view.tsx` which uses `ArenaChatView`.
+ * They share the same grid layout pattern but serve different contexts.
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -194,7 +199,7 @@ export function MultiColumnChat({
           <div
             className="grid gap-4 h-full"
             style={{
-              gridTemplateColumns: `repeat(${Math.min(models.length, 4)}, 1fr)`,
+              gridTemplateColumns: `repeat(${Math.min(models.length, 4)}, minmax(0, 1fr))`,
             }}
           >
             {models.map((model) => (

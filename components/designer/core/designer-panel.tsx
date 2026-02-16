@@ -7,7 +7,6 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import dynamic from 'next/dynamic';
 import { useSettingsStore, useArtifactStore } from '@/stores';
 import { executeDesignerAIEdit, getDesignerAIConfig } from '@/lib/designer';
 import { Loader2, X, Sparkles, Send, AlertCircle, Layers, Package } from 'lucide-react';
@@ -21,7 +20,7 @@ import {
 } from '@/components/ui/resizable';
 import { useDesignerStore } from '@/stores/designer';
 import { DesignerToolbar } from '../toolbar/designer-toolbar';
-import { DesignerPreview } from '../preview/designer-preview';
+import { DesignerMainWorkspace } from '../workspace/designer-main-workspace';
 import { ElementTree } from '../panels/element-tree';
 import { StylePanel } from '../panels/style-panel';
 import { VersionHistoryPanel } from '../panels/version-history-panel';
@@ -40,19 +39,8 @@ import {
 } from '@/components/ui/dialog';
 import { DesignerDndProvider, SelectionOverlay } from '../dnd';
 import { AIChatPanel } from '../ai/ai-chat-panel';
-import { createEditorOptions, getMonacoTheme } from '@/lib/monaco';
 import { CollabToolbar, RemoteCursors } from '../collab';
 import { useDesignerCollaboration } from '@/hooks/designer';
-
-// Dynamically import Monaco to avoid SSR issues
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  ),
-});
 
 function getTextDiff(prev: string, next: string): {
   position: number;
@@ -121,14 +109,11 @@ export function DesignerPanel({
     remoteCursors,
     isConnected: isCollabConnected,
     updateCode: updateCollabCode,
-    updateCursor: updateCollabCursor,
-    updateSelection: updateCollabSelection,
   } = useDesignerCollaboration();
 
   // Settings for built-in AI
   const providerSettings = useSettingsStore((state) => state.providerSettings);
   const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-  const theme = useSettingsStore((state) => state.theme);
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -236,32 +221,6 @@ export function DesignerPanel({
       previousCodeRef.current = newCode;
     },
     [setCode, onCodeChange, isCollabConnected, updateCollabCode]
-  );
-
-  // Handle cursor position changes for collaboration
-  const handleEditorMount = useCallback(
-    (editor: {
-      onDidChangeCursorPosition: (cb: (e: { position: { lineNumber: number; column: number } }) => void) => void;
-      onDidChangeCursorSelection: (cb: (e: { selection: { startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } }) => void) => void;
-    }) => {
-      editor.onDidChangeCursorPosition((e) => {
-        if (isCollabConnected) {
-          updateCollabCursor({ line: e.position.lineNumber, column: e.position.column });
-        }
-      });
-
-      editor.onDidChangeCursorSelection((e) => {
-        if (isCollabConnected) {
-          updateCollabSelection({
-            startLine: e.selection.startLineNumber,
-            startColumn: e.selection.startColumn,
-            endLine: e.selection.endLineNumber,
-            endColumn: e.selection.endColumn,
-          });
-        }
-      });
-    },
-    [isCollabConnected, updateCollabCursor, updateCollabSelection]
   );
 
   const handleAIEdit = useCallback(() => {
@@ -394,23 +353,12 @@ export function DesignerPanel({
           {/* Main content */}
           <div className="flex-1 min-h-0 overflow-hidden">
             {mode === 'code' ? (
-              // Code-only view
-              <MonacoEditor
-                height="100%"
-                language="typescript"
-                theme={getMonacoTheme(theme)}
-                value={code}
-                onChange={handleCodeChange}
-                onMount={handleEditorMount}
-                options={createEditorOptions('code', {
-                  minimap: { enabled: false },
-                  stickyScroll: { enabled: true, maxLineCount: 5 },
-                  bracketPairColorization: { enabled: true },
-                  guides: { indentation: true, bracketPairs: true },
-                  inlineSuggest: { enabled: true },
-                  formatOnPaste: true,
-                  formatOnType: true,
-                })}
+              <DesignerMainWorkspace
+                mode={mode}
+                framework="react"
+                onCodeChange={handleCodeChange}
+                onRequestAIEdit={handleAIEdit}
+                className="h-full"
               />
             ) : (
               // Design/Preview view with panels
@@ -460,7 +408,13 @@ export function DesignerPanel({
                     {mode === 'design' && selectedElementId && (
                       <BreadcrumbNav className="absolute top-2 left-2 z-20" />
                     )}
-                    <DesignerPreview className="h-full" />
+                    <DesignerMainWorkspace
+                      mode={mode}
+                      framework="react"
+                      onCodeChange={handleCodeChange}
+                      onRequestAIEdit={handleAIEdit}
+                      className="h-full"
+                    />
                     {/* Grid overlay */}
                     {showGridOverlay && (
                       <LayoutGridOverlay className="absolute inset-0 pointer-events-none z-10" />

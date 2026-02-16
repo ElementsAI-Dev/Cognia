@@ -326,6 +326,9 @@ describe('agent-context-tools', () => {
         'tool-output': 10,
         'terminal': 5,
         'history': 3,
+        'mcp': 0,
+        'skills': 0,
+        'temp': 0,
       });
       expect(result.totalSize).toBe(50000);
       expect(result.estimatedTokens).toBe(12500);

@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ToolSettings } from './tool-settings';
+import { TOOL_CATEGORY_CONFIGS } from '@/lib/settings/tools';
 
 // Mock stores
 const mockSetEnableFileTools = jest.fn();
@@ -105,7 +106,7 @@ describe('ToolSettings', () => {
   it('renders switches for each category', () => {
     render(<ToolSettings />);
     const switches = screen.getAllByTestId('switch');
-    expect(switches.length).toBe(6);
+    expect(switches.length).toBe(TOOL_CATEGORY_CONFIGS.length);
   });
 
   it('toggles file tools', () => {

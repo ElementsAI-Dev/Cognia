@@ -236,15 +236,15 @@ describe('formatTokens', () => {
   });
 
   it('should format thousands with k suffix', () => {
-    expect(formatTokens(1000)).toBe('1.0k');
-    expect(formatTokens(1500)).toBe('1.5k');
-    expect(formatTokens(10000)).toBe('10.0k');
-    expect(formatTokens(999999)).toBe('1000.0k');
+    expect(formatTokens(1000)).toBe('1.0K');
+    expect(formatTokens(1500)).toBe('1.5K');
+    expect(formatTokens(10000)).toBe('10.0K');
+    expect(formatTokens(999999)).toBe('1000.0K');
   });
 
   it('should format millions with M suffix', () => {
-    expect(formatTokens(1_000_000)).toBe('1.00M');
-    expect(formatTokens(2_500_000)).toBe('2.50M');
+    expect(formatTokens(1_000_000)).toBe('1.0M');
+    expect(formatTokens(2_500_000)).toBe('2.5M');
   });
 });
 

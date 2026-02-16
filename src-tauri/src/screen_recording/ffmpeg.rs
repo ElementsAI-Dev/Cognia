@@ -127,14 +127,8 @@ fn parse_ffmpeg_version(output: &str) -> Option<String> {
 
 /// Compare two version strings (returns true if actual >= required)
 fn compare_versions(actual: &str, required: &str) -> bool {
-    let actual_parts: Vec<u32> = actual
-        .split('.')
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    let required_parts: Vec<u32> = required
-        .split('.')
-        .filter_map(|s| s.parse().ok())
-        .collect();
+    let actual_parts: Vec<u32> = actual.split('.').filter_map(|s| s.parse().ok()).collect();
+    let required_parts: Vec<u32> = required.split('.').filter_map(|s| s.parse().ok()).collect();
 
     for i in 0..required_parts.len().max(actual_parts.len()) {
         let a = actual_parts.get(i).copied().unwrap_or(0);
@@ -169,8 +163,17 @@ fn get_available_encoders() -> Vec<String> {
                     if parts.len() >= 2 {
                         let encoder = parts[1];
                         // Filter to common encoders
-                        if ["libx264", "libx265", "libvpx", "libvpx-vp9", "h264_nvenc", "hevc_nvenc", "h264_qsv", "hevc_qsv"]
-                            .contains(&encoder)
+                        if [
+                            "libx264",
+                            "libx265",
+                            "libvpx",
+                            "libvpx-vp9",
+                            "h264_nvenc",
+                            "hevc_nvenc",
+                            "h264_qsv",
+                            "hevc_qsv",
+                        ]
+                        .contains(&encoder)
                         {
                             encoders.push(encoder.to_string());
                         }
@@ -269,7 +272,8 @@ pub fn get_install_guide() -> FFmpegInstallGuide {
             platform: "Unknown".to_string(),
             download_url: "https://ffmpeg.org/download.html".to_string(),
             instructions: vec![
-                "Please visit https://ffmpeg.org/download.html for installation instructions".to_string(),
+                "Please visit https://ffmpeg.org/download.html for installation instructions"
+                    .to_string(),
             ],
             quick_install: None,
         }

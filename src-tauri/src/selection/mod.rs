@@ -153,18 +153,22 @@ pub struct SelectionManager {
 impl SelectionManager {
     pub fn new(app_handle: tauri::AppHandle) -> Self {
         log::info!("[SelectionManager] Creating new instance");
-        
+
         // Get config path from app data directory
         let config_path = app_handle
             .path()
             .app_data_dir()
             .map(|p| p.join("selection_config.json"))
             .unwrap_or_else(|_| PathBuf::from("selection_config.json"));
-        
+
         // Try to load existing config
         let config = Self::load_config_from_file(&config_path).unwrap_or_default();
-        log::debug!("[SelectionManager] Config loaded: enabled={}, trigger_mode={}", config.enabled, config.trigger_mode);
-        
+        log::debug!(
+            "[SelectionManager] Config loaded: enabled={}, trigger_mode={}",
+            config.enabled,
+            config.trigger_mode
+        );
+
         let config = Arc::new(RwLock::new(config));
         let detector = Arc::new(SelectionDetector::new());
         let mouse_hook = Arc::new(MouseHook::new());
@@ -191,7 +195,7 @@ impl SelectionManager {
             config_path,
         }
     }
-    
+
     /// Load config from file
     fn load_config_from_file(path: &PathBuf) -> Option<SelectionConfig> {
         if path.exists() {
@@ -208,21 +212,21 @@ impl SelectionManager {
         }
         None
     }
-    
+
     /// Save config to file
     pub fn save_config(&self) -> Result<(), String> {
         let config = self.config.read().clone();
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        
+
         std::fs::write(&self.config_path, content)
             .map_err(|e| format!("Failed to write config file: {}", e))?;
-        
+
         log::debug!("[SelectionManager] Config saved to {:?}", self.config_path);
         Ok(())
     }
@@ -487,7 +491,7 @@ impl SelectionManager {
                 config.enabled = enabled;
             }
         }
-        
+
         if changed {
             if !enabled {
                 let _ = self.toolbar_window.hide();

@@ -58,26 +58,9 @@ import {
   Merge,
 } from 'lucide-react';
 
-import type { ImageAdjustments, TextLayerConfig, DrawingShapeConfig } from '@/types';
+import type { ImageAdjustments, TextLayerConfig, DrawingShapeConfig, LayerType, BlendMode, Layer } from '@/types';
 
-export type LayerType = 'image' | 'mask' | 'adjustment' | 'text' | 'shape';
-export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'soft-light' | 'hard-light';
-
-export interface Layer {
-  id: string;
-  name: string;
-  type: LayerType;
-  visible: boolean;
-  locked: boolean;
-  opacity: number;
-  blendMode: BlendMode;
-  thumbnail?: string;
-  data?: string;
-  adjustments?: Partial<ImageAdjustments>;
-  textConfig?: TextLayerConfig;
-  shapeConfig?: DrawingShapeConfig;
-  order: number;
-}
+export type { Layer };
 
 export interface LayersPanelProps {
   layers: Layer[];

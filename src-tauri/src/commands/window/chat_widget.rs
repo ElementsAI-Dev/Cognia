@@ -109,13 +109,17 @@ pub async fn chat_widget_unminimize(manager: State<'_, ChatWidgetWindow>) -> Res
 
 /// Toggle minimized state
 #[tauri::command]
-pub async fn chat_widget_toggle_minimize(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
+pub async fn chat_widget_toggle_minimize(
+    manager: State<'_, ChatWidgetWindow>,
+) -> Result<bool, String> {
     manager.toggle_minimize()
 }
 
 /// Check if widget is minimized
 #[tauri::command]
-pub async fn chat_widget_is_minimized(manager: State<'_, ChatWidgetWindow>) -> Result<bool, String> {
+pub async fn chat_widget_is_minimized(
+    manager: State<'_, ChatWidgetWindow>,
+) -> Result<bool, String> {
     Ok(manager.is_minimized())
 }
 
@@ -145,8 +149,11 @@ pub async fn chat_widget_open_main(
     manager: State<'_, ChatWidgetWindow>,
     hide_widget: bool,
 ) -> Result<(), String> {
-    log::debug!("[ChatWidget] Opening main window, hide_widget={}", hide_widget);
-    
+    log::debug!(
+        "[ChatWidget] Opening main window, hide_widget={}",
+        hide_widget
+    );
+
     // Show and focus the main window
     if let Some(main_window) = app.get_webview_window("main") {
         main_window
@@ -160,11 +167,11 @@ pub async fn chat_widget_open_main(
     } else {
         return Err("Main window not found".to_string());
     }
-    
+
     // Optionally hide the chat widget
     if hide_widget {
         manager.hide()?;
     }
-    
+
     Ok(())
 }

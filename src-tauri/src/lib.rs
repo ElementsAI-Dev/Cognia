@@ -2,11 +2,12 @@
 //!
 //! This is the main entry point for the Tauri desktop application.
 
+mod assistant_bubble;
 mod awareness;
 mod chat_widget;
-mod assistant_bubble;
 mod commands;
 mod context;
+mod external_agent;
 mod http;
 mod input_completion;
 mod jupyter;
@@ -21,12 +22,11 @@ mod screenshot;
 mod selection;
 mod skill;
 mod skill_seekers;
-mod external_agent;
 mod tray;
 
+use assistant_bubble::AssistantBubbleWindow;
 use awareness::AwarenessManager;
 use chat_widget::ChatWidgetWindow;
-use assistant_bubble::AssistantBubbleWindow;
 use commands::devtools::jupyter::JupyterState;
 use commands::storage::vector::VectorStoreState;
 use context::ContextManager;
@@ -62,7 +62,11 @@ pub fn run() {
             log::debug!("Port {} is available", DEV_SERVER_PORT);
         }
         Err(e) => {
-            log::error!("Failed to ensure port {} is available: {}", DEV_SERVER_PORT, e);
+            log::error!(
+                "Failed to ensure port {} is available: {}",
+                DEV_SERVER_PORT,
+                e
+            );
             // In development, we might want to show a dialog or continue anyway
             // In production, this is less critical as we're not starting a dev server
             #[cfg(debug_assertions)]
@@ -183,15 +187,20 @@ pub fn run() {
                     // On Windows, use SetConsoleCtrlHandler to intercept Ctrl+C at the Win32 level.
                     // Returning TRUE from the handler suppresses the default "Terminate batch job (Y/N)?" prompt.
                     use std::sync::OnceLock;
-                    use windows::Win32::System::Console::{SetConsoleCtrlHandler, CTRL_C_EVENT, CTRL_CLOSE_EVENT};
                     use windows::Win32::Foundation::BOOL;
+                    use windows::Win32::System::Console::{
+                        SetConsoleCtrlHandler, CTRL_CLOSE_EVENT, CTRL_C_EVENT,
+                    };
 
                     static EXIT_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
                     let _ = EXIT_HANDLE.set(handle.clone());
 
                     unsafe extern "system" fn ctrl_handler(ctrl_type: u32) -> BOOL {
                         if ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_CLOSE_EVENT {
-                            log::info!("Console ctrl event {} detected, performing graceful shutdown", ctrl_type);
+                            log::info!(
+                                "Console ctrl event {} detected, performing graceful shutdown",
+                                ctrl_type
+                            );
                             if let Some(h) = EXIT_HANDLE.get() {
                                 perform_full_cleanup(h);
                                 h.exit(0);
@@ -320,25 +329,29 @@ pub fn run() {
             app.manage(awareness_manager);
 
             // Initialize Input Completion Manager
-            let input_completion_manager = input_completion::InputCompletionManager::new(app.handle().clone());
+            let input_completion_manager =
+                input_completion::InputCompletionManager::new(app.handle().clone());
             app.manage(input_completion_manager);
             log::info!("Input completion manager initialized");
 
             // Initialize Plugin Manager
-            let plugin_manager_state = commands::extensions::plugin::create_plugin_manager(app_data_dir.clone());
+            let plugin_manager_state =
+                commands::extensions::plugin::create_plugin_manager(app_data_dir.clone());
             app.manage(plugin_manager_state);
             log::info!("Plugin manager initialized");
 
             // Initialize Skill Service
-            let skill_service_state = commands::extensions::skill::create_skill_service(app_data_dir.clone());
+            let skill_service_state =
+                commands::extensions::skill::create_skill_service(app_data_dir.clone());
             app.manage(skill_service_state);
             log::info!("Skill service initialized");
 
             // Initialize Skill Seekers Service
-            let skill_seekers_state = commands::extensions::skill_seekers::create_skill_seekers_service(
-                app_data_dir.clone(),
-                app.handle().clone(),
-            );
+            let skill_seekers_state =
+                commands::extensions::skill_seekers::create_skill_seekers_service(
+                    app_data_dir.clone(),
+                    app.handle().clone(),
+                );
             app.manage(skill_seekers_state);
             log::info!("Skill Seekers service initialized");
 
@@ -534,9 +547,9 @@ pub fn run() {
 
                 let shortcut: Shortcut = "Alt+M".parse().unwrap();
 
-                if let Err(e) = app_handle_for_bubble_minimize.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
+                if let Err(e) = app_handle_for_bubble_minimize
+                    .global_shortcut()
+                    .on_shortcut(shortcut, move |app, _shortcut, _event| {
                         if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
                             match manager.toggle_minimize() {
                                 Ok(minimized) => {
@@ -546,12 +559,15 @@ pub fn run() {
                                     );
                                 }
                                 Err(e) => {
-                                    log::error!("Failed to toggle bubble minimize via shortcut: {}", e);
+                                    log::error!(
+                                        "Failed to toggle bubble minimize via shortcut: {}",
+                                        e
+                                    );
                                 }
                             }
                         }
-                    },
-                ) {
+                    })
+                {
                     log::error!("Failed to register bubble minimize shortcut: {}", e);
                 } else {
                     log::info!("Global shortcut registered: Alt+M for bubble minimize toggle");
@@ -577,13 +593,17 @@ pub fn run() {
 
             // Initialize Git Credentials Manager
             let git_credentials_state: commands::devtools::git_credentials::CredentialManagerState =
-                parking_lot::Mutex::new(commands::devtools::git_credentials::GitCredentialManager::default());
+                parking_lot::Mutex::new(
+                    commands::devtools::git_credentials::GitCredentialManager::default(),
+                );
             app.manage(git_credentials_state);
             log::info!("Git credentials manager initialized");
 
             // Initialize Git History Manager
             let git_history_state: commands::devtools::git_history::HistoryManagerState =
-                parking_lot::Mutex::new(commands::devtools::git_history::GitHistoryManager::default());
+                parking_lot::Mutex::new(
+                    commands::devtools::git_history::GitHistoryManager::default(),
+                );
             app.manage(git_history_state);
             log::info!("Git history manager initialized");
 
@@ -1120,6 +1140,21 @@ pub fn run() {
             commands::devtools::jupyter::jupyter_open_notebook,
             commands::devtools::jupyter::jupyter_save_notebook,
             commands::devtools::jupyter::jupyter_get_notebook_info,
+            // LSP commands
+            commands::devtools::lsp::lsp_start_session,
+            commands::devtools::lsp::lsp_open_document,
+            commands::devtools::lsp::lsp_change_document,
+            commands::devtools::lsp::lsp_close_document,
+            commands::devtools::lsp::lsp_completion,
+            commands::devtools::lsp::lsp_hover,
+            commands::devtools::lsp::lsp_definition,
+            commands::devtools::lsp::lsp_document_symbols,
+            commands::devtools::lsp::lsp_format_document,
+            commands::devtools::lsp::lsp_code_actions,
+            commands::devtools::lsp::lsp_workspace_symbols,
+            commands::devtools::lsp::lsp_execute_command,
+            commands::devtools::lsp::lsp_resolve_code_action,
+            commands::devtools::lsp::lsp_shutdown_session,
             // Proxy commands
             commands::system::proxy::proxy_detect_all,
             commands::system::proxy::proxy_test,
@@ -1350,6 +1385,12 @@ pub fn run() {
             commands::system::process::process_get,
             commands::system::process::process_start,
             commands::system::process::process_terminate,
+            commands::system::process::process_start_batch,
+            commands::system::process::process_terminate_batch,
+            commands::system::process::process_start_batch_async,
+            commands::system::process::process_terminate_batch_async,
+            commands::system::process::process_get_operation,
+            commands::system::process::process_list_operations,
             commands::system::process::process_get_config,
             commands::system::process::process_update_config,
             commands::system::process::process_is_allowed,
@@ -2005,12 +2046,11 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
                     }
                 };
                 // Give async cleanup at most 2 seconds to finish
-                let _ = tokio::time::timeout(
-                    tokio::time::Duration::from_secs(2),
-                    cleanup_future,
-                ).await;
+                let _ =
+                    tokio::time::timeout(tokio::time::Duration::from_secs(2), cleanup_future).await;
             });
-        }).join();
+        })
+        .join();
         if let Err(_) = cleanup_result {
             log::warn!("Async cleanup thread panicked");
         }

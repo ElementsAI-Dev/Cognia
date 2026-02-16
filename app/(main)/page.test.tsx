@@ -73,69 +73,20 @@ jest.mock('@/stores', () => ({
   },
 }));
 
-// Mock UI components that use context
-jest.mock('@/components/ui/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-jest.mock('@/components/ui/sidebar', () => ({
-  SidebarProvider: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="sidebar-provider">{children}</div>
-  ),
-  SidebarInset: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="sidebar-inset">{children}</div>
-  ),
-  Sidebar: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarTrigger: () => <button>Toggle</button>,
-  SidebarGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarGroupContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarGroupLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarMenuItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SidebarMenuButton: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
-  useSidebar: () => ({ open: true, setOpen: jest.fn() }),
-}));
-
-jest.mock('@/components/sidebar', () => ({
-  AppSidebar: () => <div data-testid="app-sidebar">Sidebar</div>,
-}));
-
 jest.mock('@/components/chat', () => ({
   ChatContainer: () => <div data-testid="chat-container">Chat</div>,
 }));
 
 describe('Home Page', () => {
-  it('renders without crashing', () => {
-    render(<Home />);
-    expect(screen.getByTestId('sidebar-provider')).toBeInTheDocument();
-  });
-
-  it('renders the sidebar', () => {
-    render(<Home />);
-    expect(screen.getByTestId('app-sidebar')).toBeInTheDocument();
-  });
-
   it('renders the chat container', () => {
     render(<Home />);
     expect(screen.getByTestId('chat-container')).toBeInTheDocument();
   });
 
-  it('renders the sidebar inset', () => {
-    render(<Home />);
-    expect(screen.getByTestId('sidebar-inset')).toBeInTheDocument();
-  });
-
-  it('has correct component hierarchy', () => {
+  it('delegates layout concerns to ChatLayout', () => {
+    // Home page is a thin wrapper — sidebar, panels, and error boundary
+    // are provided by (chat)/layout.tsx (ChatLayout)
     const { container } = render(<Home />);
-    const sidebarProvider = container.querySelector('[data-testid="sidebar-provider"]');
-    expect(sidebarProvider).toBeInTheDocument();
-    expect(sidebarProvider).toContainElement(screen.getByTestId('app-sidebar'));
-    expect(sidebarProvider).toContainElement(screen.getByTestId('sidebar-inset'));
+    expect(container.querySelector('[data-testid="chat-container"]')).toBeInTheDocument();
   });
 });

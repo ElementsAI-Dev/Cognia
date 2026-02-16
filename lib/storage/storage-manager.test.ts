@@ -42,6 +42,7 @@ describe('StorageManager', () => {
 
   beforeEach(() => {
     localStorageMock.clear();
+    sessionStorage.clear();
     jest.clearAllMocks();
     storageManager = new StorageManagerImpl();
   });

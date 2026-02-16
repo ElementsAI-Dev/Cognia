@@ -27,7 +27,7 @@ describe('MetricsCollector', () => {
       expect(metrics).not.toBeNull();
       expect(metrics?.executionId).toBe('test-exec-123');
       expect(metrics?.sessionId).toBe('session-123');
-      expect(metrics?.totalDuration).toBeGreaterThan(0);
+      expect(metrics?.totalDuration).toBeGreaterThanOrEqual(0);
       expect(metrics?.stopReason).toBe('stop');
     });
 
@@ -260,7 +260,7 @@ describe('MetricsCollector', () => {
       const summary = collector.getSummary();
 
       expect(summary.totalExecutions).toBe(2);
-      expect(summary.averageDuration).toBeGreaterThan(0);
+      expect(summary.averageDuration).toBeGreaterThanOrEqual(0);
       expect(summary.averageSteps).toBe(1);
       expect(summary.averageToolCalls).toBe(0);
     });

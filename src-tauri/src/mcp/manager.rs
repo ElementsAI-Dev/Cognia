@@ -95,7 +95,14 @@ impl McpManager {
         }
 
         // Fallback to environment variables (HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
-        for var in &["ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "all_proxy", "https_proxy", "http_proxy"] {
+        for var in &[
+            "ALL_PROXY",
+            "HTTPS_PROXY",
+            "HTTP_PROXY",
+            "all_proxy",
+            "https_proxy",
+            "http_proxy",
+        ] {
             if let Ok(proxy) = std::env::var(var) {
                 if !proxy.is_empty() {
                     log::debug!("Using proxy from {} environment variable: {}", var, proxy);
@@ -161,16 +168,10 @@ impl McpManager {
                         .await
                     }
                     (None, Some(msg_url)) => {
-                        McpClient::connect_sse_with_message_url(
-                            url,
-                            Some(msg_url),
-                            notification_tx,
-                        )
-                        .await
+                        McpClient::connect_sse_with_message_url(url, Some(msg_url), notification_tx)
+                            .await
                     }
-                    (None, None) => {
-                        McpClient::connect_sse(url, notification_tx).await
-                    }
+                    (None, None) => McpClient::connect_sse(url, notification_tx).await,
                 }
             }
         }
@@ -500,7 +501,8 @@ impl McpManager {
 
         // Create client using helper method
         log::debug!("Creating MCP client for server '{}'", id);
-        let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
+        let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await
+        {
             Ok(c) => c,
             Err(e) => {
                 log::error!("Failed to create client for server '{}': {}", id, e);
@@ -520,10 +522,7 @@ impl McpManager {
         let init_result = match client.initialize(ClientInfo::default()).await {
             Ok(r) => r,
             Err(e) => {
-                let init_err = McpError::InitializationFailed(format!(
-                    "Server '{}': {}",
-                    id, e
-                ));
+                let init_err = McpError::InitializationFailed(format!("Server '{}': {}", id, e));
                 log::error!("{}", init_err);
                 client.close().await.ok();
                 Self::handle_connection_error(&self.servers, id, &init_err).await;
@@ -573,7 +572,8 @@ impl McpManager {
             .await;
 
         // Start health check task
-        self.spawn_health_check(id.to_string(), health_stop_rx).await;
+        self.spawn_health_check(id.to_string(), health_stop_rx)
+            .await;
 
         log::info!("Connected to MCP server: {}", id);
         Ok(())
@@ -676,10 +676,7 @@ impl McpManager {
         // Verify server supports tools capability
         if let Some(caps) = &instance.state.capabilities {
             if caps.tools.is_none() {
-                log::warn!(
-                    "Server '{}' does not advertise tools capability",
-                    server_id
-                );
+                log::warn!("Server '{}' does not advertise tools capability", server_id);
                 return Err(McpError::UnsupportedCapability("tools".to_string()));
             }
         }
@@ -904,16 +901,19 @@ impl McpManager {
         );
 
         let servers = self.servers.read().await;
-        let instance = servers.get(server_id).ok_or_else(|| {
-            McpError::ServerNotFound(server_id.to_string())
-        })?;
+        let instance = servers
+            .get(server_id)
+            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
 
-        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
-        let sampling_result: crate::mcp::types::SamplingResult =
-            serde_json::from_value(result).map_err(|e| {
-                McpError::ProtocolError(format!("Invalid sampling result: {}", e))
-            })?;
-        client.respond_to_sampling(request_id, sampling_result).await
+        let client = instance
+            .client
+            .as_ref()
+            .ok_or_else(|| McpError::NotConnected)?;
+        let sampling_result: crate::mcp::types::SamplingResult = serde_json::from_value(result)
+            .map_err(|e| McpError::ProtocolError(format!("Invalid sampling result: {}", e)))?;
+        client
+            .respond_to_sampling(request_id, sampling_result)
+            .await
     }
 
     /// Set roots for a connected server and notify it
@@ -922,18 +922,17 @@ impl McpManager {
         server_id: &str,
         roots: Vec<crate::mcp::types::Root>,
     ) -> McpResult<()> {
-        log::info!(
-            "Setting {} roots for server '{}'",
-            roots.len(),
-            server_id
-        );
+        log::info!("Setting {} roots for server '{}'", roots.len(), server_id);
 
         let servers = self.servers.read().await;
-        let instance = servers.get(server_id).ok_or_else(|| {
-            McpError::ServerNotFound(server_id.to_string())
-        })?;
+        let instance = servers
+            .get(server_id)
+            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
 
-        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        let client = instance
+            .client
+            .as_ref()
+            .ok_or_else(|| McpError::NotConnected)?;
         client.set_roots(roots).await;
         client.notify_roots_changed().await?;
         log::debug!("Roots set and notification sent for server '{}'", server_id);
@@ -941,16 +940,16 @@ impl McpManager {
     }
 
     /// Get the current roots for a connected server
-    pub async fn get_roots(
-        &self,
-        server_id: &str,
-    ) -> McpResult<Vec<crate::mcp::types::Root>> {
+    pub async fn get_roots(&self, server_id: &str) -> McpResult<Vec<crate::mcp::types::Root>> {
         let servers = self.servers.read().await;
-        let instance = servers.get(server_id).ok_or_else(|| {
-            McpError::ServerNotFound(server_id.to_string())
-        })?;
+        let instance = servers
+            .get(server_id)
+            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
 
-        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        let client = instance
+            .client
+            .as_ref()
+            .ok_or_else(|| McpError::NotConnected)?;
         Ok(client.get_roots().await)
     }
 
@@ -962,11 +961,14 @@ impl McpManager {
         log::debug!("Listing resource templates for server '{}'", server_id);
 
         let servers = self.servers.read().await;
-        let instance = servers.get(server_id).ok_or_else(|| {
-            McpError::ServerNotFound(server_id.to_string())
-        })?;
+        let instance = servers
+            .get(server_id)
+            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
 
-        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        let client = instance
+            .client
+            .as_ref()
+            .ok_or_else(|| McpError::NotConnected)?;
         client.list_resource_templates().await
     }
 
@@ -988,11 +990,14 @@ impl McpManager {
         );
 
         let servers = self.servers.read().await;
-        let instance = servers.get(server_id).ok_or_else(|| {
-            McpError::ServerNotFound(server_id.to_string())
-        })?;
+        let instance = servers
+            .get(server_id)
+            .ok_or_else(|| McpError::ServerNotFound(server_id.to_string()))?;
 
-        let client = instance.client.as_ref().ok_or_else(|| McpError::NotConnected)?;
+        let client = instance
+            .client
+            .as_ref()
+            .ok_or_else(|| McpError::NotConnected)?;
         client
             .complete(ref_type, ref_name, argument_name, argument_value)
             .await
@@ -1033,7 +1038,11 @@ impl McpManager {
 
     /// Subscribe to resource updates for a server
     pub async fn subscribe_resource(&self, server_id: &str, uri: &str) -> McpResult<()> {
-        log::info!("Subscribing to resource '{}' on server '{}'", uri, server_id);
+        log::info!(
+            "Subscribing to resource '{}' on server '{}'",
+            uri,
+            server_id
+        );
         let servers = self.servers.read().await;
         let instance = servers.get(server_id).ok_or_else(|| {
             log::warn!("Subscribe failed: server '{}' not found", server_id);
@@ -1046,13 +1055,21 @@ impl McpManager {
         })?;
 
         client.subscribe_resource(uri).await?;
-        log::debug!("Successfully subscribed to resource '{}' on server '{}'", uri, server_id);
+        log::debug!(
+            "Successfully subscribed to resource '{}' on server '{}'",
+            uri,
+            server_id
+        );
         Ok(())
     }
 
     /// Unsubscribe from resource updates for a server
     pub async fn unsubscribe_resource(&self, server_id: &str, uri: &str) -> McpResult<()> {
-        log::info!("Unsubscribing from resource '{}' on server '{}'", uri, server_id);
+        log::info!(
+            "Unsubscribing from resource '{}' on server '{}'",
+            uri,
+            server_id
+        );
         let servers = self.servers.read().await;
         let instance = servers.get(server_id).ok_or_else(|| {
             log::warn!("Unsubscribe failed: server '{}' not found", server_id);
@@ -1065,7 +1082,11 @@ impl McpManager {
         })?;
 
         client.unsubscribe_resource(uri).await?;
-        log::debug!("Successfully unsubscribed from resource '{}' on server '{}'", uri, server_id);
+        log::debug!(
+            "Successfully unsubscribed from resource '{}' on server '{}'",
+            uri,
+            server_id
+        );
         Ok(())
     }
 
@@ -1313,7 +1334,10 @@ impl McpManager {
                 if let Some(params) = notification.params {
                     match serde_json::from_value::<SamplingProgressParams>(params) {
                         Ok(progress) => {
-                            log::debug!("Received sampling progress: progress={}", progress.progress);
+                            log::debug!(
+                                "Received sampling progress: progress={}",
+                                progress.progress
+                            );
                             // Emit sampling progress to frontend
                             let _ = app_handle.emit(
                                 events::NOTIFICATION,
@@ -1450,15 +1474,16 @@ impl McpManager {
                 None
             };
 
-            let client = match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!("Reconnection failed for {}: {}", server_id, e);
-                    Self::handle_connection_error(&servers, &server_id, &e).await;
-                    Self::emit_server_state(&app_handle, &servers, &server_id).await;
-                    return;
-                }
-            };
+            let client =
+                match Self::create_client(&config, notification_tx, proxy_url.as_deref()).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        log::error!("Reconnection failed for {}: {}", server_id, e);
+                        Self::handle_connection_error(&servers, &server_id, &e).await;
+                        Self::emit_server_state(&app_handle, &servers, &server_id).await;
+                        return;
+                    }
+                };
 
             client.start_receive_loop().await;
 
@@ -1616,7 +1641,10 @@ impl McpManager {
 
     /// Get the configuration file path
     pub fn get_config_path(&self) -> String {
-        self.config_manager.config_path().to_string_lossy().to_string()
+        self.config_manager
+            .config_path()
+            .to_string_lossy()
+            .to_string()
     }
 
     /// Get a copy of the full MCP configuration

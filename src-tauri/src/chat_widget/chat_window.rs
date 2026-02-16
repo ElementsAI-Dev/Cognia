@@ -124,20 +124,20 @@ pub struct ChatWidgetWindow {
 impl ChatWidgetWindow {
     pub fn new(app_handle: AppHandle) -> Self {
         log::debug!("[ChatWidgetWindow] Creating new instance");
-        
+
         // Get config path from app data directory
         let config_path = app_handle
             .path()
             .app_data_dir()
             .map(|p| p.join("chat_widget_config.json"))
             .unwrap_or_else(|_| PathBuf::from("chat_widget_config.json"));
-        
+
         // Try to load existing config
         let config = Self::load_config_from_file(&config_path).unwrap_or_default();
         let position = config.x.zip(config.y);
         let size_logical = (config.width, config.height);
         let size_physical = (config.width as u32, config.height as u32);
-        
+
         Self {
             app_handle,
             is_visible: Arc::new(AtomicBool::new(false)),
@@ -150,7 +150,7 @@ impl ChatWidgetWindow {
             config_path,
         }
     }
-    
+
     /// Load config from file
     fn load_config_from_file(path: &PathBuf) -> Option<ChatWidgetConfig> {
         if path.exists() {
@@ -167,21 +167,21 @@ impl ChatWidgetWindow {
         }
         None
     }
-    
+
     /// Save config to file
     pub fn save_config(&self) -> Result<(), String> {
         let config = self.config.read().clone();
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.config_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        
+
         std::fs::write(&self.config_path, content)
             .map_err(|e| format!("Failed to write config file: {}", e))?;
-        
+
         log::debug!("[ChatWidgetWindow] Config saved to {:?}", self.config_path);
         Ok(())
     }
@@ -201,7 +201,7 @@ impl ChatWidgetWindow {
     pub fn ensure_window_exists(&self) -> Result<(), String> {
         // Acquire lock to prevent concurrent window creation
         let _guard = self.creation_lock.lock();
-        
+
         // Double-check after acquiring lock
         if self
             .app_handle
@@ -361,12 +361,20 @@ impl ChatWidgetWindow {
         let config = self.config.read().clone();
         if config.x.is_none() || config.y.is_none() {
             // Get position relative to bubble
-            if let Some(bubble) = self.app_handle.try_state::<crate::assistant_bubble::AssistantBubbleWindow>() {
+            if let Some(bubble) = self
+                .app_handle
+                .try_state::<crate::assistant_bubble::AssistantBubbleWindow>()
+            {
                 let (width, height) = *self.size_physical.read();
                 let (x, y) = bubble.calculate_chat_widget_position(width as i32, height as i32);
-                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                let _ = window
+                    .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
                 *self.position.write() = Some((x, y));
-                log::debug!("[ChatWidgetWindow] Positioned relative to bubble at ({}, {})", x, y);
+                log::debug!(
+                    "[ChatWidgetWindow] Positioned relative to bubble at ({}, {})",
+                    x,
+                    y
+                );
             }
         }
 
@@ -629,44 +637,44 @@ impl ChatWidgetWindow {
         log::info!("[ChatWidgetWindow] Window destroyed");
         Ok(())
     }
-    
+
     /// Minimize (fold) the chat widget window
     pub fn minimize(&self) -> Result<(), String> {
         log::debug!("[ChatWidgetWindow] minimize() called");
-        
+
         if let Some(window) = self.app_handle.get_webview_window(CHAT_WIDGET_WINDOW_LABEL) {
             window
                 .minimize()
                 .map_err(|e| format!("Failed to minimize window: {}", e))?;
             self.is_minimized.store(true, Ordering::SeqCst);
-            
+
             let _ = self.app_handle.emit("chat-widget-minimized", true);
             log::info!("[ChatWidgetWindow] Window minimized");
         }
         Ok(())
     }
-    
+
     /// Unminimize (unfold) the chat widget window
     pub fn unminimize(&self) -> Result<(), String> {
         log::debug!("[ChatWidgetWindow] unminimize() called");
-        
+
         if let Some(window) = self.app_handle.get_webview_window(CHAT_WIDGET_WINDOW_LABEL) {
             window
                 .unminimize()
                 .map_err(|e| format!("Failed to unminimize window: {}", e))?;
             self.is_minimized.store(false, Ordering::SeqCst);
-            
+
             let _ = self.app_handle.emit("chat-widget-minimized", false);
             log::info!("[ChatWidgetWindow] Window unminimized");
         }
         Ok(())
     }
-    
+
     /// Check if window is minimized
     pub fn is_minimized(&self) -> bool {
         self.is_minimized.load(Ordering::SeqCst)
     }
-    
+
     /// Toggle minimized state
     pub fn toggle_minimize(&self) -> Result<bool, String> {
         if self.is_minimized() {
@@ -677,7 +685,7 @@ impl ChatWidgetWindow {
             Ok(true)
         }
     }
-    
+
     /// Recreate the window if it was destroyed unexpectedly
     pub fn recreate_if_needed(&self) -> Result<bool, String> {
         if self
@@ -726,7 +734,7 @@ impl ChatWidgetWindow {
 
         Ok(())
     }
-    
+
     /// Sync visibility state with actual window state
     /// Call this if you suspect the state might be out of sync
     pub fn sync_visibility(&self) {
@@ -735,9 +743,9 @@ impl ChatWidgetWindow {
             .get_webview_window(CHAT_WIDGET_WINDOW_LABEL)
             .map(|w| w.is_visible().unwrap_or(false))
             .unwrap_or(false);
-        
+
         let stored_visible = self.is_visible.load(Ordering::SeqCst);
-        
+
         if actual_visible != stored_visible {
             log::warn!(
                 "[ChatWidgetWindow] Visibility state mismatch: stored={}, actual={}. Syncing.",

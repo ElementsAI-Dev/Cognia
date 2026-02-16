@@ -312,16 +312,16 @@ describe('exportToPlainText', () => {
 });
 
 describe('generateFilename', () => {
-  it('converts title to lowercase', () => {
+  it('preserves title case', () => {
     const result = generateFilename('My Title', 'md');
     
-    expect(result).toMatch(/^my-title/);
+    expect(result).toMatch(/^My-Title/);
   });
 
   it('replaces spaces with hyphens', () => {
     const result = generateFilename('My Test Title', 'md');
     
-    expect(result).toContain('my-test-title');
+    expect(result).toContain('My-Test-Title');
   });
 
   it('removes special characters', () => {
@@ -355,7 +355,7 @@ describe('generateFilename', () => {
     const result = generateFilename('---Test---', 'md');
     
     expect(result).not.toMatch(/^-/);
-    expect(result).toMatch(/^test/);
+    expect(result).toMatch(/^Test/);
   });
 
   it('handles empty title', () => {

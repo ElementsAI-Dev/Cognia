@@ -22,7 +22,15 @@
       "Bash(fi)",
       "Bash(for dir in settings workflow plugin video-studio)",
       "Bash(do echo \"\")",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(for:*)",
+      "Bash(do:*)",
+      "Bash(if git show-ref --verify --quiet refs/heads/$branch)",
+      "Bash(then)",
+      "Bash(git worktree remove:*)",
+      "mcp__ace-tool__search_context",
+      "Bash(C:UsersMax Qian/.claude/bin/codeagent-wrapper:*)",
+      "Bash(\"C:/Users/Max Qian/.claude/bin/codeagent-wrapper\":*)"
     ]
   }
 }

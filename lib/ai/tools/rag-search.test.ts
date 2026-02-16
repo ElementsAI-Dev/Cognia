@@ -13,12 +13,13 @@ import type { RAGSearchConfig } from './rag-search';
 
 // Mock RAG module
 jest.mock('@/lib/ai/rag', () => ({
-  retrieveContext: jest.fn(),
+  createRAGPipeline: jest.fn(),
 }));
 
-import { retrieveContext } from '@/lib/ai/rag';
+import { createRAGPipeline } from '@/lib/ai/rag';
 
-const mockRetrieveContext = retrieveContext as jest.Mock;
+const mockCreateRAGPipeline = createRAGPipeline as jest.Mock;
+const mockRetrieve = jest.fn();
 
 describe('executeRAGSearch', () => {
   const mockConfig: RAGSearchConfig = {
@@ -29,22 +30,26 @@ describe('executeRAGSearch', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCreateRAGPipeline.mockReturnValue({
+      retrieve: mockRetrieve,
+    });
   });
 
   it('searches knowledge base successfully', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [
         {
-          id: 'doc-1',
           content: 'Relevant content from knowledge base',
-          similarity: 0.9,
-          distance: 0.1,
+          rerankScore: 0.9,
           metadata: { source: 'test.txt' },
         },
       ],
-      query: 'test query',
       formattedContext: 'Relevant content from knowledge base',
-      totalTokensEstimate: 10,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -63,11 +68,14 @@ describe('executeRAGSearch', () => {
   });
 
   it('returns empty results when no matches found', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [],
-      query: 'no results query',
       formattedContext: '',
-      totalTokensEstimate: 0,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -86,11 +94,14 @@ describe('executeRAGSearch', () => {
   });
 
   it('passes topK parameter', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [],
-      query: 'test',
       formattedContext: '',
-      totalTokensEstimate: 0,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -102,19 +113,20 @@ describe('executeRAGSearch', () => {
 
     await executeRAGSearch(input, mockConfig);
 
-    expect(mockRetrieveContext).toHaveBeenCalledWith(
-      'test-collection',
-      'test query',
+    expect(mockCreateRAGPipeline).toHaveBeenCalledWith(
       expect.objectContaining({ topK: 10 })
     );
   });
 
   it('passes threshold parameter', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [],
-      query: 'test',
       formattedContext: '',
-      totalTokensEstimate: 0,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -126,22 +138,23 @@ describe('executeRAGSearch', () => {
 
     await executeRAGSearch(input, mockConfig);
 
-    expect(mockRetrieveContext).toHaveBeenCalledWith(
-      'test-collection',
-      'test query',
+    expect(mockCreateRAGPipeline).toHaveBeenCalledWith(
       expect.objectContaining({ similarityThreshold: 0.7 })
     );
   });
 
   it('includes formatted context in result', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [
-        { id: '1', content: 'Content 1', similarity: 0.9, distance: 0.1, metadata: {} },
-        { id: '2', content: 'Content 2', similarity: 0.8, distance: 0.2, metadata: {} },
+        { content: 'Content 1', rerankScore: 0.9, metadata: {} },
+        { content: 'Content 2', rerankScore: 0.8, metadata: {} },
       ],
-      query: 'test',
       formattedContext: '[Source 1]\nContent 1\n\n[Source 2]\nContent 2',
-      totalTokensEstimate: 20,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -158,19 +171,20 @@ describe('executeRAGSearch', () => {
   });
 
   it('includes metadata in results', async () => {
-    mockRetrieveContext.mockResolvedValue({
+    mockRetrieve.mockResolvedValue({
       documents: [
         {
-          id: 'doc-1',
           content: 'Content',
-          similarity: 0.9,
-          distance: 0.1,
+          rerankScore: 0.9,
           metadata: { source: 'file.txt', title: 'Test Document' },
         },
       ],
-      query: 'test',
       formattedContext: 'Content',
-      totalTokensEstimate: 5,
+      searchMetadata: {
+        hybridSearchUsed: false,
+        queryExpansionUsed: false,
+        rerankingUsed: false,
+      },
     });
 
     const input: RAGSearchInput = {
@@ -189,7 +203,7 @@ describe('executeRAGSearch', () => {
   });
 
   it('handles search errors', async () => {
-    mockRetrieveContext.mockRejectedValue(new Error('Search failed'));
+    mockRetrieve.mockRejectedValue(new Error('Search failed'));
 
     const input: RAGSearchInput = {
       query: 'test query',
@@ -205,7 +219,7 @@ describe('executeRAGSearch', () => {
   });
 
   it('handles non-Error exceptions', async () => {
-    mockRetrieveContext.mockRejectedValue('Unknown error');
+    mockRetrieve.mockRejectedValue('Unknown error');
 
     const input: RAGSearchInput = {
       query: 'test query',

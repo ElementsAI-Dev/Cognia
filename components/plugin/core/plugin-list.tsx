@@ -123,9 +123,7 @@ export function PluginList({
                 selectedPlugins.has(plugin.manifest.id) &&
                 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-xl'
             )}
-            style={{
-              animationDelay: `${index * 30}ms`,
-            }}
+            style={{ animationDelay: `calc(${index} * 30ms)` }}
           >
             {/* Selection checkbox overlay - Enhanced positioning */}
             {enableSelection && (

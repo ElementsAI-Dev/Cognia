@@ -8,7 +8,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { ProgressBar as InkProgressBar } from '@inkjs/ui';
-import { colors } from './theme.js';
+import { colors } from './theme';
 
 export interface ProgressBarProps {
   /** Progress value from 0 to 100 */

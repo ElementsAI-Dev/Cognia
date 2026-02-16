@@ -55,30 +55,9 @@ import {
   Pencil,
   Clock,
 } from 'lucide-react';
+import type { HistoryOperationType, HistoryEntry } from '@/types/media/image-studio';
 
-export type HistoryOperationType =
-  | 'generate'
-  | 'edit'
-  | 'variation'
-  | 'crop'
-  | 'rotate'
-  | 'flip'
-  | 'adjust'
-  | 'mask'
-  | 'upscale'
-  | 'remove-bg'
-  | 'text'
-  | 'draw'
-  | 'filter';
-
-export interface HistoryEntry {
-  id: string;
-  type: HistoryOperationType;
-  description: string;
-  timestamp: number;
-  thumbnail?: string;
-  metadata?: Record<string, unknown>;
-}
+export type { HistoryEntry };
 
 export interface HistoryPanelProps {
   entries: HistoryEntry[];

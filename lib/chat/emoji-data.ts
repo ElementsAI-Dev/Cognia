@@ -151,7 +151,7 @@ export const EMOJI_DATA: EmojiData[] = [
   { emoji: '🌙', name: 'moon', keywords: ['night', 'sleep'], category: 'travel' },
   { emoji: '⛈️', name: 'thunder_cloud', keywords: ['weather', 'storm'], category: 'travel' },
   { emoji: '❄️', name: 'snowflake', keywords: ['cold', 'winter'], category: 'travel' },
-  { emoji: '🌊', name: 'wave', keywords: ['ocean', 'sea', 'water'], category: 'travel' },
+  { emoji: '🌊', name: 'ocean_wave', keywords: ['ocean', 'sea', 'water'], category: 'travel' },
   { emoji: '⛰️', name: 'mountain', keywords: ['nature', 'hike'], category: 'travel' },
   { emoji: '🏕️', name: 'camping', keywords: ['tent', 'outdoor'], category: 'travel' },
 

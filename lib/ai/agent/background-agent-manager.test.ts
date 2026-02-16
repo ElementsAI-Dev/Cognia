@@ -25,7 +25,7 @@ jest.mock('./agent-orchestrator', () => ({
   })),
 }));
 
-jest.mock('./mcp-tools', () => ({
+jest.mock('../tools/mcp-tools', () => ({
   createMcpToolsFromStore: jest.fn(() => ({})),
 }));
 
@@ -790,10 +790,12 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
       });
       agent.status = 'running';
 
-      const result = await manager.shutdown({
+      const shutdownPromise = manager.shutdown({
         timeoutMs: 50,
         forceCancel: true,
       });
+      jest.advanceTimersByTime(60);
+      const result = await shutdownPromise;
 
       expect(result.cancelledAgents).toContain(agent.id);
     });
@@ -806,10 +808,12 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
       });
       agent.status = 'running';
 
-      const result = await manager.shutdown({
+      const shutdownPromise = manager.shutdown({
         timeoutMs: 50,
         saveCheckpoints: true,
       });
+      jest.advanceTimersByTime(60);
+      const result = await shutdownPromise;
 
       expect(result.savedCheckpoints).toContain(agent.id);
     });
@@ -822,11 +826,13 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
       });
       agent.status = 'running';
 
-      const result = await manager.shutdown({
+      const shutdownPromise = manager.shutdown({
         timeoutMs: 50,
         saveCheckpoints: false,
         forceCancel: true,
       });
+      jest.advanceTimersByTime(60);
+      const result = await shutdownPromise;
 
       expect(result.savedCheckpoints).toHaveLength(0);
     });

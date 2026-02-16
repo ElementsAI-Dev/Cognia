@@ -12,6 +12,12 @@ import type {
   ChildProcess,
 } from './shell';
 
+const createWritableStreamMock = (): WritableStream<string> =>
+  ({ getWriter: jest.fn() } as unknown as WritableStream<string>);
+
+const createReadableStreamMock = (): ReadableStream<string> =>
+  ({ getReader: jest.fn() } as unknown as ReadableStream<string>);
+
 describe('Shell API Types', () => {
   describe('ShellOptions', () => {
     it('should create valid shell options', () => {
@@ -116,9 +122,9 @@ describe('Shell API Types', () => {
 
       const process: ChildProcess = {
         pid: 12345,
-        stdin: new WritableStream<string>(),
-        stdout: new ReadableStream<string>(),
-        stderr: new ReadableStream<string>(),
+        stdin: createWritableStreamMock(),
+        stdout: createReadableStreamMock(),
+        stderr: createReadableStreamMock(),
         kill: killFn,
         onExit: onExitFn,
       };
@@ -136,9 +142,9 @@ describe('Shell API Types', () => {
 
       const process: ChildProcess = {
         pid: 1000,
-        stdin: new WritableStream<string>(),
-        stdout: new ReadableStream<string>(),
-        stderr: new ReadableStream<string>(),
+        stdin: createWritableStreamMock(),
+        stdout: createReadableStreamMock(),
+        stderr: createReadableStreamMock(),
         kill: killFn,
         onExit: jest.fn(),
       };
@@ -159,9 +165,9 @@ describe('Shell API Types', () => {
 
       const process: ChildProcess = {
         pid: 1000,
-        stdin: new WritableStream<string>(),
-        stdout: new ReadableStream<string>(),
-        stderr: new ReadableStream<string>(),
+        stdin: createWritableStreamMock(),
+        stdout: createReadableStreamMock(),
+        stderr: createReadableStreamMock(),
         kill: jest.fn(),
         onExit: onExitFn,
       };
@@ -211,9 +217,9 @@ describe('Shell API Types', () => {
     it('should call spawn correctly', () => {
       const mockProcess: ChildProcess = {
         pid: 12345,
-        stdin: new WritableStream<string>(),
-        stdout: new ReadableStream<string>(),
-        stderr: new ReadableStream<string>(),
+        stdin: createWritableStreamMock(),
+        stdout: createReadableStreamMock(),
+        stderr: createReadableStreamMock(),
         kill: jest.fn(),
         onExit: jest.fn(),
       };

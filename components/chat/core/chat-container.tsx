@@ -31,36 +31,17 @@
  */
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+
 import { useTranslations } from 'next-intl';
-import {
-  Copy,
-  Check,
-  Pencil,
-  RotateCcw,
-  Languages,
-  Bookmark,
-  BookmarkCheck,
-  Volume2,
-  VolumeX,
-  Share2,
-  Loader2,
-  BookOpen,
-} from 'lucide-react';
+
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation';
-import {
-  Message as MessageUI,
-  MessageContent,
-  MessageResponse,
-  MessageActions,
-  MessageAction,
-} from '@/components/ai-elements/message';
-import { Loader } from '@/components/ai-elements/loader';
+
 import { ErrorMessage } from '../message';
+import { VirtualizedChatMessageList } from './virtualized-message-list';
 import { ChatHeader } from './chat-header';
 import { PluginExtensionPoint } from '@/components/plugin/extension';
 import { ChatInput, type Attachment } from '../chat-input';
@@ -68,47 +49,36 @@ import { QuickReplyBar } from '../ui/quick-reply-bar';
 import { WorkflowIndicator, type WorkflowStatus } from '../ui/workflow-indicator';
 import { useKeyboardShortcuts } from '../ui/keyboard-shortcuts-handler';
 import {
-  ContextSettingsDialog,
-  ContextDebugDialog,
-  AISettingsDialog,
   type AISettings,
-  ModelPickerDialog,
-  PresetManagerDialog,
-  ModeSwitchConfirmDialog,
 } from '../dialogs';
-import { PromptOptimizerDialog, PromptOptimizationHub } from '@/components/prompt';
-import { WorkflowPickerDialog } from '../workflow/workflow-picker-dialog';
-import { ArenaDialog, ArenaBattleView, ArenaChatView } from '@/components/arena';
+import { ChatDialogs } from '../dialogs/chat-dialogs';
+
+
+import { ArenaChatView } from '@/components/arena';
 import { MultiColumnChat } from './multi-column-chat';
 import {
-  WorkflowResultCard,
   type WorkflowResultData,
   type WorkflowExecutionStatus,
 } from '../workflow/workflow-result-card';
-import { MessageSwipeActions, type SwipeAction } from '../ui/message-swipe-actions';
 import { WelcomeState } from '../welcome/welcome-state';
 import { CarriedContextBanner } from '../ui/carried-context-banner';
 import { ChatGoalBanner } from '../goal';
-import { BranchButton } from '../selectors';
-import { TextSelectionPopover } from '../popovers';
 import { QuotedContent } from '../message';
-import { TextPart, ReasoningPart, ToolPart, SourcesPart, A2UIPart } from '../message-parts';
-import { A2UIMessageRenderer, hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
-import { MessageReactions } from '../message';
-import { MessageArtifacts, MessageAnalysisResults } from '@/components/artifacts';
-import type { EmojiReaction } from '@/types/core/message';
-import type { MessagePart } from '@/types/core/message';
+import { hasA2UIContent, useA2UIMessageIntegration } from '@/components/a2ui';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import {
-  ToolTimeline,
-  ToolApprovalDialog,
-  WorkflowSelector,
+  runPluginPreChatHook,
+  buildMessageContent,
+  buildEnhancedSystemPrompt,
+  processPostResponse,
+} from '@/lib/ai/chat/send-pipeline';
+import {
   type ToolExecution,
   type ToolApprovalRequest,
 } from '@/components/agent';
-import { PPTPreview } from '@/components/ppt';
+
 import { SkillSuggestions } from '@/components/skills';
-import { LearningModePanel, LearningStartDialog } from '@/components/learning';
+
 import { useSkillStore } from '@/stores/skills';
 import { buildProgressiveSkillsPrompt, findMatchingSkills, selectSkillsForContext } from '@/lib/skills/executor';
 import { useWorkflowStore } from '@/stores/workflow';
@@ -128,8 +98,7 @@ import {
 } from '@/lib/ai/generation/suggestion-generator';
 import { translateText } from '@/lib/ai/generation/translate';
 import type { SearchResponse, SearchResult } from '@/types/search';
-import { SourceVerificationDialog } from '@/components/search/source-verification-dialog';
-import { SearchSourcesIndicator } from '@/components/search/search-sources-indicator';
+
 import { useSourceVerification } from '@/hooks/search/use-source-verification';
 import {
   useSessionStore,
@@ -142,36 +111,20 @@ import {
   useLearningStore,
   useArtifactStore,
 } from '@/stores';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown, useTTS } from '@/hooks';
+
+
+
+
+import { useMessages, useAgent, useProjectContext, calculateTokenBreakdown } from '@/hooks';
 import { useIntentDetection } from '@/hooks/chat/use-intent-detection';
 import { useFeatureRouting } from '@/hooks/chat/use-feature-routing';
-import { ModeSwitchSuggestion } from '../ui/mode-switch-suggestion';
-import { FeatureNavigationDialog } from '../ui/feature-navigation-dialog';
+
+
 import type { ParsedToolCall, ToolCallResult } from '@/types/mcp';
 import { getModelMaxTokens } from '@/lib/ai/model-limits';
 import { compressMessages } from '@/lib/ai/embedding/compression';
 import { loggers } from '@/lib/logger';
-import { countTokens } from '@/hooks/chat/use-token-count';
-import { formatTokens } from '@/lib/observability/format-utils';
+
 import {
   useAIChat,
   useAutoRouter,
@@ -183,7 +136,7 @@ import {
   isVideoModel,
 } from '@/lib/ai';
 import { RoutingIndicator } from '../ui/routing-indicator';
-import { ProviderIcon } from '@/components/providers/ai/provider-icon';
+
 import type { ModelSelection } from '@/types/provider/auto-router';
 import { messageRepository } from '@/lib/db';
 import { PROVIDERS } from '@/types/provider';
@@ -192,8 +145,8 @@ import { getPluginEventHooks, getPluginLifecycleHooks } from '@/lib/plugin';
 import { toast } from 'sonner';
 import { useSummary } from '@/hooks/chat';
 import { FlowChatCanvas } from '../flow';
+import { ErrorBoundaryProvider } from '@/components/providers/core/error-boundary-provider';
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
-import { useStickToBottomContext } from 'use-stick-to-bottom';
 
 const log = loggers.chat;
 
@@ -236,8 +189,8 @@ interface ChatContainerProps {
  * ```
  */
 export function ChatContainer({ sessionId }: ChatContainerProps) {
-  const t = useTranslations('chat');
-  const tCommon = useTranslations('common');
+  const _t = useTranslations('chat');
+  const _tCommon = useTranslations('common');
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const getSession = useSessionStore((state) => state.getSession);
   const _getActiveSession = useSessionStore((state) => state.getActiveSession);
@@ -648,13 +601,16 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
    * Includes web search, calculator, RAG, web scraper, document, academic, image, PPT,
    * and learning tools — each gated on the presence of its required API key.
    */
-  const { searchProviders: agentSearchProviders, defaultSearchProvider: agentDefaultSearchProvider } = useSettingsStore();
+  const {
+    searchProviders: agentSearchProviders = {},
+    defaultSearchProvider: agentDefaultSearchProvider,
+  } = useSettingsStore();
   const allAgentTools = useMemo(() => {
     const tavilyApiKey = providerSettings.tavily?.apiKey;
     const openaiApiKey = providerSettings.openai?.apiKey;
-    const hasEnabledSearchProvider = Object.values(agentSearchProviders).some(
-      (p) => p.enabled && p.apiKey
-    );
+    const hasEnabledSearchProvider = Object.values(
+      (agentSearchProviders || {}) as Record<string, { enabled?: boolean; apiKey?: string }>
+    ).some((p) => p.enabled && p.apiKey);
     return initializeAgentTools({
       tavilyApiKey,
       openaiApiKey,
@@ -1423,45 +1379,22 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
     async (content: string, attachments?: Attachment[], toolCalls?: ParsedToolCall[]) => {
       if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
-      // ========== Pre-Chat Hook: UserPromptSubmit ==========
-      // Allow plugins to modify, block, or enhance the user's prompt
-      const pluginEventHooks = getPluginEventHooks();
-      const promptResult = await pluginEventHooks.dispatchUserPromptSubmit(
+      // ========== 1. Pre-Chat Hook: UserPromptSubmit ==========
+      const preChatResult = await runPluginPreChatHook(
         content,
         activeSessionId || '',
-        {
-          attachments: attachments?.map((a) => ({
-            id: a.id,
-            name: a.name,
-            type: a.type as 'image' | 'audio' | 'video' | 'file' | 'document',
-            url: a.url,
-            size: a.size,
-            mimeType: a.mimeType,
-          })),
-          mode: currentMode,
-          previousMessages: messages.map((m) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant' | 'system',
-            content: m.content,
-          })),
-        }
+        attachments,
+        currentMode,
+        messages
       );
 
-      // Handle hook result: block, modify, or proceed
-      if (promptResult.action === 'block') {
-        toast.error(promptResult.blockReason || 'Message blocked by plugin');
+      if (preChatResult.blocked) {
+        toast.error(preChatResult.blockReason || 'Message blocked by plugin');
         return;
       }
 
-      // Use modified content if hook returned modifications
-      const effectiveContent =
-        promptResult.action === 'modify' && promptResult.modifiedPrompt
-          ? promptResult.modifiedPrompt
-          : content;
-
-      // Store additional context from hook (will be added to system prompt later)
-      const hookAdditionalContext = promptResult.additionalContext;
-      // ========== End Pre-Chat Hook ==========
+      const effectiveContent = preChatResult.effectiveContent;
+      const hookAdditionalContext = preChatResult.hookAdditionalContext;
 
       // Check for feature routing intent (navigate to feature pages)
       const featureResult = await checkFeatureIntent(effectiveContent);
@@ -1510,20 +1443,10 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         currentSessionId = newSession.id;
       }
 
-      // Build message content with quotes and attachments
-      let messageContent = effectiveContent;
-
-      // Prepend quoted content if any
+      // ========== 2. Build message content with quotes and attachments ==========
       const formattedQuotes = getFormattedQuotes();
-      if (formattedQuotes) {
-        messageContent = `${formattedQuotes}\n\n${effectiveContent}`;
-        clearQuotes(); // Clear quotes after including them
-      }
-
-      if (attachments && attachments.length > 0) {
-        const attachmentInfo = attachments.map((a) => `[Attached: ${a.name}]`).join(' ');
-        messageContent = messageContent ? `${messageContent}\n\n${attachmentInfo}` : attachmentInfo;
-      }
+      const messageContent = buildMessageContent(effectiveContent, formattedQuotes, attachments);
+      if (formattedQuotes) clearQuotes();
 
       // Execute MCP tool calls if present
       let toolResultsContext = '';
@@ -1752,233 +1675,34 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
           }));
         }
 
-        // Build enhanced system prompt starting with project context if available
-        let enhancedSystemPrompt = '';
-
-        // Add carried context from mode switch if available
-        if (session?.carriedContext && messages.length === 0) {
-          const contextNote = `## Context from Previous Conversation\n\nThe user switched from ${session.carriedContext.fromMode} mode. Here's a summary of the previous conversation to provide context:\n\n${session.carriedContext.summary}\n\n---\n\nUse this context to provide continuity in your responses.`;
-          enhancedSystemPrompt = contextNote;
-        }
-
-        // Add history context from recent sessions if available (only on first message)
-        if (session?.historyContext?.contextText && messages.length === 0) {
-          enhancedSystemPrompt = enhancedSystemPrompt
-            ? `${session.historyContext.contextText}\n\n${enhancedSystemPrompt}`
-            : session.historyContext.contextText;
-        }
-
-        // Add project knowledge base context if available
-        if (session?.projectId && projectContext?.hasKnowledge) {
-          // Rebuild context with the current query for relevance filtering
-          const project = getProject(session.projectId);
-          if (project) {
-            const { buildProjectContext } = await import('@/lib/document/knowledge-rag');
-            const queryContext = buildProjectContext(project, content, {
-              maxContextLength: 6000,
-              useRelevanceFiltering: true,
-            });
-            enhancedSystemPrompt = queryContext.systemPrompt;
-            console.log(
-              `Using ${queryContext.filesUsed.length} knowledge files:`,
-              queryContext.filesUsed
-            );
-          }
-        } else if (session?.systemPrompt) {
-          enhancedSystemPrompt = session.systemPrompt;
-        }
-
-        // Track search sources for attaching to assistant message
-        let searchSources: import('@/types/core/message').Source[] | undefined;
-
-        // Perform web search if enabled (multi-provider with fallback)
-        if (webSearchEnabled) {
-          const { searchProviders, defaultSearchProvider, searchMaxResults } = useSettingsStore.getState();
-          const hasEnabledProvider = Object.values(searchProviders).some(
-            (p) => p.enabled && p.apiKey
-          );
-          // Fallback to legacy tavily key
-          const tavilyApiKey = providerSettings.tavily?.apiKey;
-
-          if (hasEnabledProvider || tavilyApiKey) {
-            try {
-              const { executeWebSearch } = await import('@/lib/ai/tools/web-search');
-              const { optimizeSearchQuery } = await import('@/lib/search/search-query-optimizer');
-              // Optimize search query: extract focused query from user message
-              const searchQuery = optimizeSearchQuery(effectiveContent);
-
-              const searchResult = await executeWebSearch(
-                {
-                  query: searchQuery,
-                  maxResults: searchMaxResults || 5,
-                  searchDepth: 'basic',
-                },
-                hasEnabledProvider
-                  ? { providerSettings: searchProviders, provider: defaultSearchProvider }
-                  : { apiKey: tavilyApiKey }
-              );
-
-              if (searchResult.success && searchResult.results && searchResult.results.length > 0) {
-                const searchResponse: SearchResponse = {
-                  provider: searchResult.provider || defaultSearchProvider || 'tavily',
-                  query: searchResult.query || searchQuery,
-                  answer: searchResult.answer,
-                  results: searchResult.results.map((r) => ({
-                    title: r.title,
-                    url: r.url,
-                    content: r.content,
-                    score: r.score,
-                    publishedDate: r.publishedDate,
-                  })),
-                  responseTime: searchResult.responseTime || 0,
-                };
-
-                // Store sources for attaching to assistant message
-                searchSources = searchResult.results.map((r, i) => ({
-                  id: `search-${i}`,
-                  title: r.title,
-                  url: r.url,
-                  snippet: r.content?.slice(0, 200) || '',
-                  relevance: r.score || 0,
-                }));
-
-                // Apply source verification if enabled
-                const verificationSettings = sourceVerification.settings;
-
-                if (verificationSettings.enabled && verificationSettings.mode === 'ask') {
-                  await sourceVerification.verifyResults(searchResponse);
-                  const searchContext = formatSearchResults(searchResponse);
-                  enhancedSystemPrompt = enhancedSystemPrompt
-                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                    : searchContext;
-                } else if (verificationSettings.enabled && verificationSettings.mode === 'auto') {
-                  const verified = await sourceVerification.verifyResults(searchResponse);
-                  const filteredResults = verified.results.filter((r) => r.isEnabled);
-                  if (filteredResults.length > 0) {
-                    const filteredResponse: SearchResponse = {
-                      ...searchResponse,
-                      results: filteredResults,
-                    };
-                    const searchContext = formatSearchResults(filteredResponse);
-                    enhancedSystemPrompt = enhancedSystemPrompt
-                      ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                      : searchContext;
-                  }
-                } else {
-                  const searchContext = formatSearchResults(searchResponse);
-                  enhancedSystemPrompt = enhancedSystemPrompt
-                    ? `${enhancedSystemPrompt}\n\n${searchContext}`
-                    : searchContext;
-                }
-              }
-            } catch (searchError) {
-              console.warn('Web search failed:', searchError);
-            }
-          }
-        }
-
-        // Add thinking mode instructions if enabled
-        if (thinkingEnabled) {
-          const thinkingPrompt = `You are in "Thinking Mode". Before providing your final answer, you must:
-
-1. **Think Step by Step**: Break down the problem into smaller parts
-2. **Consider Multiple Angles**: Look at the question from different perspectives
-3. **Evaluate Options**: If there are multiple approaches, briefly consider each
-4. **Reason Through**: Show your reasoning process clearly
-
-Format your response as:
-<thinking>
-[Your step-by-step reasoning process here]
-</thinking>
-
-<answer>
-[Your final, well-reasoned answer here]
-</answer>
-
-Be thorough in your thinking but concise in your final answer.`;
-
-          enhancedSystemPrompt = enhancedSystemPrompt
-            ? `${enhancedSystemPrompt}\n\n${thinkingPrompt}`
-            : thinkingPrompt;
-        }
-
-        // Add MCP tool results context if available
-        if (toolResultsContext) {
-          const toolContext = `## MCP Tool Results\n\nThe following tools were executed based on user request:\n\n${toolResultsContext}\n\n---\nUse the above tool results to inform your response.`;
-          enhancedSystemPrompt = enhancedSystemPrompt
-            ? `${enhancedSystemPrompt}\n\n${toolContext}`
-            : toolContext;
-        }
-
-        // Auto-match skills based on message content and activate them
-        const enabledSkills = Object.values(skillStoreSkills).filter(
-          (s) => s.status === 'enabled'
+        // ========== 3. Build enhanced system prompt ==========
+        const { systemPrompt: enhancedSystemPrompt, searchSources } = await buildEnhancedSystemPrompt(
+          {
+            session: session as Parameters<typeof buildEnhancedSystemPrompt>[0]['session'],
+            messages,
+            content,
+            effectiveContent,
+            currentSessionId: currentSessionId!,
+            currentMode,
+            webSearchEnabled,
+            thinkingEnabled,
+            toolResultsContext,
+            hookAdditionalContext,
+            providerSettings,
+            getProject,
+            projectContextHasKnowledge: !!projectContext?.hasKnowledge,
+            sourceVerification,
+            skillStoreSkills,
+            getActiveSkills,
+            activateSkill,
+            getLearningSessionByChat,
+            updateSession,
+          },
+          formatSearchResults
         );
-        if (enabledSkills.length > 0 && effectiveContent.length >= 5) {
-          const matchedSkills = findMatchingSkills(enabledSkills, effectiveContent, 3);
-          for (const matched of matchedSkills) {
-            if (!matched.isActive) {
-              activateSkill(matched.id);
-              console.log(`Auto-activated skill: ${matched.metadata.name}`);
-            }
-          }
-        }
 
-        // Add active skills to context using Progressive Disclosure
+        // Get active skills for post-response tracking
         const activeSkills = getActiveSkills();
-        if (activeSkills.length > 0) {
-          // Pre-filter skills to fit within token budget, prioritizing active skill order
-          const budgetFilteredSkills = selectSkillsForContext(
-            activeSkills,
-            4000,
-            activeSkills.map(s => s.id)
-          );
-          const {
-            prompt: skillsPrompt,
-            level,
-            tokenEstimate,
-          } = buildProgressiveSkillsPrompt(
-            budgetFilteredSkills,
-            4000 // Token budget for skills
-          );
-          if (skillsPrompt) {
-            console.log(
-              `Injecting ${budgetFilteredSkills.length}/${activeSkills.length} skills (level: ${level}, ~${tokenEstimate} tokens)`
-            );
-            enhancedSystemPrompt = enhancedSystemPrompt
-              ? `${enhancedSystemPrompt}\n\n${skillsPrompt}`
-              : skillsPrompt;
-          }
-
-          // Track active skill IDs on the session for per-session skill awareness
-          if (session) {
-            const skillIds = activeSkills.map((s) => s.id);
-            const currentSessionSkillIds = session.activeSkillIds || [];
-            const mergedIds = [...new Set([...currentSessionSkillIds, ...skillIds])];
-            if (mergedIds.length !== currentSessionSkillIds.length) {
-              updateSession(session.id, { activeSkillIds: mergedIds });
-            }
-          }
-        }
-
-        // Add learning mode system prompt if in learning mode
-        if (currentMode === 'learning') {
-          const { buildLearningSystemPrompt } = await import('@/lib/learning');
-          const learningSession = getLearningSessionByChat(currentSessionId!);
-          const learningPrompt = buildLearningSystemPrompt(learningSession);
-          if (learningPrompt) {
-            console.log('Injecting learning mode (Socratic Method) system prompt');
-            enhancedSystemPrompt =
-              learningPrompt + (enhancedSystemPrompt ? `\n\n${enhancedSystemPrompt}` : '');
-          }
-        }
-
-        // Add plugin hook additional context if provided
-        if (hookAdditionalContext) {
-          enhancedSystemPrompt = enhancedSystemPrompt
-            ? `${enhancedSystemPrompt}\n\n## Plugin Context\n${hookAdditionalContext}`
-            : `## Plugin Context\n${hookAdditionalContext}`;
-        }
 
         // Send to AI
         const response = await aiSendMessage(
@@ -2023,8 +1747,26 @@ Be thorough in your thinking but concise in your final answer.`;
         // Save the final assistant message to database
         let finalContent = response || assistantMessage.content;
         if (finalContent) {
-          // ========== Post-Chat Hook: PostChatReceive ==========
-          // Allow plugins to process AI responses before saving
+          // ========== 4. Post-response processing ==========
+          finalContent = await processPostResponse({
+            finalContent,
+            assistantMessage,
+            currentSessionId: currentSessionId!,
+            actualModel,
+            actualProvider,
+            effectiveContent,
+            searchSources,
+            activeSkills,
+            updateMessage,
+            loadSuggestions,
+            recordSkillUsage,
+            autoCreateFromContent,
+            addAnalysisResult,
+            processA2UIMessage,
+          });
+
+          // Add any additional plugin messages (requires addMessage from component scope)
+          const pluginEventHooks = getPluginEventHooks();
           const postReceiveResult = await pluginEventHooks.dispatchPostChatReceive({
             content: finalContent,
             messageId: assistantMessage.id,
@@ -2032,88 +1774,9 @@ Be thorough in your thinking but concise in your final answer.`;
             model: actualModel,
             provider: actualProvider,
           });
-
-          // Apply modified content if hook returned modifications
-          if (postReceiveResult.modifiedContent) {
-            finalContent = postReceiveResult.modifiedContent;
-            await updateMessage(assistantMessage.id, { content: finalContent });
-          }
-          // ========== End Post-Chat Hook ==========
-
-          await messageRepository.create(currentSessionId!, {
-            ...assistantMessage,
-            content: finalContent,
-            model: actualModel,
-            provider: actualProvider,
-            ...(searchSources && searchSources.length > 0 ? { sources: searchSources } : {}),
-          });
-
-          // ========== Message Receive Hook ==========
-          getPluginLifecycleHooks().dispatchOnMessageReceive({
-            id: assistantMessage.id,
-            role: 'assistant',
-            content: finalContent,
-          });
-
-          // Add any additional messages from plugins
           if (postReceiveResult.additionalMessages?.length) {
             for (const msg of postReceiveResult.additionalMessages) {
-              await addMessage({
-                role: msg.role,
-                content: msg.content,
-              });
-            }
-          }
-
-          // Generate suggestions after successful response
-          loadSuggestions(effectiveContent, finalContent);
-
-          // Track usage for active skills that were injected into this message
-          if (activeSkills.length > 0) {
-            const duration = Date.now() - (assistantMessage.createdAt?.getTime?.() || Date.now());
-            for (const skill of activeSkills) {
-              recordSkillUsage(skill.id, true, duration);
-            }
-          }
-
-          // Auto-detect and create artifacts from the response content
-          try {
-            autoCreateFromContent({
-              sessionId: currentSessionId!,
-              messageId: assistantMessage.id,
-              content: finalContent,
-            });
-          } catch (artifactError) {
-            console.warn('Failed to auto-create artifacts:', artifactError);
-          }
-
-          // Auto-detect analysis results (math expressions, chart data) from AI responses
-          try {
-            const mathBlocks = finalContent.match(/\$\$([\s\S]+?)\$\$/g);
-            if (mathBlocks && mathBlocks.length > 0) {
-              for (const block of mathBlocks) {
-                const content = block.replace(/^\$\$|\$\$$/g, '').trim();
-                if (content.split('\n').length >= 2) {
-                  addAnalysisResult({
-                    sessionId: currentSessionId!,
-                    messageId: assistantMessage.id,
-                    type: 'math',
-                    content,
-                    output: { latex: content },
-                  });
-                }
-              }
-            }
-          } catch (analysisError) {
-            console.warn('Failed to auto-detect analysis results:', analysisError);
-          }
-
-          // Process A2UI content if detected in the response
-          if (hasA2UIContent(finalContent)) {
-            try {
-              processA2UIMessage(finalContent, assistantMessage.id);
-            } catch (a2uiError) {
-              console.warn('Failed to process A2UI content:', a2uiError);
+              await addMessage({ role: msg.role, content: msg.content });
             }
           }
         }
@@ -2460,6 +2123,7 @@ Be thorough in your thinking but concise in your final answer.`;
       {/* Flow Canvas View */}
       {viewMode === 'flow' && activeSessionId && flowCanvasState ? (
         <div className="flex-1 min-h-0">
+          <ErrorBoundaryProvider maxRetries={2}>
           <FlowChatCanvas
             sessionId={activeSessionId}
             messages={messages}
@@ -2504,19 +2168,23 @@ Be thorough in your thinking but concise in your final answer.`;
               }
             }}
           />
+          </ErrorBoundaryProvider>
         </div>
       ) : viewMode === 'arena' ? (
         /* Arena View */
         <div className="flex-1 min-h-0">
+          <ErrorBoundaryProvider maxRetries={2}>
           <ArenaChatView
             sessionId={activeSessionId || undefined}
             systemPrompt={activePreset?.systemPrompt}
             initialPrompt={inputValue}
           />
+          </ErrorBoundaryProvider>
         </div>
       ) : session?.multiModelConfig?.enabled && session.multiModelConfig.models.length >= 2 ? (
         /* Multi-Model Arena Chat View */
         <div className="flex-1 min-h-0">
+          <ErrorBoundaryProvider maxRetries={2}>
           <MultiColumnChat
             sessionId={activeSessionId || ''}
             models={session.multiModelConfig.models}
@@ -2532,6 +2200,7 @@ Be thorough in your thinking but concise in your final answer.`;
             }}
             systemPrompt={session.systemPrompt || activePreset?.systemPrompt}
           />
+          </ErrorBoundaryProvider>
         </div>
       ) : (
         /* List View (default) */
@@ -2757,995 +2426,113 @@ Be thorough in your thinking but concise in your final answer.`;
       <PluginExtensionPoint point="chat.input.below" />
       <PluginExtensionPoint point="chat.footer" />
 
-      {/* Prompt Optimizer Dialog */}
-      <PromptOptimizerDialog
-        open={showPromptOptimizer}
-        onOpenChange={setShowPromptOptimizer}
-        initialPrompt={inputValue}
-        onApply={handleApplyOptimizedPrompt}
-      />
-
-      {/* Prompt Optimization Hub - Advanced prompt optimization with analytics and A/B testing */}
-      {activePreset && (
-        <PromptOptimizationHub
-          open={showPromptOptimizationHub}
-          onOpenChange={setShowPromptOptimizationHub}
-          template={{
-            id: activePreset.id,
-            name: activePreset.name,
-            content: activePreset.systemPrompt || '',
-            variables: [],
-            tags: [],
-            source: 'user' as const,
-            usageCount: 0,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }}
-          onTemplateUpdate={(content) => {
-            // Update preset with optimized content
-            if (activePreset) {
-              usePresetStore.getState().updatePreset(activePreset.id, { systemPrompt: content });
-            }
-          }}
-        />
-      )}
-
-      {/* Preset Manager Dialog */}
-      <PresetManagerDialog
-        open={showPresetManager}
-        onOpenChange={setShowPresetManager}
-        editPresetId={editingPresetId}
+      <ChatDialogs
+        // Prompt optimizer
+        showPromptOptimizer={showPromptOptimizer}
+        setShowPromptOptimizer={setShowPromptOptimizer}
+        showPromptOptimizationHub={showPromptOptimizationHub}
+        setShowPromptOptimizationHub={setShowPromptOptimizationHub}
+        inputValue={inputValue}
+        onApplyOptimizedPrompt={handleApplyOptimizedPrompt}
+        activePreset={activePreset}
+        // Preset manager
+        showPresetManager={showPresetManager}
+        setShowPresetManager={setShowPresetManager}
+        editingPresetId={editingPresetId}
         onPresetSelect={handleSelectPreset}
-      />
-
-      {/* Context Settings Dialog */}
-      <ContextSettingsDialog
-        open={showContextSettings}
-        onOpenChange={setShowContextSettings}
-        totalTokens={Math.round((contextLimitPercent / 100) * modelMaxTokens)}
-        usedTokens={estimatedTokens.totalTokens}
-        systemTokens={estimatedTokens.systemTokens}
-        contextTokens={estimatedTokens.contextTokens}
+        // Context settings
+        showContextSettings={showContextSettings}
+        setShowContextSettings={setShowContextSettings}
+        showContextDebug={showContextDebug}
+        setShowContextDebug={setShowContextDebug}
         contextLimitPercent={contextLimitPercent}
-        onContextLimitChange={setContextLimitPercent}
+        setContextLimitPercent={setContextLimitPercent}
         showMemoryActivation={showMemoryActivation}
-        onShowMemoryActivationChange={setShowMemoryActivation}
+        setShowMemoryActivation={setShowMemoryActivation}
         showTokenUsageMeter={showTokenUsageMeter}
-        onShowTokenUsageMeterChange={setShowTokenUsageMeter}
+        setShowTokenUsageMeter={setShowTokenUsageMeter}
         modelMaxTokens={modelMaxTokens}
+        estimatedTokens={estimatedTokens}
         messageCount={messages.length}
-        onClearContext={() => setShowClearContextConfirm(true)}
         onOptimizeContext={handleOptimizeContext}
-        onOpenDebug={() => setShowContextDebug(true)}
-      />
-
-      {/* Context Debug Dialog */}
-      <ContextDebugDialog
-        open={showContextDebug}
-        onOpenChange={setShowContextDebug}
-      />
-
-      {/* AI Settings Dialog */}
-      <AISettingsDialog
-        open={showAISettings}
-        onOpenChange={setShowAISettings}
-        settings={currentAISettings}
-        onSettingsChange={handleAISettingsChange}
-        defaultSettings={globalDefaultAISettings}
-      />
-
-      {/* Model Picker Dialog */}
-      <ModelPickerDialog
-        open={showModelPicker}
-        onOpenChange={setShowModelPicker}
+        setShowClearContextConfirm={setShowClearContextConfirm}
+        // AI settings
+        showAISettings={showAISettings}
+        setShowAISettings={setShowAISettings}
+        currentAISettings={currentAISettings}
+        onAISettingsChange={handleAISettingsChange}
+        globalDefaultAISettings={globalDefaultAISettings}
+        // Model picker
+        showModelPicker={showModelPicker}
+        setShowModelPicker={setShowModelPicker}
         currentProvider={currentProvider}
         currentModel={currentModel}
         isAutoMode={isAutoMode}
-        onModelSelect={(providerId, modelId) => {
-          if (session) {
-            updateSession(session.id, { provider: providerId as ProviderName, model: modelId });
-          }
-        }}
-        onAutoModeToggle={() => {
-          if (session) {
-            updateSession(session.id, { provider: isAutoMode ? 'openai' : 'auto' });
-          }
-        }}
+        sessionId={activeSessionId}
+        updateSession={updateSession}
+        // Tool approval & timeline
+        toolApprovalRequest={toolApprovalRequest}
+        showToolApproval={showToolApproval}
+        setShowToolApproval={setShowToolApproval}
+        onToolApproval={handleToolApproval}
+        onToolDeny={handleToolDeny}
+        currentMode={currentMode}
+        toolTimelineExecutions={toolTimelineExecutions}
+        // Mode switch suggestion
+        showSuggestion={showSuggestion}
+        detectionResult={detectionResult}
+        onAcceptSuggestion={acceptSuggestion}
+        onDismissSuggestion={dismissSuggestion}
+        onKeepCurrentMode={keepCurrentMode}
+        // Feature navigation
+        hasFeatureRoutingSuggestion={hasFeatureRoutingSuggestion}
+        pendingFeature={pendingFeature}
+        featureDetectionResult={featureDetectionResult}
+        featureRoutingMessage={featureRoutingMessage}
+        onConfirmFeatureNavigation={confirmFeatureNavigation}
+        onContinueFeatureInChat={continueFeatureInChat}
+        onDismissFeatureRouting={dismissFeatureRouting}
+        onSendMessage={handleSendMessage}
+        // Workflow
+        showWorkflowSelector={showWorkflowSelector}
+        setShowWorkflowSelector={setShowWorkflowSelector}
+        showWorkflowPicker={showWorkflowPicker}
+        setShowWorkflowPicker={setShowWorkflowPicker}
+        onWorkflowSelect={handleWorkflowSelect}
+        // PPT preview
+        activePresentation={activePresentation}
+        showPPTPreview={showPPTPreview}
+        setShowPPTPreview={setShowPPTPreview}
+        // Learning mode
+        showLearningPanel={showLearningPanel}
+        setShowLearningPanel={setShowLearningPanel}
+        learningPanelRef={learningPanelRef}
+        showLearningStartDialog={showLearningStartDialog}
+        setShowLearningStartDialog={setShowLearningStartDialog}
+        // Source verification
+        sourceVerification={sourceVerification}
+        // Clear context confirm
+        showClearContextConfirm={showClearContextConfirm}
+        onClearMessages={_clearMessages}
+        // Mode switch confirm
+        showModeSwitchDialog={showModeSwitchDialog}
+        setShowModeSwitchDialog={setShowModeSwitchDialog}
+        pendingTargetMode={pendingTargetMode}
+        sessionTitle={session?.title}
+        onModeSwitchConfirm={handleModeSwitchConfirm}
+        onModeSwitchCancel={handleModeSwitchCancel}
+        onGenerateSummaryForModeSwitch={handleGenerateSummaryForModeSwitch}
+        // Arena
+        showArenaDialog={showArenaDialog}
+        setShowArenaDialog={setShowArenaDialog}
+        activeSessionId={activeSessionId}
+        activePresetSystemPrompt={activePreset?.systemPrompt}
+        arenaBattleId={arenaBattleId}
+        showArenaBattle={showArenaBattle}
+        setShowArenaBattle={setShowArenaBattle}
+        setArenaBattleId={setArenaBattleId}
       />
-
-      {/* Agent Tool Approval Dialog */}
-      <ToolApprovalDialog
-        request={toolApprovalRequest}
-        open={showToolApproval}
-        onOpenChange={setShowToolApproval}
-        onApprove={handleToolApproval}
-        onDeny={handleToolDeny}
-      />
-
-      {/* Agent Tool Timeline - shown when agent is executing */}
-      {currentMode === 'agent' && toolTimelineExecutions.length > 0 && (
-        <div className="fixed bottom-24 right-4 z-50 w-80">
-          <ToolTimeline executions={toolTimelineExecutions} />
-        </div>
-      )}
-
-      {/* Mode Switch Suggestion - shown when learning/research intent detected */}
-      {showSuggestion && detectionResult && (
-        <div className="fixed bottom-24 left-4 z-50 w-96">
-          <ModeSwitchSuggestion
-            result={detectionResult}
-            currentMode={currentMode}
-            onAccept={acceptSuggestion}
-            onDismiss={dismissSuggestion}
-            onKeepCurrent={keepCurrentMode}
-          />
-        </div>
-      )}
-
-      {/* Feature Navigation Dialog - shown when feature intent is detected */}
-      <FeatureNavigationDialog
-        open={hasFeatureRoutingSuggestion}
-        feature={pendingFeature}
-        confidence={featureDetectionResult?.confidence || 0}
-        originalMessage={featureRoutingMessage}
-        matchedPatterns={featureDetectionResult?.matchedPatterns || []}
-        onNavigate={confirmFeatureNavigation}
-        onContinue={() => {
-          continueFeatureInChat();
-          // After continuing, send the message normally
-          if (featureRoutingMessage) {
-            handleSendMessage(featureRoutingMessage);
-          }
-        }}
-        onDismiss={dismissFeatureRouting}
-        onOpenChange={(open) => {
-          if (!open) {
-            continueFeatureInChat();
-          }
-        }}
-      />
-
-      {/* Workflow Selector Dialog */}
-      <WorkflowSelector open={showWorkflowSelector} onOpenChange={setShowWorkflowSelector} />
-
-      {/* Workflow Picker Dialog - for running visual workflows from chat */}
-      <WorkflowPickerDialog
-        open={showWorkflowPicker}
-        onOpenChange={setShowWorkflowPicker}
-        onSelectWorkflow={handleWorkflowSelect}
-        initialInput={inputValue}
-      />
-
-      {/* PPT Preview - shown when a presentation is generated */}
-      <Dialog
-        open={!!activePresentation && showPPTPreview}
-        onOpenChange={(open) => setShowPPTPreview(open)}
-      >
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>Presentation Preview</DialogTitle>
-            <DialogClose />
-          </DialogHeader>
-          {activePresentation && <PPTPreview presentation={activePresentation} />}
-        </DialogContent>
-      </Dialog>
-
-      {/* Learning Mode Panel - shown when in learning mode */}
-      {currentMode === 'learning' && showLearningPanel && (
-        <div
-          ref={learningPanelRef}
-          className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-auto"
-        >
-          <LearningModePanel onClose={() => setShowLearningPanel(false)} className="shadow-lg" />
-        </div>
-      )}
-
-      {/* Learning Mode Start Dialog */}
-      <LearningStartDialog
-        open={showLearningStartDialog}
-        onOpenChange={setShowLearningStartDialog}
-        onStart={() => {
-          setShowLearningPanel(true);
-        }}
-      />
-
-      {/* Source Verification Dialog */}
-      {sourceVerification.verifiedResponse && (
-        <SourceVerificationDialog
-          open={sourceVerification.shouldShowDialog}
-          onOpenChange={(open) => {
-            if (!open) {
-              sourceVerification.skipVerification();
-            }
-          }}
-          searchResponse={sourceVerification.verifiedResponse}
-          onConfirm={(selectedResults) => {
-            sourceVerification.setSelectedResults(selectedResults);
-            sourceVerification.confirmSelection();
-          }}
-          onSkip={sourceVerification.skipVerification}
-          onRememberChoice={(choice) => {
-            const { setSourceVerificationMode } = useSettingsStore.getState();
-            if (choice === 'always-use') {
-              setSourceVerificationMode('auto');
-            } else if (choice === 'always-skip') {
-              setSourceVerificationMode('disabled');
-            }
-          }}
-          onMarkTrusted={sourceVerification.markSourceTrusted}
-          onMarkBlocked={sourceVerification.markSourceBlocked}
-        />
-      )}
-
-      {/* Learning Mode Toggle Button - shown when in learning mode */}
-      {currentMode === 'learning' && !showLearningPanel && (
-        <Button
-          onClick={() => setShowLearningPanel(true)}
-          className="fixed right-4 top-20 z-40 rounded-full p-3 h-auto w-auto shadow-lg"
-          title="Open Learning Panel"
-          variant="default"
-          size="icon"
-        >
-          <BookOpen className="h-5 w-5" />
-        </Button>
-      )}
-
-      {/* Clear Context Confirmation Dialog */}
-      <AlertDialog open={showClearContextConfirm} onOpenChange={setShowClearContextConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('clearConversation')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('clearConversationConfirmation')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                _clearMessages();
-                setShowClearContextConfirm(false);
-              }}
-            >
-              {tCommon('clear')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Mode Switch Confirmation Dialog */}
-      {pendingTargetMode && (
-        <ModeSwitchConfirmDialog
-          open={showModeSwitchDialog}
-          onOpenChange={setShowModeSwitchDialog}
-          currentMode={currentMode}
-          targetMode={pendingTargetMode}
-          messageCount={messages.length}
-          sessionTitle={session?.title}
-          onConfirm={handleModeSwitchConfirm}
-          onCancel={handleModeSwitchCancel}
-          onGenerateSummary={handleGenerateSummaryForModeSwitch}
-        />
-      )}
-
-      {/* Arena Dialog - for comparing multiple AI models */}
-      <ArenaDialog
-        open={showArenaDialog}
-        onOpenChange={setShowArenaDialog}
-        initialPrompt={inputValue}
-        sessionId={activeSessionId || undefined}
-        systemPrompt={activePreset?.systemPrompt}
-        onBattleStart={() => {
-          // Could track arena battle start
-        }}
-        onBattleComplete={() => {
-          // Arena battle completed
-        }}
-      />
-
-      {/* Arena Battle View - shows ongoing battle comparison */}
-      {arenaBattleId && (
-        <ArenaBattleView
-          battleId={arenaBattleId}
-          open={showArenaBattle}
-          onOpenChange={setShowArenaBattle}
-          onClose={() => {
-            setArenaBattleId(null);
-            setShowArenaBattle(false);
-          }}
-        />
-      )}
     </div>
-  );
-}
-
-/**
- * Props for the {@link MessagePartsRenderer} component.
- */
-interface MessagePartsRendererProps {
-  /** Structured message parts (text, reasoning, tool-invocation, sources, a2ui). When empty, `content` is rendered directly. */
-  parts?: MessagePart[];
-  /** Raw string content to display when `parts` is empty or as a fallback. */
-  content: string;
-  /** When `true`, applies destructive (red) styling to the text. */
-  isError?: boolean;
-}
-
-/**
- * Render a message's content, choosing between raw text and structured parts.
- *
- * When `parts` is provided and non-empty each part is rendered by its
- * specialised renderer ({@link TextPart}, {@link ReasoningPart},
- * {@link ToolPart}, {@link SourcesPart}, {@link A2UIPart}).
- * Otherwise the plain `content` string is wrapped in a {@link MessageResponse}.
- */
-function MessagePartsRenderer({ parts, content, isError }: MessagePartsRendererProps) {
-  // If no parts, render content directly
-  if (!parts || parts.length === 0) {
-    return (
-      <MessageResponse className={isError ? 'text-destructive' : undefined}>
-        {content}
-      </MessageResponse>
-    );
-  }
-
-  // Render each part based on its type
-  return (
-    <div className="space-y-2">
-      {parts.map((part, index) => {
-        switch (part.type) {
-          case 'text':
-            return <TextPart key={`text-${index}`} part={part} isError={isError} />;
-          case 'reasoning':
-            return <ReasoningPart key={`reasoning-${index}`} part={part} />;
-          case 'tool-invocation':
-            return (
-              <ToolPart
-                key={`tool-${part.toolCallId}`}
-                part={part}
-                serverId={part.mcpServerId}
-                serverName={part.mcpServerName}
-              />
-            );
-          case 'sources':
-            return <SourcesPart key={`sources-${index}`} part={part} />;
-          case 'a2ui':
-            return <A2UIPart key={`a2ui-${index}`} part={part} />;
-          default:
-            return null;
-        }
-      })}
-    </div>
-  );
-}
-
-/**
- * Props for the {@link ChatMessageItem} component.
- */
-interface ChatMessageItemProps {
-  /** The message object to render. */
-  message: UIMessage;
-  /** Parent session ID (used for branching, Langfuse tracing). */
-  sessionId: string;
-  /** Whether this message is currently being streamed (disables actions). */
-  isStreaming: boolean;
-  /** Whether this message is in inline-edit mode. */
-  isEditing: boolean;
-  /** Current text in the edit textarea (controlled). */
-  editContent: string;
-  /** Callback to update the edit textarea value. */
-  onEditContentChange: (content: string) => void;
-  /** Enter edit mode for this message. */
-  onEdit: () => void;
-  /** Cancel the current edit. */
-  onCancelEdit: () => void;
-  /** Save the edited content and regenerate the response. */
-  onSaveEdit: () => void;
-  /** Regenerate the AI response for this message. */
-  onRetry: () => void;
-  /** Copy messages up to a branch point into a new branch. */
-  onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
-  /** Translate this message's content inline. */
-  onTranslate?: (messageId: string, content: string) => void;
-  /** Optional workflow execution result to render as a card. */
-  workflowResult?: WorkflowResultData;
-  /** Callback to re-run the workflow with the same input. */
-  onWorkflowRerun?: (input: Record<string, unknown>) => void;
-  /** Hide action buttons (copy, edit, retry, etc.) — used in simplified mode. */
-  hideMessageActions?: boolean;
-  /** Hide per-message timestamps — used in simplified mode. */
-  hideMessageTimestamps?: boolean;
-  /** Show per-message token count next to timestamp. */
-  showTokenUsageMeter?: boolean;
-}
-
-/**
- * A single chat message row with rich interaction support.
- *
- * Features per role:
- * - **User messages**: inline edit with Enter-to-save / Escape-to-cancel.
- * - **Assistant messages**: copy, retry, bookmark, TTS (text-to-speech),
- *   share (Web Share API with clipboard fallback), translate (auto-detect direction),
- *   emoji reactions (persisted to IndexedDB + Langfuse quality score for 👍/👎),
- *   web-search source indicators, A2UI content rendering, artifact cards, analysis results.
- * - **Both roles**: branch button, swipe actions (mobile), text-selection popover for quoting.
- *
- * The component renders structured message parts via {@link MessagePartsRenderer}
- * and conditionally displays workflow result cards, provider icons, and timestamps.
- */
-function ChatMessageItem({
-  message,
-  sessionId,
-  isStreaming,
-  isEditing,
-  editContent,
-  onEditContentChange,
-  onEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onRetry,
-  onCopyMessagesForBranch,
-  onTranslate,
-  workflowResult,
-  onWorkflowRerun,
-  hideMessageActions = false,
-  hideMessageTimestamps = false,
-  showTokenUsageMeter = false,
-}: ChatMessageItemProps) {
-  const t = useTranslations('chat');
-  const tCommon = useTranslations('common');
-  const [copied, setCopied] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(message.isBookmarked || false);
-  const [reactions, setReactions] = useState<EmojiReaction[]>(message.reactions || []);
-  const messageContentRef = useRef<HTMLDivElement>(null);
-
-  // Per-message token count (estimation, memoized)
-  const messageTokens = useMemo(() => {
-    return countTokens(message.content);
-  }, [message.content]);
-
-  // TTS hook for multi-provider text-to-speech
-  const { speak, stop: stopTTS, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTTS();
-  const ttsTooltip = isTTSLoading ? 'Loading...' : isSpeaking ? 'Stop speaking' : 'Read aloud';
-
-  /**
-   * Toggle an emoji reaction on this message.
-   * Persists to IndexedDB and sends a Langfuse quality score for 👍/👎 on assistant messages.
-   *
-   * @param emoji - Emoji character to toggle
-   */
-  const handleReaction = async (emoji: string) => {
-    setReactions((prev) => {
-      const existing = prev.find((r) => r.emoji === emoji);
-      if (existing) {
-        if (existing.reacted) {
-          // Remove reaction
-          if (existing.count === 1) {
-            return prev.filter((r) => r.emoji !== emoji);
-          }
-          return prev.map((r) =>
-            r.emoji === emoji ? { ...r, count: r.count - 1, reacted: false } : r
-          );
-        } else {
-          // Add reaction
-          return prev.map((r) =>
-            r.emoji === emoji ? { ...r, count: r.count + 1, reacted: true } : r
-          );
-        }
-      } else {
-        // New reaction
-        return [...prev, { emoji, count: 1, reacted: true }];
-      }
-    });
-    // Persist to database
-    await messageRepository.update(message.id, { reactions });
-
-    // Send quality score to Langfuse for 👍/👎 on assistant messages
-    if (message.role === 'assistant' && (emoji === '👍' || emoji === '👎')) {
-      try {
-        const { addScore, isLangfuseEnabled, createChatTrace } = await import('@/lib/ai/observability/langfuse-client');
-        if (isLangfuseEnabled()) {
-          const trace = await createChatTrace({ sessionId });
-          addScore(trace, {
-            name: 'user-feedback',
-            value: emoji === '👍' ? 1 : 0,
-            comment: `User reacted with ${emoji} to message ${message.id}`,
-          });
-        }
-      } catch {
-        // Langfuse not available — ignore silently
-      }
-    }
-  };
-
-  /** Copy the full message content to the clipboard. */
-  const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [message.content]);
-
-  const handleTranslate = () => {
-    if (onTranslate && !isTranslating) {
-      setIsTranslating(true);
-      onTranslate(message.id, message.content);
-      setTimeout(() => setIsTranslating(false), 1000);
-    }
-  };
-
-  /** Toggle the bookmark state and persist to IndexedDB. */
-  const handleBookmark = useCallback(async () => {
-    const newBookmarked = !isBookmarked;
-    setIsBookmarked(newBookmarked);
-    // Update in database
-    await messageRepository.update(message.id, { isBookmarked: newBookmarked });
-  }, [isBookmarked, message.id]);
-
-  /** Toggle text-to-speech playback for this message's content. */
-  const handleSpeak = () => {
-    if (isSpeaking) {
-      stopTTS();
-    } else {
-      speak(message.content);
-    }
-  };
-
-  /** Share via Web Share API; falls back to clipboard copy if unavailable. */
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Shared Message',
-          text: message.content,
-        });
-      } catch {
-        // User cancelled or share failed, copy to clipboard instead
-        await handleCopy();
-      }
-    } else {
-      // Fallback to copy
-      await handleCopy();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSaveEdit();
-    } else if (e.key === 'Escape') {
-      onCancelEdit();
-    }
-  };
-
-  /**
-   * Dispatch mobile swipe gesture actions (copy, edit, regenerate, bookmark, delete).
-   *
-   * @param action - The swipe action type
-   */
-  const handleSwipeAction = useCallback(
-    (action: SwipeAction) => {
-      switch (action) {
-        case 'copy':
-          handleCopy();
-          break;
-        case 'edit':
-          if (message.role === 'user') onEdit();
-          break;
-        case 'regenerate':
-          if (message.role === 'assistant') onRetry();
-          break;
-        case 'bookmark':
-          handleBookmark();
-          break;
-        case 'delete':
-          // Could be implemented with a delete handler
-          break;
-      }
-    },
-    [handleCopy, handleBookmark, message.role, onEdit, onRetry]
-  );
-
-  return (
-    <MessageSwipeActions
-      onAction={handleSwipeAction}
-      enabledActions={
-        message.role === 'user' ? ['copy', 'edit'] : ['copy', 'regenerate', 'bookmark']
-      }
-      disabled={isEditing || isStreaming}
-    >
-      <MessageUI
-        id={`message-${message.id}`}
-        from={message.role as 'system' | 'user' | 'assistant'}
-      >
-        {/* Provider icon label for assistant messages */}
-        {message.role === 'assistant' && message.provider && (
-          <div className="flex items-center gap-1.5 mb-1">
-            <ProviderIcon providerId={message.provider} size={16} className="shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              {message.model || message.provider}
-            </span>
-          </div>
-        )}
-        <MessageContent>
-          {isEditing ? (
-            <div className="flex flex-col gap-2">
-              <Textarea
-                value={editContent}
-                onChange={(e) => onEditContentChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                autoFocus
-                placeholder={t('editMessagePlaceholder')}
-                aria-label={t('editMessage')}
-                className="min-h-[100px] resize-none"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  onClick={onCancelEdit}
-                  variant="outline"
-                  size="sm"
-                  aria-label={tCommon('cancel')}
-                >
-                  {tCommon('cancel')}
-                </Button>
-                <Button
-                  onClick={onSaveEdit}
-                  variant="default"
-                  size="sm"
-                  aria-label={t('saveAndSubmit')}
-                >
-                  {t('saveAndSubmit')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div ref={messageContentRef}>
-              {/* Workflow Result Card - render if this message has workflow data */}
-              {workflowResult && (
-                <WorkflowResultCard
-                  data={workflowResult}
-                  onRerun={onWorkflowRerun}
-                  className="mb-3"
-                />
-              )}
-              {message.role === 'user' ? (
-                <p className="whitespace-pre-wrap">{message.content}</p>
-              ) : hasA2UIContent(message.content) ? (
-                <A2UIMessageRenderer
-                  content={message.content}
-                  messageId={message.id}
-                  textRenderer={(text) => (
-                    <MessagePartsRenderer
-                      parts={message.parts}
-                      content={text}
-                      isError={!!message.error}
-                    />
-                  )}
-                />
-              ) : (
-                <MessagePartsRenderer
-                  parts={message.parts}
-                  content={message.content}
-                  isError={!!message.error}
-                />
-              )}
-              {/* Web search sources indicator */}
-              {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
-                <div className="mt-2">
-                  <SearchSourcesIndicator sources={message.sources} />
-                </div>
-              )}
-              {/* Text selection popover for quoting */}
-              <TextSelectionPopover
-                containerRef={messageContentRef}
-                messageId={message.id}
-                messageRole={message.role as 'user' | 'assistant'}
-              />
-              {/* Message reactions */}
-              {message.role === 'assistant' && !message.error && (
-                <div className="mt-2">
-                  <MessageReactions reactions={reactions} onReact={handleReaction} />
-                </div>
-              )}
-              {/* Message artifacts */}
-              {message.role === 'assistant' && <MessageArtifacts messageId={message.id} compact />}
-              {/* Message analysis results */}
-              {message.role === 'assistant' && <MessageAnalysisResults messageId={message.id} />}
-              {/* Message timestamp and token count */}
-              {!hideMessageTimestamps && message.createdAt && (
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
-                  <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {showTokenUsageMeter && (
-                    <span title={`~${messageTokens} tokens`}>· {formatTokens(messageTokens)}t</span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </MessageContent>
-
-        {!isEditing && !isStreaming && !hideMessageActions && (
-          <MessageActions>
-            {message.role === 'user' && (
-              <MessageAction tooltip="Edit message" onClick={onEdit}>
-                <Pencil className="h-4 w-4" />
-              </MessageAction>
-            )}
-            {message.role === 'assistant' && !message.error && (
-              <>
-                <MessageAction tooltip="Retry" onClick={onRetry}>
-                  <RotateCcw className="h-4 w-4" />
-                </MessageAction>
-                <MessageAction tooltip={copied ? 'Copied!' : 'Copy'} onClick={handleCopy}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </MessageAction>
-                <MessageAction
-                  tooltip={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                  onClick={handleBookmark}
-                >
-                  {isBookmarked ? (
-                    <BookmarkCheck className="h-4 w-4 text-primary" />
-                  ) : (
-                    <Bookmark className="h-4 w-4" />
-                  )}
-                </MessageAction>
-                <MessageAction tooltip={ttsTooltip} onClick={handleSpeak} disabled={isTTSLoading}>
-                  {isTTSLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isSpeaking ? (
-                    <VolumeX className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </MessageAction>
-                <MessageAction tooltip="Share" onClick={handleShare}>
-                  <Share2 className="h-4 w-4" />
-                </MessageAction>
-                <MessageAction
-                  tooltip="Translate"
-                  onClick={handleTranslate}
-                  disabled={isTranslating}
-                >
-                  <Languages className="h-4 w-4" />
-                </MessageAction>
-              </>
-            )}
-            {/* Branch button for all messages */}
-            <BranchButton
-              sessionId={sessionId}
-              messageId={message.id}
-              onCopyMessages={onCopyMessagesForBranch}
-            />
-          </MessageActions>
-        )}
-      </MessageUI>
-    </MessageSwipeActions>
-  );
-}
-
-/**
- * Props for the {@link VirtualizedChatMessageList} component.
- */
-interface VirtualizedChatMessageListProps {
-  /** Ordered array of messages to display. */
-  messages: UIMessage[];
-  /** Active session ID passed down to each {@link ChatMessageItem}. */
-  sessionId: string;
-  /** Whether the last assistant message is currently streaming. */
-  isStreaming: boolean;
-  /** Whether a new AI response is being generated (shows thinking indicator). */
-  isLoading: boolean;
-  /** ID of the message currently being edited, or `null`. */
-  editingMessageId: string | null;
-  /** Controlled edit textarea value. */
-  editContent: string;
-  /** Update the edit textarea value. */
-  onEditContentChange: (content: string) => void;
-  /** Enter edit mode for a specific message. */
-  onEditMessage: (messageId: string, content: string) => void;
-  /** Cancel the current inline edit. */
-  onCancelEdit: () => void;
-  /** Save the edited message and regenerate. */
-  onSaveEdit: (messageId: string) => Promise<void>;
-  /** Regenerate an assistant message. */
-  onRetry: (messageId: string) => Promise<void>;
-  /** Copy messages for creating a conversation branch. */
-  onCopyMessagesForBranch?: (branchPointMessageId: string, newBranchId: string) => Promise<unknown>;
-  /** Translate a message inline. */
-  onTranslate?: (messageId: string, content: string) => void;
-  /** Whether the backend has older messages that can be loaded. */
-  hasOlderMessages: boolean;
-  /** Whether older messages are currently being fetched. */
-  isLoadingOlder: boolean;
-  /** Fetch the next page of older messages (infinite scroll upward). */
-  loadOlderMessages: () => Promise<void>;
-  /** Map of message ID → workflow execution result data. */
-  workflowResults?: Map<string, WorkflowResultData>;
-  /** Callback to re-run a workflow from its result card. */
-  onWorkflowRerun?: (input: Record<string, unknown>) => void;
-  /** Hide message action buttons (simplified mode). */
-  hideMessageActions?: boolean;
-  /** Hide per-message timestamps (simplified mode). */
-  hideMessageTimestamps?: boolean;
-  /** Show per-message token count next to timestamp. */
-  showTokenUsageMeter?: boolean;
-}
-
-/**
- * Windowed message list using `react-virtuoso` for efficient rendering of long conversations.
- *
- * Key behaviours:
- * - **Virtualisation** — only visible messages are mounted in the DOM, using `Virtuoso`
- *   with a custom scroll parent from `use-stick-to-bottom`.
- * - **Infinite scroll upward** — when the user scrolls to the top and `hasOlderMessages`
- *   is `true`, `loadOlderMessages` is called. Scroll position is preserved by adjusting
- *   `firstItemIndex` based on the prepended message count.
- * - **Thinking indicator** — appends a pulsing "Thinking..." placeholder when `isLoading`
- *   and the last message is from the user.
- * - **Fallback** — renders a plain (non-virtualised) list until the scroll parent ref is available.
- *
- * Each message row is rendered by {@link ChatMessageItem}.
- */
-function VirtualizedChatMessageList({
-  messages,
-  sessionId,
-  isStreaming,
-  isLoading,
-  editingMessageId,
-  editContent,
-  onEditContentChange,
-  onEditMessage,
-  onCancelEdit,
-  onSaveEdit,
-  onRetry,
-  onCopyMessagesForBranch,
-  onTranslate,
-  hasOlderMessages,
-  isLoadingOlder,
-  loadOlderMessages,
-  workflowResults,
-  onWorkflowRerun,
-  hideMessageActions = false,
-  hideMessageTimestamps = false,
-  showTokenUsageMeter = false,
-}: VirtualizedChatMessageListProps) {
-  const { scrollRef } = useStickToBottomContext();
-
-  const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
-
-  const showThinking = isLoading && messages[messages.length - 1]?.role === 'user';
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      setScrollParent(scrollRef.current);
-    }
-  }, [scrollRef]);
-
-  // Preserve scroll position when prepending older messages.
-  const [firstItemIndex, setFirstItemIndex] = useState(0);
-  const prevLenRef = useRef<number>(messages.length);
-  const prevFirstIdRef = useRef<string | undefined>(messages[0]?.id);
-  const prevLastIdRef = useRef<string | undefined>(messages[messages.length - 1]?.id);
-
-  useEffect(() => {
-    const prevLen = prevLenRef.current;
-    const prevLastId = prevLastIdRef.current;
-    const nextLastId = messages[messages.length - 1]?.id;
-    const nextFirstId = messages[0]?.id;
-
-    // Detect a prepend (older messages loaded) by: length increased, last item unchanged, first item changed.
-    if (
-      messages.length > prevLen &&
-      prevLastId &&
-      nextLastId === prevLastId &&
-      nextFirstId &&
-      nextFirstId !== prevFirstIdRef.current
-    ) {
-      const delta = messages.length - prevLen;
-      setFirstItemIndex((v) => v - delta);
-    }
-
-    prevLenRef.current = messages.length;
-    prevFirstIdRef.current = nextFirstId;
-    prevLastIdRef.current = nextLastId;
-  }, [messages]);
-
-  const items = useMemo(() => {
-    if (!showThinking) return messages as Array<UIMessage | { kind: 'thinking' }>;
-    return [...messages, { kind: 'thinking' } as const];
-  }, [messages, showThinking]);
-
-  const lastItemIndex = messages.length - 1;
-
-  if (!scrollParent) {
-    return (
-      <>
-        {messages.map((message, index) => (
-          <ChatMessageItem
-            key={message.id}
-            message={message}
-            sessionId={sessionId}
-            isStreaming={isStreaming && index === lastItemIndex && message.role === 'assistant'}
-            isEditing={editingMessageId === message.id}
-            editContent={editContent}
-            onEditContentChange={onEditContentChange}
-            onEdit={() => onEditMessage(message.id, message.content)}
-            onCancelEdit={onCancelEdit}
-            onSaveEdit={() => onSaveEdit(message.id)}
-            onRetry={() => onRetry(message.id)}
-            onCopyMessagesForBranch={onCopyMessagesForBranch}
-            onTranslate={onTranslate}
-            workflowResult={workflowResults?.get(message.id)}
-            onWorkflowRerun={onWorkflowRerun}
-            hideMessageActions={hideMessageActions}
-            hideMessageTimestamps={hideMessageTimestamps}
-            showTokenUsageMeter={showTokenUsageMeter}
-          />
-        ))}
-      </>
-    );
-  }
-
-  return (
-    <Virtuoso
-      data={items}
-      customScrollParent={scrollParent}
-      firstItemIndex={firstItemIndex}
-      startReached={() => {
-        if (hasOlderMessages && !isLoadingOlder) {
-          void loadOlderMessages();
-        }
-      }}
-      computeItemKey={(_index, item) => {
-        if ((item as { kind?: string }).kind === 'thinking') return 'thinking';
-        return (item as UIMessage).id;
-      }}
-      components={{
-        List: (() => {
-          const VirtualizedList = React.forwardRef<
-            HTMLDivElement,
-            React.HTMLAttributes<HTMLDivElement>
-          >((props, ref) => <div {...props} ref={ref} className="flex flex-col gap-5 w-full" />);
-          VirtualizedList.displayName = 'VirtualizedList';
-          return VirtualizedList;
-        })(),
-      }}
-      itemContent={(index, item) => {
-        if ((item as { kind?: string }).kind === 'thinking') {
-          return (
-            <MessageUI from="assistant">
-              <MessageContent>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader size={18} />
-                  <span className="text-sm animate-pulse">Thinking...</span>
-                </div>
-              </MessageContent>
-            </MessageUI>
-          );
-        }
-
-        const message = item as UIMessage;
-        return (
-          <ChatMessageItem
-            message={message}
-            sessionId={sessionId}
-            isStreaming={isStreaming && index === lastItemIndex && message.role === 'assistant'}
-            isEditing={editingMessageId === message.id}
-            editContent={editContent}
-            onEditContentChange={onEditContentChange}
-            onEdit={() => onEditMessage(message.id, message.content)}
-            onCancelEdit={onCancelEdit}
-            onSaveEdit={() => onSaveEdit(message.id)}
-            onRetry={() => onRetry(message.id)}
-            onCopyMessagesForBranch={onCopyMessagesForBranch}
-            onTranslate={onTranslate}
-            workflowResult={workflowResults?.get(message.id)}
-            onWorkflowRerun={onWorkflowRerun}
-            hideMessageActions={hideMessageActions}
-            hideMessageTimestamps={hideMessageTimestamps}
-            showTokenUsageMeter={showTokenUsageMeter}
-          />
-        );
-      }}
-    />
   );
 }
 

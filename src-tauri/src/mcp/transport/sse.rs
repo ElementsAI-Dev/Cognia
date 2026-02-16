@@ -65,8 +65,8 @@ impl SseTransport {
         }
 
         log::debug!("Creating HTTP client with {}s timeout", HTTP_TIMEOUT_SECS);
-        let mut client_builder = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS));
+        let mut client_builder =
+            reqwest::Client::builder().timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS));
 
         // Add proxy if configured
         if let Some(proxy) = proxy_url {
@@ -76,7 +76,11 @@ impl SseTransport {
                     log::debug!("Proxy configured for SSE transport");
                 }
                 Err(e) => {
-                    log::warn!("Failed to configure proxy '{}': {}, continuing without proxy", proxy, e);
+                    log::warn!(
+                        "Failed to configure proxy '{}': {}, continuing without proxy",
+                        proxy,
+                        e
+                    );
                 }
             }
         }
@@ -87,7 +91,10 @@ impl SseTransport {
         })?;
 
         let (event_tx, event_rx) = mpsc::channel(SSE_CHANNEL_CAPACITY);
-        log::trace!("Created event channel with capacity {}", SSE_CHANNEL_CAPACITY);
+        log::trace!(
+            "Created event channel with capacity {}",
+            SSE_CHANNEL_CAPACITY
+        );
 
         // Start SSE connection with shared connection status
         let sse_url = url.to_string();
@@ -150,7 +157,10 @@ impl SseTransport {
         });
 
         // Wait a bit for connection to establish
-        log::trace!("Waiting {}ms for SSE connection to establish", CONNECTION_WAIT_MS);
+        log::trace!(
+            "Waiting {}ms for SSE connection to establish",
+            CONNECTION_WAIT_MS
+        );
         tokio::time::sleep(std::time::Duration::from_millis(CONNECTION_WAIT_MS)).await;
 
         // Extract message endpoint from URL (typically same base with /message suffix)
@@ -180,7 +190,6 @@ impl SseTransport {
         log::debug!("Setting custom message URL: {}", url);
         self.message_url = Some(url);
     }
-
 }
 
 #[async_trait]
@@ -283,7 +292,9 @@ impl Transport for SseTransport {
         let status = connected && channel_open;
         log::trace!(
             "SSE transport connection status: {} (connected={}, channel_open={})",
-            status, connected, channel_open
+            status,
+            connected,
+            channel_open
         );
         status
     }
@@ -368,7 +379,10 @@ mod tests {
     async fn test_sse_transport_connection() {
         let result = SseTransport::connect("http://localhost:8080/sse").await;
         // With a running server, this should succeed
-        assert!(result.is_ok(), "Expected successful connection to running server");
+        assert!(
+            result.is_ok(),
+            "Expected successful connection to running server"
+        );
     }
 
     #[tokio::test]
@@ -378,7 +392,10 @@ mod tests {
             SseTransport::connect("http://invalid-host-that-does-not-exist:9999/sse").await;
         // The struct is created optimistically, but connection may not be established
         // This is expected behavior - the actual connection happens in the background task
-        assert!(result.is_ok(), "Transport creation should succeed even for invalid hosts");
+        assert!(
+            result.is_ok(),
+            "Transport creation should succeed even for invalid hosts"
+        );
     }
 
     // ============================================================================
@@ -559,9 +576,15 @@ mod tests {
     #[ignore = "requires running SSE server and proxy"]
     async fn test_sse_transport_connect_with_proxy() {
         // Test that connect_with_proxy accepts proxy URL
-        let result =
-            SseTransport::connect_with_proxy("http://localhost:8080/sse", Some("http://127.0.0.1:7890")).await;
-        assert!(result.is_ok(), "Transport creation with proxy should succeed");
+        let result = SseTransport::connect_with_proxy(
+            "http://localhost:8080/sse",
+            Some("http://127.0.0.1:7890"),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "Transport creation with proxy should succeed"
+        );
     }
 
     #[tokio::test]
@@ -569,17 +592,26 @@ mod tests {
     async fn test_sse_transport_connect_with_none_proxy() {
         // Test that connect_with_proxy with None proxy works like connect
         let result = SseTransport::connect_with_proxy("http://localhost:8080/sse", None).await;
-        assert!(result.is_ok(), "Transport creation without proxy should succeed");
+        assert!(
+            result.is_ok(),
+            "Transport creation without proxy should succeed"
+        );
     }
 
     #[tokio::test]
     #[ignore = "requires running SSE server"]
     async fn test_sse_transport_connect_with_invalid_proxy() {
         // Test that invalid proxy URL is handled gracefully (logs warning, continues without proxy)
-        let result =
-            SseTransport::connect_with_proxy("http://localhost:8080/sse", Some("not-a-valid-proxy-url")).await;
+        let result = SseTransport::connect_with_proxy(
+            "http://localhost:8080/sse",
+            Some("not-a-valid-proxy-url"),
+        )
+        .await;
         // Should still create transport (invalid proxy is logged and ignored)
-        assert!(result.is_ok(), "Transport creation should succeed even with invalid proxy URL");
+        assert!(
+            result.is_ok(),
+            "Transport creation should succeed even with invalid proxy URL"
+        );
     }
 
     #[test]
@@ -608,7 +640,11 @@ mod tests {
 
         for proxy_url in invalid_proxies {
             let result = reqwest::Proxy::all(proxy_url);
-            assert!(result.is_err(), "Should fail for invalid proxy URL: {}", proxy_url);
+            assert!(
+                result.is_err(),
+                "Should fail for invalid proxy URL: {}",
+                proxy_url
+            );
         }
     }
 }

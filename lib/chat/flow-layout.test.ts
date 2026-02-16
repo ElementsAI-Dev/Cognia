@@ -23,7 +23,8 @@ const mockGraphInstance = {
   node: jest.fn().mockReturnValue({ x: 200, y: 200 }),
 };
 
-jest.mock('dagre-d3-es/src/graphlib/index.js', () => ({
+jest.mock('dagre-d3-es/src/graphlib/graph.js', () => ({
+  __esModule: true,
   Graph: jest.fn().mockImplementation(() => {
     // Track added nodes so nodes() returns them
     const nodeMap = new Map<string, unknown>();

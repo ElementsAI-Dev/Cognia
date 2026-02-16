@@ -3,13 +3,12 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MathPreview } from './math-preview';
+import { renderMathSafe } from '@/lib/latex/cache';
 
-jest.mock('katex', () => ({
-  renderToString: jest.fn().mockReturnValue('<span class="katex">E = mc²</span>'),
-}));
-
-jest.mock('@/lib/latex/config', () => ({
-  getKatexOptions: jest.fn(() => ({ displayMode: true })),
+jest.mock('@/lib/latex/cache', () => ({
+  renderMathSafe: jest.fn(() => ({
+    html: '<span class="katex">E = mc²</span>',
+  })),
 }));
 
 describe('MathPreview', () => {
@@ -57,10 +56,9 @@ describe('MathPreview', () => {
     expect(container.innerHTML).toContain('katex');
   });
 
-  it('uses unified KaTeX options', () => {
-    const { getKatexOptions } = jest.requireMock('@/lib/latex/config');
+  it('uses safe math renderer', () => {
     render(<MathPreview scale={1} alignment="center" previewLabel="Preview" />);
-    expect(getKatexOptions).toHaveBeenCalledWith(true);
+    expect(renderMathSafe).toHaveBeenCalledWith(expect.stringContaining('E = mc^2'), true);
   });
 
   it('has proper container structure', () => {

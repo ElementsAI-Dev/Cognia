@@ -9,12 +9,14 @@
 //!
 //! Security: All operations require explicit user approval and have allowlist restrictions.
 
+use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use sysinfo::{Pid, ProcessesToUpdate, System};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 #[cfg(windows)]
 mod windows;
@@ -27,9 +29,16 @@ pub const MAX_PROCESS_LIST: usize = 500;
 
 /// Default timeout for process operations (seconds)
 pub const DEFAULT_OPERATION_TIMEOUT: u64 = 30;
+/// Default max concurrency for batch operations
+pub const DEFAULT_BATCH_CONCURRENCY: usize = 4;
+/// Hard cap for batch operation concurrency
+pub const MAX_BATCH_CONCURRENCY: usize = 16;
+/// Maximum number of async operation records kept in memory
+pub const MAX_OPERATION_HISTORY: usize = 200;
 
 /// Process information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessInfo {
     /// Process ID
     pub pid: u32,
@@ -74,6 +83,7 @@ impl Default for ProcessStatus {
 
 /// Process filter for listing
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessFilter {
     /// Filter by name (partial match, case-insensitive)
     pub name: Option<String>,
@@ -97,17 +107,19 @@ pub struct ProcessFilter {
 
 /// Sort field for process list
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum ProcessSortField {
     Pid,
     Name,
     Cpu,
     Memory,
+    #[serde(alias = "starttime", alias = "start_time")]
     StartTime,
 }
 
 /// Request to start a new process
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StartProcessRequest {
     /// Program path or name
     pub program: String,
@@ -135,6 +147,7 @@ fn default_true() -> bool {
 
 /// Result of starting a process
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StartProcessResult {
     /// Whether the operation succeeded
     pub success: bool,
@@ -154,6 +167,7 @@ pub struct StartProcessResult {
 
 /// Request to terminate a process
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminateProcessRequest {
     /// Process ID to terminate
     pub pid: u32,
@@ -166,6 +180,7 @@ pub struct TerminateProcessRequest {
 
 /// Result of terminating a process
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminateProcessResult {
     /// Whether the operation succeeded
     pub success: bool,
@@ -175,22 +190,161 @@ pub struct TerminateProcessResult {
     pub error: Option<String>,
 }
 
+/// Request to start multiple processes in parallel
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartProcessBatchRequest {
+    /// Batch of start requests
+    pub requests: Vec<StartProcessRequest>,
+    /// Maximum concurrency for parallel execution
+    #[serde(default, alias = "max_concurrency")]
+    pub max_concurrency: Option<usize>,
+}
+
+/// Result for one start operation in a batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartProcessBatchItemResult {
+    /// Original request index in batch
+    pub index: usize,
+    /// Program in the original request (for easy identification)
+    pub program: String,
+    /// Operation result
+    pub result: StartProcessResult,
+}
+
+/// Result of starting processes in batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartProcessBatchResult {
+    /// Number of requests in batch
+    pub total: usize,
+    /// Number of successful operations
+    pub success_count: usize,
+    /// Number of failed operations
+    pub failure_count: usize,
+    /// Per-request results in original request order
+    pub results: Vec<StartProcessBatchItemResult>,
+}
+
+/// Request to terminate multiple processes in parallel
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminateProcessBatchRequest {
+    /// Batch of terminate requests
+    pub requests: Vec<TerminateProcessRequest>,
+    /// Maximum concurrency for parallel execution
+    #[serde(default, alias = "max_concurrency")]
+    pub max_concurrency: Option<usize>,
+}
+
+/// Result for one terminate operation in a batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminateProcessBatchItemResult {
+    /// Original request index in batch
+    pub index: usize,
+    /// PID in the original request (for easy identification)
+    pub pid: u32,
+    /// Operation result
+    pub result: TerminateProcessResult,
+}
+
+/// Result of terminating processes in batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminateProcessBatchResult {
+    /// Number of requests in batch
+    pub total: usize,
+    /// Number of successful operations
+    pub success_count: usize,
+    /// Number of failed operations
+    pub failure_count: usize,
+    /// Per-request results in original request order
+    pub results: Vec<TerminateProcessBatchItemResult>,
+}
+
+/// Async operation type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProcessOperationType {
+    StartBatch,
+    TerminateBatch,
+}
+
+/// Async operation status
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProcessOperationStatus {
+    Pending,
+    Running,
+    Completed,
+    Failed,
+}
+
+/// Async operation result payload
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind", content = "payload")]
+pub enum ProcessOperationResult {
+    StartBatch(StartProcessBatchResult),
+    TerminateBatch(TerminateProcessBatchResult),
+}
+
+/// Async operation record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessOperation {
+    /// Unique operation ID
+    pub operation_id: String,
+    /// Operation type
+    pub operation_type: ProcessOperationType,
+    /// Current status
+    pub status: ProcessOperationStatus,
+    /// Operation creation timestamp (unix ms)
+    pub created_at: i64,
+    /// Operation start timestamp (unix ms)
+    pub started_at: Option<i64>,
+    /// Operation completion timestamp (unix ms)
+    pub completed_at: Option<i64>,
+    /// Optional error message
+    pub error: Option<String>,
+    /// Result payload when completed
+    pub result: Option<ProcessOperationResult>,
+}
+
+fn now_timestamp_ms() -> i64 {
+    chrono::Utc::now().timestamp_millis()
+}
+
+fn normalize_batch_concurrency(value: Option<usize>) -> usize {
+    value
+        .unwrap_or(DEFAULT_BATCH_CONCURRENCY)
+        .clamp(1, MAX_BATCH_CONCURRENCY)
+}
+
 /// Process manager configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct ProcessManagerConfig {
     /// Whether process management is enabled
     pub enabled: bool,
     /// Allowlist of programs that can be started (empty = all allowed)
+    #[serde(alias = "allowed_programs")]
     pub allowed_programs: Vec<String>,
     /// Denylist of programs that cannot be started
+    #[serde(alias = "denied_programs")]
     pub denied_programs: Vec<String>,
     /// Whether to allow terminating any process
+    #[serde(alias = "allow_terminate_any")]
     pub allow_terminate_any: bool,
     /// Only allow terminating processes started by this app
+    #[serde(alias = "only_terminate_own")]
     pub only_terminate_own: bool,
     /// Maximum concurrent processes to track
+    #[serde(alias = "max_tracked_processes")]
     pub max_tracked_processes: usize,
     /// Default timeout for operations
+    #[serde(alias = "default_timeout_secs")]
     pub default_timeout_secs: u64,
 }
 
@@ -304,8 +458,16 @@ fn sysinfo_to_process_info(pid: &Pid, proc: &sysinfo::Process) -> ProcessInfo {
         name: proc.name().to_string_lossy().to_string(),
         exe_path: proc.exe().map(|p| p.to_string_lossy().to_string()),
         cmd_line: {
-            let cmd: Vec<String> = proc.cmd().iter().map(|s| s.to_string_lossy().to_string()).collect();
-            if cmd.is_empty() { None } else { Some(cmd) }
+            let cmd: Vec<String> = proc
+                .cmd()
+                .iter()
+                .map(|s| s.to_string_lossy().to_string())
+                .collect();
+            if cmd.is_empty() {
+                None
+            } else {
+                Some(cmd)
+            }
         },
         parent_pid: proc.parent().map(|p| p.as_u32()),
         cpu_percent: Some(proc.cpu_usage() / num_cpus),
@@ -324,6 +486,7 @@ fn sysinfo_to_process_info(pid: &Pid, proc: &sysinfo::Process) -> ProcessInfo {
 }
 
 /// Process manager state
+#[derive(Clone)]
 pub struct ProcessManager {
     /// Configuration
     pub config: Arc<RwLock<ProcessManagerConfig>>,
@@ -333,6 +496,10 @@ pub struct ProcessManager {
     config_path: PathBuf,
     /// sysinfo System instance for process queries
     sys: Arc<RwLock<System>>,
+    /// Async operation records
+    operations: Arc<RwLock<HashMap<String, ProcessOperation>>>,
+    /// Operation order for recency listing
+    operation_order: Arc<RwLock<Vec<String>>>,
 }
 
 impl ProcessManager {
@@ -368,6 +535,8 @@ impl ProcessManager {
             tracked_processes: Arc::new(RwLock::new(Vec::new())),
             config_path,
             sys: Arc::new(RwLock::new(sys)),
+            operations: Arc::new(RwLock::new(HashMap::new())),
+            operation_order: Arc::new(RwLock::new(Vec::new())),
         })
     }
 
@@ -381,9 +550,7 @@ impl ProcessManager {
         if let Some(parent) = self.config_path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| {
-                    ProcessError::Config(format!("Failed to create config dir: {}", e))
-                })?;
+                .map_err(|e| ProcessError::Config(format!("Failed to create config dir: {}", e)))?;
         }
 
         tokio::fs::write(&self.config_path, content)
@@ -598,10 +765,7 @@ impl ProcessManager {
             return Ok(TerminateProcessResult {
                 success: false,
                 exit_code: None,
-                error: Some(format!(
-                    "Not allowed to terminate process {}",
-                    request.pid
-                )),
+                error: Some(format!("Not allowed to terminate process {}", request.pid)),
             });
         }
 
@@ -625,6 +789,248 @@ impl ProcessManager {
         }
 
         result
+    }
+
+    async fn insert_operation(&self, operation: ProcessOperation) {
+        let operation_id = operation.operation_id.clone();
+        {
+            let mut operations = self.operations.write().await;
+            operations.insert(operation_id.clone(), operation);
+        }
+
+        let mut evicted: Option<String> = None;
+        {
+            let mut order = self.operation_order.write().await;
+            order.push(operation_id);
+            if order.len() > MAX_OPERATION_HISTORY {
+                evicted = Some(order.remove(0));
+            }
+        }
+        if let Some(evicted_id) = evicted {
+            let mut operations = self.operations.write().await;
+            operations.remove(&evicted_id);
+        }
+    }
+
+    async fn mark_operation_running(&self, operation_id: &str) {
+        let mut operations = self.operations.write().await;
+        if let Some(operation) = operations.get_mut(operation_id) {
+            operation.status = ProcessOperationStatus::Running;
+            operation.started_at = Some(now_timestamp_ms());
+            operation.error = None;
+        }
+    }
+
+    async fn mark_operation_completed(&self, operation_id: &str, result: ProcessOperationResult) {
+        let mut operations = self.operations.write().await;
+        if let Some(operation) = operations.get_mut(operation_id) {
+            operation.status = ProcessOperationStatus::Completed;
+            operation.completed_at = Some(now_timestamp_ms());
+            operation.result = Some(result);
+            operation.error = None;
+        }
+    }
+
+    async fn mark_operation_failed(&self, operation_id: &str, error: String) {
+        let mut operations = self.operations.write().await;
+        if let Some(operation) = operations.get_mut(operation_id) {
+            operation.status = ProcessOperationStatus::Failed;
+            operation.completed_at = Some(now_timestamp_ms());
+            operation.error = Some(error);
+        }
+    }
+
+    /// Start multiple processes in parallel with bounded concurrency
+    pub async fn start_process_batch(
+        &self,
+        request: StartProcessBatchRequest,
+    ) -> Result<StartProcessBatchResult, ProcessError> {
+        let total = request.requests.len();
+        let concurrency = normalize_batch_concurrency(request.max_concurrency);
+        let manager = self.clone();
+
+        let mut results = stream::iter(request.requests.into_iter().enumerate())
+            .map(move |(index, start_request)| {
+                let manager = manager.clone();
+                async move {
+                    let program = start_request.program.clone();
+                    let result = match manager.start_process(start_request).await {
+                        Ok(result) => result,
+                        Err(error) => StartProcessResult {
+                            success: false,
+                            pid: None,
+                            stdout: None,
+                            stderr: None,
+                            exit_code: None,
+                            error: Some(error.to_string()),
+                            duration_ms: None,
+                        },
+                    };
+                    StartProcessBatchItemResult {
+                        index,
+                        program,
+                        result,
+                    }
+                }
+            })
+            .buffer_unordered(concurrency)
+            .collect::<Vec<_>>()
+            .await;
+
+        results.sort_by_key(|item| item.index);
+        let success_count = results.iter().filter(|item| item.result.success).count();
+        let failure_count = total.saturating_sub(success_count);
+
+        Ok(StartProcessBatchResult {
+            total,
+            success_count,
+            failure_count,
+            results,
+        })
+    }
+
+    /// Terminate multiple processes in parallel with bounded concurrency
+    pub async fn terminate_process_batch(
+        &self,
+        request: TerminateProcessBatchRequest,
+    ) -> Result<TerminateProcessBatchResult, ProcessError> {
+        let total = request.requests.len();
+        let concurrency = normalize_batch_concurrency(request.max_concurrency);
+        let manager = self.clone();
+
+        let mut results = stream::iter(request.requests.into_iter().enumerate())
+            .map(move |(index, terminate_request)| {
+                let manager = manager.clone();
+                async move {
+                    let pid = terminate_request.pid;
+                    let result = match manager.terminate_process(terminate_request).await {
+                        Ok(result) => result,
+                        Err(error) => TerminateProcessResult {
+                            success: false,
+                            exit_code: None,
+                            error: Some(error.to_string()),
+                        },
+                    };
+                    TerminateProcessBatchItemResult { index, pid, result }
+                }
+            })
+            .buffer_unordered(concurrency)
+            .collect::<Vec<_>>()
+            .await;
+
+        results.sort_by_key(|item| item.index);
+        let success_count = results.iter().filter(|item| item.result.success).count();
+        let failure_count = total.saturating_sub(success_count);
+
+        Ok(TerminateProcessBatchResult {
+            total,
+            success_count,
+            failure_count,
+            results,
+        })
+    }
+
+    /// Start a batch operation asynchronously and return operation metadata immediately
+    pub async fn start_process_batch_async(
+        &self,
+        request: StartProcessBatchRequest,
+    ) -> Result<ProcessOperation, ProcessError> {
+        let operation = ProcessOperation {
+            operation_id: Uuid::new_v4().to_string(),
+            operation_type: ProcessOperationType::StartBatch,
+            status: ProcessOperationStatus::Pending,
+            created_at: now_timestamp_ms(),
+            started_at: None,
+            completed_at: None,
+            error: None,
+            result: None,
+        };
+
+        self.insert_operation(operation.clone()).await;
+
+        let manager = self.clone();
+        let operation_id = operation.operation_id.clone();
+        tokio::spawn(async move {
+            manager.mark_operation_running(&operation_id).await;
+            match manager.start_process_batch(request).await {
+                Ok(result) => {
+                    manager
+                        .mark_operation_completed(
+                            &operation_id,
+                            ProcessOperationResult::StartBatch(result),
+                        )
+                        .await;
+                }
+                Err(error) => {
+                    manager
+                        .mark_operation_failed(&operation_id, error.to_string())
+                        .await;
+                }
+            }
+        });
+
+        Ok(operation)
+    }
+
+    /// Terminate a batch operation asynchronously and return operation metadata immediately
+    pub async fn terminate_process_batch_async(
+        &self,
+        request: TerminateProcessBatchRequest,
+    ) -> Result<ProcessOperation, ProcessError> {
+        let operation = ProcessOperation {
+            operation_id: Uuid::new_v4().to_string(),
+            operation_type: ProcessOperationType::TerminateBatch,
+            status: ProcessOperationStatus::Pending,
+            created_at: now_timestamp_ms(),
+            started_at: None,
+            completed_at: None,
+            error: None,
+            result: None,
+        };
+
+        self.insert_operation(operation.clone()).await;
+
+        let manager = self.clone();
+        let operation_id = operation.operation_id.clone();
+        tokio::spawn(async move {
+            manager.mark_operation_running(&operation_id).await;
+            match manager.terminate_process_batch(request).await {
+                Ok(result) => {
+                    manager
+                        .mark_operation_completed(
+                            &operation_id,
+                            ProcessOperationResult::TerminateBatch(result),
+                        )
+                        .await;
+                }
+                Err(error) => {
+                    manager
+                        .mark_operation_failed(&operation_id, error.to_string())
+                        .await;
+                }
+            }
+        });
+
+        Ok(operation)
+    }
+
+    /// Get async operation by ID
+    pub async fn get_operation(&self, operation_id: &str) -> Option<ProcessOperation> {
+        let operations = self.operations.read().await;
+        operations.get(operation_id).cloned()
+    }
+
+    /// List recent async operations, most recent first
+    pub async fn list_operations(&self, limit: Option<usize>) -> Vec<ProcessOperation> {
+        let max = limit.unwrap_or(50).clamp(1, MAX_OPERATION_HISTORY);
+        let order = self.operation_order.read().await;
+        let ids: Vec<String> = order.iter().rev().take(max).cloned().collect();
+        drop(order);
+
+        let operations = self.operations.read().await;
+        ids.into_iter()
+            .filter_map(|id| operations.get(&id).cloned())
+            .collect()
     }
 }
 
@@ -695,7 +1101,9 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         let config_path = dir.path().join("process.json");
 
-        let manager = ProcessManager::new(config_path.clone()).await.expect("manager");
+        let manager = ProcessManager::new(config_path.clone())
+            .await
+            .expect("manager");
         let updated = ProcessManagerConfig {
             enabled: true,
             allowed_programs: vec!["python".to_string()],
@@ -705,7 +1113,9 @@ mod tests {
 
         manager.update_config(updated).await.expect("update");
 
-        let manager_reload = ProcessManager::new(config_path).await.expect("manager reload");
+        let manager_reload = ProcessManager::new(config_path)
+            .await
+            .expect("manager reload");
         let config = manager_reload.get_config().await;
 
         assert!(config.enabled);
@@ -736,7 +1146,10 @@ mod tests {
             allowed_programs: vec!["python".to_string()],
             ..Default::default()
         };
-        manager.update_config(allowlist_config).await.expect("update");
+        manager
+            .update_config(allowlist_config)
+            .await
+            .expect("update");
 
         assert!(manager.is_program_allowed("python3").await);
         assert!(!manager.is_program_allowed("node").await);
@@ -763,7 +1176,10 @@ mod tests {
             only_terminate_own: true,
             ..Default::default()
         };
-        manager.update_config(tracking_config).await.expect("update");
+        manager
+            .update_config(tracking_config)
+            .await
+            .expect("update");
 
         assert!(!manager.can_terminate(456).await);
         manager.track_process(456).await;
@@ -860,5 +1276,272 @@ mod tests {
 
         assert_eq!(processes[0].pid, 2);
         assert_eq!(processes[1].pid, 1);
+    }
+
+    #[test]
+    fn process_config_serializes_to_camel_case() {
+        let config = ProcessManagerConfig::default();
+        let value = serde_json::to_value(config).expect("serialize config");
+
+        assert!(value.get("allowedPrograms").is_some());
+        assert!(value.get("deniedPrograms").is_some());
+        assert!(value.get("allowTerminateAny").is_some());
+        assert!(value.get("onlyTerminateOwn").is_some());
+        assert!(value.get("maxTrackedProcesses").is_some());
+        assert!(value.get("defaultTimeoutSecs").is_some());
+    }
+
+    #[test]
+    fn process_config_deserializes_legacy_snake_case() {
+        let legacy = serde_json::json!({
+            "enabled": true,
+            "allowed_programs": ["python"],
+            "denied_programs": ["rm"],
+            "allow_terminate_any": true,
+            "only_terminate_own": false,
+            "max_tracked_processes": 12,
+            "default_timeout_secs": 5
+        });
+
+        let config: ProcessManagerConfig =
+            serde_json::from_value(legacy).expect("deserialize legacy config");
+
+        assert!(config.enabled);
+        assert_eq!(config.allowed_programs, vec!["python".to_string()]);
+        assert_eq!(config.denied_programs, vec!["rm".to_string()]);
+        assert!(config.allow_terminate_any);
+        assert!(!config.only_terminate_own);
+        assert_eq!(config.max_tracked_processes, 12);
+        assert_eq!(config.default_timeout_secs, 5);
+    }
+
+    #[test]
+    fn process_sort_field_accepts_start_time_aliases() {
+        let camel: ProcessSortField =
+            serde_json::from_str(r#""startTime""#).expect("startTime variant");
+        let legacy_lower: ProcessSortField =
+            serde_json::from_str(r#""starttime""#).expect("legacy lowercase variant");
+        let legacy_snake: ProcessSortField =
+            serde_json::from_str(r#""start_time""#).expect("legacy snake variant");
+
+        assert_eq!(camel, ProcessSortField::StartTime);
+        assert_eq!(legacy_lower, ProcessSortField::StartTime);
+        assert_eq!(legacy_snake, ProcessSortField::StartTime);
+    }
+
+    #[tokio::test]
+    async fn start_process_batch_returns_counts_and_preserves_order() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        manager
+            .update_config(ProcessManagerConfig {
+                enabled: true,
+                allowed_programs: vec!["allowed-only".to_string()],
+                ..Default::default()
+            })
+            .await
+            .expect("update");
+
+        let result = manager
+            .start_process_batch(StartProcessBatchRequest {
+                requests: vec![
+                    StartProcessRequest {
+                        program: "foo".to_string(),
+                        args: vec![],
+                        cwd: None,
+                        env: HashMap::new(),
+                        detached: true,
+                        timeout_secs: Some(1),
+                        capture_output: false,
+                    },
+                    StartProcessRequest {
+                        program: "bar".to_string(),
+                        args: vec![],
+                        cwd: None,
+                        env: HashMap::new(),
+                        detached: true,
+                        timeout_secs: Some(1),
+                        capture_output: false,
+                    },
+                ],
+                max_concurrency: Some(8),
+            })
+            .await
+            .expect("batch");
+
+        assert_eq!(result.total, 2);
+        assert_eq!(result.success_count, 0);
+        assert_eq!(result.failure_count, 2);
+        assert_eq!(result.results[0].index, 0);
+        assert_eq!(result.results[1].index, 1);
+        assert_eq!(result.results[0].program, "foo");
+        assert_eq!(result.results[1].program, "bar");
+    }
+
+    #[tokio::test]
+    async fn terminate_process_batch_respects_restrictions() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        manager
+            .update_config(ProcessManagerConfig {
+                enabled: true,
+                allow_terminate_any: false,
+                only_terminate_own: true,
+                ..Default::default()
+            })
+            .await
+            .expect("update");
+
+        let result = manager
+            .terminate_process_batch(TerminateProcessBatchRequest {
+                requests: vec![
+                    TerminateProcessRequest {
+                        pid: 999_001,
+                        force: false,
+                        timeout_secs: Some(1),
+                    },
+                    TerminateProcessRequest {
+                        pid: 999_002,
+                        force: false,
+                        timeout_secs: Some(1),
+                    },
+                ],
+                max_concurrency: Some(4),
+            })
+            .await
+            .expect("batch");
+
+        assert_eq!(result.total, 2);
+        assert_eq!(result.success_count, 0);
+        assert_eq!(result.failure_count, 2);
+        assert_eq!(result.results[0].pid, 999_001);
+        assert_eq!(result.results[1].pid, 999_002);
+    }
+
+    #[tokio::test]
+    async fn start_process_batch_async_records_and_completes_operation() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        manager
+            .update_config(ProcessManagerConfig {
+                enabled: true,
+                allowed_programs: vec!["allowed-only".to_string()],
+                ..Default::default()
+            })
+            .await
+            .expect("update");
+
+        let operation = manager
+            .start_process_batch_async(StartProcessBatchRequest {
+                requests: vec![StartProcessRequest {
+                    program: "foo".to_string(),
+                    args: vec![],
+                    cwd: None,
+                    env: HashMap::new(),
+                    detached: true,
+                    timeout_secs: Some(1),
+                    capture_output: false,
+                }],
+                max_concurrency: Some(2),
+            })
+            .await
+            .expect("submit");
+
+        assert_eq!(operation.operation_type, ProcessOperationType::StartBatch);
+        assert!(matches!(
+            operation.status,
+            ProcessOperationStatus::Pending
+                | ProcessOperationStatus::Running
+                | ProcessOperationStatus::Completed
+        ));
+
+        let completed = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let current = manager
+                    .get_operation(&operation.operation_id)
+                    .await
+                    .expect("operation exists");
+                if current.status == ProcessOperationStatus::Completed {
+                    break current;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("operation completion");
+
+        assert_eq!(completed.status, ProcessOperationStatus::Completed);
+        let payload = completed.result.expect("result");
+        match payload {
+            ProcessOperationResult::StartBatch(batch) => {
+                assert_eq!(batch.total, 1);
+                assert_eq!(batch.failure_count, 1);
+            }
+            ProcessOperationResult::TerminateBatch(_) => panic!("unexpected operation result kind"),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_operations_returns_recent_first_with_limit() {
+        let dir = tempdir().expect("tempdir");
+        let config_path = dir.path().join("process.json");
+        let manager = ProcessManager::new(config_path).await.expect("manager");
+
+        manager
+            .update_config(ProcessManagerConfig {
+                enabled: true,
+                allowed_programs: vec!["allowed-only".to_string()],
+                ..Default::default()
+            })
+            .await
+            .expect("update");
+
+        let first = manager
+            .start_process_batch_async(StartProcessBatchRequest {
+                requests: vec![StartProcessRequest {
+                    program: "foo".to_string(),
+                    args: vec![],
+                    cwd: None,
+                    env: HashMap::new(),
+                    detached: true,
+                    timeout_secs: Some(1),
+                    capture_output: false,
+                }],
+                max_concurrency: Some(1),
+            })
+            .await
+            .expect("first");
+
+        let second = manager
+            .start_process_batch_async(StartProcessBatchRequest {
+                requests: vec![StartProcessRequest {
+                    program: "bar".to_string(),
+                    args: vec![],
+                    cwd: None,
+                    env: HashMap::new(),
+                    detached: true,
+                    timeout_secs: Some(1),
+                    capture_output: false,
+                }],
+                max_concurrency: Some(1),
+            })
+            .await
+            .expect("second");
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let recent_one = manager.list_operations(Some(1)).await;
+        assert_eq!(recent_one.len(), 1);
+        assert_eq!(recent_one[0].operation_id, second.operation_id);
+
+        let all = manager.list_operations(Some(10)).await;
+        assert!(all.iter().any(|op| op.operation_id == first.operation_id));
+        assert!(all.iter().any(|op| op.operation_id == second.operation_id));
     }
 }

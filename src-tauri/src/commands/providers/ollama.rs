@@ -124,7 +124,8 @@ pub async fn ollama_get_status(base_url: String) -> Result<OllamaServerStatus, S
 #[tauri::command]
 pub async fn ollama_list_models(base_url: String) -> Result<Vec<OllamaModel>, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .get(format!("{}/api/tags", url))
@@ -161,7 +162,8 @@ pub async fn ollama_show_model(
     model_name: String,
 ) -> Result<OllamaModelInfo, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .post(format!("{}/api/show", url))
@@ -190,7 +192,8 @@ pub async fn ollama_pull_model(
     model_name: String,
 ) -> Result<bool, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .post(format!("{}/api/pull", url))
@@ -267,7 +270,8 @@ pub async fn ollama_pull_model(
 #[tauri::command]
 pub async fn ollama_delete_model(base_url: String, model_name: String) -> Result<bool, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .delete(format!("{}/api/delete", url))
@@ -288,7 +292,8 @@ pub async fn ollama_delete_model(base_url: String, model_name: String) -> Result
 #[tauri::command]
 pub async fn ollama_list_running(base_url: String) -> Result<Vec<OllamaRunningModel>, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .get(format!("{}/api/ps", url))
@@ -326,7 +331,8 @@ pub async fn ollama_copy_model(
     destination: String,
 ) -> Result<bool, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .post(format!("{}/api/copy", url))
@@ -354,7 +360,8 @@ pub async fn ollama_generate_embedding(
     input: String,
 ) -> Result<Vec<f64>, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
         .post(format!("{}/api/embed", url))
@@ -392,7 +399,8 @@ pub async fn ollama_generate_embedding(
 #[tauri::command]
 pub async fn ollama_stop_model(base_url: String, model_name: String) -> Result<bool, String> {
     let url = normalize_base_url(&base_url);
-    let client = get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let client =
+        get_client_for_url(&url).map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     // Send a generate request with keep_alive: 0 to unload the model
     let response = client

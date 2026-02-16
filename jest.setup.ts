@@ -208,7 +208,14 @@ jest.mock('@/stores', () => {
     updatedAt: new Date(),
   };
 
-  const createMockSelector = <T>(state: T) => (selector: (s: T) => unknown) => selector(state);
+  const createMockSelector = <T>(state: T) => {
+    const store = ((selector?: (s: T) => unknown) =>
+      selector ? selector(state) : state) as ((selector?: (s: T) => unknown) => unknown) & {
+      getState: () => T;
+    };
+    store.getState = () => state;
+    return store;
+  };
 
   return {
     useSessionStore: createMockSelector({
@@ -224,11 +231,20 @@ jest.mock('@/stores', () => {
       createSession: jest.fn(() => mockSession),
       deleteSession: jest.fn(),
       setActiveSession: jest.fn(),
+      clearAllSessions: jest.fn(),
     }),
     useSettingsStore: createMockSelector({
       providerSettings: { openai: { enabled: true, apiKey: 'test' }, tavily: { apiKey: 'tavily-key' } },
       theme: 'dark',
       language: 'en',
+      agentTraceSettings: {
+        enabled: true,
+        maxRecords: 1000,
+        autoCleanupDays: 30,
+        traceShellCommands: true,
+        traceCodeEdits: true,
+        traceFailedCalls: false,
+      },
       defaultTemperature: 0.7,
       defaultMaxTokens: 4096,
       defaultTopP: 1,
@@ -254,6 +270,7 @@ jest.mock('@/stores', () => {
       createCanvasDocument: jest.fn(() => 'canvas-doc-id'),
       setActiveCanvas: jest.fn(),
       autoCreateFromContent: jest.fn(),
+      clearSessionData: jest.fn(),
     }),
     useChatStore: createMockSelector({
       messages: [],
@@ -329,10 +346,25 @@ jest.mock('@/stores', () => {
       activeParentId: null,
     }),
     useSkillStore: createMockSelector({
-      skills: [],
-      getActiveSkills: jest.fn(() => []),
+      skills: {},
+      activeSkillIds: [],
+      isLoading: false,
       loading: false,
       error: null,
+      usageStats: {},
+      createSkill: jest.fn(() => ({ id: 'mock-skill-id' })),
+      updateSkill: jest.fn(),
+      deleteSkill: jest.fn(),
+      enableSkill: jest.fn(),
+      disableSkill: jest.fn(),
+      activateSkill: jest.fn(),
+      deactivateSkill: jest.fn(),
+      clearActiveSkills: jest.fn(),
+      searchSkills: jest.fn(() => ({ skills: [] })),
+      getSkillsByCategory: jest.fn(() => []),
+      getSkill: jest.fn(() => undefined),
+      recordSkillUsage: jest.fn(),
+      getActiveSkills: jest.fn(() => []),
     }),
     // Chat stores
     useSummaryStore: createMockSelector({
@@ -444,6 +476,19 @@ jest.mock('@/stores', () => {
       envs: [],
       activeEnv: null,
     }),
+    useBackupStore: createMockSelector({
+      lastBackupDate: null,
+      backupReminderDays: 7,
+      isReminderDismissed: false,
+      dismissedAt: null,
+      totalBackupCount: 0,
+      shouldShowReminder: jest.fn(() => false),
+      daysSinceLastBackup: jest.fn(() => null),
+      markBackupComplete: jest.fn(),
+      dismissReminder: jest.fn(),
+      setReminderInterval: jest.fn(),
+      resetBackupHistory: jest.fn(),
+    }),
     // Tools stores
     useJupyterStore: createMockSelector({
       sessions: [],
@@ -465,10 +510,26 @@ jest.mock('@/stores', () => {
 
 // Mock skill store separately (different import path)
 jest.mock('@/stores/skills/skill-store', () => ({
-  useSkillStore: (selector: (state: unknown) => unknown) => {
+  useSkillStore: (selector?: (state: unknown) => unknown) => {
     const state = {
+      skills: {},
+      activeSkillIds: [],
+      isLoading: false,
+      error: null,
+      usageStats: {},
+      createSkill: jest.fn(() => ({ id: 'mock-skill-id' })),
+      updateSkill: jest.fn(),
+      deleteSkill: jest.fn(),
+      enableSkill: jest.fn(),
+      disableSkill: jest.fn(),
+      activateSkill: jest.fn(),
+      deactivateSkill: jest.fn(),
+      clearActiveSkills: jest.fn(),
+      searchSkills: jest.fn(() => ({ skills: [] })),
+      getSkillsByCategory: jest.fn(() => []),
+      getSkill: jest.fn(() => undefined),
+      recordSkillUsage: jest.fn(),
       getActiveSkills: jest.fn(() => []),
-      skills: [],
     };
     return selector ? selector(state) : state;
   },

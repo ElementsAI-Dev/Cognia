@@ -20,6 +20,7 @@ import {
   getRecommendedMcpTools,
   type McpToolAdapterConfig,
 } from './mcp-tools';
+import { loggers } from '@/lib/logger';
 import type { McpTool, McpServerState, ToolCallResult, McpServerConfig, ToolUsageRecord } from '@/types/mcp';
 import type { AgentTool } from '../agent/agent-executor';
 
@@ -233,7 +234,7 @@ describe('convertMcpToolToAgentTool', () => {
     expect(result).toMatchObject({
       success: false,
     });
-    expect(result.error).toContain('timeout');
+    expect(result.error).toMatch(/timed out/i);
   });
 
   it('calls onError callback on failure', async () => {
@@ -451,7 +452,7 @@ describe('createMcpToolsFromBackend', () => {
   });
 
   it('handles backend API error gracefully', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerErrorSpy = jest.spyOn(loggers.ai, 'error').mockImplementation(() => undefined);
     const mockGetAllTools = jest.fn().mockRejectedValue(new Error('API error'));
     const mockCallTool = jest.fn();
     const servers: McpServerState[] = [];
@@ -459,8 +460,8 @@ describe('createMcpToolsFromBackend', () => {
     const tools = await createMcpToolsFromBackend(mockGetAllTools, mockCallTool, servers);
 
     expect(tools).toEqual({});
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    loggerErrorSpy.mockRestore();
   });
 
   it('uses server name from servers list', async () => {

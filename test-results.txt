@@ -1,0 +1,13 @@
+
+> cognia@0.1.0 test D:\Project\Cognia
+> jest "--" "--testPathPattern=components/image-studio" "--no-coverage"
+
+No tests found, exiting with code 1
+Run with `--passWithNoTests` to exit with code 0
+In D:\Project\Cognia
+  10016 files checked.
+  testMatch: **/__tests__/**/*.?([mc])[jt]s?(x), **/?(*.)+(spec|test).?([mc])[jt]s?(x) - 1900 matches
+  testPathIgnorePatterns: \\node_modules\\, \\.next\\, \\node_modules\\, \\.next\\, \\out\\, \\src-tauri\\, \\e2e\\, components\\providers\\provider-context.test.tsx, hooks\\sandbox\\use-sandbox-db.test.ts, __tests__\\test-utils\.ts$ - 5889 matches
+  testRegex:  - 0 matches
+Pattern: --testPathPattern=components/image-studio|--no-coverage - 0 matches
+ ELIFECYCLE  Test failed. See above for more details.

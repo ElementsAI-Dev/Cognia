@@ -2,8 +2,9 @@
  * Plugin UI Components - Exports
  * 
  * Components are organized into the following subfolders:
- * - core/       - Core plugin management (Manager, List, Card)
- * - config/     - Configuration components (Config, SettingsPage, CreateWizard)
+ * - core/       - Core plugin management (List, Card, EmptyState)
+ * - config/     - Configuration components (Config, CreateWizard, FilterBar)
+ * - layout/     - Layout components (Layout, Sidebar, Header, StatsBar, MobileNav, BatchToolbar)
  * - monitoring/ - Monitoring & analytics (Analytics, Health, Profiler, etc.)
  * - extension/  - Extension point system
  * - schema/     - JSON Schema form components
@@ -11,8 +12,11 @@
  * - marketplace/ - Plugin marketplace and discovery
  */
 
+// Unified page content (single source of truth for /plugins and settings)
+export { PluginPageContent } from './plugin-page-content';
+
 // Core plugin management
-export { PluginManager, PluginList, PluginCard, PluginQuickActions } from './core';
+export { PluginList, PluginCard, PluginQuickActions } from './core';
 
 // Marketplace
 export { 
@@ -22,7 +26,7 @@ export {
 } from './marketplace';
 
 // Configuration
-export { PluginConfig, PluginSettingsPage, PluginCreateWizard } from './config';
+export { PluginConfig, PluginCreateWizard } from './config';
 
 // Monitoring & Analytics
 export { 

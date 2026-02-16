@@ -18,6 +18,23 @@ jest.mock('@/lib/latex/version-control', () => ({
       ],
     }),
   })),
+  serializeVersionControl: jest.fn().mockReturnValue({
+    config: {
+      maxVersions: 100,
+      autoSaveInterval: 30000,
+      enableAutoSave: true,
+      enableCollaboration: false,
+    },
+    histories: [],
+  }),
+  deserializeVersionControl: jest.fn().mockImplementation(() => ({
+    initDocument: jest.fn(),
+    createVersion: jest.fn().mockReturnValue({ id: 'version-1', version: 1 }),
+    restoreVersion: jest.fn().mockReturnValue({ content: 'restored content' }),
+    getHistory: jest.fn().mockReturnValue({
+      versions: [{ id: 'version-1', version: 1, timestamp: Date.now(), message: 'Initial' }],
+    }),
+  })),
 }));
 
 // Mock citation library functions
@@ -50,6 +67,7 @@ describe('useLatexStore', () => {
       useLatexStore.setState({
         currentDocumentId: null,
         documentHistory: [],
+        versionControlService: null,
         isLoading: false,
         error: null,
       });

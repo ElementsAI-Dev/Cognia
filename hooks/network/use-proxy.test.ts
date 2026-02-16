@@ -45,6 +45,7 @@ jest.mock('@/lib/native/proxy', () => ({
     detectAll: jest.fn().mockResolvedValue([]),
     test: jest.fn(),
     buildUrl: jest.fn((proxy) => `http://${proxy.host}:${proxy.port}`),
+    setBackendProxy: jest.fn().mockResolvedValue(undefined),
   },
   isProxyAvailable: jest.fn(() => true),
 }));

@@ -46,7 +46,7 @@ describe('GitPage', () => {
 
   it('should render repository path input when no repo is active', () => {
     render(<GitPage />);
-    expect(screen.getByPlaceholderText('Enter repository path...')).toBeInTheDocument();
+    expect(screen.getByLabelText('Repository Path', { selector: '#repoPath' })).toBeInTheDocument();
   });
 
   it('should render open repository button', () => {
@@ -63,7 +63,7 @@ describe('GitPage', () => {
   it('should enable open button when path is entered', () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -73,7 +73,7 @@ describe('GitPage', () => {
   it('should show GitPanel when repository is opened', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -89,7 +89,7 @@ describe('GitPage', () => {
   it('should pass repository path to GitPanel', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/test/my-repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -106,7 +106,7 @@ describe('GitPage', () => {
   it('should show repository name in header when active', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/my-repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -115,14 +115,14 @@ describe('GitPage', () => {
     }
     
     await waitFor(() => {
-      expect(screen.getByText('my-repo')).toBeInTheDocument();
+      expect(screen.getAllByText('my-repo').length).toBeGreaterThan(0);
     });
   });
 
   it('should show change button when repository is active', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -139,7 +139,7 @@ describe('GitPage', () => {
     render(<GitPage />);
     
     // Open a repo
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -157,19 +157,19 @@ describe('GitPage', () => {
     
     await waitFor(() => {
       // Should show the welcome card again
-      expect(screen.getByText('Git Version Control')).toBeInTheDocument();
+      expect(screen.getByText('Repository')).toBeInTheDocument();
     });
   });
 
   it('should render welcome card when no repository is active', () => {
     render(<GitPage />);
-    expect(screen.getByText('Git Version Control')).toBeInTheDocument();
+    expect(screen.getByText('Repository')).toBeInTheDocument();
   });
 
   it('should show quick tips when repository is active', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -185,7 +185,7 @@ describe('GitPage', () => {
   it('should show keyboard shortcuts section when repository is active', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -201,7 +201,7 @@ describe('GitPage', () => {
   it('should have link to settings page', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');
@@ -227,7 +227,7 @@ describe('GitPage', () => {
   it('should render repository overview when active', async () => {
     render(<GitPage />);
     
-    const input = screen.getByPlaceholderText('Enter repository path...');
+    const input = screen.getByLabelText('Repository Path', { selector: '#repoPath' });
     fireEvent.change(input, { target: { value: '/path/to/repo' } });
     
     const openButton = screen.getAllByText('Open Repository')[0].closest('button');

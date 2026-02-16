@@ -104,7 +104,7 @@ Select and process multiple text snippets:
 - **Reference System**: Add context from files, URLs, or notes
 - **Smart Expansion**: Expand selection to word, sentence, or paragraph
 
-**Implementation**: `stores/context/selection-store.ts`
+**Implementation**: `stores/context/selection-store/`
 
 ### 9. Settings Panel
 

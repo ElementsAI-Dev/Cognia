@@ -14,9 +14,9 @@ jest.mock('@/lib/ai/embedding/embedding', () => ({
 
 // Mock settings store
 jest.mock('@/stores', () => {
-  const actual = jest.requireActual('@/stores');
+  const { useMemoryStore } = jest.requireActual('@/stores/data/memory-store');
   return {
-    ...actual,
+    useMemoryStore,
     useSettingsStore: jest.fn((selector) => {
       const state = {
         providerSettings: {

@@ -62,6 +62,14 @@ export const createSettingsStoreState = (overrides = {}) => ({
   providerSettings: { openai: { enabled: true, apiKey: 'test' } },
   theme: 'dark',
   language: 'en',
+  agentTraceSettings: {
+    enabled: true,
+    maxRecords: 1000,
+    autoCleanupDays: 30,
+    traceShellCommands: true,
+    traceCodeEdits: true,
+    traceFailedCalls: false,
+  },
   simplifiedModeSettings: { 
     enabled: false, 
     preset: 'off',

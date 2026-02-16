@@ -91,6 +91,11 @@ jest.mock('@/hooks/native', () => ({
     toggleFullscreen: jest.fn(),
     isFullscreen: false,
   }),
+  useSelectionSettings: () => ({
+    isEnabled: true,
+    setEnabled: jest.fn(),
+    isLoading: false,
+  }),
 }));
 
 // Mock UI components

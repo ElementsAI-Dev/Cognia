@@ -44,6 +44,18 @@ jest.mock('html2canvas', () => ({
 }));
 
 describe('A2UI Thumbnail', () => {
+  let toDataURLSpy: jest.SpyInstance;
+
+  beforeAll(() => {
+    toDataURLSpy = jest
+      .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+      .mockImplementation(() => 'data:image/png;base64,mockCanvasData');
+  });
+
+  afterAll(() => {
+    toDataURLSpy.mockRestore();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     Object.keys(mockLocalStorage).forEach((key) => delete mockLocalStorage[key]);

@@ -98,7 +98,9 @@ impl TextExtractor {
                 return Ok(Some(text));
             }
             Ok(_) => {
-                log::debug!("[TextExtractor] UI Automation returned no text, trying clipboard fallback");
+                log::debug!(
+                    "[TextExtractor] UI Automation returned no text, trying clipboard fallback"
+                );
             }
             Err(e) => {
                 log::debug!(

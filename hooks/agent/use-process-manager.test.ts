@@ -13,6 +13,7 @@ jest.mock('@/lib/native/process', () => ({
     list: jest.fn(),
     search: jest.fn(),
     topMemory: jest.fn(),
+    getTracked: jest.fn(),
     terminate: jest.fn(),
     start: jest.fn(),
     getConfig: jest.fn(),
@@ -36,6 +37,7 @@ describe('useProcessManager', () => {
     mockIsAvailable.mockReturnValue(true);
     // Default mock for list to prevent hanging promises
     mockProcessService.list.mockResolvedValue([]);
+    mockProcessService.getTracked.mockResolvedValue([]);
   });
 
   describe('initialization', () => {
@@ -68,6 +70,7 @@ describe('useProcessManager', () => {
       });
 
       expect(mockProcessService.list).toHaveBeenCalled();
+      expect(mockProcessService.getTracked).toHaveBeenCalled();
       expect(result.current.processes).toEqual(mockProcesses);
     });
 
@@ -115,6 +118,7 @@ describe('useProcessManager', () => {
   describe('startProcess', () => {
     it('starts process and tracks it', async () => {
       mockProcessService.start.mockResolvedValue({ success: true, pid: 5678 });
+      mockProcessService.getTracked.mockResolvedValue([5678]);
 
       const { result } = renderHook(() => useProcessManager());
 
@@ -215,24 +219,25 @@ describe('useProcessManager', () => {
   });
 
   describe('trackProcess / untrackProcess', () => {
-    it('tracks and untracks processes', () => {
+    it('tracks and untracks local agent metadata', () => {
       const { result } = renderHook(() => useProcessManager());
 
       act(() => {
         result.current.trackProcess({
           pid: 1234,
+          agentId: 'agent-1',
           program: 'node',
           startedAt: new Date(),
         });
       });
 
-      expect(result.current.trackedPids).toContain(1234);
+      expect(result.current.getTrackedByAgent('agent-1')).toHaveLength(1);
 
       act(() => {
         result.current.untrackProcess(1234);
       });
 
-      expect(result.current.trackedPids).not.toContain(1234);
+      expect(result.current.getTrackedByAgent('agent-1')).toHaveLength(0);
     });
   });
 

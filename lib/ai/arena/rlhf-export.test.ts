@@ -67,8 +67,8 @@ describe('RLHF Export', () => {
       expect(pair?.prompt).toBe('What is the meaning of life?');
       expect(pair?.chosen).toBe('This is the winning response.');
       expect(pair?.rejected).toBe('This is the losing response.');
-      expect(pair?.chosen_model).toBe('gpt-4o');
-      expect(pair?.rejected_model).toBe('claude-3-opus');
+      expect(pair?.chosen_model).toBe('openai:gpt-4o');
+      expect(pair?.rejected_model).toBe('anthropic:claude-3-opus');
     });
 
     it('should return null for incomplete battle', () => {

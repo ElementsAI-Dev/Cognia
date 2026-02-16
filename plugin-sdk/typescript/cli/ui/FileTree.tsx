@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { colors, symbols } from './theme.js';
+import { colors, symbols } from './theme';
 
 export interface FileNode {
   name: string;

@@ -48,9 +48,7 @@ impl OllamaVisionProvider {
             Some(DocumentHint::SparseText) => {
                 "Extract all visible text from this image, including labels and signs."
             }
-            _ => {
-                "Extract all text from this image."
-            }
+            _ => "Extract all text from this image.",
         };
 
         let language_hint = options

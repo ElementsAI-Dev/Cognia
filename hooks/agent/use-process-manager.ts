@@ -2,7 +2,7 @@
  * useProcessManager - Hook for process management functionality
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProcessStore, type TrackedProcess } from '@/stores/agent/process-store';
 import {
   processService,
@@ -52,8 +52,23 @@ export interface UseProcessManagerReturn {
 export function useProcessManager(): UseProcessManagerReturn {
   const store = useProcessStore();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [trackedPids, setTrackedPids] = useState<number[]>([]);
 
   const isAvailable = isProcessManagementAvailable();
+
+  const refreshTracked = useCallback(async () => {
+    if (!isAvailable) {
+      setTrackedPids([]);
+      return;
+    }
+
+    try {
+      const backendTracked = await processService.getTracked();
+      setTrackedPids(Array.from(new Set(backendTracked)));
+    } catch {
+      // Keep last known tracked list on transient errors.
+    }
+  }, [isAvailable]);
 
   // Refresh process list
   const refresh = useCallback(
@@ -62,13 +77,13 @@ export function useProcessManager(): UseProcessManagerReturn {
 
       store.setLoading(true);
       try {
-        const processes = await processService.list(filter);
+        const [processes] = await Promise.all([processService.list(filter), refreshTracked()]);
         store.setProcesses(processes);
       } catch (err) {
         store.setError(err instanceof Error ? err.message : 'Failed to list processes');
       }
     },
-    [isAvailable, store]
+    [isAvailable, refreshTracked, store]
   );
 
   // Search processes
@@ -78,13 +93,13 @@ export function useProcessManager(): UseProcessManagerReturn {
 
       store.setLoading(true);
       try {
-        const processes = await processService.search(query, 50);
+        const [processes] = await Promise.all([processService.search(query, 50), refreshTracked()]);
         store.setProcesses(processes);
       } catch (err) {
         store.setError(err instanceof Error ? err.message : 'Failed to search processes');
       }
     },
-    [isAvailable, store]
+    [isAvailable, refreshTracked, store]
   );
 
   // Get top memory processes
@@ -94,13 +109,13 @@ export function useProcessManager(): UseProcessManagerReturn {
 
       store.setLoading(true);
       try {
-        const processes = await processService.topMemory(limit);
+        const [processes] = await Promise.all([processService.topMemory(limit), refreshTracked()]);
         store.setProcesses(processes);
       } catch (err) {
         store.setError(err instanceof Error ? err.message : 'Failed to get top memory processes');
       }
     },
-    [isAvailable, store]
+    [isAvailable, refreshTracked, store]
   );
 
   // Terminate a process
@@ -111,10 +126,9 @@ export function useProcessManager(): UseProcessManagerReturn {
       try {
         const result = await processService.terminate({ pid, force });
         if (result.success) {
-          // Remove from tracked if present
+          // Remove local agent metadata if present.
           store.untrackProcess(pid);
-          // Refresh list
-          await refresh();
+          await Promise.all([refresh(), refreshTracked()]);
         }
         return result.success;
       } catch (err) {
@@ -122,7 +136,7 @@ export function useProcessManager(): UseProcessManagerReturn {
         return false;
       }
     },
-    [isAvailable, store, refresh]
+    [isAvailable, store, refresh, refreshTracked]
   );
 
   // Get tracked processes by agent
@@ -141,12 +155,13 @@ export function useProcessManager(): UseProcessManagerReturn {
       try {
         const result = await processService.start(request);
         if (result.success && result.pid) {
-          // Track the process
+          // Track only local agent metadata; tracked PID truth comes from backend.
           store.trackProcess({
             pid: result.pid,
             program: request.program,
             startedAt: new Date(),
           });
+          await refreshTracked();
         }
         return result;
       } catch (err) {
@@ -154,7 +169,7 @@ export function useProcessManager(): UseProcessManagerReturn {
         return null;
       }
     },
-    [isAvailable, store]
+    [isAvailable, store, refreshTracked]
   );
 
   // Refresh configuration from backend
@@ -213,15 +228,18 @@ export function useProcessManager(): UseProcessManagerReturn {
       return;
     }
 
-    // Initial fetch
-    refresh();
+    // Initial fetch (deferred to avoid sync setState in effect body)
+    const initialRefreshTimer = setTimeout(() => {
+      void refresh();
+    }, 0);
 
     // Set up interval
     intervalRef.current = setInterval(() => {
-      refresh();
+      void refresh();
     }, store.autoRefreshInterval);
 
     return () => {
+      clearTimeout(initialRefreshTimer);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -237,7 +255,7 @@ export function useProcessManager(): UseProcessManagerReturn {
     isAvailable,
     config: store.config,
     configLoading: store.configLoading,
-    trackedPids: Array.from(store.trackedProcesses.keys()),
+    trackedPids,
     getTrackedByAgent,
     refresh,
     search,

@@ -37,7 +37,10 @@ impl LinuxScheduler {
             available, user_dir
         );
 
-        Self { available, user_dir }
+        Self {
+            available,
+            user_dir,
+        }
     }
 
     /// Check if systemctl is available
@@ -161,8 +164,9 @@ Description=Timer for Cognia Task: {}
                 Self::cron_to_calendar(expression).map(Some)
             }
             SystemTaskTrigger::Once { run_at } => {
-                let dt = chrono::DateTime::parse_from_rfc3339(run_at)
-                    .map_err(|e| SchedulerError::InvalidConfig(format!("Invalid datetime: {}", e)))?;
+                let dt = chrono::DateTime::parse_from_rfc3339(run_at).map_err(|e| {
+                    SchedulerError::InvalidConfig(format!("Invalid datetime: {}", e))
+                })?;
                 Ok(Some(dt.format("%Y-%m-%d %H:%M:%S").to_string()))
             }
             SystemTaskTrigger::OnLogon { .. } => {
@@ -294,7 +298,11 @@ Description=Timer for Cognia Task: {}
                 let code_b64 =
                     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, code);
                 let cognia_path = Self::get_cognia_path();
-                let sandbox_flag = if *use_sandbox { "--sandbox" } else { "--native" };
+                let sandbox_flag = if *use_sandbox {
+                    "--sandbox"
+                } else {
+                    "--native"
+                };
 
                 let exec_start = format!(
                     "{} execute-script --language {} {} --timeout {} --memory {} --code-b64 '{}' {}",
@@ -344,10 +352,7 @@ Description=Timer for Cognia Task: {}
 
     /// Run systemctl command
     fn systemctl(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        Command::new("systemctl")
-            .arg("--user")
-            .args(args)
-            .output()
+        Command::new("systemctl").arg("--user").args(args).output()
     }
 
     /// Check if a unit exists
@@ -464,11 +469,7 @@ impl SystemScheduler for LinuxScheduler {
         Ok(task)
     }
 
-    async fn update_task(
-        &self,
-        id: &str,
-        input: CreateSystemTaskInput,
-    ) -> Result<SystemTask> {
+    async fn update_task(&self, id: &str, input: CreateSystemTaskInput) -> Result<SystemTask> {
         self.delete_task(id).await?;
         self.create_task(input).await
     }

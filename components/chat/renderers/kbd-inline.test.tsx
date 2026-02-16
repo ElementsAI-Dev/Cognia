@@ -20,9 +20,9 @@ describe('KbdInline', () => {
       expect(container.querySelector('.custom-class')).toBeInTheDocument();
     });
 
-    it('applies monospace font', () => {
+    it('applies base keyboard typography', () => {
       const { container } = render(<KbdInline>X</KbdInline>);
-      expect(container.querySelector('.font-mono')).toBeInTheDocument();
+      expect(container.querySelector('.font-sans')).toBeInTheDocument();
     });
   });
 
@@ -104,7 +104,7 @@ describe('KeyboardShortcut', () => {
       const { container } = render(
         <KeyboardShortcut keys={['Ctrl', 'C']} variant="outline" />
       );
-      const kbdElements = container.querySelectorAll('kbd');
+      const kbdElements = container.querySelectorAll('kbd[data-slot="kbd"]');
       expect(kbdElements.length).toBe(2);
     });
   });

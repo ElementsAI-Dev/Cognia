@@ -379,7 +379,7 @@ export function generateMockLeaderboard(
   ];
 
   // Filter by provider if specified
-  let filtered = mockModels;
+  let filtered = [...mockModels];
   if (params.provider) {
     filtered = filtered.filter((m) => m.provider === params.provider);
   }
@@ -393,8 +393,8 @@ export function generateMockLeaderboard(
   const sortField = params.sortBy || 'rating';
   const sortDir = params.sortDirection === 'asc' ? 1 : -1;
   filtered.sort((a, b) => {
-    if (sortField === 'rating') return (b.rating - a.rating) * sortDir;
-    if (sortField === 'totalBattles') return (b.battles - a.battles) * sortDir;
+    if (sortField === 'rating') return (a.rating - b.rating) * sortDir;
+    if (sortField === 'totalBattles') return (a.battles - b.battles) * sortDir;
     return 0;
   });
 

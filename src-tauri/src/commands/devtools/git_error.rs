@@ -149,9 +149,9 @@ impl GitError {
             GitErrorKind::GitNotInstalled => {
                 Some("Install Git from https://git-scm.com/downloads".to_string())
             }
-            GitErrorKind::LockExists { .. } => {
-                Some("Wait for the other Git process to finish or remove the lock file.".to_string())
-            }
+            GitErrorKind::LockExists { .. } => Some(
+                "Wait for the other Git process to finish or remove the lock file.".to_string(),
+            ),
             _ => None,
         }
     }
@@ -221,9 +221,7 @@ impl GitError {
         }
 
         // Nothing to commit
-        if stderr_lower.contains("nothing to commit")
-            || stderr_lower.contains("no changes added")
-        {
+        if stderr_lower.contains("nothing to commit") || stderr_lower.contains("no changes added") {
             return Self::new(GitErrorKind::NothingToCommit, stderr.to_string());
         }
 

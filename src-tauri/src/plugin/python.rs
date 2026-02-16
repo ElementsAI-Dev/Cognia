@@ -66,20 +66,21 @@ impl PythonRuntime {
         });
 
         // Verify Python is available and get version
-        let (python_available, python_version) = match Command::new(&python)
-            .args(["--version"])
-            .output() 
-        {
-            Ok(output) if output.status.success() => {
-                let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                log::info!("Python runtime initialized: {}", version);
-                (true, Some(version))
-            }
-            _ => {
-                log::warn!("Python not found at '{}', Python plugins will be disabled", python);
-                (false, None)
-            }
-        };
+        let (python_available, python_version) =
+            match Command::new(&python).args(["--version"]).output() {
+                Ok(output) if output.status.success() => {
+                    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    log::info!("Python runtime initialized: {}", version);
+                    (true, Some(version))
+                }
+                _ => {
+                    log::warn!(
+                        "Python not found at '{}', Python plugins will be disabled",
+                        python
+                    );
+                    (false, None)
+                }
+            };
 
         Ok(Self {
             python_path: python,
@@ -120,7 +121,7 @@ impl PythonRuntime {
 
         let mut cmd = Command::new(&self.python_path);
         cmd.args(["-m", "pip", "install", "--quiet"]);
-        
+
         for dep in dependencies {
             cmd.arg(dep);
         }
@@ -191,7 +192,9 @@ impl PythonRuntime {
 
     /// Initialize a loaded plugin
     async fn initialize_plugin(&mut self, plugin_id: &str) -> PluginResult<()> {
-        let instance = self.loaded_plugins.get(plugin_id)
+        let instance = self
+            .loaded_plugins
+            .get(plugin_id)
             .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
 
         // Create initialization script
@@ -295,7 +298,7 @@ except Exception as e:
                     });
                 }
             }
-            
+
             // Mark as initialized
             instance.initialized = true;
         }
@@ -303,7 +306,7 @@ except Exception as e:
         log::info!("Python plugin {} initialized successfully", plugin_id);
         Ok(())
     }
-    
+
     /// Check if a plugin is initialized
     pub fn is_plugin_initialized(&self, plugin_id: &str) -> bool {
         self.loaded_plugins
@@ -311,17 +314,22 @@ except Exception as e:
             .map(|p| p.initialized)
             .unwrap_or(false)
     }
-    
+
     /// Get plugin info for debugging
     pub fn get_plugin_info(&self, plugin_id: &str) -> Option<(String, usize, usize)> {
-        self.loaded_plugins.get(plugin_id).map(|p| {
-            (p.plugin_id.clone(), p.tools.len(), p.hooks.len())
-        })
+        self.loaded_plugins
+            .get(plugin_id)
+            .map(|p| (p.plugin_id.clone(), p.tools.len(), p.hooks.len()))
     }
 
     /// Get tools from a loaded plugin
-    pub async fn get_plugin_tools(&self, plugin_id: &str) -> PluginResult<Vec<PythonToolRegistration>> {
-        let instance = self.loaded_plugins.get(plugin_id)
+    pub async fn get_plugin_tools(
+        &self,
+        plugin_id: &str,
+    ) -> PluginResult<Vec<PythonToolRegistration>> {
+        let instance = self
+            .loaded_plugins
+            .get(plugin_id)
             .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
 
         Ok(instance.tools.clone())
@@ -334,7 +342,9 @@ except Exception as e:
         tool_name: &str,
         args: serde_json::Value,
     ) -> PluginResult<serde_json::Value> {
-        let instance = self.loaded_plugins.get(plugin_id)
+        let instance = self
+            .loaded_plugins
+            .get(plugin_id)
             .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
 
         let args_json = serde_json::to_string(&args)?;
@@ -418,7 +428,9 @@ except Exception as e:
         function_name: &str,
         args: Vec<serde_json::Value>,
     ) -> PluginResult<serde_json::Value> {
-        let instance = self.loaded_plugins.get(plugin_id)
+        let instance = self
+            .loaded_plugins
+            .get(plugin_id)
             .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
 
         let args_json = serde_json::to_string(&args)?;
@@ -480,11 +492,16 @@ except Exception as e:
         code: &str,
         locals: serde_json::Value,
     ) -> PluginResult<serde_json::Value> {
-        let instance = self.loaded_plugins.get(plugin_id)
+        let instance = self
+            .loaded_plugins
+            .get(plugin_id)
             .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
 
         let locals_json = serde_json::to_string(&locals)?;
-        let escaped_code = code.replace('\\', "\\\\").replace("'", "\\'").replace('\n', "\\n");
+        let escaped_code = code
+            .replace('\\', "\\\\")
+            .replace("'", "\\'")
+            .replace('\n', "\\n");
 
         let eval_script = format!(
             r#"
@@ -579,7 +596,7 @@ except Exception as e:
 
         Ok(result["result"].clone())
     }
-    
+
     /// Unload a plugin
     pub fn unload_plugin(&mut self, plugin_id: &str) -> PluginResult<()> {
         if self.loaded_plugins.remove(plugin_id).is_none() {
@@ -588,7 +605,7 @@ except Exception as e:
         log::info!("Unloaded Python plugin: {}", plugin_id);
         Ok(())
     }
-    
+
     /// List all loaded plugins
     pub fn list_plugins(&self) -> Vec<String> {
         self.loaded_plugins.keys().cloned().collect()
@@ -598,9 +615,9 @@ except Exception as e:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::sync::atomic::Ordering;
     use tempfile::tempdir;
-    use std::fs;
 
     #[test]
     fn test_python_runtime_new() {

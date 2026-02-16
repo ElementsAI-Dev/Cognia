@@ -117,7 +117,7 @@ jest.mock('@/types/media/video', () => ({
 }));
 
 // Mock Video component
-jest.mock('@/components/learning/video', () => ({
+jest.mock('@/components/learning/content/video', () => ({
   Video: ({ prompt, status }: { prompt?: string; status?: string }) => (
     <div data-testid="video-component" data-status={status}>
       {prompt}

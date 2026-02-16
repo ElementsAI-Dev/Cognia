@@ -306,7 +306,7 @@ describe('useContextStats', () => {
     it('should format millions', () => {
       const { result } = renderHook(() => useContextStats({ refreshOnMount: false }));
 
-      expect(result.current.formatTokens(1500000)).toBe('1.50M');
+      expect(result.current.formatTokens(1500000)).toBe('1.5M');
     });
   });
 });

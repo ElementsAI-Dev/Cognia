@@ -12,7 +12,7 @@ import type {
   ImportResult,
   AcademicExportResult,
 } from '@/types/academic';
-import type { AcademicState } from '../academic-store';
+import type { AcademicSliceCreator } from '../types';
 
 // ============================================================================
 // Provider & Settings Actions Type
@@ -41,11 +41,7 @@ export interface ProviderActions {
 // Provider Slice Creator
 // ============================================================================
 
-export function createProviderSlice(
-  set: (updater: ((state: AcademicState) => Partial<AcademicState>) | Partial<AcademicState>) => void,
-  get: () => AcademicState
-): ProviderActions {
-  return {
+export const createProviderSlice: AcademicSliceCreator<ProviderActions> = (set, get) => ({
     getProviders: async () => {
       try {
         const providers = await invoke<AcademicProviderConfig[]>('academic_get_providers');
@@ -139,5 +135,4 @@ export function createProviderSlice(
         settings: { ...state.settings, ...settings },
       }));
     },
-  };
-}
+});

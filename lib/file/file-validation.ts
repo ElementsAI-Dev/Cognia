@@ -37,6 +37,30 @@ const FILE_SIGNATURES: Record<string, { signature: number[]; mimeType: string }>
   RAR: { signature: [0x52, 0x61, 0x72, 0x21], mimeType: 'application/x-rar-compressed' },
 };
 
+async function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  const blobWithArrayBuffer = blob as Blob & { arrayBuffer?: () => Promise<ArrayBuffer> };
+  if (typeof blobWithArrayBuffer.arrayBuffer === 'function') {
+    return blobWithArrayBuffer.arrayBuffer();
+  }
+
+  if (typeof FileReader !== 'undefined') {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Failed to read blob as ArrayBuffer'));
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
+      reader.readAsArrayBuffer(blob);
+    });
+  }
+
+  throw new Error('Blob arrayBuffer is not available');
+}
+
 /**
  * Check file magic number to verify file type
  */
@@ -188,9 +212,9 @@ export async function validateFileAsync(
   // Magic number check if requested
   if (options.checkMagicNumber) {
     try {
-      // Read first 16 bytes for magic number check
+      // Read first 16 bytes for magic number check.
       const slice = file.slice(0, 16);
-      const buffer = await slice.arrayBuffer();
+      const buffer = await readBlobAsArrayBuffer(slice);
       
       return checkMagicNumber(buffer, file.type);
     } catch (error) {

@@ -7,25 +7,22 @@ import { useAIConversation } from './use-ai-conversation';
 
 // Mock AI conversation functions
 const mockCreateConversation = jest.fn();
-const mockContinueConversation = jest.fn();
+const mockContinueAIConversation = jest.fn();
 const mockStreamConversation = jest.fn();
 const mockClearConversationHistory = jest.fn();
 const mockGetConversationSummary = jest.fn();
+const mockGetDesignerAIConfig = jest.fn(() => ({
+  model: 'gpt-4',
+  temperature: 0.7,
+}));
 
-jest.mock('@/lib/designer/ai-conversation', () => ({
+jest.mock('@/lib/designer/ai', () => ({
   createConversation: (...args: unknown[]) => mockCreateConversation(...args),
-  continueConversation: (...args: unknown[]) => mockContinueConversation(...args),
+  continueAIConversation: (...args: unknown[]) => mockContinueAIConversation(...args),
   streamConversation: (...args: unknown[]) => mockStreamConversation(...args),
   clearConversationHistory: (...args: unknown[]) => mockClearConversationHistory(...args),
   getConversationSummary: (...args: unknown[]) => mockGetConversationSummary(...args),
-}));
-
-// Mock designer AI config
-jest.mock('@/lib/designer/ai', () => ({
-  getDesignerAIConfig: jest.fn(() => ({
-    model: 'gpt-4',
-    temperature: 0.7,
-  })),
+  getDesignerAIConfig: (...args: unknown[]) => mockGetDesignerAIConfig(...args),
 }));
 
 // Mock settings store
@@ -52,7 +49,7 @@ describe('useAIConversation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCreateConversation.mockReturnValue(mockConversation);
-    mockContinueConversation.mockResolvedValue({
+    mockContinueAIConversation.mockResolvedValue({
       success: true,
       conversation: {
         ...mockConversation,
@@ -111,7 +108,7 @@ describe('useAIConversation', () => {
       });
 
       expect(mockCreateConversation).toHaveBeenCalled();
-      expect(mockContinueConversation).toHaveBeenCalled();
+      expect(mockContinueAIConversation).toHaveBeenCalled();
       expect(result.current.conversation).not.toBeNull();
       expect(result.current.isProcessing).toBe(false);
     });
@@ -130,7 +127,7 @@ describe('useAIConversation', () => {
     });
 
     it('should handle error response', async () => {
-      mockContinueConversation.mockResolvedValue({
+      mockContinueAIConversation.mockResolvedValue({
         success: false,
         error: 'API error',
       });
@@ -149,7 +146,7 @@ describe('useAIConversation', () => {
     });
 
     it('should handle thrown error', async () => {
-      mockContinueConversation.mockRejectedValue(new Error('Network error'));
+      mockContinueAIConversation.mockRejectedValue(new Error('Network error'));
 
       const onError = jest.fn();
       const { result } = renderHook(() =>
@@ -184,7 +181,7 @@ describe('useAIConversation', () => {
     });
 
     it('should set isProcessing during request', async () => {
-      mockContinueConversation.mockImplementation(async () => {
+      mockContinueAIConversation.mockImplementation(async () => {
         return {
           success: true,
           conversation: mockConversation,
@@ -414,11 +411,11 @@ describe('useAIConversation', () => {
         await result.current.sendMessage('');
       });
 
-      expect(mockContinueConversation).toHaveBeenCalled();
+      expect(mockContinueAIConversation).toHaveBeenCalled();
     });
 
     it('should handle non-Error thrown objects', async () => {
-      mockContinueConversation.mockRejectedValue('String error');
+      mockContinueAIConversation.mockRejectedValue('String error');
 
       const { result } = renderHook(() => useAIConversation());
 

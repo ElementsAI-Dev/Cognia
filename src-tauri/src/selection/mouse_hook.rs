@@ -148,7 +148,7 @@ impl MouseHook {
                                     log::debug!("[MouseHook] Triple-click at ({:.0}, {:.0})", x, y);
                                     MouseEvent::TripleClick { x, y }
                                 }
-                                _ => MouseEvent::LeftButtonUp { x, y }
+                                _ => MouseEvent::LeftButtonUp { x, y },
                             }
                         };
 

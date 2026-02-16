@@ -6,6 +6,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSelectionSettings } from './use-selection-settings';
 import { useSelectionStore } from '@/stores/context/selection-store';
 import { isTauri } from '@/lib/native/utils';
+import { loggers } from '@/lib/logger';
 
 // Mock the selection store with factory function
 let mockSetEnabled: jest.MockedFunction<(enabled: boolean) => void>;
@@ -357,9 +358,9 @@ describe('useSelectionSettings', () => {
     });
   });
 
-  describe('console logging', () => {
+  describe('logger integration', () => {
     it('should log successful enable', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const infoSpy = jest.spyOn(loggers.native, 'info').mockImplementation();
       mockInvoke
         .mockResolvedValueOnce(mockConfig) // Initial load
         .mockResolvedValueOnce(undefined) // selection_set_enabled
@@ -376,12 +377,12 @@ describe('useSelectionSettings', () => {
         await result.current.setEnabled(true);
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('[useSelectionSettings] Selection toolbar enabled');
-      consoleSpy.mockRestore();
+      expect(infoSpy).toHaveBeenCalledWith('Selection toolbar enabled');
+      infoSpy.mockRestore();
     });
 
     it('should log successful disable', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const infoSpy = jest.spyOn(loggers.native, 'info').mockImplementation();
       mockInvoke
         .mockResolvedValueOnce(mockConfig) // Initial load
         .mockResolvedValueOnce(undefined) // selection_set_enabled
@@ -398,12 +399,12 @@ describe('useSelectionSettings', () => {
         await result.current.setEnabled(false);
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('[useSelectionSettings] Selection toolbar disabled');
-      consoleSpy.mockRestore();
+      expect(infoSpy).toHaveBeenCalledWith('Selection toolbar disabled');
+      infoSpy.mockRestore();
     });
 
     it('should log load errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorSpy = jest.spyOn(loggers.native, 'error').mockImplementation();
       const error = new Error('Load failed');
       
       // Mock invoke to reject with our error
@@ -412,18 +413,19 @@ describe('useSelectionSettings', () => {
       const { result } = renderHook(() => useSelectionSettings());
 
       await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
         expect(result.current.error).toBeTruthy();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[useSelectionSettings] Failed to load config from backend:',
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to load selection settings from backend',
         error
       );
-      consoleSpy.mockRestore();
+      errorSpy.mockRestore();
     });
 
     it('should log setEnabled errors', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorSpy = jest.spyOn(loggers.native, 'error').mockImplementation();
       const error = new Error('Set failed');
       mockInvoke
         .mockResolvedValueOnce(mockConfig) // Initial load
@@ -443,11 +445,11 @@ describe('useSelectionSettings', () => {
         }
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[useSelectionSettings] Failed to set enabled state:',
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to set selection enabled state',
         error
       );
-      consoleSpy.mockRestore();
+      errorSpy.mockRestore();
     });
   });
 });

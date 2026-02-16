@@ -3,7 +3,6 @@
  * Basic plugin management UI components
  */
 
-export { PluginManager } from './plugin-manager';
 export { PluginList } from './plugin-list';
 export { PluginCard } from './plugin-card';
 export { PluginQuickActions } from './plugin-quick-actions';

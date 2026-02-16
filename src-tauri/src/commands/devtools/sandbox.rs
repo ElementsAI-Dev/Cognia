@@ -111,13 +111,17 @@ pub async fn sandbox_get_status(state: State<'_, SandboxState>) -> Result<Sandbo
 
 /// Get all supported languages
 #[tauri::command]
-pub async fn sandbox_get_all_languages(state: State<'_, SandboxState>) -> Result<Vec<Language>, String> {
+pub async fn sandbox_get_all_languages(
+    state: State<'_, SandboxState>,
+) -> Result<Vec<Language>, String> {
     Ok(state.get_all_languages().await)
 }
 
 /// Get languages available for native execution
 #[tauri::command]
-pub async fn sandbox_get_available_languages(state: State<'_, SandboxState>) -> Result<Vec<String>, String> {
+pub async fn sandbox_get_available_languages(
+    state: State<'_, SandboxState>,
+) -> Result<Vec<String>, String> {
     Ok(state.get_available_languages().await)
 }
 

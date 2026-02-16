@@ -259,7 +259,10 @@ impl OcrProvider for AzureVisionProvider {
         match self.extract_text_v4(image_data, options).await {
             Ok(result) => Ok(result),
             Err(e) => {
-                log::warn!("Azure Image Analysis 4.0 failed, falling back to legacy Read v3.2: {}", e);
+                log::warn!(
+                    "Azure Image Analysis 4.0 failed, falling back to legacy Read v3.2: {}",
+                    e
+                );
                 self.extract_text_legacy(image_data, options).await
             }
         }

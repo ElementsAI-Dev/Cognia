@@ -150,12 +150,13 @@ describe('RAGCollectionManager', () => {
     it('should update lastUpdated timestamp', async () => {
       await manager.createCollection('timestamp-test');
       const beforeStats = await manager.getCollectionStats('timestamp-test');
+      const beforeTimestamp = beforeStats!.lastUpdated;
       
       await new Promise((resolve) => setTimeout(resolve, 10));
       await manager.updateCollection('timestamp-test', { description: 'Updated' });
       
       const afterStats = await manager.getCollectionStats('timestamp-test');
-      expect(afterStats!.lastUpdated).toBeGreaterThan(beforeStats!.lastUpdated);
+      expect(afterStats!.lastUpdated).toBeGreaterThan(beforeTimestamp);
     });
   });
 

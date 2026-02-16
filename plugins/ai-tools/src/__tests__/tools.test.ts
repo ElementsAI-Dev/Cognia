@@ -173,9 +173,9 @@ describe('createPricingTool', () => {
 
   test('returns tool with parameters schema', () => {
     const tool = createPricingTool(mockContext);
-    expect(tool.parameters).toBeDefined();
-    expect(tool.parameters.type).toBe('object');
-    expect(tool.parameters.properties).toBeDefined();
+    expect(tool.parametersSchema).toBeDefined();
+    expect(tool.parametersSchema.type).toBe('object');
+    expect(tool.parametersSchema.properties).toBeDefined();
   });
 
   test('returns tool with execute function', () => {
@@ -186,7 +186,7 @@ describe('createPricingTool', () => {
 
   test('parameters include provider, region, all, export', () => {
     const tool = createPricingTool(mockContext);
-    const props = tool.parameters.properties;
+    const props = tool.parametersSchema.properties;
 
     expect(props.provider).toBeDefined();
     expect(props.region).toBeDefined();
@@ -235,9 +235,9 @@ describe('createStatusTool', () => {
 
   test('returns tool with parameters schema', () => {
     const tool = createStatusTool(mockContext);
-    expect(tool.parameters).toBeDefined();
-    expect(tool.parameters.type).toBe('object');
-    expect(tool.parameters.properties).toBeDefined();
+    expect(tool.parametersSchema).toBeDefined();
+    expect(tool.parametersSchema.type).toBe('object');
+    expect(tool.parametersSchema.properties).toBeDefined();
   });
 
   test('returns tool with execute function', () => {
@@ -248,7 +248,7 @@ describe('createStatusTool', () => {
 
   test('parameters include provider, region, timeout', () => {
     const tool = createStatusTool(mockContext);
-    const props = tool.parameters.properties;
+    const props = tool.parametersSchema.properties;
 
     expect(props.provider).toBeDefined();
     expect(props.region).toBeDefined();
@@ -285,9 +285,9 @@ describe('createRankingsTool', () => {
 
   test('returns tool with parameters schema', () => {
     const tool = createRankingsTool(mockContext);
-    expect(tool.parameters).toBeDefined();
-    expect(tool.parameters.type).toBe('object');
-    expect(tool.parameters.properties).toBeDefined();
+    expect(tool.parametersSchema).toBeDefined();
+    expect(tool.parametersSchema.type).toBe('object');
+    expect(tool.parametersSchema.properties).toBeDefined();
   });
 
   test('returns tool with execute function', () => {
@@ -298,7 +298,7 @@ describe('createRankingsTool', () => {
 
   test('parameters include timeRange and export', () => {
     const tool = createRankingsTool(mockContext);
-    const props = tool.parameters.properties;
+    const props = tool.parametersSchema.properties;
 
     expect(props.timeRange).toBeDefined();
     expect(props.export).toBeDefined();
@@ -337,9 +337,9 @@ describe('createLMArenaTool', () => {
 
   test('returns tool with parameters schema', () => {
     const tool = createLMArenaTool(mockContext);
-    expect(tool.parameters).toBeDefined();
-    expect(tool.parameters.type).toBe('object');
-    expect(tool.parameters.properties).toBeDefined();
+    expect(tool.parametersSchema).toBeDefined();
+    expect(tool.parametersSchema.type).toBe('object');
+    expect(tool.parametersSchema.properties).toBeDefined();
   });
 
   test('returns tool with execute function', () => {
@@ -350,34 +350,35 @@ describe('createLMArenaTool', () => {
 
   test('parameters include category, includeHistory, max', () => {
     const tool = createLMArenaTool(mockContext);
-    const props = tool.parameters.properties;
+    const props = tool.parametersSchema.properties;
 
     expect(props.category).toBeDefined();
     expect(props.includeHistory).toBeDefined();
     expect(props.max).toBeDefined();
   });
 
-  test('execute uses network fetch for API calls', async () => {
+  test('execute uses network get for API calls', async () => {
     (mockContext.fs.exists as jest.Mock).mockResolvedValue(false);
-    (mockContext.network.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue({
-        text: { overall: {} },
-      }),
-    });
+    (mockContext.network.get as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        data: {
+          text: { overall: {} },
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        data: [],
+      });
 
     const tool = createLMArenaTool(mockContext);
+    const result = await tool.execute({});
 
-    // This will fail because of incomplete mock data, but we verify fetch is called
-    try {
-      await tool.execute({});
-    } catch {
-      // Expected to fail due to incomplete mocking
-    }
-
-    // Network fetch should have been called for LMArena data
-    expect(mockContext.network.fetch).toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(mockContext.network.get).toHaveBeenCalledWith(expect.stringContaining('lmarena-history'), expect.any(Object));
+    expect(mockContext.network.get).toHaveBeenCalledWith(expect.stringContaining('arena-catalog'), expect.any(Object));
   });
 });
 

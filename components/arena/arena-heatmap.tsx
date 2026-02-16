@@ -145,11 +145,10 @@ function ArenaHeatmapComponent({ className, maxModels = 15 }: ArenaHeatmapProps)
                 <TooltipTrigger asChild>
                   <div
                     className={cn(
-                      'shrink-0 flex items-end justify-center pb-1 font-medium truncate',
+                      'shrink-0 flex items-end justify-center pb-1 font-medium truncate [writing-mode:vertical-rl] [text-orientation:mixed]',
                       cellSizeClasses[cellSize],
                       hoveredCell?.col === model.id && 'bg-muted/50'
                     )}
-                    style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                   >
                     {model.name.slice(0, 10)}
                   </div>

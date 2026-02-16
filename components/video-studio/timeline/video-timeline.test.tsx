@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VideoTimeline } from './video-timeline';
-import type { VideoTrack } from '@/hooks/video-studio/use-video-editor';
+import type { VideoTrack } from '@/types/video-studio/types';
 
 describe('VideoTimeline', () => {
   const mockTracks: VideoTrack[] = [

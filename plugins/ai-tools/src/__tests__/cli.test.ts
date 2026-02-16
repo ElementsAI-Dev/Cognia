@@ -184,11 +184,11 @@ describe('AI Tools CLI', () => {
 
     it('should calculate overall status correctly', () => {
       const calculateStatus = (checks: { success: boolean }[]): string => {
+        if (checks.length === 0) return 'unknown';
         const successCount = checks.filter((c) => c.success).length;
         if (successCount === checks.length) return 'operational';
         if (successCount > 0) return 'degraded';
-        if (checks.length > 0) return 'down';
-        return 'unknown';
+        return 'down';
       };
 
       expect(calculateStatus([{ success: true }, { success: true }])).toBe('operational');

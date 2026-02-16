@@ -11,6 +11,7 @@ import {
   type ExecutionStatistics,
 } from './background-agent-events';
 import type { BackgroundAgent, BackgroundAgentResult } from '@/types/agent/background-agent';
+import { loggers } from '@/lib/logger';
 
 describe('BackgroundAgentEventEmitter', () => {
   let emitter: BackgroundAgentEventEmitter;
@@ -120,15 +121,15 @@ describe('BackgroundAgentEventEmitter', () => {
       emitter.on('agent:failed', errorListener);
       emitter.on('agent:failed', normalListener);
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const logSpy = jest.spyOn(loggers.agent, 'error').mockImplementation();
 
       const mockAgent = { id: 'test-agent' } as BackgroundAgent;
       emitter.emit('agent:failed', { agent: mockAgent, error: 'test error' });
 
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalled();
       expect(normalListener).toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
+      logSpy.mockRestore();
     });
 
     it('should handle wildcard listener errors gracefully', () => {
@@ -138,14 +139,14 @@ describe('BackgroundAgentEventEmitter', () => {
 
       emitter.onAll(errorListener);
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const logSpy = jest.spyOn(loggers.agent, 'error').mockImplementation();
 
       const mockAgent = { id: 'test-agent' } as BackgroundAgent;
       emitter.emit('agent:created', { agent: mockAgent });
 
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalled();
 
-      consoleSpy.mockRestore();
+      logSpy.mockRestore();
     });
   });
 

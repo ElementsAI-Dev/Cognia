@@ -124,7 +124,7 @@ describe('RecordingControls - Recording State', () => {
 
   it('shows recording indicator when recording', () => {
     renderWithI18n(<RecordingControls />);
-    expect(screen.getByText('Recording')).toBeInTheDocument();
+    expect(screen.getByText('0:05')).toBeInTheDocument();
   });
 
   it('shows pause button when recording', () => {
@@ -254,9 +254,7 @@ describe('RecordingControls - Countdown State', () => {
 
   it('shows cancel button during countdown', () => {
     renderWithI18n(<RecordingControls />);
-    const buttons = screen.getAllByRole('button');
-    const cancelButton = buttons.find(btn => btn.querySelector('svg.lucide-x'));
-    expect(cancelButton).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('disables stop button during countdown', () => {

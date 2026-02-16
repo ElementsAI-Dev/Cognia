@@ -6,8 +6,8 @@
 // cfg(target_os = "windows") is already applied at module level in mod.rs
 
 use async_trait::async_trait;
-use std::process::Command;
 use log::{debug, error, info, warn};
+use std::process::Command;
 
 use super::error::{Result, SchedulerError};
 use super::service::{generate_task_name, is_cognia_task, now_iso, SystemScheduler, TASK_PREFIX};
@@ -29,13 +29,16 @@ impl WindowsScheduler {
     pub fn new() -> Self {
         let available = Self::check_schtasks_available();
         let elevated = Self::check_elevated();
-        
+
         info!(
             "Windows scheduler initialized: available={}, elevated={}",
             available, elevated
         );
-        
-        Self { available, elevated }
+
+        Self {
+            available,
+            elevated,
+        }
     }
 
     /// Check if schtasks.exe is available
@@ -78,8 +81,9 @@ impl WindowsScheduler {
             }
             SystemTaskTrigger::Once { run_at } => {
                 // Parse datetime and extract date/time
-                let dt = chrono::DateTime::parse_from_rfc3339(run_at)
-                    .map_err(|e| SchedulerError::InvalidConfig(format!("Invalid datetime: {}", e)))?;
+                let dt = chrono::DateTime::parse_from_rfc3339(run_at).map_err(|e| {
+                    SchedulerError::InvalidConfig(format!("Invalid datetime: {}", e))
+                })?;
                 Ok(vec![
                     "/SC".to_string(),
                     "ONCE".to_string(),
@@ -146,23 +150,23 @@ impl WindowsScheduler {
                 ])
             }
             // Every hour at specific minute
-            (m, "*", "*", "*") if m.parse::<u32>().is_ok() => {
-                Ok(vec![
-                    "/SC".to_string(),
-                    "HOURLY".to_string(),
-                    "/ST".to_string(),
-                    format!("00:{:02}", m.parse::<u32>().unwrap()),
-                ])
-            }
+            (m, "*", "*", "*") if m.parse::<u32>().is_ok() => Ok(vec![
+                "/SC".to_string(),
+                "HOURLY".to_string(),
+                "/ST".to_string(),
+                format!("00:{:02}", m.parse::<u32>().unwrap()),
+            ]),
             // Daily at specific time
-            (m, h, "*", "*") if m.parse::<u32>().is_ok() && h.parse::<u32>().is_ok() => {
-                Ok(vec![
-                    "/SC".to_string(),
-                    "DAILY".to_string(),
-                    "/ST".to_string(),
-                    format!("{:02}:{:02}", h.parse::<u32>().unwrap(), m.parse::<u32>().unwrap()),
-                ])
-            }
+            (m, h, "*", "*") if m.parse::<u32>().is_ok() && h.parse::<u32>().is_ok() => Ok(vec![
+                "/SC".to_string(),
+                "DAILY".to_string(),
+                "/ST".to_string(),
+                format!(
+                    "{:02}:{:02}",
+                    h.parse::<u32>().unwrap(),
+                    m.parse::<u32>().unwrap()
+                ),
+            ]),
             // Weekly on specific days
             (m, h, "*", days) if m.parse::<u32>().is_ok() && h.parse::<u32>().is_ok() => {
                 let day_str = Self::convert_dow(days)?;
@@ -172,18 +176,30 @@ impl WindowsScheduler {
                     "/D".to_string(),
                     day_str,
                     "/ST".to_string(),
-                    format!("{:02}:{:02}", h.parse::<u32>().unwrap(), m.parse::<u32>().unwrap()),
+                    format!(
+                        "{:02}:{:02}",
+                        h.parse::<u32>().unwrap(),
+                        m.parse::<u32>().unwrap()
+                    ),
                 ])
             }
             // Monthly on specific day
-            (m, h, day, "*") if m.parse::<u32>().is_ok() && h.parse::<u32>().is_ok() && day.parse::<u32>().is_ok() => {
+            (m, h, day, "*")
+                if m.parse::<u32>().is_ok()
+                    && h.parse::<u32>().is_ok()
+                    && day.parse::<u32>().is_ok() =>
+            {
                 Ok(vec![
                     "/SC".to_string(),
                     "MONTHLY".to_string(),
                     "/D".to_string(),
                     day.to_string(),
                     "/ST".to_string(),
-                    format!("{:02}:{:02}", h.parse::<u32>().unwrap(), m.parse::<u32>().unwrap()),
+                    format!(
+                        "{:02}:{:02}",
+                        h.parse::<u32>().unwrap(),
+                        m.parse::<u32>().unwrap()
+                    ),
                 ])
             }
             _ => Err(SchedulerError::InvalidCron(format!(
@@ -207,12 +223,12 @@ impl WindowsScheduler {
             if parts.len() != 2 {
                 return Err(SchedulerError::InvalidCron("Invalid day range".to_string()));
             }
-            let start: u32 = parts[0].parse().map_err(|_| {
-                SchedulerError::InvalidCron("Invalid day number".to_string())
-            })?;
-            let end: u32 = parts[1].parse().map_err(|_| {
-                SchedulerError::InvalidCron("Invalid day number".to_string())
-            })?;
+            let start: u32 = parts[0]
+                .parse()
+                .map_err(|_| SchedulerError::InvalidCron("Invalid day number".to_string()))?;
+            let end: u32 = parts[1]
+                .parse()
+                .map_err(|_| SchedulerError::InvalidCron("Invalid day number".to_string()))?;
             return Ok((start..=end)
                 .map(Self::num_to_day)
                 .collect::<Vec<_>>()
@@ -264,8 +280,9 @@ impl WindowsScheduler {
             } => {
                 // For scripts, we invoke Cognia's sandbox executor
                 // The script is passed via a temporary file or base64 encoded
-                let code_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, code);
-                
+                let code_b64 =
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, code);
+
                 // Build command to invoke Cognia with script execution
                 // Using PowerShell to handle complex arguments
                 let mut ps_args = vec![
@@ -275,7 +292,11 @@ impl WindowsScheduler {
                     "-Command".to_string(),
                 ];
 
-                let sandbox_flag = if *use_sandbox { "--sandbox" } else { "--native" };
+                let sandbox_flag = if *use_sandbox {
+                    "--sandbox"
+                } else {
+                    "--native"
+                };
                 let cognia_cmd = format!(
                     "& '{}' execute-script --language {} {} --timeout {} --memory {} --code-b64 '{}'",
                     Self::get_cognia_exe_path(),
@@ -304,7 +325,10 @@ impl WindowsScheduler {
                     .map(|a| format!(" '{}'", a.replace("'", "''")))
                     .collect();
 
-                ps_args.push(format!("{}{}{}{}", env_setup, cd_cmd, cognia_cmd, extra_args));
+                ps_args.push(format!(
+                    "{}{}{}{}",
+                    env_setup, cd_cmd, cognia_cmd, extra_args
+                ));
 
                 Ok(("powershell.exe".to_string(), ps_args))
             }
@@ -337,14 +361,9 @@ impl WindowsScheduler {
 
                 let cmd_line = cmd_parts.join(" && ");
 
-                Ok((
-                    "cmd.exe".to_string(),
-                    vec!["/C".to_string(), cmd_line],
-                ))
+                Ok(("cmd.exe".to_string(), vec!["/C".to_string(), cmd_line]))
             }
-            SystemTaskAction::LaunchApp { path, args } => {
-                Ok((path.clone(), args.clone()))
-            }
+            SystemTaskAction::LaunchApp { path, args } => Ok((path.clone(), args.clone())),
         }
     }
 
@@ -495,13 +514,13 @@ impl SystemScheduler for WindowsScheduler {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             error!("Failed to create task: {}", stderr);
-            
+
             if stderr.contains("Access is denied") {
                 return Err(SchedulerError::AdminRequired(
                     "Administrator privileges required to create this task".to_string(),
                 ));
             }
-            
+
             return Err(SchedulerError::Platform(stderr.to_string()));
         }
 

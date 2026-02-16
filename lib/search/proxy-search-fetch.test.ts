@@ -23,6 +23,7 @@ jest.mock('@/lib/network/proxy-fetch', () => ({
 }));
 
 import { proxyFetch, isProxyEnabled, getCurrentProxyUrl } from '@/lib/network/proxy-fetch';
+import { loggers } from '@/lib/logger';
 
 const mockProxyFetch = proxyFetch as jest.MockedFunction<typeof proxyFetch>;
 const mockIsProxyEnabled = isProxyEnabled as jest.MockedFunction<typeof isProxyEnabled>;
@@ -115,15 +116,15 @@ describe('proxy-search-fetch', () => {
       setNodeEnv('development');
       mockIsProxyEnabled.mockReturnValue(true);
       
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const debugSpy = jest.spyOn(loggers.network, 'debug').mockImplementation();
       
       await searchFetch('https://api.example.com/search');
       
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[Search] Request via proxy')
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Search request via proxy:')
       );
       
-      consoleSpy.mockRestore();
+      debugSpy.mockRestore();
       restoreNodeEnv();
     });
 
@@ -131,13 +132,13 @@ describe('proxy-search-fetch', () => {
       setNodeEnv('production');
       mockIsProxyEnabled.mockReturnValue(true);
       
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const debugSpy = jest.spyOn(loggers.network, 'debug').mockImplementation();
       
       await searchFetch('https://api.example.com/search');
       
-      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(debugSpy).not.toHaveBeenCalled();
       
-      consoleSpy.mockRestore();
+      debugSpy.mockRestore();
       restoreNodeEnv();
     });
   });
@@ -155,48 +156,48 @@ describe('proxy-search-fetch', () => {
     it('should log request details in development', async () => {
       setNodeEnv('development');
       
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const debugSpy = jest.spyOn(loggers.network, 'debug').mockImplementation();
       const customFetch = createSearchProviderFetch('TestProvider');
       
       await customFetch('https://api.example.com/search');
       
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[TestProvider]')
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining('TestProvider')
       );
       
-      consoleSpy.mockRestore();
+      debugSpy.mockRestore();
       restoreNodeEnv();
     });
 
     it('should log errors with provider name', async () => {
       mockProxyFetch.mockRejectedValue(new Error('Network error'));
       
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorSpy = jest.spyOn(loggers.network, 'error').mockImplementation();
       const customFetch = createSearchProviderFetch('FailingProvider');
       
       await expect(customFetch('https://api.example.com/search')).rejects.toThrow('Network error');
       
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[FailingProvider] Failed'),
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('FailingProvider failed'),
         expect.any(Error)
       );
       
-      consoleErrorSpy.mockRestore();
+      errorSpy.mockRestore();
     });
 
     it('should include response time in logs', async () => {
       setNodeEnv('development');
       
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const debugSpy = jest.spyOn(loggers.network, 'debug').mockImplementation();
       const customFetch = createSearchProviderFetch('TimedProvider');
       
       await customFetch('https://api.example.com/search');
       
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(debugSpy).toHaveBeenCalledWith(
         expect.stringMatching(/\(\d+ms\)/)
       );
       
-      consoleSpy.mockRestore();
+      debugSpy.mockRestore();
       restoreNodeEnv();
     });
 
@@ -247,15 +248,15 @@ describe('proxy-search-fetch', () => {
         it(`should log with provider name "${providerName}" in development`, async () => {
           setNodeEnv('development');
           
-          const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+          const debugSpy = jest.spyOn(loggers.network, 'debug').mockImplementation();
           
           await fetch('https://api.example.com/search');
           
-          expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining(`[${providerName}]`)
+          expect(debugSpy).toHaveBeenCalledWith(
+            expect.stringContaining(providerName)
           );
           
-          consoleSpy.mockRestore();
+          debugSpy.mockRestore();
           restoreNodeEnv();
         });
       });
@@ -275,14 +276,14 @@ describe('proxy-search-fetch', () => {
       const error = new Error('API error');
       mockProxyFetch.mockRejectedValue(error);
       
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorSpy = jest.spyOn(loggers.network, 'error').mockImplementation();
       
       await expect(braveFetch('https://api.brave.com/search'))
         .rejects.toThrow('API error');
       
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
       
-      consoleErrorSpy.mockRestore();
+      errorSpy.mockRestore();
     });
   });
 });

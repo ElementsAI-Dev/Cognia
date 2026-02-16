@@ -89,7 +89,10 @@ const DEFAULT_CACHE_DURATION_MS: i64 = 1000;
 
 impl ScreenContentAnalyzer {
     pub fn new() -> Self {
-        debug!("Creating new ScreenContentAnalyzer with {}ms cache duration", DEFAULT_CACHE_DURATION_MS);
+        debug!(
+            "Creating new ScreenContentAnalyzer with {}ms cache duration",
+            DEFAULT_CACHE_DURATION_MS
+        );
         Self {
             last_analysis: Arc::new(RwLock::new(None)),
         }
