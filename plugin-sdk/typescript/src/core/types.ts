@@ -54,7 +54,8 @@ export type PluginCapability =
   | 'exporters'   // Provides export formats
   | 'importers'   // Provides import handlers
   | 'a2ui'        // A2UI integration
-  | 'python';     // Python runtime capability
+  | 'python'      // Python runtime capability
+  | 'scheduler';  // Provides scheduled tasks
 
 /**
  * Plugin status in the lifecycle
@@ -151,3 +152,51 @@ export type PluginAPIPermission =
  * @deprecated Use `PluginAPIPermission` instead
  */
 export type ExtendedPluginPermission = PluginAPIPermission;
+
+// =============================================================================
+// Host Bridge v2
+// =============================================================================
+
+export type PluginApiErrorCode =
+  | 'INVALID_REQUEST'
+  | 'PERMISSION_REQUIRED'
+  | 'PERMISSION_DENIED'
+  | 'NOT_SUPPORTED'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'TIMEOUT'
+  | 'INTERNAL';
+
+export interface PluginApiError {
+  code: PluginApiErrorCode;
+  message: string;
+  details?: unknown;
+}
+
+export interface PluginHostCompatInfo {
+  sdkVersion: string;
+  minSupportedSdk: string;
+  compatible: boolean;
+}
+
+export interface PluginHostInvokeResponse<T = unknown> {
+  requestId: string;
+  success: boolean;
+  data?: T;
+  error?: PluginApiError;
+  runtimeVersion: string;
+  compat: PluginHostCompatInfo;
+}
+
+export interface PluginHostInvokeOptions {
+  timeoutMs?: number;
+  context?: unknown;
+}
+
+export interface PluginHostTransport {
+  invoke: <T = unknown>(
+    api: string,
+    payload: unknown,
+    options?: PluginHostInvokeOptions
+  ) => Promise<PluginHostInvokeResponse<T>>;
+}

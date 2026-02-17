@@ -414,17 +414,24 @@ export function AgentTraceSettings() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('eventTypePlaceholder')} />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('eventTypeAll')}</SelectItem>
-                <SelectItem value="tool_call_request">{t('eventTypeToolCallRequest')}</SelectItem>
-                <SelectItem value="tool_call_result">{t('eventTypeToolCallResult')}</SelectItem>
-                <SelectItem value="step_start">{t('eventTypeStepStart')}</SelectItem>
-                <SelectItem value="step_finish">{t('eventTypeStepFinish')}</SelectItem>
-                <SelectItem value="planning">{t('eventTypePlanning')}</SelectItem>
-                <SelectItem value="response">{t('eventTypeResponse')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <SelectContent>
+                  <SelectItem value="all">{t('eventTypeAll')}</SelectItem>
+                  <SelectItem value="session_start">{t('eventTypeSessionStart')}</SelectItem>
+                  <SelectItem value="session_end">{t('eventTypeSessionEnd')}</SelectItem>
+                  <SelectItem value="permission_request">{t('eventTypePermissionRequest')}</SelectItem>
+                  <SelectItem value="permission_response">{t('eventTypePermissionResponse')}</SelectItem>
+                  <SelectItem value="tool_call_request">{t('eventTypeToolCallRequest')}</SelectItem>
+                  <SelectItem value="tool_call_result">{t('eventTypeToolCallResult')}</SelectItem>
+                  <SelectItem value="step_start">{t('eventTypeStepStart')}</SelectItem>
+                  <SelectItem value="step_finish">{t('eventTypeStepFinish')}</SelectItem>
+                  <SelectItem value="planning">{t('eventTypePlanning')}</SelectItem>
+                  <SelectItem value="response">{t('eventTypeResponse')}</SelectItem>
+                  <SelectItem value="checkpoint_create">{t('eventTypeCheckpointCreate')}</SelectItem>
+                  <SelectItem value="checkpoint_restore">{t('eventTypeCheckpointRestore')}</SelectItem>
+                  <SelectItem value="error">{t('eventTypeError')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
         </SettingsGrid>
 
         <div className="flex items-center justify-between">

@@ -2,6 +2,7 @@
 //!
 //! Provides functionality for analyzing screen content using OCR and image analysis.
 
+use crate::screenshot::UnifiedOcrResult;
 use log::{debug, error, trace};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -87,6 +88,79 @@ pub struct ScreenContentAnalyzer {
 /// Default cache duration in milliseconds
 const DEFAULT_CACHE_DURATION_MS: i64 = 1000;
 
+fn clamp_confidence(value: f64) -> f64 {
+    value.clamp(0.0, 1.0)
+}
+
+fn bound_i32(value: f64) -> i32 {
+    if value.is_nan() {
+        return 0;
+    }
+    value.round().clamp(i32::MIN as f64, i32::MAX as f64) as i32
+}
+
+fn bound_u32(value: f64) -> u32 {
+    if value.is_nan() || value <= 0.0 {
+        return 0;
+    }
+    value.round().clamp(0.0, u32::MAX as f64) as u32
+}
+
+fn ocr_to_text_blocks(ocr_result: &UnifiedOcrResult) -> Vec<TextBlock> {
+    ocr_result
+        .regions
+        .iter()
+        .filter(|region| !region.text.trim().is_empty())
+        .map(|region| TextBlock {
+            text: region.text.clone(),
+            x: bound_i32(region.bounds.x),
+            y: bound_i32(region.bounds.y),
+            width: bound_u32(region.bounds.width),
+            height: bound_u32(region.bounds.height),
+            confidence: clamp_confidence(region.confidence),
+            language: ocr_result.language.clone(),
+        })
+        .collect()
+}
+
+fn compute_confidence(
+    text_blocks: &[TextBlock],
+    ocr_result: Option<&UnifiedOcrResult>,
+    ui_elements: &[UiElement],
+) -> f64 {
+    let text_confidence = if text_blocks.is_empty() {
+        None
+    } else {
+        Some(
+            text_blocks
+                .iter()
+                .map(|block| clamp_confidence(block.confidence))
+                .sum::<f64>()
+                / text_blocks.len() as f64,
+        )
+    };
+
+    let ocr_confidence = ocr_result.map(|result| clamp_confidence(result.confidence));
+
+    let base = match (text_confidence, ocr_confidence) {
+        (Some(text), Some(ocr)) => (text * 0.7) + (ocr * 0.3),
+        (Some(text), None) => text,
+        (None, Some(ocr)) => ocr,
+        (None, None) => 0.0,
+    };
+
+    if base > 0.0 {
+        return clamp_confidence(base);
+    }
+
+    if !ui_elements.is_empty() {
+        // UIA detected useful structure even if OCR failed.
+        return 0.25;
+    }
+
+    0.0
+}
+
 impl ScreenContentAnalyzer {
     pub fn new() -> Self {
         debug!(
@@ -151,27 +225,64 @@ impl ScreenContentAnalyzer {
 
     fn perform_analysis(
         &self,
-        _image_data: &[u8],
+        image_data: &[u8],
         width: u32,
         height: u32,
     ) -> Result<ScreenContent, String> {
         trace!(
-            "perform_analysis: placeholder implementation for {}x{}",
+            "perform_analysis: using fallback path without explicit OCR result for {}x{} ({} bytes)",
             width,
-            height
+            height,
+            image_data.len()
         );
-        // This is a placeholder implementation
-        // In production, this would use Windows OCR API or Tesseract
+        let ui_elements = self.analyze_ui_automation().unwrap_or_else(|e| {
+            error!("UI Automation analysis failed in fallback path: {}", e);
+            Vec::new()
+        });
+        Ok(self.build_content(width, height, None, ui_elements))
+    }
 
-        Ok(ScreenContent {
-            text: String::new(),
-            text_blocks: Vec::new(),
-            ui_elements: Vec::new(),
+    pub fn analyze_with_ocr_result(
+        &self,
+        width: u32,
+        height: u32,
+        ocr_result: Option<&UnifiedOcrResult>,
+    ) -> Result<ScreenContent, String> {
+        let ui_elements = self.analyze_ui_automation().unwrap_or_else(|e| {
+            error!("UI Automation analysis failed: {}", e);
+            Vec::new()
+        });
+
+        let content = self.build_content(width, height, ocr_result, ui_elements);
+        *self.last_analysis.write() = Some(content.clone());
+        Ok(content)
+    }
+
+    fn build_content(
+        &self,
+        width: u32,
+        height: u32,
+        ocr_result: Option<&UnifiedOcrResult>,
+        ui_elements: Vec<UiElement>,
+    ) -> ScreenContent {
+        let (text, text_blocks) = if let Some(result) = ocr_result {
+            let blocks = ocr_to_text_blocks(result);
+            (result.text.clone(), blocks)
+        } else {
+            (String::new(), Vec::new())
+        };
+
+        let confidence = compute_confidence(&text_blocks, ocr_result, &ui_elements);
+
+        ScreenContent {
+            text,
+            text_blocks,
+            ui_elements,
             width,
             height,
             timestamp: chrono::Utc::now().timestamp_millis(),
-            confidence: 0.0,
-        })
+            confidence,
+        }
     }
 
     /// Analyze screen using Windows UI Automation
@@ -331,6 +442,42 @@ impl Default for ScreenContentAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::screenshot::ocr_provider::OcrRegionType;
+    use crate::screenshot::{OcrRegion, UnifiedOcrBounds, UnifiedOcrResult};
+
+    fn sample_ocr_result() -> UnifiedOcrResult {
+        UnifiedOcrResult {
+            text: "hello world".to_string(),
+            regions: vec![
+                OcrRegion {
+                    text: "hello".to_string(),
+                    bounds: UnifiedOcrBounds {
+                        x: 10.0,
+                        y: 20.0,
+                        width: 50.0,
+                        height: 18.0,
+                    },
+                    confidence: 0.9,
+                    region_type: OcrRegionType::Word,
+                },
+                OcrRegion {
+                    text: "world".to_string(),
+                    bounds: UnifiedOcrBounds {
+                        x: 65.0,
+                        y: 20.0,
+                        width: 55.0,
+                        height: 18.0,
+                    },
+                    confidence: 0.8,
+                    region_type: OcrRegionType::Word,
+                },
+            ],
+            confidence: 0.85,
+            language: Some("en".to_string()),
+            provider: "test".to_string(),
+            processing_time_ms: 1,
+        }
+    }
 
     #[test]
     fn test_analyzer_new() {
@@ -596,5 +743,58 @@ mod tests {
         assert!(analyzer.get_element_at(0, 0).is_some());
         assert!(analyzer.get_element_at(10, 10).is_some());
         assert!(analyzer.get_element_at(11, 11).is_none());
+    }
+
+    #[test]
+    fn test_analyze_with_ocr_result_populates_text_blocks() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let ocr = sample_ocr_result();
+
+        let content = analyzer
+            .analyze_with_ocr_result(1920, 1080, Some(&ocr))
+            .unwrap();
+        assert_eq!(content.text, "hello world");
+        assert_eq!(content.text_blocks.len(), 2);
+        assert_eq!(content.text_blocks[0].text, "hello");
+        assert!(content.confidence > 0.0);
+    }
+
+    #[test]
+    fn test_analyze_with_ocr_result_handles_empty_ocr_regions() {
+        let analyzer = ScreenContentAnalyzer::new();
+        let mut ocr = sample_ocr_result();
+        ocr.text = String::new();
+        ocr.regions.clear();
+        ocr.confidence = 0.0;
+
+        let content = analyzer
+            .analyze_with_ocr_result(1280, 720, Some(&ocr))
+            .unwrap();
+        assert!(content.text.is_empty());
+        assert!(content.text_blocks.is_empty());
+    }
+
+    #[test]
+    fn test_compute_confidence_with_text_and_ocr() {
+        let ocr = sample_ocr_result();
+        let text_blocks = ocr_to_text_blocks(&ocr);
+        let confidence = compute_confidence(&text_blocks, Some(&ocr), &[]);
+        assert!(confidence >= 0.8);
+        assert!(confidence <= 0.9);
+    }
+
+    #[test]
+    fn test_compute_confidence_ui_only_fallback() {
+        let ui_elements = vec![UiElement {
+            element_type: UiElementType::Button,
+            text: Some("Only UI".to_string()),
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 30,
+            is_interactive: true,
+        }];
+        let confidence = compute_confidence(&[], None, &ui_elements);
+        assert_eq!(confidence, 0.25);
     }
 }

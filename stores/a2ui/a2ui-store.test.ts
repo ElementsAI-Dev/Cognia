@@ -37,6 +37,18 @@ jest.mock('@/lib/a2ui/data-model', () => ({
     current[segments[segments.length - 1]] = value;
     return result;
   }),
+  getValueByPath: jest.fn((obj, path) => {
+    const segments = path.split('/').filter(Boolean);
+    let current = obj;
+    for (const segment of segments) {
+      if (current && typeof current === 'object') {
+        current = current[segment];
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  }),
   deepMerge: jest.fn((target, source) => ({ ...target, ...source })),
   deepClone: jest.fn((obj) => JSON.parse(JSON.stringify(obj))),
 }));
@@ -62,6 +74,7 @@ jest.mock('@/lib/a2ui/events', () => ({
 
 describe('useA2UIStore', () => {
   beforeEach(() => {
+    localStorage.clear();
     act(() => {
       useA2UIStore.getState().reset();
     });
@@ -95,6 +108,16 @@ describe('useA2UIStore', () => {
         useA2UIStore.getState().deleteSurface('surface-1');
       });
       expect(useA2UIStore.getState().surfaces['surface-1']).toBeUndefined();
+    });
+
+    it('should clear streaming state for deleted surface', () => {
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+        useA2UIStore.getState().setSurfaceStreaming('surface-1', true);
+        useA2UIStore.getState().deleteSurface('surface-1');
+      });
+
+      expect(useA2UIStore.getState().streamingSurfaces['surface-1']).toBeUndefined();
     });
   });
 
@@ -214,6 +237,62 @@ describe('useA2UIStore', () => {
       });
       expect(useA2UIStore.getState().surfaces).toEqual({});
       expect(useA2UIStore.getState().activeSurfaceId).toBeNull();
+    });
+  });
+
+  describe('processMessageStream', () => {
+    it('should clear streaming flags even when message processing throws', async () => {
+      act(() => {
+        useA2UIStore.getState().createSurface('surface-1', 'dialog');
+        useA2UIStore.setState({
+          processMessage: () => {
+            throw new Error('stream failure');
+          },
+        } as Partial<ReturnType<typeof useA2UIStore.getState>>);
+      });
+
+      await expect(
+        useA2UIStore.getState().processMessageStream(
+          [{ type: 'updateComponents', surfaceId: 'surface-1', components: [] }],
+          0
+        )
+      ).rejects.toThrow('stream failure');
+
+      expect(useA2UIStore.getState().streamingSurfaces['surface-1']).toBeUndefined();
+    });
+  });
+
+  describe('persist rehydrate normalization', () => {
+    it('should normalize metadata-only surface to non-ready state', async () => {
+      localStorage.setItem(
+        'cognia-a2ui-surfaces',
+        JSON.stringify({
+          state: {
+            surfaces: {
+              'surface-meta': {
+                id: 'surface-meta',
+                type: 'inline',
+                rootId: 'root',
+                createdAt: 1,
+                updatedAt: 2,
+                ready: true,
+              },
+            },
+            activeSurfaceId: 'surface-meta',
+          },
+          version: 2,
+        })
+      );
+
+      await act(async () => {
+        await (useA2UIStore as unknown as { persist: { rehydrate: () => Promise<void> } }).persist.rehydrate();
+      });
+
+      const surface = useA2UIStore.getState().surfaces['surface-meta'];
+      expect(surface).toBeDefined();
+      expect(surface.ready).toBe(false);
+      expect(surface.components).toEqual({});
+      expect(useA2UIStore.getState().activeSurfaceId).toBe('surface-meta');
     });
   });
 });

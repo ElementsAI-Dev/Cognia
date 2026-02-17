@@ -19,3 +19,4 @@ export {
 } from './use-textbook-processor';
 
 export { useSpeedPassUser } from './use-speedpass-user';
+export { useSpeedPassRuntimeSync } from './use-speedpass-runtime-sync';

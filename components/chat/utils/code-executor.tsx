@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { sandboxService } from '@/lib/native/sandbox';
+import { executeCodeWithSandboxPriority } from '@/lib/native/code-execution-strategy';
 import { getLanguageInfo } from '@/types/system/sandbox';
-import type { SandboxExecutionResult as BackendSandboxExecutionResult } from '@/types/system/sandbox';
 
 interface CodeExecutorProps {
   code: string;
@@ -48,12 +48,12 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
   const [result, setResult] = useState<SandboxExecutionResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
-  const [executionMode, setExecutionMode] = useState<'frontend' | 'backend'>('frontend');
 
   const langLower = language.toLowerCase();
   const isFrontendSupported = FRONTEND_LANGUAGES.includes(langLower);
   const isBackendSupported = ALL_BACKEND_LANGUAGES.includes(langLower);
-  const isSupported = isFrontendSupported || (backendAvailable && isBackendSupported);
+  const useDesktopSandbox = backendAvailable && isBackendSupported && useBackend;
+  const isSupported = isFrontendSupported || useDesktopSandbox;
   const _langInfo = getLanguageInfo(langLower);
 
   // Check backend availability on mount
@@ -63,93 +63,6 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
     }
   }, [useBackend]);
 
-  // Determine execution mode
-  useEffect(() => {
-    if (backendAvailable && isBackendSupported && useBackend) {
-      setExecutionMode('backend');
-    } else if (isFrontendSupported) {
-      setExecutionMode('frontend');
-    }
-  }, [backendAvailable, isBackendSupported, isFrontendSupported, useBackend]);
-
-  // Execute code via backend sandbox
-  const executeBackend = useCallback(async () => {
-    const startTime = performance.now();
-    try {
-      const backendResult: BackendSandboxExecutionResult = stdin
-        ? await sandboxService.executeWithStdin(langLower, code, stdin)
-        : await sandboxService.quickExecute(langLower, code);
-
-      const output = backendResult.stdout || '';
-      const error = backendResult.stderr || backendResult.error || '';
-      const success = backendResult.status === 'completed' && backendResult.exit_code === 0;
-
-      setResult({
-        success,
-        output: output || (success ? '(No output)' : ''),
-        error: error || undefined,
-        executionTime: backendResult.execution_time_ms || (performance.now() - startTime),
-        runtime: backendResult.runtime,
-      });
-    } catch (err) {
-      setResult({
-        success: false,
-        output: '',
-        error: err instanceof Error ? err.message : String(err),
-        executionTime: performance.now() - startTime,
-      });
-    }
-  }, [langLower, code, stdin]);
-
-  // Execute code via frontend eval (JS/TS only)
-  const executeFrontend = useCallback(async () => {
-    const startTime = performance.now();
-    try {
-      const logs: string[] = [];
-      const errors: string[] = [];
-
-      const sandboxConsole = {
-        log: (...args: unknown[]) => logs.push(args.map(formatValue).join(' ')),
-        error: (...args: unknown[]) => errors.push(args.map(formatValue).join(' ')),
-        warn: (...args: unknown[]) => logs.push(`[WARN] ${args.map(formatValue).join(' ')}`),
-        info: (...args: unknown[]) => logs.push(`[INFO] ${args.map(formatValue).join(' ')}`),
-      };
-
-      const wrappedCode = `
-        (function(console) {
-          "use strict";
-          ${code}
-        })
-      `;
-
-      // eslint-disable-next-line react-hooks/unsupported-syntax -- eval is intentionally used for code execution
-      const fn = eval(wrappedCode);
-      const returnValue = fn(sandboxConsole);
-
-      if (returnValue instanceof Promise) {
-        await returnValue;
-      }
-
-      const executionTime = performance.now() - startTime;
-
-      setResult({
-        success: errors.length === 0,
-        output: logs.join('\n') || '(No output)',
-        error: errors.length > 0 ? errors.join('\n') : undefined,
-        executionTime,
-        runtime: 'browser',
-      });
-    } catch (error) {
-      setResult({
-        success: false,
-        output: '',
-        error: error instanceof Error ? error.message : String(error),
-        executionTime: performance.now() - startTime,
-        runtime: 'browser',
-      });
-    }
-  }, [code]);
-
   const executeCode = useCallback(async () => {
     if (!isSupported) return;
 
@@ -157,15 +70,24 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
     setResult(null);
 
     try {
-      if (executionMode === 'backend' && backendAvailable) {
-        await executeBackend();
-      } else if (isFrontendSupported) {
-        await executeFrontend();
-      }
+      const executionResult = await executeCodeWithSandboxPriority({
+        code,
+        language: langLower,
+        stdin,
+        isDesktop: useDesktopSandbox,
+      });
+
+      setResult({
+        success: executionResult.success,
+        output: executionResult.stdout || (executionResult.success ? '(No output)' : ''),
+        error: executionResult.stderr || undefined,
+        executionTime: executionResult.executionTime,
+        runtime: executionResult.runtime,
+      });
     } finally {
       setIsRunning(false);
     }
-  }, [isSupported, executionMode, backendAvailable, executeBackend, isFrontendSupported, executeFrontend]);
+  }, [isSupported, code, langLower, stdin, useDesktopSandbox]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code);
@@ -191,7 +113,7 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
               {t('notSupported')}
             </Badge>
           )}
-          {isSupported && backendAvailable && executionMode === 'backend' && (
+          {isSupported && useDesktopSandbox && (
             <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/50">
               {t('backend')}
             </Badge>
@@ -268,28 +190,6 @@ export function CodeExecutor({ code, language, className, stdin, useBackend = tr
       )}
     </div>
   );
-}
-
-/**
- * Format a value for console output
- */
-function formatValue(value: unknown): string {
-  if (value === null) return 'null';
-  if (value === undefined) return 'undefined';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (typeof value === 'function') return `[Function: ${value.name || 'anonymous'}]`;
-  if (Array.isArray(value)) {
-    return `[${value.map(formatValue).join(', ')}]`;
-  }
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return '[Object]';
-    }
-  }
-  return String(value);
 }
 
 export default CodeExecutor;

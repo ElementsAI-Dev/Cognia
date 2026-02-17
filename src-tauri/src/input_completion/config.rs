@@ -65,8 +65,27 @@ pub struct CompletionTriggerConfig {
     pub skip_chars: Vec<char>,
     /// Whether to skip when modifier keys are held
     pub skip_with_modifiers: bool,
+    /// Input capture mode for desktop runtime
+    #[serde(default)]
+    pub input_capture_mode: InputCaptureMode,
     /// Adaptive debounce settings
     pub adaptive_debounce: AdaptiveDebounceConfig,
+}
+
+/// Input capture mode for desktop completion trigger path.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum InputCaptureMode {
+    /// Use local input components to trigger completion.
+    LocalOnly,
+    /// Keep legacy global keyboard monitoring behavior.
+    GlobalLegacy,
+}
+
+impl Default for InputCaptureMode {
+    fn default() -> Self {
+        Self::LocalOnly
+    }
 }
 
 /// Adaptive debounce configuration
@@ -147,6 +166,7 @@ impl Default for CompletionTriggerConfig {
             trigger_on_word_boundary: false,
             skip_chars: vec![' ', '\n', '\t', '\r'],
             skip_with_modifiers: true,
+            input_capture_mode: InputCaptureMode::default(),
             adaptive_debounce: AdaptiveDebounceConfig::default(),
         }
     }
@@ -175,6 +195,10 @@ mod tests {
         assert!(config.enabled);
         assert_eq!(config.model.provider, CompletionProvider::Ollama);
         assert_eq!(config.trigger.debounce_ms, 400);
+        assert_eq!(
+            config.trigger.input_capture_mode,
+            InputCaptureMode::LocalOnly
+        );
         assert!(config.ui.show_inline_preview);
     }
 
@@ -268,6 +292,7 @@ mod tests {
             trigger_on_word_boundary: true,
             skip_chars: vec!['!', '@', '#'],
             skip_with_modifiers: false,
+            input_capture_mode: InputCaptureMode::GlobalLegacy,
             adaptive_debounce: AdaptiveDebounceConfig::default(),
         };
 
@@ -275,6 +300,7 @@ mod tests {
         assert!(trigger.trigger_on_word_boundary);
         assert_eq!(trigger.skip_chars.len(), 3);
         assert!(!trigger.skip_with_modifiers);
+        assert_eq!(trigger.input_capture_mode, InputCaptureMode::GlobalLegacy);
     }
 
     #[test]
@@ -324,6 +350,7 @@ mod tests {
                 trigger_on_word_boundary: true,
                 skip_chars: vec![' ', '\n', '\t'],
                 skip_with_modifiers: true,
+                input_capture_mode: InputCaptureMode::LocalOnly,
                 adaptive_debounce: AdaptiveDebounceConfig::default(),
             },
             ui: CompletionUiConfig {

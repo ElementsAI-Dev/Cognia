@@ -9,6 +9,7 @@ import type {
   A2UIClientMessage,
   A2UIComponent,
 } from '@/types/artifact/a2ui';
+import { getValueByPath, parseJsonPointer } from '@/lib/a2ui/data-model';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ui;
@@ -331,20 +332,9 @@ export function collectFormData(
   const formData: Record<string, unknown> = {};
 
   for (const path of fieldPaths) {
-    // Convert path to field name (last segment)
-    const segments = path.split('/').filter(Boolean);
-    const fieldName = segments[segments.length - 1];
-
-    // Get value from data model
-    let current: unknown = dataModel;
-    for (const segment of segments) {
-      if (current && typeof current === 'object') {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        current = undefined;
-        break;
-      }
-    }
+    const segments = parseJsonPointer(path);
+    const fieldName = segments[segments.length - 1] ?? path;
+    const current = getValueByPath(dataModel, path);
 
     if (current !== undefined) {
       formData[fieldName] = current;

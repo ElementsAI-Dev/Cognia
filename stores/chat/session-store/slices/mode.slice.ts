@@ -107,6 +107,13 @@ export const createModeSlice: SliceCreator<ModeSliceActions> = (set, get) => ({
         virtualEnvId: currentSession?.virtualEnvId,
         messageCount: 0,
         carriedContext,
+        learningContext:
+          targetMode === 'learning'
+            ? {
+                subMode: currentSession?.learningContext?.subMode || 'socratic',
+                speedpassContext: currentSession?.learningContext?.speedpassContext,
+              }
+            : undefined,
       };
 
       createdSession = newSession;
@@ -135,6 +142,7 @@ export const createModeSlice: SliceCreator<ModeSliceActions> = (set, get) => ({
         mode: targetMode,
         systemPrompt: MODE_CONFIGS[targetMode].defaultSystemPrompt,
         messageCount: 0,
+        learningContext: targetMode === 'learning' ? { subMode: 'socratic' } : undefined,
       };
     }
 

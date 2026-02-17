@@ -8,6 +8,7 @@ import {
   detectFeatureIntentRuleBased,
   mightTriggerFeatureRouting,
   buildFeatureNavigationUrl,
+  consumeFeatureNavigationContext,
   FEATURE_ROUTES,
   getFeatureRouteById,
   getEnabledFeatureRoutes,
@@ -16,6 +17,10 @@ import type { FeatureRoutingSettings } from '@/types/routing/feature-router';
 import { DEFAULT_FEATURE_ROUTING_SETTINGS } from '@/types/routing/feature-router';
 
 describe('Feature Router', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
   describe('detectFeatureIntentRuleBased', () => {
     const defaultSettings: FeatureRoutingSettings = {
       ...DEFAULT_FEATURE_ROUTING_SETTINGS,
@@ -187,6 +192,12 @@ describe('Feature Router', () => {
       expect(mightTriggerFeatureRouting('workflow automation')).toBe(true);
     });
 
+    it('should return true for speedpass exam-prep keywords', () => {
+      expect(mightTriggerFeatureRouting('明天考试帮我备考高数')).toBe(true);
+      expect(mightTriggerFeatureRouting('复习教材并刷题')).toBe(true);
+      expect(mightTriggerFeatureRouting('start textbook quiz practice')).toBe(true);
+    });
+
     it('should return false for general chat', () => {
       expect(mightTriggerFeatureRouting('你好')).toBe(false);
       expect(mightTriggerFeatureRouting('hello')).toBe(false);
@@ -210,6 +221,28 @@ describe('Feature Router', () => {
       };
       const url = buildFeatureNavigationUrl(routeWithParams);
       expect(url).toContain('mode=create');
+    });
+
+    it('should store and consume navigation context consistently', () => {
+      const speedpassRoute = FEATURE_ROUTES.find((route) => route.id === 'speedpass');
+      expect(speedpassRoute).toBeDefined();
+      if (!speedpassRoute) {
+        return;
+      }
+
+      const url = buildFeatureNavigationUrl(speedpassRoute, {
+        message: '明天考试，帮我速通高数并刷题',
+        textbookId: 'tb-1',
+      });
+      const ctxKey = new URL(`http://localhost${url}`).searchParams.get('ctx');
+      expect(ctxKey).toBeTruthy();
+
+      const consumed = consumeFeatureNavigationContext(ctxKey);
+      expect(consumed?.message).toContain('速通高数');
+      expect(consumed?.textbookId).toBe('tb-1');
+
+      const consumedAgain = consumeFeatureNavigationContext(ctxKey);
+      expect(consumedAgain).toBeNull();
     });
   });
 

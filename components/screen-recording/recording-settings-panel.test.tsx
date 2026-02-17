@@ -31,6 +31,7 @@ jest.mock('next-intl', () => ({
       countdown: 'Countdown',
       countdownSeconds: 'Countdown Seconds',
       showIndicator: 'Show Indicator',
+      pauseOnMinimize: 'Pause On Minimize',
       maxDuration: 'Max Duration',
       maxDurationUnlimited: 'Unlimited',
       systemInfo: 'System Info',
@@ -369,6 +370,14 @@ describe('RecordingSettingsPanel - Recording Options', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Show Indicator')).toBeInTheDocument();
+    });
+  });
+
+  it('displays pause on minimize toggle', async () => {
+    render(<RecordingSettingsPanel open={true} onOpenChange={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Pause On Minimize')).toBeInTheDocument();
     });
   });
 });

@@ -454,6 +454,14 @@ export function RecordingSettingsPanel({
                   />
                 </div>
 
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">{t('pauseOnMinimize')}</Label>
+                  <Switch
+                    checked={localConfig.pause_on_minimize}
+                    onCheckedChange={(v) => updateField('pause_on_minimize', v)}
+                  />
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground">

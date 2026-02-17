@@ -33,13 +33,36 @@ interface ValidationResult {
 }
 
 const VALID_PERMISSIONS = [
-  'storage', 'network', 'filesystem', 'shell', 'database',
-  'clipboard', 'notifications', 'shortcuts', 'contextMenu',
-  'window', 'secrets', 'ai', 'canvas', 'export', 'theme',
+  'filesystem:read',
+  'filesystem:write',
+  'network:fetch',
+  'network:websocket',
+  'clipboard:read',
+  'clipboard:write',
+  'notification',
+  'shell:execute',
+  'process:spawn',
+  'database:read',
+  'database:write',
+  'settings:read',
+  'settings:write',
+  'session:read',
+  'session:write',
+  'agent:control',
+  'python:execute',
+  // legacy aliases (still accepted during migration)
+  'storage',
+  'network',
+  'filesystem',
+  'shell',
+  'database',
+  'clipboard',
+  'notifications',
+  'secrets',
 ];
 
 const VALID_CAPABILITIES = [
-  'tools', 'commands', 'modes', 'components', 'hooks', 'a2ui',
+  'tools', 'commands', 'modes', 'components', 'hooks', 'a2ui', 'scheduler',
 ];
 
 const VALID_TYPES = ['frontend', 'python', 'hybrid'];

@@ -2,12 +2,12 @@
 
 /**
  * useCodeExecution - Hook for executing code in Canvas
- * Supports Tauri sandbox, browser-based evaluation, and simulated execution
+ * Strategy: desktop sandbox first, browser fallback, simulation fallback.
  */
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { executeCodeWithSandboxPriority, type UnifiedCodeExecutionResult } from '@/lib/native/code-execution-strategy';
 import { useNativeStore } from '@/stores';
-import * as sandboxService from '@/lib/native/sandbox';
 
 export interface ExecutionOptions {
   timeout?: number;
@@ -28,157 +28,7 @@ interface UseCodeExecutionReturn {
   clear: () => void;
 }
 
-export interface CodeSandboxExecutionResult {
-  success: boolean;
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  executionTime: number;
-  language: string;
-  isSimulated?: boolean;
-}
-
-// Languages that can be executed in browser
-const BROWSER_EXECUTABLE = ['javascript', 'typescript'];
-
-// Languages that require Tauri sandbox
-const SANDBOX_EXECUTABLE = ['python', 'go', 'rust', 'java', 'c', 'cpp', 'ruby', 'php', 'bash'];
-
-/**
- * Simulate code execution for languages without runtime
- */
-async function simulateExecution(
-  code: string,
-  language: string
-): Promise<CodeSandboxExecutionResult> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  const lineCount = code.split('\n').length;
-  const hasMain = code.includes('main') || code.includes('def ') || code.includes('function');
-  const hasPrint =
-    code.includes('print') || code.includes('console.log') || code.includes('fmt.Print');
-
-  let simulatedOutput = `[Simulated execution for ${language}]\n`;
-  simulatedOutput += `Code analysis:\n`;
-  simulatedOutput += `- ${lineCount} lines of code\n`;
-  simulatedOutput += `- ${hasMain ? 'Contains entry point' : 'No main entry point detected'}\n`;
-  simulatedOutput += `- ${hasPrint ? 'Has output statements' : 'No output statements detected'}\n`;
-
-  return {
-    success: true,
-    stdout: simulatedOutput,
-    stderr: '',
-    exitCode: 0,
-    executionTime: 500,
-    language,
-    isSimulated: true,
-  };
-}
-
-/**
- * Execute JavaScript/TypeScript in browser sandbox
- */
-async function executeBrowser(code: string, language: string): Promise<CodeSandboxExecutionResult> {
-  const startTime = performance.now();
-  const logs: string[] = [];
-  const errors: string[] = [];
-
-  // Create sandbox with captured console
-  const originalConsole = { ...console };
-  const sandboxConsole = {
-    log: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
-    error: (...args: unknown[]) => errors.push(args.map(String).join(' ')),
-    warn: (...args: unknown[]) => logs.push(`[warn] ${args.map(String).join(' ')}`),
-    info: (...args: unknown[]) => logs.push(`[info] ${args.map(String).join(' ')}`),
-  };
-
-  try {
-    // Replace console temporarily
-    Object.assign(console, sandboxConsole);
-
-    // TypeScript - basic transpilation (remove type annotations)
-    let executableCode = code;
-    if (language === 'typescript') {
-      executableCode = code
-        .replace(/:\s*(string|number|boolean|any|void|never|unknown|object)\b/g, '')
-        .replace(/<[^>]+>/g, '')
-        .replace(/\binterface\s+\w+\s*\{[^}]*\}/g, '')
-        .replace(/\btype\s+\w+\s*=\s*[^;]+;/g, '');
-    }
-
-    // Execute with Function constructor (safer than eval)
-    const asyncWrapper = `
-      return (async () => {
-        ${executableCode}
-      })();
-    `;
-
-    const fn = new Function(asyncWrapper);
-    const result = await fn();
-
-    if (result !== undefined) {
-      logs.push(String(result));
-    }
-
-    const executionTime = performance.now() - startTime;
-
-    return {
-      success: true,
-      stdout: logs.join('\n'),
-      stderr: errors.join('\n'),
-      exitCode: 0,
-      executionTime: Math.round(executionTime),
-      language,
-    };
-  } catch (err) {
-    const executionTime = performance.now() - startTime;
-    const errorMessage = err instanceof Error ? err.message : String(err);
-
-    return {
-      success: false,
-      stdout: logs.join('\n'),
-      stderr: `Error: ${errorMessage}`,
-      exitCode: 1,
-      executionTime: Math.round(executionTime),
-      language,
-    };
-  } finally {
-    // Restore original console
-    Object.assign(console, originalConsole);
-  }
-}
-
-/**
- * Execute code via Tauri sandbox using sandbox service
- */
-async function executeTauri(
-  code: string,
-  language: string,
-  options: ExecutionOptions = {}
-): Promise<CodeSandboxExecutionResult> {
-  try {
-    const result = await sandboxService.executeWithStdin(language, code, options.stdin || '');
-
-    return {
-      success: result.status === 'completed' && result.exit_code === 0,
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exit_code,
-      executionTime: result.execution_time_ms,
-      language: result.language,
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return {
-      success: false,
-      stdout: '',
-      stderr: `Execution failed: ${errorMessage}`,
-      exitCode: 1,
-      executionTime: 0,
-      language,
-    };
-  }
-}
+export type CodeSandboxExecutionResult = UnifiedCodeExecutionResult;
 
 export function useCodeExecution(): UseCodeExecutionReturn {
   const [isExecuting, setIsExecuting] = useState(false);
@@ -199,20 +49,12 @@ export function useCodeExecution(): UseCodeExecutionReturn {
       abortRef.current = false;
 
       try {
-        const normalizedLang = language.toLowerCase();
-        let execResult: CodeSandboxExecutionResult;
-
-        // Determine execution strategy
-        if (BROWSER_EXECUTABLE.includes(normalizedLang)) {
-          // Execute in browser
-          execResult = await executeBrowser(code, normalizedLang);
-        } else if (SANDBOX_EXECUTABLE.includes(normalizedLang) && isDesktop) {
-          // Execute in Tauri sandbox
-          execResult = await executeTauri(code, normalizedLang, options);
-        } else {
-          // Simulate execution
-          execResult = await simulateExecution(code, normalizedLang);
-        }
+        const execResult = await executeCodeWithSandboxPriority({
+          code,
+          language,
+          isDesktop,
+          stdin: options.stdin,
+        });
 
         if (!abortRef.current) {
           setResult(execResult);

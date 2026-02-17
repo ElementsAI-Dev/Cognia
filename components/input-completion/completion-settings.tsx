@@ -18,6 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, Trash2, RotateCcw } from 'lucide-react';
 import { useInputCompletion } from '@/hooks/input-completion';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { syncCompletionSettings } from '@/lib/native/input-completion';
+import { isTauri } from '@/lib/utils';
+import type { CompletionSettings as UnifiedCompletionSettings } from '@/types/chat/input-completion';
 import type {
   CompletionConfig,
   CompletionProvider,
@@ -33,6 +36,7 @@ export interface CompletionSettingsProps {
 export function CompletionSettings({ onSave, className }: CompletionSettingsProps) {
   const t = useTranslations('inputCompletion');
   const tProviders = useTranslations('providers');
+  const unifiedSettings = useCompletionSettingsStore();
   const {
     config,
     updateConfig,
@@ -62,9 +66,12 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 
   const handleSave = useCallback(async () => {
     await updateConfig(localConfig);
+    if (isTauri()) {
+      await syncCompletionSettings(unifiedSettings);
+    }
     setHasChanges(false);
     onSave?.(localConfig);
-  }, [localConfig, updateConfig, onSave]);
+  }, [localConfig, updateConfig, onSave, unifiedSettings]);
 
   const handleReset = useCallback(() => {
     setLocalConfig(DEFAULT_COMPLETION_CONFIG);
@@ -328,7 +335,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
           </div>
 
           {/* Unified Completion Settings */}
-          <UnifiedCompletionSection />
+          <UnifiedCompletionSection onDirty={() => setHasChanges(true)} />
 
           {/* Statistics */}
           <div className="space-y-4">
@@ -424,7 +431,7 @@ export function CompletionSettings({ onSave, className }: CompletionSettingsProp
 }
 
 /** Unified completion settings section (partial accept, emoji, web AI) */
-function UnifiedCompletionSection() {
+function UnifiedCompletionSection({ onDirty }: { onDirty: () => void }) {
   const t = useTranslations('inputCompletion');
   const store = useCompletionSettingsStore();
 
@@ -434,12 +441,106 @@ function UnifiedCompletionSection() {
 
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
+          <Label>{t('aiCompletion')}</Label>
+          <p className="text-xs text-muted-foreground">{t('aiCompletionDesc')}</p>
+        </div>
+        <Switch
+          checked={store.aiCompletionEnabled}
+          onCheckedChange={(enabled) => {
+            store.setAICompletionEnabled(enabled);
+            onDirty();
+          }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t('provider')}</Label>
+        <Select
+          value={store.aiCompletionProvider}
+          onValueChange={(provider) => {
+            store.setAICompletionProvider(provider as UnifiedCompletionSettings['aiCompletionProvider']);
+            onDirty();
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">{t('providerAuto')}</SelectItem>
+            <SelectItem value="ollama">Ollama</SelectItem>
+            <SelectItem value="openai">OpenAI</SelectItem>
+            <SelectItem value="groq">Groq</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t('debounce', { value: store.aiCompletionDebounce })}</Label>
+        <Slider
+          value={[store.aiCompletionDebounce]}
+          min={100}
+          max={1000}
+          step={50}
+          onValueChange={([v]) => {
+            store.setAICompletionDebounce(v);
+            onDirty();
+          }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>{t('maxTokens', { value: store.aiCompletionMaxTokens })}</Label>
+        <Slider
+          value={[store.aiCompletionMaxTokens]}
+          min={16}
+          max={256}
+          step={8}
+          onValueChange={([v]) => {
+            store.setAICompletionMaxTokens(v);
+            onDirty();
+          }}
+        />
+      </div>
+
+      {(store.aiCompletionProvider === 'openai' || store.aiCompletionProvider === 'groq') && (
+        <>
+          <div className="space-y-2">
+            <Label>{t('endpoint')}</Label>
+            <Input
+              value={store.aiCompletionEndpoint}
+              onChange={(e) => {
+                store.setAICompletionEndpoint(e.target.value);
+                onDirty();
+              }}
+              placeholder={t('endpointPlaceholder')}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t('apiKey')}</Label>
+            <Input
+              type="password"
+              value={store.aiCompletionApiKey}
+              onChange={(e) => {
+                store.setAICompletionApiKey(e.target.value);
+                onDirty();
+              }}
+              placeholder={t('apiKeyPlaceholder')}
+            />
+          </div>
+        </>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
           <Label>{t('partialAccept')}</Label>
           <p className="text-xs text-muted-foreground">{t('partialAcceptDesc')}</p>
         </div>
         <Switch
           checked={store.enablePartialAccept}
-          onCheckedChange={store.setEnablePartialAccept}
+          onCheckedChange={(enabled) => {
+            store.setEnablePartialAccept(enabled);
+            onDirty();
+          }}
         />
       </div>
 
@@ -450,7 +551,10 @@ function UnifiedCompletionSection() {
         </div>
         <Switch
           checked={store.emojiEnabled}
-          onCheckedChange={store.setEmojiEnabled}
+          onCheckedChange={(enabled) => {
+            store.setEmojiEnabled(enabled);
+            onDirty();
+          }}
         />
       </div>
 
@@ -461,7 +565,10 @@ function UnifiedCompletionSection() {
         </div>
         <Switch
           checked={store.slashCommandsEnabled}
-          onCheckedChange={store.setSlashCommandsEnabled}
+          onCheckedChange={(enabled) => {
+            store.setSlashCommandsEnabled(enabled);
+            onDirty();
+          }}
         />
       </div>
 
@@ -472,7 +579,10 @@ function UnifiedCompletionSection() {
         </div>
         <Switch
           checked={store.mentionEnabled}
-          onCheckedChange={store.setMentionEnabled}
+          onCheckedChange={(enabled) => {
+            store.setMentionEnabled(enabled);
+            onDirty();
+          }}
         />
       </div>
 
@@ -483,7 +593,10 @@ function UnifiedCompletionSection() {
           min={3}
           max={20}
           step={1}
-          onValueChange={([v]) => store.setMaxSuggestions(v)}
+          onValueChange={([v]) => {
+            store.setMaxSuggestions(v);
+            onDirty();
+          }}
         />
       </div>
     </div>

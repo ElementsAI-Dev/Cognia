@@ -10,6 +10,7 @@ import {
   WindowInfo,
 } from '@/hooks/native/use-screenshot';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -35,6 +36,7 @@ import {
   FileText,
   AppWindow,
   Timer,
+  Pencil,
 } from 'lucide-react';
 import {
   Select,
@@ -66,6 +68,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     captureRegion,
     extractText,
     captureWindowByHwnd,
+    openEditorAfterCapture,
+    setOpenEditorAfterCapture,
   } = useScreenshot();
 
   const {
@@ -135,8 +139,7 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     } catch {
       // Save is best-effort; user already has the image via callback
     }
-    fetchHistory();
-  }, [onScreenshotTaken, fetchHistory]);
+  }, [onScreenshotTaken]);
 
   const handleSendToChat = useCallback(async (imageData: string) => {
     try {
@@ -180,9 +183,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
   const handleCaptureFullscreen = async () => {
     await withDelay(async () => {
       const result = await captureFullscreen();
-      if (result) {
+      if (result && openEditorAfterCapture) {
         openEditor(result.imageBase64);
-        fetchHistory();
       }
     });
   };
@@ -190,9 +192,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
   const handleCaptureWindow = async () => {
     await withDelay(async () => {
       const result = await captureWindow();
-      if (result) {
+      if (result && openEditorAfterCapture) {
         openEditor(result.imageBase64);
-        fetchHistory();
       }
     });
   };
@@ -202,9 +203,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
     if (region) {
       await withDelay(async () => {
         const result = await captureRegion(region.x, region.y, region.width, region.height);
-        if (result) {
+        if (result && openEditorAfterCapture) {
           openEditor(result.imageBase64);
-          fetchHistory();
         }
       });
     }
@@ -212,9 +212,8 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
 
   const handleCaptureSelectedWindow = async (window: WindowInfo) => {
     const result = await captureWindowByHwnd(window.hwnd);
-    if (result) {
+    if (result && openEditorAfterCapture) {
       openEditor(result.imageBase64);
-      fetchHistory();
     }
   };
 
@@ -343,6 +342,20 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
             <span className="xs:hidden">S</span>
           </Button>
         </div>
+
+        <div className="flex items-center justify-between rounded-md border bg-muted/20 px-2.5 py-2">
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium">{t('openEditorAfterCapture')}</p>
+            <p className="text-[11px] text-muted-foreground">{t('openEditorAfterCaptureDesc')}</p>
+          </div>
+          <Switch
+            checked={openEditorAfterCapture}
+            onCheckedChange={(checked) => {
+              void setOpenEditorAfterCapture(checked);
+            }}
+            aria-label={t('openEditorAfterCapture')}
+          />
+        </div>
       </div>
 
       {lastScreenshot && (
@@ -363,6 +376,15 @@ export function ScreenshotPanel({ className, onScreenshotTaken }: ScreenshotPane
                 </span>
                 <div className="flex gap-1">
                   <CopyButton content={lastScreenshot.imageBase64} className="h-7 w-7" iconOnly />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label={t('edit')}
+                    onClick={() => openEditor(lastScreenshot.imageBase64)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

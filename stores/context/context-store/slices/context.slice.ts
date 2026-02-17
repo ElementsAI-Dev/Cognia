@@ -6,7 +6,17 @@ type ContextStoreSet = StoreApi<ContextStore>['setState'];
 
 type ContextSlice = Pick<
   ContextStore,
-  'setContext' | 'setWindow' | 'setApp' | 'setFile' | 'setBrowser' | 'setEditor' | 'setUiElements'
+  | 'setContext'
+  | 'setWindow'
+  | 'setApp'
+  | 'setFile'
+  | 'setBrowser'
+  | 'setEditor'
+  | 'setUiElements'
+  | 'setScreenContent'
+  | 'setIsAnalyzingScreen'
+  | 'setScreenAnalysisError'
+  | 'clearScreenAnalysis'
 >;
 
 export const createContextSlice = (set: ContextStoreSet): ContextSlice => ({
@@ -50,5 +60,22 @@ export const createContextSlice = (set: ContextStoreSet): ContextSlice => ({
   setBrowser: (browser) => set({ browser }),
   setEditor: (editor) => set({ editor }),
   setUiElements: (uiElements) => set({ uiElements }),
+  setScreenContent: (screenContent) =>
+    set({
+      screenContent,
+      uiElements: screenContent?.ui_elements ?? [],
+      lastScreenAnalysisAt: screenContent ? Date.now() : null,
+      screenAnalysisError: null,
+    }),
+  setIsAnalyzingScreen: (isAnalyzingScreen) => set({ isAnalyzingScreen }),
+  setScreenAnalysisError: (screenAnalysisError) => set({ screenAnalysisError }),
+  clearScreenAnalysis: () =>
+    set({
+      screenContent: null,
+      uiElements: [],
+      isAnalyzingScreen: false,
+      screenAnalysisError: null,
+      lastScreenAnalysisAt: null,
+    }),
 });
 

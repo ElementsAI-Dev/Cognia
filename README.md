@@ -332,6 +332,9 @@ pnpm tauri dev        # Start Tauri desktop dev mode
 pnpm build            # Build production version (static export to out/)
 pnpm start            # Start production server (after pnpm build)
 pnpm tauri build      # Build desktop application installer
+pnpm tauri:android:init  # Initialize Android project (one-time)
+pnpm tauri:android:dev   # Run Android dev build
+pnpm tauri:android:build # Build Android APK + AAB
 
 # Code Quality
 pnpm lint             # Run ESLint checks
@@ -906,6 +909,24 @@ pnpm tauri build --debug                           # Debug symbols
 pnpm tauri build --bundles none                    # No bundling
 ```
 
+### Android Application Build
+
+```bash
+# One-time Android project initialization
+pnpm tauri:android:init
+
+# Development build
+pnpm tauri:android:dev
+
+# Release packaging (APK + AAB)
+pnpm tauri:android:build
+```
+
+Android output directories:
+
+- `src-tauri/gen/android/app/build/outputs/apk/`
+- `src-tauri/gen/android/app/build/outputs/bundle/`
+
 ## Deployment Guide
 
 ### Web Deployment
@@ -1036,6 +1057,13 @@ rustup update
 cd src-tauri
 cargo clean
 ```
+
+Android-specific checks:
+
+1. `JAVA_HOME` points to JDK 17.
+2. `ANDROID_HOME` / SDK are installed and accessible.
+3. `NDK_HOME` is set when toolchain resolution fails.
+4. If you see `openssl-sys` errors on Android, use the current rustls-based mobile build path and avoid mobile `git2` features.
 
 ### Module Not Found
 

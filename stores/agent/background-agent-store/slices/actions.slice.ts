@@ -2,6 +2,8 @@ import type { StoreApi } from 'zustand';
 import { nanoid } from 'nanoid';
 import {
   DEFAULT_BACKGROUND_AGENT_CONFIG,
+  serializeBackgroundAgent,
+  deserializeBackgroundAgent,
   type BackgroundAgent,
   type BackgroundAgentConfig,
   type BackgroundAgentStatus,
@@ -18,11 +20,43 @@ import type { BackgroundAgentState } from '../types';
 type BackgroundAgentStoreSet = StoreApi<BackgroundAgentState>['setState'];
 type BackgroundAgentStoreGet = StoreApi<BackgroundAgentState>['getState'];
 type BackgroundAgentActions = Omit<BackgroundAgentState, keyof typeof initialState>;
+
+function cloneAgentSnapshot(agent: BackgroundAgent): BackgroundAgent {
+  return deserializeBackgroundAgent(serializeBackgroundAgent(agent));
+}
+
+function cloneQueueItem(item: BackgroundAgentState['queue']['items'][number]) {
+  return {
+    ...item,
+    queuedAt: new Date(item.queuedAt),
+    estimatedStartTime: item.estimatedStartTime ? new Date(item.estimatedStartTime) : undefined,
+  };
+}
+
 export const createBackgroundAgentActionsSlice = (
   set: BackgroundAgentStoreSet,
   get: BackgroundAgentStoreGet
 ): BackgroundAgentActions => ({
-createAgent: (input: CreateBackgroundAgentInput): BackgroundAgent => {
+  upsertAgentSnapshot: (agent: BackgroundAgent): void => {
+    const snapshot = cloneAgentSnapshot(agent);
+    set((state) => ({
+      agents: { ...state.agents, [snapshot.id]: snapshot },
+    }));
+  },
+
+  syncQueueState: (queueUpdates: Partial<BackgroundAgentState['queue']>): void => {
+    set((state) => ({
+      queue: {
+        ...state.queue,
+        ...queueUpdates,
+        ...(queueUpdates.items !== undefined && {
+          items: queueUpdates.items.map((item) => cloneQueueItem(item)),
+        }),
+      },
+    }));
+  },
+
+  createAgent: (input: CreateBackgroundAgentInput): BackgroundAgent => {
     const now = new Date();
     const config: BackgroundAgentConfig = {
       ...DEFAULT_BACKGROUND_AGENT_CONFIG,
@@ -30,7 +64,7 @@ createAgent: (input: CreateBackgroundAgentInput): BackgroundAgent => {
     };
 
     const agent: BackgroundAgent = {
-      id: nanoid(),
+      id: input.id || nanoid(),
       sessionId: input.sessionId,
       name: input.name,
       description: input.description,

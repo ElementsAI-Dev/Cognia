@@ -41,7 +41,7 @@ import { A2UITextField } from './form/a2ui-textfield';
 import { A2UITextArea } from './form/a2ui-textarea';
 import { A2UISelect } from './form/a2ui-select';
 import { A2UICheckbox } from './form/a2ui-checkbox';
-import { A2UIRadioGroup } from './form/a2ui-radio';
+import { A2UIRadio, A2UIRadioGroup } from './form/a2ui-radio';
 import { A2UISlider } from './form/a2ui-slider';
 import { A2UIDatePicker } from './form/a2ui-datepicker';
 import { A2UITimePicker } from './form/a2ui-timepicker';
@@ -94,6 +94,7 @@ const builtInComponents = new Map<string, A2UIComponentType>([
   ['TextArea', A2UITextArea as A2UIComponentType],
   ['Select', A2UISelect as A2UIComponentType],
   ['Checkbox', A2UICheckbox as A2UIComponentType],
+  ['Radio', A2UIRadio as A2UIComponentType],
   ['RadioGroup', A2UIRadioGroup as A2UIComponentType],
   ['Slider', A2UISlider as A2UIComponentType],
   ['DatePicker', A2UIDatePicker as A2UIComponentType],

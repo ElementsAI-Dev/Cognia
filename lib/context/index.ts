@@ -26,6 +26,7 @@ export {
   readContextFile,
   tailContextFile,
   searchContextFiles,
+  searchContextFileEntries,
   grepContextFiles,
   deleteContextFile,
   getContextStats,

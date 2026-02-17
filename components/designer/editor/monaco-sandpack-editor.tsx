@@ -266,6 +266,13 @@ function getDesignerLspEnabled(): boolean {
   return raw !== 'false';
 }
 
+function getDesignerLspProtocolV2Enabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  const raw = localStorage.getItem('cognia-designer-lsp-protocol-v2');
+  // Default enabled unless explicitly set to false.
+  return raw !== 'false';
+}
+
 export function MonacoSandpackEditor({
   className,
   language = 'typescript',
@@ -571,6 +578,7 @@ export function MonacoSandpackEditor({
           editor,
           languageId: getLspLanguageId(monacoLanguage),
           rootUri,
+          protocolV2Enabled: getDesignerLspProtocolV2Enabled(),
           onStatusChange: (status, detail) => {
             setLspStatus(status);
             setLspStatusDetail(detail || '');

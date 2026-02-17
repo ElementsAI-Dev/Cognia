@@ -43,6 +43,8 @@ import type { McpServerState, ToolCallResult } from '@/types/mcp';
 import {
   getBackgroundAgentEventEmitter,
   type BackgroundAgentEventEmitter,
+  type BackgroundAgentEventPayloads,
+  type BackgroundAgentEventType,
   type AgentCheckpoint,
   type HealthWarning,
 } from './background-agent-events';
@@ -50,6 +52,10 @@ import { getAgentBridge } from './agent-bridge';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.agent;
+
+function isInterruptedStatus(status: BackgroundAgentStatus): boolean {
+  return status === 'paused' || status === 'cancelled' || status === 'timeout';
+}
 
 /**
  * Background Agent Manager class
@@ -168,7 +174,7 @@ export class BackgroundAgentManager {
           timestamp: new Date(),
           metrics: { inactiveMs: timeSinceActivity, progress: agent.progress },
         };
-        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+        this.emitEvent('agent:health_warning', { agent, warning });
         this.addLog(agent, 'warn', warning.message, 'system');
       }
       // Check for slow progress
@@ -179,7 +185,7 @@ export class BackgroundAgentManager {
           timestamp: new Date(),
           metrics: { inactiveMs: timeSinceActivity, progress: agent.progress },
         };
-        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+        this.emitEvent('agent:health_warning', { agent, warning });
       }
 
       // Check for high retry count
@@ -190,7 +196,7 @@ export class BackgroundAgentManager {
           timestamp: new Date(),
           metrics: { retryCount: agent.retryCount },
         };
-        this.eventEmitter.emit('agent:health_warning', { agent, warning });
+        this.emitEvent('agent:health_warning', { agent, warning });
       }
     }
   }
@@ -200,6 +206,123 @@ export class BackgroundAgentManager {
    */
   private updateActivityTime(agentId: string): void {
     this.lastActivityTimes.set(agentId, Date.now());
+  }
+
+  /**
+   * Emit queue state update event
+   */
+  private emitQueueUpdated(): void {
+    this.emitEvent('queue:updated', {
+      queueLength: this.queue.items.length,
+      running: this.queue.currentlyRunning,
+      maxConcurrent: this.queue.maxConcurrent,
+    });
+  }
+
+  /**
+   * Normalize and clone an agent snapshot before importing it into manager state.
+   */
+  private normalizeSnapshotAgent(
+    snapshot: BackgroundAgent,
+    options: { normalizeRunningToQueued?: boolean } = {}
+  ): BackgroundAgent {
+    const hydrated = deserializeBackgroundAgent(serializeBackgroundAgent(snapshot));
+
+    if (options.normalizeRunningToQueued && hydrated.status === 'running') {
+      hydrated.status = 'queued';
+      hydrated.queuedAt = hydrated.queuedAt || new Date();
+      hydrated.executionState.activeSubAgents = [];
+      hydrated.executionState.currentPhase = 'planning';
+      hydrated.executionState.resumedAt = new Date();
+    }
+
+    return hydrated;
+  }
+
+  /**
+   * Clone queue state to avoid leaking mutable references.
+   */
+  private cloneQueueState(queue: BackgroundAgentQueueState = this.queue): BackgroundAgentQueueState {
+    return {
+      ...queue,
+      items: queue.items.map((item) => ({
+        ...item,
+        queuedAt: new Date(item.queuedAt),
+        estimatedStartTime: item.estimatedStartTime ? new Date(item.estimatedStartTime) : undefined,
+      })),
+    };
+  }
+
+  /**
+   * Best-effort clone helper for event payload fragments.
+   */
+  private safeClone<T>(value: T): T {
+    if (value === null || value === undefined) return value;
+    try {
+      return structuredClone(value);
+    } catch {
+      try {
+        return JSON.parse(JSON.stringify(value)) as T;
+      } catch {
+        return value;
+      }
+    }
+  }
+
+  /**
+   * Clone event payload to avoid exposing mutable internal references.
+   */
+  private cloneEventPayload<T extends BackgroundAgentEventType>(
+    payload: BackgroundAgentEventPayloads[T]
+  ): BackgroundAgentEventPayloads[T] {
+    const cloned = { ...payload } as Record<string, unknown>;
+
+    if ('agent' in cloned && cloned.agent) {
+      cloned.agent = this.normalizeSnapshotAgent(cloned.agent as BackgroundAgent);
+    }
+    if ('checkpoint' in cloned && cloned.checkpoint) {
+      cloned.checkpoint = this.safeClone(cloned.checkpoint);
+    }
+    if ('warning' in cloned && cloned.warning) {
+      cloned.warning = this.safeClone(cloned.warning);
+    }
+    if ('subAgent' in cloned && cloned.subAgent) {
+      cloned.subAgent = this.safeClone(cloned.subAgent);
+    }
+    if ('result' in cloned && cloned.result) {
+      cloned.result = this.safeClone(cloned.result);
+    }
+    if ('toolCall' in cloned && cloned.toolCall) {
+      cloned.toolCall = this.safeClone(cloned.toolCall);
+    }
+    if ('log' in cloned && cloned.log) {
+      cloned.log = this.safeClone(cloned.log);
+    }
+    if ('notification' in cloned && cloned.notification) {
+      cloned.notification = this.safeClone(cloned.notification);
+    }
+
+    if ('completedAgents' in cloned && Array.isArray(cloned.completedAgents)) {
+      cloned.completedAgents = [...cloned.completedAgents];
+    }
+    if ('cancelledAgents' in cloned && Array.isArray(cloned.cancelledAgents)) {
+      cloned.cancelledAgents = [...cloned.cancelledAgents];
+    }
+    if ('savedCheckpoints' in cloned && Array.isArray(cloned.savedCheckpoints)) {
+      cloned.savedCheckpoints = [...cloned.savedCheckpoints];
+    }
+
+    return cloned as BackgroundAgentEventPayloads[T];
+  }
+
+  /**
+   * Emit event with cloned payload snapshots.
+   */
+  private emitEvent<T extends BackgroundAgentEventType>(
+    event: T,
+    payload: BackgroundAgentEventPayloads[T]
+  ): void {
+    this.eventEmitter.emit(event, this.cloneEventPayload(payload));
   }
 
   /**
@@ -264,7 +387,7 @@ export class BackgroundAgentManager {
     }
 
     // Emit timeout event
-    this.eventEmitter.emit('agent:timeout', { agent, duration });
+    this.emitEvent('agent:timeout', { agent, duration });
 
     // Notify via callback
     const options = this.executionOptions.get(agent.id);
@@ -272,8 +395,7 @@ export class BackgroundAgentManager {
 
     // Cleanup
     this.cleanupAgent(agent.id);
-    this.queue.currentlyRunning--;
-    this.processQueue();
+    this.emitQueueUpdated();
   }
 
   /**
@@ -303,7 +425,7 @@ export class BackgroundAgentManager {
       });
 
     this.checkpoints.set(agent.id, checkpoint);
-    this.eventEmitter.emit('agent:checkpoint', { agent, checkpoint });
+    this.emitEvent('agent:checkpoint', { agent, checkpoint });
 
     return checkpoint;
   }
@@ -439,7 +561,7 @@ export class BackgroundAgentManager {
     };
 
     const agent: BackgroundAgent = {
-      id: nanoid(),
+      id: input.id || nanoid(),
       sessionId: input.sessionId,
       name: input.name,
       description: input.description,
@@ -472,9 +594,45 @@ export class BackgroundAgentManager {
     this.addLog(agent, 'info', 'Background agent created', 'system');
     
     // Emit created event
-    this.eventEmitter.emit('agent:created', { agent });
+    this.emitEvent('agent:created', { agent });
 
     return agent;
+  }
+
+  /**
+   * Hydrate (upsert) a full agent snapshot into manager state.
+   * Useful when manager needs to recover from an external source of truth (e.g. Zustand store).
+   */
+  hydrateAgent(
+    snapshot: BackgroundAgent,
+    options: { normalizeRunningToQueued?: boolean } = {}
+  ): BackgroundAgent {
+    const hydrated = this.normalizeSnapshotAgent(snapshot, options);
+    const existing = this.agents.get(hydrated.id);
+
+    if (existing) {
+      if (existing.status === 'running') {
+        this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
+      }
+      const existingOrchestrator = this.orchestrators.get(hydrated.id);
+      existingOrchestrator?.cancel();
+      this.cleanupAgent(hydrated.id);
+    }
+
+    this.queue.items = this.queue.items.filter((item) => item.agentId !== hydrated.id);
+    if (hydrated.status === 'queued') {
+      this.queue.items.push({
+        agentId: hydrated.id,
+        priority: hydrated.priority,
+        queuedAt: hydrated.queuedAt || new Date(),
+      });
+      this.queue.items.sort((a, b) => a.priority - b.priority);
+    }
+
+    this.agents.set(hydrated.id, hydrated);
+    this.emitQueueUpdated();
+
+    return hydrated;
   }
 
   /**
@@ -518,7 +676,9 @@ export class BackgroundAgentManager {
     this.orchestrators.delete(agentId);
     this.executionOptions.delete(agentId);
 
-    return this.agents.delete(agentId);
+    const deleted = this.agents.delete(agentId);
+    this.emitQueueUpdated();
+    return deleted;
   }
 
   /**
@@ -547,7 +707,7 @@ export class BackgroundAgentManager {
     agent.executionState.lastActivity = new Date();
 
     // Emit log event
-    this.eventEmitter.emit('agent:log', { agent, log });
+    this.emitEvent('agent:log', { agent, log });
 
     // Notify via callback
     const options = this.executionOptions.get(agent.id);
@@ -581,7 +741,7 @@ export class BackgroundAgentManager {
     agent.notifications.push(notification);
 
     // Emit notification event
-    this.eventEmitter.emit('agent:notification', { agent, notification });
+    this.emitEvent('agent:notification', { agent, notification });
 
     // Notify via callback
     const options = this.executionOptions.get(agent.id);
@@ -642,18 +802,22 @@ export class BackgroundAgentManager {
    */
   queueAgent(agentId: string, options: BackgroundAgentExecutionOptions = {}): boolean {
     const agent = this.agents.get(agentId);
-    if (!agent || agent.status !== 'idle') return false;
+    if (!agent) return false;
+    if (agent.status === 'running' || agent.status === 'cancelled') return false;
 
     agent.status = 'queued';
-    agent.queuedAt = new Date();
+    agent.queuedAt = agent.queuedAt || new Date();
     this.executionOptions.set(agentId, options);
 
-    // Add to queue with priority
-    this.queue.items.push({
-      agentId,
-      priority: agent.priority,
-      queuedAt: new Date(),
-    });
+    // Add to queue with priority (skip duplicates)
+    const alreadyQueued = this.queue.items.some((item) => item.agentId === agentId);
+    if (!alreadyQueued) {
+      this.queue.items.push({
+        agentId,
+        priority: agent.priority,
+        queuedAt: new Date(),
+      });
+    }
 
     // Sort queue by priority (lower number = higher priority)
     this.queue.items.sort((a, b) => a.priority - b.priority);
@@ -662,12 +826,8 @@ export class BackgroundAgentManager {
     
     // Emit queued event with position
     const position = this.queue.items.findIndex(item => item.agentId === agentId) + 1;
-    this.eventEmitter.emit('agent:queued', { agent, position });
-    this.eventEmitter.emit('queue:updated', {
-      queueLength: this.queue.items.length,
-      running: this.queue.currentlyRunning,
-      maxConcurrent: this.queue.maxConcurrent,
-    });
+    this.emitEvent('agent:queued', { agent, position });
+    this.emitQueueUpdated();
 
     // Try to start execution
     this.processQueue();
@@ -692,8 +852,10 @@ export class BackgroundAgentManager {
       if (!agent || agent.status !== 'queued') continue;
 
       this.queue.currentlyRunning++;
+      this.emitQueueUpdated();
       this.executeAgentInternal(agent).finally(() => {
-        this.queue.currentlyRunning--;
+        this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
+        this.emitQueueUpdated();
         this.processQueue();
       });
     }
@@ -717,7 +879,7 @@ export class BackgroundAgentManager {
     this.updateActivityTime(agent.id);
 
     this.addLog(agent, 'info', 'Starting background agent execution', 'system');
-    this.eventEmitter.emit('agent:started', { agent });
+    this.emitEvent('agent:started', { agent });
     options.onStart?.(agent);
 
     if (agent.config.notifyOnProgress) {
@@ -730,12 +892,14 @@ export class BackgroundAgentManager {
       
       // Build enhanced system prompt with Skills
       const enhancedSystemPrompt = this.buildEnhancedSystemPrompt(agent, options);
+      const selectedProvider = (agent.config.provider || 'openai') as ProviderName;
+      const providerApiKey = this.apiKeyProvider?.(selectedProvider) || '';
 
       // Create orchestrator
       const orchestratorConfig: OrchestratorConfig = {
-        provider: (agent.config.provider || 'openai') as ProviderName,
+        provider: selectedProvider,
         model: agent.config.model || 'gpt-4o',
-        apiKey: '', // Will be set from settings
+        apiKey: providerApiKey,
         baseURL: undefined,
         systemPrompt: enhancedSystemPrompt,
         temperature: agent.config.temperature,
@@ -761,7 +925,7 @@ export class BackgroundAgentManager {
         onSubAgentCreate: (subAgent) => {
           agent.subAgents.push(subAgent);
           this.addLog(agent, 'info', `Sub-agent created: ${subAgent.name}`, 'sub-agent', subAgent.id);
-          this.eventEmitter.emit('subagent:created', { agent, subAgent });
+          this.emitEvent('subagent:created', { agent, subAgent });
           options.onSubAgentCreate?.(agent, subAgent);
         },
         onSubAgentStart: (subAgent) => {
@@ -769,7 +933,7 @@ export class BackgroundAgentManager {
           const step = this.addStep(agent, 'sub_agent', subAgent.name, subAgent.description);
           this.updateStep(agent, step.id, { status: 'running', subAgentId: subAgent.id });
           this.updateActivityTime(agent.id);
-          this.eventEmitter.emit('subagent:started', { agent, subAgent });
+          this.emitEvent('subagent:started', { agent, subAgent });
         },
         onSubAgentComplete: (subAgent, subResult) => {
           agent.executionState.activeSubAgents = agent.executionState.activeSubAgents.filter(id => id !== subAgent.id);
@@ -791,7 +955,8 @@ export class BackgroundAgentManager {
           const total = agent.subAgents.length;
           const completed = agent.executionState.completedSubAgents.length;
           agent.progress = Math.round((completed / total) * 90);
-          this.eventEmitter.emit('agent:progress', { agent, progress: agent.progress, phase: 'executing' });
+          this.emitEvent('agent:progress', { agent, progress: agent.progress, phase: 'executing' });
+          this.emitEvent('subagent:completed', { agent, subAgent, result: subResult });
           options.onProgress?.(agent, agent.progress);
           options.onSubAgentComplete?.(agent, subAgent, subResult);
         },
@@ -806,25 +971,36 @@ export class BackgroundAgentManager {
 
           this.updateActivityTime(agent.id);
           this.addLog(agent, 'error', `Sub-agent failed: ${error}`, 'sub-agent', subAgent.id);
-          this.eventEmitter.emit('subagent:failed', { agent, subAgent, error });
+          this.emitEvent('subagent:failed', { agent, subAgent, error });
         },
         onToolCall: (toolCall) => {
           this.updateActivityTime(agent.id);
           this.addLog(agent, 'info', `Tool call: ${toolCall.name}`, 'tool', toolCall.id);
-          this.eventEmitter.emit('tool:called', { agent, toolCall });
+          this.emitEvent('tool:called', { agent, toolCall });
           options.onToolCall?.(agent, toolCall);
         },
         onToolResult: (toolCall) => {
           this.updateActivityTime(agent.id);
           this.addLog(agent, 'info', `Tool result: ${toolCall.name}`, 'tool', toolCall.id);
-          this.eventEmitter.emit('tool:result', { agent, toolCall });
+          this.emitEvent('tool:result', { agent, toolCall });
           options.onToolResult?.(agent, toolCall);
         },
         onProgress: (progress) => {
           agent.executionState.currentPhase = progress.phase === 'completed' ? 'completed' : 'executing';
+          this.updateActivityTime(agent.id);
+          this.emitEvent('agent:progress', {
+            agent,
+            progress: progress.progress,
+            phase: progress.phase,
+          });
           options.onProgress?.(agent, progress.progress);
         },
       });
+
+      // Agent may have been paused/cancelled/timed out while orchestrator was unwinding
+      if (isInterruptedStatus(agent.status)) {
+        return;
+      }
 
       // Process result
       const agentResult: BackgroundAgentResult = {
@@ -852,7 +1028,7 @@ export class BackgroundAgentManager {
         if (agent.config.notifyOnComplete) {
           this.addNotification(agent, 'completed', 'Agent Completed', `${agent.name} has completed successfully.`);
         }
-        this.eventEmitter.emit('agent:completed', { agent, result: agentResult });
+        this.emitEvent('agent:completed', { agent, result: agentResult });
         options.onComplete?.(agent, agentResult);
       } else {
         agent.error = result.error;
@@ -860,12 +1036,17 @@ export class BackgroundAgentManager {
         if (agent.config.notifyOnError) {
           this.addNotification(agent, 'failed', 'Agent Failed', `${agent.name} failed: ${result.error}`);
         }
-        this.eventEmitter.emit('agent:failed', { agent, error: result.error || 'Unknown error' });
+        this.emitEvent('agent:failed', { agent, error: result.error || 'Unknown error' });
         options.onError?.(agent, result.error || 'Unknown error');
       }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Background agent execution failed';
+
+      // Interruption statuses are handled by their dedicated flow
+      if (isInterruptedStatus(agent.status)) {
+        return;
+      }
       
       // Check for retry
       if (agent.config.autoRetry && agent.retryCount < agent.config.maxRetries) {
@@ -928,8 +1109,10 @@ export class BackgroundAgentManager {
 
     // Execute directly
     this.queue.currentlyRunning++;
+    this.emitQueueUpdated();
     this.executeAgentInternal(agent).finally(() => {
-      this.queue.currentlyRunning--;
+      this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
+      this.emitQueueUpdated();
       this.processQueue();
     });
 
@@ -986,7 +1169,7 @@ export class BackgroundAgentManager {
         agent.completedAt = new Date();
 
         this.addLog(agent, 'info', 'Task completed via team delegation', 'system');
-        this.eventEmitter.emit('agent:completed', { agent, result: agent.result });
+        this.emitEvent('agent:completed', { agent, result: agent.result });
 
         if (agent.config.notifyOnComplete) {
           this.addNotification(agent, 'completed', 'Task Completed', 'Task was completed via team delegation');
@@ -1025,17 +1208,11 @@ export class BackgroundAgentManager {
       orchestrator.cancel();
     }
 
-    // Update queue count
-    this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
-
     this.addLog(agent, 'info', 'Agent paused with checkpoint', 'system');
-    this.eventEmitter.emit('agent:paused', { agent, checkpoint });
+    this.emitEvent('agent:paused', { agent, checkpoint });
     
     const options = this.executionOptions.get(agentId);
     options?.onPause?.(agent);
-
-    // Process next in queue
-    this.processQueue();
 
     return true;
   }
@@ -1054,12 +1231,13 @@ export class BackgroundAgentManager {
     agent.executionState.resumedAt = new Date();
     
     this.addLog(agent, 'info', `Agent resumed ${hasCheckpoint ? 'from checkpoint' : 'without checkpoint'}`, 'system');
-    this.eventEmitter.emit('agent:resumed', { agent, fromCheckpoint: hasCheckpoint });
+    this.emitEvent('agent:resumed', { agent, fromCheckpoint: hasCheckpoint });
     
     const options = this.executionOptions.get(agentId);
     options?.onResume?.(agent);
 
     // Add to queue with high priority
+    this.queue.items = this.queue.items.filter(item => item.agentId !== agentId);
     this.queue.items.unshift({
       agentId,
       priority: Math.max(0, agent.priority - 1), // Boost priority for resumed agents
@@ -1067,11 +1245,7 @@ export class BackgroundAgentManager {
     });
 
     // Emit queue update
-    this.eventEmitter.emit('queue:updated', {
-      queueLength: this.queue.items.length,
-      running: this.queue.currentlyRunning,
-      maxConcurrent: this.queue.maxConcurrent,
-    });
+    this.emitQueueUpdated();
 
     // Try to process immediately
     this.processQueue();
@@ -1097,7 +1271,6 @@ export class BackgroundAgentManager {
       if (orchestrator) {
         orchestrator.cancel();
       }
-      this.queue.currentlyRunning = Math.max(0, this.queue.currentlyRunning - 1);
     }
 
     agent.status = 'cancelled';
@@ -1108,7 +1281,7 @@ export class BackgroundAgentManager {
     this.clearCheckpoint(agentId);
     
     this.addLog(agent, 'info', 'Agent cancelled', 'system');
-    this.eventEmitter.emit('agent:cancelled', { agent });
+    this.emitEvent('agent:cancelled', { agent });
     
     const options = this.executionOptions.get(agentId);
     options?.onCancel?.(agent);
@@ -1121,7 +1294,25 @@ export class BackgroundAgentManager {
       this.processQueue();
     }
 
+    this.emitQueueUpdated();
+
     return true;
+  }
+
+  /**
+   * Cancel all active or queued agents
+   */
+  cancelAllAgents(): number {
+    const cancellable = Array.from(this.agents.values())
+      .filter((agent) => agent.status === 'running' || agent.status === 'queued' || agent.status === 'paused')
+      .map((agent) => agent.id);
+
+    cancellable.forEach((agentId) => {
+      this.cancelAgent(agentId);
+    });
+
+    this.emitQueueUpdated();
+    return cancellable.length;
   }
 
   /**
@@ -1163,7 +1354,7 @@ export class BackgroundAgentManager {
    * Get queue state
    */
   getQueueState(): BackgroundAgentQueueState {
-    return { ...this.queue };
+    return this.cloneQueueState();
   }
 
   /**
@@ -1171,6 +1362,8 @@ export class BackgroundAgentManager {
    */
   pauseQueue(): void {
     this.queue.isPaused = true;
+    this.emitEvent('queue:paused', {});
+    this.emitQueueUpdated();
   }
 
   /**
@@ -1178,6 +1371,8 @@ export class BackgroundAgentManager {
    */
   resumeQueue(): void {
     this.queue.isPaused = false;
+    this.emitEvent('queue:resumed', {});
+    this.emitQueueUpdated();
     this.processQueue();
   }
 
@@ -1190,6 +1385,8 @@ export class BackgroundAgentManager {
       .map(a => a.id);
 
     completedIds.forEach(id => this.agents.delete(id));
+    this.queue.items = this.queue.items.filter((item) => !completedIds.includes(item.agentId));
+    this.emitQueueUpdated();
   }
 
   /**
@@ -1212,6 +1409,7 @@ export class BackgroundAgentManager {
     const notification = agent.notifications.find(n => n.id === notificationId);
     if (notification) {
       notification.read = true;
+      this.emitEvent('agent:notification', { agent, notification });
     }
   }
 
@@ -1222,11 +1420,21 @@ export class BackgroundAgentManager {
     if (agentId) {
       const agent = this.agents.get(agentId);
       if (agent) {
-        agent.notifications.forEach(n => n.read = true);
+        agent.notifications.forEach((n) => {
+          if (!n.read) {
+            n.read = true;
+            this.emitEvent('agent:notification', { agent, notification: n });
+          }
+        });
       }
     } else {
-      this.agents.forEach(agent => {
-        agent.notifications.forEach(n => n.read = true);
+      this.agents.forEach((agent) => {
+        agent.notifications.forEach((n) => {
+          if (!n.read) {
+            n.read = true;
+            this.emitEvent('agent:notification', { agent, notification: n });
+          }
+        });
       });
     }
   }
@@ -1259,20 +1467,32 @@ export class BackgroundAgentManager {
       if (!stored) return;
 
       const agents = JSON.parse(stored) as string[];
+      const restorableStatuses = new Set<BackgroundAgentStatus>([
+        'running',
+        'queued',
+        'paused',
+        'completed',
+        'failed',
+        'cancelled',
+        'timeout',
+      ]);
+
+      this.queue.items = [];
+      this.queue.currentlyRunning = 0;
+
       agents.forEach(data => {
         try {
           const agent = deserializeBackgroundAgent(data);
-          // Only restore agents that were running or queued
-          if (agent.status === 'running' || agent.status === 'queued') {
-            agent.status = 'queued';
-            this.agents.set(agent.id, agent);
-          } else if (agent.status === 'completed' || agent.status === 'failed') {
-            this.agents.set(agent.id, agent);
-          }
+          if (!restorableStatuses.has(agent.status)) return;
+
+          this.hydrateAgent(agent, {
+            normalizeRunningToQueued: agent.status === 'running',
+          });
         } catch {
           // Skip invalid entries
         }
       });
+      this.processQueue();
     } catch (error) {
       log.error('Failed to restore background agent state', error as Error);
     }
@@ -1447,7 +1667,7 @@ export class BackgroundAgentManager {
     this.persistState();
 
     // 7. Emit shutdown event
-    this.eventEmitter.emit('manager:shutdown', {
+    this.emitEvent('manager:shutdown', {
       completedAgents,
       cancelledAgents,
       savedCheckpoints,

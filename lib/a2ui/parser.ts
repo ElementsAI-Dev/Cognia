@@ -24,6 +24,19 @@ export interface A2UIParseResult {
 }
 
 /**
+ * Unified parse result for mixed A2UI payloads.
+ */
+export interface A2UIUnifiedParseResult {
+  surfaceId: string | null;
+  messages: A2UIServerMessage[];
+  errors: string[];
+}
+
+export interface A2UIParseInputOptions {
+  fallbackSurfaceId?: string;
+}
+
+/**
  * A2UI message type guards
  */
 export function isCreateSurfaceMessage(msg: A2UIServerMessage): msg is A2UICreateSurfaceMessage {
@@ -303,6 +316,173 @@ function parseSimplifiedA2UI(json: Record<string, unknown>): A2UIServerMessage[]
   return messages;
 }
 
+function parseA2UIObject(input: unknown): A2UIParseResult {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const simplified = parseSimplifiedA2UI(input as Record<string, unknown>);
+    if (simplified && simplified.length > 0) {
+      return {
+        success: true,
+        messages: simplified,
+        errors: [],
+      };
+    }
+  }
+
+  return parseA2UIMessages(input);
+}
+
+function resolveSurfaceId(
+  messages: A2UIServerMessage[],
+  fallbackSurfaceId?: string
+): string | null {
+  const firstMessageWithSurface = messages.find(
+    (message): message is A2UIServerMessage & { surfaceId: string } =>
+      'surfaceId' in message && typeof message.surfaceId === 'string'
+  );
+  return firstMessageWithSurface?.surfaceId ?? fallbackSurfaceId ?? null;
+}
+
+function collectA2UITextPayloads(payload: Record<string, unknown>): string[] {
+  const texts: string[] = [];
+
+  if (typeof payload.text === 'string') {
+    texts.push(payload.text);
+  }
+
+  if (typeof payload.result === 'string') {
+    texts.push(payload.result);
+  }
+
+  const content = payload.content;
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const contentItem = item as Record<string, unknown>;
+      if (contentItem.type === 'text' && typeof contentItem.text === 'string') {
+        texts.push(contentItem.text);
+      }
+
+      if (contentItem.type === 'resource') {
+        const resource = contentItem.resource;
+        if (resource && typeof resource === 'object') {
+          const resourceText = (resource as Record<string, unknown>).text;
+          if (typeof resourceText === 'string') {
+            texts.push(resourceText);
+          }
+        }
+      }
+    }
+  }
+
+  return texts;
+}
+
+/**
+ * Unified parser for mixed A2UI payload inputs (string/object/array/code block/tool result).
+ */
+export function parseA2UIInput(
+  input: unknown,
+  options: A2UIParseInputOptions = {}
+): A2UIUnifiedParseResult {
+  const emptyResult: A2UIUnifiedParseResult = {
+    surfaceId: options.fallbackSurfaceId ?? null,
+    messages: [],
+    errors: [],
+  };
+
+  if (input === null || input === undefined) {
+    return emptyResult;
+  }
+
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return emptyResult;
+    }
+
+    const extracted = extractA2UIFromResponse(input);
+    if (extracted?.messages.length) {
+      return {
+        surfaceId: resolveSurfaceId(extracted.messages, options.fallbackSurfaceId),
+        messages: extracted.messages,
+        errors: [],
+      };
+    }
+
+    const looksLikeJson = trimmed.startsWith('{') || trimmed.startsWith('[');
+    if (!looksLikeJson && !detectA2UIContent(input)) {
+      return emptyResult;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parseA2UIInput(parsed, options);
+    } catch (error) {
+      return {
+        ...emptyResult,
+        errors: [`JSON parse error: ${error instanceof Error ? error.message : 'Unknown error'}`],
+      };
+    }
+  }
+
+  const parsedObjectResult = parseA2UIObject(input);
+  if (parsedObjectResult.success && parsedObjectResult.messages.length > 0) {
+    return {
+      surfaceId: resolveSurfaceId(parsedObjectResult.messages, options.fallbackSurfaceId),
+      messages: parsedObjectResult.messages,
+      errors: parsedObjectResult.errors,
+    };
+  }
+
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const payload = input as Record<string, unknown>;
+    const nestedMessages = payload.messages;
+    if (nestedMessages !== undefined) {
+      const nestedResult = parseA2UIInput(nestedMessages, options);
+      if (nestedResult.messages.length > 0) {
+        return nestedResult;
+      }
+      parsedObjectResult.errors.push(...nestedResult.errors);
+    }
+
+    const textPayloads = collectA2UITextPayloads(payload);
+    if (textPayloads.length > 0) {
+      const mergedMessages: A2UIServerMessage[] = [];
+      const mergedErrors: string[] = [...parsedObjectResult.errors];
+
+      for (const textPayload of textPayloads) {
+        const nestedResult = parseA2UIInput(textPayload, options);
+        if (nestedResult.messages.length > 0) {
+          mergedMessages.push(...nestedResult.messages);
+        } else if (nestedResult.errors.length > 0) {
+          mergedErrors.push(...nestedResult.errors);
+        }
+      }
+
+      if (mergedMessages.length > 0) {
+        return {
+          surfaceId: resolveSurfaceId(mergedMessages, options.fallbackSurfaceId),
+          messages: mergedMessages,
+          errors: mergedErrors,
+        };
+      }
+
+      return {
+        ...emptyResult,
+        errors: mergedErrors,
+      };
+    }
+  }
+
+  return {
+    ...emptyResult,
+    errors: parsedObjectResult.errors,
+  };
+}
+
 /**
  * Extract A2UI content from mixed AI response
  * Looks for JSON blocks that contain A2UI messages
@@ -353,29 +533,10 @@ function tryParseA2UIContent(jsonContent: string): A2UIMessageContent | null {
   try {
     const json = JSON.parse(jsonContent);
 
-    // Try simplified format first
-    if (json.surface || json.components) {
-      const messages = parseSimplifiedA2UI(json);
-      if (messages && messages.length > 0) {
-        const surfaceId = messages.find(m => 'surfaceId' in m)?.surfaceId as string || 'default';
-        return {
-          type: 'a2ui',
-          surfaceId,
-          messages,
-        };
-      }
-    }
-
-    // Try standard A2UI protocol format
-    const parseResult = parseA2UIMessages(json);
+    // Try standard + simplified A2UI protocol format
+    const parseResult = parseA2UIObject(json);
     if (parseResult.success && parseResult.messages.length > 0) {
-      let surfaceId = 'default';
-      for (const msg of parseResult.messages) {
-        if ('surfaceId' in msg) {
-          surfaceId = msg.surfaceId;
-          break;
-        }
-      }
+      const surfaceId = resolveSurfaceId(parseResult.messages, 'default') ?? 'default';
       return {
         type: 'a2ui',
         surfaceId,

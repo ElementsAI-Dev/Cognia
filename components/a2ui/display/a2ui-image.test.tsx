@@ -33,7 +33,26 @@ jest.mock('../a2ui-context', () => ({
 // Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+  default: ({
+    unoptimized: _unoptimized,
+    fill: _fill,
+    priority: _priority,
+    quality: _quality,
+    sizes: _sizes,
+    placeholder: _placeholder,
+    blurDataURL: _blurDataURL,
+    loader: _loader,
+    ...props
+  }: React.ImgHTMLAttributes<HTMLImageElement> & {
+    unoptimized?: boolean;
+    fill?: boolean;
+    priority?: boolean;
+    quality?: number;
+    sizes?: string;
+    placeholder?: 'blur' | 'empty';
+    blurDataURL?: string;
+    loader?: unknown;
+  }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img {...props} alt={props.alt || ''} />
   ),

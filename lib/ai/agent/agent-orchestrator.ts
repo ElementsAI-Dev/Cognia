@@ -127,6 +127,7 @@ export interface OrchestratorExecutionOptions {
   onError?: (error: string) => void;
   onToolCall?: (toolCall: ToolCall) => void;
   onToolResult?: (toolCall: ToolCall) => void;
+  traceContext?: ExternalAgentExecutionOptions['traceContext'];
 }
 
 /**
@@ -1089,9 +1090,19 @@ export class AgentOrchestrator {
       }
 
       // Build execution options
+      const inheritedTraceContext = options.traceContext;
+      const traceTags = Array.from(new Set(['orchestrator-external-agent', ...(inheritedTraceContext?.tags ?? [])]));
       const execOptions: ExternalAgentExecutionOptions = {
         systemPrompt: this.config.systemPrompt,
         timeout: this.config.maxSteps ? this.config.maxSteps * 30000 : 300000,
+        traceContext: {
+          ...inheritedTraceContext,
+          tags: traceTags,
+          metadata: {
+            ...(inheritedTraceContext?.metadata ?? {}),
+            delegatedBy: 'agent-orchestrator',
+          },
+        },
         onProgress: (progress, message) => {
           options.onProgress?.({
             phase: 'executing',

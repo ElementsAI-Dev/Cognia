@@ -12,6 +12,7 @@ mod languages;
 mod native;
 mod podman;
 mod runtime;
+mod workspace;
 
 pub use db::{
     CodeSnippet, ExecutionFilter, ExecutionRecord, ExecutionSession, LanguageStats, SandboxDb,
@@ -154,6 +155,8 @@ impl SandboxState {
             config_path
         );
 
+        Self::migrate_legacy_config_if_needed(&config_path).await?;
+
         // Load or create config
         let config = if config_path.exists() {
             log::debug!("Loading existing sandbox config from {:?}", config_path);
@@ -204,62 +207,137 @@ impl SandboxState {
         })
     }
 
-    /// Save configuration to disk
-    pub async fn save_config(&self) -> Result<(), SandboxError> {
-        log::debug!("Saving sandbox configuration to {:?}", self.config_path);
-        let config = self.config.read().await;
-        let content = serde_json::to_string_pretty(&*config).map_err(|e| {
+    async fn persist_config_snapshot(config_path: &std::path::Path, config: &SandboxConfig) -> Result<(), SandboxError> {
+        let content = serde_json::to_string_pretty(config).map_err(|e| {
             log::error!("Failed to serialize sandbox config: {}", e);
             SandboxError::Config(format!("Failed to serialize config: {}", e))
         })?;
 
         // Ensure parent directory exists
-        if let Some(parent) = self.config_path.parent() {
+        if let Some(parent) = config_path.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|e| {
                 log::error!("Failed to create config directory {:?}: {}", parent, e);
                 SandboxError::Config(format!("Failed to create config dir: {}", e))
             })?;
         }
 
-        tokio::fs::write(&self.config_path, &content)
+        tokio::fs::write(config_path, &content)
             .await
             .map_err(|e| {
                 log::error!(
                     "Failed to write sandbox config to {:?}: {}",
-                    self.config_path,
+                    config_path,
                     e
                 );
                 SandboxError::Config(format!("Failed to write config: {}", e))
             })?;
 
+        Ok(())
+    }
+
+    async fn migrate_legacy_config_if_needed(config_path: &std::path::Path) -> Result<(), SandboxError> {
+        if config_path.exists() {
+            return Ok(());
+        }
+
+        let Some(parent) = config_path.parent() else {
+            return Ok(());
+        };
+
+        let legacy_path = parent.join("sandbox-config.json");
+        if !legacy_path.exists() {
+            return Ok(());
+        }
+
+        log::info!(
+            "Migrating legacy sandbox config from {:?} to {:?}",
+            legacy_path,
+            config_path
+        );
+
+        if let Some(parent) = config_path.parent() {
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                SandboxError::Config(format!("Failed to create sandbox config directory: {}", e))
+            })?;
+        }
+
+        match tokio::fs::rename(&legacy_path, config_path).await {
+            Ok(_) => Ok(()),
+            Err(rename_error) => {
+                log::warn!(
+                    "Rename legacy sandbox config failed ({}), falling back to copy+remove",
+                    rename_error
+                );
+                let content = tokio::fs::read(&legacy_path).await.map_err(|e| {
+                    SandboxError::Config(format!("Failed to read legacy sandbox config: {}", e))
+                })?;
+                tokio::fs::write(config_path, content).await.map_err(|e| {
+                    SandboxError::Config(format!("Failed to write migrated sandbox config: {}", e))
+                })?;
+                tokio::fs::remove_file(&legacy_path).await.map_err(|e| {
+                    SandboxError::Config(format!("Failed to remove legacy sandbox config: {}", e))
+                })?;
+                Ok(())
+            }
+        }
+    }
+
+    /// Save configuration to disk
+    pub async fn save_config(&self) -> Result<(), SandboxError> {
+        log::debug!("Saving sandbox configuration to {:?}", self.config_path);
+        let config = self.config.read().await;
+        Self::persist_config_snapshot(&self.config_path, &config).await?;
+
         log::info!("Sandbox configuration saved successfully");
         Ok(())
     }
 
-    /// Update configuration
-    pub async fn update_config(&self, new_config: SandboxConfig) -> Result<(), SandboxError> {
-        log::info!("Updating sandbox configuration");
+    /// Apply configuration: validate by creating a new manager, then atomically swap and persist.
+    pub async fn apply_config(&self, new_config: SandboxConfig) -> Result<(), SandboxError> {
+        log::info!("Applying sandbox configuration");
         log::debug!(
-            "New config: preferred_runtime={:?}, docker={}, podman={}, native={}",
+            "Config apply request: preferred_runtime={:?}, docker={}, podman={}, native={}, timeout={}s, memory={}MB, network={}",
             new_config.preferred_runtime,
             new_config.enable_docker,
             new_config.enable_podman,
-            new_config.enable_native
+            new_config.enable_native,
+            new_config.default_timeout_secs,
+            new_config.default_memory_limit_mb,
+            new_config.network_enabled
         );
 
-        {
-            let mut config = self.config.write().await;
-            *config = new_config.clone();
-        }
+        // Validate and warm runtime availability with the new configuration before swapping state.
+        let new_manager = SandboxManager::new(new_config.clone()).await?;
 
-        // Reinitialize manager with new config
-        log::debug!("Reinitializing SandboxManager with updated configuration");
+        // Persist first so in-memory/runtime state never diverges from disk after a successful call.
+        Self::persist_config_snapshot(&self.config_path, &new_config).await?;
+
         {
             let mut manager = self.manager.write().await;
-            *manager = SandboxManager::new(new_config).await?;
+            *manager = new_manager;
+        }
+        {
+            let mut config = self.config.write().await;
+            *config = new_config;
         }
 
-        self.save_config().await
+        log::info!("Sandbox configuration applied successfully");
+        Ok(())
+    }
+
+    /// Patch current configuration in a single rebuild+persist flow.
+    pub async fn patch_config<F>(&self, patch: F) -> Result<(), SandboxError>
+    where
+        F: FnOnce(&mut SandboxConfig),
+    {
+        let mut new_config = self.config.read().await.clone();
+        patch(&mut new_config);
+        self.apply_config(new_config).await
+    }
+
+    /// Update configuration
+    pub async fn update_config(&self, new_config: SandboxConfig) -> Result<(), SandboxError> {
+        self.apply_config(new_config).await
     }
 
     /// Execute code

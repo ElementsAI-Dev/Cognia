@@ -31,6 +31,10 @@ jest.mock('next-intl', () => ({
       eventType: 'Event Type',
       eventTypePlaceholder: 'Select event type',
       eventTypeAll: 'All events',
+      eventTypeSessionStart: 'Session start',
+      eventTypeSessionEnd: 'Session end',
+      eventTypePermissionRequest: 'Permission request',
+      eventTypePermissionResponse: 'Permission response',
       eventTypeToolCallRequest: 'Tool call request',
       eventTypeToolCallResult: 'Tool call result',
       eventTypeStepStart: 'Step start',
@@ -412,6 +416,14 @@ describe('AgentTraceSettings', () => {
     it('displays event type select', () => {
       render(<AgentTraceSettings />);
       expect(screen.getByText('Select event type')).toBeInTheDocument();
+    });
+
+    it('displays external lifecycle and permission event filters', () => {
+      render(<AgentTraceSettings />);
+      expect(screen.getByText('Session start')).toBeInTheDocument();
+      expect(screen.getByText('Session end')).toBeInTheDocument();
+      expect(screen.getByText('Permission request')).toBeInTheDocument();
+      expect(screen.getByText('Permission response')).toBeInTheDocument();
     });
 
     it('displays Clear Filters button', () => {

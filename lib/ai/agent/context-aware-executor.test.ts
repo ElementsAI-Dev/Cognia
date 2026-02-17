@@ -18,6 +18,8 @@ import {
   generateTerminalStaticPrompt,
   getSkillRefs,
   generateSkillsStaticPrompt,
+  getMcpToolRefs,
+  generateMcpStaticPrompt,
 } from '@/lib/context';
 import { z } from 'zod';
 
@@ -37,6 +39,8 @@ jest.mock('@/lib/context', () => ({
   generateTerminalStaticPrompt: jest.fn(() => ''),
   getSkillRefs: jest.fn(() => Promise.resolve([])),
   generateSkillsStaticPrompt: jest.fn(() => ''),
+  getMcpToolRefs: jest.fn(() => Promise.resolve([])),
+  generateMcpStaticPrompt: jest.fn(() => ''),
 }));
 
 const mockExecuteAgent = executeAgent as jest.MockedFunction<typeof executeAgent>;
@@ -47,6 +51,8 @@ const mockListTerminalSessions = listTerminalSessions as jest.MockedFunction<typ
 const mockGenerateTerminalStaticPrompt = generateTerminalStaticPrompt as jest.MockedFunction<typeof generateTerminalStaticPrompt>;
 const mockGetSkillRefs = getSkillRefs as jest.MockedFunction<typeof getSkillRefs>;
 const mockGenerateSkillsStaticPrompt = generateSkillsStaticPrompt as jest.MockedFunction<typeof generateSkillsStaticPrompt>;
+const mockGetMcpToolRefs = getMcpToolRefs as jest.MockedFunction<typeof getMcpToolRefs>;
+const mockGenerateMcpStaticPrompt = generateMcpStaticPrompt as jest.MockedFunction<typeof generateMcpStaticPrompt>;
 
 describe('context-aware-executor', () => {
   beforeEach(() => {
@@ -208,6 +214,27 @@ describe('context-aware-executor', () => {
 
       const callArgs = mockExecuteAgent.mock.calls[0][1];
       expect(callArgs.systemPrompt).toContain('Agent Skills Available');
+    });
+
+    it('should include MCP refs in system prompt when available', async () => {
+      mockGetMcpToolRefs.mockResolvedValueOnce([
+        {
+          fullName: 'mcp_docs_search',
+          toolName: 'search',
+          serverId: 'docs',
+          serverName: 'Docs',
+          briefDescription: 'Search docs',
+        },
+      ]);
+      mockGenerateMcpStaticPrompt.mockReturnValueOnce('## MCP Tools Available\n- mcp_docs_search');
+
+      await executeContextAwareAgent('Test prompt', {
+        ...baseConfig,
+        systemPrompt: 'Base prompt',
+      });
+
+      const callArgs = mockExecuteAgent.mock.calls[0][1];
+      expect(callArgs.systemPrompt).toContain('MCP Tools Available');
     });
 
     it('should gracefully handle terminal sessions fetch failure', async () => {

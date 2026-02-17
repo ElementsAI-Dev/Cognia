@@ -388,6 +388,7 @@
       "countdown": "倒计时",
       "countdownSeconds": "倒计时秒数",
       "showIndicator": "显示录制指示器",
+      "pauseOnMinimize": "最小化时自动暂停",
       "maxDuration": "最大时长",
       "maxDurationUnlimited": "无限制",
       "saveDirectory": "保存目录",

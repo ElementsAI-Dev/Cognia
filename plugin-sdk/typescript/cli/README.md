@@ -118,9 +118,12 @@ The create wizard guides you through:
 1. **Plugin Name** - Enter a valid plugin identifier
 2. **Template Selection** - Choose from available templates
 3. **Capabilities** - Select features (tools, commands, modes, hooks, components, a2ui)
+   - Also supports `scheduler` (optional, not selected by default)
 4. **Permissions** - Choose required permissions (storage, network, filesystem, etc.)
 5. **Configuration** - TypeScript, Git, npm install, example code
 6. **Preview & Confirm** - Review file tree before creation
+
+If `scheduler` is selected in `create`, the scaffold will include `scheduler/index.ts` and a `scheduledTasks` example in `plugin.json`.
 
 ## Non-Interactive Mode (CI/CD)
 

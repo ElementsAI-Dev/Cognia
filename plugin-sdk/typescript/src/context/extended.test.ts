@@ -5,12 +5,21 @@
  */
 
 import type {
+  ChatMode,
+  PluginUIMessage,
+  PluginSession,
+  CreateSessionInput,
+  UpdateSessionInput,
   SessionFilter,
   MessageQueryOptions,
   SendMessageOptions,
   MessageAttachment,
   SessionStats,
   PluginSessionAPI,
+  PluginProject,
+  CreateProjectInput,
+  UpdateProjectInput,
+  KnowledgeFile,
   ProjectFilter,
   ProjectFileInput,
   PluginProjectAPI,
@@ -29,6 +38,7 @@ import type {
   PluginThemeAPI,
   ExportFormat,
   ExportOptions,
+  ExportData,
   CustomExporter,
   ExportResult,
   PluginExportAPI,
@@ -42,6 +52,10 @@ import type {
   PluginCanvasAPI,
   CreateArtifactOptions,
   ArtifactFilter,
+  PluginArtifact,
+  ArtifactMetadata,
+  CanvasDocumentVersion,
+  CanvasSuggestion,
   ArtifactRenderer,
   PluginArtifactAPI,
   NotificationOptions,
@@ -65,6 +79,38 @@ import type {
 
 describe('Plugin Context API Types', () => {
   describe('Session API Types', () => {
+    it('should support strong session and message types', () => {
+      const mode: ChatMode = 'chat';
+      const message: PluginUIMessage = {
+        id: 'msg-1',
+        role: 'user',
+        content: 'Hello',
+        createdAt: new Date(),
+      };
+      const createInput: CreateSessionInput = {
+        title: 'New Session',
+        mode,
+      };
+      const updates: UpdateSessionInput = {
+        title: 'Renamed',
+        mode: 'research',
+      };
+      const session: PluginSession = {
+        id: 'session-1',
+        title: 'Session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        provider: 'openai',
+        model: 'gpt-4o',
+        mode,
+      };
+
+      expect(message.role).toBe('user');
+      expect(createInput.mode).toBe('chat');
+      expect(updates.mode).toBe('research');
+      expect(session.mode).toBe('chat');
+    });
+
     it('should create valid session filter', () => {
       const filter: SessionFilter = {
         projectId: 'proj-1',
@@ -124,6 +170,41 @@ describe('Plugin Context API Types', () => {
   });
 
   describe('Project API Types', () => {
+    it('should support strong project and knowledge file types', () => {
+      const file: KnowledgeFile = {
+        id: 'file-1',
+        name: 'notes.md',
+        type: 'markdown',
+        content: '# Notes',
+        size: 12,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const createInput: CreateProjectInput = {
+        name: 'My Project',
+        defaultMode: 'agent',
+      };
+      const updates: UpdateProjectInput = {
+        description: 'updated',
+        tags: ['work'],
+      };
+      const project: PluginProject = {
+        id: 'proj-1',
+        name: 'My Project',
+        knowledgeBase: [file],
+        sessionIds: ['session-1'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastAccessedAt: new Date(),
+        sessionCount: 1,
+        messageCount: 2,
+      };
+
+      expect(createInput.defaultMode).toBe('agent');
+      expect(updates.tags).toContain('work');
+      expect(project.knowledgeBase[0].type).toBe('markdown');
+    });
+
     it('should create valid project filter', () => {
       const filter: ProjectFilter = {
         isArchived: false,
@@ -278,6 +359,21 @@ describe('Plugin Context API Types', () => {
 
       expect(exporter.mimeType).toBe('application/xml');
     });
+
+    it('should support strongly typed export payload', () => {
+      const data: ExportData = {
+        exportedAt: new Date(),
+        metadata: { source: 'test' },
+        messages: [{
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'Hi',
+          createdAt: new Date(),
+        }],
+      };
+
+      expect(data.messages?.[0].role).toBe('assistant');
+    });
   });
 
   describe('I18n API Types', () => {
@@ -309,6 +405,22 @@ describe('Plugin Context API Types', () => {
     });
 
     it('should create valid canvas document', () => {
+      const suggestion: CanvasSuggestion = {
+        id: 's1',
+        type: 'improve',
+        range: { startLine: 1, endLine: 2 },
+        originalText: 'old',
+        suggestedText: 'new',
+        explanation: 'Better naming',
+        status: 'pending',
+      };
+      const version: CanvasDocumentVersion = {
+        id: 'v1',
+        content: 'content',
+        title: 'v1',
+        createdAt: new Date(),
+      };
+
       const doc: PluginCanvasDocument = {
         id: 'doc-1',
         sessionId: 'session-1',
@@ -318,10 +430,14 @@ describe('Plugin Context API Types', () => {
         type: 'code',
         createdAt: new Date(),
         updatedAt: new Date(),
+        suggestions: [suggestion],
+        versions: [version],
       };
 
       expect(doc.language).toBe('typescript');
       expect(doc.type).toBe('code');
+      expect(doc.suggestions?.[0].type).toBe('improve');
+      expect(doc.versions?.[0].id).toBe('v1');
     });
 
     it('should create valid canvas selection', () => {
@@ -337,6 +453,28 @@ describe('Plugin Context API Types', () => {
   });
 
   describe('Artifact API Types', () => {
+    it('should support strongly typed artifacts', () => {
+      const metadata: ArtifactMetadata = {
+        runnable: true,
+        dependencies: ['react'],
+      };
+      const artifact: PluginArtifact = {
+        id: 'artifact-1',
+        sessionId: 'session-1',
+        messageId: 'msg-1',
+        type: 'react',
+        title: 'Widget',
+        content: 'export default function Widget() { return null; }',
+        language: 'typescript',
+        version: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata,
+      };
+
+      expect(artifact.metadata?.runnable).toBe(true);
+    });
+
     it('should create valid artifact options', () => {
       const options: CreateArtifactOptions = {
         title: 'My Component',
@@ -435,14 +573,17 @@ describe('Plugin Context API Types', () => {
         'sidebar.right.top', 'sidebar.right.bottom',
         'toolbar.left', 'toolbar.center', 'toolbar.right',
         'statusbar.left', 'statusbar.center', 'statusbar.right',
+        'chat.header', 'chat.footer',
         'chat.input.above', 'chat.input.below', 'chat.input.actions',
+        'chat.message.before', 'chat.message.after',
         'chat.message.actions', 'chat.message.footer',
         'artifact.toolbar', 'artifact.actions',
         'canvas.toolbar', 'canvas.sidebar',
+        'panel.header', 'panel.footer',
         'settings.general', 'settings.appearance', 'settings.ai', 'settings.plugins',
         'command-palette',
       ];
-      expect(points).toHaveLength(24);
+      expect(points).toHaveLength(30);
     });
 
     it('should create valid extension options', () => {

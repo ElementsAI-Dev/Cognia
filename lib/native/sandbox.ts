@@ -1,387 +1,99 @@
 /**
  * Sandbox Service - Interface to Tauri backend sandbox
  *
- * Provides code execution in Docker/Podman containers or native processes.
+ * Keeps backward-compatible exports while delegating to shared core helpers.
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import type {
+  BackendSandboxConfig,
   ExecutionRequest,
-  SandboxExecutionResult,
   Language,
   RuntimeType,
-  BackendSandboxConfig,
+  SandboxExecutionResult,
   SandboxStatus,
 } from '@/types/system/sandbox';
+import {
+  checkRuntime,
+  cleanupSandbox,
+  executeCode,
+  executeCodeWithOptions,
+  executeWithLimits,
+  executeWithStdin,
+  getAllLanguages,
+  getAvailableLanguages,
+  getAvailableRuntimes,
+  getBackendSandboxConfig,
+  getRuntimeInfo,
+  getSandboxStatus,
+  getSessionExecutions,
+  getSupportedLanguages,
+  invokeSandboxCommand,
+  isSandboxAvailable,
+  prepareLanguage,
+  quickExecute,
+  setDefaultMemoryLimit,
+  setDefaultTimeout,
+  setNetworkEnabled,
+  setPreferredRuntime,
+  toggleLanguage,
+  updateBackendSandboxConfig,
+  updateSession,
+} from './sandbox-core';
 
-/** Check if running in Tauri environment */
-function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
+export {
+  checkRuntime,
+  executeCode,
+  executeCodeWithOptions as executeWithOptions,
+  executeWithLimits,
+  executeWithStdin,
+  getAllLanguages,
+  getAvailableLanguages,
+  getAvailableRuntimes,
+  getBackendSandboxConfig,
+  getRuntimeInfo,
+  getSandboxStatus,
+  getSessionExecutions,
+  getSupportedLanguages,
+  isSandboxAvailable,
+  prepareLanguage,
+  quickExecute,
+  setDefaultTimeout,
+  setNetworkEnabled,
+  setPreferredRuntime,
+  toggleLanguage,
+  updateBackendSandboxConfig,
+  updateSession,
+};
 
-/**
- * Execute code in the sandbox
- */
-export async function executeCode(
-  request: ExecutionRequest
-): Promise<SandboxExecutionResult> {
-  if (!isTauri()) {
-    throw new Error('Sandbox execution requires Tauri environment');
-  }
-
-  return invoke<SandboxExecutionResult>('sandbox_execute', { request });
-}
-
-/**
- * Quick execute - simplified execution for common use cases
- */
-export async function quickExecute(
-  language: string,
-  code: string
-): Promise<SandboxExecutionResult> {
-  if (!isTauri()) {
-    throw new Error('Sandbox execution requires Tauri environment');
-  }
-
-  return invoke<SandboxExecutionResult>('sandbox_quick_execute', { language, code });
-}
-
-/**
- * Execute with stdin input
- */
-export async function executeWithStdin(
-  language: string,
-  code: string,
-  stdin: string
-): Promise<SandboxExecutionResult> {
-  if (!isTauri()) {
-    throw new Error('Sandbox execution requires Tauri environment');
-  }
-
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_stdin', {
-    language,
-    code,
-    stdin,
-  });
-}
-
-/**
- * Get sandbox status (available runtimes, languages, config)
- */
-export async function getSandboxStatus(): Promise<SandboxStatus> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<SandboxStatus>('sandbox_get_status');
-}
-
-/**
- * Get sandbox configuration
- */
-export async function getBackendSandboxConfig(): Promise<BackendSandboxConfig> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<BackendSandboxConfig>('sandbox_get_config');
-}
-
-/**
- * Update sandbox configuration
- */
-export async function updateBackendSandboxConfig(
-  config: BackendSandboxConfig
-): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_update_config', { config });
-}
-
-/**
- * Get all supported languages
- */
-export async function getAllLanguages(): Promise<Language[]> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<Language[]>('sandbox_get_all_languages');
-}
-
-/**
- * Get languages available for native execution
- */
-export async function getAvailableLanguages(): Promise<string[]> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<string[]>('sandbox_get_available_languages');
-}
-
-/**
- * Update session
- */
-export async function updateSession(
-  sessionId: string,
-  name: string,
-  description?: string
-): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_update_session', {
-    session_id: sessionId,
-    name,
-    description,
-  });
-}
-
-/**
- * Get executions for a session
- */
-export async function getSessionExecutions(
-  sessionId: string
-): Promise<ExecutionRequest[]> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<ExecutionRequest[]>('sandbox_get_session_executions', {
-    session_id: sessionId,
-  });
-}
-
-/**
- * Get available runtimes
- */
-export async function getAvailableRuntimes(): Promise<RuntimeType[]> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<RuntimeType[]>('sandbox_get_runtimes');
-}
-
-/**
- * Get supported languages
- */
-export async function getSupportedLanguages(): Promise<Language[]> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<Language[]>('sandbox_get_languages');
-}
-
-/**
- * Check if a specific runtime is available
- */
-export async function checkRuntime(runtime: RuntimeType): Promise<boolean> {
-  if (!isTauri()) {
-    return false;
-  }
-
-  return invoke<boolean>('sandbox_check_runtime', { runtime });
-}
-
-/**
- * Prepare/pull image for a language
- */
-export async function prepareLanguage(language: string): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_prepare_language', { language });
-}
-
-/**
- * Toggle a language enabled/disabled
- */
-export async function toggleLanguage(
-  language: string,
-  enabled: boolean
-): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_toggle_language', { language, enabled });
-}
-
-/**
- * Set preferred runtime
- */
-export async function setPreferredRuntime(runtime: RuntimeType): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_set_runtime', { runtime });
-}
-
-/**
- * Set default timeout
- */
-export async function setDefaultTimeout(timeoutSecs: number): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_set_timeout', { timeout_secs: timeoutSecs });
-}
-
-/**
- * Set memory limit
- */
 export async function setMemoryLimit(memoryMb: number): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_set_memory_limit', { memory_mb: memoryMb });
+  await setDefaultMemoryLimit(memoryMb);
 }
 
-/**
- * Set network access
- */
-export async function setNetworkEnabled(enabled: boolean): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_set_network', { enabled });
-}
-
-/**
- * Check if sandbox is available (Tauri environment with at least one runtime)
- */
-export async function isSandboxAvailable(): Promise<boolean> {
-  if (!isTauri()) {
-    return false;
-  }
-
-  try {
-    const runtimes = await getAvailableRuntimes();
-    return runtimes.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get runtime version information
- */
-export async function getRuntimeInfo(
-  runtime: RuntimeType
-): Promise<[RuntimeType, string] | null> {
-  if (!isTauri()) {
-    return null;
-  }
-
-  return invoke<[RuntimeType, string] | null>('sandbox_get_runtime_info', {
-    runtime,
-  });
-}
-
-/**
- * Cleanup all runtimes (containers, temp files)
- */
 export async function cleanupRuntimes(): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_cleanup');
+  await cleanupSandbox();
 }
 
-/**
- * Execute with specific timeout and memory limits
- */
-export async function executeWithLimits(
-  language: string,
-  code: string,
-  timeoutSecs: number,
-  memoryMb: number
-): Promise<SandboxExecutionResult> {
-  if (!isTauri()) {
-    throw new Error('Sandbox execution requires Tauri environment');
-  }
-
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_limits', {
-    language,
-    code,
-    timeout_secs: timeoutSecs,
-    memory_mb: memoryMb,
-  });
-}
-
-/**
- * Execute with specific options including history tracking
- */
-export async function executeWithOptions(
-  request: ExecutionRequest,
-  tags: string[] = [],
-  saveToHistory: boolean = true
-): Promise<SandboxExecutionResult> {
-  if (!isTauri()) {
-    throw new Error('Sandbox execution requires Tauri environment');
-  }
-
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_options', {
-    request,
-    tags,
-    save_to_history: saveToHistory,
-  });
-}
-
-/**
- * Export all sandbox data to JSON
- */
 export async function exportData(): Promise<string> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<string>('sandbox_export_data');
+  return invokeSandboxCommand<string>('sandbox_export_data');
 }
 
-/**
- * Get database size in bytes
- */
 export async function getDatabaseSize(): Promise<number> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke<number>('sandbox_get_db_size');
+  return invokeSandboxCommand<number>('sandbox_get_db_size');
 }
 
-/**
- * Vacuum database to reclaim space
- */
 export async function vacuumDatabase(): Promise<void> {
-  if (!isTauri()) {
-    throw new Error('Sandbox requires Tauri environment');
-  }
-
-  return invoke('sandbox_vacuum_db');
+  await invokeSandboxCommand<void>('sandbox_vacuum_db');
 }
 
 /**
- * Sandbox service object for convenient access
+ * Backward compatible service object used by hooks/components.
  */
 export const sandboxService = {
   execute: executeCode,
   quickExecute,
   executeWithStdin,
   executeWithLimits,
-  executeWithOptions,
+  executeWithOptions: executeCodeWithOptions,
   getStatus: getSandboxStatus,
   getConfig: getBackendSandboxConfig,
   updateConfig: updateBackendSandboxConfig,
@@ -405,3 +117,12 @@ export const sandboxService = {
 };
 
 export default sandboxService;
+
+export type {
+  BackendSandboxConfig,
+  ExecutionRequest,
+  Language,
+  RuntimeType,
+  SandboxExecutionResult,
+  SandboxStatus,
+};

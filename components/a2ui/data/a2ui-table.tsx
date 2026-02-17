@@ -74,20 +74,23 @@ export const A2UITable = memo(function A2UITable({ component, onAction, onDataCh
   const totalPages = Math.ceil(sortedData.length / pageSize);
 
   const handleSort = useCallback((columnKey: string) => {
+    let nextSortColumn: string | null = columnKey;
+    let nextSortDirection: SortDirection = 'asc';
+
     if (sortColumn === columnKey) {
       if (sortDirection === 'asc') {
-        setSortDirection('desc');
+        nextSortDirection = 'desc';
       } else if (sortDirection === 'desc') {
-        setSortColumn(null);
-        setSortDirection(null);
+        nextSortColumn = null;
+        nextSortDirection = null;
       }
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection('asc');
     }
 
+    setSortColumn(nextSortColumn);
+    setSortDirection(nextSortDirection);
+
     if (component.sortAction) {
-      onAction(component.sortAction, { column: columnKey, direction: sortDirection });
+      onAction(component.sortAction, { column: columnKey, direction: nextSortDirection });
     }
   }, [sortColumn, sortDirection, component.sortAction, onAction]);
 

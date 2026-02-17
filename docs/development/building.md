@@ -1,12 +1,13 @@
 # Building and Deployment Guide
 
-This guide covers building the Cognia application for development, production, and desktop distribution.
+This guide covers building the Cognia application for development, production, desktop distribution, and Android packaging.
 
 ## Table of Contents
 
 - [Development Build](#development-build)
 - [Production Build](#production-build)
 - [Desktop Build](#desktop-build)
+- [Android Build](#android-build)
 - [Build Configuration](#build-configuration)
 - [Optimization Strategies](#optimization-strategies)
 - [Deployment Options](#deployment-options)
@@ -351,6 +352,58 @@ pnpm tauri build
 ls -lh src-tauri/target/debug/
 ls -lh src-tauri/target/release/
 ```
+
+## Android Build
+
+### Initialize Android Project (one-time)
+
+```bash
+pnpm tauri:android:init
+```
+
+This generates and updates `src-tauri/gen/android`, which is tracked in this repository except sensitive files (keystore and local properties).
+`src-tauri/gen/android/app/tauri.properties` is tracked so `autoIncrementVersionCode` can persist and be audited across releases.
+
+### Local Android Development
+
+```bash
+pnpm tauri:android:dev
+```
+
+### Build Android Packages
+
+```bash
+# Build both APK + AAB
+pnpm tauri:android:build
+
+# Direct CLI examples
+pnpm tauri android build --debug --apk
+pnpm tauri android build --ci --aab --apk --split-per-abi --target aarch64 armv7 i686 x86_64
+```
+
+### Android Output Paths
+
+```text
+src-tauri/gen/android/app/build/outputs/apk/
+src-tauri/gen/android/app/build/outputs/bundle/
+```
+
+### Android Signing in CI (GitHub Secrets)
+
+Configure the following secrets in the GitHub repository:
+
+- `ANDROID_KEY_BASE64`: Base64-encoded keystore (`.jks`) content.
+- `ANDROID_KEY_ALIAS`: Key alias in the keystore.
+- `ANDROID_KEY_PASSWORD`: Keystore/key password.
+
+Release workflow writes `src-tauri/gen/android/keystore.properties` at runtime and signs Android release builds without committing keystore files.
+
+### Android Build Troubleshooting
+
+- `openssl-sys` cross-compile errors: verify mobile path uses rustls-based networking and avoid mobile `git2` usage.
+- NDK/SDK issues: ensure `ANDROID_HOME` and SDK components are installed.
+- Toolchain detection errors: ensure `JAVA_HOME` points to JDK 17 and `NDK_HOME` is set when needed.
+- Tauri env diagnosis: run `pnpm tauri info` and inspect Android section.
 
 ## Build Configuration
 

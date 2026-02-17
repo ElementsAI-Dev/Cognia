@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react';
 import { MonacoSandpackEditor } from './monaco-sandpack-editor';
+import { isTauriRuntime } from '@/lib/monaco/lsp/lsp-client';
 
 // Mock designer store
 const mockSetCode = jest.fn();
@@ -161,9 +162,13 @@ const mockMonaco = {
 jest.mock('monaco-editor', () => mockMonaco, { virtual: true });
 
 describe('MonacoSandpackEditor', () => {
+  const mockIsTauriRuntime = isTauriRuntime as jest.MockedFunction<typeof isTauriRuntime>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockIsTauriRuntime.mockReturnValue(false);
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -454,6 +459,41 @@ describe('MonacoSandpackEditor', () => {
       await waitFor(() => {
         expect(mockEditor.onDidChangeCursorPosition).toHaveBeenCalled();
         expect(mockEditor.onDidChangeCursorSelection).toHaveBeenCalled();
+      });
+    });
+
+    it('passes protocol v2 enabled by default when tauri LSP is active', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      localStorage.setItem('cognia-designer-lsp-enabled', 'true');
+
+      await act(async () => {
+        render(<MonacoSandpackEditor language="typescript" />);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateMonacoLspAdapter).toHaveBeenCalledWith(
+          expect.objectContaining({
+            protocolV2Enabled: true,
+          })
+        );
+      });
+    });
+
+    it('passes protocol v2 disabled when feature flag is set to false', async () => {
+      mockIsTauriRuntime.mockReturnValue(true);
+      localStorage.setItem('cognia-designer-lsp-enabled', 'true');
+      localStorage.setItem('cognia-designer-lsp-protocol-v2', 'false');
+
+      await act(async () => {
+        render(<MonacoSandpackEditor language="typescript" />);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateMonacoLspAdapter).toHaveBeenCalledWith(
+          expect.objectContaining({
+            protocolV2Enabled: false,
+          })
+        );
       });
     });
   });

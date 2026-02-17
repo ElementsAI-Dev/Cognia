@@ -12,6 +12,10 @@ import {
   selectBrowser,
   selectEditor,
   selectUiElements,
+  selectScreenContent,
+  selectIsAnalyzingScreen,
+  selectScreenAnalysisError,
+  selectLastScreenAnalysisAt,
   selectIsLoading,
   selectError,
   selectAutoRefreshEnabled,
@@ -44,6 +48,14 @@ describe('Context Store', () => {
     it('should not be loading initially', () => {
       const { result } = renderHook(() => useContextStore());
       expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should have empty screen analysis state initially', () => {
+      const { result } = renderHook(() => useContextStore());
+      expect(result.current.screenContent).toBeNull();
+      expect(result.current.isAnalyzingScreen).toBe(false);
+      expect(result.current.screenAnalysisError).toBeNull();
+      expect(result.current.lastScreenAnalysisAt).toBeNull();
     });
 
     it('should have no error initially', () => {
@@ -158,6 +170,57 @@ describe('Context Store', () => {
     });
   });
 
+  describe('screen analysis state', () => {
+    it('should set screen content and derived fields', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setScreenContent({
+          text: 'sample text',
+          text_blocks: [
+            { text: 'sample', x: 0, y: 0, width: 10, height: 10, confidence: 0.9 },
+          ],
+          ui_elements: [
+            {
+              element_type: 'Button',
+              text: 'Click',
+              x: 1,
+              y: 1,
+              width: 50,
+              height: 20,
+              is_interactive: true,
+            },
+          ],
+          width: 100,
+          height: 100,
+          timestamp: Date.now(),
+          confidence: 0.9,
+        });
+      });
+
+      expect(result.current.screenContent?.text).toBe('sample text');
+      expect(result.current.uiElements).toHaveLength(1);
+      expect(result.current.lastScreenAnalysisAt).not.toBeNull();
+      expect(result.current.screenAnalysisError).toBeNull();
+    });
+
+    it('should clear screen analysis state', () => {
+      const { result } = renderHook(() => useContextStore());
+
+      act(() => {
+        result.current.setScreenAnalysisError('failed');
+        result.current.setIsAnalyzingScreen(true);
+        result.current.clearScreenAnalysis();
+      });
+
+      expect(result.current.screenContent).toBeNull();
+      expect(result.current.uiElements).toEqual([]);
+      expect(result.current.isAnalyzingScreen).toBe(false);
+      expect(result.current.screenAnalysisError).toBeNull();
+      expect(result.current.lastScreenAnalysisAt).toBeNull();
+    });
+  });
+
   describe('Loading and Error State', () => {
     it('should set loading state', () => {
       const { result } = renderHook(() => useContextStore());
@@ -258,6 +321,7 @@ describe('Context Store', () => {
       expect(result.current.context).toBeNull();
       expect(result.current.window).toBeNull();
       expect(result.current.uiElements).toHaveLength(0);
+      expect(result.current.screenContent).toBeNull();
       expect(result.current.lastUpdated).toBeNull();
     });
   });
@@ -549,6 +613,30 @@ describe('Context Store', () => {
       const { result } = renderHook(() => useContextStore());
       const elements = selectUiElements(result.current);
       expect(elements).toEqual([]);
+    });
+
+    it('should select screen content', () => {
+      const { result } = renderHook(() => useContextStore());
+      const value = selectScreenContent(result.current);
+      expect(value).toBeNull();
+    });
+
+    it('should select screen analyzing state', () => {
+      const { result } = renderHook(() => useContextStore());
+      const value = selectIsAnalyzingScreen(result.current);
+      expect(value).toBe(false);
+    });
+
+    it('should select screen analysis error', () => {
+      const { result } = renderHook(() => useContextStore());
+      const value = selectScreenAnalysisError(result.current);
+      expect(value).toBeNull();
+    });
+
+    it('should select last screen analysis timestamp', () => {
+      const { result } = renderHook(() => useContextStore());
+      const value = selectLastScreenAnalysisAt(result.current);
+      expect(value).toBeNull();
     });
 
     it('should select loading state', () => {

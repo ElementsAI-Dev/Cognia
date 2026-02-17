@@ -25,6 +25,8 @@ export interface ScreenshotMetadata {
   timestamp: number;
   window_title?: string;
   monitor_index?: number;
+  file_path?: string;
+  ocr_text?: string;
 }
 
 export interface ScreenshotResult {

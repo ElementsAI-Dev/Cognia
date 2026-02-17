@@ -199,7 +199,7 @@ export interface ValidationSliceActions {
 }
 
 export interface ExecutionSliceActions {
-  startExecution: (input: Record<string, unknown>) => void;
+  startExecution: (input: Record<string, unknown>) => Promise<void>;
   pauseExecution: () => void;
   resumeExecution: () => void;
   cancelExecution: () => void;

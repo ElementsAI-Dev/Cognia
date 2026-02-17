@@ -130,7 +130,7 @@ export interface ExternalAgentActions {
   getTerminalOutput: (terminalId: string) => Promise<TerminalOutputResult>;
   killTerminal: (terminalId: string) => Promise<void>;
   releaseTerminal: (terminalId: string) => Promise<void>;
-  waitForTerminalExit: (terminalId: string, timeout?: number) => Promise<number>;
+  waitForTerminalExit: (terminalId: string, timeout?: number) => Promise<number | null>;
   getSessionTerminals: (sessionId: string) => Promise<string[]>;
   killSessionTerminals: (sessionId: string) => Promise<void>;
   isTerminalRunning: (terminalId: string) => Promise<boolean>;

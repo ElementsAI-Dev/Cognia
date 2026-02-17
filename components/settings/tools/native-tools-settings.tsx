@@ -5,7 +5,7 @@
  * Provides access to clipboard history, screenshot, screen recording, focus tracking, and context awareness
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Clipboard,
@@ -36,6 +36,12 @@ import {
 import { RecordingHistoryPanel } from '@/components/screen-recording';
 import { isTauri } from '@/lib/native/utils';
 import { useNativeStore } from '@/stores/system';
+import { useScreenshotStore } from '@/stores/media';
+import { useContextStore } from '@/stores/context';
+import { startFocusTracking, stopFocusTracking } from '@/lib/native/awareness';
+import { loggers } from '@/lib/logger';
+
+const log = loggers.native;
 
 export function NativeToolsSettings() {
   const t = useTranslations('nativeToolsSettings');
@@ -45,12 +51,15 @@ export function NativeToolsSettings() {
   // Persisted native tools configuration
   const nativeToolsConfig = useNativeStore((state) => state.nativeToolsConfig);
   const setNativeToolsConfig = useNativeStore((state) => state.setNativeToolsConfig);
+  const setContextRefreshIntervalMs = useContextStore((state) => state.setRefreshIntervalMs);
 
   const clipboardHistoryEnabled = nativeToolsConfig.clipboardHistoryEnabled;
   const clipboardHistorySize = nativeToolsConfig.clipboardHistorySize;
   const screenshotOcrEnabled = nativeToolsConfig.screenshotOcrEnabled;
   const focusTrackingEnabled = nativeToolsConfig.focusTrackingEnabled;
   const contextRefreshInterval = nativeToolsConfig.contextRefreshInterval;
+  const openEditorAfterCapture = useScreenshotStore((state) => state.config.openEditorAfterCapture);
+  const updateScreenshotConfig = useScreenshotStore((state) => state.updateConfig);
 
   const setClipboardHistoryEnabled = (enabled: boolean) =>
     setNativeToolsConfig({ clipboardHistoryEnabled: enabled });
@@ -58,10 +67,27 @@ export function NativeToolsSettings() {
     setNativeToolsConfig({ clipboardHistorySize: size });
   const setScreenshotOcrEnabled = (enabled: boolean) =>
     setNativeToolsConfig({ screenshotOcrEnabled: enabled });
-  const setFocusTrackingEnabled = (enabled: boolean) =>
+  const setFocusTrackingEnabled = async (enabled: boolean) => {
     setNativeToolsConfig({ focusTrackingEnabled: enabled });
+
+    try {
+      if (enabled) {
+        await startFocusTracking();
+      } else {
+        await stopFocusTracking();
+      }
+    } catch (err) {
+      log.error('Failed to update focus tracking state', err as Error);
+    }
+  };
   const setContextRefreshInterval = (interval: number) =>
     setNativeToolsConfig({ contextRefreshInterval: interval });
+  const setOpenEditorAfterCapture = (enabled: boolean) =>
+    void updateScreenshotConfig({ openEditorAfterCapture: enabled });
+
+  useEffect(() => {
+    setContextRefreshIntervalMs(Math.max(1, contextRefreshInterval) * 1000);
+  }, [contextRefreshInterval, setContextRefreshIntervalMs]);
 
   if (!isTauri()) {
     return (
@@ -193,6 +219,19 @@ export function NativeToolsSettings() {
                   <p className="text-xs text-muted-foreground">{t('enableOcrDesc')}</p>
                 </div>
                 <Switch checked={screenshotOcrEnabled} onCheckedChange={setScreenshotOcrEnabled} />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t('openEditorAfterCapture')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('openEditorAfterCaptureDesc')}
+                  </p>
+                </div>
+                <Switch
+                  checked={openEditorAfterCapture}
+                  onCheckedChange={setOpenEditorAfterCapture}
+                />
               </div>
 
               <Separator />

@@ -49,6 +49,17 @@ import {
 
 const mockInvoke = invoke as jest.MockedFunction<typeof invoke>;
 
+beforeEach(() => {
+  Object.defineProperty(window, '__TAURI_INTERNALS__', {
+    value: {},
+    configurable: true,
+  });
+});
+
+afterEach(() => {
+  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+});
+
 describe('SandboxDb - Execution', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -73,7 +84,7 @@ describe('SandboxDb - Execution', () => {
       expect(mockInvoke).toHaveBeenCalledWith('sandbox_execute_with_options', {
         request,
         tags: ['test'],
-        saveToHistory: true,
+        save_to_history: true,
       });
     });
   });
@@ -111,8 +122,8 @@ describe('SandboxDb - Execution', () => {
       expect(mockInvoke).toHaveBeenCalledWith('sandbox_execute_with_limits', {
         language: 'python',
         code: 'print(1)',
-        timeoutSecs: 30,
-        memoryMb: 256,
+        timeout_secs: 30,
+        memory_mb: 256,
       });
     });
   });
@@ -186,7 +197,7 @@ describe('SandboxDb - Configuration', () => {
     it('should call invoke with timeout', async () => {
       mockInvoke.mockResolvedValue(undefined);
       await setDefaultTimeout(60);
-      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_timeout', { timeoutSecs: 60 });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_timeout', { timeout_secs: 60 });
     });
   });
 
@@ -194,7 +205,7 @@ describe('SandboxDb - Configuration', () => {
     it('should call invoke with memory limit', async () => {
       mockInvoke.mockResolvedValue(undefined);
       await setDefaultMemoryLimit(512);
-      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_memory_limit', { memoryMb: 512 });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_memory_limit', { memory_mb: 512 });
     });
   });
 
@@ -269,7 +280,7 @@ describe('SandboxDb - Sessions', () => {
     it('should call invoke with session id', async () => {
       mockInvoke.mockResolvedValue(undefined);
       await setCurrentSession('session-1');
-      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_current_session', { sessionId: 'session-1' });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_current_session', { session_id: 'session-1' });
     });
   });
 
@@ -285,7 +296,7 @@ describe('SandboxDb - Sessions', () => {
     it('should call invoke with activeOnly', async () => {
       mockInvoke.mockResolvedValue([]);
       await listSessions(true);
-      expect(mockInvoke).toHaveBeenCalledWith('sandbox_list_sessions', { activeOnly: true });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_list_sessions', { active_only: true });
     });
   });
 
@@ -301,7 +312,7 @@ describe('SandboxDb - Sessions', () => {
     it('should call invoke with id and deleteExecutions', async () => {
       mockInvoke.mockResolvedValue(undefined);
       await deleteSession('session-1', true);
-      expect(mockInvoke).toHaveBeenCalledWith('sandbox_delete_session', { id: 'session-1', deleteExecutions: true });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_delete_session', { id: 'session-1', delete_executions: true });
     });
   });
 });

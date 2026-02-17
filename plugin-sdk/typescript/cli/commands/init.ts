@@ -89,14 +89,14 @@ export async function initCommand(options: InitOptions): Promise<void> {
     const author = await question('Author', defaults.author);
 
     console.log('\nSelect capabilities (comma-separated):');
-    console.log('  tools, commands, modes, components, hooks, a2ui');
+    console.log('  tools, commands, modes, components, hooks, a2ui, scheduler');
     const capabilitiesStr = await question('Capabilities', 'tools');
     const capabilities = capabilitiesStr.split(',').map((c) => c.trim()).filter(Boolean);
 
     console.log('\nSelect permissions (comma-separated):');
-    console.log('  storage, network, filesystem, shell, database, clipboard,');
-    console.log('  notifications, shortcuts, contextMenu, window, secrets, ai');
-    const permissionsStr = await question('Permissions', 'storage,network');
+    console.log('  network:fetch, filesystem:read, filesystem:write, shell:execute,');
+    console.log('  process:spawn, database:read, database:write, clipboard:read, clipboard:write');
+    const permissionsStr = await question('Permissions', 'network:fetch,filesystem:read');
     const permissions = permissionsStr.split(',').map((p) => p.trim()).filter(Boolean);
 
     rl.close();

@@ -15,6 +15,7 @@ const mockDisconnect = jest.fn().mockResolvedValue(undefined);
 const mockCreateSession = jest.fn();
 const mockCloseSession = jest.fn().mockResolvedValue(undefined);
 const mockExecute = jest.fn();
+const mockExecuteStreaming = jest.fn();
 const mockCancel = jest.fn().mockResolvedValue(undefined);
 const mockGetTools = jest.fn().mockReturnValue({});
 const mockGetCapabilities = jest.fn().mockReturnValue({});
@@ -29,6 +30,9 @@ const mockGetSessionModels = jest.fn().mockReturnValue(undefined);
 const mockGetAuthMethods = jest.fn().mockReturnValue([]);
 const mockIsAuthenticationRequired = jest.fn().mockReturnValue(false);
 const mockAuthenticate = jest.fn().mockResolvedValue(undefined);
+const mockListSessions = jest.fn().mockResolvedValue([]);
+const mockForkSession = jest.fn();
+const mockResumeSession = jest.fn();
 
 const mockManager = {
   connect: mockConnect,
@@ -36,6 +40,7 @@ const mockManager = {
   createSession: mockCreateSession,
   closeSession: mockCloseSession,
   execute: mockExecute,
+  executeStreaming: mockExecuteStreaming,
   cancel: mockCancel,
   getTools: mockGetTools,
   getCapabilities: mockGetCapabilities,
@@ -50,6 +55,9 @@ const mockManager = {
   getAuthMethods: mockGetAuthMethods,
   isAuthenticationRequired: mockIsAuthenticationRequired,
   authenticate: mockAuthenticate,
+  listSessions: mockListSessions,
+  forkSession: mockForkSession,
+  resumeSession: mockResumeSession,
 };
 
 jest.mock('@/lib/ai/agent/external/manager', () => ({
@@ -118,6 +126,44 @@ describe('useExternalAgent', () => {
         { content: 'Step 1', priority: 'high', status: 'in_progress' },
       ]);
       expect(result.current.planStep).toBe(0);
+    });
+
+    it('should update config options and mode from events', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await waitFor(() => {
+        expect(mockAddEventListener).toHaveBeenCalled();
+      });
+
+      const listener = mockAddEventListener.mock.calls[0][1] as (event: unknown) => void;
+
+      act(() => {
+        listener({
+          type: 'config_options_update',
+          configOptions: [
+            {
+              id: 'mode',
+              category: 'mode',
+              type: 'select',
+              name: 'Mode',
+              currentValue: 'default',
+              options: [{ value: 'default', name: 'Default' }, { value: 'plan', name: 'Plan' }],
+            },
+          ],
+        });
+      });
+
+      expect(result.current.configOptions[0]?.currentValue).toBe('default');
+
+      act(() => {
+        listener({ type: 'mode_update', modeId: 'plan' });
+      });
+
+      expect(result.current.configOptions[0]?.currentValue).toBe('plan');
     });
   });
 
@@ -316,6 +362,93 @@ describe('useExternalAgent', () => {
     });
   });
 
+  describe('session extensions', () => {
+    const mockSession = {
+      id: 'session-1',
+      agentId: 'agent-1',
+      status: 'active',
+      createdAt: new Date(),
+    };
+
+    beforeEach(() => {
+      mockCreateSession.mockResolvedValue(mockSession);
+      mockForkSession.mockResolvedValue({ ...mockSession, id: 'session-2' });
+      mockResumeSession.mockResolvedValue(mockSession);
+      mockListSessions.mockResolvedValue([{ sessionId: 'session-1', title: 'Session 1' }]);
+    });
+
+    it('should list sessions for active agent', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        const sessions = await result.current.listSessions();
+        expect(sessions).toEqual([{ sessionId: 'session-1', title: 'Session 1' }]);
+      });
+
+      expect(mockListSessions).toHaveBeenCalledWith('agent-1');
+    });
+
+    it('should return empty session list when no agent is selected', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      await act(async () => {
+        const sessions = await result.current.listSessions();
+        expect(sessions).toEqual([]);
+      });
+
+      expect(mockListSessions).not.toHaveBeenCalled();
+    });
+
+    it('should allow listing sessions for explicit agent id', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      await act(async () => {
+        const sessions = await result.current.listSessions('agent-explicit');
+        expect(sessions).toEqual([{ sessionId: 'session-1', title: 'Session 1' }]);
+      });
+
+      expect(mockListSessions).toHaveBeenCalledWith('agent-explicit');
+    });
+
+    it('should fork session and set active session', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        const session = await result.current.forkSession('session-1');
+        expect(session.id).toBe('session-2');
+      });
+
+      expect(mockForkSession).toHaveBeenCalledWith('agent-1', 'session-1');
+      expect(result.current.activeSession?.id).toBe('session-2');
+    });
+
+    it('should resume session and set active session', async () => {
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      await act(async () => {
+        const session = await result.current.resumeSession('session-1');
+        expect(session.id).toBe('session-1');
+      });
+
+      expect(mockResumeSession).toHaveBeenCalledWith('agent-1', 'session-1', {
+        systemPrompt: undefined,
+      });
+      expect(result.current.activeSession?.id).toBe('session-1');
+    });
+  });
+
   describe('auth helpers', () => {
     it('should expose auth methods and requirements', async () => {
       mockGetAuthMethods.mockReturnValue([{ id: 'token', label: 'Token' }]);
@@ -425,6 +558,98 @@ describe('useExternalAgent', () => {
 
       await waitFor(() => {
         expect(result.current.isExecuting).toBe(false);
+      });
+    });
+
+    it('should keep ACP permission options and resolve with optionId', async () => {
+      const permissionRequest = {
+        id: 'req-1',
+        requestId: 'req-1',
+        sessionId: 'session-1',
+        toolInfo: { id: 'tool-1', name: 'write_file' },
+        options: [
+          { optionId: 'allow_once', name: 'Allow once', kind: 'allow_once', isDefault: true },
+          { optionId: 'reject_once', name: 'Reject once', kind: 'reject_once' },
+        ],
+      };
+
+      mockExecute.mockImplementationOnce(async (_agentId: string, _prompt: string, options?: { onPermissionRequest?: (request: unknown) => Promise<unknown> }) => {
+        if (options?.onPermissionRequest) {
+          await options.onPermissionRequest(permissionRequest);
+        }
+        return { success: true, response: 'ok' };
+      });
+
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      const executePromise = result.current.execute('hello');
+
+      await waitFor(() => {
+        expect(result.current.pendingPermission?.options?.[0].optionId).toBe('allow_once');
+      });
+
+      await act(async () => {
+        await result.current.respondToPermission({
+          requestId: 'req-1',
+          granted: true,
+          optionId: 'allow_once',
+        });
+      });
+
+      await expect(executePromise).resolves.toEqual({ success: true, response: 'ok' });
+    });
+  });
+
+  describe('respondToPermission', () => {
+    it('should call manager.respondToPermission when handling streaming permission requests', async () => {
+      async function* stream() {
+        yield {
+          type: 'permission_request',
+          sessionId: 'session-1',
+          request: {
+            id: 'req-stream',
+            requestId: 'req-stream',
+            sessionId: 'session-1',
+            toolInfo: { id: 'tool-1', name: 'write_file' },
+            options: [{ optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' }],
+          },
+        };
+      }
+
+      mockExecuteStreaming.mockImplementation(stream);
+      const { result } = renderHook(() => useExternalAgent());
+
+      act(() => {
+        result.current.setActiveAgent('agent-1');
+      });
+
+      const iterator = result.current.executeStreaming('hello');
+      await act(async () => {
+        await iterator[Symbol.asyncIterator]().next();
+      });
+
+      expect(result.current.pendingPermission?.requestId).toBe('req-stream');
+
+      await act(async () => {
+        await result.current.respondToPermission({
+          requestId: 'req-stream',
+          granted: true,
+          optionId: 'allow_once',
+        });
+      });
+
+      await act(async () => {
+        await iterator[Symbol.asyncIterator]().return?.(undefined);
+      });
+
+      expect(mockRespondToPermission).toHaveBeenCalledWith('agent-1', 'session-1', {
+        requestId: 'req-stream',
+        granted: true,
+        optionId: 'allow_once',
       });
     });
   });

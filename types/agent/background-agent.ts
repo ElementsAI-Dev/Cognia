@@ -285,6 +285,8 @@ export interface BackgroundAgentQueueState {
  * Input for creating a background agent
  */
 export interface CreateBackgroundAgentInput {
+  /** Optional identifier (used when syncing with external manager state) */
+  id?: string;
   sessionId: string;
   name: string;
   description?: string;

@@ -14,11 +14,13 @@ function extractText(node: React.ReactNode): string {
   }
 
   if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode } & Record<string, unknown>;
+
     if (typeof node.type === 'function') {
-      return extractText((node.type as (props: unknown) => React.ReactNode)(node.props));
+      return extractText((node.type as (componentProps: Record<string, unknown>) => React.ReactNode)(props));
     }
 
-    return extractText(node.props.children as React.ReactNode);
+    return extractText(props.children);
   }
 
   return '';

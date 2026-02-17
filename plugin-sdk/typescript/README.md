@@ -66,8 +66,16 @@ Create a `plugin.json` file in your plugin root:
   "description": "My awesome plugin",
   "type": "frontend",
   "main": "dist/index.js",
-  "capabilities": ["tools", "hooks"],
-  "permissions": ["network:fetch"]
+  "capabilities": ["tools", "hooks", "scheduler"],
+  "permissions": ["network:fetch"],
+  "scheduledTasks": [
+    {
+      "name": "daily-maintenance",
+      "handler": "dailyMaintenance",
+      "trigger": { "type": "cron", "expression": "0 6 * * *" },
+      "defaultEnabled": true
+    }
+  ]
 }
 ```
 
@@ -87,6 +95,7 @@ The SDK provides comprehensive TypeScript types and helper functions for:
 - **Commands** - Slash commands for the command palette
 - **Components** - A2UI custom components
 - **Hooks** - Event-driven lifecycle hooks
+- **Scheduler** - Scheduled tasks (`cron`, `interval`, `once`, `event`)
 
 ### Available APIs
 
@@ -103,6 +112,7 @@ The SDK provides comprehensive TypeScript types and helper functions for:
 | `context.fs` | File system operations |
 | `context.shell` | Shell commands |
 | `context.db` | SQLite database |
+| `context.scheduler` | Scheduled task registration and execution |
 | `context.shortcuts` | Keyboard shortcuts |
 | `context.secrets` | Secure credential storage |
 
@@ -220,7 +230,48 @@ const extendedHooks: ExtendedPluginHooks = {
   onThemeModeChange: (mode, resolved) => {
     console.log('Theme changed to', resolved);
   },
+
+  // Pre/Post AI pipeline hooks
+  onUserPromptSubmit: (prompt, sessionId, context) => {
+    if (prompt.includes('forbidden')) {
+      return { action: 'block', blockReason: 'Contains forbidden keyword' };
+    }
+    return { action: 'proceed' };
+  },
+  onPreToolUse: (toolName, toolArgs) => {
+    return { action: 'allow' };
+  },
+  onPostChatReceive: (response) => {
+    return { modifiedContent: response.content };
+  },
+
+  // MCP hooks
+  onMCPServerConnect: (serverId, serverName) => {
+    console.log('MCP connected:', serverId, serverName);
+  },
+  onMCPToolResult: (serverId, toolName, result) => {
+    console.log('MCP tool result:', serverId, toolName, result);
+  },
 };
+```
+
+### Scheduler Example
+
+```typescript
+function activate(context: PluginContext): PluginHooks {
+  context.scheduler.registerHandler('dailyMaintenance', async (_args, taskContext) => {
+    taskContext.log('info', 'Running daily maintenance');
+    return { success: true };
+  });
+
+  context.scheduler.createTask({
+    name: 'Daily Maintenance',
+    trigger: { type: 'cron', expression: '0 6 * * *' },
+    handler: 'dailyMaintenance',
+  });
+
+  return {};
+}
 ```
 
 ### Use Context APIs

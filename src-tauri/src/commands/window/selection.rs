@@ -260,11 +260,17 @@ pub async fn selection_trigger(
 }
 
 /// Get current mouse position
+#[cfg(not(mobile))]
 fn get_mouse_position() -> (f64, f64) {
     match mouse_position::mouse_position::Mouse::get_mouse_position() {
         mouse_position::mouse_position::Mouse::Position { x, y } => (x as f64, y as f64),
         mouse_position::mouse_position::Mouse::Error => (0.0, 0.0),
     }
+}
+
+#[cfg(mobile)]
+fn get_mouse_position() -> (f64, f64) {
+    (0.0, 0.0)
 }
 
 /// Get enhanced selection analysis

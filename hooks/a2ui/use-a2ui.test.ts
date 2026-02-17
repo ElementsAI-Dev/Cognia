@@ -38,12 +38,26 @@ jest.mock('@/stores/a2ui', () => ({
 
 // Mock parser functions
 jest.mock('@/lib/a2ui/parser', () => ({
-  parseA2UIMessages: jest.fn((data) => ({ success: true, messages: data })),
-  extractA2UIFromResponse: jest.fn((response) => {
-    if (response.includes('a2ui')) {
-      return { surfaceId: 'test-surface', messages: [] };
+  parseA2UIInput: jest.fn((input) => {
+    const toMessages = (surfaceId: string) => [
+      { type: 'createSurface', surfaceId, surfaceType: 'inline' },
+    ];
+
+    if (typeof input === 'string') {
+      if (input.includes('a2ui')) {
+        return { surfaceId: 'test-surface', messages: toMessages('test-surface'), errors: [] };
+      }
+      if (input.startsWith('[') || input.startsWith('{')) {
+        return { surfaceId: 'json-surface', messages: toMessages('json-surface'), errors: [] };
+      }
+      return { surfaceId: null, messages: [], errors: ['invalid'] };
     }
-    return null;
+
+    if (input && typeof input === 'object') {
+      return { surfaceId: 'object-surface', messages: toMessages('object-surface'), errors: [] };
+    }
+
+    return { surfaceId: null, messages: [], errors: ['invalid'] };
   }),
   createA2UISurface: jest.fn(() => [{ type: 'createSurface' }]),
 }));

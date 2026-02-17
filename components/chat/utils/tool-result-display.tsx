@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/collapsible';
 import type { ToolCallResult, ContentItem } from '@/types/mcp';
 import { A2UIToolOutput, A2UIStructuredOutput, hasA2UIToolOutput } from '@/components/a2ui';
-import { parseA2UIMessages } from '@/lib/a2ui/parser';
+import { parseA2UIInput } from '@/lib/a2ui/parser';
 
 interface ToolResultDisplayProps {
   /** Server ID */
@@ -145,14 +145,9 @@ export function ToolResultDisplay({
  * Try to parse text content as A2UI structured messages
  */
 function tryParseA2UIContent(text: string) {
-  try {
-    const parsed = JSON.parse(text);
-    const result = parseA2UIMessages(parsed);
-    if (result.success && result.messages.length > 0) {
-      return result.messages;
-    }
-  } catch {
-    // Not JSON or not A2UI content
+  const result = parseA2UIInput(text);
+  if (result.messages.length > 0) {
+    return result.messages;
   }
   return null;
 }

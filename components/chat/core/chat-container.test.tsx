@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatContainer } from './chat-container';
 
 // Mock next-intl
@@ -11,19 +11,22 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock stores
-const mockSession = {
+let mockSessionMode: 'chat' | 'agent' | 'research' | 'learning' = 'chat';
+const mockUpdateSession = jest.fn();
+
+const buildMockSession = () => ({
   id: 'session-1',
   title: 'Test Session',
   provider: 'openai',
   model: 'gpt-4o',
-  mode: 'chat' as const,
+  mode: mockSessionMode,
   systemPrompt: 'You are a helpful assistant.',
   temperature: 0.7,
   webSearchEnabled: false,
   thinkingEnabled: false,
   activeBranchId: 'branch-1',
   projectId: null,
-};
+});
 
 const mockMessages = [
   { id: 'msg-1', role: 'user', content: 'Hello', createdAt: new Date() },
@@ -100,7 +103,17 @@ const mockAutoRouterHook = {
 const mockCheckIntent = jest.fn(() => Promise.resolve(null));
 const mockIntentDetectionHook = { checkIntent: mockCheckIntent };
 
-const mockCheckFeatureIntent = jest.fn(() => Promise.resolve(null));
+const mockCheckFeatureIntent = jest.fn(() =>
+  Promise.resolve({
+    detected: false,
+    feature: null,
+    confidence: 0,
+    matchedPatterns: [],
+    reason: '',
+    reasonZh: '',
+    alternatives: [],
+  })
+);
 const mockFeatureRoutingHook = { checkFeatureIntent: mockCheckFeatureIntent };
 
 const mockGenerateChatSummary = jest.fn();
@@ -111,14 +124,15 @@ const mockSourceVerificationHook = { verifySource: mockVerifySource, isVerifying
 
 jest.mock('@/stores', () => ({
   useSessionStore: (selector: (state: unknown) => unknown) => {
+    const session = buildMockSession();
     const state = {
-      sessions: [mockSession],
+      sessions: [session],
       activeSessionId: 'session-1',
       setActiveSession: jest.fn(),
-      getSession: jest.fn(() => mockSession),
-      getActiveSession: jest.fn(() => mockSession),
-      createSession: jest.fn(() => mockSession),
-      updateSession: jest.fn(),
+      getSession: jest.fn(() => session),
+      getActiveSession: jest.fn(() => session),
+      createSession: jest.fn(() => session),
+      updateSession: mockUpdateSession,
       getViewMode: jest.fn(() => 'list'),
       getFlowCanvasState: jest.fn(() => undefined),
       getBranches: jest.fn(() => [{ id: 'branch-1', name: 'Main', isActive: true }]),
@@ -599,6 +613,11 @@ jest.mock('react-virtuoso', () => ({
   ),
 }));
 
+beforeEach(() => {
+  mockSessionMode = 'chat';
+  mockUpdateSession.mockReset();
+});
+
 describe('ChatContainer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -689,8 +708,34 @@ describe('ChatContainer', () => {
     
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.click(sendButton);
-    
+
     expect(input).toHaveValue('');
+  });
+
+  it('switches learning sub-mode to speedpass without feature-routing interruption', async () => {
+    mockSessionMode = 'learning';
+    mockCheckFeatureIntent.mockClear();
+    mockUpdateSession.mockClear();
+
+    render(<ChatContainer sessionId="session-1" />);
+    const input = screen.getByTestId('input-field');
+    const sendButton = screen.getByTestId('send-button');
+
+    fireEvent.change(input, { target: { value: '明天考试，帮我速通过高数并刷题' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockUpdateSession).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({
+          learningContext: expect.objectContaining({
+            subMode: 'speedpass',
+          }),
+        })
+      );
+    });
+
+    expect(mockCheckFeatureIntent).not.toHaveBeenCalled();
   });
 
   it('displays messages in conversation', () => {

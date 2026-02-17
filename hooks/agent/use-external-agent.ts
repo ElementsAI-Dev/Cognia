@@ -88,6 +88,12 @@ export interface UseExternalAgentActions {
   createSession: (options?: { systemPrompt?: string }) => Promise<ExternalAgentSession>;
   /** Close a session */
   closeSession: (sessionId: string) => Promise<void>;
+  /** List existing sessions (ACP extension) */
+  listSessions: (agentId?: string) => Promise<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>>;
+  /** Fork a session (ACP extension) */
+  forkSession: (sessionId: string) => Promise<ExternalAgentSession>;
+  /** Resume a session (ACP extension) */
+  resumeSession: (sessionId: string, options?: { systemPrompt?: string }) => Promise<ExternalAgentSession>;
   /** Execute a prompt on the active agent */
   execute: (prompt: string, options?: ExternalAgentExecutionOptions) => Promise<ExternalAgentResult>;
   /** Execute a prompt with streaming */
@@ -487,6 +493,46 @@ export function useExternalAgent(): UseExternalAgentReturn {
     [getManager, activeAgentId, activeSession]
   );
 
+  const listSessions = useCallback(
+    async (agentId?: string): Promise<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>> => {
+      const targetAgentId = agentId || activeAgentId;
+      if (!targetAgentId) {
+        return [];
+      }
+      const manager = await getManager();
+      return manager.listSessions(targetAgentId);
+    },
+    [getManager, activeAgentId]
+  );
+
+  const forkSession = useCallback(
+    async (sessionId: string): Promise<ExternalAgentSession> => {
+      if (!activeAgentId) {
+        throw new Error('No active agent selected');
+      }
+      const manager = await getManager();
+      const forked = await manager.forkSession(activeAgentId, sessionId);
+      setActiveSession(forked);
+      return forked;
+    },
+    [getManager, activeAgentId]
+  );
+
+  const resumeSession = useCallback(
+    async (sessionId: string, options?: { systemPrompt?: string }): Promise<ExternalAgentSession> => {
+      if (!activeAgentId) {
+        throw new Error('No active agent selected');
+      }
+      const manager = await getManager();
+      const resumed = await manager.resumeSession(activeAgentId, sessionId, {
+        systemPrompt: options?.systemPrompt,
+      });
+      setActiveSession(resumed);
+      return resumed;
+    },
+    [getManager, activeAgentId]
+  );
+
   // Execute a prompt
   const execute = useCallback(
     async (
@@ -790,6 +836,9 @@ export function useExternalAgent(): UseExternalAgentReturn {
     setActiveAgent,
     createSession,
     closeSession,
+    listSessions,
+    forkSession,
+    resumeSession,
     execute,
     executeStreaming,
     cancel,

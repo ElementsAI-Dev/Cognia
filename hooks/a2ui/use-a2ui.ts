@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect } from 'react';
 import { useA2UIStore } from '@/stores/a2ui';
-import { parseA2UIMessages, extractA2UIFromResponse, createA2UISurface } from '@/lib/a2ui/parser';
+import { parseA2UIInput, createA2UISurface } from '@/lib/a2ui/parser';
 import { globalEventEmitter } from '@/lib/a2ui/events';
 import type {
   A2UIServerMessage,
@@ -36,6 +36,10 @@ interface UseA2UIReturn {
   // Message processing
   processMessage: (message: A2UIServerMessage) => void;
   processMessages: (messages: A2UIServerMessage[]) => void;
+  parseAndProcess: (
+    input: unknown,
+    options?: { fallbackSurfaceId?: string; autoProcess?: boolean }
+  ) => { surfaceId: string | null; messages: A2UIServerMessage[]; errors: string[] };
   processJsonString: (json: string) => boolean;
   extractAndProcess: (response: string) => string | null; // Returns surfaceId if found
 
@@ -130,35 +134,41 @@ export function useA2UI(options: UseA2UIOptions = {}): UseA2UIReturn {
     [processMessagesStore]
   );
 
+  // Parse and process mixed input payloads
+  const parseAndProcess = useCallback(
+    (
+      input: unknown,
+      options?: { fallbackSurfaceId?: string; autoProcess?: boolean }
+    ): { surfaceId: string | null; messages: A2UIServerMessage[]; errors: string[] } => {
+      const parsed = parseA2UIInput(input, {
+        fallbackSurfaceId: options?.fallbackSurfaceId,
+      });
+
+      if ((options?.autoProcess ?? autoProcess) && parsed.messages.length > 0) {
+        processMessagesStore(parsed.messages);
+      }
+
+      return parsed;
+    },
+    [autoProcess, processMessagesStore]
+  );
+
   // Process JSON string
   const processJsonString = useCallback(
     (json: string): boolean => {
-      try {
-        const parsed = JSON.parse(json);
-        const result = parseA2UIMessages(parsed);
-        if (result.success) {
-          processMessagesStore(result.messages);
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
-      }
+      const parsed = parseAndProcess(json);
+      return parsed.messages.length > 0;
     },
-    [processMessagesStore]
+    [parseAndProcess]
   );
 
   // Extract and process from AI response
   const extractAndProcess = useCallback(
     (response: string): string | null => {
-      const content = extractA2UIFromResponse(response);
-      if (content && autoProcess) {
-        processMessagesStore(content.messages);
-        return content.surfaceId;
-      }
-      return content?.surfaceId ?? null;
+      const parsed = parseAndProcess(response);
+      return parsed.surfaceId;
     },
-    [processMessagesStore, autoProcess]
+    [parseAndProcess]
   );
 
   // Quick surface creation helper
@@ -213,6 +223,7 @@ export function useA2UI(options: UseA2UIOptions = {}): UseA2UIReturn {
     getSurface,
     processMessage,
     processMessages,
+    parseAndProcess,
     processJsonString,
     extractAndProcess,
     createQuickSurface,

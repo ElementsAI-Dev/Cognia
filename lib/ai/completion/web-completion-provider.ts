@@ -20,7 +20,7 @@ const webCompletionCache = new CompletionCache<InputCompletionResult>({
 });
 
 export interface WebCompletionConfig {
-  provider: 'openai' | 'groq' | 'ollama' | 'custom';
+  provider: 'openai' | 'groq' | 'ollama' | 'custom' | 'auto';
   endpoint?: string;
   apiKey?: string;
   modelId?: string;
@@ -37,7 +37,7 @@ export interface ConversationMessage {
 }
 
 const DEFAULT_CONFIG: WebCompletionConfig = {
-  provider: 'ollama',
+  provider: 'auto',
   modelId: 'qwen2.5-coder:0.5b',
   maxTokens: 64,
   temperature: 0.1,
@@ -122,6 +122,8 @@ async function requestCompletion(
   signal: AbortSignal
 ): Promise<CompletionSuggestion | null> {
   switch (config.provider) {
+    case 'auto':
+      return requestAutoCompletion(text, config, signal);
     case 'ollama':
       return requestOllamaCompletion(text, config, signal);
     case 'openai':
@@ -132,6 +134,41 @@ async function requestCompletion(
     default:
       return null;
   }
+}
+
+async function requestAutoCompletion(
+  text: string,
+  config: WebCompletionConfig,
+  signal: AbortSignal
+): Promise<CompletionSuggestion | null> {
+  try {
+    const localAttempt = await requestOllamaCompletion(
+      text,
+      {
+        ...config,
+        provider: 'ollama',
+        endpoint: undefined,
+        apiKey: undefined,
+        timeoutMs: Math.min(config.timeoutMs ?? 5000, 3000),
+      },
+      signal
+    );
+    if (localAttempt) return localAttempt;
+  } catch {
+    // Ignore local provider failures and continue fallback path.
+  }
+
+  if (!config.apiKey) {
+    return null;
+  }
+
+  const openAICompatibleProvider: 'openai' | 'groq' =
+    config.endpoint?.toLowerCase().includes('groq') ? 'groq' : 'openai';
+  return requestOpenAICompatibleCompletion(
+    text,
+    { ...config, provider: openAICompatibleProvider },
+    signal
+  );
 }
 
 async function requestOllamaCompletion(

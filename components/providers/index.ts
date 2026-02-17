@@ -139,6 +139,8 @@ export { SkillSyncInitializer } from './initializers';
 
 export { ContextSyncInitializer } from './initializers';
 
+export { SpeedPassRuntimeInitializer } from './initializers';
+
 export {
   SkillProvider,
   useInitializeSkills,

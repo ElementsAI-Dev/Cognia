@@ -8,7 +8,7 @@ export { A2UITextField } from './a2ui-textfield';
 export { A2UITextArea } from './a2ui-textarea';
 export { A2UISelect } from './a2ui-select';
 export { A2UICheckbox } from './a2ui-checkbox';
-export { A2UIRadioGroup } from './a2ui-radio';
+export { A2UIRadio, A2UIRadioGroup } from './a2ui-radio';
 export { A2UISlider } from './a2ui-slider';
 export { A2UIDatePicker } from './a2ui-datepicker';
 export { A2UITimePicker } from './a2ui-timepicker';

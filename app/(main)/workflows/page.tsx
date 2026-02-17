@@ -330,13 +330,24 @@ export default function WorkflowsPage() {
               </Button>
             </div>
           ) : (
-            <Button variant="outline" size="sm" onClick={handleExecuteWorkflow} disabled={hasErrors}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExecuteWorkflow}
+              disabled={hasErrors}
+              data-testid="workflow-page-run-button"
+            >
               <Play className="h-4 w-4 mr-1" />
               {t('run') || 'Run'}
             </Button>
           )}
 
-          <Button size="sm" onClick={handleSaveWorkflow} disabled={!isDirty}>
+          <Button
+            size="sm"
+            onClick={handleSaveWorkflow}
+            disabled={!isDirty}
+            data-testid="workflow-page-save-button"
+          >
             {tCommon('save')}
           </Button>
         </div>
@@ -376,13 +387,13 @@ export default function WorkflowsPage() {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-9">
+              <Button size="sm" className="h-9" data-testid="workflow-add-button">
                 <Plus className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">{tCommon('add')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleCreateNew}>
+              <DropdownMenuItem onClick={handleCreateNew} data-testid="workflow-create-blank">
                 <Plus className="h-4 w-4 mr-2" />
                 {t('blankWorkflow')}
               </DropdownMenuItem>

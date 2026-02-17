@@ -20,9 +20,11 @@ mod scheduler;
 mod screen_recording;
 mod screenshot;
 mod selection;
+mod speedpass_runtime;
 mod skill;
 mod skill_seekers;
 mod tray;
+mod workflow_runtime;
 
 use assistant_bubble::AssistantBubbleWindow;
 use awareness::AwarenessManager;
@@ -37,11 +39,14 @@ use scheduler::SchedulerState;
 use screen_recording::ScreenRecordingManager;
 use screenshot::ScreenshotManager;
 use selection::SelectionManager;
+use speedpass_runtime::SpeedPassRuntimeState;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+#[cfg(not(mobile))]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
-#[cfg(not(debug_assertions))]
+use workflow_runtime::WorkflowRuntimeState;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
 /// Prevent running cleanup twice (window destroy and shortcut teardown are idempotent but we guard anyway)
@@ -49,6 +54,210 @@ static CLEANUP_CALLED: AtomicBool = AtomicBool::new(false);
 
 /// Default port for the development server
 const DEV_SERVER_PORT: u16 = 3000;
+
+#[derive(Debug, Default)]
+struct ExecuteScriptCliArgs {
+    language: String,
+    code_b64: String,
+    timeout_secs: u64,
+    memory_mb: u64,
+    use_sandbox: bool,
+    args: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkflowScriptPayload {
+    definition: workflow_runtime::WorkflowDefinition,
+    #[serde(default)]
+    input: HashMap<String, serde_json::Value>,
+    options: Option<workflow_runtime::WorkflowRunOptions>,
+    trigger_id: Option<String>,
+}
+
+fn parse_execute_script_cli_args(args: &[String]) -> Result<ExecuteScriptCliArgs, String> {
+    let mut parsed = ExecuteScriptCliArgs {
+        timeout_secs: 300,
+        memory_mb: 512,
+        use_sandbox: true,
+        ..Default::default()
+    };
+
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--language" => {
+                index += 1;
+                parsed.language = args
+                    .get(index)
+                    .cloned()
+                    .ok_or_else(|| "Missing value for --language".to_string())?;
+            }
+            "--code-b64" => {
+                index += 1;
+                parsed.code_b64 = args
+                    .get(index)
+                    .cloned()
+                    .ok_or_else(|| "Missing value for --code-b64".to_string())?;
+            }
+            "--timeout" => {
+                index += 1;
+                parsed.timeout_secs = args
+                    .get(index)
+                    .ok_or_else(|| "Missing value for --timeout".to_string())?
+                    .parse::<u64>()
+                    .map_err(|error| format!("Invalid --timeout value: {error}"))?;
+            }
+            "--memory" => {
+                index += 1;
+                parsed.memory_mb = args
+                    .get(index)
+                    .ok_or_else(|| "Missing value for --memory".to_string())?
+                    .parse::<u64>()
+                    .map_err(|error| format!("Invalid --memory value: {error}"))?;
+            }
+            "--sandbox" => {
+                parsed.use_sandbox = true;
+            }
+            "--native" => {
+                parsed.use_sandbox = false;
+            }
+            value => {
+                parsed.args.push(value.to_string());
+            }
+        }
+        index += 1;
+    }
+
+    if parsed.language.trim().is_empty() {
+        return Err("Missing required --language argument".to_string());
+    }
+    if parsed.code_b64.trim().is_empty() {
+        return Err("Missing required --code-b64 argument".to_string());
+    }
+
+    Ok(parsed)
+}
+
+fn get_cli_sandbox_config_path() -> std::path::PathBuf {
+    let data_dir = dirs::data_local_dir().unwrap_or_else(std::env::temp_dir);
+    data_dir.join("Cognia").join("sandbox_config.json")
+}
+
+fn get_cli_workflow_runtime_db_path() -> std::path::PathBuf {
+    let data_dir = dirs::data_local_dir().unwrap_or_else(std::env::temp_dir);
+    data_dir.join("Cognia").join("workflow_runtime.db")
+}
+
+async fn run_execute_script_cli(args: ExecuteScriptCliArgs) -> Result<i32, String> {
+    let code_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &args.code_b64)
+        .map_err(|error| format!("Invalid code base64 payload: {error}"))?;
+    let code = String::from_utf8(code_bytes).map_err(|error| format!("Invalid UTF-8 code payload: {error}"))?;
+
+    let sandbox_state = SandboxState::new(get_cli_sandbox_config_path())
+        .await
+        .map_err(|error| format!("Failed to initialize sandbox state: {error}"))?;
+
+    if args.language == "workflow" {
+        let payload = serde_json::from_str::<WorkflowScriptPayload>(&code)
+            .map_err(|error| format!("Invalid workflow script payload JSON: {error}"))?;
+
+        let options = if payload.options.is_some() {
+            payload.options
+        } else if payload.trigger_id.is_some() {
+            Some(workflow_runtime::WorkflowRunOptions {
+                trigger_id: payload.trigger_id.clone(),
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        let request = workflow_runtime::WorkflowRunRequest {
+            definition: payload.definition,
+            input: payload.input,
+            options,
+        };
+
+        let runtime_state = WorkflowRuntimeState::from_db_path(get_cli_workflow_runtime_db_path())
+            .unwrap_or_else(|_| WorkflowRuntimeState::default());
+        let result = workflow_runtime::run_definition(
+            &runtime_state,
+            &sandbox_state,
+            request,
+            None,
+            None,
+        )
+        .await?;
+        println!(
+            "{}",
+            serde_json::to_string(&result).map_err(|error| format!("Serialize result failed: {error}"))?
+        );
+        return Ok(if result.status == workflow_runtime::WorkflowExecutionStatus::Completed {
+            0
+        } else {
+            1
+        });
+    }
+
+    let mut request = crate::sandbox::ExecutionRequest::new(args.language, code);
+    request.args = args.args;
+    request.timeout_secs = Some(args.timeout_secs);
+    request.memory_limit_mb = Some(args.memory_mb);
+    request.network_enabled = Some(false);
+    if !args.use_sandbox {
+        request.runtime = Some(crate::sandbox::RuntimeType::Native);
+    }
+
+    let result = sandbox_state
+        .execute(request)
+        .await
+        .map_err(|error| format!("Sandbox execution failed: {error}"))?;
+
+    if !result.stdout.is_empty() {
+        println!("{}", result.stdout);
+    }
+    if !result.stderr.is_empty() {
+        eprintln!("{}", result.stderr);
+    }
+    let has_error = result.error.is_some();
+    if let Some(error) = &result.error {
+        eprintln!("{}", error);
+    }
+
+    Ok(result
+        .exit_code
+        .map(|code| if code < 0 { 1 } else { code as i32 })
+        .unwrap_or(if has_error { 1 } else { 0 }))
+}
+
+pub fn run_entrypoint() {
+    let args = std::env::args().collect::<Vec<_>>();
+    if args.get(1).map(|v| v.as_str()) == Some("execute-script") {
+        match parse_execute_script_cli_args(&args[2..]) {
+            Ok(parsed) => {
+                match tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|error| format!("Failed to create tokio runtime: {error}"))
+                    .and_then(|runtime| runtime.block_on(run_execute_script_cli(parsed)))
+                {
+                    Ok(code) => std::process::exit(code),
+                    Err(error) => {
+                        eprintln!("{error}");
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(2);
+            }
+        }
+    }
+
+    run();
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -89,15 +298,13 @@ pub fn run() {
         builder = builder.plugin(devtools);
     }
 
-    // Register log plugin only in release builds (devtools handles logging in debug)
-    #[cfg(not(debug_assertions))]
-    {
-        builder = builder.plugin(build_log_plugin());
-    }
+    // Register log plugin in both debug and release builds.
+    // In debug, devtools and log plugin coexist and frontend handles deduplication.
+    builder = builder.plugin(build_log_plugin());
 
     // Single instance plugin with deep-link integration - prevents multiple instances
     // Can be disabled by compiling with --no-default-features or removing "single-instance" feature
-    #[cfg(feature = "single-instance")]
+    #[cfg(all(feature = "single-instance", not(mobile)))]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
             log::info!(
@@ -142,7 +349,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         // .plugin(tauri_plugin_updater::Builder::new().build()) // Disabled until updater is configured
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
@@ -150,6 +356,11 @@ pub fn run() {
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init());
+
+    #[cfg(not(mobile))]
+    {
+        builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
 
     // Autostart plugin - only available on desktop platforms
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
@@ -234,17 +445,20 @@ pub fn run() {
                 }
             }
 
-            // Initialize system tray
-            if let Err(e) = tray::create_tray(app.handle()) {
-                log::error!("Failed to create system tray: {}", e);
-            } else {
-                // Initialize tray state after managers are set up
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    // Small delay to ensure all managers are initialized
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                    tray::init_tray_state(&handle);
-                });
+            #[cfg(not(mobile))]
+            {
+                // Initialize system tray
+                if let Err(e) = tray::create_tray(app.handle()) {
+                    log::error!("Failed to create system tray: {}", e);
+                } else {
+                    // Initialize tray state after managers are set up
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        // Small delay to ensure all managers are initialized
+                        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        tray::init_tray_state(&handle);
+                    });
+                }
             }
 
             // Get app data directory for MCP config storage
@@ -320,6 +534,12 @@ pub fn run() {
             app.manage(recording_toolbar);
             log::info!("Recording toolbar initialized");
 
+            // Initialize Recording Click Highlight Overlay
+            let recording_click_overlay =
+                screen_recording::RecordingClickOverlay::new(app.handle().clone());
+            app.manage(recording_click_overlay);
+            log::info!("Recording click overlay initialized");
+
             // Initialize Context Manager
             let context_manager = ContextManager::new();
             app.manage(context_manager);
@@ -355,224 +575,227 @@ pub fn run() {
             app.manage(skill_seekers_state);
             log::info!("Skill Seekers service initialized");
 
-            // Initialize Chat Widget Window
-            let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
-            app.manage(chat_widget_window);
-            log::info!("Chat widget window manager initialized");
+            #[cfg(not(mobile))]
+            {
+                // Initialize Chat Widget Window
+                let chat_widget_window = ChatWidgetWindow::new(app.handle().clone());
+                app.manage(chat_widget_window);
+                log::info!("Chat widget window manager initialized");
 
-            // Initialize Assistant Bubble Window (long-lived desktop bubble)
-            let assistant_bubble_window = AssistantBubbleWindow::new(app.handle().clone());
-            // Best-effort create + show; never fail app startup.
-            if let Err(e) = assistant_bubble_window.show() {
-                log::error!("Failed to show assistant bubble window: {}", e);
-            }
-            app.manage(assistant_bubble_window);
-            log::info!("Assistant bubble window manager initialized");
+                // Initialize Assistant Bubble Window (long-lived desktop bubble)
+                let assistant_bubble_window = AssistantBubbleWindow::new(app.handle().clone());
+                // Best-effort create + show; never fail app startup.
+                if let Err(e) = assistant_bubble_window.show() {
+                    log::error!("Failed to show assistant bubble window: {}", e);
+                }
+                app.manage(assistant_bubble_window);
+                log::info!("Assistant bubble window manager initialized");
 
-            // Initialize Tray Config State
-            let tray_config_state = commands::system::tray::TrayConfigState::default();
-            app.manage(tray_config_state);
-            log::info!("Tray config state initialized");
+                // Initialize Tray Config State
+                let tray_config_state = commands::system::tray::TrayConfigState::default();
+                app.manage(tray_config_state);
+                log::info!("Tray config state initialized");
 
-            // Register global shortcut for chat widget toggle
-            let app_handle_for_shortcut = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                // Register global shortcut for chat widget toggle
+                let app_handle_for_shortcut = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-                // Parse the shortcut
-                let shortcut: Shortcut = "CommandOrControl+Shift+Space".parse().unwrap();
+                    // Parse the shortcut
+                    let shortcut: Shortcut = "CommandOrControl+Shift+Space".parse().unwrap();
 
-                // Register the shortcut
-                if let Err(e) = app_handle_for_shortcut.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
-                            match manager.toggle() {
-                                Ok(visible) => {
-                                    log::debug!(
-                                        "Chat widget toggled via shortcut: {}",
-                                        if visible { "shown" } else { "hidden" }
-                                    );
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to toggle chat widget: {}", e);
+                    // Register the shortcut
+                    if let Err(e) = app_handle_for_shortcut.global_shortcut().on_shortcut(
+                        shortcut,
+                        move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
+                                match manager.toggle() {
+                                    Ok(visible) => {
+                                        log::debug!(
+                                            "Chat widget toggled via shortcut: {}",
+                                            if visible { "shown" } else { "hidden" }
+                                        );
+                                    }
+                                    Err(e) => {
+                                        log::error!("Failed to toggle chat widget: {}", e);
+                                    }
                                 }
                             }
-                        }
-                    },
-                ) {
-                    log::error!("Failed to register chat widget shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Ctrl+Shift+Space for chat widget");
-                }
-            });
+                        },
+                    ) {
+                        log::error!("Failed to register chat widget shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Ctrl+Shift+Space for chat widget");
+                    }
+                });
 
-            // Register global shortcut for selection toolbar trigger (Alt+Space)
-            let app_handle_for_selection = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                // Register global shortcut for selection toolbar trigger (Alt+Space)
+                let app_handle_for_selection = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-                // Alt+Space for selection toolbar trigger
-                let shortcut: Shortcut = "Alt+Space".parse().unwrap();
+                    // Alt+Space for selection toolbar trigger
+                    let shortcut: Shortcut = "Alt+Space".parse().unwrap();
 
-                if let Err(e) = app_handle_for_selection.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<SelectionManager>() {
-                            // Trigger selection detection manually
-                            match manager.trigger() {
-                                Ok(Some(payload)) => {
-                                    log::debug!(
-                                        "Selection toolbar triggered via shortcut: {} chars",
-                                        payload.text.len()
-                                    );
-                                }
-                                Ok(None) => {
-                                    log::debug!("Selection toolbar trigger: no text selected");
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to trigger selection toolbar: {}", e);
-                                }
-                            }
-                        }
-                    },
-                ) {
-                    log::error!("Failed to register selection toolbar shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Alt+Space for selection toolbar");
-                }
-            });
-
-            // Register global shortcut for quick translate (Ctrl+Shift+T)
-            let app_handle_for_translate = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-
-                let shortcut: Shortcut = "CommandOrControl+Shift+T".parse().unwrap();
-
-                if let Err(e) = app_handle_for_translate.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<SelectionManager>() {
-                            if let Ok(Some(text)) = manager.detector.get_selected_text() {
-                                if !text.is_empty() {
-                                    // Emit quick translate event
-                                    let _ = app.emit(
-                                        "selection-quick-translate",
-                                        serde_json::json!({
-                                            "text": text,
-                                            "action": "translate"
-                                        }),
-                                    );
-                                    log::debug!("Quick translate triggered: {} chars", text.len());
+                    if let Err(e) = app_handle_for_selection.global_shortcut().on_shortcut(
+                        shortcut,
+                        move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<SelectionManager>() {
+                                // Trigger selection detection manually
+                                match manager.trigger() {
+                                    Ok(Some(payload)) => {
+                                        log::debug!(
+                                            "Selection toolbar triggered via shortcut: {} chars",
+                                            payload.text.len()
+                                        );
+                                    }
+                                    Ok(None) => {
+                                        log::debug!("Selection toolbar trigger: no text selected");
+                                    }
+                                    Err(e) => {
+                                        log::error!("Failed to trigger selection toolbar: {}", e);
+                                    }
                                 }
                             }
-                        }
-                    },
-                ) {
-                    log::error!("Failed to register quick translate shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Ctrl+Shift+T for quick translate");
-                }
-            });
+                        },
+                    ) {
+                        log::error!("Failed to register selection toolbar shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Alt+Space for selection toolbar");
+                    }
+                });
 
-            // Register global shortcut for quick explain (Ctrl+Shift+E)
-            let app_handle_for_explain = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                // Register global shortcut for quick translate (Ctrl+Shift+T)
+                let app_handle_for_translate = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-                let shortcut: Shortcut = "CommandOrControl+Shift+E".parse().unwrap();
+                    let shortcut: Shortcut = "CommandOrControl+Shift+T".parse().unwrap();
 
-                if let Err(e) = app_handle_for_explain.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<SelectionManager>() {
-                            if let Ok(Some(text)) = manager.detector.get_selected_text() {
-                                if !text.is_empty() {
-                                    // Emit quick explain event
-                                    let _ = app.emit(
-                                        "selection-quick-action",
-                                        serde_json::json!({
-                                            "text": text,
-                                            "action": "explain"
-                                        }),
-                                    );
-                                    log::debug!("Quick explain triggered: {} chars", text.len());
+                    if let Err(e) = app_handle_for_translate.global_shortcut().on_shortcut(
+                        shortcut,
+                        move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<SelectionManager>() {
+                                if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                                    if !text.is_empty() {
+                                        // Emit quick translate event
+                                        let _ = app.emit(
+                                            "selection-quick-translate",
+                                            serde_json::json!({
+                                                "text": text,
+                                                "action": "translate"
+                                            }),
+                                        );
+                                        log::debug!("Quick translate triggered: {} chars", text.len());
+                                    }
                                 }
                             }
-                        }
-                    },
-                ) {
-                    log::error!("Failed to register quick explain shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Ctrl+Shift+E for quick explain");
-                }
-            });
+                        },
+                    ) {
+                        log::error!("Failed to register quick translate shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Ctrl+Shift+T for quick translate");
+                    }
+                });
 
-            // Register global shortcut for bubble visibility toggle (Alt+B)
-            let app_handle_for_bubble = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+                // Register global shortcut for quick explain (Ctrl+Shift+E)
+                let app_handle_for_explain = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-                let shortcut: Shortcut = "Alt+B".parse().unwrap();
+                    let shortcut: Shortcut = "CommandOrControl+Shift+E".parse().unwrap();
 
-                if let Err(e) = app_handle_for_bubble.global_shortcut().on_shortcut(
-                    shortcut,
-                    move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
-                            if manager.is_visible() {
-                                if let Err(e) = manager.hide() {
-                                    log::error!("Failed to hide bubble via shortcut: {}", e);
+                    if let Err(e) = app_handle_for_explain.global_shortcut().on_shortcut(
+                        shortcut,
+                        move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<SelectionManager>() {
+                                if let Ok(Some(text)) = manager.detector.get_selected_text() {
+                                    if !text.is_empty() {
+                                        // Emit quick explain event
+                                        let _ = app.emit(
+                                            "selection-quick-action",
+                                            serde_json::json!({
+                                                "text": text,
+                                                "action": "explain"
+                                            }),
+                                        );
+                                        log::debug!("Quick explain triggered: {} chars", text.len());
+                                    }
+                                }
+                            }
+                        },
+                    ) {
+                        log::error!("Failed to register quick explain shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Ctrl+Shift+E for quick explain");
+                    }
+                });
+
+                // Register global shortcut for bubble visibility toggle (Alt+B)
+                let app_handle_for_bubble = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+                    let shortcut: Shortcut = "Alt+B".parse().unwrap();
+
+                    if let Err(e) = app_handle_for_bubble.global_shortcut().on_shortcut(
+                        shortcut,
+                        move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                                if manager.is_visible() {
+                                    if let Err(e) = manager.hide() {
+                                        log::error!("Failed to hide bubble via shortcut: {}", e);
+                                    } else {
+                                        log::debug!("Bubble hidden via Alt+B shortcut");
+                                    }
+                                } else if let Err(e) = manager.show() {
+                                    log::error!("Failed to show bubble via shortcut: {}", e);
                                 } else {
-                                    log::debug!("Bubble hidden via Alt+B shortcut");
-                                }
-                            } else if let Err(e) = manager.show() {
-                                log::error!("Failed to show bubble via shortcut: {}", e);
-                            } else {
-                                log::debug!("Bubble shown via Alt+B shortcut");
-                            }
-                        }
-                    },
-                ) {
-                    log::error!("Failed to register bubble toggle shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Alt+B for bubble visibility toggle");
-                }
-            });
-
-            // Register global shortcut for bubble minimize/fold toggle (Alt+M)
-            let app_handle_for_bubble_minimize = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
-
-                let shortcut: Shortcut = "Alt+M".parse().unwrap();
-
-                if let Err(e) = app_handle_for_bubble_minimize
-                    .global_shortcut()
-                    .on_shortcut(shortcut, move |app, _shortcut, _event| {
-                        if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
-                            match manager.toggle_minimize() {
-                                Ok(minimized) => {
-                                    log::debug!(
-                                        "Bubble {} via Alt+M shortcut",
-                                        if minimized { "minimized" } else { "restored" }
-                                    );
-                                }
-                                Err(e) => {
-                                    log::error!(
-                                        "Failed to toggle bubble minimize via shortcut: {}",
-                                        e
-                                    );
+                                    log::debug!("Bubble shown via Alt+B shortcut");
                                 }
                             }
-                        }
-                    })
-                {
-                    log::error!("Failed to register bubble minimize shortcut: {}", e);
-                } else {
-                    log::info!("Global shortcut registered: Alt+M for bubble minimize toggle");
-                }
-            });
+                        },
+                    ) {
+                        log::error!("Failed to register bubble toggle shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Alt+B for bubble visibility toggle");
+                    }
+                });
+
+                // Register global shortcut for bubble minimize/fold toggle (Alt+M)
+                let app_handle_for_bubble_minimize = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+                    let shortcut: Shortcut = "Alt+M".parse().unwrap();
+
+                    if let Err(e) = app_handle_for_bubble_minimize
+                        .global_shortcut()
+                        .on_shortcut(shortcut, move |app, _shortcut, _event| {
+                            if let Some(manager) = app.try_state::<AssistantBubbleWindow>() {
+                                match manager.toggle_minimize() {
+                                    Ok(minimized) => {
+                                        log::debug!(
+                                            "Bubble {} via Alt+M shortcut",
+                                            if minimized { "minimized" } else { "restored" }
+                                        );
+                                    }
+                                    Err(e) => {
+                                        log::error!(
+                                            "Failed to toggle bubble minimize via shortcut: {}",
+                                            e
+                                        );
+                                    }
+                                }
+                            }
+                        })
+                    {
+                        log::error!("Failed to register bubble minimize shortcut: {}", e);
+                    } else {
+                        log::info!("Global shortcut registered: Alt+M for bubble minimize toggle");
+                    }
+                });
+            }
 
             // Initialize Jupyter State
             let jupyter_state = JupyterState::new();
@@ -642,6 +865,35 @@ pub fn run() {
             app.manage(scheduler_state);
             log::info!("System scheduler state initialized");
 
+            // Initialize Workflow Runtime State
+            let workflow_runtime_db_path = app_data_dir.join("workflow_runtime.db");
+            let workflow_runtime_state =
+                WorkflowRuntimeState::from_db_path(workflow_runtime_db_path)
+                    .unwrap_or_else(|error| {
+                        log::warn!(
+                            "Failed to initialize workflow runtime sqlite storage, fallback to memory: {}",
+                            error
+                        );
+                        WorkflowRuntimeState::default()
+                    });
+            app.manage(workflow_runtime_state);
+            log::info!("Workflow runtime state initialized");
+
+            // Initialize SpeedPass Runtime State
+            let speedpass_runtime_db_path = app_data_dir.join("speedpass_runtime.db");
+            let speedpass_runtime_state =
+                SpeedPassRuntimeState::from_db_path(speedpass_runtime_db_path).unwrap_or_else(
+                    |error| {
+                        log::warn!(
+                            "Failed to initialize speedpass runtime sqlite storage, fallback to memory: {}",
+                            error
+                        );
+                        SpeedPassRuntimeState::default()
+                    },
+                );
+            app.manage(speedpass_runtime_state);
+            log::info!("SpeedPass runtime state initialized");
+
             // Initialize External Agent State
             let external_agent_state = external_agent::ExternalAgentState::default();
             app.manage(external_agent_state);
@@ -706,17 +958,23 @@ pub fn run() {
                 }
             });
 
-            // Create window menu
-            if let Err(e) = create_window_menu(app.handle()) {
-                log::warn!("Failed to create window menu: {}", e);
+            #[cfg(not(mobile))]
+            {
+                // Create window menu
+                if let Err(e) = create_window_menu(app.handle()) {
+                    log::warn!("Failed to create window menu: {}", e);
+                }
             }
 
             Ok(())
         })
         .on_menu_event(|app, event| {
-            let id = event.id.0.to_string();
-            // Handle both window menu and tray menu events
-            handle_menu_event(app, &id);
+            #[cfg(not(mobile))]
+            {
+                let id = event.id.0.to_string();
+                // Handle both window menu and tray menu events
+                handle_menu_event(app, &id);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             // MCP commands
@@ -976,6 +1234,7 @@ pub fn run() {
             commands::context::context::context_get_text_at,
             commands::context::context::context_get_element_at,
             commands::context::context::context_analyze_screen,
+            commands::context::context::context_capture_and_analyze_active_window,
             commands::context::context::context_clear_screen_cache,
             // Awareness commands
             commands::context::awareness::awareness_get_state,
@@ -1145,6 +1404,7 @@ pub fn run() {
             commands::devtools::lsp::lsp_open_document,
             commands::devtools::lsp::lsp_change_document,
             commands::devtools::lsp::lsp_close_document,
+            commands::devtools::lsp::lsp_cancel_request,
             commands::devtools::lsp::lsp_completion,
             commands::devtools::lsp::lsp_hover,
             commands::devtools::lsp::lsp_definition,
@@ -1470,6 +1730,88 @@ pub fn run() {
             commands::extensions::plugin::plugin_python_unload,
             commands::extensions::plugin::plugin_python_list,
             commands::extensions::plugin::plugin_show_notification,
+            commands::extensions::plugin::plugin_api_invoke,
+            commands::extensions::plugin::plugin_api_batch_invoke,
+            commands::extensions::plugin::plugin_get_capabilities,
+            commands::extensions::plugin::plugin_permission_grant,
+            commands::extensions::plugin::plugin_permission_revoke,
+            commands::extensions::plugin::plugin_permission_list,
+            commands::extensions::plugin::plugin_network_fetch,
+            commands::extensions::plugin::plugin_network_download,
+            commands::extensions::plugin::plugin_network_upload,
+            commands::extensions::plugin::plugin_fs_read_text,
+            commands::extensions::plugin::plugin_fs_read_binary,
+            commands::extensions::plugin::plugin_fs_write_text,
+            commands::extensions::plugin::plugin_fs_write_binary,
+            commands::extensions::plugin::plugin_fs_exists,
+            commands::extensions::plugin::plugin_fs_mkdir,
+            commands::extensions::plugin::plugin_fs_remove,
+            commands::extensions::plugin::plugin_fs_copy,
+            commands::extensions::plugin::plugin_fs_move,
+            commands::extensions::plugin::plugin_fs_read_dir,
+            commands::extensions::plugin::plugin_fs_stat,
+            commands::extensions::plugin::plugin_fs_watch,
+            commands::extensions::plugin::plugin_fs_unwatch,
+            commands::extensions::plugin::plugin_clipboard_read_text,
+            commands::extensions::plugin::plugin_clipboard_write_text,
+            commands::extensions::plugin::plugin_clipboard_read_image,
+            commands::extensions::plugin::plugin_clipboard_write_image,
+            commands::extensions::plugin::plugin_clipboard_has_text,
+            commands::extensions::plugin::plugin_clipboard_has_image,
+            commands::extensions::plugin::plugin_clipboard_clear,
+            commands::extensions::plugin::plugin_shell_execute,
+            commands::extensions::plugin::plugin_shell_spawn,
+            commands::extensions::plugin::plugin_shell_open,
+            commands::extensions::plugin::plugin_shell_show_in_folder,
+            commands::extensions::plugin::plugin_process_kill,
+            commands::extensions::plugin::plugin_db_query,
+            commands::extensions::plugin::plugin_db_execute,
+            commands::extensions::plugin::plugin_db_begin_transaction,
+            commands::extensions::plugin::plugin_db_tx_query,
+            commands::extensions::plugin::plugin_db_tx_execute,
+            commands::extensions::plugin::plugin_db_commit,
+            commands::extensions::plugin::plugin_db_rollback,
+            commands::extensions::plugin::plugin_db_create_table,
+            commands::extensions::plugin::plugin_db_drop_table,
+            commands::extensions::plugin::plugin_db_table_exists,
+            commands::extensions::plugin::plugin_shortcut_register,
+            commands::extensions::plugin::plugin_shortcut_unregister,
+            commands::extensions::plugin::plugin_context_menu_register,
+            commands::extensions::plugin::plugin_context_menu_unregister,
+            commands::extensions::plugin::plugin_window_create,
+            commands::extensions::plugin::plugin_window_close,
+            commands::extensions::plugin::plugin_window_set_title,
+            commands::extensions::plugin::plugin_window_set_size,
+            commands::extensions::plugin::plugin_window_set_position,
+            commands::extensions::plugin::plugin_window_center,
+            commands::extensions::plugin::plugin_window_show,
+            commands::extensions::plugin::plugin_window_hide,
+            commands::extensions::plugin::plugin_window_focus,
+            commands::extensions::plugin::plugin_window_minimize,
+            commands::extensions::plugin::plugin_window_maximize,
+            commands::extensions::plugin::plugin_window_unmaximize,
+            commands::extensions::plugin::plugin_window_set_always_on_top,
+            commands::extensions::plugin::plugin_secrets_store,
+            commands::extensions::plugin::plugin_secrets_get,
+            commands::extensions::plugin::plugin_secrets_delete,
+            commands::extensions::plugin::plugin_secrets_has,
+            commands::extensions::plugin::plugin_load,
+            commands::extensions::plugin::plugin_unload,
+            commands::extensions::plugin::plugin_enable,
+            commands::extensions::plugin::plugin_disable,
+            commands::extensions::plugin::plugin_reload,
+            commands::extensions::plugin::plugin_set_state,
+            commands::extensions::plugin::plugin_invalidate_cache,
+            commands::extensions::plugin::plugin_watch_start,
+            commands::extensions::plugin::plugin_watch_stop,
+            commands::extensions::plugin::plugin_dev_server_stop,
+            commands::extensions::plugin::plugin_backup_create,
+            commands::extensions::plugin::plugin_backup_restore,
+            commands::extensions::plugin::plugin_backup_delete,
+            commands::extensions::plugin::plugin_backup_save_index,
+            commands::extensions::plugin::plugin_install_update,
+            commands::extensions::plugin::plugin_install_version,
+            commands::extensions::plugin::plugin_set_data,
             // Skill commands
             commands::extensions::skill::skill_list_repos,
             commands::extensions::skill::skill_add_repo,
@@ -1534,11 +1876,14 @@ pub fn run() {
             commands::input_completion::input_completion_get_ime_state,
             commands::input_completion::input_completion_get_suggestion,
             commands::input_completion::input_completion_accept,
+            commands::input_completion::input_completion_accept_v2,
             commands::input_completion::input_completion_dismiss,
+            commands::input_completion::input_completion_dismiss_v2,
             commands::input_completion::input_completion_get_status,
             commands::input_completion::input_completion_update_config,
             commands::input_completion::input_completion_get_config,
             commands::input_completion::input_completion_trigger,
+            commands::input_completion::input_completion_trigger_v2,
             commands::input_completion::input_completion_is_running,
             commands::input_completion::input_completion_get_stats,
             commands::input_completion::input_completion_reset_stats,
@@ -1562,6 +1907,19 @@ pub fn run() {
             commands::scheduler::scheduler_request_elevation,
             commands::scheduler::scheduler_confirm_task,
             commands::scheduler::scheduler_validate_task,
+            // Workflow runtime commands
+            commands::workflow_runtime::workflow_run_definition,
+            commands::workflow_runtime::workflow_cancel_execution,
+            commands::workflow_runtime::workflow_pause_execution,
+            commands::workflow_runtime::workflow_resume_execution,
+            commands::workflow_runtime::workflow_get_execution,
+            commands::workflow_runtime::workflow_list_executions,
+            // SpeedPass runtime commands
+            commands::speedpass_runtime::speedpass_runtime_load_snapshot,
+            commands::speedpass_runtime::speedpass_runtime_save_snapshot,
+            commands::speedpass_runtime::speedpass_runtime_import_legacy_snapshot,
+            commands::speedpass_runtime::speedpass_runtime_extract_textbook_content,
+            commands::speedpass_runtime::speedpass_runtime_match_teacher_keypoints,
             // External agent commands
             external_agent::spawn_external_agent,
             external_agent::send_to_external_agent,
@@ -1596,6 +1954,7 @@ pub fn run() {
                     event: WindowEvent::CloseRequested { api, .. },
                     ..
                 } => {
+                    #[cfg(not(mobile))]
                     if label == "main" {
                         // Hide window instead of closing to keep tray icon active
                         api.prevent_close();
@@ -1626,7 +1985,6 @@ pub fn run() {
 /// - Stdout: Console output for development
 /// - Webview: Browser console for debugging frontend-backend interaction
 /// - LogDir: Persistent log files with rotation for production debugging
-#[cfg(not(debug_assertions))]
 fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_log::Builder::new()
         // Set default log level based on build mode
@@ -1682,6 +2040,7 @@ fn build_log_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
 }
 
 /// Create the application window menu
+#[cfg(not(mobile))]
 fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     // File submenu
     let file_submenu = Submenu::with_id_and_items(
@@ -1863,6 +2222,7 @@ fn create_window_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 }
 
 /// Handle menu events from both window menu and tray menu
+#[cfg(not(mobile))]
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
     log::debug!("Menu event received: {}", id);
 
@@ -1935,10 +2295,10 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) {
 
         // Tools menu
         "menu-screenshot" => {
-            let _ = app.emit("start-region-screenshot", ());
+            tray::handle_screenshot_action(app, "screenshot-region");
         }
         "menu-ocr" => {
-            let _ = app.emit("start-ocr-screenshot", ());
+            tray::handle_screenshot_action(app, "screenshot-ocr");
         }
         "menu-chat-widget" => {
             if let Some(manager) = app.try_state::<ChatWidgetWindow>() {
@@ -2012,6 +2372,7 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
     log::info!("Performing full application cleanup...");
 
     // 1. Unregister all global shortcuts
+    #[cfg(not(mobile))]
     {
         use tauri_plugin_global_shortcut::GlobalShortcutExt;
         if let Err(e) = app.global_shortcut().unregister_all() {
@@ -2056,24 +2417,28 @@ fn perform_full_cleanup(app: &tauri::AppHandle) {
         }
     }
 
-    // 4. Remove tray icon FIRST (fast operation, prevents "Error removing system tray icon")
-    if let Some(tray) = app.tray_by_id("main-tray") {
-        // Clear menu to release resources, then hide to trigger OS cleanup
-        let _ = tray.set_menu(None::<tauri::menu::Menu<tauri::Wry>>);
-        let _ = tray.set_visible(false);
-        log::debug!("Tray icon removed");
+    #[cfg(not(mobile))]
+    {
+        // 4. Remove tray icon FIRST (fast operation, prevents "Error removing system tray icon")
+        if let Some(tray) = app.tray_by_id("main-tray") {
+            // Clear menu to release resources, then hide to trigger OS cleanup
+            let _ = tray.set_menu(None::<tauri::menu::Menu<tauri::Wry>>);
+            let _ = tray.set_visible(false);
+            log::debug!("Tray icon removed");
+        }
+
+        // 5. Destroy ALL windows (auxiliary + main) to allow Win32 class unregistration
+        destroy_all_windows(app);
+
+        // Allow WebView2 to fully tear down its Win32 window classes
+        std::thread::sleep(std::time::Duration::from_millis(200));
     }
-
-    // 5. Destroy ALL windows (auxiliary + main) to allow Win32 class unregistration
-    destroy_all_windows(app);
-
-    // Allow WebView2 to fully tear down its Win32 window classes
-    std::thread::sleep(std::time::Duration::from_millis(200));
 
     log::info!("Full cleanup completed");
 }
 
 /// Tear down all windows safely to prevent Win32 class unregistration errors
+#[cfg(not(mobile))]
 fn destroy_all_windows(app: &tauri::AppHandle) {
     // 1. Auxiliary windows first (chat widget, selection toolbar, assistant bubble, splash)
 
@@ -2103,6 +2468,26 @@ fn destroy_all_windows(app: &tauri::AppHandle) {
             log::debug!("Failed to destroy assistant bubble via manager: {}", e);
         }
     } else if let Some(window) = app.get_webview_window("assistant-bubble") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Recording toolbar
+    if let Some(manager) = app.try_state::<screen_recording::RecordingToolbar>() {
+        if let Err(e) = manager.destroy() {
+            log::debug!("Failed to destroy recording toolbar via manager: {}", e);
+        }
+    } else if let Some(window) = app.get_webview_window("recording-toolbar") {
+        let _ = window.hide();
+        let _ = window.destroy();
+    }
+
+    // Recording click highlight overlay
+    if let Some(manager) = app.try_state::<screen_recording::RecordingClickOverlay>() {
+        if let Err(e) = manager.destroy() {
+            log::debug!("Failed to destroy recording click overlay via manager: {}", e);
+        }
+    } else if let Some(window) = app.get_webview_window("recording-click-overlay") {
         let _ = window.hide();
         let _ = window.destroy();
     }

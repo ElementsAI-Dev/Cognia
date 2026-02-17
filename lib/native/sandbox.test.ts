@@ -420,4 +420,34 @@ describe('New Sandbox API Functions', () => {
       expect(result).toEqual(mockExecutions);
     });
   });
+
+  describe('parameter serialization', () => {
+    it('should send snake_case timeout and memory args', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const { setDefaultTimeout, setMemoryLimit } = await import('@/lib/native/sandbox');
+      await setDefaultTimeout(42);
+      await setMemoryLimit(768);
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_timeout', {
+        timeout_secs: 42,
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_set_memory_limit', {
+        memory_mb: 768,
+      });
+    });
+
+    it('should send save_to_history in executeWithOptions', async () => {
+      mockInvoke.mockResolvedValue({ id: 'exec', status: 'completed' });
+
+      const { executeWithOptions } = await import('@/lib/native/sandbox');
+      await executeWithOptions({ language: 'python', code: 'print(1)' }, ['x'], true);
+
+      expect(mockInvoke).toHaveBeenCalledWith('sandbox_execute_with_options', {
+        request: { language: 'python', code: 'print(1)' },
+        tags: ['x'],
+        save_to_history: true,
+      });
+    });
+  });
 });

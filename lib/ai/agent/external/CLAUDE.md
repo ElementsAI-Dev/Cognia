@@ -300,6 +300,19 @@ const hooks: PluginHooksAll = {
 - `ExternalAgentCommands` - Slash command execution
 - `ExternalAgentPlan` - Execution plan display
 
+## ACP Contract Notes
+
+- Permission requests preserve ACP-native fields (`options`, `rawInput`, `locations`, `_meta`) end-to-end.
+- Terminal contract supports:
+  - `terminal/create` with `env` and `outputByteLimit`
+  - `terminal/output` with `outputByteLimit`, returning `output`, `truncated`, `exitStatus`, and `exitCode` (compat)
+  - `terminal/wait_for_exit` returning `exitStatus` and `exitCode` (compat)
+- Session extension support includes:
+  - `session/list`
+  - `session/fork`
+  - `session/resume` (with fallback to `session/load` when unavailable)
+- Extension method routing for methods prefixed with `_` is supported.
+
 ## Future Enhancements
 
 - [ ] A2A (Agent-to-Agent) protocol support
@@ -308,7 +321,4 @@ const hooks: PluginHooksAll = {
 - [ ] Agent capability discovery and matching
 - [ ] Multi-agent collaboration patterns
 - [ ] Persistent agent sessions across app restarts
-- [ ] Session List (`session/list`) - RFD for discovering existing sessions
-- [ ] Session Fork - RFD for forking sessions
-- [ ] Extension method routing (methods starting with `_`)
 - [ ] `_meta` field propagation on all protocol types

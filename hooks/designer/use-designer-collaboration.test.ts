@@ -14,6 +14,7 @@ const mockApplyLocalUpdate = jest.fn();
 const mockUpdateCursor = jest.fn();
 const mockGetDocumentContent = jest.fn();
 const mockSerializeState = jest.fn();
+const mockDeserializeState = jest.fn();
 const mockGetSession = jest.fn();
 const mockSetLocalParticipantId = jest.fn();
 
@@ -28,6 +29,7 @@ jest.mock('@/lib/canvas/collaboration/crdt-store', () => ({
     updateCursor: (...args: unknown[]) => mockUpdateCursor(...args),
     getDocumentContent: (...args: unknown[]) => mockGetDocumentContent(...args),
     serializeState: (...args: unknown[]) => mockSerializeState(...args),
+    deserializeState: (...args: unknown[]) => mockDeserializeState(...args),
     getSession: (...args: unknown[]) => mockGetSession(...args),
     setLocalParticipantId: (...args: unknown[]) => mockSetLocalParticipantId(...args),
   },
@@ -93,6 +95,7 @@ describe('useDesignerCollaboration', () => {
     mockCreateSession.mockReturnValue(mockSession);
     mockProviderConnect.mockResolvedValue(undefined);
     mockApplyLocalUpdate.mockReturnValue({ type: 'insert', position: 0, text: 'test' });
+    mockDeserializeState.mockReturnValue(null);
   });
 
   describe('initialization', () => {
@@ -392,6 +395,41 @@ describe('useDesignerCollaboration', () => {
         await result.current.joinSession('non-existent');
       });
 
+      expect(result.current.session).toBeNull();
+    });
+  });
+
+  describe('importSharedSession', () => {
+    it('should import serialized session and set local state', async () => {
+      const existingSession: CollaborativeSession = {
+        ...mockSession,
+        id: 'imported-session',
+      };
+      mockDeserializeState.mockReturnValue('imported-session');
+      mockGetSession.mockReturnValue(existingSession);
+      mockGetDocumentContent.mockReturnValue('shared code');
+
+      const { result } = renderHook(() => useDesignerCollaboration());
+
+      let importedId: string | null = null;
+      await act(async () => {
+        importedId = await result.current.importSharedSession('serialized');
+      });
+
+      expect(importedId).toBe('imported-session');
+      expect(result.current.session).toEqual(existingSession);
+    });
+
+    it('should return null when import fails', async () => {
+      mockDeserializeState.mockReturnValue(null);
+      const { result } = renderHook(() => useDesignerCollaboration());
+
+      let importedId: string | null = 'unexpected';
+      await act(async () => {
+        importedId = await result.current.importSharedSession('broken');
+      });
+
+      expect(importedId).toBeNull();
       expect(result.current.session).toBeNull();
     });
   });

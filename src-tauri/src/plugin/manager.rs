@@ -2,7 +2,7 @@
 //!
 //! Handles plugin discovery, installation, and lifecycle management.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -15,10 +15,34 @@ use super::types::*;
 pub struct PluginManager {
     /// Plugin directory
     plugin_dir: PathBuf,
+    /// Plugin runtime root directory
+    runtime_root: PathBuf,
+    /// Persisted plugin index path
+    state_file: PathBuf,
     /// Installed plugins
     plugins: Arc<RwLock<HashMap<String, PluginState>>>,
+    /// Explicit runtime permission grants (canonical permission names)
+    permission_grants: Arc<RwLock<HashMap<String, HashSet<String>>>>,
     /// Python runtime (optional)
     python_runtime: Option<Arc<RwLock<PythonRuntime>>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
+struct PluginStateIndex {
+    plugins: Vec<PluginState>,
+    #[serde(default)]
+    permission_grants: HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PluginRuntimeDirs {
+    pub root: String,
+    pub data: String,
+    pub cache: String,
+    pub temp: String,
+    pub db: String,
+    pub secrets: String,
+    pub backups: String,
 }
 
 impl PluginManager {
@@ -29,14 +53,158 @@ impl PluginManager {
             std::fs::create_dir_all(&plugin_dir).ok();
         }
 
+        let runtime_root = plugin_dir
+            .parent()
+            .unwrap_or(plugin_dir.as_path())
+            .join("plugins_runtime");
+        if !runtime_root.exists() {
+            std::fs::create_dir_all(&runtime_root).ok();
+        }
+
+        let state_file = plugin_dir.join(".plugin-index.json");
+
+        let mut plugins_map: HashMap<String, PluginState> = HashMap::new();
+        let mut grants_map: HashMap<String, HashSet<String>> = HashMap::new();
+        if state_file.exists() {
+            if let Ok(raw) = std::fs::read_to_string(&state_file) {
+                if let Ok(index) = serde_json::from_str::<PluginStateIndex>(&raw) {
+                    for plugin in index.plugins {
+                        plugins_map.insert(plugin.manifest.id.clone(), plugin);
+                    }
+                    for (plugin_id, permissions) in index.permission_grants {
+                        grants_map.insert(plugin_id, permissions.into_iter().collect());
+                    }
+                }
+            }
+        }
+
         Self {
             plugin_dir,
-            plugins: Arc::new(RwLock::new(HashMap::new())),
+            runtime_root,
+            state_file,
+            plugins: Arc::new(RwLock::new(plugins_map)),
+            permission_grants: Arc::new(RwLock::new(grants_map)),
             python_runtime: None,
         }
     }
     pub fn plugin_dir(&self) -> PathBuf {
         self.plugin_dir.clone()
+    }
+
+    pub fn runtime_root(&self) -> PathBuf {
+        self.runtime_root.clone()
+    }
+
+    async fn persist_index(&self) -> PluginResult<()> {
+        let plugins = self.plugins.read().await;
+        let grants = self.permission_grants.read().await;
+        let index = PluginStateIndex {
+            plugins: plugins.values().cloned().collect(),
+            permission_grants: grants
+                .iter()
+                .map(|(k, v)| (k.clone(), v.iter().cloned().collect()))
+                .collect(),
+        };
+        let encoded = serde_json::to_string_pretty(&index)?;
+        std::fs::write(&self.state_file, encoded)?;
+        Ok(())
+    }
+
+    fn now_iso8601() -> String {
+        chrono::Utc::now().to_rfc3339()
+    }
+
+    pub async fn ensure_plugin_runtime_dirs(
+        &self,
+        plugin_id: &str,
+    ) -> PluginResult<PluginRuntimeDirs> {
+        let root = self.runtime_root.join(plugin_id);
+        let data = root.join("data");
+        let cache = root.join("cache");
+        let temp = root.join("temp");
+        let db = root.join("db");
+        let secrets = root.join("secrets");
+        let backups = root.join("backups");
+
+        for dir in [&root, &data, &cache, &temp, &db, &secrets, &backups] {
+            std::fs::create_dir_all(dir)?;
+        }
+
+        Ok(PluginRuntimeDirs {
+            root: root.to_string_lossy().to_string(),
+            data: data.to_string_lossy().to_string(),
+            cache: cache.to_string_lossy().to_string(),
+            temp: temp.to_string_lossy().to_string(),
+            db: db.to_string_lossy().to_string(),
+            secrets: secrets.to_string_lossy().to_string(),
+            backups: backups.to_string_lossy().to_string(),
+        })
+    }
+
+    pub async fn set_plugin_status(
+        &self,
+        plugin_id: &str,
+        status: PluginStatus,
+    ) -> PluginResult<()> {
+        {
+            let mut plugins = self.plugins.write().await;
+            let plugin = plugins
+                .get_mut(plugin_id)
+                .ok_or_else(|| PluginError::NotFound(plugin_id.to_string()))?;
+            plugin.status = status.clone();
+            match status {
+                PluginStatus::Installed => {
+                    if plugin.installed_at.is_none() {
+                        plugin.installed_at = Some(Self::now_iso8601());
+                    }
+                }
+                PluginStatus::Enabled => {
+                    plugin.enabled_at = Some(Self::now_iso8601());
+                }
+                _ => {}
+            }
+        }
+        self.persist_index().await?;
+        Ok(())
+    }
+
+    pub async fn grant_permission(&self, plugin_id: &str, permission: &str) -> PluginResult<()> {
+        {
+            let mut grants = self.permission_grants.write().await;
+            grants
+                .entry(plugin_id.to_string())
+                .or_default()
+                .insert(permission.to_string());
+        }
+        self.persist_index().await?;
+        Ok(())
+    }
+
+    pub async fn revoke_permission(&self, plugin_id: &str, permission: &str) -> PluginResult<()> {
+        {
+            let mut grants = self.permission_grants.write().await;
+            if let Some(perms) = grants.get_mut(plugin_id) {
+                perms.remove(permission);
+            }
+        }
+        self.persist_index().await?;
+        Ok(())
+    }
+
+    pub async fn list_permissions(&self, plugin_id: &str) -> Vec<String> {
+        let grants = self.permission_grants.read().await;
+        grants
+            .get(plugin_id)
+            .map(|perms| perms.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    pub async fn has_permission(&self, plugin_id: &str, permission: &str) -> bool {
+        let grants = self.permission_grants.read().await;
+        grants
+            .get(plugin_id)
+            .map(|perms| perms.contains(permission))
+            .unwrap_or(false)
     }
 
     fn find_manifest_file(repo_dir: &Path) -> PluginResult<PathBuf> {
@@ -127,6 +295,28 @@ impl PluginManager {
                 }
             }
         }
+
+        // Keep plugin states in sync with discovered manifests.
+        {
+            let mut plugins = self.plugins.write().await;
+            for result in &results {
+                let id = result.manifest.id.clone();
+                let existing = plugins.get(&id).cloned();
+                let mut state = existing.unwrap_or(PluginState {
+                    manifest: result.manifest.clone(),
+                    status: PluginStatus::Installed,
+                    path: result.path.clone(),
+                    config: serde_json::json!({}),
+                    error: None,
+                    installed_at: Some(Self::now_iso8601()),
+                    enabled_at: None,
+                });
+                state.manifest = result.manifest.clone();
+                state.path = result.path.clone();
+                plugins.insert(id, state);
+            }
+        }
+        self.persist_index().await?;
 
         Ok(results)
     }
@@ -306,7 +496,7 @@ impl PluginManager {
         let source_path = PathBuf::from(&options.source);
 
         // Determine installation method
-        match options.install_type.as_str() {
+        let result = match options.install_type.as_str() {
             "local" => self.install_from_local(&source_path).await,
             "git" => self.install_from_git(&options.source).await,
             "marketplace" => self.install_from_marketplace(&options.source).await,
@@ -314,7 +504,25 @@ impl PluginManager {
                 "Unknown install type: {}",
                 options.install_type
             ))),
+        }?;
+
+        {
+            let mut plugins = self.plugins.write().await;
+            plugins.insert(
+                result.manifest.id.clone(),
+                PluginState {
+                    manifest: result.manifest.clone(),
+                    status: PluginStatus::Installed,
+                    path: result.path.clone(),
+                    config: serde_json::json!({}),
+                    error: None,
+                    installed_at: Some(Self::now_iso8601()),
+                    enabled_at: None,
+                },
+            );
         }
+        self.persist_index().await?;
+        Ok(result)
     }
 
     /// Install from local directory
@@ -641,12 +849,24 @@ impl PluginManager {
             let mut plugins = self.plugins.write().await;
             plugins.remove(plugin_id);
         }
+        {
+            let mut grants = self.permission_grants.write().await;
+            grants.remove(plugin_id);
+        }
 
         // Remove plugin directory
         let path = PathBuf::from(plugin_path);
         if path.exists() {
             std::fs::remove_dir_all(path)?;
         }
+
+        // Remove plugin runtime directory
+        let runtime_dir = self.runtime_root.join(plugin_id);
+        if runtime_dir.exists() {
+            std::fs::remove_dir_all(runtime_dir)?;
+        }
+
+        self.persist_index().await?;
 
         Ok(())
     }

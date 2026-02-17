@@ -3,18 +3,23 @@
 //! Uses FFmpeg for cross-platform screen recording
 
 use super::{
-    ffmpeg, AudioDevice, AudioDevices, MonitorInfo, RecordingConfig, RecordingError,
-    RecordingMetadata, RecordingRegion, RecordingStatus,
+    click_highlight::RecordingClickOverlay, ffmpeg, AudioDevice, AudioDevices, MonitorInfo,
+    RecordingConfig, RecordingError, RecordingMetadata, RecordingRegion, RecordingStatus,
+    RecordingToolbar,
 };
+use crate::selection::{MouseEvent, MouseHook};
 use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 /// Recording state
@@ -32,6 +37,10 @@ pub struct RecordingState {
     pub width: u32,
     pub height: u32,
     pub has_audio: bool,
+    pub show_indicator: bool,
+    pub max_duration: u64,
+    pub pause_on_minimize: bool,
+    pub highlight_clicks: bool,
 }
 
 impl Default for RecordingState {
@@ -50,8 +59,52 @@ impl Default for RecordingState {
             width: 0,
             height: 0,
             has_audio: false,
+            show_indicator: true,
+            max_duration: 0,
+            pause_on_minimize: false,
+            highlight_clicks: false,
         }
     }
+}
+
+struct RecordingSession {
+    pub countdown_cancel: CancellationToken,
+    pub lifecycle_cancel: CancellationToken,
+    pub click_hook: Option<Arc<MouseHook>>,
+}
+
+impl RecordingSession {
+    fn new(_recording_id: String) -> Self {
+        Self {
+            countdown_cancel: CancellationToken::new(),
+            lifecycle_cancel: CancellationToken::new(),
+            click_hook: None,
+        }
+    }
+
+    fn cancel_all(&self) {
+        self.countdown_cancel.cancel();
+        self.lifecycle_cancel.cancel();
+        if let Some(ref hook) = self.click_hook {
+            let _ = hook.stop();
+        }
+    }
+}
+
+struct RecordingAudioPlan {
+    input_args: Vec<String>,
+    filter_args: Vec<String>,
+    map_args: Vec<String>,
+    has_audio: bool,
+}
+
+enum RecordingVideoInput {
+    Fullscreen {
+        window_title: Option<String>,
+        width: u32,
+        height: u32,
+    },
+    Region(RecordingRegion),
 }
 
 /// Timeout constants for recording operations
@@ -62,6 +115,7 @@ pub struct ScreenRecorder {
     state: Arc<RwLock<RecordingState>>,
     ffmpeg_process: Arc<RwLock<Option<Child>>>,
     app_handle: AppHandle,
+    session: Arc<RwLock<Option<RecordingSession>>>,
     /// Flag to indicate if recorder is being dropped
     is_dropping: Arc<AtomicBool>,
 }
@@ -73,6 +127,7 @@ impl ScreenRecorder {
             state: Arc::new(RwLock::new(RecordingState::default())),
             ffmpeg_process: Arc::new(RwLock::new(None)),
             app_handle,
+            session: Arc::new(RwLock::new(None)),
             is_dropping: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -113,6 +168,58 @@ impl ScreenRecorder {
         *process = None;
     }
 
+    fn init_session(&self, recording_id: &str) {
+        self.clear_session();
+        *self.session.write() = Some(RecordingSession::new(recording_id.to_string()));
+    }
+
+    fn clear_session(&self) {
+        if let Some(session) = self.session.write().take() {
+            session.cancel_all();
+        }
+        if let Some(overlay) = self.app_handle.try_state::<RecordingClickOverlay>() {
+            let _ = overlay.hide();
+        }
+    }
+
+    fn emit_recording_error(&self, error_value: &str) {
+        let parsed = serde_json::from_str::<serde_json::Value>(error_value).ok();
+        let payload = if let Some(json) = parsed {
+            let code = json
+                .get("code")
+                .and_then(|v| v.as_str())
+                .unwrap_or("UNKNOWN")
+                .to_string();
+            let message = json
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or(error_value)
+                .to_string();
+            let details = json
+                .get("details")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string());
+            let suggestion = json
+                .get("suggestion")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string());
+
+            serde_json::json!({
+                "error": message,
+                "code": code,
+                "details": details,
+                "suggestion": suggestion,
+            })
+        } else {
+            serde_json::json!({
+                "error": error_value,
+                "code": "UNKNOWN",
+            })
+        };
+
+        let _ = self.app_handle.emit("recording-error", payload);
+    }
+
     /// Get current recording status
     pub fn get_status(&self) -> RecordingStatus {
         self.state.read().status.clone()
@@ -147,12 +254,19 @@ impl ScreenRecorder {
         &self,
         config: &RecordingConfig,
         recording_id: &str,
-        output_path: &str,
+        _output_path: &str,
         start_ffmpeg: F,
     ) -> Result<(), String>
     where
-        F: FnOnce() -> Result<(), String>,
+        F: FnOnce() -> Result<bool, String>,
     {
+        let countdown_cancel = self
+            .session
+            .read()
+            .as_ref()
+            .map(|s| s.countdown_cancel.clone())
+            .unwrap_or_default();
+
         // Emit countdown event
         self.emit_status_change();
 
@@ -163,27 +277,61 @@ impl ScreenRecorder {
                 config.countdown_seconds
             );
             for i in (1..=config.countdown_seconds).rev() {
+                if countdown_cancel.is_cancelled() {
+                    info!("[ScreenRecorder] Countdown cancelled before start");
+                    return Err(String::from(RecordingError::not_recording()));
+                }
                 debug!("[ScreenRecorder] Countdown: {}", i);
                 let _ = self.app_handle.emit("recording-countdown", i);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                tokio::select! {
+                    _ = countdown_cancel.cancelled() => {
+                        info!("[ScreenRecorder] Countdown cancelled during wait");
+                        return Err(String::from(RecordingError::not_recording()));
+                    }
+                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {}
+                }
+            }
+        }
+
+        {
+            let state = self.state.read();
+            if state.status != RecordingStatus::Countdown
+                || state.recording_id.as_deref() != Some(recording_id)
+            {
+                return Err(String::from(RecordingError::not_recording()));
             }
         }
 
         // Start FFmpeg
         info!("[ScreenRecorder] Starting FFmpeg recording process");
-        start_ffmpeg()?;
+        let has_audio = match start_ffmpeg() {
+            Ok(value) => value,
+            Err(error_msg) => {
+                error!("[ScreenRecorder] Failed to start FFmpeg: {}", error_msg);
+                self.clear_session();
+                {
+                    let mut state = self.state.write();
+                    *state = RecordingState::default();
+                }
+                self.emit_status_change();
+                self.emit_recording_error(&error_msg);
+                return Err(error_msg);
+            }
+        };
 
         // Update state to recording
         {
             let mut state = self.state.write();
             state.status = RecordingStatus::Recording;
             state.start_time = Some(chrono::Utc::now().timestamp_millis());
+            state.has_audio = has_audio;
             info!(
                 "[ScreenRecorder] Recording started at timestamp: {:?}, id={}",
                 state.start_time, recording_id
             );
         }
 
+        self.start_recording_watchdogs(recording_id.to_string(), config.clone());
         self.emit_status_change();
         Ok(())
     }
@@ -198,7 +346,10 @@ impl ScreenRecorder {
             "[ScreenRecorder] start_fullscreen called, monitor_index={:?}",
             monitor_index
         );
-        self.check_not_recording()?;
+        if let Err(err) = self.check_not_recording() {
+            self.emit_recording_error(&err);
+            return Err(err);
+        }
 
         let monitors = self.get_monitors();
         debug!("[ScreenRecorder] Found {} monitors", monitors.len());
@@ -225,6 +376,7 @@ impl ScreenRecorder {
         );
 
         // Update state
+        self.init_session(&recording_id);
         {
             let mut state = self.state.write();
             state.status = RecordingStatus::Countdown;
@@ -234,6 +386,10 @@ impl ScreenRecorder {
             state.monitor_index = Some(monitor.index);
             state.width = monitor.width;
             state.height = monitor.height;
+            state.show_indicator = config.show_indicator;
+            state.max_duration = config.max_duration;
+            state.pause_on_minimize = config.pause_on_minimize;
+            state.highlight_clicks = config.highlight_clicks;
             debug!("[ScreenRecorder] State updated to Countdown");
         }
 
@@ -257,7 +413,10 @@ impl ScreenRecorder {
             "[ScreenRecorder] start_window called, window_title={:?}",
             window_title
         );
-        self.check_not_recording()?;
+        if let Err(err) = self.check_not_recording() {
+            self.emit_recording_error(&err);
+            return Err(err);
+        }
 
         let recording_id = Uuid::new_v4().to_string();
         let output_path = self.generate_output_path(&config, &recording_id)?;
@@ -292,6 +451,7 @@ impl ScreenRecorder {
         );
 
         {
+            self.init_session(&recording_id);
             let mut state = self.state.write();
             state.status = RecordingStatus::Countdown;
             state.recording_id = Some(recording_id.clone());
@@ -300,6 +460,10 @@ impl ScreenRecorder {
             state.window_title = window_title.clone();
             state.width = rec_width;
             state.height = rec_height;
+            state.show_indicator = config.show_indicator;
+            state.max_duration = config.max_duration;
+            state.pause_on_minimize = config.pause_on_minimize;
+            state.highlight_clicks = config.highlight_clicks;
             debug!("[ScreenRecorder] State updated to Countdown for window recording");
         }
 
@@ -327,7 +491,10 @@ impl ScreenRecorder {
             "[ScreenRecorder] start_region called: x={}, y={}, {}x{}",
             region.x, region.y, region.width, region.height
         );
-        self.check_not_recording()?;
+        if let Err(err) = self.check_not_recording() {
+            self.emit_recording_error(&err);
+            return Err(err);
+        }
 
         let recording_id = Uuid::new_v4().to_string();
         let output_path = self.generate_output_path(&config, &recording_id)?;
@@ -337,6 +504,7 @@ impl ScreenRecorder {
         );
 
         {
+            self.init_session(&recording_id);
             let mut state = self.state.write();
             state.status = RecordingStatus::Countdown;
             state.recording_id = Some(recording_id.clone());
@@ -345,6 +513,10 @@ impl ScreenRecorder {
             state.region = Some(region.clone());
             state.width = region.width;
             state.height = region.height;
+            state.show_indicator = config.show_indicator;
+            state.max_duration = config.max_duration;
+            state.pause_on_minimize = config.pause_on_minimize;
+            state.highlight_clicks = config.highlight_clicks;
             debug!("[ScreenRecorder] State updated to Countdown for region recording");
         }
 
@@ -365,7 +537,9 @@ impl ScreenRecorder {
                 "[ScreenRecorder] Cannot pause - not in Recording state, current: {:?}",
                 state.status
             );
-            return Err("Not recording".to_string());
+            let err = String::from(RecordingError::not_recording());
+            self.emit_recording_error(&err);
+            return Err(err);
         }
 
         // Suspend the FFmpeg process to actually pause recording
@@ -400,7 +574,9 @@ impl ScreenRecorder {
                 "[ScreenRecorder] Cannot resume - not in Paused state, current: {:?}",
                 state.status
             );
-            return Err("Not paused".to_string());
+            let err = String::from(RecordingError::not_paused());
+            self.emit_recording_error(&err);
+            return Err(err);
         }
 
         // Resume the FFmpeg process
@@ -440,7 +616,9 @@ impl ScreenRecorder {
                 "[ScreenRecorder] Cannot stop - not in Recording or Paused state, current: {:?}",
                 state.status
             );
-            return Err("Not recording".to_string());
+            let err = String::from(RecordingError::not_recording());
+            self.emit_recording_error(&err);
+            return Err(err);
         }
         let recording_id = state.recording_id.clone();
         drop(state);
@@ -458,11 +636,20 @@ impl ScreenRecorder {
 
         // Stop FFmpeg process
         info!("[ScreenRecorder] Stopping FFmpeg process");
-        self.stop_ffmpeg()?;
+        if let Err(err) = self.stop_ffmpeg() {
+            self.emit_recording_error(&err);
+            return Err(err);
+        }
 
         // Get metadata
         info!("[ScreenRecorder] Creating recording metadata");
-        let metadata = self.create_metadata()?;
+        let metadata = match self.create_metadata() {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                self.emit_recording_error(&err);
+                return Err(err);
+            }
+        };
         info!(
             "[ScreenRecorder] Recording metadata created: id={}, duration={}ms, size={} bytes",
             metadata.id, metadata.duration_ms, metadata.file_size
@@ -474,6 +661,7 @@ impl ScreenRecorder {
             *state = RecordingState::default();
             debug!("[ScreenRecorder] State reset to default");
         }
+        self.clear_session();
         self.emit_status_change();
 
         // Emit completion event
@@ -489,7 +677,14 @@ impl ScreenRecorder {
         let state = self.state.read();
         if state.status == RecordingStatus::Idle {
             warn!("[ScreenRecorder] Cannot cancel - already in Idle state");
-            return Err("Not recording".to_string());
+            let err = String::from(RecordingError::not_recording());
+            self.emit_recording_error(&err);
+            return Err(err);
+        }
+        if state.status == RecordingStatus::Countdown {
+            if let Some(session) = self.session.read().as_ref() {
+                session.countdown_cancel.cancel();
+            }
         }
         let output_path = state.output_path.clone();
         let recording_id = state.recording_id.clone();
@@ -521,6 +716,7 @@ impl ScreenRecorder {
             *state = RecordingState::default();
             debug!("[ScreenRecorder] State reset to default after cancel");
         }
+        self.clear_session();
         self.emit_status_change();
 
         info!("[ScreenRecorder] Emitting recording-cancelled event");
@@ -759,6 +955,171 @@ impl ScreenRecorder {
 
     // Private helper methods
 
+    fn start_recording_watchdogs(&self, recording_id: String, config: RecordingConfig) {
+        debug!(
+            "[ScreenRecorder] Starting recording watchdogs for recording_id={}",
+            recording_id
+        );
+        let lifecycle_cancel = self
+            .session
+            .read()
+            .as_ref()
+            .map(|session| session.lifecycle_cancel.clone())
+            .unwrap_or_default();
+
+        if config.highlight_clicks {
+            self.start_click_highlight_service(lifecycle_cancel.clone());
+        }
+
+        if config.max_duration > 0 {
+            let app_handle = self.app_handle.clone();
+            let max_duration_ms = config.max_duration.saturating_mul(1000);
+            let recording_id_for_log = recording_id.clone();
+            let lifecycle_cancel_for_duration = lifecycle_cancel.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::select! {
+                        _ = lifecycle_cancel_for_duration.cancelled() => {
+                            break;
+                        }
+                        _ = tokio::time::sleep(Duration::from_millis(250)) => {}
+                    }
+
+                    let Some(manager) =
+                        app_handle.try_state::<crate::screen_recording::ScreenRecordingManager>()
+                    else {
+                        break;
+                    };
+                    let status = manager.get_status();
+                    if status != RecordingStatus::Recording && status != RecordingStatus::Paused {
+                        break;
+                    }
+
+                    let duration = manager.get_duration();
+                    if duration >= max_duration_ms {
+                        info!(
+                            "[ScreenRecorder] max_duration reached for recording {} ({}ms >= {}ms), auto stopping",
+                            recording_id_for_log, duration, max_duration_ms
+                        );
+                        let app_handle_for_stop = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Some(manager) = app_handle_for_stop
+                                .try_state::<crate::screen_recording::ScreenRecordingManager>()
+                            {
+                                if let Err(err) = manager.stop().await {
+                                    error!("[ScreenRecorder] Failed to auto-stop recording: {}", err);
+                                }
+                            }
+                        });
+                        break;
+                    }
+                }
+            });
+        }
+
+        if config.pause_on_minimize {
+            let app_handle = self.app_handle.clone();
+            let lifecycle_cancel_for_minimize = lifecycle_cancel.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut paused_by_minimize = false;
+
+                loop {
+                    tokio::select! {
+                        _ = lifecycle_cancel_for_minimize.cancelled() => {
+                            break;
+                        }
+                        _ = tokio::time::sleep(Duration::from_millis(300)) => {}
+                    }
+
+                    let Some(manager) =
+                        app_handle.try_state::<crate::screen_recording::ScreenRecordingManager>()
+                    else {
+                        break;
+                    };
+                    let status = manager.get_status();
+                    if status == RecordingStatus::Idle || status == RecordingStatus::Processing {
+                        break;
+                    }
+
+                    let minimized = app_handle
+                        .get_webview_window("main")
+                        .and_then(|window| window.is_minimized().ok())
+                        .unwrap_or(false);
+
+                    if minimized && status == RecordingStatus::Recording {
+                        if manager.pause().is_ok() {
+                            paused_by_minimize = true;
+                            info!("[ScreenRecorder] Auto-paused recording because main window minimized");
+                        }
+                    } else if !minimized && paused_by_minimize && status == RecordingStatus::Paused {
+                        if manager.resume().is_ok() {
+                            paused_by_minimize = false;
+                            info!("[ScreenRecorder] Auto-resumed recording after main window restore");
+                        }
+                    } else if status == RecordingStatus::Recording {
+                        paused_by_minimize = false;
+                    }
+                }
+            });
+        }
+    }
+
+    fn start_click_highlight_service(&self, lifecycle_cancel: CancellationToken) {
+        let Some(overlay) = self.app_handle.try_state::<RecordingClickOverlay>() else {
+            warn!("[ScreenRecorder] RecordingClickOverlay state not found");
+            return;
+        };
+
+        if let Err(err) = overlay.show() {
+            warn!("[ScreenRecorder] Failed to show click highlight overlay: {}", err);
+            return;
+        }
+
+        let (tx, mut rx) = mpsc::unbounded_channel::<MouseEvent>();
+        let hook = Arc::new(MouseHook::new());
+        hook.set_event_sender(tx);
+        if let Err(err) = hook.start() {
+            warn!("[ScreenRecorder] Failed to start click highlight mouse hook: {}", err);
+            let _ = overlay.hide();
+            return;
+        }
+
+        if let Some(session) = self.session.write().as_mut() {
+            session.click_hook = Some(hook.clone());
+        }
+
+        let app_handle = self.app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = lifecycle_cancel.cancelled() => {
+                        break;
+                    }
+                    maybe_event = rx.recv() => {
+                        let Some(event) = maybe_event else {
+                            break;
+                        };
+                        let (x, y) = match event {
+                            MouseEvent::LeftButtonUp { x, y } => (x, y),
+                            MouseEvent::DoubleClick { x, y } => (x, y),
+                            MouseEvent::TripleClick { x, y } => (x, y),
+                            MouseEvent::DragEnd { x, y, .. } => (x, y),
+                        };
+
+                        if let Some(overlay) = app_handle.try_state::<RecordingClickOverlay>() {
+                            overlay.emit_click(x, y);
+                        }
+                    }
+                }
+            }
+
+            if let Some(overlay) = app_handle.try_state::<RecordingClickOverlay>() {
+                let _ = overlay.hide();
+            }
+            let _ = hook.stop();
+        });
+    }
+
     /// Get window dimensions by title on Windows
     #[cfg(target_os = "windows")]
     fn get_window_dimensions_by_title(title: &str) -> Option<(u32, u32)> {
@@ -936,199 +1297,327 @@ impl ScreenRecorder {
         }
     }
 
-    /// Build audio capture arguments based on config
-    fn build_audio_args(config: &RecordingConfig) -> Vec<String> {
-        let mut args: Vec<String> = Vec::new();
+    fn build_audio_plan(config: &RecordingConfig) -> RecordingAudioPlan {
+        let mut sources: Vec<String> = Vec::new();
 
         #[cfg(target_os = "windows")]
         {
             if config.capture_system_audio {
-                debug!("[ScreenRecorder] Adding system audio capture");
-                // Try WASAPI loopback first (lower latency), fallback to dshow
-                if let Some(ref device) = config.system_audio_device {
-                    args.extend([
-                        "-f".into(),
-                        "dshow".into(),
-                        "-i".into(),
-                        format!("audio={}", device),
-                    ]);
-                } else {
-                    args.extend([
-                        "-f".into(),
-                        "dshow".into(),
-                        "-i".into(),
-                        "audio=virtual-audio-capturer".into(),
-                    ]);
-                }
-                // Audio sync filter
-                args.extend(["-af".into(), "aresample=async=1".into()]);
+                sources.push(
+                    config
+                        .system_audio_device
+                        .clone()
+                        .unwrap_or_else(|| "virtual-audio-capturer".to_string()),
+                );
             }
-
             if config.capture_microphone {
-                if let Some(ref device) = config.microphone_device {
-                    debug!("[ScreenRecorder] Adding microphone capture: {}", device);
-                    args.extend([
-                        "-f".into(),
-                        "dshow".into(),
-                        "-i".into(),
-                        format!("audio={}", device),
-                    ]);
-                }
+                sources.push(
+                    config
+                        .microphone_device
+                        .clone()
+                        .unwrap_or_else(|| "default".to_string()),
+                );
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if config.capture_system_audio {
+                sources.push(
+                    config
+                        .system_audio_device
+                        .clone()
+                        .unwrap_or_else(|| "default".to_string()),
+                );
+            }
+            if config.capture_microphone {
+                sources.push(
+                    config
+                        .microphone_device
+                        .clone()
+                        .unwrap_or_else(|| "default".to_string()),
+                );
             }
         }
 
         #[cfg(target_os = "macos")]
         {
             if config.capture_system_audio || config.capture_microphone {
-                debug!("[ScreenRecorder] macOS audio capture via avfoundation");
-                // On macOS, audio is typically captured via avfoundation input device index
+                warn!(
+                    "[ScreenRecorder] Audio capture on macOS is not configured in this build; recording will be video-only"
+                );
             }
         }
 
-        #[cfg(target_os = "linux")]
-        {
-            if config.capture_system_audio {
-                debug!("[ScreenRecorder] Linux audio capture via pulse");
-                args.extend(["-f".into(), "pulse".into(), "-i".into(), "default".into()]);
-            }
-        }
-
-        args
-    }
-
-    fn start_ffmpeg_recording(
-        &self,
-        config: &RecordingConfig,
-        output_path: &str,
-        _width: u32,
-        _height: u32,
-        window_title: Option<&str>,
-    ) -> Result<(), String> {
-        info!(
-            "[ScreenRecorder] Starting FFmpeg recording to: {}",
-            output_path
-        );
-        let mut args: Vec<String> = Vec::new();
-
-        // Input source (platform-specific)
+        let mut input_args: Vec<String> = Vec::new();
         #[cfg(target_os = "windows")]
-        {
-            args.push("-f".into());
-            args.push("gdigrab".into());
-            if let Some(title) = window_title {
-                debug!("[ScreenRecorder] FFmpeg input: window title={}", title);
-                args.push("-i".into());
-                args.push(format!("title={}", title));
-            } else {
-                debug!("[ScreenRecorder] FFmpeg input: desktop");
-                args.push("-i".into());
-                args.push("desktop".into());
-            }
+        for source in &sources {
+            input_args.extend([
+                "-f".to_string(),
+                "dshow".to_string(),
+                "-i".to_string(),
+                format!("audio={source}"),
+            ]);
         }
-
-        #[cfg(target_os = "macos")]
-        {
-            debug!("[ScreenRecorder] FFmpeg input: avfoundation");
-            args.extend([
-                "-f".into(),
-                "avfoundation".into(),
-                "-i".into(),
-                "1:none".into(),
+        #[cfg(target_os = "linux")]
+        for source in &sources {
+            input_args.extend([
+                "-f".to_string(),
+                "pulse".to_string(),
+                "-i".to_string(),
+                source.clone(),
             ]);
         }
 
-        #[cfg(target_os = "linux")]
-        {
-            debug!("[ScreenRecorder] FFmpeg input: x11grab");
-            args.extend(["-f".into(), "x11grab".into(), "-i".into(), ":0.0".into()]);
-        }
-
-        // Video settings
-        args.push("-framerate".into());
-        args.push(config.frame_rate.to_string());
-        debug!("[ScreenRecorder] FFmpeg framerate: {}", config.frame_rate);
-
-        // Encoder selection (hardware acceleration aware)
-        let (encoder, encoder_extra_args) = Self::select_best_encoder(config);
-        args.extend(["-c:v".into(), encoder.clone()]);
-        args.extend(encoder_extra_args);
-        debug!("[ScreenRecorder] FFmpeg encoder: {}", encoder);
-
-        // Quality/bitrate
-        if config.bitrate > 0 {
-            args.extend(["-b:v".into(), format!("{}k", config.bitrate)]);
-            debug!("[ScreenRecorder] FFmpeg bitrate: {}k", config.bitrate);
+        let mut filter_args: Vec<String> = Vec::new();
+        let mut map_args: Vec<String> = vec!["-map".to_string(), "0:v:0".to_string()];
+        let has_audio = !sources.is_empty();
+        if sources.is_empty() {
+            map_args.push("-an".to_string());
+        } else if sources.len() == 1 {
+            map_args.extend(["-map".to_string(), "1:a:0".to_string()]);
         } else {
-            // Use CRF for software encoders, -cq for NVENC, -global_quality for QSV
-            if encoder.contains("nvenc") {
-                args.extend(["-cq".into(), ((100 - config.quality) / 2).to_string()]);
-            } else if encoder.contains("qsv") {
-                args.extend([
-                    "-global_quality".into(),
-                    ((100 - config.quality) / 2).to_string(),
-                ]);
-            } else if encoder.contains("amf") {
-                args.extend([
-                    "-rc".into(),
-                    "cqp".into(),
-                    "-qp".into(),
-                    ((100 - config.quality) / 2).to_string(),
-                ]);
-            } else {
-                args.extend(["-crf".into(), ((100 - config.quality) / 2).to_string()]);
+            let mut filter = String::new();
+            for index in 1..=sources.len() {
+                filter.push_str(&format!("[{index}:a]"));
             }
-            debug!("[ScreenRecorder] FFmpeg quality: {}", config.quality);
+            filter.push_str(&format!(
+                "amix=inputs={}:duration=longest:dropout_transition=2[aout]",
+                sources.len()
+            ));
+            filter_args.extend(["-filter_complex".to_string(), filter]);
+            map_args.extend(["-map".to_string(), "[aout]".to_string()]);
         }
 
-        // Pixel format for broad compatibility
-        args.extend(["-pix_fmt".into(), "yuv420p".into()]);
+        RecordingAudioPlan {
+            input_args,
+            filter_args,
+            map_args,
+            has_audio,
+        }
+    }
 
-        // Fast start for MP4 streaming
+    fn build_video_input_args(config: &RecordingConfig, input: &RecordingVideoInput) -> Vec<String> {
+        let mut args = Vec::new();
+        match input {
+            RecordingVideoInput::Fullscreen {
+                window_title,
+                width,
+                height,
+            } => {
+                let _ = (width, height);
+                #[cfg(target_os = "windows")]
+                {
+                    args.extend([
+                        "-f".to_string(),
+                        "gdigrab".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-draw_mouse".to_string(),
+                        if config.show_cursor { "1" } else { "0" }.to_string(),
+                    ]);
+                    if let Some(title) = window_title {
+                        args.extend(["-i".to_string(), format!("title={title}")]);
+                    } else {
+                        args.extend(["-i".to_string(), "desktop".to_string()]);
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = (width, height);
+                    args.extend([
+                        "-f".to_string(),
+                        "avfoundation".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-i".to_string(),
+                        "1:none".to_string(),
+                    ]);
+                }
+                #[cfg(target_os = "linux")]
+                {
+                    args.extend([
+                        "-f".to_string(),
+                        "x11grab".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-draw_mouse".to_string(),
+                        if config.show_cursor { "1" } else { "0" }.to_string(),
+                        "-video_size".to_string(),
+                        format!("{width}x{height}"),
+                        "-i".to_string(),
+                        ":0.0".to_string(),
+                    ]);
+                }
+            }
+            RecordingVideoInput::Region(region) => {
+                #[cfg(target_os = "windows")]
+                {
+                    args.extend([
+                        "-f".to_string(),
+                        "gdigrab".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-draw_mouse".to_string(),
+                        if config.show_cursor { "1" } else { "0" }.to_string(),
+                        "-offset_x".to_string(),
+                        region.x.to_string(),
+                        "-offset_y".to_string(),
+                        region.y.to_string(),
+                        "-video_size".to_string(),
+                        format!("{}x{}", region.width, region.height),
+                        "-i".to_string(),
+                        "desktop".to_string(),
+                    ]);
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    args.extend([
+                        "-f".to_string(),
+                        "avfoundation".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-i".to_string(),
+                        "1:none".to_string(),
+                        "-vf".to_string(),
+                        format!(
+                            "crop={}:{}:{}:{}",
+                            region.width, region.height, region.x, region.y
+                        ),
+                    ]);
+                }
+                #[cfg(target_os = "linux")]
+                {
+                    args.extend([
+                        "-f".to_string(),
+                        "x11grab".to_string(),
+                        "-framerate".to_string(),
+                        config.frame_rate.to_string(),
+                        "-draw_mouse".to_string(),
+                        if config.show_cursor { "1" } else { "0" }.to_string(),
+                        "-video_size".to_string(),
+                        format!("{}x{}", region.width, region.height),
+                        "-i".to_string(),
+                        format!(":0.0+{},{}", region.x, region.y),
+                    ]);
+                }
+            }
+        }
+        args
+    }
+
+    fn build_recording_args(
+        config: &RecordingConfig,
+        output_path: &str,
+        video_input: &RecordingVideoInput,
+    ) -> (Vec<String>, bool) {
+        let mut args = Self::build_video_input_args(config, video_input);
+        let audio_plan = Self::build_audio_plan(config);
+        args.extend(audio_plan.input_args.clone());
+
+        if !audio_plan.filter_args.is_empty() {
+            args.extend(audio_plan.filter_args.clone());
+        }
+
+        let (encoder, encoder_extra_args) = Self::select_best_encoder(config);
+        args.extend(audio_plan.map_args.clone());
+        args.extend(["-c:v".to_string(), encoder.clone()]);
+        args.extend(encoder_extra_args);
+
+        if config.bitrate > 0 {
+            args.extend(["-b:v".to_string(), format!("{}k", config.bitrate)]);
+        } else if encoder.contains("nvenc") {
+            args.extend(["-cq".to_string(), ((100 - config.quality) / 2).to_string()]);
+        } else if encoder.contains("qsv") {
+            args.extend([
+                "-global_quality".to_string(),
+                ((100 - config.quality) / 2).to_string(),
+            ]);
+        } else if encoder.contains("amf") {
+            args.extend([
+                "-rc".to_string(),
+                "cqp".to_string(),
+                "-qp".to_string(),
+                ((100 - config.quality) / 2).to_string(),
+            ]);
+        } else {
+            args.extend(["-crf".to_string(), ((100 - config.quality) / 2).to_string()]);
+        }
+
+        args.extend(["-pix_fmt".to_string(), "yuv420p".to_string()]);
         if config.format == "mp4" {
-            args.extend(["-movflags".into(), "+faststart".into()]);
+            args.extend(["-movflags".to_string(), "+faststart".to_string()]);
         }
+        args.extend(["-y".to_string(), output_path.to_string()]);
+        (args, audio_plan.has_audio)
+    }
 
-        // Cursor
-        args.extend([
-            "-draw_mouse".into(),
-            if config.show_cursor { "1" } else { "0" }.into(),
-        ]);
-        debug!(
-            "[ScreenRecorder] FFmpeg show cursor: {}",
-            config.show_cursor
-        );
-
-        // Audio
-        args.extend(Self::build_audio_args(config));
-
-        // Output
-        args.extend(["-y".into(), output_path.into()]);
-
+    fn spawn_ffmpeg(&self, args: Vec<String>) -> Result<(), String> {
         info!(
             "[ScreenRecorder] Spawning FFmpeg process with {} arguments",
             args.len()
         );
         debug!("[ScreenRecorder] FFmpeg command: ffmpeg {}", args.join(" "));
 
-        let child = Command::new("ffmpeg")
+        let mut command = Command::new("ffmpeg");
+        command
             .args(&args)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| {
-                error!("[ScreenRecorder] Failed to spawn FFmpeg process: {}", e);
-                let err = RecordingError::ffmpeg_start_failed(&e.to_string());
-                String::from(err)
-            })?;
+            .stderr(Stdio::piped());
+        #[cfg(target_os = "windows")]
+        {
+            command.creation_flags(0x08000000);
+        }
+
+        let mut child = command.spawn().map_err(|e| {
+            error!("[ScreenRecorder] Failed to spawn FFmpeg process: {}", e);
+            String::from(RecordingError::ffmpeg_start_failed(&e.to_string()))
+        })?;
+
+        if let Some(stderr) = child.stderr.take() {
+            std::thread::spawn(move || {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines() {
+                    match line {
+                        Ok(content) => {
+                            if !content.trim().is_empty() {
+                                debug!("[ScreenRecorder][ffmpeg] {}", content);
+                            }
+                        }
+                        Err(err) => {
+                            warn!("[ScreenRecorder] Failed to read FFmpeg stderr: {}", err);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         info!(
             "[ScreenRecorder] FFmpeg process spawned successfully, PID: {:?}",
             child.id()
         );
-
         *self.ffmpeg_process.write() = Some(child);
         Ok(())
+    }
+
+    fn start_ffmpeg_recording(
+        &self,
+        config: &RecordingConfig,
+        output_path: &str,
+        width: u32,
+        height: u32,
+        window_title: Option<&str>,
+    ) -> Result<bool, String> {
+        let input = RecordingVideoInput::Fullscreen {
+            window_title: window_title.map(str::to_string),
+            width,
+            height,
+        };
+        let (args, has_audio) = Self::build_recording_args(config, output_path, &input);
+        self.spawn_ffmpeg(args)?;
+        Ok(has_audio)
     }
 
     fn start_ffmpeg_recording_region(
@@ -1136,135 +1625,11 @@ impl ScreenRecorder {
         config: &RecordingConfig,
         output_path: &str,
         region: &RecordingRegion,
-    ) -> Result<(), String> {
-        info!(
-            "[ScreenRecorder] Starting FFmpeg region recording: {}x{} at ({}, {}) -> {}",
-            region.width, region.height, region.x, region.y, output_path
-        );
-        let mut args: Vec<String> = Vec::new();
-
-        let video_size_str = format!("{}x{}", region.width, region.height);
-
-        #[cfg(target_os = "windows")]
-        {
-            debug!(
-                "[ScreenRecorder] FFmpeg region input: gdigrab with offset ({}, {}), size {}",
-                region.x, region.y, video_size_str
-            );
-            args.extend([
-                "-f".into(),
-                "gdigrab".into(),
-                "-offset_x".into(),
-                region.x.to_string(),
-                "-offset_y".into(),
-                region.y.to_string(),
-                "-video_size".into(),
-                video_size_str.clone(),
-                "-i".into(),
-                "desktop".into(),
-            ]);
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        {
-            let input_str = format!(":0.0+{},{}", region.x, region.y);
-            debug!(
-                "[ScreenRecorder] FFmpeg region input: x11grab {}, size {}",
-                input_str, video_size_str
-            );
-            args.extend([
-                "-f".into(),
-                "x11grab".into(),
-                "-video_size".into(),
-                video_size_str.clone(),
-                "-i".into(),
-                input_str,
-            ]);
-        }
-
-        // Framerate
-        args.extend(["-framerate".into(), config.frame_rate.to_string()]);
-
-        // Encoder selection (hardware acceleration aware)
-        let (encoder, encoder_extra_args) = Self::select_best_encoder(config);
-        args.extend(["-c:v".into(), encoder.clone()]);
-        args.extend(encoder_extra_args);
-
-        // Quality/bitrate
-        if config.bitrate > 0 {
-            args.extend(["-b:v".into(), format!("{}k", config.bitrate)]);
-        } else {
-            if encoder.contains("nvenc") {
-                args.extend(["-cq".into(), ((100 - config.quality) / 2).to_string()]);
-            } else if encoder.contains("qsv") {
-                args.extend([
-                    "-global_quality".into(),
-                    ((100 - config.quality) / 2).to_string(),
-                ]);
-            } else if encoder.contains("amf") {
-                args.extend([
-                    "-rc".into(),
-                    "cqp".into(),
-                    "-qp".into(),
-                    ((100 - config.quality) / 2).to_string(),
-                ]);
-            } else {
-                args.extend(["-crf".into(), ((100 - config.quality) / 2).to_string()]);
-            }
-        }
-
-        // Pixel format for broad compatibility
-        args.extend(["-pix_fmt".into(), "yuv420p".into()]);
-
-        // Fast start for MP4 streaming
-        if config.format == "mp4" {
-            args.extend(["-movflags".into(), "+faststart".into()]);
-        }
-
-        // Cursor
-        args.extend([
-            "-draw_mouse".into(),
-            if config.show_cursor { "1" } else { "0" }.into(),
-        ]);
-
-        // Audio
-        args.extend(Self::build_audio_args(config));
-
-        // Output
-        args.extend(["-y".into(), output_path.into()]);
-
-        debug!(
-            "[ScreenRecorder] FFmpeg region settings: fps={}, encoder={}",
-            config.frame_rate, encoder
-        );
-        info!(
-            "[ScreenRecorder] Spawning FFmpeg region process with {} arguments",
-            args.len()
-        );
-        debug!("[ScreenRecorder] FFmpeg command: ffmpeg {}", args.join(" "));
-
-        let child = Command::new("ffmpeg")
-            .args(&args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| {
-                error!(
-                    "[ScreenRecorder] Failed to spawn FFmpeg region process: {}",
-                    e
-                );
-                let err = RecordingError::ffmpeg_start_failed(&e.to_string());
-                String::from(err)
-            })?;
-
-        info!(
-            "[ScreenRecorder] FFmpeg region process spawned successfully, PID: {:?}",
-            child.id()
-        );
-
-        *self.ffmpeg_process.write() = Some(child);
-        Ok(())
+    ) -> Result<bool, String> {
+        let input = RecordingVideoInput::Region(region.clone());
+        let (args, has_audio) = Self::build_recording_args(config, output_path, &input);
+        self.spawn_ffmpeg(args)?;
+        Ok(has_audio)
     }
 
     fn stop_ffmpeg(&self) -> Result<(), String> {
@@ -1357,7 +1722,7 @@ impl ScreenRecorder {
             "No start time".to_string()
         })?;
         let end_time = chrono::Utc::now().timestamp_millis();
-        let duration_ms = (end_time - start_time) as u64 - state.total_paused_ms;
+        let duration_ms = ((end_time - start_time).max(0) as u64).saturating_sub(state.total_paused_ms);
 
         debug!(
             "[ScreenRecorder] Metadata: id={}, start={}, end={}, duration={}ms (paused: {}ms)",
@@ -1414,18 +1779,50 @@ impl ScreenRecorder {
     fn emit_status_change(&self) {
         let state = self.state.read();
         let duration = self.get_duration();
+        let status = state.status.clone();
+        let recording_id = state.recording_id.clone();
+        let show_indicator = state.show_indicator;
+        let highlight_clicks = state.highlight_clicks;
         debug!(
             "[ScreenRecorder] Emitting status change: {:?}, recording_id={:?}, duration={}ms",
-            state.status, state.recording_id, duration
+            status, recording_id, duration
         );
+        drop(state);
+
         let _ = self.app_handle.emit(
             "recording-status-changed",
             serde_json::json!({
-                "status": state.status,
-                "recording_id": state.recording_id,
+                "status": status.clone(),
+                "recording_id": recording_id,
                 "duration_ms": duration,
             }),
         );
+
+        if let Some(toolbar) = self.app_handle.try_state::<RecordingToolbar>() {
+            let should_show = show_indicator && status != RecordingStatus::Idle;
+            if should_show {
+                if !toolbar.is_visible() {
+                    let _ = toolbar.show();
+                }
+                toolbar.update_recording_state(
+                    status == RecordingStatus::Recording || status == RecordingStatus::Paused,
+                    status == RecordingStatus::Paused,
+                    duration,
+                );
+            } else if toolbar.is_visible() {
+                let _ = toolbar.hide();
+            }
+        }
+
+        if let Some(overlay) = self.app_handle.try_state::<RecordingClickOverlay>() {
+            let keep_overlay = highlight_clicks
+                && (status == RecordingStatus::Recording
+                    || status == RecordingStatus::Paused
+                    || status == RecordingStatus::Countdown);
+            if !keep_overlay && overlay.is_visible() {
+                let _ = overlay.hide();
+            }
+        }
     }
 }
 
@@ -1624,6 +2021,16 @@ fn resume_process_windows(pid: u32) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    fn base_config() -> RecordingConfig {
+        RecordingConfig {
+            capture_system_audio: false,
+            capture_microphone: false,
+            system_audio_device: None,
+            microphone_device: None,
+            ..RecordingConfig::default()
+        }
+    }
+
     #[test]
     fn test_recording_state_default() {
         let state = RecordingState::default();
@@ -1635,5 +2042,49 @@ mod tests {
     fn test_timeout_constants() {
         // Compile-time check: FFMPEG_STOP_TIMEOUT_SECS must be positive
         const _: () = assert!(FFMPEG_STOP_TIMEOUT_SECS > 0);
+    }
+
+    #[test]
+    fn build_audio_plan_without_audio_sources_adds_an() {
+        let config = base_config();
+        let plan = ScreenRecorder::build_audio_plan(&config);
+
+        assert!(!plan.has_audio);
+        assert!(plan.input_args.is_empty());
+        assert!(plan.filter_args.is_empty());
+        assert_eq!(plan.map_args, vec!["-map", "0:v:0", "-an"]);
+    }
+
+    #[test]
+    fn build_audio_plan_single_audio_source_maps_direct_input() {
+        let mut config = base_config();
+        config.capture_microphone = true;
+        config.microphone_device = Some("test-mic".to_string());
+
+        let plan = ScreenRecorder::build_audio_plan(&config);
+        assert!(plan.has_audio);
+        assert!(plan.filter_args.is_empty());
+        assert_eq!(plan.map_args, vec!["-map", "0:v:0", "-map", "1:a:0"]);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn build_audio_plan_two_audio_sources_uses_amix() {
+        let mut config = base_config();
+        config.capture_system_audio = true;
+        config.capture_microphone = true;
+        config.system_audio_device = Some("test-system".to_string());
+        config.microphone_device = Some("test-mic".to_string());
+
+        let plan = ScreenRecorder::build_audio_plan(&config);
+        assert!(plan.has_audio);
+        assert!(
+            plan.filter_args
+                .iter()
+                .any(|item| item.contains("amix=inputs=2")),
+            "expected amix filter for two audio sources, got: {:?}",
+            plan.filter_args
+        );
+        assert_eq!(plan.map_args, vec!["-map", "0:v:0", "-map", "[aout]"]);
     }
 }

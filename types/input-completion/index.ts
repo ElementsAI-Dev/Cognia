@@ -45,7 +45,17 @@ export interface CompletionContext {
   language?: string;
   /** Current IME state */
   ime_state?: ImeState;
+  /** Completion mode hint for prompt optimization */
+  mode?: CompletionMode;
+  /** UI surface where completion is requested */
+  surface?: CompletionSurface;
 }
+
+/** Surface of completion request */
+export type CompletionSurface = 'chat_input' | 'chat_widget' | 'latex_editor' | 'generic';
+
+/** High-level completion mode */
+export type CompletionMode = 'chat' | 'code' | 'markdown' | 'plain_text';
 
 /** Type of completion suggestion */
 export type CompletionType = 'Line' | 'Block' | 'Word' | 'Snippet';
@@ -137,9 +147,14 @@ export interface CompletionTriggerConfig {
   skip_chars: string[];
   /** Whether to skip when modifier keys are held */
   skip_with_modifiers: boolean;
+  /** Desktop trigger mode */
+  input_capture_mode?: InputCaptureMode;
   /** Adaptive debounce settings */
   adaptive_debounce?: AdaptiveDebounceConfig;
 }
+
+/** Desktop input capture mode */
+export type InputCaptureMode = 'local_only' | 'global_legacy';
 
 /** UI configuration */
 export interface CompletionUiConfig {
@@ -167,6 +182,24 @@ export interface CompletionConfig {
   trigger: CompletionTriggerConfig;
   /** UI configuration */
   ui: CompletionUiConfig;
+}
+
+/** v2 request payload */
+export interface TriggerCompletionV2Request extends CompletionContext {
+  /** Optional client request id for stale-response protection */
+  request_id?: string;
+}
+
+/** v2 suggestion reference */
+export interface CompletionSuggestionRef {
+  suggestion_id: string;
+}
+
+/** v2 response payload */
+export interface TriggerCompletionV2Result extends InputCompletionResult {
+  request_id: string;
+  surface: CompletionSurface;
+  mode: CompletionMode;
 }
 
 /** Events emitted by the input completion system */
@@ -242,6 +275,7 @@ export const DEFAULT_COMPLETION_CONFIG: CompletionConfig = {
     trigger_on_word_boundary: false,
     skip_chars: [' ', '\n', '\t', '\r'],
     skip_with_modifiers: true,
+    input_capture_mode: 'local_only',
   },
   ui: {
     show_inline_preview: true,

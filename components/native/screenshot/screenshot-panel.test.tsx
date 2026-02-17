@@ -75,7 +75,13 @@ const mockCaptureRegion = jest.fn().mockResolvedValue({
   imageBase64: 'base64imagedata',
   metadata: { width: 800, height: 600 },
 });
+const mockCaptureWindowByHwnd = jest.fn().mockResolvedValue({
+  imageBase64: 'base64imagedata',
+  metadata: { width: 1024, height: 768 },
+});
 const mockExtractText = jest.fn().mockResolvedValue('Extracted text');
+const mockSetOpenEditorAfterCapture = jest.fn();
+let mockOpenEditorAfterCapture = true;
 
 const mockLastScreenshot = {
   imageBase64: 'lastscreenshotbase64',
@@ -121,7 +127,10 @@ jest.mock('@/hooks/native/use-screenshot', () => ({
     captureWindow: mockCaptureWindow,
     startRegionSelection: mockStartRegionSelection,
     captureRegion: mockCaptureRegion,
+    captureWindowByHwnd: mockCaptureWindowByHwnd,
     extractText: mockExtractText,
+    openEditorAfterCapture: mockOpenEditorAfterCapture,
+    setOpenEditorAfterCapture: mockSetOpenEditorAfterCapture,
   }),
   useScreenshotHistory: () => ({
     history: mockHistoryItems,
@@ -138,6 +147,7 @@ jest.mock('@/hooks/native/use-screenshot', () => ({
 describe('ScreenshotPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOpenEditorAfterCapture = true;
   });
 
   it('renders the panel with title', () => {
@@ -201,6 +211,13 @@ describe('ScreenshotPanel', () => {
     expect(screen.getByText('Clear history')).toBeInTheDocument();
   });
 
+  it('updates open-editor setting when switch is toggled', () => {
+    render(<ScreenshotPanel />);
+    const toggle = screen.getByRole('switch');
+    fireEvent.click(toggle);
+    expect(mockSetOpenEditorAfterCapture).toHaveBeenCalled();
+  });
+
   it('calls clearHistory when clear button is clicked', () => {
     render(<ScreenshotPanel />);
     const clearButton = screen.getByText('Clear history');
@@ -245,6 +262,18 @@ describe('ScreenshotPanel', () => {
     await waitFor(() => {
       expect(mockOnScreenshotTaken).toHaveBeenCalledWith('base64imagedata');
     });
+  });
+
+  it('does not open editor after capture when auto-open is disabled', async () => {
+    mockOpenEditorAfterCapture = false;
+    render(<ScreenshotPanel />);
+    fireEvent.click(screen.getByText('Fullscreen'));
+
+    await waitFor(() => {
+      expect(mockCaptureFullscreen).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByTestId('screenshot-editor')).not.toBeInTheDocument();
   });
 
   it('fetches history on mount', () => {

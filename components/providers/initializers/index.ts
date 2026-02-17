@@ -33,3 +33,6 @@ export { AgentTraceInitializer } from './agent-trace-initializer';
 
 // Context sync initialization
 export { ContextSyncInitializer } from './context-sync-initializer';
+
+// SpeedPass runtime sync initialization
+export { SpeedPassRuntimeInitializer } from './speedpass-runtime-initializer';

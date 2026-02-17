@@ -35,6 +35,10 @@ export interface TraceFile {
 }
 
 export type AgentTraceEventType =
+  | 'session_start'
+  | 'session_end'
+  | 'permission_request'
+  | 'permission_response'
   | 'tool_call_request'
   | 'tool_call_result'
   | 'step_start'

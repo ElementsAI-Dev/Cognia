@@ -16,6 +16,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,7 +40,6 @@ import {
   type TaskTriggerType,
   type NotificationChannel,
   CRON_PRESETS,
-  TIMEZONE_OPTIONS,
   DEFAULT_EXECUTION_CONFIG,
 } from '@/types/scheduler';
 import { validateCronExpression, describeCronExpression, formatCronExpression, parseCronExpression } from '@/lib/scheduler/cron-parser';
@@ -295,7 +295,7 @@ export function TaskForm({
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-4 sm:space-y-5" data-testid="scheduler-task-form">
       {/* Basic Info Section */}
       <div className="rounded-xl border bg-gradient-to-br from-card to-card/50 p-3 sm:p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
@@ -312,6 +312,7 @@ export function TaskForm({
             </Label>
             <Input
               id="name"
+              data-testid="scheduler-task-name-input"
               value={f.name}
               onChange={(e) => updateForm({ name: e.target.value, nameError: null })}
               placeholder={t('taskNamePlaceholder') || 'Enter task name'}
@@ -466,18 +467,14 @@ export function TaskForm({
 
               <div className="space-y-2">
                 <Label className="text-sm">{t('timezone') || 'Timezone'}</Label>
-                <Select value={f.timezone} onValueChange={(v) => updateForm({ timezone: v })}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONE_OPTIONS.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label} ({tz.offset})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <TimezoneSelect
+                  value={f.timezone}
+                  onValueChange={(value) => updateForm({ timezone: value })}
+                  testId="scheduler-task-timezone"
+                  triggerClassName="h-10"
+                  includeOffset
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
           )}
@@ -715,6 +712,7 @@ export function TaskForm({
         <Button 
           onClick={handleSubmit} 
           disabled={isSubmitting || !f.name.trim()}
+          data-testid="scheduler-task-submit"
           className="flex-1 h-10 sm:h-11 bg-gradient-to-r from-primary to-primary/80 shadow-md transition-all hover:shadow-lg"
         >
           {isSubmitting ? t('saving') || 'Saving...' : t('save') || 'Save Task'}

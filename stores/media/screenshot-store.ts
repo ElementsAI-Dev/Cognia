@@ -31,10 +31,14 @@ export interface ScreenshotConfig {
   format: 'png' | 'jpg' | 'webp';
   quality: number;
   includeCursor: boolean;
+  delayMs: number;
   copyToClipboard: boolean;
   showNotification: boolean;
+  ocrLanguage: string;
   autoSave: boolean;
+  filenameTemplate: string;
   saveDirectory?: string;
+  openEditorAfterCapture: boolean;
 }
 
 export interface ScreenshotHistoryEntry {
@@ -59,11 +63,19 @@ export interface ScreenshotMetadata {
   timestamp: number;
   windowTitle?: string;
   monitorIndex?: number;
+  filePath?: string;
 }
 
 export interface ScreenshotResult {
   imageBase64: string;
   metadata: ScreenshotMetadata;
+}
+
+export interface ExternalCapturePayload {
+  image_base64?: string;
+  imageBase64?: string;
+  metadata?: Record<string, unknown>;
+  source?: string;
 }
 
 export interface MonitorInfo {
@@ -140,6 +152,7 @@ interface ScreenshotActions {
   // Configuration
   updateConfig: (config: Partial<ScreenshotConfig>) => Promise<void>;
   resetConfig: () => void;
+  ingestExternalCapture: (payload: ExternalCapturePayload) => Promise<void>;
 
   // Snap
   getSnapConfig: () => Promise<NativeSnapConfig | null>;
@@ -186,9 +199,13 @@ const defaultConfig: ScreenshotConfig = {
   format: 'png',
   quality: 95,
   includeCursor: false,
+  delayMs: 0,
   copyToClipboard: true,
   showNotification: true,
+  ocrLanguage: 'eng',
   autoSave: false,
+  filenameTemplate: 'screenshot_{timestamp}',
+  openEditorAfterCapture: false,
 };
 
 const initialState: ScreenshotState = {
@@ -249,7 +266,68 @@ function transformScreenshotResult(result: NativeScreenshotResult): ScreenshotRe
       timestamp: result.metadata.timestamp,
       windowTitle: result.metadata.window_title,
       monitorIndex: result.metadata.monitor_index,
+      filePath: result.metadata.file_path,
     },
+  };
+}
+
+function mergeConfig(config?: Partial<ScreenshotConfig>): ScreenshotConfig {
+  return { ...defaultConfig, ...config };
+}
+
+function fromNativeConfig(
+  nativeConfig: screenshotApi.ScreenshotConfig,
+  openEditorAfterCapture: boolean
+): ScreenshotConfig {
+  const format: ScreenshotConfig['format'] =
+    nativeConfig.format === 'jpg' || nativeConfig.format === 'jpeg'
+      ? 'jpg'
+      : nativeConfig.format === 'webp'
+        ? 'webp'
+        : 'png';
+  return mergeConfig({
+    format,
+    quality: nativeConfig.quality,
+    includeCursor: nativeConfig.include_cursor,
+    delayMs: nativeConfig.delay_ms ?? 0,
+    copyToClipboard: nativeConfig.copy_to_clipboard,
+    showNotification: nativeConfig.show_notification,
+    ocrLanguage: nativeConfig.ocr_language ?? 'eng',
+    autoSave: nativeConfig.auto_save,
+    filenameTemplate: nativeConfig.filename_template || defaultConfig.filenameTemplate,
+    saveDirectory: nativeConfig.save_directory || undefined,
+    openEditorAfterCapture,
+  });
+}
+
+function toNativeConfig(config: ScreenshotConfig): screenshotApi.ScreenshotConfig {
+  return {
+    save_directory: config.saveDirectory,
+    format: config.format,
+    quality: config.quality,
+    include_cursor: config.includeCursor,
+    delay_ms: config.delayMs,
+    copy_to_clipboard: config.copyToClipboard,
+    show_notification: config.showNotification,
+    ocr_language: config.ocrLanguage,
+    auto_save: config.autoSave,
+    filename_template: config.filenameTemplate,
+  };
+}
+
+function toScreenshotMetadata(raw: Record<string, unknown>): ScreenshotMetadata {
+  const monitorIndexRaw = raw.monitor_index ?? raw.monitorIndex;
+  return {
+    width: Number(raw.width ?? 0),
+    height: Number(raw.height ?? 0),
+    mode: String(raw.mode ?? 'unknown'),
+    timestamp: Number(raw.timestamp ?? Date.now()),
+    windowTitle: (raw.window_title ?? raw.windowTitle) as string | undefined,
+    monitorIndex:
+      monitorIndexRaw === undefined || monitorIndexRaw === null
+        ? undefined
+        : Number(monitorIndexRaw),
+    filePath: (raw.file_path ?? raw.filePath) as string | undefined,
   };
 }
 
@@ -268,18 +346,25 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
         set({ isLoading: true, error: null });
         try {
-          const [monitors, ocrAvailable] = await Promise.all([
+          const currentConfig = mergeConfig(get().config);
+          const [monitors, ocrAvailable, nativeConfig] = await Promise.all([
             screenshotApi.getMonitors(),
             screenshotApi.isOcrAvailable().catch(() => false),
+            screenshotApi.getConfig().catch(() => null),
           ]);
 
           const transformedMonitors = monitors.map(transformMonitorInfo);
           const primaryMonitor = transformedMonitors.find((m) => m.isPrimary);
+          const syncedConfig = nativeConfig
+            ? fromNativeConfig(nativeConfig, currentConfig.openEditorAfterCapture)
+            : currentConfig;
 
           set({
             monitors: transformedMonitors,
             selectedMonitor: primaryMonitor?.index ?? 0,
             ocrAvailable,
+            currentOcrLanguage: syncedConfig.ocrLanguage,
+            config: syncedConfig,
             isInitialized: true,
             isLoading: false,
           });
@@ -518,23 +603,13 @@ export const useScreenshotStore = create<ScreenshotStore>()(
       },
 
       updateConfig: async (partialConfig) => {
-        const newConfig = { ...get().config, ...partialConfig };
+        const newConfig = mergeConfig({ ...get().config, ...partialConfig });
         set({ config: newConfig });
 
         if (isTauri()) {
           try {
-            await screenshotApi.updateConfig({
-              format: newConfig.format,
-              quality: newConfig.quality,
-              include_cursor: newConfig.includeCursor,
-              copy_to_clipboard: newConfig.copyToClipboard,
-              show_notification: newConfig.showNotification,
-              auto_save: newConfig.autoSave,
-              save_directory: newConfig.saveDirectory,
-              delay_ms: 0,
-              ocr_language: 'eng',
-              filename_template: 'screenshot_{timestamp}',
-            });
+            await screenshotApi.updateConfig(toNativeConfig(newConfig));
+            set({ currentOcrLanguage: newConfig.ocrLanguage });
           } catch (error) {
             log.error('Failed to update config', error as Error);
           }
@@ -543,6 +618,26 @@ export const useScreenshotStore = create<ScreenshotStore>()(
 
       resetConfig: () => {
         set({ config: defaultConfig });
+      },
+
+      ingestExternalCapture: async (payload) => {
+        const imageBase64 = payload?.image_base64 ?? payload?.imageBase64;
+        if (!imageBase64 || !payload?.metadata) {
+          return;
+        }
+
+        const metadata = toScreenshotMetadata(payload.metadata);
+        set({
+          lastScreenshot: {
+            imageBase64,
+            metadata,
+          },
+          error: null,
+        });
+
+        if (isTauri()) {
+          await get().refreshHistory(50);
+        }
       },
 
       refreshMonitors: async () => {
@@ -774,6 +869,14 @@ export const useScreenshotStore = create<ScreenshotStore>()(
         config: state.config,
         selectedMonitor: state.selectedMonitor,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<ScreenshotStore>) || {};
+        return {
+          ...currentState,
+          ...persisted,
+          config: mergeConfig(persisted.config as Partial<ScreenshotConfig> | undefined),
+        };
+      },
     }
   )
 );

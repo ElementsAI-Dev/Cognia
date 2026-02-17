@@ -5,7 +5,8 @@
 use super::process::{
     ExternalAgentProcessManager, ExternalAgentProcessState, ExternalAgentSpawnConfig,
 };
-use super::terminal::AcpTerminalManager;
+use super::terminal::{AcpTerminalManager, TerminalExitStatus};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
@@ -109,6 +110,17 @@ pub async fn spawn_external_agent(
                         Some(ExternalAgentProcessState::Failed) => "Failed",
                         _ => "Stopped",
                     };
+                    let info = manager.get_info(&id_clone).await.ok();
+                    let exit_code = info
+                        .as_ref()
+                        .and_then(|v| v.get("exitCode"))
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0) as i32;
+                    let exit_signal = info
+                        .as_ref()
+                        .and_then(|v| v.get("exitSignal"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
 
                     let _ = app_clone.emit(
                         "external-agent://state-change",
@@ -122,7 +134,8 @@ pub async fn spawn_external_agent(
                         "external-agent://exit",
                         serde_json::json!({
                             "agentId": id_clone,
-                            "code": 0
+                            "code": exit_code,
+                            "signal": exit_signal
                         }),
                     );
                     break;
@@ -288,6 +301,28 @@ pub async fn kill_all_external_agents(state: State<'_, ExternalAgentState>) -> R
 // ACP Terminal Commands
 // ============================================================================
 
+fn build_terminal_output_response(
+    output: String,
+    truncated: bool,
+    exit_status: TerminalExitStatus,
+) -> serde_json::Value {
+    let exit_code = exit_status.exit_code;
+    serde_json::json!({
+        "output": output,
+        "truncated": truncated,
+        "exitStatus": exit_status,
+        "exitCode": exit_code
+    })
+}
+
+fn build_terminal_wait_response(exit_status: TerminalExitStatus) -> serde_json::Value {
+    let exit_code = exit_status.exit_code;
+    serde_json::json!({
+        "exitStatus": exit_status,
+        "exitCode": exit_code
+    })
+}
+
 /// Create a new terminal for ACP agent
 #[tauri::command]
 pub async fn acp_terminal_create(
@@ -295,11 +330,20 @@ pub async fn acp_terminal_create(
     command: String,
     args: Vec<String>,
     cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    output_byte_limit: Option<usize>,
     state: State<'_, AcpTerminalState>,
 ) -> Result<String, String> {
     state
         .0
-        .create(&session_id, &command, &args, cwd.as_deref())
+        .create(
+            &session_id,
+            &command,
+            &args,
+            cwd.as_deref(),
+            env.as_ref(),
+            output_byte_limit,
+        )
         .await
 }
 
@@ -307,13 +351,16 @@ pub async fn acp_terminal_create(
 #[tauri::command]
 pub async fn acp_terminal_output(
     terminal_id: String,
+    output_byte_limit: Option<usize>,
     state: State<'_, AcpTerminalState>,
 ) -> Result<serde_json::Value, String> {
-    let (output, exit_code) = state.0.get_output(&terminal_id).await?;
-    Ok(serde_json::json!({
-        "output": output,
-        "exitCode": exit_code
-    }))
+    let (output, truncated, exit_status) =
+        state.0.get_output(&terminal_id, output_byte_limit).await?;
+    Ok(build_terminal_output_response(
+        output,
+        truncated,
+        exit_status,
+    ))
 }
 
 /// Kill an ACP terminal
@@ -340,8 +387,9 @@ pub async fn acp_terminal_wait_for_exit(
     terminal_id: String,
     timeout: Option<u64>,
     state: State<'_, AcpTerminalState>,
-) -> Result<i32, String> {
-    state.0.wait_for_exit(&terminal_id, timeout).await
+) -> Result<serde_json::Value, String> {
+    let exit_status = state.0.wait_for_exit(&terminal_id, timeout).await?;
+    Ok(build_terminal_wait_response(exit_status))
 }
 
 /// Write to an ACP terminal
@@ -394,4 +442,55 @@ pub async fn acp_terminal_get_info(
 #[tauri::command]
 pub async fn acp_terminal_list(state: State<'_, AcpTerminalState>) -> Result<Vec<String>, String> {
     Ok(state.0.list().await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_terminal_output_response_includes_compat_exit_code() {
+        let response = build_terminal_output_response(
+            "tail".to_string(),
+            true,
+            TerminalExitStatus {
+                exit_code: Some(7),
+                signal: None,
+            },
+        );
+
+        assert_eq!(
+            response.get("output").and_then(|v| v.as_str()),
+            Some("tail")
+        );
+        assert_eq!(
+            response.get("truncated").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert_eq!(response.get("exitCode").and_then(|v| v.as_i64()), Some(7));
+        assert_eq!(
+            response
+                .get("exitStatus")
+                .and_then(|v| v.get("exitCode"))
+                .and_then(|v| v.as_i64()),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn test_build_terminal_wait_response_includes_exit_status_and_compat_field() {
+        let response = build_terminal_wait_response(TerminalExitStatus {
+            exit_code: None,
+            signal: Some("TERM".to_string()),
+        });
+
+        assert!(response.get("exitCode").is_some());
+        assert_eq!(
+            response
+                .get("exitStatus")
+                .and_then(|v| v.get("signal"))
+                .and_then(|v| v.as_str()),
+            Some("TERM")
+        );
+    }
 }

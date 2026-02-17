@@ -13,12 +13,48 @@ use crate::chat_widget::ChatWidgetWindow;
 use crate::screen_recording::ScreenRecordingManager;
 use crate::screenshot::ScreenshotManager;
 use crate::selection::SelectionManager;
+use base64::Engine;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
+
+fn recording_error_payload(error_value: &str) -> serde_json::Value {
+    let parsed = serde_json::from_str::<serde_json::Value>(error_value).ok();
+    if let Some(json) = parsed {
+        let code = json
+            .get("code")
+            .and_then(|value| value.as_str())
+            .unwrap_or("UNKNOWN")
+            .to_string();
+        let error = json
+            .get("message")
+            .and_then(|value| value.as_str())
+            .unwrap_or(error_value)
+            .to_string();
+        let details = json
+            .get("details")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        let suggestion = json
+            .get("suggestion")
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
+        serde_json::json!({
+            "error": error,
+            "code": code,
+            "details": details,
+            "suggestion": suggestion,
+        })
+    } else {
+        serde_json::json!({
+            "error": error_value,
+            "code": "UNKNOWN",
+        })
+    }
+}
 
 /// Tray state for dynamic updates
 pub struct TrayState {
@@ -443,6 +479,218 @@ pub fn set_tray_recording(app: &AppHandle, recording: bool) {
     }
 }
 
+#[derive(serde::Serialize)]
+struct ScreenshotCapturedEventPayload {
+    image_base64: String,
+    metadata: crate::screenshot::ScreenshotMetadata,
+    source: String,
+}
+
+#[derive(serde::Serialize)]
+struct ScreenshotErrorEventPayload {
+    message: String,
+    action: String,
+}
+
+#[derive(serde::Serialize)]
+struct ScreenshotOcrEventPayload {
+    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "imageBase64")]
+    image_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
+}
+
+fn is_selection_cancelled(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    normalized.contains("selection cancelled")
+        || normalized.contains("selection canceled")
+        || normalized.contains("cancelled")
+        || normalized.contains("canceled")
+}
+
+fn emit_screenshot_error(app: &AppHandle, action: &str, message: impl Into<String>) {
+    let payload = ScreenshotErrorEventPayload {
+        message: message.into(),
+        action: action.to_string(),
+    };
+    let _ = app.emit("screenshot-error", &payload);
+}
+
+fn emit_screenshot_captured(
+    app: &AppHandle,
+    source: &str,
+    result: crate::screenshot::ScreenshotResult,
+) {
+    let payload = ScreenshotCapturedEventPayload {
+        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
+        metadata: result.metadata,
+        source: source.to_string(),
+    };
+    let _ = app.emit("screenshot-captured", &payload);
+}
+
+pub fn handle_screenshot_action(app: &AppHandle, action: &str) {
+    match action {
+        "screenshot-fullscreen" => {
+            log::info!("Screenshot fullscreen requested");
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                set_tray_busy(&app_clone, true, Some("正在截图..."));
+                if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
+                    match manager.capture_fullscreen_with_history(None).await {
+                        Ok(result) => {
+                            emit_screenshot_captured(&app_clone, "screenshot-fullscreen", result);
+                        }
+                        Err(error) => {
+                            log::error!("Failed to capture fullscreen screenshot: {}", error);
+                            emit_screenshot_error(&app_clone, "screenshot-fullscreen", error);
+                        }
+                    }
+                } else {
+                    emit_screenshot_error(
+                        &app_clone,
+                        "screenshot-fullscreen",
+                        "Screenshot manager not initialized",
+                    );
+                }
+                set_tray_busy(&app_clone, false, None);
+            });
+        }
+        "screenshot-window" => {
+            log::info!("Screenshot window requested");
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                set_tray_busy(&app_clone, true, Some("正在截图..."));
+                if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
+                    match manager.capture_window_with_history().await {
+                        Ok(result) => {
+                            emit_screenshot_captured(&app_clone, "screenshot-window", result);
+                        }
+                        Err(error) => {
+                            log::error!("Failed to capture window screenshot: {}", error);
+                            emit_screenshot_error(&app_clone, "screenshot-window", error);
+                        }
+                    }
+                } else {
+                    emit_screenshot_error(
+                        &app_clone,
+                        "screenshot-window",
+                        "Screenshot manager not initialized",
+                    );
+                }
+                set_tray_busy(&app_clone, false, None);
+            });
+        }
+        "screenshot-region" => {
+            log::info!("Screenshot region requested");
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                set_tray_busy(&app_clone, true, Some("请选择截图区域..."));
+                if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
+                    match manager.start_region_selection().await {
+                        Ok(region) => match manager.capture_region_with_history(region).await {
+                            Ok(result) => {
+                                emit_screenshot_captured(&app_clone, "screenshot-region", result);
+                            }
+                            Err(error) => {
+                                log::error!("Failed to capture region screenshot: {}", error);
+                                emit_screenshot_error(&app_clone, "screenshot-region", error);
+                            }
+                        },
+                        Err(error) => {
+                            if is_selection_cancelled(&error) {
+                                log::info!("Region screenshot cancelled by user");
+                            } else {
+                                log::error!("Failed to select screenshot region: {}", error);
+                                emit_screenshot_error(&app_clone, "screenshot-region", error);
+                            }
+                        }
+                    }
+                } else {
+                    emit_screenshot_error(
+                        &app_clone,
+                        "screenshot-region",
+                        "Screenshot manager not initialized",
+                    );
+                }
+                set_tray_busy(&app_clone, false, None);
+            });
+        }
+        "screenshot-ocr" => {
+            log::info!("Screenshot OCR requested");
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                set_tray_busy(&app_clone, true, Some("请选择 OCR 区域..."));
+                if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
+                    match manager.start_region_selection().await {
+                        Ok(region) => match manager.capture_region_with_history(region).await {
+                            Ok(result) => {
+                                let ocr = manager.extract_text_windows(&result.image_data).map(|res| {
+                                    (res.text, res.language)
+                                });
+                                let (text, language) = match ocr {
+                                    Ok(data) => data,
+                                    Err(_) => match manager.extract_text(&result.image_data) {
+                                    Ok(fallback_text) => (fallback_text, None),
+                                    Err(error) => {
+                                        log::error!("Failed to run OCR: {}", error);
+                                        emit_screenshot_error(&app_clone, "screenshot-ocr", error);
+                                        set_tray_busy(&app_clone, false, None);
+                                        return;
+                                    }
+                                },
+                            };
+
+                                emit_screenshot_captured(&app_clone, "screenshot-ocr", result.clone());
+                                let ocr_payload = ScreenshotOcrEventPayload {
+                                    text: text.clone(),
+                                    image_base64: Some(
+                                        base64::engine::general_purpose::STANDARD
+                                            .encode(&result.image_data),
+                                    ),
+                                    language,
+                                };
+                                let _ = app_clone.emit("screenshot-ocr-result", &ocr_payload);
+
+                                {
+                                    use tauri_plugin_clipboard_manager::ClipboardExt;
+                                    if let Err(error) = app_clone.clipboard().write_text(text) {
+                                        log::warn!("Failed to copy OCR result to clipboard: {}", error);
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                log::error!("Failed to capture OCR region screenshot: {}", error);
+                                emit_screenshot_error(&app_clone, "screenshot-ocr", error);
+                            }
+                        },
+                        Err(error) => {
+                            if is_selection_cancelled(&error) {
+                                log::info!("OCR screenshot cancelled by user");
+                            } else {
+                                log::error!("Failed to select OCR region: {}", error);
+                                emit_screenshot_error(&app_clone, "screenshot-ocr", error);
+                            }
+                        }
+                    }
+                } else {
+                    emit_screenshot_error(
+                        &app_clone,
+                        "screenshot-ocr",
+                        "Screenshot manager not initialized",
+                    );
+                }
+                set_tray_busy(&app_clone, false, None);
+            });
+        }
+        _ => {
+            log::debug!("Unsupported screenshot action: {}", action);
+        }
+    }
+}
+
 /// Handles tray menu item clicks
 pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
     log::debug!("Tray menu event: {}", item_id);
@@ -528,40 +776,16 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
         // Screenshot Tools
         // ═══════════════════════════════════════════════════════════════════
         "screenshot-fullscreen" => {
-            log::info!("Screenshot fullscreen requested from tray");
-            let app_clone = app.clone();
-            tauri::async_runtime::spawn(async move {
-                set_tray_busy(&app_clone, true, Some("正在截图..."));
-                if let Some(manager) = app_clone.try_state::<ScreenshotManager>() {
-                    match manager.capture_fullscreen(None).await {
-                        Ok(result) => {
-                            log::info!(
-                                "Fullscreen screenshot captured: {}x{}",
-                                result.metadata.width,
-                                result.metadata.height
-                            );
-                            let _ = app_clone.emit("screenshot-captured", &result);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to capture fullscreen screenshot: {}", e);
-                            let _ = app_clone.emit("screenshot-error", e.clone());
-                        }
-                    }
-                }
-                set_tray_busy(&app_clone, false, None);
-            });
+            handle_screenshot_action(app, "screenshot-fullscreen");
         }
         "screenshot-region" => {
-            log::info!("Screenshot region requested from tray");
-            let _ = app.emit("start-region-screenshot", ());
+            handle_screenshot_action(app, "screenshot-region");
         }
         "screenshot-window" => {
-            log::info!("Screenshot window requested from tray");
-            let _ = app.emit("start-window-screenshot", ());
+            handle_screenshot_action(app, "screenshot-window");
         }
         "screenshot-ocr" => {
-            log::info!("Screenshot OCR requested from tray");
-            let _ = app.emit("start-ocr-screenshot", ());
+            handle_screenshot_action(app, "screenshot-ocr");
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -583,7 +807,8 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                             Err(e) => {
                                 log::error!("Failed to start recording: {}", e);
                                 set_tray_recording(&app_clone, false);
-                                let _ = app_clone.emit("recording-error", e.clone());
+                                let _ = app_clone
+                                    .emit("recording-error", recording_error_payload(&e));
                             }
                         }
                     }
@@ -605,7 +830,8 @@ pub fn handle_tray_menu_event(app: &AppHandle, item_id: String) {
                             }
                             Err(e) => {
                                 log::error!("Failed to stop recording: {}", e);
-                                let _ = app_clone.emit("recording-error", e.clone());
+                                let _ = app_clone
+                                    .emit("recording-error", recording_error_payload(&e));
                             }
                         }
                     }
@@ -1171,6 +1397,43 @@ mod tests {
             status_message: special_message.to_string(),
         };
         assert_eq!(state.status_message, special_message);
+    }
+
+    #[test]
+    fn test_is_selection_cancelled_variants() {
+        assert!(is_selection_cancelled("Selection cancelled"));
+        assert!(is_selection_cancelled("selection canceled by user"));
+        assert!(!is_selection_cancelled("capture failed"));
+    }
+
+    #[test]
+    fn test_recording_error_payload_from_json() {
+        let payload = recording_error_payload(
+            r#"{"code":"REC_001","message":"boom","details":"d","suggestion":"retry"}"#,
+        );
+        assert_eq!(payload["code"], "REC_001");
+        assert_eq!(payload["error"], "boom");
+        assert_eq!(payload["details"], "d");
+        assert_eq!(payload["suggestion"], "retry");
+    }
+
+    #[test]
+    fn test_recording_error_payload_from_plain_text() {
+        let payload = recording_error_payload("plain error");
+        assert_eq!(payload["code"], "UNKNOWN");
+        assert_eq!(payload["error"], "plain error");
+    }
+
+    #[test]
+    fn test_screenshot_ocr_payload_serialization_uses_camel_case_image_field() {
+        let payload = ScreenshotOcrEventPayload {
+            text: "hello".to_string(),
+            image_base64: Some("abc".to_string()),
+            language: Some("en-US".to_string()),
+        };
+        let json = serde_json::to_string(&payload).expect("serialize OCR payload");
+        assert!(json.contains("\"imageBase64\":\"abc\""));
+        assert!(!json.contains("image_base64"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

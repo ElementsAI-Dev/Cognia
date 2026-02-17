@@ -94,7 +94,12 @@ export function SchedulerHeader({
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{t('refresh') || 'Refresh'}</span>
           </Button>
-          <Button size="sm" onClick={onCreate} className="h-8 gap-1.5 bg-primary shadow-sm">
+          <Button
+            size="sm"
+            onClick={onCreate}
+            data-testid="scheduler-create-task-button"
+            className="h-8 gap-1.5 bg-primary shadow-sm"
+          >
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">
               {isSystemView ? t('createSystemTask') || 'New System Task' : t('createTask') || 'New Task'}

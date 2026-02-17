@@ -17,7 +17,7 @@ import type {
   CellOutputEvent,
   CellOutput,
   ExecutableCell,
-  KernelServiceConfig,
+  NormalizedKernelServiceConfig,
   NotebookFileInfo,
 } from '@/types/jupyter';
 
@@ -68,7 +68,7 @@ export interface UseJupyterKernelReturn {
   getKernelStatus: (sessionId: string) => Promise<string | null>;
   isKernelAlive: (sessionId: string) => Promise<boolean>;
   getSessionById: (sessionId: string) => Promise<JupyterSession | null>;
-  getKernelConfig: () => Promise<KernelServiceConfig | null>;
+  getKernelConfig: () => Promise<NormalizedKernelServiceConfig | null>;
   getNotebookInfo: (path: string) => Promise<NotebookFileInfo>;
 
   // Session actions
@@ -596,7 +596,7 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     return kernelService.getSessionById(sessionId);
   }, []);
 
-  const getKernelConfig = useCallback(async (): Promise<KernelServiceConfig | null> => {
+  const getKernelConfig = useCallback(async (): Promise<NormalizedKernelServiceConfig | null> => {
     return kernelService.getKernelConfig();
   }, []);
 
@@ -690,4 +690,3 @@ export function useJupyterKernel(): UseJupyterKernelReturn {
     unmapChatSession,
   };
 }
-

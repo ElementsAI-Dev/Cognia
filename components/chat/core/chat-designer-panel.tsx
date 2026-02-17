@@ -6,7 +6,7 @@
  * Enhanced with AI editing capabilities
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { X, Maximize2, Minimize2, ExternalLink, Sparkles, Send, Loader2, ChevronUp, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,9 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ReactSandbox } from '@/components/designer';
-import { useSettingsStore, useArtifactStore } from '@/stores';
-import { executeDesignerAIEdit, getDesignerAIConfig, AI_SUGGESTIONS } from '@/lib/designer';
+import { useArtifactStore } from '@/stores';
+import { AI_SUGGESTIONS } from '@/lib/designer';
+import { useAIConversation } from '@/hooks/designer';
 
 interface ChatDesignerPanelProps {
   code: string;
@@ -43,12 +44,18 @@ export function ChatDesignerPanel({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(initialShowAI);
   const [aiPrompt, setAIPrompt] = useState('');
-  const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiError, setAIError] = useState<string | null>(null);
-
-  // Settings for AI
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+  const aiAppliedRef = useRef(false);
+  const handleAICodeChange = useCallback((nextCode: string) => {
+    aiAppliedRef.current = true;
+    onCodeChange?.(nextCode);
+  }, [onCodeChange]);
+  const { sendMessage, isProcessing: isAIProcessing } = useAIConversation({
+    designerId: 'chat-designer-panel',
+    initialCode: code,
+    onCodeChange: handleAICodeChange,
+    onError: setAIError,
+  });
 
   // Canvas integration
   const createCanvasDocument = useArtifactStore((state) => state.createCanvasDocument);
@@ -76,25 +83,15 @@ export function ChatDesignerPanel({
   const handleAIEdit = useCallback(async () => {
     if (!aiPrompt.trim() || !onCodeChange) return;
 
-    setIsAIProcessing(true);
     setAIError(null);
-    try {
-      const config = getDesignerAIConfig(defaultProvider, providerSettings);
-      const result = await executeDesignerAIEdit(aiPrompt, code, config);
-      
-      if (result.success && result.code) {
-        onCodeChange(result.code);
-        setAIPrompt('');
-        setShowAIPanel(false);
-      } else {
-        setAIError(result.error || 'AI edit failed');
-      }
-    } catch (error) {
-      setAIError(error instanceof Error ? error.message : 'AI edit failed');
-    } finally {
-      setIsAIProcessing(false);
+    aiAppliedRef.current = false;
+    await sendMessage(aiPrompt);
+
+    if (aiAppliedRef.current) {
+      setAIPrompt('');
+      setShowAIPanel(false);
     }
-  }, [aiPrompt, code, defaultProvider, providerSettings, onCodeChange]);
+  }, [aiPrompt, onCodeChange, sendMessage]);
 
   return (
     <TooltipProvider>

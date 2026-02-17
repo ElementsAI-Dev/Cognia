@@ -18,6 +18,7 @@ import type {
 import { PluginLoader } from '@/lib/plugin/core/loader';
 import { PluginRegistry } from '@/lib/plugin/core/registry';
 import { createFullPluginContext } from '@/lib/plugin/core/context';
+import { createPluginA2UIBridge, type PluginA2UIBridge } from '@/lib/plugin/bridge/a2ui-bridge';
 import { PluginLifecycleHooks } from '@/lib/plugin/messaging/hooks-system';
 import { validatePluginManifest } from '@/lib/plugin/core/validation';
 import { loggers } from '@/lib/plugin/core/logger';
@@ -91,6 +92,7 @@ export class PluginManager {
   private loader: PluginLoader;
   private registry: PluginRegistry;
   private hooksManager: PluginLifecycleHooks;
+  private a2uiBridge: PluginA2UIBridge | null = null;
   private contexts: Map<string, PluginContext> = new Map();
   private initialized = false;
 
@@ -99,6 +101,17 @@ export class PluginManager {
     this.loader = new PluginLoader();
     this.registry = new PluginRegistry();
     this.hooksManager = new PluginLifecycleHooks();
+  }
+
+  private ensureA2UIBridge(): PluginA2UIBridge {
+    if (!this.a2uiBridge) {
+      this.a2uiBridge = createPluginA2UIBridge({
+        registry: this.registry,
+        hooksManager: this.hooksManager,
+        contextResolver: (pluginId: string) => this.contexts.get(pluginId),
+      });
+    }
+    return this.a2uiBridge;
   }
 
   // ===========================================================================
@@ -447,6 +460,9 @@ export class PluginManager {
 
     if (!plugin) return;
 
+    this.a2uiBridge?.unregisterPluginComponents(pluginId);
+    this.a2uiBridge?.unregisterPluginTemplates(pluginId);
+
     // Unregister all tools
     if (plugin.tools) {
       for (const tool of plugin.tools) {
@@ -594,6 +610,10 @@ export class PluginManager {
 
   getHooksManager(): PluginLifecycleHooks {
     return this.hooksManager;
+  }
+
+  getA2UIBridge(): PluginA2UIBridge {
+    return this.ensureA2UIBridge();
   }
 
   isInitialized(): boolean {

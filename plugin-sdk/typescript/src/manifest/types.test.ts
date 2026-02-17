@@ -9,6 +9,8 @@ import type {
   PluginConfigSchema,
   PluginConfigProperty,
   PluginActivationEvent,
+  PluginScheduledTaskDef,
+  PluginManifestTaskTrigger,
 } from './types';
 
 describe('Manifest Types', () => {
@@ -80,6 +82,18 @@ describe('Manifest Types', () => {
         modes: [],
         activationEvents: ['onStartup'],
         activateOnStartup: true,
+        scheduledTasks: [
+          {
+            name: 'daily-sync',
+            description: 'Run every day',
+            handler: 'dailySync',
+            trigger: { type: 'cron', expression: '0 6 * * *' },
+            defaultEnabled: true,
+            retry: { maxAttempts: 3, delaySeconds: 30 },
+            timeout: 60,
+            tags: ['sync', 'daily'],
+          },
+        ],
       };
 
       expect(manifest.author?.name).toBe('Test Author');
@@ -91,6 +105,7 @@ describe('Manifest Types', () => {
       expect(manifest.pythonDependencies).toContain('numpy');
       expect(manifest.configSchema?.properties.apiKey).toBeDefined();
       expect(manifest.activateOnStartup).toBe(true);
+      expect(manifest.scheduledTasks?.[0].name).toBe('daily-sync');
     });
 
     it('should support multiple capabilities', () => {
@@ -128,6 +143,28 @@ describe('Manifest Types', () => {
       expect(manifest.dependencies).toBeDefined();
       expect(manifest.dependencies?.['base-plugin']).toBe('>=1.0.0');
       expect(manifest.dependencies?.['utility-plugin']).toBe('^2.0.0');
+    });
+
+    it('should support scheduled tasks on manifest', () => {
+      const manifest: PluginManifest = {
+        id: 'scheduler-plugin',
+        name: 'Scheduler Plugin',
+        version: '1.0.0',
+        description: 'A plugin with scheduler tasks',
+        type: 'frontend',
+        capabilities: ['scheduler'],
+        scheduledTasks: [
+          {
+            name: 'cleanup-task',
+            handler: 'cleanup',
+            trigger: { type: 'interval', seconds: 3600 },
+          },
+        ],
+      };
+
+      expect(manifest.capabilities).toContain('scheduler');
+      expect(manifest.scheduledTasks).toHaveLength(1);
+      expect(manifest.scheduledTasks?.[0].trigger.type).toBe('interval');
     });
   });
 
@@ -294,6 +331,42 @@ describe('Manifest Types', () => {
       expect(events[0]).toBe('onFile:*.ts');
       expect(events[1]).toBe('onFile:package.json');
       expect(events[2]).toBe('onFile:*.md');
+    });
+  });
+
+  describe('PluginScheduledTaskDef', () => {
+    it('should support all trigger variants', () => {
+      const cronTrigger: PluginManifestTaskTrigger = {
+        type: 'cron',
+        expression: '0 * * * *',
+        timezone: 'UTC',
+      };
+      const intervalTrigger: PluginManifestTaskTrigger = {
+        type: 'interval',
+        seconds: 300,
+      };
+      const onceTrigger: PluginManifestTaskTrigger = {
+        type: 'once',
+        runAt: '2026-02-17T12:00:00Z',
+      };
+      const eventTrigger: PluginManifestTaskTrigger = {
+        type: 'event',
+        eventType: 'session:create',
+        eventSource: 'session-manager',
+      };
+
+      const tasks: PluginScheduledTaskDef[] = [
+        { name: 'cron-task', handler: 'runCron', trigger: cronTrigger },
+        { name: 'interval-task', handler: 'runInterval', trigger: intervalTrigger },
+        { name: 'once-task', handler: 'runOnce', trigger: onceTrigger },
+        { name: 'event-task', handler: 'runEvent', trigger: eventTrigger },
+      ];
+
+      expect(tasks).toHaveLength(4);
+      expect(tasks[0].trigger.type).toBe('cron');
+      expect(tasks[1].trigger.type).toBe('interval');
+      expect(tasks[2].trigger.type).toBe('once');
+      expect(tasks[3].trigger.type).toBe('event');
     });
   });
 });

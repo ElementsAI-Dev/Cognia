@@ -3,6 +3,38 @@
 use super::ime_state::ImeState;
 use serde::{Deserialize, Serialize};
 
+/// Input surface where completion is requested.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CompletionSurface {
+    ChatInput,
+    ChatWidget,
+    LatexEditor,
+    Generic,
+}
+
+impl Default for CompletionSurface {
+    fn default() -> Self {
+        Self::Generic
+    }
+}
+
+/// High-level completion mode used to optimize prompting strategy.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CompletionMode {
+    Chat,
+    Code,
+    Markdown,
+    PlainText,
+}
+
+impl Default for CompletionMode {
+    fn default() -> Self {
+        Self::PlainText
+    }
+}
+
 /// Context for requesting a completion
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompletionContext {
@@ -16,6 +48,56 @@ pub struct CompletionContext {
     pub language: Option<String>,
     /// Current IME state
     pub ime_state: Option<ImeState>,
+    /// Completion mode hint
+    pub mode: Option<CompletionMode>,
+    /// UI surface that triggered completion
+    pub surface: Option<CompletionSurface>,
+}
+
+/// v2 completion request payload with explicit mode and surface.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompletionRequestV2 {
+    /// Client-side request id for stale-response protection
+    pub request_id: Option<String>,
+    /// The text before the cursor
+    pub text: String,
+    /// Cursor position (if available)
+    pub cursor_position: Option<CursorPosition>,
+    /// File path (if editing a file)
+    pub file_path: Option<String>,
+    /// Programming language (if known)
+    pub language: Option<String>,
+    /// Current IME state
+    pub ime_state: Option<ImeState>,
+    /// Completion mode hint
+    pub mode: Option<CompletionMode>,
+    /// UI surface that triggered completion
+    pub surface: Option<CompletionSurface>,
+}
+
+/// Minimal suggestion reference for v2 accept/dismiss actions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionSuggestionRef {
+    pub suggestion_id: String,
+}
+
+/// v2 result payload that preserves request metadata.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompletionResultV2 {
+    /// Client-side request id for response matching
+    pub request_id: String,
+    /// UI surface that triggered completion
+    pub surface: CompletionSurface,
+    /// Completion mode used by backend
+    pub mode: CompletionMode,
+    /// List of completion suggestions
+    pub suggestions: Vec<CompletionSuggestion>,
+    /// Request latency in milliseconds
+    pub latency_ms: u64,
+    /// Model used for completion
+    pub model: String,
+    /// Whether the result was cached
+    pub cached: bool,
 }
 
 /// Cursor position information
@@ -238,6 +320,8 @@ mod tests {
         assert!(context.file_path.is_none());
         assert!(context.language.is_none());
         assert!(context.ime_state.is_none());
+        assert!(context.mode.is_none());
+        assert!(context.surface.is_none());
     }
 
     #[test]
@@ -253,6 +337,8 @@ mod tests {
             file_path: Some("/path/to/file.rs".to_string()),
             language: Some("rust".to_string()),
             ime_state: None,
+            mode: Some(CompletionMode::Code),
+            surface: Some(CompletionSurface::Generic),
         };
 
         assert_eq!(context.text, "fn main()");
@@ -422,6 +508,8 @@ mod tests {
             file_path: Some("test.rs".to_string()),
             language: Some("rust".to_string()),
             ime_state: None,
+            mode: Some(CompletionMode::Code),
+            surface: Some(CompletionSurface::ChatInput),
         };
 
         let json = serde_json::to_string(&context).unwrap();
@@ -430,6 +518,8 @@ mod tests {
         assert_eq!(parsed.text, context.text);
         assert_eq!(parsed.file_path, context.file_path);
         assert_eq!(parsed.language, context.language);
+        assert_eq!(parsed.mode, context.mode);
+        assert_eq!(parsed.surface, context.surface);
     }
 
     #[test]
@@ -484,5 +574,22 @@ mod tests {
             let parsed: CompletionType = serde_json::from_str(&json).unwrap();
             assert_eq!(parsed, t);
         }
+    }
+
+    #[test]
+    fn test_completion_request_v2_default() {
+        let request = CompletionRequestV2::default();
+        assert!(request.request_id.is_none());
+        assert!(request.text.is_empty());
+        assert!(request.mode.is_none());
+        assert!(request.surface.is_none());
+    }
+
+    #[test]
+    fn test_completion_result_v2_defaults() {
+        let result = CompletionResultV2::default();
+        assert!(result.request_id.is_empty());
+        assert_eq!(result.mode, CompletionMode::PlainText);
+        assert_eq!(result.surface, CompletionSurface::Generic);
     }
 }

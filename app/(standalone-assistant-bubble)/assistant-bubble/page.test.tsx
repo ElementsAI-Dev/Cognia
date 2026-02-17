@@ -190,7 +190,7 @@ describe('AssistantBubblePage', () => {
     await act(async () => {
       render(<AssistantBubblePage />);
       await Promise.resolve();
-      jest.runAllTimers();
+      await jest.runOnlyPendingTimersAsync();
     });
 
     // Simulate onMoved event (not during drag)
@@ -236,7 +236,7 @@ describe('AssistantBubblePage', () => {
     await act(async () => {
       render(<AssistantBubblePage />);
       await Promise.resolve();
-      jest.runAllTimers();
+      await jest.runOnlyPendingTimersAsync();
     });
 
     // Simulate window move event (not during drag)
@@ -449,7 +449,7 @@ describe('AssistantBubblePage', () => {
     await act(async () => {
       render(<AssistantBubblePage />);
       await Promise.resolve();
-      jest.runAllTimers();
+      await jest.runOnlyPendingTimersAsync();
     });
 
     // Simulate window move to near left edge (triggers debounced snap)
@@ -497,7 +497,7 @@ describe('AssistantBubblePage', () => {
     await act(async () => {
       render(<AssistantBubblePage />);
       await Promise.resolve();
-      jest.runAllTimers();
+      await jest.runOnlyPendingTimersAsync();
     });
 
     // Simulate window move on secondary monitor near its left edge
@@ -529,7 +529,7 @@ describe('AssistantBubblePage', () => {
     // Flush promises for async setup
     await act(async () => {
       await Promise.resolve();
-      jest.runAllTimers();
+      await jest.runOnlyPendingTimersAsync();
     });
 
     unmount();

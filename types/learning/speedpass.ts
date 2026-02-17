@@ -808,3 +808,85 @@ export interface SpeedPassState {
     progress: number;
   };
 }
+
+// ============================================================================
+// Runtime DTOs (Frontend <-> Rust)
+// ============================================================================
+
+export interface SpeedPassPersistedState {
+  academicProfile: UserAcademicProfile | null;
+  textbooks: Record<string, Textbook>;
+  textbookChapters: Record<string, TextbookChapter[]>;
+  textbookKnowledgePoints: Record<string, TextbookKnowledgePoint[]>;
+  textbookQuestions: Record<string, TextbookQuestion[]>;
+  userTextbooks: UserTextbook[];
+  courseTextbookMappings: CourseTextbookMapping[];
+  tutorials: Record<string, SpeedLearningTutorial>;
+  studySessions: Record<string, SpeedStudySession>;
+  quizzes: Record<string, Quiz>;
+  wrongQuestions: Record<string, WrongQuestionRecord>;
+  studyReports: StudyReport[];
+  globalStats: {
+    totalStudyTimeMs: number;
+    sessionsCompleted: number;
+    tutorialsCompleted: number;
+    quizzesCompleted: number;
+    totalQuestionsAttempted: number;
+    totalQuestionsCorrect: number;
+    averageAccuracy: number;
+    currentStreak: number;
+    longestStreak: number;
+    lastActiveDate?: string;
+  };
+  userProfile: {
+    id: string;
+    displayName: string;
+    preferredMode: 'extreme' | 'speed' | 'comprehensive';
+    studyGoal: 'passing' | 'good' | 'excellent';
+    dailyStudyTarget: number;
+    reminderEnabled: boolean;
+    reminderTime?: string;
+  } | null;
+}
+
+export const DEFAULT_SPEEDPASS_USER_ID = 'local-user';
+
+export interface SpeedPassRuntimeSnapshot {
+  userId: string;
+  revision: number;
+  snapshot: SpeedPassPersistedState;
+  updatedAt: string;
+}
+
+export interface LegacySpeedPassSnapshotV1 {
+  version: 1;
+  migratedAt?: string;
+  snapshot: SpeedPassPersistedState;
+}
+
+export interface ExtractTextbookRequest {
+  filePath?: string;
+  fileBytesBase64?: string;
+  fileName?: string;
+  mimeType?: string;
+}
+
+export interface ExtractTextbookResult {
+  content: string;
+  source: 'path' | 'bytes';
+  fileName?: string;
+  pageCount?: number;
+}
+
+export interface TeacherKeyPointMatchRequest {
+  textbookId: string;
+  teacherNotes: string[];
+  aiEnhance?: boolean;
+  provider?: string;
+  model?: string;
+  confidenceOverride?: number;
+}
+
+export interface TeacherKeyPointMatchResult extends TeacherKeyPointResult {
+  matchRate: number;
+}

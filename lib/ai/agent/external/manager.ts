@@ -32,6 +32,7 @@ import {
 } from './protocol-adapter';
 import { AcpClientAdapter } from './acp-client';
 import { acpToolsToAgentTools } from './translators';
+import { createExternalAgentTraceBridge } from './agent-trace-bridge';
 
 // ============================================================================
 // External Agent Manager
@@ -151,6 +152,36 @@ export class ExternalAgentManager {
       return undefined;
     }
     return adapter.getConfigOptions(sessionId);
+  }
+
+  async listSessions(agentId: string): Promise<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>> {
+    const adapter = this.adapters.get(agentId);
+    if (!adapter?.listSessions) {
+      throw new Error('Agent does not support session listing');
+    }
+    return adapter.listSessions();
+  }
+
+  async forkSession(agentId: string, sessionId: string): Promise<ExternalAgentSession> {
+    const adapter = this.adapters.get(agentId);
+    const instance = this.instances.get(agentId);
+    if (!adapter?.forkSession || !instance) {
+      throw new Error('Agent does not support session forking');
+    }
+    const forked = await adapter.forkSession(sessionId);
+    instance.sessions.set(forked.id, forked);
+    return forked;
+  }
+
+  async resumeSession(agentId: string, sessionId: string, options?: SessionCreateOptions): Promise<ExternalAgentSession> {
+    const adapter = this.adapters.get(agentId);
+    const instance = this.instances.get(agentId);
+    if (!adapter?.resumeSession || !instance) {
+      throw new Error('Agent does not support session resume');
+    }
+    const resumed = await adapter.resumeSession(sessionId, options);
+    instance.sessions.set(resumed.id, resumed);
+    return resumed;
   }
 
   getAuthMethods(agentId: string): AcpAuthMethod[] {
@@ -332,12 +363,60 @@ export class ExternalAgentManager {
   // ==========================================================================
 
   private buildSessionOptions(options?: ExternalAgentExecutionOptions): SessionCreateOptions {
+    const custom = options?.context?.custom as Record<string, unknown> | undefined;
+    const mcpServers = Array.isArray(custom?.mcpServers)
+      ? (custom?.mcpServers as SessionCreateOptions['mcpServers'])
+      : undefined;
     return {
       systemPrompt: options?.systemPrompt,
       context: options?.context as Record<string, unknown> | undefined,
       permissionMode: options?.permissionMode,
       timeout: options?.timeout,
+      mcpServers,
     };
+  }
+
+  private resolveTraceSessionId(options: ExternalAgentExecutionOptions | undefined, acpSessionId: string): string {
+    const traceSessionId = options?.traceContext?.sessionId;
+    if (typeof traceSessionId === 'string' && traceSessionId.trim().length > 0) {
+      return traceSessionId;
+    }
+
+    const legacySessionId = options?.context?.custom?.sessionId;
+    if (typeof legacySessionId === 'string' && legacySessionId.trim().length > 0) {
+      return legacySessionId;
+    }
+
+    return acpSessionId;
+  }
+
+  private createTraceBridge(
+    agentId: string,
+    instance: ExternalAgentInstance,
+    session: ExternalAgentSession,
+    options?: ExternalAgentExecutionOptions
+  ) {
+    const traceSessionId = this.resolveTraceSessionId(options, session.id);
+    const traceMetadata = options?.traceContext?.metadata;
+    const modelIdFromMetadata =
+      traceMetadata && typeof traceMetadata.modelId === 'string'
+        ? traceMetadata.modelId
+        : undefined;
+
+    return createExternalAgentTraceBridge({
+      sessionId: traceSessionId,
+      turnId: options?.traceContext?.turnId ?? traceSessionId,
+      modelId: modelIdFromMetadata,
+      agentId,
+      agentName: instance.config.name,
+      protocol: instance.config.protocol,
+      transport: instance.config.transport,
+      acpSessionId: session.id,
+      tags: ['external-agent', ...(options?.traceContext?.tags ?? [])],
+      metadata: {
+        ...traceMetadata,
+      },
+    });
   }
 
   /**
@@ -414,6 +493,7 @@ export class ExternalAgentManager {
 
     instance.status = 'executing';
     instance.stats.totalExecutions++;
+    const startTime = Date.now();
 
     // Create session if not provided
     let session: ExternalAgentSession;
@@ -437,6 +517,8 @@ export class ExternalAgentManager {
     }
 
     instance.sessions.set(session.id, session);
+    const traceBridge = this.createTraceBridge(agentId, instance, session, options);
+    await traceBridge.onStart(prompt);
 
     // Create message
     const message: ExternalAgentMessage = {
@@ -446,21 +528,51 @@ export class ExternalAgentManager {
       timestamp: new Date(),
     };
 
+    let streamSuccess = true;
+    let streamError: string | undefined;
+
     try {
       for await (const event of adapter.prompt(session.id, message, options)) {
+        if (event.type === 'session_start' && event.tools) {
+          instance.tools = event.tools;
+        }
+
+        if (event.type === 'done') {
+          streamSuccess = event.success;
+        } else if (event.type === 'error') {
+          streamSuccess = false;
+          streamError = event.error;
+        }
         // Emit to listeners
         this.emitEvent(agentId, event);
+        options?.onEvent?.(event);
+        void traceBridge.onEvent(event);
 
         // Yield to caller
         yield event;
       }
 
-      instance.stats.successfulExecutions++;
-      instance.status = 'ready';
+      await traceBridge.onComplete({
+        success: streamSuccess,
+        finalResponse: '',
+        duration: Date.now() - startTime,
+        error: streamError,
+      });
+
+      if (streamSuccess) {
+        instance.stats.successfulExecutions++;
+        instance.status = 'ready';
+      } else {
+        instance.stats.failedExecutions++;
+        instance.status = 'failed';
+        instance.lastError = streamError ?? 'External agent execution failed';
+      }
+      instance.tools = adapter.tools ?? instance.tools;
     } catch (error) {
       instance.stats.failedExecutions++;
       instance.status = 'failed';
       instance.lastError = error instanceof Error ? error.message : String(error);
+      await traceBridge.onError(error);
       throw error;
     }
   }
@@ -497,6 +609,8 @@ export class ExternalAgentManager {
     }
 
     instance.sessions.set(session.id, session);
+    const traceBridge = this.createTraceBridge(agentId, instance, session, options);
+    await traceBridge.onStart(prompt);
 
     // Create message
     const message: ExternalAgentMessage = {
@@ -507,25 +621,41 @@ export class ExternalAgentManager {
     };
 
     try {
-      const result = await adapter.execute(session.id, message, options);
-
-      // Update stats
-      instance.stats.successfulExecutions++;
-      if (result.tokenUsage) {
-        instance.stats.totalTokensUsed += result.tokenUsage.totalTokens;
-      }
+      const wrappedOptions: ExternalAgentExecutionOptions = {
+        ...options,
+        onEvent: (event) => {
+          options?.onEvent?.(event);
+          void traceBridge.onEvent(event);
+        },
+      };
+      const result = await adapter.execute(session.id, message, wrappedOptions);
+      await traceBridge.onComplete(result);
 
       const responseTime = Date.now() - startTime;
       instance.stats.averageResponseTime =
         (instance.stats.averageResponseTime * (instance.stats.totalExecutions - 1) + responseTime) /
         instance.stats.totalExecutions;
 
-      instance.status = 'ready';
+      if (result.success) {
+        instance.stats.successfulExecutions++;
+        instance.status = 'ready';
+      } else {
+        instance.stats.failedExecutions++;
+        instance.status = 'failed';
+        instance.lastError = result.error ?? 'External agent execution failed';
+      }
+
+      // Update stats
+      instance.tools = adapter.tools ?? instance.tools;
+      if (result.tokenUsage) {
+        instance.stats.totalTokensUsed += result.tokenUsage.totalTokens;
+      }
       return result;
     } catch (error) {
       instance.stats.failedExecutions++;
       instance.status = 'failed';
       instance.lastError = error instanceof Error ? error.message : String(error);
+      await traceBridge.onError(error);
       throw error;
     }
   }

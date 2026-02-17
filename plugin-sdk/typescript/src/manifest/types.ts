@@ -138,7 +138,52 @@ export interface PluginManifest {
 
   /** Whether plugin should be loaded at startup */
   activateOnStartup?: boolean;
+
+  // Scheduled Tasks
+  /** Scheduled tasks provided by this plugin */
+  scheduledTasks?: PluginScheduledTaskDef[];
 }
+
+/**
+ * Scheduled task definition in plugin manifest
+ */
+export interface PluginScheduledTaskDef {
+  /** Task name */
+  name: string;
+
+  /** Task description */
+  description?: string;
+
+  /** Handler function name */
+  handler: string;
+
+  /** Trigger configuration */
+  trigger: PluginManifestTaskTrigger;
+
+  /** Whether task is enabled by default */
+  defaultEnabled?: boolean;
+
+  /** Retry configuration */
+  retry?: {
+    maxAttempts: number;
+    delaySeconds: number;
+  };
+
+  /** Timeout in seconds */
+  timeout?: number;
+
+  /** Tags for organization */
+  tags?: string[];
+}
+
+/**
+ * Task trigger configuration in manifest
+ */
+export type PluginManifestTaskTrigger =
+  | { type: 'cron'; expression: string; timezone?: string }
+  | { type: 'interval'; seconds: number }
+  | { type: 'once'; runAt: string }
+  | { type: 'event'; eventType: string; eventSource?: string };
 
 /**
  * Configuration schema definition

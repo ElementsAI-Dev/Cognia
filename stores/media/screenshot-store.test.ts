@@ -31,9 +31,23 @@ describe('useScreenshotStore', () => {
         lastScreenshot: null,
         history: [],
         pinnedCount: 0,
+        config: {
+          format: 'png',
+          quality: 95,
+          includeCursor: false,
+          delayMs: 0,
+          copyToClipboard: true,
+          showNotification: true,
+          ocrLanguage: 'eng',
+          autoSave: false,
+          filenameTemplate: 'screenshot_{timestamp}',
+          openEditorAfterCapture: false,
+        },
         monitors: [],
         selectedMonitor: null,
         ocrAvailable: false,
+        ocrLanguages: [],
+        currentOcrLanguage: 'eng',
         isLoading: false,
         isInitialized: false,
         error: null,
@@ -65,6 +79,10 @@ describe('useScreenshotStore', () => {
       expect(result.current.config.format).toBe('png');
       expect(result.current.config.quality).toBe(95);
       expect(result.current.config.copyToClipboard).toBe(true);
+      expect(result.current.config.delayMs).toBe(0);
+      expect(result.current.config.ocrLanguage).toBe('eng');
+      expect(result.current.config.filenameTemplate).toBe('screenshot_{timestamp}');
+      expect(result.current.config.openEditorAfterCapture).toBe(false);
     });
   });
 
@@ -89,6 +107,19 @@ describe('useScreenshotStore', () => {
             return Promise.resolve(mockMonitors);
           case 'screenshot_ocr_is_available':
             return Promise.resolve(true);
+          case 'screenshot_get_config':
+            return Promise.resolve({
+              save_directory: 'C:/shots',
+              format: 'jpg',
+              quality: 80,
+              include_cursor: true,
+              delay_ms: 300,
+              copy_to_clipboard: false,
+              show_notification: false,
+              ocr_language: 'chi_sim',
+              auto_save: true,
+              filename_template: 'cap_{mode}_{timestamp}',
+            });
           case 'screenshot_get_history':
             return Promise.resolve([]);
           default:
@@ -106,6 +137,12 @@ describe('useScreenshotStore', () => {
       expect(result.current.monitors.length).toBe(1);
       expect(result.current.monitors[0].isPrimary).toBe(true);
       expect(result.current.ocrAvailable).toBe(true);
+      expect(result.current.config.format).toBe('jpg');
+      expect(result.current.config.delayMs).toBe(300);
+      expect(result.current.config.ocrLanguage).toBe('chi_sim');
+      expect(result.current.config.filenameTemplate).toBe('cap_{mode}_{timestamp}');
+      expect(result.current.currentOcrLanguage).toBe('chi_sim');
+      expect(result.current.config.openEditorAfterCapture).toBe(false);
     });
 
     it('should set isInitialized when not in Tauri', async () => {
@@ -508,11 +545,36 @@ describe('useScreenshotStore', () => {
       const { result } = renderHook(() => useScreenshotStore());
 
       await act(async () => {
-        await result.current.updateConfig({ quality: 85, format: 'jpg' });
+        await result.current.updateConfig({
+          quality: 85,
+          format: 'jpg',
+          delayMs: 250,
+          ocrLanguage: 'jpn',
+          filenameTemplate: 'ss_{mode}_{timestamp}',
+          openEditorAfterCapture: true,
+        });
       });
 
       expect(result.current.config.quality).toBe(85);
       expect(result.current.config.format).toBe('jpg');
+      expect(result.current.config.delayMs).toBe(250);
+      expect(result.current.config.ocrLanguage).toBe('jpn');
+      expect(result.current.config.filenameTemplate).toBe('ss_{mode}_{timestamp}');
+      expect(result.current.config.openEditorAfterCapture).toBe(true);
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_update_config', {
+        config: {
+          auto_save: false,
+          copy_to_clipboard: true,
+          delay_ms: 250,
+          filename_template: 'ss_{mode}_{timestamp}',
+          format: 'jpg',
+          include_cursor: false,
+          ocr_language: 'jpn',
+          quality: 85,
+          save_directory: undefined,
+          show_notification: true,
+        },
+      });
     });
 
     it('should reset config to defaults', () => {
@@ -530,6 +592,37 @@ describe('useScreenshotStore', () => {
 
       expect(result.current.config.quality).toBe(95);
       expect(result.current.config.format).toBe('png');
+    });
+  });
+
+  describe('external capture ingest', () => {
+    it('should ingest external capture payload and refresh history', async () => {
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'screenshot_get_history') {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve();
+      });
+
+      const { result } = renderHook(() => useScreenshotStore());
+
+      await act(async () => {
+        await result.current.ingestExternalCapture({
+          image_base64: 'tray-image-base64',
+          source: 'tray:screenshot-region',
+          metadata: {
+            width: 1200,
+            height: 700,
+            mode: 'region',
+            timestamp: 1704067200000,
+            file_path: 'C:/shots/a.png',
+          },
+        });
+      });
+
+      expect(result.current.lastScreenshot?.imageBase64).toBe('tray-image-base64');
+      expect(result.current.lastScreenshot?.metadata.filePath).toBe('C:/shots/a.png');
+      expect(mockInvoke).toHaveBeenCalledWith('screenshot_get_history', { count: 50 });
     });
   });
 

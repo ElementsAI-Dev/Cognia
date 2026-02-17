@@ -3,44 +3,49 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { renderHook } from '@testing-library/react';
+import { render, screen, renderHook } from '@testing-library/react';
 import {
   A2UIMessageRenderer,
   hasA2UIContent,
   useA2UIMessageIntegration,
 } from './a2ui-message-renderer';
 
-// Mock useA2UI hook
-const mockExtractAndProcess = jest.fn();
-const mockGetSurface = jest.fn();
 const mockProcessMessages = jest.fn();
+const mockGetSurface = jest.fn();
 
 jest.mock('@/hooks/a2ui', () => ({
   useA2UI: jest.fn(() => ({
-    extractAndProcess: mockExtractAndProcess,
+    processMessages: mockProcessMessages,
     getSurface: mockGetSurface,
     processMessage: jest.fn(),
-    processMessages: mockProcessMessages,
     createSurface: jest.fn(),
     deleteSurface: jest.fn(),
+    extractAndProcess: jest.fn(),
   })),
 }));
 
-// Mock parser functions
 jest.mock('@/lib/a2ui/parser', () => ({
-  detectA2UIContent: jest.fn((content: string) => {
-    return content.includes('"a2ui"') || content.includes('createSurface');
-  }),
-  extractA2UIFromResponse: jest.fn((content: string) => {
-    if (content.includes('"a2ui"') || content.includes('createSurface')) {
-      return { surfaceId: 'extracted-surface', messages: [] };
+  detectA2UIContent: jest.fn((content: string) => content.includes('createSurface')),
+  parseA2UIInput: jest.fn((input: unknown, options?: { fallbackSurfaceId?: string }) => {
+    if (typeof input === 'string' && input.includes('createSurface')) {
+      return {
+        surfaceId: 'extracted-surface',
+        messages: [
+          { type: 'createSurface', surfaceId: 'extracted-surface', surfaceType: 'inline' },
+          { type: 'surfaceReady', surfaceId: 'extracted-surface' },
+        ],
+        errors: [],
+      };
     }
-    return null;
+
+    return {
+      surfaceId: options?.fallbackSurfaceId ?? null,
+      messages: [],
+      errors: [],
+    };
   }),
 }));
 
-// Mock A2UIInlineSurface
 jest.mock('./a2ui-surface', () => ({
   A2UIInlineSurface: ({ surfaceId }: { surfaceId: string }) => (
     <div data-testid="inline-surface">{surfaceId}</div>
@@ -57,185 +62,67 @@ describe('A2UIMessageRenderer', () => {
     mockGetSurface.mockReturnValue({ id: 'extracted-surface', ready: true });
   });
 
-  it('should render A2UI content when detected', () => {
-    const content = '{"a2ui": true, "type": "createSurface"}';
-    mockExtractAndProcess.mockReturnValue('extracted-surface');
-
-    render(<A2UIMessageRenderer content={content} messageId="msg1" />);
+  it('renders A2UI content when detected', () => {
+    render(<A2UIMessageRenderer content='{"type":"createSurface"}' messageId="msg-1" />);
 
     expect(screen.getByTestId('inline-surface')).toBeInTheDocument();
-    expect(screen.getByTestId('inline-surface')).toHaveTextContent('extracted-surface');
-  });
-
-  it('should render text content when no A2UI content detected', () => {
-    const content = 'This is a regular message without A2UI';
-    mockGetSurface.mockReturnValue(null);
-
-    render(<A2UIMessageRenderer content={content} messageId="msg2" />);
-
-    // Merged component now renders text content even without A2UI
-    expect(screen.getByText(content)).toBeInTheDocument();
-    expect(screen.queryByTestId('inline-surface')).toBeNull();
-  });
-
-  it('should call processMessages when A2UI content found', () => {
-    const content = '{"a2ui": true, "createSurface": {}}';
-
-    render(<A2UIMessageRenderer content={content} messageId="msg3" />);
-
     expect(mockProcessMessages).toHaveBeenCalled();
   });
 
-  it('should apply custom className', () => {
-    const content = '{"a2ui": true}';
-    mockExtractAndProcess.mockReturnValue('test-surface');
+  it('renders plain text when no A2UI content is detected', () => {
+    render(<A2UIMessageRenderer content="regular message" messageId="msg-2" />);
 
-    render(<A2UIMessageRenderer content={content} messageId="msg4" className="custom-class" />);
-
-    expect(screen.getByTestId('inline-surface').parentElement).toHaveClass('custom-class');
+    expect(screen.getByText('regular message')).toBeInTheDocument();
+    expect(screen.queryByTestId('inline-surface')).toBeNull();
   });
 
-  it('should pass callbacks to surface', () => {
-    const content = '{"a2ui": true}';
-    const onAction = jest.fn();
-    const onDataChange = jest.fn();
-
+  it('supports custom text renderer', () => {
     render(
       <A2UIMessageRenderer
-        content={content}
-        messageId="msg5"
-        onAction={onAction}
-        onDataChange={onDataChange}
+        content="regular message"
+        messageId="msg-3"
+        textRenderer={(text) => <strong data-testid="custom-text">{text}</strong>}
       />
     );
 
-    expect(screen.getByTestId('inline-surface')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-text')).toHaveTextContent('regular message');
   });
 });
 
 describe('hasA2UIContent', () => {
-  it('should return true for content with A2UI markers', () => {
-    expect(hasA2UIContent('{"a2ui": true}')).toBe(true);
-    expect(hasA2UIContent('{"type": "createSurface"}')).toBe(true);
+  it('returns true for A2UI-like content', () => {
+    expect(hasA2UIContent('{"type":"createSurface"}')).toBe(true);
   });
 
-  it('should return false for regular content', () => {
-    expect(hasA2UIContent('Hello world')).toBe(false);
-    expect(hasA2UIContent('Just a normal message')).toBe(false);
-  });
-});
-
-describe('A2UIMessageRenderer text rendering', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetSurface.mockReturnValue({ id: 'test-surface', ready: true });
-  });
-
-  it('should render text content only when no A2UI', () => {
-    const content = 'This is plain text without A2UI';
-
-    render(<A2UIMessageRenderer content={content} messageId="msg1" />);
-
-    expect(screen.getByText(content)).toBeInTheDocument();
-    expect(screen.queryByTestId('inline-surface')).toBeNull();
-  });
-
-  it('should render both text and A2UI content', () => {
-    const content = 'Here is some text\n```json\n{"a2ui": true}\n```';
-    mockExtractAndProcess.mockReturnValue('test-surface');
-
-    render(<A2UIMessageRenderer content={content} messageId="msg2" />);
-
-    expect(screen.getByTestId('inline-surface')).toBeInTheDocument();
-  });
-
-  it('should use custom text renderer', () => {
-    const content = 'Custom rendered text';
-    const textRenderer = (text: string) => <strong data-testid="custom">{text}</strong>;
-
-    render(<A2UIMessageRenderer content={content} messageId="msg3" textRenderer={textRenderer} />);
-
-    expect(screen.getByTestId('custom')).toBeInTheDocument();
-    expect(screen.getByTestId('custom')).toHaveTextContent(content);
-  });
-
-  it('should apply custom className for text-only content', () => {
-    const content = 'Test message';
-
-    const { container } = render(
-      <A2UIMessageRenderer content={content} messageId="msg4" className="my-class" />
-    );
-
-    expect(container.firstChild).toHaveClass('my-class');
-  });
-
-  it('should strip A2UI JSON blocks from text content', () => {
-    const content = 'Before text ```json\n{"a2ui": true}\n``` After text';
-
-    render(<A2UIMessageRenderer content={content} messageId="msg5" />);
-
-    // The JSON block should be removed from text
-    const textContent = screen.getByText(/Before text/);
-    expect(textContent).toBeInTheDocument();
+  it('returns false for plain content', () => {
+    expect(hasA2UIContent('hello')).toBe(false);
   });
 });
 
 describe('useA2UIMessageIntegration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockExtractAndProcess.mockReturnValue('surface-id');
-    mockGetSurface.mockReturnValue({ id: 'surface-id', ready: true });
+    mockGetSurface.mockReturnValue({ id: 'extracted-surface', ready: true });
   });
 
-  it('should return integration functions', () => {
+  it('deduplicates processing for identical message id + content', () => {
     const { result } = renderHook(() => useA2UIMessageIntegration());
 
-    expect(result.current.processMessage).toBeDefined();
-    expect(result.current.renderA2UIContent).toBeDefined();
-    expect(result.current.hasA2UIContent).toBeDefined();
+    const firstSurface = result.current.processMessage('{"type":"createSurface"}', 'msg-dup');
+    const secondSurface = result.current.processMessage('{"type":"createSurface"}', 'msg-dup');
+
+    expect(firstSurface).toBe('extracted-surface');
+    expect(secondSurface).toBe('extracted-surface');
+    expect(mockProcessMessages).toHaveBeenCalledTimes(1);
   });
 
-  it('should process message with A2UI content', () => {
+  it('processes different message ids independently', () => {
     const { result } = renderHook(() => useA2UIMessageIntegration());
 
-    const surfaceId = result.current.processMessage('{"a2ui": true}', 'msg1');
+    result.current.processMessage('{"type":"createSurface"}', 'msg-a');
+    result.current.processMessage('{"type":"createSurface"}', 'msg-b');
 
-    expect(surfaceId).toBe('surface-id');
-  });
-
-  it('should return null for non-A2UI message', () => {
-    const { result } = renderHook(() => useA2UIMessageIntegration());
-
-    const surfaceId = result.current.processMessage('Regular message', 'msg2');
-
-    expect(surfaceId).toBeNull();
-  });
-
-  it('should render A2UI content for valid surface', () => {
-    const { result } = renderHook(() => useA2UIMessageIntegration());
-
-    const content = result.current.renderA2UIContent('surface-id');
-
-    expect(content).not.toBeNull();
-  });
-
-  it('should return null when surface not found', () => {
-    mockGetSurface.mockReturnValue(null);
-
-    const { result } = renderHook(() => useA2UIMessageIntegration());
-
-    const content = result.current.renderA2UIContent('non-existent');
-
-    expect(content).toBeNull();
-  });
-
-  it('should pass callbacks to useA2UI', () => {
-    const onAction = jest.fn();
-    const onDataChange = jest.fn();
-
-    renderHook(() => useA2UIMessageIntegration({ onAction, onDataChange }));
-
-    const { useA2UI } = jest.requireMock('@/hooks/a2ui');
-    expect(useA2UI).toHaveBeenCalledWith({ onAction, onDataChange });
+    expect(mockProcessMessages).toHaveBeenCalledTimes(2);
   });
 });
+

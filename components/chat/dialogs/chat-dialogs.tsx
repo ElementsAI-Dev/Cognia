@@ -139,6 +139,7 @@ interface ToolApprovalProps {
   setShowToolApproval: (open: boolean) => void;
   onToolApproval: (toolCallId: string, alwaysAllow?: boolean) => void;
   onToolDeny: (toolCallId: string) => void;
+  onToolOptionSelect?: (toolCallId: string, optionId: string) => void;
   currentMode: ChatMode;
   toolTimelineExecutions: ToolExecution[];
 }
@@ -314,6 +315,7 @@ export function ChatDialogs(props: ChatDialogsProps) {
     setShowToolApproval,
     onToolApproval,
     onToolDeny,
+    onToolOptionSelect,
     currentMode,
     toolTimelineExecutions,
 
@@ -484,6 +486,7 @@ export function ChatDialogs(props: ChatDialogsProps) {
         onOpenChange={setShowToolApproval}
         onApprove={onToolApproval}
         onDeny={onToolDeny}
+        onSelectOption={onToolOptionSelect}
       />
 
       {/* Agent Tool Timeline - shown when agent is executing */}

@@ -180,6 +180,9 @@ pnpm tauri dev        # 启动 Tauri 桌面开发模式
 # 构建
 pnpm build            # 构建生产版本（静态导出到 out/）
 pnpm tauri build      # 构建桌面应用安装包
+pnpm tauri:android:init  # 初始化 Android 工程（一次性）
+pnpm tauri:android:dev   # Android 开发构建
+pnpm tauri:android:build # 构建 Android APK + AAB
 
 # 代码质量
 pnpm lint             # 运行 ESLint 检查
@@ -461,6 +464,24 @@ pnpm tauri build
 # - Linux: src-tauri/target/release/bundle/appimage/
 ```
 
+### Android 应用构建
+
+```bash
+# 一次性初始化 Android 工程
+pnpm tauri:android:init
+
+# 开发构建
+pnpm tauri:android:dev
+
+# 发布打包（APK + AAB）
+pnpm tauri:android:build
+```
+
+Android 产物目录：
+
+- `src-tauri/gen/android/app/build/outputs/apk/`
+- `src-tauri/gen/android/app/build/outputs/bundle/`
+
 ## 部署指南
 
 ### Web 部署
@@ -517,6 +538,13 @@ pnpm tauri info
 rustup update
 cd src-tauri && cargo clean
 ```
+
+Android 常见检查：
+
+1. `JAVA_HOME` 指向 JDK 17。
+2. `ANDROID_HOME` / SDK 安装并可访问。
+3. 如工具链解析失败，设置 `NDK_HOME`。
+4. Android 出现 `openssl-sys` 报错时，请使用当前 rustls 路线并避免移动端 `git2` 能力。
 
 ### Ollama 连接失败
 

@@ -11,8 +11,8 @@
  * - Study analytics and reports
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { SpeedLearningMode, SpeedLearningTutorial, WrongQuestionRecord } from '@/types/learning/speedpass';
@@ -46,6 +46,8 @@ import { AnalyticsDashboard } from '@/components/speedpass/analytics-dashboard';
 import { QuizInterface } from '@/components/speedpass/quiz-interface';
 import { ModeSelectorDialog } from '@/components/speedpass/mode-selector-dialog';
 import { useSpeedPassUser } from '@/hooks/learning';
+import { consumeFeatureNavigationContext } from '@/lib/ai/routing';
+import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
 
 // ============================================================================
 // Main Component
@@ -54,11 +56,13 @@ import { useSpeedPassUser } from '@/hooks/learning';
 export default function SpeedPassPage() {
   const t = useTranslations('learningMode.speedpass.page');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showModeDialog, setShowModeDialog] = useState(false);
   const [selectedTextbookForMode, setSelectedTextbookForMode] = useState<string | null>(null);
   const [quizTextbookId, setQuizTextbookId] = useState<string | null>(null);
   const store = useSpeedPassStore();
+  const handledContextKeyRef = useRef<string | null>(null);
 
   // Start tutorial with selected mode and textbook
   const startTutorial = useCallback(async (mode: SpeedLearningMode, textbookId: string) => {
@@ -151,6 +155,62 @@ export default function SpeedPassPage() {
       window.removeEventListener('speedpass:start-quiz', handleStartQuiz);
     };
   }, []);
+
+  // Consume feature navigation context and bootstrap SpeedPass UI from routed message
+  useEffect(() => {
+    const ctxKey = searchParams.get('ctx');
+    if (!ctxKey || handledContextKeyRef.current === ctxKey) {
+      return;
+    }
+
+    const navContext = consumeFeatureNavigationContext(ctxKey);
+    handledContextKeyRef.current = ctxKey;
+    if (!navContext?.message) {
+      return;
+    }
+
+    const message = String(navContext.message);
+    const textbooks = Object.values(store.textbooks);
+    if (textbooks.length === 0) {
+      setActiveTab('textbooks');
+      toast.info(t('noTextbooks'), {
+        description: t('uploadPdfOrAdd'),
+      });
+      return;
+    }
+
+    const preferredTextbookId =
+      typeof navContext.textbookId === 'string' && store.textbooks[navContext.textbookId]
+        ? navContext.textbookId
+        : textbooks[0]?.id;
+
+    if (!preferredTextbookId) {
+      return;
+    }
+
+    if (/(?:刷题|练习|测验|错题|quiz|practice|test)/i.test(message)) {
+      setQuizTextbookId(preferredTextbookId);
+      setActiveTab('quiz');
+      return;
+    }
+
+    const modeDetection = detectSpeedLearningMode(message);
+    setSelectedTextbookForMode(preferredTextbookId);
+    setShowModeDialog(true);
+    setActiveTab('overview');
+
+    if (modeDetection.detected) {
+      const recommendedLabel =
+        modeDetection.recommendedMode === 'extreme'
+          ? t('modes.rapid.title')
+          : modeDetection.recommendedMode === 'speed'
+            ? t('modes.intensive.title')
+            : t('modes.comprehensive.title');
+      toast.info(recommendedLabel, {
+        description: modeDetection.reasonZh,
+      });
+    }
+  }, [searchParams, store.textbooks, t]);
 
   return (
     <div className="flex h-full flex-col">

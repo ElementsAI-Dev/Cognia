@@ -6,12 +6,14 @@ import 'fake-indexeddb/auto';
 import { db } from '@/lib/db';
 import {
   recordAgentTrace,
+  recordAgentTraceEvent,
   recordAgentTraceFromToolCall,
   isTracedTool,
   AGENT_TRACE_VERSION,
   AGENT_TRACE_TOOL_NAME,
   TRACED_TOOL_NAMES,
 } from './recorder';
+import { useAgentTraceStore } from '@/stores/agent-trace/agent-trace-store';
 
 // Mock the git store
 jest.mock('@/stores/git', () => ({
@@ -43,6 +45,11 @@ jest.mock('@/stores', () => ({
 describe('agent-trace/recorder', () => {
   beforeEach(async () => {
     await db.agentTraces.clear();
+    useAgentTraceStore.getState().clearAll();
+    mockAgentTraceSettings.enabled = true;
+    mockAgentTraceSettings.traceShellCommands = true;
+    mockAgentTraceSettings.traceCodeEdits = true;
+    mockAgentTraceSettings.traceFailedCalls = false;
   });
 
   describe('constants', () => {
@@ -179,6 +186,84 @@ describe('agent-trace/recorder', () => {
       expect(record.metadata.sessionId).toBe('session-1');
       expect(record.metadata.toolName).toBe('file_write');
       expect(record.metadata.agentName).toBe('coder');
+    });
+
+    it('syncs persisted records into live agent trace store', async () => {
+      const sessionId = 'live-session-1';
+      await recordAgentTrace({
+        sessionId,
+        contributorType: 'ai',
+        filePath: '/sync.ts',
+        content: 'export const synced = true;',
+        eventType: 'tool_call_result',
+        metadata: {
+          toolName: 'file_write',
+          success: true,
+        },
+      });
+
+      const active = useAgentTraceStore.getState().getActiveSession(sessionId);
+      expect(active).toBeDefined();
+      expect(active?.events.length).toBe(1);
+      expect(active?.events[0].eventType).toBe('tool_call_result');
+      expect(active?.events[0].toolName).toBe('file_write');
+    });
+  });
+
+  describe('recordAgentTraceEvent', () => {
+    it('auto-starts and auto-ends session in live store for response events', async () => {
+      const sessionId = 'event-session-1';
+
+      await recordAgentTraceEvent({
+        sessionId,
+        contributorType: 'ai',
+        eventType: 'session_start',
+      });
+      await recordAgentTraceEvent({
+        sessionId,
+        contributorType: 'ai',
+        eventType: 'response',
+        metadata: { success: true, responsePreview: 'ok' },
+      });
+
+      const active = useAgentTraceStore.getState().getActiveSession(sessionId);
+      expect(active).toBeDefined();
+      expect(active?.events.length).toBe(2);
+      expect(active?.status).toBe('completed');
+    });
+
+    it('marks session as error for error events', async () => {
+      const sessionId = 'event-session-err';
+      await recordAgentTraceEvent({
+        sessionId,
+        contributorType: 'ai',
+        eventType: 'error',
+        metadata: { error: 'boom' },
+      });
+
+      const active = useAgentTraceStore.getState().getActiveSession(sessionId);
+      expect(active).toBeDefined();
+      expect(active?.status).toBe('error');
+      expect(active?.events[0].eventType).toBe('error');
+    });
+
+    it('does not persist or sync when agent trace is disabled', async () => {
+      mockAgentTraceSettings.enabled = false;
+      const beforeCount = await db.agentTraces.count();
+      const beforeRecent = useAgentTraceStore.getState().recentEvents.length;
+
+      await recordAgentTraceEvent({
+        sessionId: 'disabled-session',
+        contributorType: 'ai',
+        eventType: 'response',
+        metadata: { success: true },
+      });
+
+      const afterCount = await db.agentTraces.count();
+      const afterRecent = useAgentTraceStore.getState().recentEvents.length;
+      expect(afterCount).toBe(beforeCount);
+      expect(afterRecent).toBe(beforeRecent);
+      expect(useAgentTraceStore.getState().getActiveSession('disabled-session')).toBeUndefined();
     });
   });
 
@@ -409,6 +494,28 @@ describe('agent-trace/recorder', () => {
         // Reset for other tests
         mockAgentTraceSettings.traceFailedCalls = false;
       });
+    });
+
+    it('does not persist or sync tool traces when recording is disabled', async () => {
+      mockAgentTraceSettings.enabled = false;
+      const beforeCount = await db.agentTraces.count();
+      const beforeRecent = useAgentTraceStore.getState().recentEvents.length;
+
+      await recordAgentTraceFromToolCall({
+        sessionId: 'disabled-tool-session',
+        toolName: 'file_write',
+        toolArgs: {
+          path: '/tmp/disabled.ts',
+          content: 'const disabled = true;',
+        },
+        toolResult: { success: true },
+      });
+
+      const afterCount = await db.agentTraces.count();
+      const afterRecent = useAgentTraceStore.getState().recentEvents.length;
+      expect(afterCount).toBe(beforeCount);
+      expect(afterRecent).toBe(beforeRecent);
+      expect(useAgentTraceStore.getState().getActiveSession('disabled-tool-session')).toBeUndefined();
     });
   });
 });

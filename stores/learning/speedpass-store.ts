@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import { DEFAULT_SPEEDPASS_USER_ID } from '@/types/learning/speedpass';
 import type {
   University,
   Major,
@@ -28,8 +29,13 @@ import type {
   TextbookParseStatus,
   StartSpeedLearningInput,
   CreateQuizInput,
+  SpeedPassPersistedState,
 } from '@/types/learning/speedpass';
 import { generateTutorial } from '@/lib/learning/speedpass/tutorial-generator';
+import { matchTeacherKeyPoints as matchTeacherKeyPointsLocally } from '@/lib/learning/speedpass/knowledge-matcher';
+import { speedpassRuntime } from '@/lib/native/speedpass-runtime';
+import { isTauri } from '@/lib/utils';
+import { loggers } from '@/lib/logger';
 
 // ============================================================================
 // Store Interface
@@ -230,6 +236,7 @@ export interface SpeedPassState {
   // ============================================================================
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
+  hydrateFromSnapshot: (snapshot: SpeedPassPersistedState) => void;
   reset: () => void;
 }
 
@@ -288,6 +295,227 @@ const initialState = {
   error: null,
 };
 
+const log = loggers.store;
+
+type PersistedSpeedPassFields = Pick<
+  SpeedPassState,
+  | 'academicProfile'
+  | 'textbooks'
+  | 'textbookChapters'
+  | 'textbookKnowledgePoints'
+  | 'textbookQuestions'
+  | 'userTextbooks'
+  | 'courseTextbookMappings'
+  | 'tutorials'
+  | 'studySessions'
+  | 'quizzes'
+  | 'wrongQuestions'
+  | 'studyReports'
+  | 'globalStats'
+  | 'userProfile'
+>;
+
+function resolveSpeedPassUserId(candidate?: string | null): string {
+  const normalized = (candidate || '').trim();
+  return normalized.length > 0 ? normalized : DEFAULT_SPEEDPASS_USER_ID;
+}
+
+export function extractSpeedPassPersistedState(
+  state: PersistedSpeedPassFields
+): SpeedPassPersistedState {
+  return {
+    academicProfile: state.academicProfile,
+    textbooks: state.textbooks,
+    textbookChapters: state.textbookChapters,
+    textbookKnowledgePoints: state.textbookKnowledgePoints,
+    textbookQuestions: state.textbookQuestions,
+    userTextbooks: state.userTextbooks,
+    courseTextbookMappings: state.courseTextbookMappings,
+    tutorials: state.tutorials,
+    studySessions: state.studySessions,
+    quizzes: state.quizzes,
+    wrongQuestions: state.wrongQuestions,
+    studyReports: state.studyReports,
+    globalStats: state.globalStats,
+    userProfile: state.userProfile,
+  };
+}
+
+export function isSpeedPassPersistedSnapshotEmpty(
+  snapshot: SpeedPassPersistedState | null | undefined
+): boolean {
+  if (!snapshot) {
+    return true;
+  }
+
+  return (
+    Object.keys(snapshot.textbooks || {}).length === 0 &&
+    Object.keys(snapshot.tutorials || {}).length === 0 &&
+    Object.keys(snapshot.studySessions || {}).length === 0 &&
+    Object.keys(snapshot.quizzes || {}).length === 0 &&
+    Object.keys(snapshot.wrongQuestions || {}).length === 0 &&
+    (snapshot.studyReports || []).length === 0 &&
+    (snapshot.userTextbooks || []).length === 0
+  );
+}
+
+function extractTeacherNotes(input: TeacherKeyPointInput): string[] {
+  const notesFromText = (input.textContent || '')
+    .split(/[;\n；。！？!?]/g)
+    .map((note) => note.trim())
+    .filter((note) => note.length > 0);
+
+  const notes: string[] = [];
+  for (const note of notesFromText) {
+    if (!notes.includes(note)) {
+      notes.push(note);
+    }
+  }
+
+  if (input.userNote?.trim() && !notes.includes(input.userNote.trim())) {
+    notes.push(input.userNote.trim());
+  }
+
+  return notes;
+}
+
+function parseChapterNumberAsInt(chapterNumber: string | undefined, fallback: number): number {
+  if (!chapterNumber) {
+    return fallback;
+  }
+
+  const head = chapterNumber.split('.')[0] || chapterNumber;
+  const numeric = Number.parseInt(head.replace(/[^\d]/g, ''), 10);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function buildLocalTeacherKeyPointResult(params: {
+  notes: string[];
+  knowledgePoints: TextbookKnowledgePoint[];
+  chapters: TextbookChapter[];
+  questions: TextbookQuestion[];
+  threshold: number;
+}): TeacherKeyPointResult {
+  const { notes, knowledgePoints, chapters, questions, threshold } = params;
+  const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
+  const chapterNumberById = new Map(
+    chapters.map((chapter, index) => [
+      chapter.id,
+      parseChapterNumberAsInt(chapter.chapterNumber, chapter.orderIndex || index + 1),
+    ])
+  );
+
+  const chapterExampleQuestionIds = new Set<string>();
+  const chapterExerciseQuestionIds = new Set<string>();
+  const chapterNumbers = new Set<number>();
+  const matchedPoints: TeacherKeyPointResult['matchedPoints'] = [];
+  const unmatchedNotes: string[] = [];
+
+  for (const note of notes) {
+    const matches = matchTeacherKeyPointsLocally(note, knowledgePoints, {
+      minMatchScore: threshold,
+      maxMatches: 1,
+      includePartialMatches: true,
+      prioritizeExactMatches: true,
+    });
+    const topMatch = matches[0]?.matches[0];
+    if (!topMatch || topMatch.matchScore < threshold) {
+      unmatchedNotes.push(note);
+      continue;
+    }
+
+    const matchedKnowledgePoint = topMatch.knowledgePoint;
+    const chapter = chapterById.get(matchedKnowledgePoint.chapterId);
+    const chapterNumber = chapterNumberById.get(matchedKnowledgePoint.chapterId) || 1;
+    chapterNumbers.add(chapterNumber);
+
+    const relatedExamples = questions
+      .filter(
+        (question) =>
+          question.sourceType === 'example' &&
+          Array.isArray(question.knowledgePointIds) &&
+          question.knowledgePointIds.includes(matchedKnowledgePoint.id)
+      )
+      .slice(0, 5)
+      .map((question) => {
+        chapterExampleQuestionIds.add(question.id);
+        return {
+          id: question.id,
+          title: question.questionNumber || question.content.slice(0, 48),
+          page: question.pageNumber || matchedKnowledgePoint.pageNumber || 0,
+          difficulty: question.difficulty || 0,
+        };
+      });
+
+    const relatedExercises = questions
+      .filter(
+        (question) =>
+          question.sourceType !== 'example' &&
+          Array.isArray(question.knowledgePointIds) &&
+          question.knowledgePointIds.includes(matchedKnowledgePoint.id)
+      )
+      .slice(0, 8)
+      .map((question) => {
+        chapterExerciseQuestionIds.add(question.id);
+        return question.id;
+      });
+
+    const relatedDefinitions = knowledgePoints
+      .filter(
+        (knowledgePoint) =>
+          knowledgePoint.chapterId === matchedKnowledgePoint.chapterId &&
+          knowledgePoint.type === 'definition' &&
+          knowledgePoint.id !== matchedKnowledgePoint.id
+      )
+      .slice(0, 3)
+      .map((knowledgePoint) => knowledgePoint.title);
+
+    matchedPoints.push({
+      teacherNote: note,
+      matchedKnowledgePoint,
+      matchConfidence: Math.round(topMatch.matchScore * 100) / 100,
+      chapter: {
+        number: chapter?.chapterNumber || `${chapterNumber}`,
+        title: chapter?.title || '未知章节',
+      },
+      pageRange:
+        chapter && Number.isFinite(chapter.pageStart) && Number.isFinite(chapter.pageEnd)
+          ? `P${chapter.pageStart}-P${chapter.pageEnd}`
+          : `P${matchedKnowledgePoint.pageNumber || 0}`,
+      relatedDefinitions,
+      relatedFormulas: Array.isArray(matchedKnowledgePoint.formulas)
+        ? matchedKnowledgePoint.formulas.length
+        : 0,
+      relatedExamples,
+      relatedExercises,
+    });
+  }
+
+  const totalKnowledgePoints = matchedPoints.length;
+  const totalExamples = chapterExampleQuestionIds.size;
+  const totalExercises = chapterExerciseQuestionIds.size;
+  const estimatedMinutes = Math.max(20, totalKnowledgePoints * 18 + totalExamples * 5 + totalExercises * 7);
+  const estimatedHours = Math.round((estimatedMinutes / 60) * 10) / 10;
+
+  return {
+    status:
+      matchedPoints.length === 0 ? 'failed' : unmatchedNotes.length === 0 ? 'success' : 'partial',
+    matchedPoints,
+    unmatchedNotes,
+    textbookCoverage: {
+      chaptersInvolved: Array.from(chapterNumbers.values()).sort((a, b) => a - b),
+      totalExamples,
+      totalExercises,
+    },
+    studyPlanSuggestion: {
+      totalKnowledgePoints,
+      totalExamples,
+      totalExercises,
+      estimatedTime: `${estimatedHours}小时`,
+    },
+  };
+}
+
 // ============================================================================
 // Store Implementation
 // ============================================================================
@@ -302,7 +530,17 @@ export const useSpeedPassStore = create<SpeedPassState>()(
       // ========================================================================
 
       setUserProfile: (profile) => {
-        set({ userProfile: profile });
+        if (!profile) {
+          set({ userProfile: null });
+          return;
+        }
+
+        set({
+          userProfile: {
+            ...profile,
+            id: resolveSpeedPassUserId(profile.id),
+          },
+        });
       },
 
       // ========================================================================
@@ -416,6 +654,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
         const userTextbook: UserTextbook = {
           id: nanoid(),
           ...input,
+          userId: resolveSpeedPassUserId(input.userId),
           addedAt: new Date(),
         };
         set((state) => ({
@@ -480,34 +719,57 @@ export const useSpeedPassStore = create<SpeedPassState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Get textbook knowledge points
           const textbookId = input.textbookId || state.currentTextbookId;
           if (!textbookId) {
             throw new Error('No textbook selected');
           }
 
-          const _knowledgePoints = state.textbookKnowledgePoints[textbookId] || [];
-          const _questions = state.textbookQuestions[textbookId] || [];
-          const _chapters = state.textbookChapters[textbookId] || [];
+          const knowledgePoints = state.textbookKnowledgePoints[textbookId] || [];
+          const chapters = state.textbookChapters[textbookId] || [];
+          const questions = state.textbookQuestions[textbookId] || [];
+          const teacherNotes = extractTeacherNotes(input);
 
-          // TODO: Implement actual AI matching logic
-          // For now, create a mock result structure
-          const result: TeacherKeyPointResult = {
-            status: 'success',
-            matchedPoints: [],
-            unmatchedNotes: [],
-            textbookCoverage: {
-              chaptersInvolved: [],
-              totalExamples: 0,
-              totalExercises: 0,
-            },
-            studyPlanSuggestion: {
-              totalKnowledgePoints: 0,
-              totalExamples: 0,
-              totalExercises: 0,
-              estimatedTime: '0小时',
-            },
-          };
+          if (teacherNotes.length === 0) {
+            throw new Error('No teacher key points provided');
+          }
+          if (knowledgePoints.length === 0) {
+            throw new Error('No textbook knowledge points available');
+          }
+
+          const threshold = 0.45;
+          const resolvedUserId = resolveSpeedPassUserId(state.userProfile?.id);
+          let result: TeacherKeyPointResult;
+
+          if (isTauri()) {
+            try {
+              result = await speedpassRuntime.matchTeacherKeyPoints(
+                {
+                  textbookId,
+                  teacherNotes,
+                  aiEnhance: false,
+                  confidenceOverride: threshold,
+                },
+                resolvedUserId
+              );
+            } catch (error) {
+              log.warn('SpeedPass runtime keypoint match failed, using local fallback', { error });
+              result = buildLocalTeacherKeyPointResult({
+                notes: teacherNotes,
+                knowledgePoints,
+                chapters,
+                questions,
+                threshold,
+              });
+            }
+          } else {
+            result = buildLocalTeacherKeyPointResult({
+              notes: teacherNotes,
+              knowledgePoints,
+              chapters,
+              questions,
+              threshold,
+            });
+          }
 
           const inputId = nanoid();
           set((state) => ({
@@ -556,7 +818,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
             knowledgePoints,
             questions,
             mode: input.mode,
-            userId: input.userId || '',
+            userId: resolveSpeedPassUserId(input.userId || state.userProfile?.id),
             courseId: input.courseId || '',
           });
 
@@ -667,7 +929,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
         const session: SpeedStudySession = {
           id: nanoid(),
           tutorialId,
-          userId: '', // TODO: Get from auth
+          userId: resolveSpeedPassUserId(get().userProfile?.id),
           startedAt: new Date(),
           totalPausedMs: 0,
           sectionsCompleted: [],
@@ -829,7 +1091,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
 
         const quiz: Quiz = {
           id: nanoid(),
-          userId: '', // TODO: Get from auth
+          userId: resolveSpeedPassUserId(state.userProfile?.id),
           title: `${input.questionCount}道题测验`,
           knowledgePointIds: input.knowledgePointIds || [],
           questionCount: selectedQuestions.length,
@@ -1086,7 +1348,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           // Create new record
           const record: WrongQuestionRecord = {
             id: nanoid(),
-            userId: '', // TODO: Get from auth
+            userId: resolveSpeedPassUserId(state.userProfile?.id),
             questionId,
             textbookId,
             attempts: [
@@ -1178,7 +1440,7 @@ export const useSpeedPassStore = create<SpeedPassState>()(
           id: nanoid(),
           sessionId,
           tutorialId,
-          userId: '', // TODO: Get from auth
+          userId: resolveSpeedPassUserId(state.userProfile?.id),
           generatedAt: new Date(),
           studyPeriod: {
             start: session?.startedAt || tutorial?.createdAt || new Date(),
@@ -1237,28 +1499,26 @@ export const useSpeedPassStore = create<SpeedPassState>()(
 
       setError: (error) => set({ error }),
       setLoading: (loading) => set({ isLoading: loading }),
+      hydrateFromSnapshot: (snapshot) =>
+        set((state) => ({
+          ...state,
+          ...snapshot,
+          userProfile: snapshot.userProfile
+            ? {
+                ...snapshot.userProfile,
+                id: resolveSpeedPassUserId(snapshot.userProfile.id),
+              }
+            : null,
+          error: null,
+          isLoading: false,
+        })),
 
       reset: () => set(initialState),
     }),
     {
       name: 'cognia-speedpass',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        academicProfile: state.academicProfile,
-        textbooks: state.textbooks,
-        textbookChapters: state.textbookChapters,
-        textbookKnowledgePoints: state.textbookKnowledgePoints,
-        textbookQuestions: state.textbookQuestions,
-        userTextbooks: state.userTextbooks,
-        courseTextbookMappings: state.courseTextbookMappings,
-        tutorials: state.tutorials,
-        studySessions: state.studySessions,
-        quizzes: state.quizzes,
-        wrongQuestions: state.wrongQuestions,
-        studyReports: state.studyReports,
-        globalStats: state.globalStats,
-        userProfile: state.userProfile,
-      }),
+      partialize: (state) => extractSpeedPassPersistedState(state),
     }
   )
 );

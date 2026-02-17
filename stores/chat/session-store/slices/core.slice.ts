@@ -88,6 +88,7 @@ export const createCoreSlice: SliceCreator<CoreSliceActions> = (set, get) => ({
       messageCount: 0,
       carriedContext: input.carriedContext,
       historyContext: input.historyContext,
+      learningContext: input.learningContext,
     };
     set((state) => ({
       sessions: [session, ...state.sessions],

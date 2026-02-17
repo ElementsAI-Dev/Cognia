@@ -6,12 +6,16 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   CompletionConfig,
   CompletionFeedback,
+  CompletionSuggestionRef,
   InputCompletionResult,
+  TriggerCompletionV2Request,
+  TriggerCompletionV2Result,
   CompletionStatus,
   CompletionSuggestion,
   CompletionStats,
   ImeState,
 } from '@/types/input-completion';
+import type { CompletionSettings } from '@/types/chat/input-completion';
 
 /**
  * Start the input completion system
@@ -49,10 +53,24 @@ export async function acceptSuggestion(): Promise<CompletionSuggestion | null> {
 }
 
 /**
+ * Accept suggestion by id (v2)
+ */
+export async function acceptSuggestionV2(suggestion: CompletionSuggestionRef): Promise<CompletionSuggestion | null> {
+  return invoke('input_completion_accept_v2', { suggestion });
+}
+
+/**
  * Dismiss the current suggestion
  */
 export async function dismissSuggestion(): Promise<void> {
   return invoke('input_completion_dismiss');
+}
+
+/**
+ * Dismiss suggestion by id (v2)
+ */
+export async function dismissSuggestionV2(suggestion?: CompletionSuggestionRef): Promise<boolean> {
+  return invoke('input_completion_dismiss_v2', { suggestion: suggestion ?? null });
 }
 
 /**
@@ -81,6 +99,13 @@ export async function getCompletionConfig(): Promise<CompletionConfig> {
  */
 export async function triggerCompletion(text: string): Promise<InputCompletionResult> {
   return invoke('input_completion_trigger', { text });
+}
+
+/**
+ * Trigger completion with v2 request metadata
+ */
+export async function triggerCompletionV2(request: TriggerCompletionV2Request): Promise<TriggerCompletionV2Result> {
+  return invoke('input_completion_trigger_v2', { request });
 }
 
 /**
@@ -123,4 +148,61 @@ export async function testProviderConnection(): Promise<InputCompletionResult> {
  */
 export async function submitCompletionFeedback(feedback: CompletionFeedback): Promise<void> {
   return invoke('input_completion_submit_feedback', { feedback });
+}
+
+/**
+ * Map unified frontend completion settings into native completion config.
+ */
+export function mapSettingsToCompletionConfig(settings: CompletionSettings): CompletionConfig {
+  const provider = settings.aiCompletionProvider;
+  const modelIdByProvider: Record<CompletionSettings['aiCompletionProvider'], string> = {
+    auto: 'qwen2.5-coder:0.5b',
+    ollama: 'qwen2.5-coder:0.5b',
+    openai: 'gpt-4o-mini',
+    groq: 'llama-3.1-8b-instant',
+  };
+
+  return {
+    enabled: settings.aiCompletionEnabled,
+    model: {
+      provider,
+      model_id: modelIdByProvider[provider],
+      endpoint: settings.aiCompletionEndpoint || undefined,
+      api_key: settings.aiCompletionApiKey || undefined,
+      max_tokens: settings.aiCompletionMaxTokens || 64,
+      temperature: 0.1,
+      timeout_secs: 5,
+    },
+    trigger: {
+      debounce_ms: settings.aiCompletionDebounce || 400,
+      min_context_length: 5,
+      max_context_length: 500,
+      trigger_on_word_boundary: false,
+      skip_chars: [' ', '\n', '\t', '\r'],
+      skip_with_modifiers: true,
+      input_capture_mode: 'local_only',
+      adaptive_debounce: {
+        enabled: true,
+        min_debounce_ms: 200,
+        max_debounce_ms: 800,
+        fast_typing_threshold: 5.0,
+        slow_typing_threshold: 1.0,
+      },
+    },
+    ui: {
+      show_inline_preview: settings.showInlinePreview,
+      max_suggestions: settings.maxSuggestions,
+      font_size: 14,
+      ghost_text_opacity: settings.ghostTextOpacity,
+      auto_dismiss_ms: settings.autoDismissDelay,
+      show_accept_hint: true,
+    },
+  };
+}
+
+/**
+ * Sync frontend completion settings to native runtime config.
+ */
+export async function syncCompletionSettings(settings: CompletionSettings): Promise<void> {
+  await updateCompletionConfig(mapSettingsToCompletionConfig(settings));
 }

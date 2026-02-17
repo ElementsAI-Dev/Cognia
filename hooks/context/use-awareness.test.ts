@@ -161,9 +161,9 @@ describe('useAwareness', () => {
 
       expect(mockInvoke).toHaveBeenCalledWith('awareness_record_activity', {
         activityType: 'text_selection',
-        appName: 'VSCode',
-        windowTitle: 'main.ts',
-        content: 'selected text',
+        description: 'selected text',
+        application: 'VSCode',
+        target: 'main.ts',
         metadata: { key: 'value' },
       });
     });
@@ -172,7 +172,13 @@ describe('useAwareness', () => {
   describe('getRecentActivities', () => {
     it('should return recent activities', async () => {
       const mockActivities = [
-        { id: '1', activity_type: 'selection', timestamp: Date.now(), metadata: {} },
+        {
+          id: '1',
+          activity_type: 'selection',
+          description: 'selection',
+          timestamp: Date.now(),
+          metadata: {},
+        },
       ];
       mockInvoke.mockResolvedValue(mockActivities);
 
@@ -229,7 +235,15 @@ describe('useAwareness', () => {
 
   describe('getActivitiesByType', () => {
     it('should call invoke with activity type', async () => {
-      const mockActivities = [{ id: '1', activity_type: 'TextSelection', timestamp: Date.now(), metadata: {} }];
+      const mockActivities = [
+        {
+          id: '1',
+          activity_type: 'TextSelection',
+          description: 'Text selection',
+          timestamp: Date.now(),
+          metadata: {},
+        },
+      ];
       mockInvoke.mockResolvedValue(mockActivities);
 
       const { result } = renderHook(() => useAwareness());

@@ -17,12 +17,18 @@ const mockGetDesignerAIConfig = jest.fn(() => ({
 }));
 
 jest.mock('@/lib/designer/ai', () => ({
-  createConversation: (...args: unknown[]) => mockCreateConversation(...args),
-  continueAIConversation: (...args: unknown[]) => mockContinueAIConversation(...args),
-  streamConversation: (...args: unknown[]) => mockStreamConversation(...args),
-  clearConversationHistory: (...args: unknown[]) => mockClearConversationHistory(...args),
-  getConversationSummary: (...args: unknown[]) => mockGetConversationSummary(...args),
-  getDesignerAIConfig: (...args: unknown[]) => mockGetDesignerAIConfig(...args),
+  createConversation: (...args: Parameters<typeof mockCreateConversation>) =>
+    mockCreateConversation(...args),
+  continueAIConversation: (...args: Parameters<typeof mockContinueAIConversation>) =>
+    mockContinueAIConversation(...args),
+  streamConversation: (...args: Parameters<typeof mockStreamConversation>) =>
+    mockStreamConversation(...args),
+  clearConversationHistory: (...args: Parameters<typeof mockClearConversationHistory>) =>
+    mockClearConversationHistory(...args),
+  getConversationSummary: (...args: Parameters<typeof mockGetConversationSummary>) =>
+    mockGetConversationSummary(...args),
+  getDesignerAIConfig: (...args: Parameters<typeof mockGetDesignerAIConfig>) =>
+    mockGetDesignerAIConfig(...args),
 }));
 
 // Mock settings store

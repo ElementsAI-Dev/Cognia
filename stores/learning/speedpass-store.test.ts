@@ -13,12 +13,29 @@ import {
   SpeedStudySession,
   Textbook,
   Quiz,
+  TeacherKeyPointInput,
+  TeacherKeyPointResult,
 } from '@/types/learning/speedpass';
+import { isTauri } from '@/lib/utils';
+import { speedpassRuntime } from '@/lib/native/speedpass-runtime';
 
 // Mock nanoid
 jest.mock('nanoid', () => ({
   nanoid: jest.fn(() => 'test-id'),
 }));
+
+jest.mock('@/lib/utils', () => ({
+  isTauri: jest.fn(() => false),
+}));
+
+jest.mock('@/lib/native/speedpass-runtime', () => ({
+  speedpassRuntime: {
+    matchTeacherKeyPoints: jest.fn(),
+  },
+}));
+
+const mockIsTauri = isTauri as jest.MockedFunction<typeof isTauri>;
+const mockMatchTeacherKeyPoints = speedpassRuntime.matchTeacherKeyPoints as jest.Mock;
 
 // Mock localStorage for Zustand persist
 const localStorageMock = (function () {
@@ -48,6 +65,8 @@ describe('SpeedPass Store', () => {
     });
     localStorageMock.clear();
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(false);
+    mockMatchTeacherKeyPoints.mockReset();
   });
 
   describe('Academic Profile Actions', () => {
@@ -329,6 +348,167 @@ describe('SpeedPass Store', () => {
         useSpeedPassStore.getState().setParseProgress(progress);
       });
       expect(useSpeedPassStore.getState().parseProgress).toEqual(progress);
+    });
+  });
+
+  describe('Teacher Key Points & Local User Defaults', () => {
+    const textbookId = 'tb-tkp';
+
+    beforeEach(() => {
+      act(() => {
+        useSpeedPassStore.getState().addTextbook({
+          id: textbookId,
+          name: '高等数学',
+          author: '同济',
+          publisher: '高教社',
+          source: 'official',
+          isPublic: true,
+          usageCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          parseStatus: 'completed',
+        } as Textbook);
+
+        useSpeedPassStore.getState().setTextbookChapters(textbookId, [
+          {
+            id: 'ch-1',
+            textbookId,
+            chapterNumber: '1',
+            title: '极限与连续',
+            level: 1,
+            orderIndex: 1,
+            pageStart: 1,
+            pageEnd: 20,
+            knowledgePointCount: 1,
+            exampleCount: 1,
+            exerciseCount: 1,
+          },
+        ] as TextbookChapter[]);
+
+        useSpeedPassStore.getState().setTextbookKnowledgePoints(textbookId, [
+          {
+            id: 'kp-1',
+            textbookId,
+            chapterId: 'ch-1',
+            title: '函数极限',
+            content: '掌握函数极限的定义和计算',
+            type: 'definition',
+            importance: 'critical',
+            difficulty: 0.4,
+            pageNumber: 5,
+            extractionConfidence: 0.9,
+            verified: true,
+          },
+        ] as TextbookKnowledgePoint[]);
+
+        useSpeedPassStore.getState().setTextbookQuestions(textbookId, [
+          {
+            id: 'q-1',
+            textbookId,
+            chapterId: 'ch-1',
+            sourceType: 'example',
+            questionNumber: '例1',
+            pageNumber: 6,
+            content: '求极限',
+            questionType: 'calculation',
+            hasSolution: true,
+            difficulty: 0.4,
+            knowledgePointIds: ['kp-1'],
+            learningValue: 'essential',
+            extractionConfidence: 0.9,
+            verified: true,
+          },
+        ] as TextbookQuestion[]);
+
+        useSpeedPassStore.getState().setCurrentTextbook(textbookId);
+      });
+    });
+
+    it('should call runtime matcher in tauri and pass local-user by default', async () => {
+      mockIsTauri.mockReturnValue(true);
+      const runtimeResult: TeacherKeyPointResult = {
+        status: 'success',
+        matchedPoints: [],
+        unmatchedNotes: [],
+        textbookCoverage: {
+          chaptersInvolved: [1],
+          totalExamples: 1,
+          totalExercises: 0,
+        },
+        studyPlanSuggestion: {
+          totalKnowledgePoints: 1,
+          totalExamples: 1,
+          totalExercises: 0,
+          estimatedTime: '1小时',
+        },
+      };
+      mockMatchTeacherKeyPoints.mockResolvedValue(runtimeResult);
+
+      const input: TeacherKeyPointInput = {
+        inputType: 'text',
+        courseId: 'course-1',
+        textbookId,
+        textContent: '重点看函数极限',
+      };
+
+      await act(async () => {
+        await useSpeedPassStore.getState().processTeacherKeyPoints(input);
+      });
+
+      expect(mockMatchTeacherKeyPoints).toHaveBeenCalledWith(
+        expect.objectContaining({
+          textbookId,
+          teacherNotes: ['重点看函数极限'],
+        }),
+        'local-user'
+      );
+    });
+
+    it('should fallback to local rule engine when runtime matcher fails', async () => {
+      mockIsTauri.mockReturnValue(true);
+      mockMatchTeacherKeyPoints.mockRejectedValue(new Error('runtime failed'));
+
+      const input: TeacherKeyPointInput = {
+        inputType: 'text',
+        courseId: 'course-1',
+        textbookId,
+        textContent: '函数极限',
+      };
+
+      const result = await useSpeedPassStore.getState().processTeacherKeyPoints(input);
+
+      expect(result.matchedPoints.length).toBeGreaterThan(0);
+      expect(['success', 'partial']).toContain(result.status);
+    });
+
+    it('should use local-user for generated session/quiz/wrong-question/report records', async () => {
+      let tutorial: { id: string } = { id: '' };
+      await act(async () => {
+        tutorial = await useSpeedPassStore.getState().createTutorial({
+          courseId: 'course-1',
+          textbookId,
+          mode: 'speed',
+        });
+      });
+
+      let session: SpeedStudySession | undefined;
+      let quiz: Quiz | undefined;
+      act(() => {
+        session = useSpeedPassStore.getState().startStudySession(tutorial.id);
+        quiz = useSpeedPassStore.getState().createQuiz({
+          textbookId,
+          questionCount: 1,
+        });
+        useSpeedPassStore.getState().addWrongQuestion('q-1', textbookId, 'wrong');
+      });
+
+      const report = useSpeedPassStore.getState().generateStudyReport(session?.id, tutorial.id);
+      const wrongRecord = Object.values(useSpeedPassStore.getState().wrongQuestions)[0];
+
+      expect(session?.userId).toBe('local-user');
+      expect(quiz?.userId).toBe('local-user');
+      expect(wrongRecord.userId).toBe('local-user');
+      expect(report.userId).toBe('local-user');
     });
   });
 

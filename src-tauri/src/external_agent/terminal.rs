@@ -5,6 +5,8 @@
 //! of terminal processes requested by external agents.
 
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -18,6 +20,14 @@ pub struct TerminalOutput {
     pub text: String,
     pub is_stderr: bool,
     pub timestamp: u64,
+}
+
+/// Terminal process exit status
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalExitStatus {
+    pub exit_code: Option<i32>,
+    pub signal: Option<String>,
 }
 
 /// Terminal process state
@@ -39,9 +49,47 @@ pub struct AcpTerminal {
     stdin: Option<ChildStdin>,
     output_rx: mpsc::Receiver<TerminalOutput>,
     output_buffer: Vec<TerminalOutput>,
+    default_output_byte_limit: Option<usize>,
+    last_exit_code: Option<i32>,
+    last_exit_signal: Option<String>,
 }
 
 impl AcpTerminal {
+    fn update_exit_status_from_process_status(&mut self, status: std::process::ExitStatus) {
+        self.last_exit_code = status.code();
+        #[cfg(unix)]
+        {
+            self.last_exit_signal = status.signal().map(|s| s.to_string());
+        }
+        #[cfg(not(unix))]
+        {
+            self.last_exit_signal = None;
+        }
+        self.state = TerminalState::Exited(self.last_exit_code.unwrap_or(-1));
+    }
+
+    fn current_exit_status(&self) -> TerminalExitStatus {
+        TerminalExitStatus {
+            exit_code: self.last_exit_code,
+            signal: self.last_exit_signal.clone(),
+        }
+    }
+
+    fn truncate_output_tail(output: &str, max_bytes: usize) -> (String, bool) {
+        if output.len() <= max_bytes {
+            return (output.to_string(), false);
+        }
+        if max_bytes == 0 {
+            return (String::new(), !output.is_empty());
+        }
+
+        let mut start = output.len() - max_bytes;
+        while start < output.len() && !output.is_char_boundary(start) {
+            start += 1;
+        }
+        (output[start..].to_string(), true)
+    }
+
     /// Write to terminal stdin
     pub async fn write(&mut self, data: &str) -> Result<(), String> {
         if let Some(stdin) = &mut self.stdin {
@@ -78,12 +126,25 @@ impl AcpTerminal {
             .join("")
     }
 
+    /// Get accumulated output with optional byte limit
+    pub async fn get_output_with_limit(
+        &mut self,
+        requested_limit: Option<usize>,
+    ) -> (String, bool) {
+        let output = self.get_output_string().await;
+        let limit = requested_limit.or(self.default_output_byte_limit);
+        if let Some(max_bytes) = limit {
+            return Self::truncate_output_tail(&output, max_bytes);
+        }
+        (output, false)
+    }
+
     /// Check if the terminal is still running
     pub async fn is_running(&mut self) -> bool {
         match self.child.try_wait() {
             Ok(None) => true,
             Ok(Some(status)) => {
-                self.state = TerminalState::Exited(status.code().unwrap_or(-1));
+                self.update_exit_status_from_process_status(status);
                 false
             }
             Err(e) => {
@@ -95,10 +156,12 @@ impl AcpTerminal {
 
     /// Get exit code if the process has exited
     pub fn exit_code(&self) -> Option<i32> {
-        match &self.state {
-            TerminalState::Exited(code) => Some(*code),
-            _ => None,
-        }
+        self.last_exit_code
+    }
+
+    /// Get terminal exit status
+    pub fn exit_status(&self) -> TerminalExitStatus {
+        self.current_exit_status()
     }
 
     /// Kill the terminal process
@@ -108,17 +171,21 @@ impl AcpTerminal {
             .await
             .map_err(|e| format!("Failed to kill terminal: {}", e))?;
         self.state = TerminalState::Killed;
+        self.last_exit_code = None;
+        self.last_exit_signal = Some("killed".to_string());
         Ok(())
     }
 
     /// Wait for the terminal to exit with optional timeout
-    pub async fn wait_for_exit(&mut self, timeout_secs: Option<u64>) -> Result<i32, String> {
+    pub async fn wait_for_exit(
+        &mut self,
+        timeout_secs: Option<u64>,
+    ) -> Result<TerminalExitStatus, String> {
         let wait_future = async {
             match self.child.wait().await {
                 Ok(status) => {
-                    let code = status.code().unwrap_or(-1);
-                    self.state = TerminalState::Exited(code);
-                    Ok(code)
+                    self.update_exit_status_from_process_status(status);
+                    Ok(self.current_exit_status())
                 }
                 Err(e) => {
                     self.state = TerminalState::Error(e.to_string());
@@ -165,6 +232,8 @@ impl AcpTerminalManager {
         command: &str,
         args: &[String],
         cwd: Option<&str>,
+        env: Option<&HashMap<String, String>>,
+        output_byte_limit: Option<usize>,
     ) -> Result<String, String> {
         // Generate unique terminal ID
         let mut next_id = self.next_id.lock().await;
@@ -181,6 +250,12 @@ impl AcpTerminalManager {
 
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
+        }
+
+        if let Some(env_map) = env {
+            for (key, value) in env_map {
+                cmd.env(key, value);
+            }
         }
 
         // Set environment to prevent interactive prompts
@@ -252,6 +327,9 @@ impl AcpTerminalManager {
             stdin,
             output_rx,
             output_buffer: Vec::new(),
+            default_output_byte_limit: output_byte_limit,
+            last_exit_code: None,
+            last_exit_signal: None,
         };
 
         // Store terminal
@@ -268,17 +346,21 @@ impl AcpTerminalManager {
     }
 
     /// Get output from a terminal
-    pub async fn get_output(&self, terminal_id: &str) -> Result<(String, Option<i32>), String> {
+    pub async fn get_output(
+        &self,
+        terminal_id: &str,
+        requested_limit: Option<usize>,
+    ) -> Result<(String, bool, TerminalExitStatus), String> {
         let terminals = self.terminals.read().await;
         let terminal = terminals
             .get(terminal_id)
             .ok_or_else(|| format!("Terminal not found: {}", terminal_id))?;
 
         let mut terminal = terminal.lock().await;
-        let output = terminal.get_output_string().await;
-        let exit_code = terminal.exit_code();
+        let (output, truncated) = terminal.get_output_with_limit(requested_limit).await;
+        let exit_status = terminal.exit_status();
 
-        Ok((output, exit_code))
+        Ok((output, truncated, exit_status))
     }
 
     /// Kill a terminal
@@ -311,7 +393,7 @@ impl AcpTerminalManager {
         &self,
         terminal_id: &str,
         timeout_secs: Option<u64>,
-    ) -> Result<i32, String> {
+    ) -> Result<TerminalExitStatus, String> {
         let terminals = self.terminals.read().await;
         let terminal = terminals
             .get(terminal_id)
@@ -384,7 +466,8 @@ impl AcpTerminalManager {
             "sessionId": terminal.session_id,
             "command": terminal.command,
             "state": terminal.state,
-            "exitCode": terminal.exit_code()
+            "exitCode": terminal.exit_code(),
+            "exitStatus": terminal.exit_status()
         }))
     }
 
@@ -398,6 +481,7 @@ impl AcpTerminalManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_terminal_manager_create() {
@@ -411,11 +495,20 @@ mod tests {
                 "cmd",
                 &["/c".to_string(), "echo".to_string(), "hello".to_string()],
                 None,
+                None,
+                None,
             )
             .await;
         #[cfg(not(windows))]
         let result = manager
-            .create("test-session", "echo", &["hello".to_string()], None)
+            .create(
+                "test-session",
+                "echo",
+                &["hello".to_string()],
+                None,
+                None,
+                None,
+            )
             .await;
 
         assert!(result.is_ok());
@@ -426,10 +519,134 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Get output
-        let (output, _) = manager.get_output(&terminal_id).await.unwrap();
+        let (output, _, _) = manager.get_output(&terminal_id, None).await.unwrap();
         assert!(output.contains("hello"));
 
         // Clean up
         let _ = manager.release(&terminal_id).await;
+    }
+
+    #[test]
+    fn test_truncate_output_tail_utf8_safe() {
+        let input = "a🙂b";
+        let (truncated, did_truncate) = AcpTerminal::truncate_output_tail(input, 5);
+        assert!(did_truncate);
+        assert_eq!(truncated, "🙂b");
+    }
+
+    #[tokio::test]
+    async fn test_terminal_output_byte_limit_truncates_tail() {
+        let manager = AcpTerminalManager::new();
+
+        #[cfg(windows)]
+        let result = manager
+            .create(
+                "test-session",
+                "cmd",
+                &[
+                    "/c".to_string(),
+                    "echo".to_string(),
+                    "hello-world".to_string(),
+                ],
+                None,
+                None,
+                Some(5),
+            )
+            .await;
+        #[cfg(not(windows))]
+        let result = manager
+            .create(
+                "test-session",
+                "echo",
+                &["hello-world".to_string()],
+                None,
+                None,
+                Some(5),
+            )
+            .await;
+
+        let terminal_id = result.expect("terminal should be created");
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let (output, truncated, _) = manager.get_output(&terminal_id, None).await.unwrap();
+        assert!(truncated);
+        assert!(output.len() <= 5);
+
+        let _ = manager.release(&terminal_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_terminal_create_passes_env_and_exit_status() {
+        let manager = AcpTerminalManager::new();
+        let mut env = HashMap::new();
+        env.insert("ACP_ENV_TEST".to_string(), "cognia-test".to_string());
+
+        #[cfg(windows)]
+        let result = manager
+            .create(
+                "test-session",
+                "cmd",
+                &[
+                    "/c".to_string(),
+                    "echo".to_string(),
+                    "%ACP_ENV_TEST%".to_string(),
+                ],
+                None,
+                Some(&env),
+                None,
+            )
+            .await;
+        #[cfg(not(windows))]
+        let result = manager
+            .create(
+                "test-session",
+                "sh",
+                &["-c".to_string(), "echo \"$ACP_ENV_TEST\"".to_string()],
+                None,
+                Some(&env),
+                None,
+            )
+            .await;
+
+        let terminal_id = result.expect("terminal should be created");
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        let (output, _, _) = manager.get_output(&terminal_id, None).await.unwrap();
+        assert!(output.contains("cognia-test"));
+
+        #[cfg(windows)]
+        let result = manager
+            .create(
+                "test-session",
+                "cmd",
+                &["/c".to_string(), "exit".to_string(), "7".to_string()],
+                None,
+                None,
+                None,
+            )
+            .await;
+        #[cfg(not(windows))]
+        let result = manager
+            .create(
+                "test-session",
+                "sh",
+                &["-c".to_string(), "exit 7".to_string()],
+                None,
+                None,
+                None,
+            )
+            .await;
+
+        let exit_terminal_id = result.expect("exit terminal should be created");
+        let exit_status = manager
+            .wait_for_exit(&exit_terminal_id, Some(5))
+            .await
+            .unwrap();
+        assert_eq!(exit_status.exit_code, Some(7));
+
+        let (_, _, output_exit_status) = manager.get_output(&exit_terminal_id, None).await.unwrap();
+        assert_eq!(output_exit_status.exit_code, Some(7));
+
+        let _ = manager.release(&terminal_id).await;
+        let _ = manager.release(&exit_terminal_id).await;
     }
 }

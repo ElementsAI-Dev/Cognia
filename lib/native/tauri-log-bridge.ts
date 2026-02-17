@@ -1,34 +1,51 @@
 /**
  * Tauri Log Bridge
- * 
+ *
  * Bridges Rust backend logs to the frontend unified logging system.
- * Listens for log events emitted from Tauri and forwards them to lib/logger.
  */
 
-import { loggers, logContext, type LogLevel } from '@/lib/logger';
+import { logContext, loggers, type LogLevel } from '@/lib/logger';
 import { isTauri } from '@/lib/utils';
 
-/**
- * Tauri log event payload structure
- */
 export interface TauriLogEvent {
-  /** Log level from Rust (DEBUG, INFO, WARN, ERROR) */
   level: string;
-  /** Module/target that produced the log */
   target: string;
-  /** Log message content */
   message: string;
-  /** ISO timestamp when log was created */
   timestamp: string;
-  /** Optional trace ID for request correlation */
   traceId?: string;
-  /** Optional additional data */
   data?: Record<string, unknown>;
 }
 
-/**
- * Map Rust log levels to unified logger levels
- */
+function readString(raw: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function readObject(raw: Record<string, unknown>, keys: string[]): Record<string, unknown> | undefined {
+  for (const key of keys) {
+    const value = raw[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return undefined;
+}
+
 function mapLogLevel(rustLevel: string): LogLevel {
   const level = rustLevel.toUpperCase();
   switch (level) {
@@ -43,31 +60,94 @@ function mapLogLevel(rustLevel: string): LogLevel {
       return 'warn';
     case 'ERROR':
       return 'error';
+    case 'FATAL':
+      return 'fatal';
     default:
       return 'info';
   }
 }
 
-/**
- * Parse target to extract module name
- * e.g., "app_lib::mcp::transport" -> "mcp:transport"
- */
 function parseTarget(target: string): string {
-  // Remove app_lib prefix if present
-  let moduleName = target.replace(/^app_lib::/, '');
-  // Convert :: to : for consistency with frontend modules
-  moduleName = moduleName.replace(/::/g, ':');
-  return moduleName;
+  return target.replace(/^app_lib::/, '').replace(/::/g, ':');
 }
 
-// Track if bridge is initialized
-let isInitialized = false;
-let unlistenFn: (() => void) | null = null;
+function normalizeEvent(payload: unknown): TauriLogEvent | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
 
-/**
- * Initialize the Tauri log bridge
- * Call this once during app initialization (only in Tauri environment)
- */
+  const raw = payload as Record<string, unknown>;
+  const level = readString(raw, ['level', 'lvl', 'severity']) || 'INFO';
+  const target = readString(raw, ['target', 'module', 'modulePath', 'logger']) || 'tauri';
+  const message =
+    readString(raw, ['message', 'msg', 'body']) ||
+    readString(raw, ['error', 'reason']) ||
+    '[tauri log]';
+  const timestamp =
+    readString(raw, ['timestamp', 'time', 'ts', 'createdAt']) || new Date().toISOString();
+  const traceId = readString(raw, [
+    'traceId',
+    'trace_id',
+    'requestId',
+    'request_id',
+    'correlationId',
+  ]);
+  const data = readObject(raw, ['data', 'meta', 'metadata', 'context']);
+
+  return {
+    level,
+    target,
+    message,
+    timestamp,
+    traceId,
+    data,
+  };
+}
+
+function routeLog(event: TauriLogEvent): void {
+  const logLevel = mapLogLevel(event.level);
+  const moduleName = parseTarget(event.target);
+  const logData: Record<string, unknown> = {
+    source: 'tauri',
+    target: event.target,
+    tauriTimestamp: event.timestamp,
+    ...(event.data || {}),
+  };
+
+  if (event.traceId) {
+    logContext.setTraceId(event.traceId);
+  }
+
+  const logger = loggers.native.child(moduleName);
+  switch (logLevel) {
+    case 'trace':
+      logger.trace(event.message, logData);
+      break;
+    case 'debug':
+      logger.debug(event.message, logData);
+      break;
+    case 'info':
+      logger.info(event.message, logData);
+      break;
+    case 'warn':
+      logger.warn(event.message, logData);
+      break;
+    case 'error':
+      logger.error(event.message, undefined, logData);
+      break;
+    case 'fatal':
+      logger.fatal(event.message, undefined, logData);
+      break;
+  }
+
+  if (event.traceId) {
+    logContext.clearTraceId();
+  }
+}
+
+let isInitialized = false;
+let unlistenFn: (() => void | Promise<void>) | null = null;
+
 export async function initTauriLogBridge(): Promise<void> {
   if (!isTauri() || isInitialized) {
     return;
@@ -76,53 +156,12 @@ export async function initTauriLogBridge(): Promise<void> {
   try {
     const { listen } = await import('@tauri-apps/api/event');
 
-    // Listen for log events from Rust backend
-    unlistenFn = await listen<TauriLogEvent>('log://message', (event) => {
-      const { level, target, message, timestamp, traceId, data } = event.payload;
-      
-      const logLevel = mapLogLevel(level);
-      const moduleName = parseTarget(target);
-      
-      // Create context with Tauri-specific metadata
-      const logData: Record<string, unknown> = {
-        source: 'tauri',
-        target,
-        tauriTimestamp: timestamp,
-        ...data,
-      };
-
-      // Set trace ID if provided
-      if (traceId) {
-        logContext.setTraceId(traceId);
+    unlistenFn = await listen<unknown>('log://message', (event) => {
+      const parsed = normalizeEvent(event.payload);
+      if (!parsed) {
+        return;
       }
-
-      // Route to appropriate logger based on module
-      const logger = loggers.native.child(moduleName);
-      
-      switch (logLevel) {
-        case 'trace':
-          logger.trace(message, logData);
-          break;
-        case 'debug':
-          logger.debug(message, logData);
-          break;
-        case 'info':
-          logger.info(message, logData);
-          break;
-        case 'warn':
-          logger.warn(message, logData);
-          break;
-        case 'error':
-          logger.error(message, undefined, logData);
-          break;
-        default:
-          logger.info(message, logData);
-      }
-
-      // Clear trace ID after logging
-      if (traceId) {
-        logContext.clearTraceId();
-      }
+      routeLog(parsed);
     });
 
     isInitialized = true;
@@ -132,67 +171,23 @@ export async function initTauriLogBridge(): Promise<void> {
   }
 }
 
-/**
- * Cleanup the Tauri log bridge
- * Call this during app cleanup/unmount
- */
 export async function cleanupTauriLogBridge(): Promise<void> {
   if (unlistenFn) {
-    unlistenFn();
+    await Promise.resolve(unlistenFn());
     unlistenFn = null;
   }
   isInitialized = false;
 }
 
-/**
- * Check if bridge is currently active
- */
 export function isTauriLogBridgeActive(): boolean {
   return isInitialized;
 }
 
-/**
- * Manually forward a Tauri log event
- * Useful for testing or when events come from other sources
- */
-export function forwardTauriLog(event: TauriLogEvent): void {
-  const { level, target, message, timestamp, traceId, data } = event;
-  
-  const logLevel = mapLogLevel(level);
-  const moduleName = parseTarget(target);
-  
-  const logData: Record<string, unknown> = {
-    source: 'tauri',
-    target,
-    tauriTimestamp: timestamp,
-    ...data,
-  };
-
-  if (traceId) {
-    logContext.setTraceId(traceId);
+export function forwardTauriLog(event: TauriLogEvent | Record<string, unknown>): void {
+  const parsed = normalizeEvent(event);
+  if (!parsed) {
+    return;
   }
-
-  const logger = loggers.native.child(moduleName);
-  
-  switch (logLevel) {
-    case 'trace':
-      logger.trace(message, logData);
-      break;
-    case 'debug':
-      logger.debug(message, logData);
-      break;
-    case 'info':
-      logger.info(message, logData);
-      break;
-    case 'warn':
-      logger.warn(message, logData);
-      break;
-    case 'error':
-      logger.error(message, undefined, logData);
-      break;
-  }
-
-  if (traceId) {
-    logContext.clearTraceId();
-  }
+  routeLog(parsed);
 }
+

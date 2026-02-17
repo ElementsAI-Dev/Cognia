@@ -6,7 +6,6 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { nanoid } from 'nanoid';
 import { useTranslations } from 'next-intl';
 import {
   Send,
@@ -39,17 +38,13 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/stores';
 import {
-  continueDesignConversation,
   getAIStyleSuggestions,
   getAIAccessibilitySuggestions,
-  getDesignerAIConfig,
-  executeDesignerAIEdit,
   QUICK_AI_ACTIONS,
-  type AIConversationMessage,
   type AISuggestion,
 } from '@/lib/designer';
+import { useAIConversation, useDesignerAIConfig } from '@/hooks/designer';
 
 interface AIChatPanelProps {
   code: string;
@@ -68,21 +63,27 @@ export function AIChatPanel({
 }: AIChatPanelProps) {
   const t = useTranslations('designer');
   const [message, setMessage] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [conversation, setConversation] = useState<AIConversationMessage[]>([]);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionType, setSuggestionType] = useState<'style' | 'accessibility'>('style');
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Settings for AI
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
+  const { getConfig } = useDesignerAIConfig();
+  const {
+    messages: conversation,
+    isProcessing,
+    error: conversationError,
+    sendMessage,
+    clearHistory,
+  } = useAIConversation({
+    designerId: 'designer-ai-chat',
+    initialCode: code,
+    onCodeChange,
+  });
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -91,104 +92,39 @@ export function AIChatPanel({
     }
   }, [conversation]);
 
-  // Get AI config
-  const getConfig = useCallback(() => {
-    return getDesignerAIConfig(defaultProvider, providerSettings);
-  }, [defaultProvider, providerSettings]);
+  const error = localError ?? conversationError;
 
   // Send message to AI
   const handleSendMessage = useCallback(async () => {
     if (!message.trim() || isProcessing) return;
 
-    const userMessage: AIConversationMessage = {
-      id: nanoid(),
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    };
-
-    setConversation((prev) => [...prev, userMessage]);
+    const userMessage = message;
     setMessage('');
-    setIsProcessing(true);
-    setError(null);
+    setLocalError(null);
 
     try {
-      const config = getConfig();
-      const result = await continueDesignConversation(
-        code,
-        conversation,
-        message,
-        config
-      );
-
-      if (result.success && result.response) {
-        const assistantMessage: AIConversationMessage = {
-          id: nanoid(),
-          role: 'assistant',
-          content: result.response,
-          timestamp: new Date(),
-          codeSnapshot: result.code,
-        };
-
-        setConversation((prev) => [...prev, assistantMessage]);
-
-        // Apply code if provided
-        if (result.code) {
-          onCodeChange(result.code);
-        }
-      } else {
-        setError(result.error || 'Failed to get response');
-      }
+      await sendMessage(userMessage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsProcessing(false);
+      setLocalError(err instanceof Error ? err.message : 'An error occurred');
     }
-  }, [message, isProcessing, code, conversation, getConfig, onCodeChange]);
+  }, [message, isProcessing, sendMessage]);
 
   // Apply quick action
   const handleQuickAction = useCallback(async (prompt: string) => {
-    setIsProcessing(true);
-    setError(null);
-
-    const quickUserMessage: AIConversationMessage = {
-      id: nanoid(),
-      role: 'user',
-      content: prompt,
-      timestamp: new Date(),
-    };
-    setConversation((prev) => [...prev, quickUserMessage]);
-
+    setLocalError(null);
     try {
-      const config = getConfig();
-      const result = await executeDesignerAIEdit(prompt, code, config);
-
-      if (result.success && result.code) {
-        const quickAssistantMessage: AIConversationMessage = {
-          id: nanoid(),
-          role: 'assistant',
-          content: t('aiChatApplied'),
-          timestamp: new Date(),
-          codeSnapshot: result.code,
-        };
-        setConversation((prev) => [...prev, quickAssistantMessage]);
-        onCodeChange(result.code);
-      } else {
-        setError(result.error || 'Quick action failed');
-      }
+      await sendMessage(prompt);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsProcessing(false);
+      setLocalError(err instanceof Error ? err.message : 'An error occurred');
     }
-  }, [code, getConfig, onCodeChange, t]);
+  }, [sendMessage]);
 
   // Get suggestions
   const handleGetSuggestions = useCallback(async (type: 'style' | 'accessibility') => {
     setIsLoadingSuggestions(true);
     setSuggestionType(type);
     setShowSuggestions(true);
-    setError(null);
+    setLocalError(null);
 
     try {
       const config = getConfig();
@@ -199,10 +135,10 @@ export function AIChatPanel({
       if (result.success && result.suggestions) {
         setSuggestions(result.suggestions);
       } else {
-        setError(result.error || 'Failed to get suggestions');
+        setLocalError(result.error || 'Failed to get suggestions');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setLocalError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -223,11 +159,11 @@ export function AIChatPanel({
 
   // Clear conversation
   const handleClearConversation = useCallback(() => {
-    setConversation([]);
+    clearHistory();
     setSuggestions([]);
     setShowSuggestions(false);
-    setError(null);
-  }, []);
+    setLocalError(null);
+  }, [clearHistory]);
 
   // Handle key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {

@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { A2UIComponentProps } from '@/types/artifact/a2ui';
 import { isPathValue } from '@/types/artifact/a2ui';
+import { getValueByPath } from '@/lib/a2ui/data-model';
 import type {
   A2UIInteractiveGuideComponentDef,
   StepIndicatorProps,
@@ -34,16 +35,8 @@ function resolveValue<T>(
 ): T {
   if (value === undefined) return defaultValue;
   if (isPathValue(value)) {
-    const path = value.path.replace(/^\//, '').split('/');
-    let result: unknown = dataModel;
-    for (const segment of path) {
-      if (result && typeof result === 'object' && segment in result) {
-        result = (result as Record<string, unknown>)[segment];
-      } else {
-        return defaultValue;
-      }
-    }
-    return result as T;
+    const resolved = getValueByPath<T>(dataModel, value.path);
+    return resolved === undefined ? defaultValue : resolved;
   }
   return value as T;
 }

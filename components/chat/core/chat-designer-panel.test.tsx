@@ -2,17 +2,17 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ChatDesignerPanel } from './chat-designer-panel';
+
+const mockSendMessage = jest.fn();
+let latestAIConversationOptions: {
+  onCodeChange?: (code: string) => void;
+  onError?: (error: string) => void;
+} | null = null;
 
 // Mock stores
 jest.mock('@/stores', () => ({
-  useSettingsStore: () => ({
-    providerSettings: {
-      openai: { apiKey: 'test-key' },
-    },
-    defaultProvider: 'openai',
-  }),
   useArtifactStore: () => ({
     createCanvasDocument: jest.fn(() => 'doc-1'),
     setActiveCanvas: jest.fn(),
@@ -20,10 +20,30 @@ jest.mock('@/stores', () => ({
   }),
 }));
 
+jest.mock('@/hooks/designer', () => ({
+  useAIConversation: (options: {
+    onCodeChange?: (code: string) => void;
+    onError?: (error: string) => void;
+  }) => {
+    latestAIConversationOptions = options;
+    return {
+      sendMessage: mockSendMessage,
+      isProcessing: false,
+      error: null,
+      messages: [],
+      clearHistory: jest.fn(),
+      resetConversation: jest.fn(),
+      conversation: null,
+      isStreaming: false,
+      streamingContent: '',
+      sendMessageStreaming: jest.fn(),
+      getSummary: jest.fn(),
+    };
+  },
+}));
+
 // Mock designer lib
 jest.mock('@/lib/designer', () => ({
-  executeDesignerAIEdit: jest.fn().mockResolvedValue({ success: true, code: 'new code' }),
-  getDesignerAIConfig: jest.fn(() => ({})),
   AI_SUGGESTIONS: ['Add dark mode', 'Add animation', 'Improve layout'],
 }));
 
@@ -73,6 +93,7 @@ describe('ChatDesignerPanel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    latestAIConversationOptions = null;
     // Mock sessionStorage
     Object.defineProperty(window, 'sessionStorage', {
       value: {
@@ -181,5 +202,29 @@ describe('ChatDesignerPanel', () => {
     
     const textarea = screen.getByRole('textbox');
     expect(textarea).toHaveValue('Add dark mode');
+  });
+
+  it('uses shared AI conversation flow and applies returned code', async () => {
+    const onCodeChange = jest.fn();
+    mockSendMessage.mockImplementation(async () => {
+      latestAIConversationOptions?.onCodeChange?.('new code from ai');
+    });
+
+    render(<ChatDesignerPanel {...defaultProps} showAIPanel={true} onCodeChange={onCodeChange} />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Improve spacing' } });
+
+    const sendButton = screen.getAllByRole('button').find(
+      (btn) => btn.querySelector('svg.lucide-send')
+    );
+    if (sendButton) {
+      await act(async () => {
+        fireEvent.click(sendButton);
+      });
+    }
+
+    expect(mockSendMessage).toHaveBeenCalledWith('Improve spacing');
+    expect(onCodeChange).toHaveBeenCalledWith('new code from ai');
   });
 });

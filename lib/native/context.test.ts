@@ -21,6 +21,9 @@ import {
   findWindowsByTitle,
   findWindowsByProcess,
   clearCache,
+  analyzeScreen,
+  captureAndAnalyzeActiveWindow,
+  clearScreenCache,
   type FullContext,
   type WindowInfo,
   type AppContext,
@@ -443,6 +446,66 @@ describe('New Context Functions', () => {
       const { getElementAt } = await import('./context');
       const result = await getElementAt(0, 0);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('analyzeScreen', () => {
+    it('should call invoke with image payload and options', async () => {
+      const mockResult = {
+        text: 'hello',
+        text_blocks: [],
+        ui_elements: [],
+        width: 10,
+        height: 10,
+        timestamp: Date.now(),
+        confidence: 0.8,
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const bytes = new Uint8Array([1, 2, 3]);
+      const result = await analyzeScreen(bytes, 100, 200, {
+        provider: 'windows_ocr',
+        language: 'en-US',
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('context_analyze_screen', {
+        imageData: [1, 2, 3],
+        width: 100,
+        height: 200,
+        provider: 'windows_ocr',
+        language: 'en-US',
+      });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('captureAndAnalyzeActiveWindow', () => {
+    it('should call invoke with options', async () => {
+      const mockResult = {
+        text: '',
+        text_blocks: [],
+        ui_elements: [],
+        width: 1920,
+        height: 1080,
+        timestamp: Date.now(),
+        confidence: 0.5,
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const result = await captureAndAnalyzeActiveWindow({ provider: 'tesseract' });
+      expect(mockInvoke).toHaveBeenCalledWith('context_capture_and_analyze_active_window', {
+        provider: 'tesseract',
+        language: undefined,
+      });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('clearScreenCache', () => {
+    it('should call invoke with correct command', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      await clearScreenCache();
+      expect(mockInvoke).toHaveBeenCalledWith('context_clear_screen_cache');
     });
   });
 });

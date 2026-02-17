@@ -21,41 +21,92 @@ async function executeWorkflowTask(
   _execution: TaskExecution
 ): Promise<{ success: boolean; output?: Record<string, unknown>; error?: string }> {
   try {
-    const { workflowId, input } = task.payload as { workflowId?: string; input?: Record<string, unknown> };
-    
-    if (!workflowId) {
-      return { success: false, error: 'No workflow ID specified in task payload' };
+    const payload = (task.payload || {}) as {
+      workflowId?: string;
+      workflowDefinition?: import('@/types/workflow').WorkflowDefinition;
+      definition?: import('@/types/workflow').WorkflowDefinition;
+      input?: Record<string, unknown>;
+      triggerId?: string;
+      isReplay?: boolean;
+      options?: {
+        triggerId?: string;
+        isReplay?: boolean;
+      };
+    };
+
+    const workflowId = payload.workflowId;
+    const workflowDefinition = payload.workflowDefinition || payload.definition;
+    const input = payload.input || {};
+    const triggerId = payload.options?.triggerId || payload.triggerId;
+    const isReplay = payload.options?.isReplay ?? payload.isReplay;
+
+    if (!workflowId && !workflowDefinition) {
+      return { success: false, error: 'No workflow ID or workflow definition specified in task payload' };
     }
 
-    log.info(`Executing workflow: ${workflowId}`);
+    log.info(`Executing workflow: ${workflowId || workflowDefinition?.id}`);
 
-    // Dynamically import workflow executor to avoid circular dependencies
-    const { executeWorkflow } = await import('@/lib/ai/workflows/executor');
-    const { useSettingsStore } = await import('@/stores/settings');
-    
-    const settings = useSettingsStore.getState();
-    
-    const providerSettings = settings.providerSettings[settings.defaultProvider];
-    const result = await executeWorkflow(
-      workflowId,
-      `scheduled-${task.id}`,
-      input || {},
-      {
-        provider: settings.defaultProvider as ProviderName,
-        model: providerSettings?.defaultModel || 'gpt-4o',
-        apiKey: '', // Will be fetched from settings
+    // Use workflow orchestrator as the single execution entrypoint.
+    const { workflowOrchestrator } = await import('@/lib/workflow-editor/orchestrator');
+    const { workflowRepository } = await import('@/lib/db/repositories');
+    const { definitionToVisual } = await import('@/lib/workflow-editor/converter');
+    let resolvedWorkflow: import('@/types/workflow/workflow-editor').VisualWorkflow | undefined;
+
+    if (workflowId) {
+      const persisted = await workflowRepository.getById(workflowId);
+      if (persisted) {
+        resolvedWorkflow = persisted;
       }
-    );
+    }
+
+    if (!resolvedWorkflow && workflowDefinition) {
+      resolvedWorkflow = definitionToVisual(workflowDefinition);
+    }
+
+    if (!resolvedWorkflow) {
+      return {
+        success: false,
+        error: workflowId
+          ? `Workflow not found: ${workflowId}`
+          : 'Unable to resolve workflow for scheduled task',
+      };
+    }
+
+    const result = await workflowOrchestrator.run({
+      workflow: resolvedWorkflow,
+      input,
+      triggerId: triggerId || `scheduler:${task.id}`,
+      isReplay,
+    });
+
+    try {
+      await workflowOrchestrator.persistExecution({ result });
+    } catch (persistError) {
+      log.warn('Failed to persist scheduled workflow execution', {
+        taskId: task.id,
+        error: persistError,
+      });
+    }
+
+    const nodeStates = Object.values(result.nodeStates || {});
+    const completedSteps = nodeStates.filter((step) => step.status === 'completed').length;
+    const failedSteps = nodeStates.filter((step) => step.status === 'failed').length;
+    const success = result.status === 'completed';
 
     return {
-      success: result.success,
+      success,
       output: {
-        workflowId,
-        executionId: result.execution?.id,
-        completedSteps: result.execution?.steps.filter((s) => s.status === 'completed').length,
-        totalSteps: result.execution?.steps.length,
+        workflowId: result.workflowId,
+        executionId: result.executionId,
+        runtime: result.runtime,
+        status: result.status,
+        completedSteps,
+        failedSteps,
+        totalSteps: nodeStates.length,
+        triggerId: result.triggerId || triggerId,
+        output: result.output,
       },
-      error: result.error,
+      error: success ? undefined : result.error || `Workflow ended with status: ${result.status}`,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

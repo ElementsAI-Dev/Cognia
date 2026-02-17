@@ -354,24 +354,27 @@ export function OCRPanel({
     try {
       if (isTauri()) {
         const { invoke } = await import("@tauri-apps/api/core");
-
-        // Start region selection for screenshot
-        await invoke("screenshot_start_region_selection");
-
-        // Listen for the result
-        const { listen } = await import("@tauri-apps/api/event");
-        const unlisten = await listen<{ imageBase64: string }>(
-          "screenshot-region-captured",
-          async (event) => {
-            unlisten();
-            const imageData = event.payload.imageBase64;
-            setImagePreview(`data:image/png;base64,${imageData}`);
-            await processOCR(imageData);
+        const region = await invoke<{ x: number; y: number; width: number; height: number }>(
+          "screenshot_start_region_selection"
+        );
+        const capture = await invoke<{ image_base64: string }>(
+          "screenshot_capture_region_with_history",
+          {
+            x: region.x,
+            y: region.y,
+            width: region.width,
+            height: region.height,
           }
         );
+        const imageData = capture.image_base64;
+        setImagePreview(`data:image/png;base64,${imageData}`);
+        await processOCR(imageData);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to capture screen");
+      const message = err instanceof Error ? err.message : "Failed to capture screen";
+      if (!message.toLowerCase().includes("cancel")) {
+        setError(message);
+      }
     }
   }, [processOCR]);
 

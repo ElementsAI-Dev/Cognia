@@ -16,6 +16,10 @@ export const createResetSlice = (set: ContextStoreSet): ResetSlice => ({
       browser: null,
       editor: null,
       uiElements: [],
+      screenContent: null,
+      isAnalyzingScreen: false,
+      screenAnalysisError: null,
+      lastScreenAnalysisAt: null,
       lastUpdated: null,
     }),
 

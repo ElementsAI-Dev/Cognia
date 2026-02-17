@@ -8,6 +8,14 @@ use crate::screenshot::{
     SelectionState, SnapConfig, SnapResult, WinOcrResult, WindowInfo,
 };
 use tauri::State;
+use base64::Engine;
+
+fn into_frontend_result(result: crate::screenshot::ScreenshotResult) -> ScreenshotResult {
+    ScreenshotResult {
+        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
+        metadata: result.metadata,
+    }
+}
 
 /// Capture full screen screenshot
 #[tauri::command]
@@ -16,10 +24,7 @@ pub async fn screenshot_capture_fullscreen(
     monitor_index: Option<usize>,
 ) -> Result<ScreenshotResult, String> {
     let result = manager.capture_fullscreen(monitor_index).await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 // ============== Annotation Commands ==============
@@ -87,10 +92,7 @@ pub async fn screenshot_capture_window(
     manager: State<'_, ScreenshotManager>,
 ) -> Result<ScreenshotResult, String> {
     let result = manager.capture_window().await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Capture region screenshot
@@ -109,10 +111,7 @@ pub async fn screenshot_capture_region(
         height,
     };
     let result = manager.capture_region(region).await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Start interactive region selection
@@ -347,10 +346,7 @@ pub async fn screenshot_capture_fullscreen_with_history(
     let result = manager
         .capture_fullscreen_with_history(monitor_index)
         .await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Capture window and add to history
@@ -359,10 +355,7 @@ pub async fn screenshot_capture_window_with_history(
     manager: State<'_, ScreenshotManager>,
 ) -> Result<ScreenshotResult, String> {
     let result = manager.capture_window_with_history().await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Capture region and add to history
@@ -381,10 +374,7 @@ pub async fn screenshot_capture_region_with_history(
         height,
     };
     let result = manager.capture_region_with_history(region).await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Screenshot result for frontend
@@ -393,8 +383,6 @@ pub struct ScreenshotResult {
     pub image_base64: String,
     pub metadata: ScreenshotMetadata,
 }
-
-use base64::Engine;
 
 // ============== Window Management Commands ==============
 
@@ -422,10 +410,7 @@ pub async fn screenshot_capture_window_by_hwnd(
     hwnd: isize,
 ) -> Result<ScreenshotResult, String> {
     let result = manager.capture_window_by_hwnd(hwnd)?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Capture a specific window by HWND and add to history
@@ -435,10 +420,7 @@ pub async fn screenshot_capture_window_by_hwnd_with_history(
     hwnd: isize,
 ) -> Result<ScreenshotResult, String> {
     let result = manager.capture_window_by_hwnd_with_history(hwnd).await?;
-    Ok(ScreenshotResult {
-        image_base64: base64::engine::general_purpose::STANDARD.encode(&result.image_data),
-        metadata: result.metadata,
-    })
+    Ok(into_frontend_result(result))
 }
 
 /// Calculate snap position for window movement
@@ -733,6 +715,37 @@ mod tests {
     }
 
     #[test]
+    fn test_into_frontend_result_encodes_image_and_preserves_metadata() {
+        let native_result = crate::screenshot::ScreenshotResult {
+            image_data: vec![1, 2, 3, 4],
+            metadata: ScreenshotMetadata {
+                timestamp: 1704067200000,
+                width: 100,
+                height: 50,
+                mode: "region".to_string(),
+                monitor_index: None,
+                window_title: None,
+                region: Some(CaptureRegion {
+                    x: 10,
+                    y: 20,
+                    width: 100,
+                    height: 50,
+                }),
+                file_path: Some("C:/shots/a.png".to_string()),
+                ocr_text: Some("hello".to_string()),
+            },
+        };
+
+        let converted = into_frontend_result(native_result);
+        assert_eq!(
+            converted.image_base64,
+            base64::engine::general_purpose::STANDARD.encode([1, 2, 3, 4])
+        );
+        assert_eq!(converted.metadata.file_path, Some("C:/shots/a.png".to_string()));
+        assert_eq!(converted.metadata.ocr_text, Some("hello".to_string()));
+    }
+
+    #[test]
     fn test_screenshot_result_serialization() {
         let result = ScreenshotResult {
             image_base64: "base64data".to_string(),
@@ -859,6 +872,8 @@ mod tests {
             copy_to_clipboard: false,
             show_notification: false,
             ocr_language: "chi_sim".to_string(),
+            auto_save: true,
+            filename_template: "custom_{mode}_{timestamp}".to_string(),
         };
 
         assert_eq!(config.save_directory, Some("/custom/path".to_string()));
@@ -878,6 +893,8 @@ mod tests {
             copy_to_clipboard: true,
             show_notification: true,
             ocr_language: "en".to_string(),
+            auto_save: false,
+            filename_template: "screenshot_{timestamp}".to_string(),
         };
 
         assert_eq!(config.format, "png");
@@ -897,6 +914,8 @@ mod tests {
             copy_to_clipboard: false,
             show_notification: false,
             ocr_language: "zh-CN".to_string(),
+            auto_save: true,
+            filename_template: "shot_{mode}_{timestamp}".to_string(),
         };
 
         let serialized = serde_json::to_string(&config).unwrap();
@@ -905,6 +924,8 @@ mod tests {
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.quality, deserialized.quality);
         assert_eq!(config.ocr_language, deserialized.ocr_language);
+        assert_eq!(config.auto_save, deserialized.auto_save);
+        assert_eq!(config.filename_template, deserialized.filename_template);
     }
 
     #[test]

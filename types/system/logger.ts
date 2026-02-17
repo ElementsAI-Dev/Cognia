@@ -4,7 +4,7 @@
  */
 
 // Log levels (renamed to avoid conflict with MCP LogLevel)
-export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export type AppLogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 // Log entry structure
 export interface LogEntry {
@@ -39,11 +39,12 @@ export interface LogTransport {
 
 // Log level priority (higher = more severe)
 export const LOG_LEVEL_PRIORITY: Record<AppLogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-  fatal: 4,
+  trace: 0,
+  debug: 1,
+  info: 2,
+  warn: 3,
+  error: 4,
+  fatal: 5,
 };
 
 // Default logger configuration

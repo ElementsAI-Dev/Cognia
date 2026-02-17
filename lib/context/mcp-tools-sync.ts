@@ -14,10 +14,9 @@
 import {
   writeContextFile,
   readContextFile,
-  searchContextFiles,
+  searchContextFileEntries,
   grepContextFiles,
   deleteContextFile,
-  getFilesByCategory,
 } from './context-fs';
 import type { McpToolDescriptionFile, ContextFile } from '@/types/system/context';
 import type { McpTool } from '@/types/mcp';
@@ -174,17 +173,16 @@ export async function readMcpToolDescription(
 export async function getSyncedToolsForServer(
   serverId: string
 ): Promise<McpToolDescriptionFile[]> {
-  const files = await searchContextFiles({
+  const files = await searchContextFileEntries({
     category: 'mcp',
     source: serverId,
   });
   
   const tools: McpToolDescriptionFile[] = [];
   
-  for (const meta of files) {
-    if (meta.tags?.includes('status')) continue; // Skip status files
-    
-    const path = `.cognia/context/mcp/${getToolFilename(meta.source, meta.id)}`;
+  for (const { path, metadata } of files) {
+    if (metadata.tags?.includes('status')) continue; // Skip status files
+
     const file = await readContextFile(path);
     if (file) {
       try {
@@ -240,15 +238,14 @@ export async function searchMcpTools(
 export async function getMcpToolRefs(
   serverIds?: string[]
 ): Promise<McpToolRef[]> {
-  const files = await getFilesByCategory('mcp');
+  const files = await searchContextFileEntries({ category: 'mcp' });
   const refs: McpToolRef[] = [];
   
-  for (const meta of files) {
-    if (meta.tags?.includes('status')) continue;
-    if (serverIds && !serverIds.includes(meta.source)) continue;
+  for (const { path, metadata } of files) {
+    if (metadata.tags?.includes('status')) continue;
+    if (serverIds && !serverIds.includes(metadata.source)) continue;
     
     // We need to read the file to get tool info
-    const path = `.cognia/context/mcp/${getToolFilename(meta.source, meta.id)}`;
     const file = await readContextFile(path);
     if (!file) continue;
     
@@ -273,15 +270,14 @@ export async function getMcpToolRefs(
  * Get server statuses
  */
 export async function getMcpServerStatuses(): Promise<McpServerStatus[]> {
-  const files = await searchContextFiles({
+  const files = await searchContextFileEntries({
     category: 'mcp',
     tags: ['status'],
   });
   
   const statuses: McpServerStatus[] = [];
   
-  for (const meta of files) {
-    const path = `.cognia/context/mcp/${meta.source}_status.json`;
+  for (const { path } of files) {
     const file = await readContextFile(path);
     if (file) {
       try {
@@ -366,14 +362,13 @@ export async function updateMcpServerStatus(
  * Clear synced tools for a server
  */
 export async function clearMcpServerTools(serverId: string): Promise<number> {
-  const files = await searchContextFiles({
+  const files = await searchContextFileEntries({
     category: 'mcp',
     source: serverId,
   });
   
   let deleted = 0;
-  for (const meta of files) {
-    const path = `.cognia/context/mcp/${getToolFilename(meta.source, meta.id)}`;
+  for (const { path } of files) {
     const success = await deleteContextFile(path);
     if (success) deleted++;
   }

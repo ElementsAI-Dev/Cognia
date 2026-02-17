@@ -229,9 +229,15 @@ describe('mcp-tools-sync', () => {
 
   describe('getSyncedToolsForServer', () => {
     it('should return all synced tools for a server', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'tool2', category: 'mcp', source: 'server', filename: 'server_tool2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server_tool2.json',
+          metadata: { id: 'tool2', category: 'mcp', source: 'server', filename: 'server_tool2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const tool1: McpToolDescriptionFile = {
@@ -257,9 +263,15 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should skip status files', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'status', category: 'mcp', source: 'server', filename: 'server_status.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server_status.json',
+          metadata: { id: 'status', category: 'mcp', source: 'server', filename: 'server_status.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const tool: McpToolDescriptionFile = {
@@ -329,8 +341,11 @@ describe('mcp-tools-sync', () => {
 
   describe('getMcpToolRefs', () => {
     it('should return minimal tool references', async () => {
-      mockedContextFs.getFilesByCategory.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'server_tool1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const tool: McpToolDescriptionFile = {
@@ -357,9 +372,15 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should filter by server IDs', async () => {
-      mockedContextFs.getFilesByCategory.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server1', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'tool2', category: 'mcp', source: 'server2', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server1_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server1', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server2_tool2.json',
+          metadata: { id: 'tool2', category: 'mcp', source: 'server2', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const tool: McpToolDescriptionFile = {
@@ -379,9 +400,15 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should skip status files', async () => {
-      mockedContextFs.getFilesByCategory.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'status', category: 'mcp', source: 'server', filename: 's.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'f.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server_status.json',
+          metadata: { id: 'status', category: 'mcp', source: 'server', filename: 's.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const tool: McpToolDescriptionFile = {
@@ -402,8 +429,11 @@ describe('mcp-tools-sync', () => {
 
   describe('getMcpServerStatuses', () => {
     it('should return server statuses', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([
-        { id: 'status', category: 'mcp', source: 'server1', filename: 'server1_status.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server1_status.json',
+          metadata: { id: 'status', category: 'mcp', source: 'server1', filename: 'server1_status.json', tags: ['status'], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
 
       const status: McpServerStatus = {
@@ -428,11 +458,11 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should search for status files', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([]);
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([]);
 
       await getMcpServerStatuses();
 
-      expect(mockedContextFs.searchContextFiles).toHaveBeenCalledWith({
+      expect(mockedContextFs.searchContextFileEntries).toHaveBeenCalledWith({
         category: 'mcp',
         tags: ['status'],
       });
@@ -483,7 +513,7 @@ describe('mcp-tools-sync', () => {
 
   describe('updateMcpServerStatus', () => {
     it('should update server status file', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([]);
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([]);
       mockedContextFs.readContextFile.mockResolvedValue(null);
       mockedContextFs.writeContextFile.mockResolvedValue(createMockContextFile('{}'));
 
@@ -501,7 +531,7 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should include message in status', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([]);
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([]);
       mockedContextFs.readContextFile.mockResolvedValue(null);
       mockedContextFs.writeContextFile.mockResolvedValue(createMockContextFile('{}'));
 
@@ -516,9 +546,15 @@ describe('mcp-tools-sync', () => {
 
   describe('clearMcpServerTools', () => {
     it('should delete all tools for a server', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'f1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'tool2', category: 'mcp', source: 'server', filename: 'f2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'f1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server_tool2.json',
+          metadata: { id: 'tool2', category: 'mcp', source: 'server', filename: 'f2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
       mockedContextFs.deleteContextFile.mockResolvedValue(true);
 
@@ -529,9 +565,15 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should return count of successfully deleted files', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([
-        { id: 'tool1', category: 'mcp', source: 'server', filename: 'f1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
-        { id: 'tool2', category: 'mcp', source: 'server', filename: 'f2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([
+        {
+          path: '.cognia/context/mcp/server_tool1.json',
+          metadata: { id: 'tool1', category: 'mcp', source: 'server', filename: 'f1.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
+        {
+          path: '.cognia/context/mcp/server_tool2.json',
+          metadata: { id: 'tool2', category: 'mcp', source: 'server', filename: 'f2.json', tags: [], sizeBytes: 100, estimatedTokens: 25, createdAt: new Date(), accessedAt: new Date() },
+        },
       ]);
       mockedContextFs.deleteContextFile
         .mockResolvedValueOnce(true)
@@ -543,7 +585,7 @@ describe('mcp-tools-sync', () => {
     });
 
     it('should return 0 for empty server', async () => {
-      mockedContextFs.searchContextFiles.mockResolvedValue([]);
+      mockedContextFs.searchContextFileEntries.mockResolvedValue([]);
 
       const result = await clearMcpServerTools('empty-server');
 

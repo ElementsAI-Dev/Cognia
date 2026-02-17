@@ -5,6 +5,19 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CodeExecutor } from './code-executor';
 
+const mockExecuteCodeWithSandboxPriority = jest.fn();
+const mockSandboxIsAvailable = jest.fn();
+
+jest.mock('@/lib/native/code-execution-strategy', () => ({
+  executeCodeWithSandboxPriority: (...args: unknown[]) => mockExecuteCodeWithSandboxPriority(...args),
+}));
+
+jest.mock('@/lib/native/sandbox', () => ({
+  sandboxService: {
+    isAvailable: (...args: unknown[]) => mockSandboxIsAvailable(...args),
+  },
+}));
+
 // Mock clipboard API
 Object.assign(navigator, {
   clipboard: {
@@ -35,6 +48,16 @@ describe('CodeExecutor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSandboxIsAvailable.mockResolvedValue(false);
+    mockExecuteCodeWithSandboxPriority.mockResolvedValue({
+      success: true,
+      stdout: 'ok',
+      stderr: '',
+      executionTime: 10,
+      runtime: 'browser',
+      language: 'javascript',
+      exitCode: 0,
+    });
   });
 
   it('renders without crashing', () => {
@@ -123,5 +146,26 @@ console.log(a + b);`;
   it('displays case-insensitive language badge', () => {
     render(<CodeExecutor code="test" language="JAVASCRIPT" />);
     expect(screen.getByText('JAVASCRIPT')).toBeInTheDocument();
+  });
+
+  it('uses shared sandbox-first strategy when backend is available', async () => {
+    mockSandboxIsAvailable.mockResolvedValue(true);
+    render(<CodeExecutor code='console.log("x")' language="javascript" />);
+    await waitFor(() => {
+      expect(screen.getByText('Backend')).toBeInTheDocument();
+    });
+
+    const buttons = screen.getAllByRole('button');
+    const runButton = buttons[1];
+    fireEvent.click(runButton);
+
+    await waitFor(() => {
+      expect(mockExecuteCodeWithSandboxPriority).toHaveBeenCalledWith({
+        code: 'console.log("x")',
+        language: 'javascript',
+        stdin: undefined,
+        isDesktop: true,
+      });
+    });
   });
 });

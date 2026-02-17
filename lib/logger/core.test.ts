@@ -15,10 +15,14 @@ import {
 import type { Transport, StructuredLogEntry } from './types';
 
 // Mock context and sampling
+let mockGlobalContext: Record<string, unknown> = {};
 jest.mock('./context', () => ({
   logContext: {
     traceId: 'test-trace-id',
     sessionId: 'test-session-id',
+    get context() {
+      return mockGlobalContext;
+    },
   },
 }));
 
@@ -29,19 +33,24 @@ jest.mock('./sampling', () => ({
 }));
 
 // Mock console transport
+const mockConsoleTransport = {
+  name: 'console',
+  log: jest.fn(),
+};
+const mockCreateConsoleTransport = jest.fn(() => mockConsoleTransport);
 jest.mock('./transports/console-transport', () => ({
-  createConsoleTransport: jest.fn().mockReturnValue({
-    name: 'console',
-    log: jest.fn(),
-  }),
+  createConsoleTransport: (...args: unknown[]) =>
+    (mockCreateConsoleTransport as (...innerArgs: unknown[]) => unknown)(...args),
 }));
 
 describe('Logger Core', () => {
   let mockTransport: Transport;
   let loggedEntries: StructuredLogEntry[];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     loggedEntries = [];
+    mockGlobalContext = {};
+    mockConsoleTransport.log.mockClear();
     mockTransport = {
       name: 'test-transport',
       log: jest.fn((entry: StructuredLogEntry) => {
@@ -52,7 +61,7 @@ describe('Logger Core', () => {
     };
 
     // Reset logger state
-    shutdownLogger();
+    await shutdownLogger();
   });
 
   afterEach(async () => {
@@ -119,6 +128,13 @@ describe('Logger Core', () => {
       expect(loggedEntries[0].data).toEqual({ key: 'value' });
     });
 
+    it('should not drop early logs before explicit init', () => {
+      const logger = createLogger('early-module');
+      logger.info('early log');
+
+      expect(mockConsoleTransport.log).toHaveBeenCalled();
+    });
+
     it('should handle error objects', () => {
       const logger = createLogger('test');
       const error = new Error('test error');
@@ -161,12 +177,33 @@ describe('Logger Core', () => {
 
     it('should merge context with log data', () => {
       const logger = createLogger('test').withContext({ userId: '123' });
-      
+
       logger.info('test', { action: 'login' });
       
       expect(loggedEntries[0].data).toMatchObject({
         userId: '123',
         action: 'login',
+      });
+    });
+
+    it('should merge context in order: global -> logger -> call data', () => {
+      mockGlobalContext = {
+        scope: 'global',
+        override: 'global-value',
+      };
+      const logger = createLogger('test').withContext({
+        feature: 'workflow',
+        override: 'logger-value',
+      });
+
+      logger.info('context test', {
+        override: 'call-value',
+      });
+
+      expect(loggedEntries[0].data).toEqual({
+        scope: 'global',
+        feature: 'workflow',
+        override: 'call-value',
       });
     });
   });
@@ -245,6 +282,57 @@ describe('Logger Core', () => {
       
       const config = getLoggerConfig();
       expect(config.minLevel).toBe('error');
+    });
+
+    it('should affect existing logger instances immediately', () => {
+      initLogger({ minLevel: 'debug' }, [mockTransport]);
+      const logger = createLogger('runtime-config');
+
+      logger.debug('before update');
+      updateLoggerConfig({ minLevel: 'error' });
+      logger.debug('after update');
+      logger.error('after update error');
+
+      expect(loggedEntries.map((entry) => entry.message)).toEqual([
+        'before update',
+        'after update error',
+      ]);
+    });
+  });
+
+  describe('removeTransport', () => {
+    it('should affect existing logger instances immediately', () => {
+      initLogger({ minLevel: 'info' }, [mockTransport]);
+      const logger = createLogger('runtime-transport');
+
+      logger.info('before remove');
+      removeTransport('test-transport');
+      logger.info('after remove');
+
+      expect(mockTransport.log).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Redaction', () => {
+    it('should redact sensitive keys and token-like values', () => {
+      initLogger({ minLevel: 'info' }, [mockTransport]);
+      const logger = createLogger('redaction');
+
+      logger.info('authorization present', {
+        apiKey: 'abc123',
+        nested: {
+          password: 'secret',
+        },
+        note: 'Bearer tokentokentoken',
+      });
+
+      expect(loggedEntries[0].data).toEqual({
+        apiKey: '[REDACTED]',
+        nested: {
+          password: '[REDACTED]',
+        },
+        note: '[REDACTED]',
+      });
     });
   });
 

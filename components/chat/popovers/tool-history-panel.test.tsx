@@ -247,7 +247,7 @@ function addMockHistory() {
   return { record1, record2 };
 }
 
-async function expandHistoryItemByPrompt(prompt: string) {
+async function expandHistoryItemByPrompt(prompt: string): Promise<HTMLElement> {
   const promptNode = await screen.findByText(prompt);
   const historyItem = promptNode.closest('.group');
   if (!historyItem) {
@@ -258,7 +258,7 @@ async function expandHistoryItemByPrompt(prompt: string) {
     throw new Error(`Unable to find clickable row for prompt: ${prompt}`);
   }
   await userEvent.click(clickableRow as HTMLElement);
-  return historyItem;
+  return historyItem as HTMLElement;
 }
 
 beforeAll(() => {

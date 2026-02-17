@@ -96,6 +96,30 @@ jest.mock('@/lib/a2ui/data-model', () => ({
     }
     return defaultValue;
   }),
+  getValueByPath: jest.fn((dataModel, path) => {
+    if (!path || path === '/') {
+      return dataModel;
+    }
+
+    const segments = String(path)
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'));
+    let current: unknown = dataModel;
+
+    for (const segment of segments) {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return undefined;
+      }
+      const container = current as Record<string, unknown>;
+      if (!(segment in container)) {
+        return undefined;
+      }
+      current = container[segment];
+    }
+
+    return current;
+  }),
   getBindingPath: jest.fn((value) => {
     if (value && typeof value === 'object' && 'path' in value) {
       return (value as { path: string }).path;

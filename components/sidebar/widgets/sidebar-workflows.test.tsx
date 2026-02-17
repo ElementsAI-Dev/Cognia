@@ -33,13 +33,19 @@ jest.mock('@/lib/db/repositories', () => ({
 const mockLoadWorkflow = jest.fn();
 const mockStartExecution = jest.fn();
 let mockIsExecuting = false;
+let mockExecutionState: { workflowId?: string; progress?: number } | null = null;
 
 jest.mock('@/stores/workflow', () => ({
-  useWorkflowEditorStore: () => ({
-    loadWorkflow: mockLoadWorkflow,
-    startExecution: mockStartExecution,
-    isExecuting: mockIsExecuting,
-  }),
+  useWorkflowEditorStore: (selector?: (state: Record<string, unknown>) => unknown) => {
+    const state = {
+      loadWorkflow: mockLoadWorkflow,
+      startExecution: mockStartExecution,
+      isExecuting: mockIsExecuting,
+      executionState: mockExecutionState,
+    };
+    if (typeof selector === 'function') return selector(state);
+    return state;
+  },
   useWorkflowStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
       activeExecution: null,
@@ -123,6 +129,7 @@ describe('SidebarWorkflows', () => {
     jest.clearAllMocks();
     mockGetAll.mockResolvedValue(mockWorkflows);
     mockIsExecuting = false;
+    mockExecutionState = null;
   });
 
   it('renders without crashing', async () => {
@@ -261,6 +268,33 @@ describe('SidebarWorkflows', () => {
     await waitFor(() => {
       expect(screen.getByTestId('collapsible')).toBeInTheDocument();
     });
+  });
+
+  it('shows running progress only for workflow matching editor executionState.workflowId', async () => {
+    mockIsExecuting = true;
+    mockExecutionState = { workflowId: 'wf-1', progress: 66 };
+
+    render(<SidebarWorkflows />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Workflow 1')).toBeInTheDocument();
+    });
+
+    // Progress bar is rendered only for the matching workflow.
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1);
+  });
+
+  it('does not show running progress when active execution belongs to another workflow', async () => {
+    mockIsExecuting = true;
+    mockExecutionState = { workflowId: 'wf-x', progress: 80 };
+
+    render(<SidebarWorkflows />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Workflow 1')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
   it('shows loading state initially', async () => {

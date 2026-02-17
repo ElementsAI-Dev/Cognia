@@ -33,14 +33,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useSettingsStore } from '@/stores';
-import {
-  getAIStyleSuggestions,
-  getAIAccessibilitySuggestions,
-  getDesignerAIConfig,
-  executeDesignerAIEdit,
-  type AISuggestion,
-} from '@/lib/designer';
+import { type AISuggestion } from '@/lib/designer';
+import { useAISuggestions } from '@/hooks/designer';
 
 interface AISuggestionsPanelProps {
   code: string;
@@ -79,123 +73,49 @@ export function AISuggestionsPanel({
 }: AISuggestionsPanelProps) {
   const t = useTranslations('designer');
   const [activeTab, setActiveTab] = useState<SuggestionTab>('style');
-  const [suggestions, setSuggestions] = useState<Record<SuggestionTab, AISuggestion[]>>({
+  const [tabSuggestions, setTabSuggestions] = useState<Record<SuggestionTab, AISuggestion[]>>({
     style: [],
     accessibility: [],
     responsive: [],
     layout: [],
   });
-  const [loading, setLoading] = useState<Record<SuggestionTab, boolean>>({
-    style: false,
-    accessibility: false,
-    responsive: false,
-    layout: false,
-  });
-  const [applying, setApplying] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Settings for AI
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-
-  const getConfig = useCallback(() => {
-    return getDesignerAIConfig(defaultProvider, providerSettings);
-  }, [defaultProvider, providerSettings]);
+  const {
+    isLoading,
+    isApplying,
+    error,
+    fetchSuggestions: fetchSuggestionsBase,
+    applySuggestion,
+  } = useAISuggestions(code, { onCodeChange });
 
   // Fetch suggestions for a tab
   const fetchSuggestions = useCallback(async (tab: SuggestionTab) => {
-    setLoading((prev) => ({ ...prev, [tab]: true }));
-    setError(null);
-
-    try {
-      const config = getConfig();
-      let result;
-
-      switch (tab) {
-        case 'style':
-          result = await getAIStyleSuggestions(code, config);
-          break;
-        case 'accessibility':
-          result = await getAIAccessibilitySuggestions(code, config);
-          break;
-        case 'responsive':
-          result = await getAIStyleSuggestions(code, config);
-          if (result.suggestions) {
-            result.suggestions = result.suggestions.filter(
-              (s) => s.description.toLowerCase().includes('responsive') ||
-                     s.description.toLowerCase().includes('mobile') ||
-                     s.description.toLowerCase().includes('breakpoint')
-            );
-          }
-          break;
-        case 'layout':
-          result = await getAIStyleSuggestions(code, config);
-          if (result.suggestions) {
-            result.suggestions = result.suggestions.filter(
-              (s) => s.description.toLowerCase().includes('layout') ||
-                     s.description.toLowerCase().includes('flex') ||
-                     s.description.toLowerCase().includes('grid') ||
-                     s.description.toLowerCase().includes('spacing')
-            );
-          }
-          break;
-      }
-
-      if (result.success && result.suggestions) {
-        setSuggestions((prev) => ({
-          ...prev,
-          [tab]: result.suggestions || [],
-        }));
-      } else {
-        setError(result.error || 'Failed to fetch suggestions');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading((prev) => ({ ...prev, [tab]: false }));
-    }
-  }, [code, getConfig]);
+    const nextSuggestions = await fetchSuggestionsBase(tab);
+    setTabSuggestions((prev) => ({
+      ...prev,
+      [tab]: nextSuggestions,
+    }));
+  }, [fetchSuggestionsBase]);
 
   // Apply a suggestion
-  const applySuggestion = useCallback(async (suggestion: AISuggestion) => {
-    setApplying(suggestion.id);
-    setError(null);
-
-    try {
-      const config = getConfig();
-      const prompt = `Apply this improvement: ${suggestion.title}. ${suggestion.description}${
-        suggestion.code ? ` Suggested code: ${suggestion.code}` : ''
-      }`;
-
-      const result = await executeDesignerAIEdit(prompt, code, config);
-
-      if (result.success && result.code) {
-        onCodeChange(result.code);
-        setSuggestions((prev) => ({
-          ...prev,
-          [activeTab]: prev[activeTab].filter((s) => s.id !== suggestion.id),
-        }));
-      } else {
-        setError(result.error || 'Failed to apply suggestion');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setApplying(null);
+  const applySuggestionForTab = useCallback(async (suggestion: AISuggestion) => {
+    const result = await applySuggestion(suggestion);
+    if (result.success) {
+      setTabSuggestions((prev) => ({
+        ...prev,
+        [activeTab]: prev[activeTab].filter((s) => s.id !== suggestion.id),
+      }));
     }
-  }, [code, getConfig, onCodeChange, activeTab]);
+  }, [applySuggestion, activeTab]);
 
   // Handle tab change
   const handleTabChange = useCallback((tab: string) => {
     const newTab = tab as SuggestionTab;
     setActiveTab(newTab);
     
-    if (suggestions[newTab].length === 0 && !loading[newTab]) {
+    if (tabSuggestions[newTab].length === 0) {
       fetchSuggestions(newTab);
     }
-  }, [suggestions, loading, fetchSuggestions]);
-
-  const isLoading = loading[activeTab];
+  }, [tabSuggestions, fetchSuggestions]);
 
   return (
     <TooltipProvider>
@@ -252,14 +172,14 @@ export function AISuggestionsPanel({
           {(Object.keys(TAB_ICONS) as SuggestionTab[]).map((tab) => (
             <TabsContent key={tab} value={tab} className="flex-1 m-0 mt-2 min-h-0">
               <ScrollArea className="h-[350px]">
-                {loading[tab] ? (
+                {tab === activeTab && isLoading ? (
                   <div className="flex flex-col items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
                     <p className="text-sm text-muted-foreground">
                       {t('analyzing') || 'Analyzing your code...'}
                     </p>
                   </div>
-                ) : suggestions[tab].length === 0 ? (
+                ) : tabSuggestions[tab].length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                     <Sparkles className="h-8 w-8 text-muted-foreground/50 mb-3" />
                     <p className="text-sm font-medium">
@@ -280,9 +200,9 @@ export function AISuggestionsPanel({
                   </div>
                 ) : (
                   <div className="p-2 space-y-2">
-                    {suggestions[tab].map((suggestion) => {
+                    {tabSuggestions[tab].map((suggestion) => {
                       const priorityConfig = PRIORITY_CONFIG[suggestion.priority];
-                      const isApplying = applying === suggestion.id;
+                      const suggestionIsApplying = isApplying === suggestion.id;
 
                       return (
                         <div
@@ -324,10 +244,10 @@ export function AISuggestionsPanel({
                               size="sm"
                               variant="secondary"
                               className="h-7 text-xs gap-1"
-                              onClick={() => applySuggestion(suggestion)}
-                              disabled={isApplying}
+                              onClick={() => applySuggestionForTab(suggestion)}
+                              disabled={suggestionIsApplying}
                             >
-                              {isApplying ? (
+                              {suggestionIsApplying ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 <>

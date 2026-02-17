@@ -7,6 +7,7 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -272,10 +273,10 @@ export function SystemTaskForm({
           </div>
           <div className="space-y-2">
             <Label>{t('timezone') || 'Timezone'}</Label>
-            <Input
+            <TimezoneSelect
               value={f.cronTimezone}
-              onChange={(e) => updateForm({ cronTimezone: e.target.value })}
-              placeholder="UTC"
+              onValueChange={(value) => updateForm({ cronTimezone: value })}
+              triggerClassName="h-10"
               disabled={isSubmitting}
             />
           </div>

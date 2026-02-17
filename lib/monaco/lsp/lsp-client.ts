@@ -13,8 +13,12 @@ import type {
   LspDocumentSymbol,
   LspLocation,
   LspPublishDiagnosticsEvent,
+  LspRequestMeta,
   LspRange,
   LspSymbolInformation,
+  LspTextDocumentContentChangeEvent,
+  LspTextDocumentSyncKind,
+  LspTextDocumentSyncOptions,
   LspStartSessionRequest,
   LspStartSessionResponse,
   LspTextEdit,
@@ -89,8 +93,39 @@ function normalizeCapabilities(rawCapabilities: unknown): LspCapabilities {
     workspaceSymbolProvider:
       normalizeCapability(serverCapabilities.workspaceSymbolProvider) ??
       normalizeCapability(workspace?.symbol),
-    textDocumentSync: serverCapabilities.textDocumentSync,
+    textDocumentSync: normalizeTextDocumentSync(serverCapabilities.textDocumentSync),
   };
+}
+
+function normalizeTextDocumentSync(
+  value: unknown
+): LspTextDocumentSyncKind | LspTextDocumentSyncOptions | undefined {
+  if (value === 0 || value === 1 || value === 2) {
+    return value;
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const changeValue = value.change;
+  const syncOptions: LspTextDocumentSyncOptions = {
+    openClose: typeof value.openClose === 'boolean' ? value.openClose : undefined,
+    willSave: typeof value.willSave === 'boolean' ? value.willSave : undefined,
+    willSaveWaitUntil: typeof value.willSaveWaitUntil === 'boolean' ? value.willSaveWaitUntil : undefined,
+    save:
+      typeof value.save === 'boolean'
+        ? value.save
+        : isRecord(value.save) && typeof value.save.includeText === 'boolean'
+          ? { includeText: value.save.includeText }
+          : undefined,
+  };
+
+  if (changeValue === 0 || changeValue === 1 || changeValue === 2) {
+    syncOptions.change = changeValue;
+  }
+
+  return syncOptions;
 }
 
 export function hasLspCapability(capability: unknown): boolean {
@@ -127,7 +162,9 @@ export async function lspOpenDocument(sessionId: string, document: LspTextDocume
 export async function lspChangeDocument(
   sessionId: string,
   document: LspVersionedTextDocumentIdentifier,
-  text: string
+  text: string,
+  changes?: LspTextDocumentContentChangeEvent[],
+  meta?: LspRequestMeta
 ): Promise<void> {
   return invoke('lsp_change_document', {
     request: {
@@ -135,6 +172,9 @@ export async function lspChangeDocument(
       uri: document.uri,
       version: document.version,
       text,
+      changes,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 }
@@ -152,7 +192,8 @@ export async function lspCompletion(
   sessionId: string,
   document: LspTextDocumentIdentifier,
   line: number,
-  character: number
+  character: number,
+  meta?: LspRequestMeta
 ): Promise<LspCompletionResponse> {
   const raw = await invoke<RawLspCompletionResult>('lsp_completion', {
     request: {
@@ -160,6 +201,8 @@ export async function lspCompletion(
       uri: document.uri,
       line,
       character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 
@@ -180,7 +223,8 @@ export async function lspHover(
   sessionId: string,
   document: LspTextDocumentIdentifier,
   line: number,
-  character: number
+  character: number,
+  meta?: LspRequestMeta
 ): Promise<LspHoverResponse | null> {
   return invoke<LspHoverResponse | null>('lsp_hover', {
     request: {
@@ -188,6 +232,8 @@ export async function lspHover(
       uri: document.uri,
       line,
       character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 }
@@ -196,7 +242,8 @@ export async function lspDefinition(
   sessionId: string,
   document: LspTextDocumentIdentifier,
   line: number,
-  character: number
+  character: number,
+  meta?: LspRequestMeta
 ): Promise<LspLocation[] | null> {
   return invoke<LspLocation[] | null>('lsp_definition', {
     request: {
@@ -204,6 +251,8 @@ export async function lspDefinition(
       uri: document.uri,
       line,
       character,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 }
@@ -243,7 +292,8 @@ export async function lspCodeActions(
   sessionId: string,
   document: LspTextDocumentIdentifier,
   range: LspRange,
-  diagnostics?: LspPublishDiagnosticsEvent['diagnostics']
+  diagnostics?: LspPublishDiagnosticsEvent['diagnostics'],
+  meta?: LspRequestMeta
 ): Promise<LspCodeActionOrCommand[]> {
   const raw = await invoke<LspCodeActionOrCommand[] | null>('lsp_code_actions', {
     request: {
@@ -251,6 +301,8 @@ export async function lspCodeActions(
       uri: document.uri,
       range,
       diagnostics,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 
@@ -259,16 +311,28 @@ export async function lspCodeActions(
 
 export async function lspWorkspaceSymbols(
   sessionId: string,
-  query: string
+  query: string,
+  meta?: LspRequestMeta
 ): Promise<LspSymbolInformation[]> {
   const raw = await invoke<LspSymbolInformation[] | null>('lsp_workspace_symbols', {
     request: {
       sessionId,
       query,
+      clientRequestId: meta?.clientRequestId,
+      timeoutMs: meta?.timeoutMs,
     },
   });
 
   return raw ?? [];
+}
+
+export async function lspCancelRequest(sessionId: string, clientRequestId: string): Promise<void> {
+  return invoke('lsp_cancel_request', {
+    request: {
+      sessionId,
+      clientRequestId,
+    },
+  });
 }
 
 export async function lspExecuteCommand(

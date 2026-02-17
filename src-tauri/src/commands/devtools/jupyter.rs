@@ -5,11 +5,11 @@
 use crate::jupyter::{
     kernel::{JupyterKernel, KernelConfig},
     session::{JupyterSession, SharedSessionManager},
-    ExecutionError, KernelExecutionResult, KernelInfo, VariableInfo,
+    KernelExecutionResult, KernelInfo, VariableInfo,
 };
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
-use tokio::time::{timeout, Duration};
+use tokio::process::Command as TokioCommand;
 
 /// Jupyter state managed by Tauri
 /// Uses SharedSessionManager for thread-safe access and automatic cleanup
@@ -128,7 +128,14 @@ pub async fn jupyter_create_session(
 ) -> Result<JupyterSession, String> {
     emit_kernel_status(&app, "", "starting", 0, Some("Creating kernel session..."));
 
-    let session = state.manager.create_session(&name, &env_path).await?;
+    let session = match state.manager.create_session(&name, &env_path).await {
+        Ok(session) => session,
+        Err(err) => {
+            emit_kernel_status(&app, "", "error", 0, Some(&err));
+            emit_kernel_status(&app, "", "idle", 0, Some("Kernel session creation failed"));
+            return Err(err);
+        }
+    };
 
     emit_kernel_status(
         &app,
@@ -173,7 +180,15 @@ pub async fn jupyter_delete_session(
         }
     }
 
-    state.manager.delete_session(&session_id).await?;
+    if let Err(err) = state.manager.delete_session(&session_id).await {
+        if let Some(session) = sessions.iter().find(|s| s.id == session_id) {
+            if let Some(ref kernel_id) = session.kernel_id {
+                emit_kernel_status(&app, kernel_id, "error", 0, Some(&err));
+                emit_kernel_status(&app, kernel_id, "idle", 0, Some("Kernel stop failed"));
+            }
+        }
+        return Err(err);
+    }
 
     Ok(())
 }
@@ -204,7 +219,11 @@ pub async fn jupyter_restart_kernel(
         Some("Restarting kernel..."),
     );
 
-    state.manager.restart_kernel(&session_id).await?;
+    if let Err(err) = state.manager.restart_kernel(&session_id).await {
+        emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+        emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Kernel restart failed"));
+        return Err(err);
+    }
 
     emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Kernel restarted"));
 
@@ -227,7 +246,11 @@ pub async fn jupyter_interrupt_kernel(
         Some("Interrupting execution..."),
     );
 
-    state.manager.interrupt_kernel(&session_id).await?;
+    if let Err(err) = state.manager.interrupt_kernel(&session_id).await {
+        emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+        emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Interrupt failed"));
+        return Err(err);
+    }
 
     emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Execution interrupted"));
 
@@ -247,7 +270,14 @@ pub async fn jupyter_execute(
     let kernel_id = require_kernel_id_for_session(&state, &session_id).await?;
     emit_kernel_status(&app, &kernel_id, "busy", 0, Some("Executing code..."));
 
-    let result = state.manager.execute(&session_id, &code).await?;
+    let result = match state.manager.execute(&session_id, &code).await {
+        Ok(result) => result,
+        Err(err) => {
+            emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+            emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Execution failed"));
+            return Err(err);
+        }
+    };
 
     emit_kernel_status(
         &app,
@@ -276,7 +306,11 @@ pub async fn jupyter_quick_execute(
 
     emit_kernel_status(&app, &kernel_id, "starting", 0, Some("Starting kernel..."));
 
-    kernel.start().await?;
+    if let Err(err) = kernel.start().await {
+        emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+        emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Kernel startup failed"));
+        return Err(err);
+    }
 
     emit_kernel_status(&app, &kernel_id, "busy", 0, Some("Executing code..."));
 
@@ -308,6 +342,7 @@ pub async fn jupyter_quick_execute(
             }
 
             emit_kernel_status(&app, &kernel_id, "error", 0, Some(&exec_err));
+            emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Execution failed"));
             Err(exec_err)
         }
     }
@@ -331,7 +366,14 @@ pub async fn jupyter_execute_cell(
         Some(&format!("Executing cell {}...", cell_index)),
     );
 
-    let result = state.manager.execute(&session_id, &code).await?;
+    let result = match state.manager.execute(&session_id, &code).await {
+        Ok(result) => result,
+        Err(err) => {
+            emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+            emit_kernel_status(&app, &kernel_id, "idle", 0, Some("Cell execution failed"));
+            return Err(err);
+        }
+    };
 
     // Emit cell-specific output event
     let _ = app.emit(
@@ -410,26 +452,23 @@ pub async fn jupyter_execute_notebook(
             Some(&format!("Executing cell {}/{}...", index + 1, cells.len())),
         );
 
-        let result = match timeout(
-            Duration::from_millis(timeout_ms),
-            state.manager.execute(&session_id, code),
-        )
-        .await
+        let result = match state
+            .manager
+            .execute_with_timeout(&session_id, code, timeout_ms)
+            .await
         {
-            Ok(exec) => exec?,
-            Err(_) => KernelExecutionResult {
-                success: false,
-                execution_count: results.last().map(|r| r.execution_count).unwrap_or(0),
-                stdout: String::new(),
-                stderr: "Execution timed out".to_string(),
-                display_data: vec![],
-                error: Some(ExecutionError {
-                    ename: "TimeoutError".to_string(),
-                    evalue: "Execution timed out".to_string(),
-                    traceback: vec![],
-                }),
-                execution_time_ms: timeout_ms,
-            },
+            Ok(result) => result,
+            Err(err) => {
+                emit_kernel_status(&app, &kernel_id, "error", 0, Some(&err));
+                emit_kernel_status(
+                    &app,
+                    &kernel_id,
+                    "idle",
+                    results.last().map(|r| r.execution_count).unwrap_or(0),
+                    Some("Notebook execution failed"),
+                );
+                return Err(err);
+            }
         };
 
         // Emit cell output event
@@ -443,6 +482,15 @@ pub async fn jupyter_execute_notebook(
                 "total": cells.len()
             }),
         );
+
+        if !result.success {
+            let error_message = result
+                .error
+                .as_ref()
+                .map(|e| e.evalue.as_str())
+                .unwrap_or(result.stderr.as_str());
+            emit_kernel_status(&app, &kernel_id, "error", result.execution_count, Some(error_message));
+        }
 
         results.push(result);
 
@@ -549,16 +597,18 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     // Check if ipykernel is installed
     let check_output = if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
+        TokioCommand::new("cmd")
             .args([
                 "/C",
                 &format!("\"{}\" -c \"import ipykernel\"", python_path),
             ])
             .output()
+            .await
     } else {
-        std::process::Command::new(&python_path)
+        TokioCommand::new(&python_path)
             .args(["-c", "import ipykernel"])
             .output()
+            .await
     };
 
     if let Ok(out) = check_output {
@@ -573,19 +623,21 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     // Try uv first
     let uv_result = if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
+        TokioCommand::new("cmd")
             .args([
                 "/C",
                 &format!("uv pip install ipykernel --python \"{}\"", python_path),
             ])
             .output()
+            .await
     } else {
-        std::process::Command::new("sh")
+        TokioCommand::new("sh")
             .args([
                 "-c",
                 &format!("uv pip install ipykernel --python '{}'", python_path),
             ])
             .output()
+            .await
     };
 
     if let Ok(out) = uv_result {
@@ -597,16 +649,18 @@ pub async fn jupyter_ensure_kernel(app: AppHandle, env_path: String) -> Result<b
 
     // Fallback to pip
     let pip_result = if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
+        TokioCommand::new("cmd")
             .args([
                 "/C",
                 &format!("\"{}\" -m pip install ipykernel", python_path),
             ])
             .output()
+            .await
     } else {
-        std::process::Command::new(&python_path)
+        TokioCommand::new(&python_path)
             .args(["-m", "pip", "install", "ipykernel"])
             .output()
+            .await
     };
 
     match pip_result {
@@ -713,6 +767,9 @@ pub fn jupyter_validate_config(config: KernelConfig) -> Result<KernelConfig, Str
     }
     if config.max_output_size == 0 {
         return Err("max_output_size must be greater than 0".to_string());
+    }
+    if config.max_kernels == 0 {
+        return Err("max_kernels must be greater than 0".to_string());
     }
 
     // Create a state with the config to validate it works
@@ -844,6 +901,9 @@ mod tests {
             max_output_size: 2_000_000,
             startup_timeout_secs: 60,
             idle_timeout_secs: 1800,
+            max_kernels: 10,
+            verbose: false,
+            auto_install_packages: false,
         };
         let state = JupyterState::with_config(config.clone());
         assert_eq!(state.get_config().timeout_secs, 120);

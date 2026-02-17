@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "windows-ocr"))]
 use windows::{
     core::{Interface, HSTRING},
     Globalization::Language,
@@ -88,7 +88,7 @@ impl WindowsOcr {
     }
 
     /// Extract text from PNG image data using Windows OCR
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     pub fn extract_text(&self, image_data: &[u8]) -> Result<WinOcrResult, String> {
         // Decode PNG to get raw BGRA pixels
         let decoder = png::Decoder::new(std::io::Cursor::new(image_data));
@@ -157,14 +157,14 @@ impl WindowsOcr {
         self.extract_text_from_bgra_pixels(&bgra_pixels, width, height)
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     pub fn extract_text(&self, _image_data: &[u8]) -> Result<WinOcrResult, String> {
         Err("Windows OCR is only available on Windows".to_string())
     }
 
     /// Extract text from raw RGBA pixels
     #[allow(dead_code)]
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     pub fn extract_text_from_pixels(
         &self,
         pixels: &[u8],
@@ -184,7 +184,7 @@ impl WindowsOcr {
         self.extract_text_from_bgra_pixels(&bgra, width, height)
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     pub fn extract_text_from_pixels(
         &self,
         _pixels: &[u8],
@@ -195,7 +195,7 @@ impl WindowsOcr {
     }
 
     /// Extract text from BGRA pixels using Windows OCR API
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     fn extract_text_from_bgra_pixels(
         &self,
         bgra_pixels: &[u8],
@@ -221,7 +221,7 @@ impl WindowsOcr {
     }
 
     /// Get available OCR languages installed on the system
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     pub fn get_available_languages() -> Vec<String> {
         get_installed_ocr_languages().unwrap_or_else(|_| {
             // Fallback to common languages
@@ -235,13 +235,13 @@ impl WindowsOcr {
         })
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     pub fn get_available_languages() -> Vec<String> {
         vec![]
     }
 
     /// Check if OCR is available on this system
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     pub fn is_available() -> bool {
         // Check if at least one OCR language is available
         WinOcrEngine::AvailableRecognizerLanguages()
@@ -249,13 +249,13 @@ impl WindowsOcr {
             .unwrap_or(false)
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     pub fn is_available() -> bool {
         false
     }
 
     /// Check if a specific language is available for OCR
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     pub fn is_language_available(language: &str) -> bool {
         let lang = match Language::CreateLanguage(&HSTRING::from(language)) {
             Ok(l) => l,
@@ -264,7 +264,7 @@ impl WindowsOcr {
         WinOcrEngine::IsLanguageSupported(&lang).unwrap_or(false)
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     pub fn is_language_available(_language: &str) -> bool {
         false
     }
@@ -277,7 +277,7 @@ impl Default for WindowsOcr {
 }
 
 /// Perform OCR synchronously (called from a separate thread)
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "windows-ocr"))]
 fn perform_ocr_sync(
     bgra_pixels: &[u8],
     width: u32,
@@ -473,7 +473,7 @@ fn perform_ocr_sync(
 }
 
 /// Get list of installed OCR languages
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "windows-ocr"))]
 fn get_installed_ocr_languages() -> Result<Vec<String>, String> {
     let languages = WinOcrEngine::AvailableRecognizerLanguages()
         .map_err(|e| format!("Failed to get available languages: {}", e))?;
@@ -803,7 +803,7 @@ mod tests {
         assert_eq!(ocr.language, "ko");
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_get_available_languages() {
         let languages = WindowsOcr::get_available_languages();
@@ -812,7 +812,7 @@ mod tests {
         assert!(!languages.is_empty());
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     #[test]
     fn test_windows_ocr_get_available_languages_not_windows() {
         let languages = WindowsOcr::get_available_languages();
@@ -820,7 +820,7 @@ mod tests {
         assert!(languages.is_empty());
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_is_language_available() {
         // en-US is typically always available on Windows
@@ -836,19 +836,19 @@ mod tests {
         assert_eq!(ocr.get_language(), "de-DE");
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_is_available_windows() {
         assert!(WindowsOcr::is_available());
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     #[test]
     fn test_windows_ocr_is_available_not_windows() {
         assert!(!WindowsOcr::is_available());
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_extract_text_with_valid_png() {
         let ocr = WindowsOcr::new();
@@ -872,7 +872,7 @@ mod tests {
         assert_eq!(ocr_result.language, Some("en-US".to_string()));
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_extract_text_invalid_png() {
         let ocr = WindowsOcr::new();
@@ -883,7 +883,7 @@ mod tests {
         assert!(result.unwrap_err().contains("Failed to decode PNG"));
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     #[test]
     fn test_windows_ocr_extract_text_not_windows() {
         let ocr = WindowsOcr::new();
@@ -894,7 +894,7 @@ mod tests {
         assert!(result.unwrap_err().contains("only available on Windows"));
     }
 
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
     #[test]
     fn test_windows_ocr_extract_text_from_pixels() {
         let ocr = WindowsOcr::new();
@@ -904,7 +904,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(all(target_os = "windows", feature = "windows-ocr")))]
     #[test]
     fn test_windows_ocr_extract_text_from_pixels_not_windows() {
         let ocr = WindowsOcr::new();
@@ -923,7 +923,7 @@ mod tests {
         assert_eq!(ocr.language, "zh-Hans");
 
         // Create valid PNG for testing on Windows
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "windows-ocr"))]
         {
             let mut png_data = Vec::new();
             {
@@ -1034,3 +1034,4 @@ mod tests {
         assert_eq!(result.lines.len(), deserialized.lines.len());
     }
 }
+

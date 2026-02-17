@@ -109,24 +109,15 @@ export function useBackgroundAgent(
     queue,
     isPanelOpen,
     selectedAgentId,
-    createAgent: storeCreateAgent,
+    upsertAgentSnapshot,
+    syncQueueState,
     updateAgent: storeUpdateAgent,
     deleteAgent: storeDeleteAgent,
     setAgentStatus,
-    setAgentProgress,
-    setAgentResult,
-    setAgentError,
     queueAgent: storeQueueAgent,
     dequeueAgent,
-    pauseQueue: storePauseQueue,
-    resumeQueue: storeResumeQueue,
-    addStep,
     addLog,
-    addNotification,
     markNotificationRead: storeMarkNotificationRead,
-    markAllNotificationsRead: storeMarkAllNotificationsRead,
-    addSubAgent,
-    updateSubAgent,
     getAgent,
     getAgentsBySession,
     getUnreadNotificationCount,
@@ -155,115 +146,75 @@ export function useBackgroundAgent(
   // Subscribe to manager events for state synchronization
   useEffect(() => {
     isMountedRef.current = true;
+    const manager = getManager();
     const eventEmitter = getBackgroundAgentEventEmitter();
 
-    // Sync agent status changes to store
-    const unsubStarted = eventEmitter.on('agent:started', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'running');
-      }
-    });
+    const syncQueueFromManager = () => {
+      if (!isMountedRef.current) return;
+      syncQueueState(manager.getQueueState());
+    };
 
-    const unsubProgress = eventEmitter.on('agent:progress', ({ agent, progress }) => {
-      if (isMountedRef.current) {
-        setAgentProgress(agent.id, progress);
-      }
-    });
+    const syncAgent = (agent: BackgroundAgent) => {
+      if (!isMountedRef.current) return;
+      upsertAgentSnapshot(agent);
+    };
 
-    const unsubCompleted = eventEmitter.on('agent:completed', ({ agent, result }) => {
-      if (isMountedRef.current) {
-        setAgentResult(agent.id, result);
-      }
-    });
+    // Initial sync: include manager-restored agents and queue state.
+    manager.getAllAgents().forEach((agent) => syncAgent(agent));
+    syncQueueFromManager();
 
-    const unsubFailed = eventEmitter.on('agent:failed', ({ agent, error }) => {
-      if (isMountedRef.current) {
-        setAgentError(agent.id, error);
-      }
-    });
-
-    const unsubPaused = eventEmitter.on('agent:paused', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'paused');
-      }
-    });
-
-    const unsubResumed = eventEmitter.on('agent:resumed', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'queued');
-      }
-    });
-
-    const unsubCancelled = eventEmitter.on('agent:cancelled', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'cancelled');
-      }
-    });
-
-    const unsubTimeout = eventEmitter.on('agent:timeout', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'timeout');
-      }
-    });
-
-    const unsubSubAgentCreated = eventEmitter.on('subagent:created', ({ agent, subAgent }) => {
-      if (isMountedRef.current) {
-        addSubAgent(agent.id, subAgent);
-      }
-    });
-
-    const unsubSubAgentCompleted = eventEmitter.on(
-      'subagent:completed',
-      ({ agent, subAgent, result }) => {
-        if (isMountedRef.current) {
-          updateSubAgent(agent.id, subAgent.id, {
-            status: 'completed',
-            result,
-            completedAt: new Date(),
-          });
-        }
-      }
-    );
-
-    const unsubSubAgentStarted = eventEmitter.on('subagent:started', ({ agent, subAgent }) => {
-      if (isMountedRef.current) {
-        updateSubAgent(agent.id, subAgent.id, {
-          status: 'running',
-          startedAt: new Date(),
-        });
-      }
-    });
-
-    const unsubSubAgentFailed = eventEmitter.on('subagent:failed', ({ agent, subAgent, error }) => {
-      if (isMountedRef.current) {
-        updateSubAgent(agent.id, subAgent.id, {
-          status: 'failed',
-          error,
-          completedAt: new Date(),
-        });
-      }
-    });
-
+    // Agent lifecycle
+    const unsubCreated = eventEmitter.on('agent:created', ({ agent }) => syncAgent(agent));
     const unsubQueued = eventEmitter.on('agent:queued', ({ agent }) => {
-      if (isMountedRef.current) {
-        setAgentStatus(agent.id, 'queued');
-      }
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubStarted = eventEmitter.on('agent:started', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubProgress = eventEmitter.on('agent:progress', ({ agent }) => syncAgent(agent));
+    const unsubCompleted = eventEmitter.on('agent:completed', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubFailed = eventEmitter.on('agent:failed', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubPaused = eventEmitter.on('agent:paused', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubResumed = eventEmitter.on('agent:resumed', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubCancelled = eventEmitter.on('agent:cancelled', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
+    });
+    const unsubTimeout = eventEmitter.on('agent:timeout', ({ agent }) => {
+      syncAgent(agent);
+      syncQueueFromManager();
     });
 
-    const unsubLog = eventEmitter.on('agent:log', ({ agent, log }) => {
-      if (isMountedRef.current) {
-        addLog(agent.id, log.level, log.message, log.source, log.data);
-      }
-    });
+    // Sub-agent/tool/log/notification updates (agent snapshot already includes them)
+    const unsubSubAgentCreated = eventEmitter.on('subagent:created', ({ agent }) => syncAgent(agent));
+    const unsubSubAgentStarted = eventEmitter.on('subagent:started', ({ agent }) => syncAgent(agent));
+    const unsubSubAgentCompleted = eventEmitter.on('subagent:completed', ({ agent }) => syncAgent(agent));
+    const unsubSubAgentFailed = eventEmitter.on('subagent:failed', ({ agent }) => syncAgent(agent));
+    const unsubLog = eventEmitter.on('agent:log', ({ agent }) => syncAgent(agent));
+    const unsubNotification = eventEmitter.on('agent:notification', ({ agent }) => syncAgent(agent));
 
-    const unsubNotification = eventEmitter.on('agent:notification', ({ agent, notification }) => {
-      if (isMountedRef.current) {
-        addNotification(agent.id, notification);
-      }
-    });
+    // Queue lifecycle
+    const unsubQueueUpdated = eventEmitter.on('queue:updated', () => syncQueueFromManager());
+    const unsubQueuePaused = eventEmitter.on('queue:paused', () => syncQueueFromManager());
+    const unsubQueueResumed = eventEmitter.on('queue:resumed', () => syncQueueFromManager());
 
     return () => {
       isMountedRef.current = false;
+      unsubCreated();
       unsubStarted();
       unsubProgress();
       unsubCompleted();
@@ -279,23 +230,16 @@ export function useBackgroundAgent(
       unsubQueued();
       unsubLog();
       unsubNotification();
+      unsubQueueUpdated();
+      unsubQueuePaused();
+      unsubQueueResumed();
     };
-  }, [
-    setAgentStatus,
-    setAgentProgress,
-    setAgentResult,
-    setAgentError,
-    addSubAgent,
-    updateSubAgent,
-    addLog,
-    addNotification,
-  ]);
+  }, [syncQueueState, upsertAgentSnapshot]);
 
   // Get agents for current session
   const agents = useMemo(() => {
     return sessionId ? getAgentsBySession(sessionId) : Object.values(allAgents);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, Object.keys(allAgents).length, getAgentsBySession]);
+  }, [allAgents, getAgentsBySession, sessionId]);
 
   const runningAgents = useMemo(() => {
     return agents.filter((a) => a.status === 'running');
@@ -312,9 +256,8 @@ export function useBackgroundAgent(
   }, [agents]);
 
   const selectedAgent = useMemo(() => {
-    return selectedAgentId ? getAgent(selectedAgentId) || null : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAgentId, getAgent, Object.keys(allAgents).length]);
+    return selectedAgentId ? allAgents[selectedAgentId] || null : null;
+  }, [allAgents, selectedAgentId]);
 
   const unreadNotificationCount = getUnreadNotificationCount();
 
@@ -328,21 +271,46 @@ export function useBackgroundAgent(
     [queue]
   );
 
+  const ensureManagedAgent = useCallback(
+    (
+      agentId: string,
+      hydrateOptions: { normalizeRunningToQueued?: boolean } = {}
+    ): BackgroundAgent | undefined => {
+      const manager = getManager();
+      const existing = manager.getAgent(agentId);
+      if (existing) return existing;
+
+      const storeAgent = getAgent(agentId);
+      if (!storeAgent) return undefined;
+
+      return manager.hydrateAgent(storeAgent, hydrateOptions);
+    },
+    [getAgent]
+  );
+
   // Create agent
   const createAgent = useCallback(
     (input: Omit<CreateBackgroundAgentInput, 'sessionId'>): BackgroundAgent => {
-      return storeCreateAgent({
+      const manager = getManager();
+      const managedAgent = manager.createAgent({
         ...input,
         sessionId,
       });
+
+      upsertAgentSnapshot(managedAgent);
+      syncQueueState(manager.getQueueState());
+
+      return managedAgent;
     },
-    [sessionId, storeCreateAgent]
+    [sessionId, syncQueueState, upsertAgentSnapshot]
   );
 
   // Update agent
   const updateAgent = useCallback(
     (id: string, updates: UpdateBackgroundAgentInput): void => {
+      const manager = getManager();
       storeUpdateAgent(id, updates);
+      manager.updateAgent(id, updates);
     },
     [storeUpdateAgent]
   );
@@ -350,146 +318,150 @@ export function useBackgroundAgent(
   // Delete agent
   const deleteAgent = useCallback(
     (id: string): void => {
+      const manager = getManager();
+      manager.deleteAgent(id);
       storeDeleteAgent(id);
+      syncQueueState(manager.getQueueState());
     },
-    [storeDeleteAgent]
+    [storeDeleteAgent, syncQueueState]
   );
 
   // Start agent execution
   const startAgent = useCallback(
     async (agentId: string, executionOptions?: BackgroundAgentExecutionOptions): Promise<void> => {
-      const agent = getAgent(agentId);
+      const manager = getManager();
+      const agent =
+        ensureManagedAgent(agentId, { normalizeRunningToQueued: true }) || getAgent(agentId);
       if (!agent) {
         throw new Error('Agent not found');
       }
 
-      // Update status in store
-      setAgentStatus(agentId, 'running');
+      const started = await manager.startAgent(agent.id, executionOptions || {});
+      syncQueueState(manager.getQueueState());
 
-      // Merge callbacks - store sync happens via events, user callbacks go here
-      const options: BackgroundAgentExecutionOptions = {
-        ...executionOptions,
-        onStep: (a, step) => {
-          addStep(a.id, {
-            type: step.type,
-            status: step.status,
-            title: step.title,
-            description: step.description,
-          });
-          executionOptions?.onStep?.(a, step);
-        },
-        onLog: (a, log) => {
-          addLog(a.id, log.level, log.message, log.source, log.data);
-          executionOptions?.onLog?.(a, log);
-        },
-        onNotification: (a, notification) => {
-          addNotification(a.id, notification);
-          executionOptions?.onNotification?.(a, notification);
-        },
-      };
-
-      // Use the manager for actual execution
-      const manager = getManager();
-
-      // Check if agent already exists in manager, otherwise create it
-      let managedAgent = manager.getAgent(agentId);
-      if (!managedAgent) {
-        managedAgent = manager.createAgent({
-          sessionId: agent.sessionId,
-          name: agent.name,
-          description: agent.description,
-          task: agent.task,
-          config: agent.config,
-          priority: agent.priority,
-          tags: agent.tags,
-          metadata: agent.metadata,
-        });
+      if (!started) {
+        throw new Error(`Failed to start background agent: ${agent.id}`);
       }
-
-      await manager.startAgent(managedAgent.id, options);
     },
-    [getAgent, setAgentStatus, addStep, addLog, addNotification]
+    [ensureManagedAgent, getAgent, syncQueueState]
   );
 
   // Queue agent
   const queueAgent = useCallback(
     (agentId: string): void => {
-      storeQueueAgent(agentId);
+      const manager = getManager();
+      const managed = ensureManagedAgent(agentId, { normalizeRunningToQueued: true });
+
+      if (managed) {
+        manager.queueAgent(managed.id);
+      } else {
+        storeQueueAgent(agentId);
+      }
+
+      syncQueueState(manager.getQueueState());
     },
-    [storeQueueAgent]
+    [ensureManagedAgent, storeQueueAgent, syncQueueState]
   );
 
   // Pause agent - delegates to manager which handles checkpoint creation
   const pauseAgent = useCallback(
     (agentId: string): void => {
       const manager = getManager();
-      const success = manager.pauseAgent(agentId);
-      if (!success) {
+      const managed = ensureManagedAgent(agentId);
+      if (managed) {
+        manager.pauseAgent(managed.id);
+      } else {
         // Agent might only exist in store, update directly
         setAgentStatus(agentId, 'paused');
         addLog(agentId, 'info', 'Agent paused', 'system');
       }
+      syncQueueState(manager.getQueueState());
     },
-    [setAgentStatus, addLog]
+    [addLog, ensureManagedAgent, setAgentStatus, syncQueueState]
   );
 
   // Resume agent - delegates to manager which handles checkpoint restoration
   const resumeAgent = useCallback(
     (agentId: string): void => {
       const manager = getManager();
-      const success = manager.resumeAgent(agentId);
-      if (!success) {
+      const managed = ensureManagedAgent(agentId);
+      if (managed) {
+        manager.resumeAgent(managed.id);
+      } else {
         // Agent might only exist in store, update directly
         setAgentStatus(agentId, 'queued');
         storeQueueAgent(agentId);
         addLog(agentId, 'info', 'Agent resumed', 'system');
       }
+      syncQueueState(manager.getQueueState());
     },
-    [setAgentStatus, storeQueueAgent, addLog]
+    [addLog, ensureManagedAgent, setAgentStatus, storeQueueAgent, syncQueueState]
   );
 
   // Cancel agent - delegates to manager for proper cleanup
   const cancelAgent = useCallback(
     (agentId: string): void => {
       const manager = getManager();
-      const success = manager.cancelAgent(agentId);
-      if (!success) {
+      const managed = ensureManagedAgent(agentId);
+      if (managed) {
+        manager.cancelAgent(managed.id);
+      } else {
         // Agent might only exist in store, update directly
         setAgentStatus(agentId, 'cancelled');
         dequeueAgent(agentId);
         addLog(agentId, 'info', 'Agent cancelled', 'system');
       }
+      syncQueueState(manager.getQueueState());
     },
-    [setAgentStatus, dequeueAgent, addLog]
+    [addLog, dequeueAgent, ensureManagedAgent, setAgentStatus, syncQueueState]
   );
 
   // Cancel all
   const cancelAll = useCallback(() => {
-    cancelAllAgents();
-  }, [cancelAllAgents]);
+    const manager = getManager();
+    const cancelledCount = manager.cancelAllAgents();
+    if (cancelledCount === 0) {
+      cancelAllAgents();
+    }
+    syncQueueState(manager.getQueueState());
+  }, [cancelAllAgents, syncQueueState]);
 
   // Pause queue
   const pauseQueue = useCallback(() => {
-    storePauseQueue();
-  }, [storePauseQueue]);
+    const manager = getManager();
+    manager.pauseQueue();
+    syncQueueState(manager.getQueueState());
+  }, [syncQueueState]);
 
   // Resume queue
   const resumeQueue = useCallback(() => {
-    storeResumeQueue();
-  }, [storeResumeQueue]);
+    const manager = getManager();
+    manager.resumeQueue();
+    syncQueueState(manager.getQueueState());
+  }, [syncQueueState]);
 
   // Mark notification read
   const markNotificationRead = useCallback(
     (agentId: string, notificationId: string): void => {
-      storeMarkNotificationRead(agentId, notificationId);
+      const manager = getManager();
+      const managed = ensureManagedAgent(agentId);
+      if (managed) {
+        manager.markNotificationRead(managed.id, notificationId);
+      } else {
+        storeMarkNotificationRead(agentId, notificationId);
+      }
     },
-    [storeMarkNotificationRead]
+    [ensureManagedAgent, storeMarkNotificationRead]
   );
 
   // Mark all notifications read
   const markAllNotificationsRead = useCallback(() => {
-    storeMarkAllNotificationsRead();
-  }, [storeMarkAllNotificationsRead]);
+    const manager = getManager();
+    Object.keys(allAgents).forEach((agentId) => {
+      ensureManagedAgent(agentId);
+    });
+    manager.markAllNotificationsRead();
+  }, [allAgents, ensureManagedAgent]);
 
   // UI actions
   const openPanel = useCallback(() => {
@@ -513,16 +485,21 @@ export function useBackgroundAgent(
 
   // Clear completed
   const clearCompleted = useCallback(() => {
+    const manager = getManager();
+    manager.clearCompleted();
     clearCompletedAgents();
-  }, [clearCompletedAgents]);
+    syncQueueState(manager.getQueueState());
+  }, [clearCompletedAgents, syncQueueState]);
 
   // Delegate to team via bridge
   const delegateToTeam = useCallback(
     async (agentId: string, delegateOptions?: { teamName?: string; teamDescription?: string; templateId?: string }) => {
       const bgManager = getManager();
-      return bgManager.delegateToTeam(agentId, delegateOptions);
+      const managed = ensureManagedAgent(agentId);
+      if (!managed) return null;
+      return bgManager.delegateToTeam(managed.id, delegateOptions);
     },
-    []
+    [ensureManagedAgent]
   );
 
   return {

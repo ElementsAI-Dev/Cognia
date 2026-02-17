@@ -12,6 +12,7 @@ import type {
   LLMRouteResult,
 } from '@/types/routing/feature-router';
 import { FEATURE_ROUTES, getEnabledFeatureRoutes } from './feature-routes-config';
+import { storeFeatureNavigationContext } from './feature-navigation-context';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.ai;
@@ -401,7 +402,7 @@ export function mightTriggerFeatureRouting(message: string): boolean {
     // Creation
     /创作|制作|生成|设计|画|做|create|make|generate|design|draw|build/i,
     // Features
-    /视频|图片|图像|ppt|演示|论文|工作流|网页|video|image|picture|presentation|paper|workflow|webpage/i,
+    /视频|图片|图像|ppt|演示|论文|工作流|网页|备考|复习|速过|速学|教材|刷题|错题|video|image|picture|presentation|paper|workflow|webpage|exam|review|textbook|quiz|practice/i,
     // Actions
     /打开|进入|去|跳转|open|go to|navigate|switch to/i,
   ];
@@ -427,15 +428,13 @@ export function buildFeatureNavigationUrl(
   
   // If feature supports carrying context, store it
   if (feature.carryContext && context?.message) {
-    // Store context in sessionStorage for the target page to pick up
-    const contextKey = `feature-nav-context-${Date.now()}`;
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(contextKey, JSON.stringify({
-        message: context.message,
-        from: '/',
-        timestamp: Date.now(),
-        ...context,
-      }));
+    const contextKey = storeFeatureNavigationContext({
+      message: context.message,
+      from: '/',
+      timestamp: Date.now(),
+      ...context,
+    });
+    if (contextKey) {
       url.searchParams.set('ctx', contextKey);
     }
   }

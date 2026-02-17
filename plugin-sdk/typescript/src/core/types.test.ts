@@ -52,6 +52,7 @@ describe('Core Types', () => {
         'importers',
         'a2ui',
         'python',
+        'scheduler',
       ];
 
       expect(capabilities).toContain('tools');
@@ -67,7 +68,8 @@ describe('Core Types', () => {
       expect(capabilities).toContain('importers');
       expect(capabilities).toContain('a2ui');
       expect(capabilities).toContain('python');
-      expect(capabilities).toHaveLength(13);
+      expect(capabilities).toContain('scheduler');
+      expect(capabilities).toHaveLength(14);
     });
   });
 

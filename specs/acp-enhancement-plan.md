@@ -1,78 +1,72 @@
-# ACP Enhancement Plan
+# ACP Enhancement Contract (Implemented)
 
-## Overview
+## Scope
 
-Enhancement of the existing ACP (Agent Client Protocol) implementation to align with the latest official ACP specification at https://agentclientprotocol.com. This plan addresses missing features, simplified implementations, and spec compliance gaps identified through thorough code review and protocol specification analysis.
+This document defines the implemented ACP behavior in Cognia aligned with:
+- Stable ACP methods and payloads
+- Zed-compatible session extensions: `session/list`, `session/fork`, `session/resume`
 
-## Gap Analysis Summary
+## Session Extensions
 
-### HIGH PRIORITY
+- `session/list` is treated as optional.
+- `session/fork` and `session/resume` are treated as optional.
+- Method probing behavior:
+  - If a request returns JSON-RPC `-32601`, the method is cached as unsupported.
+  - Unsupported methods are hidden/disabled in UI.
+- `session/resume` fallback:
+  - If `session/resume` is unsupported and `loadSession` capability exists, Cognia falls back to `session/load`.
 
-1. **Session Config Options** — Entirely missing. New spec feature superseding Session Modes.
-2. **Tool Call Enhancements** — Diff content, terminal embedding, locations, rawInput/rawOutput, proper PermissionOption kinds.
-3. **Rich Content Types** — Audio content type, annotations on content blocks missing.
-4. **`current_mode_update` notification** — Agent-initiated mode changes not handled.
-5. **`config_options_update` notification** — Agent-initiated config option changes not handled.
+## Permission Flow
 
-### MEDIUM PRIORITY
+- Permission requests are forwarded to UI with full ACP payload fidelity, including:
+  - `options`
+  - `rawInput`
+  - `locations`
+  - `_meta`
+- UI responds by returning selected `optionId` directly.
+- Auto-approval behavior:
+  - `bypassPermissions`: selects an allow-style option from ACP `options`.
+  - `acceptEdits`: auto-approves only write-style requests when allow option exists.
 
-6. **Session `mcpServers` parameter** — Pass MCP server configs during session creation.
-7. **Terminal enhancements** — `outputByteLimit`, `truncated`, `exitStatus.signal`, `env` as EnvVariable[].
-8. **File system `line`/`limit` params** — Partial file reading support.
-9. **Extension method routing** — Methods starting with `_` for custom extensions.
-10. **`_meta` field propagation** — On all protocol types.
+## File System: `fs/read_text_file`
 
-### LOW PRIORITY (RFD / Future)
+- Supports:
+  - `path`
+  - `line` (1-based)
+  - `limit` (line count)
+- If `line/limit` are omitted, returns full file content.
 
-11. **Session List** — `session/list` endpoint for discovering existing sessions.
+## Terminal Contract
 
-## Implementation Plan
+### `terminal/create`
+- Supports:
+  - `env`
+  - `outputByteLimit` (default per terminal instance)
 
-### Phase 1: Types & Protocol Types (types/agent/external-agent.ts)
+### `terminal/output`
+- Supports per-call `outputByteLimit`.
+- Returns:
+  - `output`
+  - `truncated`
+  - `exitStatus` (`exitCode`, `signal`)
+  - backward-compatible `exitCode`
+- Truncation policy:
+  - Tail-truncate by bytes
+  - UTF-8 safe boundary alignment
+  - `truncated=true` when content was omitted
 
-- Add `AcpConfigOption`, `AcpConfigOptionValue`, `AcpConfigOptionCategory` types
-- Add `AcpToolCallDiffContent`, `AcpToolCallTerminalContent`, `AcpToolCallLocation` types
-- Add `AcpPermissionOptionKind` type
-- Add `AcpAudioContent` type
-- Add `AcpContentAnnotations` type
-- Add `AcpConfigOptionsUpdate` session update type
-- Add `AcpCurrentModeUpdate` session update type
-- Update `AcpSessionUpdate` union to include new types
-- Add `AcpExtensionMethod` type for custom extension methods
+### `terminal/wait_for_exit`
+- Returns `exitStatus` and backward-compatible `exitCode`.
 
-### Phase 2: ACP Client (lib/ai/agent/external/acp-client.ts)
+## Process Exit Semantics (Rust)
 
-- Handle `config_options_update` session notifications
-- Handle `current_mode_update` session notifications
-- Add `setConfigOption` method (session/set_config_option)
-- Parse `configOptions` from session/new response
-- Pass `mcpServers` in session/new params
-- Support `line`/`limit` in fs/read_text_file handler
-- Support `outputByteLimit` in terminal/create handler
-- Route extension methods (starting with `_`)
+- External agent process exit events now emit real exit code from process state.
+- Exit signal is tracked and included in process info.
+- Fixed-code exit event payload (`code: 0`) is no longer used for natural process exits.
 
-### Phase 3: Protocol Adapter (lib/ai/agent/external/protocol-adapter.ts)
+## Tool Synchronization
 
-- Add `setConfigOption` to ProtocolAdapter interface
-- Add `getConfigOptions` to ProtocolAdapter interface
+- ACP `session/started` notifications update adapter tool cache immediately.
+- Session tool metadata is synchronized on creation/load/resume/fork paths.
+- Manager refreshes `instance.tools` after execution to avoid stale/empty tool list.
 
-### Phase 4: Manager (lib/ai/agent/external/manager.ts)
-
-- Expose `setConfigOption` and `getConfigOptions` methods
-- Forward new notification events
-
-### Phase 5: Translators (lib/ai/agent/external/translators.ts)
-
-- Add diff content translation
-- Add terminal content translation
-- Add tool call location translation
-
-### Phase 6: Hooks & Store
-
-- Add config option state and actions to `useExternalAgent` hook
-- Add config option actions to `external-agent-store.ts`
-
-### Phase 7: UI Components
-
-- Create `ExternalAgentConfigOptions` component for config option selectors
-- Integrate into `ExternalAgentManager` component

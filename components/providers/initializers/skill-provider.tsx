@@ -11,6 +11,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useSkillStore } from '@/stores/skills';
 import { getAllBuiltinSkills } from '@/lib/skills/builtin';
 import type { CreateSkillInput } from '@/types/system/skill';
+import { createLogger } from '@/lib/logger';
+
+const skillProviderLogger = createLogger('providers:skill');
 
 interface SkillProviderProps {
   children: React.ReactNode;
@@ -50,7 +53,10 @@ export function SkillProvider({
         if (existingSkillCount === 0) {
           // No skills at all - load all built-in skills
           importBuiltinSkills(builtinSkills);
-          console.log(`[SkillProvider] Loaded ${builtinSkills.length} built-in skills`);
+          skillProviderLogger.info('Loaded built-in skills', {
+            action: 'importBuiltinSkills',
+            count: builtinSkills.length,
+          });
         } else {
           // Check if any built-in skills are missing and re-import them
           const existingNames = new Set(
@@ -63,7 +69,10 @@ export function SkillProvider({
           );
           if (missingBuiltins.length > 0) {
             importBuiltinSkills(missingBuiltins);
-            console.log(`[SkillProvider] Re-imported ${missingBuiltins.length} missing built-in skills`);
+            skillProviderLogger.info('Re-imported missing built-in skills', {
+              action: 'reimportBuiltinSkills',
+              count: missingBuiltins.length,
+            });
           }
         }
       }
@@ -73,7 +82,10 @@ export function SkillProvider({
         for (const skill of customSkills) {
           createSkill(skill);
         }
-        console.log(`[SkillProvider] Loaded ${customSkills.length} custom skills`);
+        skillProviderLogger.info('Loaded custom skills', {
+          action: 'loadCustomSkills',
+          count: customSkills.length,
+        });
       }
 
       onInitialized?.();

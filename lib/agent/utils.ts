@@ -160,6 +160,10 @@ export const TASK_PRIORITY_COLORS: Record<string, string> = {
  * Event type to icon mapping for session replay
  */
 export const REPLAY_EVENT_ICONS: Record<string, LucideIcon> = {
+  session_start: Play,
+  session_end: CheckCircle2,
+  permission_request: AlertTriangle,
+  permission_response: CheckCircle,
   step_start: Play,
   step_finish: CheckCircle2,
   tool_call_request: Wrench,
@@ -173,6 +177,10 @@ export const REPLAY_EVENT_ICONS: Record<string, LucideIcon> = {
  * Event type to icon mapping for live trace panel
  */
 export const LIVE_TRACE_EVENT_ICONS: Record<string, LucideIcon> = {
+  session_start: Play,
+  session_end: CheckCircle2,
+  permission_request: AlertTriangle,
+  permission_response: CheckCircle,
   step_start: Play,
   step_finish: Pause,
   tool_call_request: MessageSquare,
@@ -188,6 +196,10 @@ export const LIVE_TRACE_EVENT_ICONS: Record<string, LucideIcon> = {
  * Event type to color mapping for live trace panel
  */
 export const LIVE_TRACE_EVENT_COLORS: Record<string, string> = {
+  session_start: 'text-blue-500',
+  session_end: 'text-emerald-500',
+  permission_request: 'text-amber-500',
+  permission_response: 'text-green-500',
   step_start: 'text-blue-500',
   step_finish: 'text-blue-400',
   tool_call_request: 'text-amber-500',

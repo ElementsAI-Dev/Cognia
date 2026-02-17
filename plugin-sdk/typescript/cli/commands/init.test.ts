@@ -24,7 +24,7 @@ jest.mock('ink', () => ({
 }));
 
 jest.mock('react', () => ({
-  createElement: jest.fn(),
+  createElement: jest.fn((component, props) => ({ component, props })),
 }));
 
 const mockFs = fs as jest.Mocked<typeof fs>;
@@ -193,6 +193,46 @@ describe('initCommand', () => {
       await initCommand({ ...defaultOptions, interactive: true });
 
       expect(render).toHaveBeenCalled();
+    });
+
+    it('should persist scheduler capability without injecting scheduledTasks', async () => {
+      const { render } = require('ink');
+      const renderMock = render as jest.Mock;
+      const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+      mockFs.existsSync.mockImplementation((p) => {
+        if ((p as string).includes('plugin.json')) return false;
+        if ((p as string).includes('package.json')) return true;
+        return false;
+      });
+
+      renderMock.mockImplementationOnce((element: { props: { onComplete: (data: unknown) => Promise<void> } }) => {
+        void element.props.onComplete({
+          id: 'scheduler-plugin',
+          name: 'Scheduler Plugin',
+          version: '1.0.0',
+          description: 'test',
+          author: 'tester',
+          capabilities: ['tools', 'scheduler'],
+          permissions: ['network:fetch'],
+        });
+
+        return {
+          waitUntilExit: () => Promise.resolve(),
+        };
+      });
+
+      await initCommand({ ...defaultOptions, interactive: true });
+
+      const pluginJsonCall = mockFs.writeFileSync.mock.calls.find(
+        (call) => (call[0] as string).includes('plugin.json')
+      );
+      expect(pluginJsonCall).toBeDefined();
+      const manifest = JSON.parse(pluginJsonCall![1] as string);
+      expect(manifest.capabilities).toContain('scheduler');
+      expect(manifest.scheduledTasks).toBeUndefined();
+
+      mockLog.mockRestore();
     });
   });
 });

@@ -184,6 +184,11 @@ export function useScreenshot() {
     getPixelColor: store.getPixelColor,
     getSnapConfig: store.getSnapConfig,
     setSnapConfig: store.setSnapConfig,
+    updateConfig: store.updateConfig,
+    openEditorAfterCapture: store.config.openEditorAfterCapture,
+    setOpenEditorAfterCapture: (enabled: boolean) =>
+      store.updateConfig({ openEditorAfterCapture: enabled }),
+    ingestExternalCapture: store.ingestExternalCapture,
 
     // Pure API wrappers (no store state involved)
     startRegionSelection,

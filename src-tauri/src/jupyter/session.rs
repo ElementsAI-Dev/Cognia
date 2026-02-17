@@ -3,12 +3,13 @@
 //! Manages multiple kernel sessions and their lifecycle.
 
 use super::kernel::{JupyterKernel, KernelConfig, KernelStatus};
-use super::{KernelExecutionResult, KernelInfo, VariableInfo};
+use super::{ExecutionError, KernelExecutionResult, KernelInfo, VariableInfo};
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::time::{timeout, Duration};
 
 /// Session information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +65,13 @@ impl SessionManager {
             "Generated IDs: session_id={}, kernel_id={}",
             session_id, kernel_id
         );
+
+        if self.kernels.len() >= self.config.max_kernels {
+            return Err(format!(
+                "Maximum number of kernels reached (max_kernels={})",
+                self.config.max_kernels
+            ));
+        }
 
         // Create and start kernel
         debug!("Creating kernel for session {}", session_id);
@@ -155,6 +163,79 @@ impl SessionManager {
             "Session {} execute completed: success={}, execution_count={}",
             session_id, result.success, result.execution_count
         );
+
+        Ok(result)
+    }
+
+    /// Execute code in a session with an explicit timeout.
+    /// On timeout, attempts to interrupt the kernel and returns a timeout result.
+    pub async fn execute_with_timeout(
+        &mut self,
+        session_id: &str,
+        code: &str,
+        timeout_ms: u64,
+    ) -> Result<KernelExecutionResult, String> {
+        let code_preview = if code.len() > 50 {
+            format!("{}...", &code[..50])
+        } else {
+            code.to_string()
+        };
+        debug!(
+            "Session {} execute_with_timeout ({}ms): {}",
+            session_id,
+            timeout_ms,
+            code_preview.replace('\n', "\\n")
+        );
+
+        let kernel_id = self
+            .sessions
+            .get(session_id)
+            .and_then(|s| s.kernel_id.clone())
+            .ok_or_else(|| {
+                error!("Session {} not found or has no kernel", session_id);
+                "Session not found or has no kernel".to_string()
+            })?;
+
+        let kernel = self.kernels.get_mut(&kernel_id).ok_or_else(|| {
+            error!("Kernel {} not found for session {}", kernel_id, session_id);
+            "Kernel not found".to_string()
+        })?;
+
+        let timeout_ms = timeout_ms.max(1);
+        let execution = timeout(
+            Duration::from_millis(timeout_ms),
+            kernel.execute_with_timeout_ms(code, timeout_ms),
+        )
+        .await;
+
+        let result = match execution {
+            Ok(exec) => exec?,
+            Err(_) => {
+                warn!(
+                    "Session {} kernel {} execution timed out after {}ms",
+                    session_id, kernel_id, timeout_ms
+                );
+                let _ = kernel.interrupt().await;
+                KernelExecutionResult {
+                    success: false,
+                    execution_count: kernel.execution_count,
+                    stdout: String::new(),
+                    stderr: format!("Execution timed out after {}ms", timeout_ms),
+                    display_data: vec![],
+                    error: Some(ExecutionError {
+                        ename: "TimeoutError".to_string(),
+                        evalue: "Execution timed out".to_string(),
+                        traceback: vec![],
+                    }),
+                    execution_time_ms: timeout_ms,
+                }
+            }
+        };
+
+        // Update session activity
+        if let Some(session) = self.sessions.get_mut(session_id) {
+            session.last_activity_at = Some(chrono::Utc::now().to_rfc3339());
+        }
 
         Ok(result)
     }
@@ -448,6 +529,15 @@ impl SessionManager {
                 }
             }
         }
+
+        // Keep sessions consistent after idle kernel cleanup.
+        for session in self.sessions.values_mut() {
+            if let Some(ref kernel_id) = session.kernel_id {
+                if !self.kernels.contains_key(kernel_id) {
+                    session.kernel_id = None;
+                }
+            }
+        }
     }
 
     /// Shutdown all kernels
@@ -502,6 +592,20 @@ impl SharedSessionManager {
     ) -> Result<KernelExecutionResult, String> {
         trace!("SharedSessionManager: Acquiring write lock for execute");
         self.0.write().await.execute(session_id, code).await
+    }
+
+    pub async fn execute_with_timeout(
+        &self,
+        session_id: &str,
+        code: &str,
+        timeout_ms: u64,
+    ) -> Result<KernelExecutionResult, String> {
+        trace!("SharedSessionManager: Acquiring write lock for execute_with_timeout");
+        self.0
+            .write()
+            .await
+            .execute_with_timeout(session_id, code, timeout_ms)
+            .await
     }
 
     pub async fn get_variables(&self, session_id: &str) -> Result<Vec<VariableInfo>, String> {

@@ -5,6 +5,7 @@ import type {
   FileContext,
   BrowserContext,
   EditorContext,
+  ScreenContent,
   UiElement,
 } from '@/lib/native/context';
 
@@ -25,6 +26,10 @@ export interface ContextStoreState {
 
   // UI elements from screen analysis
   uiElements: UiElement[];
+  screenContent: ScreenContent | null;
+  isAnalyzingScreen: boolean;
+  screenAnalysisError: string | null;
+  lastScreenAnalysisAt: number | null;
 
   // Loading state
   isLoading: boolean;
@@ -52,6 +57,10 @@ export interface ContextStoreActions {
   setBrowser: (browser: BrowserContext | null) => void;
   setEditor: (editor: EditorContext | null) => void;
   setUiElements: (elements: UiElement[]) => void;
+  setScreenContent: (content: ScreenContent | null) => void;
+  setIsAnalyzingScreen: (isAnalyzing: boolean) => void;
+  setScreenAnalysisError: (error: string | null) => void;
+  clearScreenAnalysis: () => void;
 
   // Loading state
   setIsLoading: (isLoading: boolean) => void;

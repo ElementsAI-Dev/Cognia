@@ -28,7 +28,10 @@
     "i18n:watch": "npx ts-node scripts/i18n/watch.ts",
     "i18n:all": "npx ts-node scripts/i18n/index.ts all",
     "kill-port": "powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1",
-    "kill-port:unix": "bash scripts/kill-port.sh"
+    "kill-port:unix": "bash scripts/kill-port.sh",
+    "tauri:android:init": "pnpm tauri android init --ci",
+    "tauri:android:dev": "pnpm tauri android dev",
+    "tauri:android:build": "pnpm tauri android build --apk --aab"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.59",

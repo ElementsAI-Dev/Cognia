@@ -78,3 +78,37 @@ export {
   validateWorkflowInput,
   sanitizeWorkflowOutput,
 } from './execution-utils';
+
+export {
+  type WorkflowRuntimeAdapter,
+  type WorkflowRuntimeExecutionResult,
+  type WorkflowRuntimeExecuteRequest,
+  type WorkflowExecutionEvent,
+  type WorkflowRuntimeSource,
+  BrowserRuntimeAdapter,
+  TauriRuntimeAdapter,
+  createWorkflowRuntimeAdapter,
+  getWorkflowRuntimeAdapter,
+  setWorkflowRuntimeAdapter,
+} from './runtime-adapter';
+
+export {
+  WorkflowOrchestrator,
+  getWorkflowOrchestrator,
+  setWorkflowOrchestrator,
+  workflowOrchestrator,
+  type WorkflowRunParams,
+  type WorkflowPersistParams,
+} from './orchestrator';
+
+export {
+  CURRENT_WORKFLOW_SCHEMA_VERSION,
+  migrateWorkflowSchema,
+  type WorkflowSchemaMigrationResult,
+} from './migration';
+
+export {
+  WorkflowTriggerSyncService,
+  workflowTriggerSyncService,
+  getTriggerSyncBadgeVariant,
+} from './trigger-sync-service';

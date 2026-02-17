@@ -193,18 +193,49 @@ describe('External Agent API', () => {
         command: 'bash',
         args: ['-c', 'echo hello'],
         cwd: '/tmp',
+        env: undefined,
+        outputByteLimit: undefined,
       })
       expect(result).toBe('term_1')
     })
 
+    it('should create terminal with env and output byte limit', async () => {
+      mockInvoke.mockResolvedValueOnce('term_2')
+
+      const result = await acpTerminalCreate(
+        'session-2',
+        'bash',
+        ['-lc', 'echo $FOO'],
+        '/tmp',
+        { FOO: 'bar' },
+        512
+      )
+
+      expect(mockInvoke).toHaveBeenCalledWith('acp_terminal_create', {
+        sessionId: 'session-2',
+        command: 'bash',
+        args: ['-lc', 'echo $FOO'],
+        cwd: '/tmp',
+        env: { FOO: 'bar' },
+        outputByteLimit: 512,
+      })
+      expect(result).toBe('term_2')
+    })
+
     it('should get terminal output', async () => {
-      const mockOutput = { output: 'hello\n', exitCode: 0 }
+      const mockOutput = {
+        output: 'hello\n',
+        truncated: false,
+        exitStatus: { exitCode: 0, signal: null },
+        exitCode: 0,
+      }
       mockInvoke.mockResolvedValueOnce(mockOutput)
 
       const result = await acpTerminalOutput('term_1')
 
       expect(mockInvoke).toHaveBeenCalledWith('acp_terminal_output', {
         terminalId: 'term_1',
+        outputByteLimit: undefined,
       })
       expect(result).toEqual(mockOutput)
     })
@@ -230,15 +261,21 @@ describe('External Agent API', () => {
     })
 
     it('should wait for terminal exit', async () => {
-      mockInvoke.mockResolvedValueOnce(0)
+      mockInvoke.mockResolvedValueOnce({
+        exitStatus: { exitCode: 0, signal: null },
+        exitCode: 0,
+      })
 
-      const exitCode = await acpTerminalWaitForExit('term_1', 30)
+      const waitResult = await acpTerminalWaitForExit('term_1', 30)
 
       expect(mockInvoke).toHaveBeenCalledWith('acp_terminal_wait_for_exit', {
         terminalId: 'term_1',
         timeout: 30,
       })
-      expect(exitCode).toBe(0)
+      expect(waitResult).toEqual({
+        exitStatus: { exitCode: 0, signal: null },
+        exitCode: 0,
+      })
     })
 
     it('should write to terminal', async () => {
@@ -291,6 +328,7 @@ describe('External Agent API', () => {
         command: 'bash',
         state: { type: 'Running' },
         exitCode: null,
+        exitStatus: { exitCode: null, signal: null },
       }
       mockInvoke.mockResolvedValueOnce(mockInfo)
 
@@ -389,9 +427,17 @@ describe('External Agent API', () => {
       // Create terminal
       mockInvoke.mockResolvedValueOnce('term_1')
       // Wait for exit
-      mockInvoke.mockResolvedValueOnce(0)
+      mockInvoke.mockResolvedValueOnce({
+        exitStatus: { exitCode: 0, signal: null },
+        exitCode: 0,
+      })
       // Get output
-      mockInvoke.mockResolvedValueOnce({ output: 'hello world\n', exitCode: 0 })
+      mockInvoke.mockResolvedValueOnce({
+        output: 'hello world\n',
+        truncated: false,
+        exitStatus: { exitCode: 0, signal: null },
+        exitCode: 0,
+      })
       // Release terminal
       mockInvoke.mockResolvedValueOnce(undefined)
 

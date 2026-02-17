@@ -10,6 +10,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { AcpPermissionOption } from '@/types/agent/external-agent';
 import {
   Dialog,
   DialogContent,
@@ -19,17 +20,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CodeBlock } from '@/components/ai-elements/code-block';
-
-/**
- * ACP Permission Option
- * @see https://agentclientprotocol.com/protocol/tool-calls
- */
-export interface AcpPermissionOption {
-  id: string;
-  label: string;
-  description?: string;
-  isDefault?: boolean;
-}
 
 export interface ToolApprovalRequest {
   id: string;
@@ -163,12 +153,12 @@ export function ToolApprovalDialog({
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {request.acpOptions!.map((option) => (
                   <Button
-                    key={option.id}
+                    key={option.optionId}
                     variant={option.isDefault ? 'default' : 'outline'}
-                    onClick={() => handleOptionSelect(option.id)}
+                    onClick={() => handleOptionSelect(option.optionId)}
                     title={option.description}
                   >
-                    {option.label}
+                    {option.name}
                   </Button>
                 ))}
               </div>

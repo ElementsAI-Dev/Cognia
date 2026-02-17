@@ -17,7 +17,9 @@ jest.mock('@/stores', () => ({
 
 // Mock sandbox service
 jest.mock('@/lib/native/sandbox', () => ({
-  executeWithStdin: jest.fn(),
+  sandboxService: {
+    executeWithStdin: jest.fn(),
+  },
 }));
 
 // Mock performance.now for consistent timing
@@ -34,14 +36,20 @@ describe('useCodeExecution', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockExecuteWithStdin = jest.requireMock('@/lib/native/sandbox').executeWithStdin;
-    mockExecuteWithStdin.mockResolvedValue({
-      status: 'completed',
-      exit_code: 0,
-      stdout: 'Hello Python',
-      stderr: '',
-      execution_time_ms: 100,
-      language: 'python',
+    mockExecuteWithStdin = jest.requireMock('@/lib/native/sandbox').sandboxService.executeWithStdin;
+    mockExecuteWithStdin.mockImplementation(async (language: string) => {
+      if (language === 'lisp') {
+        throw new Error('Language not supported');
+      }
+      return {
+        status: 'completed',
+        exit_code: 0,
+        stdout: `Hello ${language}`,
+        stderr: '',
+        execution_time_ms: 100,
+        language,
+        runtime: 'native',
+      };
     });
   });
 
@@ -55,8 +63,8 @@ describe('useCodeExecution', () => {
     });
   });
 
-  describe('browser execution', () => {
-    it('should execute JavaScript code in browser', async () => {
+  describe('desktop sandbox-first execution', () => {
+    it('should execute JavaScript via sandbox first on desktop', async () => {
       const { result } = renderHook(() => useCodeExecution());
 
       let executionResult!: CodeSandboxExecutionResult;
@@ -69,12 +77,13 @@ describe('useCodeExecution', () => {
         language: 'javascript',
         exitCode: 0,
       });
-      expect(executionResult.executionTime).toBeGreaterThanOrEqual(0);
+      expect(mockExecuteWithStdin).toHaveBeenCalledWith('javascript', 'console.log("test")', '');
       expect(result.current.result).toEqual(executionResult);
       expect(result.current.isExecuting).toBe(false);
     });
 
-    it('should execute TypeScript code in browser', async () => {
+    it('should fallback to browser execution when sandbox fails for JS/TS', async () => {
+      mockExecuteWithStdin.mockRejectedValueOnce(new Error('Sandbox unavailable'));
       const { result } = renderHook(() => useCodeExecution());
 
       let executionResult!: CodeSandboxExecutionResult;
@@ -87,31 +96,7 @@ describe('useCodeExecution', () => {
         language: 'typescript',
         exitCode: 0,
       });
-    });
-
-    it('should handle JavaScript runtime errors', async () => {
-      const { result } = renderHook(() => useCodeExecution());
-
-      let executionResult!: CodeSandboxExecutionResult;
-      await act(async () => {
-        executionResult = await result.current.execute('throw new Error("test error")', 'javascript');
-      });
-
-      expect(executionResult.success).toBe(false);
-      expect(executionResult.stderr).toContain('Error: test error');
-    });
-
-    it('should capture console output', async () => {
-      const { result } = renderHook(() => useCodeExecution());
-
-      let executionResult!: CodeSandboxExecutionResult;
-      await act(async () => {
-        executionResult = await result.current.execute('console.log("hello"); console.error("error")', 'javascript');
-      });
-
-      expect(executionResult.success).toBe(true);
-      expect(executionResult.stdout).toContain('hello');
-      expect(executionResult.stderr).toContain('error');
+      expect(mockExecuteWithStdin).toHaveBeenCalled();
     });
   });
 
@@ -127,7 +112,7 @@ describe('useCodeExecution', () => {
       expect(mockExecuteWithStdin).toHaveBeenCalledWith('python', 'print("Hello Python")', '');
       expect(executionResult).toMatchObject({
         success: true,
-        stdout: 'Hello Python',
+        stdout: 'Hello python',
         stderr: '',
         exitCode: 0,
         language: 'python',

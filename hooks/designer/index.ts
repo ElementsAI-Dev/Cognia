@@ -41,6 +41,13 @@ export {
   type UseDesignerAIConfigReturn,
 } from './use-designer-ai-config';
 export {
+  useDesignerSession,
+  type UseDesignerSessionOptions,
+  type UseDesignerSessionReturn,
+  type DesignerCodeParseMode,
+  type UpdateDesignerCodeOptions,
+} from './use-designer-session';
+export {
   useAISuggestions,
   type SuggestionType,
   type UseAISuggestionsOptions,

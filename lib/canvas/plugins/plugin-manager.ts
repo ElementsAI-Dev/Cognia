@@ -4,6 +4,7 @@
  */
 
 import { loggers } from '@/lib/logger';
+import { getPluginManager } from '@/lib/plugin/core/manager';
 
 const log = loggers.plugin;
 
@@ -126,6 +127,7 @@ export class CanvasPluginManager {
     }
     
     this.plugins.set(plugin.id, plugin);
+    this.syncWithMainManager(plugin.id, 'register');
     
     if (plugin.enabled) {
       this.enablePlugin(plugin.id);
@@ -141,6 +143,7 @@ export class CanvasPluginManager {
     if (this.enabledPlugins.has(pluginId)) {
       this.disablePlugin(pluginId);
     }
+    this.syncWithMainManager(pluginId, 'unregister');
     
     return this.plugins.delete(pluginId);
   }
@@ -151,6 +154,7 @@ export class CanvasPluginManager {
     
     plugin.enabled = true;
     this.enabledPlugins.add(pluginId);
+    this.syncWithMainManager(pluginId, 'enable');
     
     if (this.context && plugin.onMount) {
       try {
@@ -169,6 +173,7 @@ export class CanvasPluginManager {
     
     plugin.enabled = false;
     this.enabledPlugins.delete(pluginId);
+    this.syncWithMainManager(pluginId, 'disable');
     
     if (plugin.onUnmount) {
       try {
@@ -179,6 +184,47 @@ export class CanvasPluginManager {
     }
     
     return true;
+  }
+
+  private syncWithMainManager(
+    pluginId: string,
+    action: 'register' | 'unregister' | 'enable' | 'disable'
+  ): void {
+    let manager: ReturnType<typeof getPluginManager> | null = null;
+    try {
+      manager = getPluginManager();
+    } catch {
+      return;
+    }
+
+    if (!manager) {
+      return;
+    }
+
+    if (action === 'enable') {
+      void manager.enablePlugin(pluginId).catch((error) => {
+        log.warn(`Failed to sync enable for ${pluginId}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      return;
+    }
+    if (action === 'disable') {
+      void manager.disablePlugin(pluginId).catch((error) => {
+        log.warn(`Failed to sync disable for ${pluginId}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      return;
+    }
+    if (action === 'unregister') {
+      void manager.unloadPlugin(pluginId).catch((error) => {
+        log.warn(`Failed to sync unregister for ${pluginId}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      return;
+    }
   }
 
   getPlugin(pluginId: string): CanvasPlugin | undefined {

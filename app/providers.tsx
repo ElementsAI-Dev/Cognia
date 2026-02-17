@@ -51,17 +51,22 @@ import {
   StoreInitializer,
   SkillSyncInitializer,
   ContextSyncInitializer,
+  SpeedPassRuntimeInitializer,
 } from '@/components/providers';
 import { ObservabilityInitializer } from '@/components/observability';
 import { LocaleInitializer, AgentTraceInitializer } from '@/components/providers/initializers';
 import { SchedulerInitializer } from '@/components/scheduler';
 import { useChatWidgetStore } from '@/stores/chat';
+import { useScreenshotStore } from '@/stores/media';
 import { getWindowLabel, isTauri as detectTauri, WINDOW_LABELS } from '@/lib/native/utils';
 import { AppLoadingScreen } from '@/components/ui/app-loading-screen';
+import { createLogger } from '@/lib/logger';
 
 interface ProvidersProps {
   children: React.ReactNode;
 }
+
+const providersLogger = createLogger('app:providers');
 
 let pluginInitPromise: Promise<void> | null = null;
 
@@ -84,7 +89,9 @@ async function ensurePluginSystemInitialized(): Promise<void> {
     });
   })().catch((error) => {
     toast.error('Failed to initialize plugins');
-    console.error('Failed to initialize plugins:', error);
+    providersLogger.error('Failed to initialize plugins', error, {
+      action: 'initializePluginManager',
+    });
   });
 
   return pluginInitPromise;
@@ -612,7 +619,9 @@ function SelectionNativeSync() {
           await stopSelectionService();
         }
       } catch (error) {
-        console.error('Failed to sync selection service', error);
+        providersLogger.error('Failed to sync selection service', error, {
+          action: 'syncSelectionService',
+        });
       }
     };
 
@@ -627,6 +636,177 @@ function SelectionNativeSync() {
     selectionConfig.excludedApps,
     selectionConfig.autoHideDelay,
   ]);
+
+  return null;
+}
+
+function isSelectionCancelledError(error: string): boolean {
+  const normalized = error.toLowerCase();
+  return (
+    normalized.includes('selection cancelled') ||
+    normalized.includes('selection canceled') ||
+    normalized.includes('cancelled') ||
+    normalized.includes('canceled')
+  );
+}
+
+function ScreenshotNativeSync() {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !detectTauri()) {
+      return;
+    }
+
+    let unlisteners: Array<() => void> = [];
+
+    const setupListeners = async () => {
+      const [{ listen, emit }, screenshotApi] = await Promise.all([
+        import('@tauri-apps/api/event'),
+        import('@/lib/native/screenshot'),
+      ]);
+
+      const ingestCapture = async (payload: unknown) => {
+        if (!payload || typeof payload !== 'object') {
+          return;
+        }
+        const maybe = payload as Record<string, unknown>;
+        const hasImage = typeof maybe.image_base64 === 'string' || typeof maybe.imageBase64 === 'string';
+        if (!hasImage || !maybe.metadata || typeof maybe.metadata !== 'object') {
+          return;
+        }
+        await useScreenshotStore.getState().ingestExternalCapture({
+          image_base64: maybe.image_base64 as string | undefined,
+          imageBase64: maybe.imageBase64 as string | undefined,
+          metadata: maybe.metadata as Record<string, unknown>,
+          source: maybe.source as string | undefined,
+        });
+      };
+
+      const emitScreenshotError = async (action: string, message: string) => {
+        try {
+          await emit('screenshot-error', { action, message });
+        } catch {
+          // Ignore bridge-emission failures in web mode or non-main windows.
+        }
+      };
+
+      const runLegacyRegionCapture = async (action: string, runOcr: boolean) => {
+        try {
+          const region = await screenshotApi.startRegionSelection();
+          const capture = await screenshotApi.captureRegionWithHistory(
+            region.x,
+            region.y,
+            region.width,
+            region.height
+          );
+
+          await useScreenshotStore.getState().ingestExternalCapture({
+            image_base64: capture.image_base64,
+            metadata: capture.metadata as unknown as Record<string, unknown>,
+            source: `legacy:${action}`,
+          });
+
+          if (!runOcr) {
+            return;
+          }
+
+          let text = '';
+          let language: string | undefined;
+
+          try {
+            const windowsOcr = await screenshotApi.extractTextWindows(capture.image_base64);
+            text = windowsOcr?.text || '';
+            language = windowsOcr?.language;
+          } catch {
+            text = await screenshotApi.extractText(capture.image_base64);
+          }
+
+          if (!text.trim()) {
+            return;
+          }
+
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch {
+            // Clipboard write is best-effort.
+          }
+
+          await emit('screenshot-ocr-result', {
+            text,
+            imageBase64: capture.image_base64,
+            language,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error ?? 'Unknown screenshot error');
+          if (isSelectionCancelledError(message)) {
+            return;
+          }
+          await emitScreenshotError(action, message);
+        }
+      };
+
+      unlisteners.push(
+        await listen('screenshot-captured', (event) => {
+          void ingestCapture(event.payload);
+        })
+      );
+
+      unlisteners.push(
+        await listen('screenshot-error', (event) => {
+          const payload = event.payload;
+          let action = 'unknown';
+          let message = 'Screenshot failed';
+
+          if (typeof payload === 'string') {
+            message = payload;
+          } else if (payload && typeof payload === 'object') {
+            const typed = payload as Record<string, unknown>;
+            action = String(typed.action ?? action);
+            message = String(typed.message ?? message);
+          }
+
+          if (!isSelectionCancelledError(message)) {
+            toast.error(`${action}: ${message}`);
+          }
+        })
+      );
+
+      unlisteners.push(
+        await listen('screenshot-ocr-result', (event) => {
+          const payload = event.payload as { text?: string };
+          const text = payload?.text?.trim();
+          if (!text) {
+            return;
+          }
+          void emit('selection-send-to-chat', { text });
+        })
+      );
+
+      // Legacy tray/menu triggers kept for backward compatibility.
+      unlisteners.push(
+        await listen('start-region-screenshot', () => {
+          void runLegacyRegionCapture('start-region-screenshot', false);
+        })
+      );
+      unlisteners.push(
+        await listen('start-window-screenshot', () => {
+          void useScreenshotStore.getState().captureWindow();
+        })
+      );
+      unlisteners.push(
+        await listen('start-ocr-screenshot', () => {
+          void runLegacyRegionCapture('start-ocr-screenshot', true);
+        })
+      );
+    };
+
+    void setupListeners();
+
+    return () => {
+      unlisteners.forEach((unlisten) => unlisten());
+      unlisteners = [];
+    };
+  }, []);
 
   return null;
 }
@@ -679,10 +859,12 @@ export function Providers({ children }: ProvidersProps) {
                         <StoreInitializer />
                         <SkillSyncInitializer />
                         <ContextSyncInitializer />
+                        <SpeedPassRuntimeInitializer />
                         <ObservabilityInitializer />
                         <SchedulerInitializer />
                         <AgentTraceInitializer />
                         <SelectionNativeSync />
+                        <ScreenshotNativeSync />
                         <OnboardingProvider>{children}</OnboardingProvider>
                       </NativeProvider>
                     </SkillProvider>

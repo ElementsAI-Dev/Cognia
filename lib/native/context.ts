@@ -5,6 +5,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import type { OcrProviderType } from "./ocr";
 
 // ============== Types ==============
 
@@ -188,6 +189,11 @@ export interface ScreenContent {
   confidence: number;
 }
 
+export interface ScreenAnalyzeOptions {
+  provider?: OcrProviderType;
+  language?: string;
+}
+
 // ============== Context Functions ==============
 
 /**
@@ -311,4 +317,42 @@ export async function getTextAt(x: number, y: number): Promise<string | null> {
  */
 export async function getElementAt(x: number, y: number): Promise<UiElement | null> {
   return invoke("context_get_element_at", { x, y });
+}
+
+/**
+ * Analyze screen content from raw image data
+ */
+export async function analyzeScreen(
+  imageData: Uint8Array | number[],
+  width: number,
+  height: number,
+  options?: ScreenAnalyzeOptions
+): Promise<ScreenContent> {
+  const payload = imageData instanceof Uint8Array ? Array.from(imageData) : imageData;
+  return invoke("context_analyze_screen", {
+    imageData: payload,
+    width,
+    height,
+    provider: options?.provider,
+    language: options?.language,
+  });
+}
+
+/**
+ * Capture active window and analyze it without screenshot side effects
+ */
+export async function captureAndAnalyzeActiveWindow(
+  options?: ScreenAnalyzeOptions
+): Promise<ScreenContent> {
+  return invoke("context_capture_and_analyze_active_window", {
+    provider: options?.provider,
+    language: options?.language,
+  });
+}
+
+/**
+ * Clear screen analysis cache
+ */
+export async function clearScreenCache(): Promise<void> {
+  return invoke("context_clear_screen_cache");
 }

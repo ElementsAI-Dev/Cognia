@@ -3,6 +3,10 @@ import { ContextPanel } from './context-panel';
 
 // Mock the context hook
 const mockFetchContext = jest.fn();
+const mockCaptureAndAnalyzeScreen = jest.fn();
+let mockScreenAnalysisError: string | null = null;
+let mockIsAnalyzingScreen = false;
+let mockScreenContentValue: Record<string, unknown> | null = null;
 const mockContext = {
   timestamp: Date.now(),
   window: {
@@ -41,12 +45,30 @@ const mockContext = {
   },
 };
 
+const mockScreenContent = {
+  text: 'Detected text from screen',
+  text_blocks: [
+    { text: 'Detected', x: 10, y: 20, width: 100, height: 20, confidence: 0.9 },
+  ],
+  ui_elements: [{ element_type: 'Button', x: 0, y: 0, width: 40, height: 20, is_interactive: true }],
+  width: 1920,
+  height: 1080,
+  timestamp: Date.now(),
+  confidence: 0.88,
+};
+mockScreenContentValue = mockScreenContent;
+
 jest.mock('@/hooks/context', () => ({
   useContext: () => ({
     context: mockContext,
     isLoading: false,
     error: null,
     fetchContext: mockFetchContext,
+    captureAndAnalyzeScreen: mockCaptureAndAnalyzeScreen,
+    screenContent: mockScreenContentValue,
+    isAnalyzingScreen: mockIsAnalyzingScreen,
+    screenAnalysisError: mockScreenAnalysisError,
+    lastScreenAnalysisAt: Date.now(),
   }),
 }));
 
@@ -84,6 +106,16 @@ jest.mock('next-intl', () => ({
       devTool: 'Dev Tool',
       noContext: 'No context available',
       noContextHint: 'Context will appear when you focus on an application',
+      screenPerception: 'Screen Perception',
+      reanalyze: 'Re-analyze',
+      analyzing: 'Analyzing...',
+      screenPerceptionEmpty: 'No screen analysis result yet',
+      screenAnalysisError: 'Screen analysis error',
+      textBlocksCount: '1 text blocks',
+      uiElementsCount: '1 UI elements',
+      confidenceLabel: 'Confidence 88%',
+      noScreenText: 'No OCR text detected',
+      screenAnalysisTime: 'Analyzed at:',
     };
     return translations[key] || key;
   },
@@ -92,6 +124,9 @@ jest.mock('next-intl', () => ({
 describe('ContextPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockScreenContentValue = mockScreenContent;
+    mockScreenAnalysisError = null;
+    mockIsAnalyzingScreen = false;
   });
 
   it('renders the panel with title', () => {
@@ -101,14 +136,40 @@ describe('ContextPanel', () => {
 
   it('renders refresh button', () => {
     render(<ContextPanel />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });
 
   it('calls fetchContext when refresh button is clicked', () => {
     render(<ContextPanel />);
-    const refreshButton = screen.getByRole('button');
+    const refreshButton = screen.getAllByRole('button')[0];
     fireEvent.click(refreshButton);
     expect(mockFetchContext).toHaveBeenCalled();
+  });
+
+  it('renders screen perception section and manual analyze button', () => {
+    render(<ContextPanel />);
+    expect(screen.getByText('Screen Perception')).toBeInTheDocument();
+    expect(screen.getByText('Detected text from screen')).toBeInTheDocument();
+    expect(screen.getByText('Re-analyze')).toBeInTheDocument();
+  });
+
+  it('calls captureAndAnalyzeScreen when re-analyze is clicked', () => {
+    render(<ContextPanel />);
+    fireEvent.click(screen.getByText('Re-analyze'));
+    expect(mockCaptureAndAnalyzeScreen).toHaveBeenCalled();
+  });
+
+  it('shows empty screen perception state when no screen content', () => {
+    mockScreenContentValue = null;
+    render(<ContextPanel />);
+    expect(screen.getByText('No screen analysis result yet')).toBeInTheDocument();
+  });
+
+  it('shows screen analysis error state', () => {
+    mockScreenAnalysisError = 'OCR failed';
+    render(<ContextPanel />);
+    expect(screen.getByText(/Screen analysis error/)).toBeInTheDocument();
+    expect(screen.getByText(/OCR failed/)).toBeInTheDocument();
   });
 
   it('displays active window information', () => {
@@ -192,7 +253,7 @@ describe('ContextPanel - Loading State', () => {
   it('disables refresh button when loading', () => {
     // This test validates the component structure when loading
     render(<ContextPanel />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });
 });
 

@@ -3,6 +3,7 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
+import { listen as tauriListen } from '@tauri-apps/api/event';
 import {
   useScreenRecordingStore,
   useIsRecording,
@@ -787,5 +788,68 @@ describe('useScreenRecordingStore - Edge Cases', () => {
 
       expect(result.current.config.use_hardware_acceleration).toBe(false);
     });
+  });
+});
+
+describe('useScreenRecordingStore - recording-error payload compatibility', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    act(() => {
+      useScreenRecordingStore.setState({
+        status: 'Idle',
+        recordingId: null,
+        duration: 0,
+        error: null,
+      });
+    });
+  });
+
+  it('handles structured recording-error object payload', async () => {
+    const listeners = new Map<string, (event: { payload: unknown }) => void>();
+    (tauriListen as unknown as jest.Mock).mockImplementation(
+      async (eventName: string, handler: (event: { payload: unknown }) => void) => {
+        listeners.set(eventName, handler);
+        return jest.fn();
+      }
+    );
+
+    const { result } = renderHook(() => useScreenRecordingStore());
+    await act(async () => {
+      await result.current.setupEventListeners();
+    });
+
+    act(() => {
+      listeners.get('recording-error')?.({
+        payload: {
+          error: 'Failed to start recording',
+          code: 'FFMPEG_START_FAILED',
+        },
+      });
+    });
+
+    expect(result.current.error).toBe('Failed to start recording');
+  });
+
+  it('handles legacy recording-error string payload', async () => {
+    const listeners = new Map<string, (event: { payload: unknown }) => void>();
+    (tauriListen as unknown as jest.Mock).mockImplementation(
+      async (eventName: string, handler: (event: { payload: unknown }) => void) => {
+        listeners.set(eventName, handler);
+        return jest.fn();
+      }
+    );
+
+    const { result } = renderHook(() => useScreenRecordingStore());
+    await act(async () => {
+      await result.current.setupEventListeners();
+    });
+
+    act(() => {
+      listeners.get('recording-error')?.({
+        payload: '{"code":"NOT_RECORDING","message":"No active recording"}',
+      });
+    });
+
+    expect(result.current.error).toBe('No active recording');
   });
 });

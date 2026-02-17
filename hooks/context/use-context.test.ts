@@ -4,6 +4,8 @@
 
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useContext } from './use-context';
+import { useContextStore } from '@/stores/context';
+import { useNativeStore } from '@/stores/system';
 
 // Mock Tauri invoke
 const mockInvoke = jest.fn();
@@ -19,6 +21,16 @@ jest.mock('@/lib/native/utils', () => ({
 describe('useContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    act(() => {
+      useContextStore.getState().reset();
+      useNativeStore.setState((state) => ({
+        nativeToolsConfig: {
+          ...state.nativeToolsConfig,
+          screenshotOcrEnabled: true,
+          contextRefreshInterval: 5,
+        },
+      }));
+    });
   });
 
   const mockWindowInfo = {
@@ -190,8 +202,19 @@ describe('useContext', () => {
     });
 
     it('should return null on error', async () => {
-      // First call for initial fetch succeeds, second call fails
-      mockInvoke.mockResolvedValueOnce(mockFullContext).mockRejectedValueOnce(new Error('Failed'));
+      // Initial fetch + auto screen analysis, then window info call fails
+      mockInvoke
+        .mockResolvedValueOnce(mockFullContext)
+        .mockResolvedValueOnce({
+          text: '',
+          text_blocks: [],
+          ui_elements: [],
+          width: 100,
+          height: 100,
+          timestamp: Date.now(),
+          confidence: 0.1,
+        })
+        .mockRejectedValueOnce(new Error('Failed'));
 
       const { result } = renderHook(() => useContext());
 
@@ -300,7 +323,18 @@ describe('useContext', () => {
     });
 
     it('should return empty array on error', async () => {
-      mockInvoke.mockResolvedValueOnce(mockFullContext).mockRejectedValueOnce(new Error('Failed'));
+      mockInvoke
+        .mockResolvedValueOnce(mockFullContext)
+        .mockResolvedValueOnce({
+          text: '',
+          text_blocks: [],
+          ui_elements: [],
+          width: 100,
+          height: 100,
+          timestamp: Date.now(),
+          confidence: 0.1,
+        })
+        .mockRejectedValueOnce(new Error('Failed'));
       const { result } = renderHook(() => useContext());
 
       await waitFor(() => {
@@ -368,6 +402,216 @@ describe('useContext', () => {
       });
 
       expect(mockInvoke).toHaveBeenCalledWith('context_clear_cache');
+    });
+  });
+
+  describe('screen analysis', () => {
+    it('should analyze provided screen bytes', async () => {
+      const mockInitialContext = { timestamp: Date.now() };
+      const mockScreenContent = {
+        text: 'hello',
+        text_blocks: [],
+        ui_elements: [],
+        width: 100,
+        height: 100,
+        timestamp: Date.now(),
+        confidence: 0.8,
+      };
+      mockInvoke
+        .mockResolvedValueOnce(mockInitialContext)
+        .mockResolvedValueOnce(mockScreenContent);
+
+      const { result } = renderHook(() => useContext());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        const output = await result.current.analyzeScreen(new Uint8Array([1, 2, 3]), 100, 100);
+        expect(output).toEqual(mockScreenContent);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('context_analyze_screen', {
+        imageData: [1, 2, 3],
+        width: 100,
+        height: 100,
+        provider: undefined,
+        language: undefined,
+      });
+    });
+
+    it('should capture and analyze active window', async () => {
+      const mockInitialContext = { timestamp: Date.now() };
+      const mockScreenContent = {
+        text: 'captured',
+        text_blocks: [],
+        ui_elements: [],
+        width: 100,
+        height: 100,
+        timestamp: Date.now(),
+        confidence: 0.9,
+      };
+
+      mockInvoke
+        .mockResolvedValueOnce(mockInitialContext)
+        .mockResolvedValueOnce(mockScreenContent);
+
+      const { result } = renderHook(() => useContext());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        const output = await result.current.captureAndAnalyzeScreen();
+        expect(output).toEqual(mockScreenContent);
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('context_capture_and_analyze_active_window', {
+        provider: undefined,
+        language: undefined,
+      });
+    });
+
+    it('should clear screen analysis cache', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+      const { result } = renderHook(() => useContext());
+
+      await act(async () => {
+        await result.current.clearScreenAnalysis();
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('context_clear_screen_cache');
+    });
+
+    it('should trigger screen analysis again when window fingerprint changes', async () => {
+      act(() => {
+        useContextStore.setState({ autoRefreshEnabled: false, refreshIntervalMs: 60000 });
+      });
+
+      const contextA = {
+        window: {
+          ...mockWindowInfo,
+          title: 'Window A',
+          handle: 1,
+        },
+        timestamp: Date.now(),
+      };
+      const contextB = {
+        window: {
+          ...mockWindowInfo,
+          title: 'Window B',
+          handle: 2,
+        },
+        timestamp: Date.now() + 1,
+      };
+      const screenResult = {
+        text: 'detected',
+        text_blocks: [],
+        ui_elements: [],
+        width: 100,
+        height: 100,
+        timestamp: Date.now(),
+        confidence: 0.9,
+      };
+
+      let contextCallCount = 0;
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'context_get_full') {
+          contextCallCount += 1;
+          return Promise.resolve(contextCallCount === 1 ? contextA : contextB);
+        }
+        if (command === 'context_capture_and_analyze_active_window') {
+          return Promise.resolve(screenResult);
+        }
+        return Promise.resolve(null);
+      });
+
+      const { result } = renderHook(() => useContext());
+      await act(async () => {
+        await result.current.fetchContext();
+      });
+      await act(async () => {
+        await result.current.fetchContext();
+      });
+
+      const calls = mockInvoke.mock.calls.filter((call) => call[0] === 'context_capture_and_analyze_active_window');
+      expect(calls).toHaveLength(2);
+    });
+
+    it('should throttle repeated analysis for same window within refresh interval', async () => {
+      act(() => {
+        useContextStore.setState({ autoRefreshEnabled: false, refreshIntervalMs: 60000 });
+      });
+
+      const sameContext = {
+        window: {
+          ...mockWindowInfo,
+          title: 'Same Window',
+          handle: 88,
+        },
+        timestamp: Date.now(),
+      };
+      const screenResult = {
+        text: 'stable',
+        text_blocks: [],
+        ui_elements: [],
+        width: 100,
+        height: 100,
+        timestamp: Date.now(),
+        confidence: 0.9,
+      };
+
+      mockInvoke.mockImplementation((command: string) => {
+        if (command === 'context_get_full') {
+          return Promise.resolve(sameContext);
+        }
+        if (command === 'context_capture_and_analyze_active_window') {
+          return Promise.resolve(screenResult);
+        }
+        return Promise.resolve(null);
+      });
+
+      const { result } = renderHook(() => useContext());
+      await act(async () => {
+        await result.current.fetchContext();
+      });
+      await act(async () => {
+        await result.current.fetchContext();
+      });
+
+      const calls = mockInvoke.mock.calls.filter((call) => call[0] === 'context_capture_and_analyze_active_window');
+      expect(calls).toHaveLength(1);
+    });
+
+    it('should skip auto screen analysis when screenshot OCR is disabled', async () => {
+      act(() => {
+        useNativeStore.setState((state) => ({
+          nativeToolsConfig: {
+            ...state.nativeToolsConfig,
+            screenshotOcrEnabled: false,
+          },
+        }));
+      });
+
+      mockInvoke.mockResolvedValue({
+        window: {
+          ...mockWindowInfo,
+          title: 'No OCR Window',
+          handle: 99,
+        },
+        timestamp: Date.now(),
+      });
+
+      renderHook(() => useContext());
+
+      await waitFor(() => {
+        expect(mockInvoke).toHaveBeenCalledWith('context_get_full');
+      });
+
+      const calls = mockInvoke.mock.calls.filter((call) => call[0] === 'context_capture_and_analyze_active_window');
+      expect(calls).toHaveLength(0);
     });
   });
 });

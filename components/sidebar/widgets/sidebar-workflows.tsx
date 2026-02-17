@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ui/loading-states';
 import { workflowRepository } from '@/lib/db/repositories';
-import { useWorkflowEditorStore, useWorkflowStore, selectActiveExecution, selectExecutionProgress } from '@/stores/workflow';
+import { useWorkflowEditorStore } from '@/stores/workflow';
 import { useShallow } from 'zustand/react/shallow';
 import { Progress } from '@/components/ui/progress';
 import type { VisualWorkflow } from '@/types/workflow/workflow-editor';
@@ -41,19 +41,17 @@ export function SidebarWorkflows({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [workflows, setWorkflows] = useState<VisualWorkflow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
 
-  const { loadWorkflow, startExecution, isExecuting } = useWorkflowEditorStore(
+  const { loadWorkflow, startExecution, isExecuting, executionState } = useWorkflowEditorStore(
     useShallow((state) => ({
       loadWorkflow: state.loadWorkflow,
       startExecution: state.startExecution,
       isExecuting: state.isExecuting,
+      executionState: state.executionState,
     }))
   );
 
-  // Active execution & progress from workflow store selectors
-  const activeExecution = useWorkflowStore(selectActiveExecution);
-  const executionProgress = useWorkflowStore(selectExecutionProgress);
+  const executionProgress = executionState?.progress ?? 0;
 
   // Load recent workflows
   const loadRecentWorkflows = useCallback(async () => {
@@ -80,7 +78,6 @@ export function SidebarWorkflows({
 
       if (isExecuting) return;
 
-      setRunningWorkflowId(workflow.id);
       loadWorkflow(workflow);
 
       // Small delay to ensure workflow is loaded
@@ -163,9 +160,9 @@ export function SidebarWorkflows({
               <WorkflowItem
                 key={workflow.id}
                 workflow={workflow}
-                isRunning={runningWorkflowId === workflow.id && isExecuting}
+                isRunning={Boolean(isExecuting && executionState?.workflowId === workflow.id)}
                 progress={
-                  runningWorkflowId === workflow.id && activeExecution
+                  isExecuting && executionState?.workflowId === workflow.id
                     ? executionProgress
                     : undefined
                 }

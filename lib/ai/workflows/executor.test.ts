@@ -337,7 +337,7 @@ describe('executor', () => {
     });
 
     describe('Code Step', () => {
-      it('should execute JavaScript code', async () => {
+      it('should fail code step outside desktop runtime', async () => {
         const workflow = createMockWorkflow([
           { 
             id: 'code-step',
@@ -355,7 +355,8 @@ describe('executor', () => {
           defaultConfig
         );
 
-        expect(result.success).toBe(true);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('desktop runtime');
       });
 
       it('should handle code errors', async () => {
@@ -372,7 +373,7 @@ describe('executor', () => {
         const result = await executeWorkflow('test-workflow', 'session-1', {}, defaultConfig);
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('Code execution failed');
+        expect(result.error).toContain('desktop runtime');
       });
     });
 
@@ -606,6 +607,34 @@ describe('executor', () => {
         expect(result.error).toContain('rejected');
       });
     });
+
+    describe('Advanced passthrough steps', () => {
+      it('should not fail on advanced node types and return structured passthrough output', async () => {
+        const workflow = createMockWorkflow([
+          {
+            id: 'advanced-step',
+            type: 'knowledgeRetrieval',
+          },
+        ]);
+
+        mockedGetWorkflowRegistry.mockReturnValue({ get: () => workflow } as never);
+
+        const result = await executeWorkflow(
+          'test-workflow',
+          'session-1',
+          { query: 'hello' },
+          defaultConfig
+        );
+
+        expect(result.success).toBe(true);
+        const advancedStep = result.execution.steps.find((step) => step.stepId === 'advanced-step');
+        expect(advancedStep?.status).toBe('completed');
+        expect(advancedStep?.output).toMatchObject({
+          passthrough: true,
+          stepType: 'knowledgeRetrieval',
+        });
+      });
+    });
   });
 
   describe('Workflow Control', () => {
@@ -766,7 +795,11 @@ describe('executor', () => {
 
       expect(mockWorkflowRepository.createExecution).toHaveBeenCalledWith(
         'test-workflow',
-        { input: 'data' }
+        { input: 'data' },
+        expect.objectContaining({
+          executionId: 'test-id-123',
+          status: 'running',
+        })
       );
     });
 

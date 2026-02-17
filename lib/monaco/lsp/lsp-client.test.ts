@@ -15,12 +15,15 @@ import { listen } from '@tauri-apps/api/event';
 import {
   hasLspCapability,
   isTauriRuntime,
+  lspCancelRequest,
+  lspChangeDocument,
   lspExecuteCommand,
   lspCodeActions,
   lspCompletion,
   lspDocumentSymbols,
   lspFormatDocument,
   lspListenDiagnostics,
+  lspWorkspaceSymbols,
   lspResolveCodeAction,
   lspStartSession,
   lspSeverityToMonaco,
@@ -98,6 +101,52 @@ describe('lsp-client', () => {
     });
   });
 
+  it('normalizes textDocumentSync as number and object', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      sessionId: 'session-num',
+      capabilities: {
+        capabilities: {
+          textDocumentSync: 2,
+        },
+      },
+    });
+    await expect(lspStartSession({ language: 'typescript' })).resolves.toEqual(
+      expect.objectContaining({
+        sessionId: 'session-num',
+        capabilities: expect.objectContaining({
+          textDocumentSync: 2,
+        }),
+      })
+    );
+
+    mockInvoke.mockResolvedValueOnce({
+      sessionId: 'session-obj',
+      capabilities: {
+        capabilities: {
+          textDocumentSync: {
+            openClose: true,
+            change: 2,
+            save: { includeText: true },
+          },
+        },
+      },
+    });
+    await expect(lspStartSession({ language: 'typescript' })).resolves.toEqual(
+      expect.objectContaining({
+        sessionId: 'session-obj',
+        capabilities: expect.objectContaining({
+          textDocumentSync: {
+            openClose: true,
+            change: 2,
+            save: { includeText: true },
+            willSave: undefined,
+            willSaveWaitUntil: undefined,
+          },
+        }),
+      })
+    );
+  });
+
   it('normalizes nullable array responses for document symbols, formatting and code actions', async () => {
     mockInvoke.mockResolvedValueOnce(null);
     await expect(
@@ -133,6 +182,74 @@ describe('lsp-client', () => {
     await expect(
       lspResolveCodeAction('session-1', { title: 'Fix' })
     ).resolves.toEqual({ title: 'Fix', edit: { changes: {} } });
+  });
+
+  it('forwards request meta and change payloads', async () => {
+    mockInvoke.mockResolvedValueOnce({ items: [] });
+    await lspCompletion('session-1', { uri: 'file:///a.ts' }, 1, 2, {
+      clientRequestId: 'completion:1',
+      timeoutMs: 4321,
+    });
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_completion', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        clientRequestId: 'completion:1',
+        timeoutMs: 4321,
+      }),
+    });
+
+    mockInvoke.mockResolvedValueOnce(undefined);
+    await lspChangeDocument(
+      'session-1',
+      { uri: 'file:///a.ts', version: 3 },
+      'const a = 1;',
+      [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+          rangeLength: 1,
+          text: 'b',
+        },
+      ],
+      { clientRequestId: 'sync:3', timeoutMs: 2500 }
+    );
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_change_document', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        uri: 'file:///a.ts',
+        version: 3,
+        clientRequestId: 'sync:3',
+        timeoutMs: 2500,
+        changes: expect.any(Array),
+      }),
+    });
+
+    mockInvoke.mockResolvedValueOnce([]);
+    await lspWorkspaceSymbols('session-1', 'Query', {
+      clientRequestId: 'workspace:1',
+      timeoutMs: 6000,
+    });
+    expect(mockInvoke).toHaveBeenLastCalledWith('lsp_workspace_symbols', {
+      request: expect.objectContaining({
+        sessionId: 'session-1',
+        query: 'Query',
+        clientRequestId: 'workspace:1',
+        timeoutMs: 6000,
+      }),
+    });
+  });
+
+  it('forwards explicit cancel command', async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    await expect(lspCancelRequest('session-1', 'completion:5')).resolves.toBeUndefined();
+    expect(mockInvoke).toHaveBeenCalledWith('lsp_cancel_request', {
+      request: {
+        sessionId: 'session-1',
+        clientRequestId: 'completion:5',
+      },
+    });
   });
 
   it('forwards diagnostics events to callback', async () => {

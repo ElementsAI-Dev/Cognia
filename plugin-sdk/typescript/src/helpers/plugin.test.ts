@@ -89,6 +89,7 @@ describe('Plugin Definition Helpers', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
       };
 
       const definition = definePlugin({

@@ -5,7 +5,7 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
@@ -16,8 +16,20 @@ use tokio::sync::{oneshot, Mutex};
 use tokio::time::{timeout, Duration};
 use uuid::Uuid;
 
-const LSP_RESPONSE_TIMEOUT_SECS: u64 = 10;
+const LSP_DEFAULT_TIMEOUT_MS: u64 = 10_000;
+const LSP_INITIALIZE_TIMEOUT_MS: u64 = 20_000;
+const LSP_WORKSPACE_SYMBOL_TIMEOUT_MS: u64 = 15_000;
+const LSP_MAX_TIMEOUT_MS: u64 = 120_000;
 const LSP_MAX_HEADER_BYTES: usize = 16 * 1024;
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LspRequestMeta {
+    #[serde(default)]
+    pub client_request_id: Option<String>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +49,28 @@ pub struct LspStartSessionResponse {
     pub capabilities: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspRangePosition {
+    pub line: u32,
+    pub character: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspRangeRequest {
+    pub start: LspRangePosition,
+    pub end: LspRangePosition,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LspTextDocumentContentChangeEvent {
+    pub range: Option<LspRangeRequest>,
+    pub range_length: Option<u32>,
+    pub text: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LspOpenDocumentRequest {
@@ -54,6 +88,9 @@ pub struct LspChangeDocumentRequest {
     pub uri: String,
     pub version: i64,
     pub text: String,
+    pub changes: Option<Vec<LspTextDocumentContentChangeEvent>>,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,11 +102,20 @@ pub struct LspCloseDocumentRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LspCancelRequestCommand {
+    pub session_id: String,
+    pub client_request_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LspPositionRequest {
     pub session_id: String,
     pub uri: String,
     pub line: u32,
     pub character: u32,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,6 +123,8 @@ pub struct LspPositionRequest {
 pub struct LspDocumentRequest {
     pub session_id: String,
     pub uri: String,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,20 +134,8 @@ pub struct LspFormatDocumentRequest {
     pub uri: String,
     pub tab_size: Option<u32>,
     pub insert_spaces: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LspRangePosition {
-    pub line: u32,
-    pub character: u32,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LspRangeRequest {
-    pub start: LspRangePosition,
-    pub end: LspRangePosition,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -109,6 +145,8 @@ pub struct LspCodeActionsRequest {
     pub uri: String,
     pub range: LspRangeRequest,
     pub diagnostics: Option<Vec<Value>>,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +154,8 @@ pub struct LspCodeActionsRequest {
 pub struct LspWorkspaceSymbolsRequest {
     pub session_id: String,
     pub query: String,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,6 +164,8 @@ pub struct LspExecuteCommandRequest {
     pub session_id: String,
     pub command: String,
     pub arguments: Option<Vec<Value>>,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -131,6 +173,8 @@ pub struct LspExecuteCommandRequest {
 pub struct LspResolveCodeActionRequest {
     pub session_id: String,
     pub action: Value,
+    #[serde(flatten)]
+    pub meta: LspRequestMeta,
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,11 +183,30 @@ pub struct LspShutdownSessionRequest {
     pub session_id: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LspTextDocumentSyncKind {
+    None,
+    Full,
+    Incremental,
+}
+
+struct PendingRequest {
+    sender: oneshot::Sender<Value>,
+    client_request_id: Option<String>,
+}
+
 struct LspSession {
     stdin: Arc<Mutex<ChildStdin>>,
     child: Arc<Mutex<Child>>,
-    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
+    pending: Arc<Mutex<HashMap<i64, PendingRequest>>>,
+    client_request_index: Arc<Mutex<HashMap<String, i64>>>,
+    canceled_request_ids: Arc<Mutex<HashSet<i64>>>,
     next_id: AtomicI64,
+    server_capabilities: Arc<Mutex<Value>>,
+    text_document_sync_kind: Arc<Mutex<LspTextDocumentSyncKind>>,
+    open_documents: Arc<Mutex<HashMap<String, i64>>>,
+    root_uri: Option<String>,
+    workspace_folders: Vec<String>,
 }
 
 static LSP_SESSIONS: Lazy<Mutex<HashMap<String, Arc<LspSession>>>> =
@@ -238,17 +301,307 @@ fn parse_message_id(raw_id: &Value) -> Option<i64> {
     raw_id.as_str().and_then(|s| s.parse::<i64>().ok())
 }
 
+fn default_timeout_ms_for_method(method: &str) -> u64 {
+    match method {
+        "initialize" => LSP_INITIALIZE_TIMEOUT_MS,
+        "workspace/symbol" => LSP_WORKSPACE_SYMBOL_TIMEOUT_MS,
+        _ => LSP_DEFAULT_TIMEOUT_MS,
+    }
+}
+
+fn resolve_timeout_ms(method: &str, requested_timeout_ms: Option<u64>) -> u64 {
+    let default_timeout = default_timeout_ms_for_method(method);
+    match requested_timeout_ms {
+        Some(timeout_ms) if timeout_ms > 0 => timeout_ms.min(LSP_MAX_TIMEOUT_MS),
+        _ => default_timeout,
+    }
+}
+
+fn resolve_request_id_for_client(
+    client_request_index: &mut HashMap<String, i64>,
+    client_request_id: &str,
+) -> Option<i64> {
+    client_request_index.remove(client_request_id)
+}
+
+fn workspace_folder_name(uri: &str) -> String {
+    let trimmed = uri.trim_end_matches('/');
+    let segment = trimmed.rsplit('/').next().unwrap_or("workspace");
+    if segment.is_empty() {
+        "workspace".to_string()
+    } else {
+        segment.to_string()
+    }
+}
+
+fn build_workspace_folders_payload(workspace_folders: &[String]) -> Value {
+    Value::Array(
+        workspace_folders
+            .iter()
+            .map(|uri| {
+                json!({
+                    "uri": uri,
+                    "name": workspace_folder_name(uri),
+                })
+            })
+            .collect(),
+    )
+}
+
+fn derive_workspace_folders(
+    root_uri: Option<&str>,
+    workspace_folders: Option<&[String]>,
+) -> Vec<String> {
+    if let Some(folders) = workspace_folders {
+        let normalized = folders
+            .iter()
+            .filter(|uri| !uri.is_empty())
+            .cloned()
+            .collect::<Vec<_>>();
+        if !normalized.is_empty() {
+            return normalized;
+        }
+    }
+
+    match root_uri {
+        Some(uri) if !uri.is_empty() => vec![uri.to_string()],
+        _ => vec!["file:///workspace".to_string()],
+    }
+}
+
+fn extract_server_capabilities(initialize_result: &Value) -> Value {
+    initialize_result
+        .get("capabilities")
+        .cloned()
+        .unwrap_or_else(|| initialize_result.clone())
+}
+
+fn parse_text_document_sync_kind(server_capabilities: &Value) -> LspTextDocumentSyncKind {
+    let Some(text_document_sync) = server_capabilities.get("textDocumentSync") else {
+        return LspTextDocumentSyncKind::Full;
+    };
+
+    if let Some(kind) = text_document_sync.as_i64() {
+        return match kind {
+            2 => LspTextDocumentSyncKind::Incremental,
+            0 => LspTextDocumentSyncKind::None,
+            _ => LspTextDocumentSyncKind::Full,
+        };
+    }
+
+    if let Some(change_kind) = text_document_sync.get("change").and_then(Value::as_i64) {
+        return match change_kind {
+            2 => LspTextDocumentSyncKind::Incremental,
+            0 => LspTextDocumentSyncKind::None,
+            _ => LspTextDocumentSyncKind::Full,
+        };
+    }
+
+    LspTextDocumentSyncKind::Full
+}
+
+fn build_did_change_content_changes(
+    sync_kind: LspTextDocumentSyncKind,
+    full_text: &str,
+    changes: Option<&[LspTextDocumentContentChangeEvent]>,
+) -> Vec<Value> {
+    if sync_kind == LspTextDocumentSyncKind::Incremental {
+        if let Some(changes) = changes {
+            if !changes.is_empty() {
+                return changes
+                    .iter()
+                    .map(|change| {
+                        let mut payload = serde_json::Map::new();
+                        payload.insert("text".to_string(), Value::String(change.text.clone()));
+                        if let Some(range) = &change.range {
+                            payload.insert(
+                                "range".to_string(),
+                                serde_json::to_value(range).unwrap_or(Value::Null),
+                            );
+                        }
+                        if let Some(range_length) = change.range_length {
+                            payload.insert("rangeLength".to_string(), json!(range_length));
+                        }
+                        Value::Object(payload)
+                    })
+                    .collect();
+            }
+        }
+    }
+
+    vec![json!({ "text": full_text })]
+}
+
+fn build_server_request_response(
+    method: &str,
+    id: &Value,
+    params: Option<&Value>,
+    workspace_folders: &[String],
+) -> Value {
+    match method {
+        "workspace/configuration" => {
+            let item_count = params
+                .and_then(|value| value.get("items"))
+                .and_then(Value::as_array)
+                .map(|items| items.len())
+                .unwrap_or(0);
+            let result = Value::Array((0..item_count).map(|_| json!({})).collect());
+            json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": result,
+            })
+        }
+        "workspace/workspaceFolders" => json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": build_workspace_folders_payload(workspace_folders),
+        }),
+        "window/workDoneProgress/create" => json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": Value::Null,
+        }),
+        "$/cancelRequest" => json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": Value::Null,
+        }),
+        _ => json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": {
+                "code": -32601,
+                "message": format!("Method '{}' not found", method),
+            },
+        }),
+    }
+}
+
+fn should_accept_diagnostics(current_version: Option<i64>, incoming_version: Option<i64>) -> bool {
+    let Some(version) = current_version else {
+        return false;
+    };
+    match incoming_version {
+        Some(incoming) => incoming >= version,
+        None => true,
+    }
+}
+
+fn take_open_document_uris(open_documents: &mut HashMap<String, i64>) -> Vec<String> {
+    let uris = open_documents.keys().cloned().collect::<Vec<_>>();
+    open_documents.clear();
+    uris
+}
+
+async fn register_pending_request(
+    session: &LspSession,
+    request_id: i64,
+    pending_request: PendingRequest,
+) {
+    if let Some(client_request_id) = pending_request.client_request_id.clone() {
+        let mut client_request_index = session.client_request_index.lock().await;
+        client_request_index.insert(client_request_id, request_id);
+    }
+
+    let mut pending = session.pending.lock().await;
+    pending.insert(request_id, pending_request);
+}
+
+async fn unregister_pending_request(
+    session: &LspSession,
+    request_id: i64,
+) -> Option<PendingRequest> {
+    let pending_request = {
+        let mut pending = session.pending.lock().await;
+        pending.remove(&request_id)
+    };
+
+    if let Some(client_request_id) = pending_request
+        .as_ref()
+        .and_then(|request| request.client_request_id.as_ref())
+    {
+        let mut client_request_index = session.client_request_index.lock().await;
+        if client_request_index.get(client_request_id).copied() == Some(request_id) {
+            client_request_index.remove(client_request_id);
+        }
+    }
+
+    pending_request
+}
+
+async fn mark_request_canceled(session: &LspSession, request_id: i64) {
+    let mut canceled_request_ids = session.canceled_request_ids.lock().await;
+    canceled_request_ids.insert(request_id);
+}
+
+async fn take_request_canceled(session: &LspSession, request_id: i64) -> bool {
+    let mut canceled_request_ids = session.canceled_request_ids.lock().await;
+    canceled_request_ids.remove(&request_id)
+}
+
+async fn clear_pending_state(session: &LspSession) {
+    {
+        let mut pending = session.pending.lock().await;
+        pending.clear();
+    }
+    {
+        let mut client_request_index = session.client_request_index.lock().await;
+        client_request_index.clear();
+    }
+    {
+        let mut canceled_request_ids = session.canceled_request_ids.lock().await;
+        canceled_request_ids.clear();
+    }
+}
+
+async fn emit_diagnostics(
+    app: &AppHandle,
+    session_id: &str,
+    uri: &str,
+    diagnostics: Value,
+    version: Option<i64>,
+) {
+    let payload = json!({
+        "sessionId": session_id,
+        "uri": uri,
+        "diagnostics": diagnostics,
+        "version": version,
+    });
+    let _ = app.emit("lsp://diagnostics", payload);
+}
+
+async fn emit_clear_diagnostics(app: &AppHandle, session_id: &str, uri: &str) {
+    emit_diagnostics(app, session_id, uri, json!([]), None).await;
+}
+
+async fn clear_open_document_diagnostics(session: &LspSession, app: &AppHandle, session_id: &str) {
+    let open_document_uris = {
+        let mut open_documents = session.open_documents.lock().await;
+        take_open_document_uris(&mut open_documents)
+    };
+    for uri in open_document_uris {
+        emit_clear_diagnostics(app, session_id, &uri).await;
+    }
+}
+
 async fn lsp_send_request(
     session: &LspSession,
     method: &str,
     params: Value,
+    meta: &LspRequestMeta,
 ) -> Result<Value, String> {
     let request_id = session.next_id.fetch_add(1, Ordering::SeqCst);
     let (tx, rx) = oneshot::channel::<Value>();
-    {
-        let mut pending = session.pending.lock().await;
-        pending.insert(request_id, tx);
-    }
+    register_pending_request(
+        session,
+        request_id,
+        PendingRequest {
+            sender: tx,
+            client_request_id: meta.client_request_id.clone(),
+        },
+    )
+    .await;
 
     let message = json!({
         "jsonrpc": "2.0",
@@ -258,22 +611,28 @@ async fn lsp_send_request(
     });
 
     if let Err(error) = write_lsp_message(&session.stdin, &message).await {
-        let mut pending = session.pending.lock().await;
-        pending.remove(&request_id);
+        let _ = unregister_pending_request(session, request_id).await;
+        let _ = take_request_canceled(session, request_id).await;
         return Err(error);
     }
 
-    let response = match timeout(Duration::from_secs(LSP_RESPONSE_TIMEOUT_SECS), rx).await {
+    let timeout_ms = resolve_timeout_ms(method, meta.timeout_ms);
+    let response = match timeout(Duration::from_millis(timeout_ms), rx).await {
         Ok(Ok(response)) => response,
         Ok(Err(_)) => {
-            let mut pending = session.pending.lock().await;
-            pending.remove(&request_id);
+            if take_request_canceled(session, request_id).await {
+                return Err(format!("LSP request '{}' canceled", method));
+            }
+            let _ = unregister_pending_request(session, request_id).await;
             return Err(format!("LSP request '{}' channel closed", method));
         }
         Err(_) => {
-            let mut pending = session.pending.lock().await;
-            pending.remove(&request_id);
-            return Err(format!("LSP request '{}' timed out", method));
+            let _ = unregister_pending_request(session, request_id).await;
+            let _ = take_request_canceled(session, request_id).await;
+            return Err(format!(
+                "LSP request '{}' timed out after {}ms",
+                method, timeout_ms
+            ));
         }
     };
 
@@ -284,11 +643,100 @@ async fn lsp_send_request(
     Ok(response.get("result").cloned().unwrap_or(Value::Null))
 }
 
+async fn handle_publish_diagnostics(
+    session: &Arc<LspSession>,
+    app: &AppHandle,
+    session_id: &str,
+    params: &Value,
+) {
+    let Some(uri) = params.get("uri").and_then(Value::as_str) else {
+        return;
+    };
+    let diagnostics = params
+        .get("diagnostics")
+        .cloned()
+        .filter(Value::is_array)
+        .unwrap_or_else(|| json!([]));
+    let incoming_version = params.get("version").and_then(Value::as_i64);
+
+    let current_version = {
+        let open_documents = session.open_documents.lock().await;
+        open_documents.get(uri).copied()
+    };
+
+    if !should_accept_diagnostics(current_version, incoming_version) {
+        return;
+    }
+
+    emit_diagnostics(app, session_id, uri, diagnostics, incoming_version).await;
+}
+
+async fn handle_server_notification(
+    session: &Arc<LspSession>,
+    app: &AppHandle,
+    session_id: &str,
+    method: &str,
+    params: Option<&Value>,
+) {
+    match method {
+        "textDocument/publishDiagnostics" => {
+            if let Some(params) = params {
+                handle_publish_diagnostics(session, app, session_id, params).await;
+            }
+        }
+        "$/cancelRequest" => {
+            log::debug!("LSP[{}] received $/cancelRequest notification", session_id);
+        }
+        _ => {}
+    }
+}
+
+async fn handle_server_request(
+    session: &Arc<LspSession>,
+    session_id: &str,
+    method: &str,
+    id: &Value,
+    params: Option<&Value>,
+) {
+    if !matches!(
+        method,
+        "workspace/configuration"
+            | "workspace/workspaceFolders"
+            | "window/workDoneProgress/create"
+            | "$/cancelRequest"
+    ) {
+        log::debug!(
+            "LSP[{}] received unsupported server request '{}', replying -32601",
+            session_id,
+            method
+        );
+    }
+
+    let workspace_folders = if session.workspace_folders.is_empty() {
+        session
+            .root_uri
+            .as_ref()
+            .map(|uri| vec![uri.clone()])
+            .unwrap_or_default()
+    } else {
+        session.workspace_folders.clone()
+    };
+    let response = build_server_request_response(method, id, params, &workspace_folders);
+    if let Err(error) = write_lsp_message(&session.stdin, &response).await {
+        log::warn!(
+            "LSP[{}] failed to send response for server request '{}': {}",
+            session_id,
+            method,
+            error
+        );
+    }
+}
+
 async fn lsp_handle_stdout(
     session_id: String,
     app: AppHandle,
     mut stdout: ChildStdout,
-    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
+    session: Arc<LspSession>,
 ) {
     loop {
         let message = match read_lsp_message(&mut stdout).await {
@@ -304,28 +752,31 @@ async fn lsp_handle_stdout(
         };
 
         if let Some(method) = message.get("method").and_then(Value::as_str) {
-            if method == "textDocument/publishDiagnostics" {
-                if let Some(params) = message.get("params") {
-                    let payload = json!({
-                        "sessionId": session_id,
-                        "uri": params.get("uri").cloned().unwrap_or(Value::Null),
-                        "diagnostics": params.get("diagnostics").cloned().unwrap_or_else(|| json!([])),
-                        "version": params.get("version").cloned().unwrap_or(Value::Null),
-                    });
-                    let _ = app.emit("lsp://diagnostics", payload);
-                }
+            if let Some(id) = message.get("id") {
+                handle_server_request(&session, &session_id, method, id, message.get("params"))
+                    .await;
+            } else {
+                handle_server_notification(
+                    &session,
+                    &app,
+                    &session_id,
+                    method,
+                    message.get("params"),
+                )
+                .await;
             }
             continue;
         }
 
         if let Some(raw_id) = message.get("id") {
-            if let Some(id) = parse_message_id(raw_id) {
-                let sender = {
-                    let mut pending_map = pending.lock().await;
-                    pending_map.remove(&id)
-                };
-                if let Some(tx) = sender {
-                    let _ = tx.send(message);
+            if let Some(request_id) = parse_message_id(raw_id) {
+                let pending_request =
+                    unregister_pending_request(session.as_ref(), request_id).await;
+                if let Some(pending_request) = pending_request {
+                    if take_request_canceled(session.as_ref(), request_id).await {
+                        continue;
+                    }
+                    let _ = pending_request.sender.send(message);
                 }
             }
         }
@@ -335,11 +786,8 @@ async fn lsp_handle_stdout(
         let mut sessions = LSP_SESSIONS.lock().await;
         sessions.remove(&session_id);
     }
-
-    {
-        let mut pending_map = pending.lock().await;
-        pending_map.clear();
-    }
+    clear_pending_state(session.as_ref()).await;
+    clear_open_document_diagnostics(session.as_ref(), &app, &session_id).await;
 }
 
 async fn lsp_handle_stderr(session_id: String, stderr: ChildStderr) {
@@ -380,9 +828,23 @@ async fn remove_lsp_session(session_id: &str) -> Option<Arc<LspSession>> {
     sessions.remove(session_id)
 }
 
-async fn terminate_lsp_session(session: Arc<LspSession>, graceful_shutdown: bool) {
+async fn terminate_lsp_session(
+    session_id: &str,
+    session: Arc<LspSession>,
+    app: &AppHandle,
+    graceful_shutdown: bool,
+) {
     if graceful_shutdown {
-        let _ = lsp_send_request(session.as_ref(), "shutdown", json!({})).await;
+        let _ = lsp_send_request(
+            session.as_ref(),
+            "shutdown",
+            json!({}),
+            &LspRequestMeta {
+                client_request_id: None,
+                timeout_ms: Some(LSP_DEFAULT_TIMEOUT_MS),
+            },
+        )
+        .await;
         let _ = lsp_send_notification(session.as_ref(), "exit", json!({})).await;
     }
 
@@ -391,10 +853,8 @@ async fn terminate_lsp_session(session: Arc<LspSession>, graceful_shutdown: bool
         let _ = child.kill().await;
     }
 
-    {
-        let mut pending = session.pending.lock().await;
-        pending.clear();
-    }
+    clear_pending_state(session.as_ref()).await;
+    clear_open_document_diagnostics(session.as_ref(), app, session_id).await;
 }
 
 fn default_server_for_language(language: &str) -> (String, Vec<String>) {
@@ -448,6 +908,73 @@ fn normalize_location_result(raw: Value) -> Value {
     }
 }
 
+fn initialize_capabilities() -> Value {
+    json!({
+        "general": {
+            "positionEncodings": ["utf-16"]
+        },
+        "workspace": {
+            "workspaceFolders": true,
+            "symbol": {
+                "dynamicRegistration": false,
+                "symbolKind": {
+                    "valueSet": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]
+                }
+            },
+            "didChangeConfiguration": {
+                "dynamicRegistration": false
+            }
+        },
+        "textDocument": {
+            "synchronization": {
+                "dynamicRegistration": false,
+                "didSave": true
+            },
+            "completion": {
+                "completionItem": {
+                    "snippetSupport": true,
+                    "insertReplaceSupport": true,
+                    "labelDetailsSupport": true,
+                    "resolveSupport": {
+                        "properties": ["documentation", "detail", "additionalTextEdits"]
+                    },
+                    "documentationFormat": ["markdown", "plaintext"]
+                }
+            },
+            "hover": {
+                "contentFormat": ["markdown", "plaintext"]
+            },
+            "definition": {
+                "linkSupport": true
+            },
+            "documentSymbol": {
+                "hierarchicalDocumentSymbolSupport": true
+            },
+            "codeAction": {
+                "codeActionLiteralSupport": {
+                    "codeActionKind": {
+                        "valueSet": ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "source"]
+                    }
+                },
+                "resolveSupport": {
+                    "properties": ["edit", "command", "data"]
+                },
+                "dataSupport": true
+            },
+            "formatting": {
+                "dynamicRegistration": false
+            },
+            "publishDiagnostics": {
+                "relatedInformation": true,
+                "versionSupport": true,
+                "tagSupport": {
+                    "valueSet": [1, 2]
+                }
+            }
+        }
+    })
+}
+
 #[tauri::command]
 pub async fn lsp_start_session(
     request: LspStartSessionRequest,
@@ -456,6 +983,15 @@ pub async fn lsp_start_session(
     let (default_command, default_args) = default_server_for_language(&request.language);
     let command = request.command.unwrap_or(default_command);
     let args = request.args.unwrap_or(default_args);
+
+    let workspace_folders = derive_workspace_folders(
+        request.root_uri.as_deref(),
+        request.workspace_folders.as_deref(),
+    );
+    let root_uri = request
+        .root_uri
+        .clone()
+        .or_else(|| workspace_folders.first().cloned());
 
     let mut process = Command::new(&command);
     process
@@ -483,13 +1019,18 @@ pub async fn lsp_start_session(
         .ok_or_else(|| "Failed to capture LSP stderr".to_string())?;
 
     let session_id = Uuid::new_v4().to_string();
-    let pending = Arc::new(Mutex::new(HashMap::<i64, oneshot::Sender<Value>>::new()));
-
     let session = Arc::new(LspSession {
         stdin: Arc::new(Mutex::new(stdin)),
         child: Arc::new(Mutex::new(child)),
-        pending: pending.clone(),
+        pending: Arc::new(Mutex::new(HashMap::new())),
+        client_request_index: Arc::new(Mutex::new(HashMap::new())),
+        canceled_request_ids: Arc::new(Mutex::new(HashSet::new())),
         next_id: AtomicI64::new(1),
+        server_capabilities: Arc::new(Mutex::new(json!({}))),
+        text_document_sync_kind: Arc::new(Mutex::new(LspTextDocumentSyncKind::Full)),
+        open_documents: Arc::new(Mutex::new(HashMap::new())),
+        root_uri: root_uri.clone(),
+        workspace_folders: workspace_folders.clone(),
     });
 
     {
@@ -501,78 +1042,62 @@ pub async fn lsp_start_session(
         session_id.clone(),
         app.clone(),
         stdout,
-        pending,
+        session.clone(),
     ));
     tokio::spawn(lsp_handle_stderr(session_id.clone(), stderr));
 
     let initialize_params = json!({
         "processId": Value::Null,
-        "rootUri": request.root_uri,
-        "workspaceFolders": request.workspace_folders,
+        "rootUri": root_uri,
+        "workspaceFolders": build_workspace_folders_payload(&workspace_folders),
         "initializationOptions": request.initialization_options,
         "clientInfo": {
             "name": "cognia-designer",
             "version": "0.1.0"
         },
-        "capabilities": {
-            "textDocument": {
-                "completion": {
-                    "completionItem": {
-                        "snippetSupport": true,
-                        "documentationFormat": ["markdown", "plaintext"]
-                    }
-                },
-                "hover": {
-                    "contentFormat": ["markdown", "plaintext"]
-                },
-                "definition": {
-                    "linkSupport": true
-                },
-                "documentSymbol": {
-                    "hierarchicalDocumentSymbolSupport": true
-                },
-                "codeAction": {
-                    "codeActionLiteralSupport": {
-                        "codeActionKind": {
-                            "valueSet": ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "source"]
-                        }
-                    }
-                },
-                "formatting": {
-                    "dynamicRegistration": false
-                },
-                "publishDiagnostics": {
-                    "relatedInformation": true
-                }
-            },
-            "workspace": {
-                "workspaceFolders": true,
-                "symbol": true
-            }
-        }
+        "capabilities": initialize_capabilities(),
     });
 
-    let capabilities =
-        match lsp_send_request(session.as_ref(), "initialize", initialize_params).await {
-            Ok(capabilities) => capabilities,
-            Err(error) => {
-                if let Some(s) = remove_lsp_session(&session_id).await {
-                    terminate_lsp_session(s, false).await;
-                }
-                return Err(error);
+    let initialize_result = match lsp_send_request(
+        session.as_ref(),
+        "initialize",
+        initialize_params,
+        &LspRequestMeta {
+            client_request_id: None,
+            timeout_ms: Some(LSP_INITIALIZE_TIMEOUT_MS),
+        },
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(error) => {
+            if let Some(existing_session) = remove_lsp_session(&session_id).await {
+                terminate_lsp_session(&session_id, existing_session, &app, false).await;
             }
-        };
+            return Err(error);
+        }
+    };
+
+    let server_capabilities = extract_server_capabilities(&initialize_result);
+    {
+        let mut capabilities = session.server_capabilities.lock().await;
+        *capabilities = server_capabilities.clone();
+    }
+    {
+        let mut sync_kind = session.text_document_sync_kind.lock().await;
+        *sync_kind = parse_text_document_sync_kind(&server_capabilities);
+    }
 
     if let Err(error) = lsp_send_notification(session.as_ref(), "initialized", json!({})).await {
-        if let Some(s) = remove_lsp_session(&session_id).await {
-            terminate_lsp_session(s, false).await;
+        if let Some(existing_session) = remove_lsp_session(&session_id).await {
+            terminate_lsp_session(&session_id, existing_session, &app, false).await;
         }
         return Err(error);
     }
 
     Ok(LspStartSessionResponse {
         session_id,
-        capabilities,
+        capabilities: initialize_result,
     })
 }
 
@@ -587,35 +1112,79 @@ pub async fn lsp_open_document(request: LspOpenDocumentRequest) -> Result<(), St
             "text": request.text
         }
     });
-    lsp_send_notification(session.as_ref(), "textDocument/didOpen", params).await
+    lsp_send_notification(session.as_ref(), "textDocument/didOpen", params).await?;
+
+    let mut open_documents = session.open_documents.lock().await;
+    open_documents.insert(request.uri, request.version);
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn lsp_change_document(request: LspChangeDocumentRequest) -> Result<(), String> {
     let session = get_lsp_session(&request.session_id).await?;
+    let _ = &request.meta;
+    let sync_kind = *session.text_document_sync_kind.lock().await;
+    let content_changes =
+        build_did_change_content_changes(sync_kind, &request.text, request.changes.as_deref());
+
     let params = json!({
         "textDocument": {
             "uri": request.uri,
             "version": request.version
         },
-        "contentChanges": [
-            {
-                "text": request.text
-            }
-        ]
+        "contentChanges": content_changes
     });
-    lsp_send_notification(session.as_ref(), "textDocument/didChange", params).await
+    lsp_send_notification(session.as_ref(), "textDocument/didChange", params).await?;
+
+    let mut open_documents = session.open_documents.lock().await;
+    open_documents.insert(request.uri, request.version);
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn lsp_close_document(request: LspCloseDocumentRequest) -> Result<(), String> {
+pub async fn lsp_close_document(
+    request: LspCloseDocumentRequest,
+    app: AppHandle,
+) -> Result<(), String> {
     let session = get_lsp_session(&request.session_id).await?;
     let params = json!({
         "textDocument": {
             "uri": request.uri
         }
     });
-    lsp_send_notification(session.as_ref(), "textDocument/didClose", params).await
+    let send_result =
+        lsp_send_notification(session.as_ref(), "textDocument/didClose", params).await;
+
+    {
+        let mut open_documents = session.open_documents.lock().await;
+        open_documents.remove(&request.uri);
+    }
+    emit_clear_diagnostics(&app, &request.session_id, &request.uri).await;
+    send_result
+}
+
+#[tauri::command]
+pub async fn lsp_cancel_request(request: LspCancelRequestCommand) -> Result<(), String> {
+    let session = get_lsp_session(&request.session_id).await?;
+
+    let request_id = {
+        let mut client_request_index = session.client_request_index.lock().await;
+        resolve_request_id_for_client(&mut client_request_index, &request.client_request_id)
+    };
+
+    let Some(request_id) = request_id else {
+        return Ok(());
+    };
+
+    mark_request_canceled(session.as_ref(), request_id).await;
+    let _ = unregister_pending_request(session.as_ref(), request_id).await;
+    let _ = lsp_send_notification(
+        session.as_ref(),
+        "$/cancelRequest",
+        json!({ "id": request_id }),
+    )
+    .await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -630,7 +1199,13 @@ pub async fn lsp_completion(request: LspPositionRequest) -> Result<Value, String
             "character": request.character
         }
     });
-    lsp_send_request(session.as_ref(), "textDocument/completion", params).await
+    lsp_send_request(
+        session.as_ref(),
+        "textDocument/completion",
+        params,
+        &request.meta,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -645,7 +1220,13 @@ pub async fn lsp_hover(request: LspPositionRequest) -> Result<Value, String> {
             "character": request.character
         }
     });
-    lsp_send_request(session.as_ref(), "textDocument/hover", params).await
+    lsp_send_request(
+        session.as_ref(),
+        "textDocument/hover",
+        params,
+        &request.meta,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -661,7 +1242,13 @@ pub async fn lsp_definition(request: LspPositionRequest) -> Result<Value, String
         }
     });
 
-    let raw = lsp_send_request(session.as_ref(), "textDocument/definition", params).await?;
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/definition",
+        params,
+        &request.meta,
+    )
+    .await?;
     Ok(normalize_location_result(raw))
 }
 
@@ -673,7 +1260,13 @@ pub async fn lsp_document_symbols(request: LspDocumentRequest) -> Result<Value, 
             "uri": request.uri
         }
     });
-    let raw = lsp_send_request(session.as_ref(), "textDocument/documentSymbol", params).await?;
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/documentSymbol",
+        params,
+        &request.meta,
+    )
+    .await?;
     if raw.is_null() {
         return Ok(json!([]));
     }
@@ -692,7 +1285,13 @@ pub async fn lsp_format_document(request: LspFormatDocumentRequest) -> Result<Va
             "insertSpaces": request.insert_spaces.unwrap_or(true)
         }
     });
-    let raw = lsp_send_request(session.as_ref(), "textDocument/formatting", params).await?;
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/formatting",
+        params,
+        &request.meta,
+    )
+    .await?;
     if raw.is_null() {
         return Ok(json!([]));
     }
@@ -722,7 +1321,13 @@ pub async fn lsp_code_actions(request: LspCodeActionsRequest) -> Result<Value, S
         }
     });
 
-    let raw = lsp_send_request(session.as_ref(), "textDocument/codeAction", params).await?;
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "textDocument/codeAction",
+        params,
+        &request.meta,
+    )
+    .await?;
     if raw.is_null() {
         return Ok(json!([]));
     }
@@ -735,7 +1340,7 @@ pub async fn lsp_workspace_symbols(request: LspWorkspaceSymbolsRequest) -> Resul
     let params = json!({
         "query": request.query
     });
-    let raw = lsp_send_request(session.as_ref(), "workspace/symbol", params).await?;
+    let raw = lsp_send_request(session.as_ref(), "workspace/symbol", params, &request.meta).await?;
     if raw.is_null() {
         return Ok(json!([]));
     }
@@ -749,7 +1354,13 @@ pub async fn lsp_execute_command(request: LspExecuteCommandRequest) -> Result<Va
         "command": request.command,
         "arguments": request.arguments.unwrap_or_default()
     });
-    lsp_send_request(session.as_ref(), "workspace/executeCommand", params).await
+    lsp_send_request(
+        session.as_ref(),
+        "workspace/executeCommand",
+        params,
+        &request.meta,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -757,7 +1368,13 @@ pub async fn lsp_resolve_code_action(
     request: LspResolveCodeActionRequest,
 ) -> Result<Value, String> {
     let session = get_lsp_session(&request.session_id).await?;
-    let raw = lsp_send_request(session.as_ref(), "codeAction/resolve", request.action).await?;
+    let raw = lsp_send_request(
+        session.as_ref(),
+        "codeAction/resolve",
+        request.action,
+        &request.meta,
+    )
+    .await?;
     if raw.is_null() {
         return Ok(json!({}));
     }
@@ -765,11 +1382,138 @@ pub async fn lsp_resolve_code_action(
 }
 
 #[tauri::command]
-pub async fn lsp_shutdown_session(request: LspShutdownSessionRequest) -> Result<(), String> {
+pub async fn lsp_shutdown_session(
+    request: LspShutdownSessionRequest,
+    app: AppHandle,
+) -> Result<(), String> {
     let Some(session) = remove_lsp_session(&request.session_id).await else {
         return Ok(());
     };
 
-    terminate_lsp_session(session, true).await;
+    terminate_lsp_session(&request.session_id, session, &app, true).await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_text_document_sync_kind_from_number_and_object() {
+        let numeric_caps = json!({ "textDocumentSync": 2 });
+        assert_eq!(
+            parse_text_document_sync_kind(&numeric_caps),
+            LspTextDocumentSyncKind::Incremental
+        );
+
+        let object_caps = json!({ "textDocumentSync": { "change": 1 } });
+        assert_eq!(
+            parse_text_document_sync_kind(&object_caps),
+            LspTextDocumentSyncKind::Full
+        );
+    }
+
+    #[test]
+    fn builds_did_change_payload_for_incremental_and_full() {
+        let incremental_changes = vec![LspTextDocumentContentChangeEvent {
+            range: Some(LspRangeRequest {
+                start: LspRangePosition {
+                    line: 0,
+                    character: 1,
+                },
+                end: LspRangePosition {
+                    line: 0,
+                    character: 3,
+                },
+            }),
+            range_length: Some(2),
+            text: "xy".to_string(),
+        }];
+
+        let incremental_payload = build_did_change_content_changes(
+            LspTextDocumentSyncKind::Incremental,
+            "const value = 1;",
+            Some(&incremental_changes),
+        );
+        assert_eq!(incremental_payload.len(), 1);
+        assert_eq!(incremental_payload[0]["text"], "xy");
+        assert!(incremental_payload[0].get("range").is_some());
+
+        let full_payload = build_did_change_content_changes(
+            LspTextDocumentSyncKind::Full,
+            "const full = true;",
+            Some(&incremental_changes),
+        );
+        assert_eq!(full_payload, vec![json!({ "text": "const full = true;" })]);
+    }
+
+    #[test]
+    fn resolves_client_request_id_mapping_for_cancel() {
+        let mut client_request_index = HashMap::new();
+        client_request_index.insert("completion:1".to_string(), 42);
+        assert_eq!(
+            resolve_request_id_for_client(&mut client_request_index, "completion:1"),
+            Some(42)
+        );
+        assert_eq!(
+            resolve_request_id_for_client(&mut client_request_index, "completion:1"),
+            None
+        );
+    }
+
+    #[test]
+    fn builds_server_request_router_responses() {
+        let workspace_folders = vec!["file:///workspace".to_string()];
+        let configuration_response = build_server_request_response(
+            "workspace/configuration",
+            &json!(7),
+            Some(&json!({ "items": [{}, {}] })),
+            &workspace_folders,
+        );
+        assert_eq!(configuration_response["result"], json!([{}, {}]));
+
+        let folders_response = build_server_request_response(
+            "workspace/workspaceFolders",
+            &json!(9),
+            None,
+            &workspace_folders,
+        );
+        assert_eq!(
+            folders_response["result"],
+            json!([{
+                "uri": "file:///workspace",
+                "name": "workspace"
+            }])
+        );
+
+        let progress_response = build_server_request_response(
+            "window/workDoneProgress/create",
+            &json!(10),
+            Some(&json!({})),
+            &workspace_folders,
+        );
+        assert!(progress_response["result"].is_null());
+    }
+
+    #[test]
+    fn returns_method_not_found_for_unknown_server_request() {
+        let response = build_server_request_response("unknown/method", &json!(1), None, &[]);
+        assert_eq!(response["error"]["code"], -32601);
+    }
+
+    #[test]
+    fn clears_open_document_diagnostics_state() {
+        let mut open_documents = HashMap::new();
+        open_documents.insert("file:///a.ts".to_string(), 1);
+        open_documents.insert("file:///b.ts".to_string(), 3);
+
+        let mut uris = take_open_document_uris(&mut open_documents);
+        uris.sort();
+
+        assert_eq!(
+            uris,
+            vec!["file:///a.ts".to_string(), "file:///b.ts".to_string()]
+        );
+        assert!(open_documents.is_empty());
+    }
 }

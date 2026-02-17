@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { A2UIDialog } from './a2ui-dialog';
 import type { A2UIDialogComponent } from '@/types/artifact/a2ui';
 
@@ -202,7 +202,9 @@ describe('A2UIDialog', () => {
         />
       );
 
-      jest.advanceTimersByTime(150);
+      await act(async () => {
+        jest.advanceTimersByTime(150);
+      });
       expect(mockFocusFirst).toHaveBeenCalled();
       jest.useRealTimers();
     });
@@ -217,7 +219,9 @@ describe('A2UIDialog', () => {
         />
       );
 
-      jest.advanceTimersByTime(150);
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
       expect(mockFocusFirst).not.toHaveBeenCalled();
       jest.useRealTimers();
     });

@@ -11,6 +11,12 @@ import type {
   PPTPresentation,
   WorkflowLog,
 } from '@/types/workflow';
+import { useWorkflowEditorStore } from './workflow-editor-store';
+import type {
+  EditorExecutionStatus,
+  WorkflowExecutionState as EditorWorkflowExecutionState,
+  VisualWorkflow,
+} from '@/types/workflow/workflow-editor';
 
 interface WorkflowState {
   // Current executions
@@ -485,6 +491,139 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
     }
   )
 );
+
+function toWorkflowExecutionStatus(status: EditorExecutionStatus): WorkflowExecutionStatus {
+  if (status === 'running') return 'executing';
+  if (status === 'pending') return 'planning';
+  if (
+    status === 'idle' ||
+    status === 'paused' ||
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled'
+  ) {
+    return status;
+  }
+  return 'planning';
+}
+
+function toLegacyExecution(
+  workflow: VisualWorkflow,
+  executionState: EditorWorkflowExecutionState
+): WorkflowExecution {
+  const toStepStatus = (status: EditorWorkflowExecutionState['nodeStates'][string]['status']) => {
+    if (status === 'waiting') return 'waiting_approval' as const;
+    if (status === 'idle') return 'pending' as const;
+    return status as 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  };
+
+  return {
+    id: executionState.executionId,
+    workflowId: workflow.id,
+    workflowName: workflow.name,
+    workflowType: workflow.type as WorkflowType,
+    sessionId: executionState.executionId,
+    status: toWorkflowExecutionStatus(executionState.status),
+    config: workflow.settings as unknown as Record<string, unknown>,
+    input: executionState.input,
+    output: executionState.output,
+    progress: executionState.progress,
+    startedAt: executionState.startedAt,
+    completedAt: executionState.completedAt,
+    duration: executionState.duration,
+    error: executionState.error,
+    runtime: executionState.runtime,
+    triggerId: executionState.triggerId,
+    isReplay: executionState.isReplay,
+    currentStepId: executionState.currentNodeId,
+    steps: Object.values(executionState.nodeStates).map((nodeState) => ({
+      stepId: nodeState.nodeId,
+      status: toStepStatus(nodeState.status),
+      startedAt: nodeState.startedAt,
+      completedAt: nodeState.completedAt,
+      duration: nodeState.duration,
+      input: nodeState.input,
+      output: nodeState.output,
+      error: nodeState.error,
+      retryCount: nodeState.retryCount,
+      logs: nodeState.logs.map((log) => ({
+        timestamp: log.timestamp,
+        level: log.level,
+        message: log.message,
+        stepId: nodeState.nodeId,
+        data: log.data,
+      })),
+    })),
+    logs: executionState.logs.map((log): WorkflowLog => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+      data: log.data,
+    })),
+  };
+}
+
+let editorExecutionBridgeBound = false;
+
+function bindEditorExecutionBridge(): void {
+  if (editorExecutionBridgeBound) return;
+  editorExecutionBridgeBound = true;
+
+  useWorkflowEditorStore.subscribe((editorState, prevEditorState) => {
+    if (
+      editorState.executionState === prevEditorState.executionState &&
+      editorState.currentWorkflow === prevEditorState.currentWorkflow
+    ) {
+      return;
+    }
+
+    const executionState = editorState.executionState;
+    const workflow = editorState.currentWorkflow;
+
+    if (!executionState || !workflow) {
+      useWorkflowStore.setState((state) => ({
+        ...state,
+        activeExecutionId: null,
+      }));
+      return;
+    }
+
+    const execution = toLegacyExecution(workflow, executionState);
+
+    useWorkflowStore.setState((state) => {
+      const executions = {
+        ...state.executions,
+        [execution.id]: execution,
+      };
+
+      const isFinalStatus =
+        execution.status === 'completed' ||
+        execution.status === 'failed' ||
+        execution.status === 'cancelled';
+
+      let history = state.history;
+      if (isFinalStatus) {
+        const existingIndex = history.findIndex((item) => item.id === execution.id);
+        if (existingIndex >= 0) {
+          history = history.map((item, index) => (index === existingIndex ? execution : item));
+        } else {
+          history = [execution, ...history].slice(0, state.maxHistorySize);
+        }
+      }
+
+      return {
+        ...state,
+        executions,
+        activeExecutionId: execution.id,
+        history,
+      };
+    });
+  });
+}
+
+if (typeof window !== 'undefined') {
+  bindEditorExecutionBridge();
+}
 
 // Selectors
 export const selectActiveExecution = (state: WorkflowState) =>

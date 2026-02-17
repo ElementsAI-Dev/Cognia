@@ -40,9 +40,7 @@ export const A2UIDialog = memo(function A2UIDialog({
     }
   }, [open, focusFirst]);
   const title = component.title ? resolveString(component.title, '') : '';
-  const description = component.description
-    ? resolveString(component.description, '')
-    : '';
+  const description = component.description ? resolveString(component.description, '') : '';
   const bindingPath = getBindingPath(component.open);
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -60,12 +58,12 @@ export const A2UIDialog = memo(function A2UIDialog({
         className={cn(component.className)}
         style={component.style as React.CSSProperties}
       >
-        {(title || description) && (
-          <DialogHeader>
-            {title && <DialogTitle>{title}</DialogTitle>}
-            {description && <DialogDescription>{description}</DialogDescription>}
-          </DialogHeader>
-        )}
+        <DialogHeader className={cn(!title && !description && 'sr-only')}>
+          <DialogTitle className={cn(!title && 'sr-only')}>{title || 'Dialog'}</DialogTitle>
+          <DialogDescription className={cn(!description && 'sr-only')}>
+            {description || 'Dialog content'}
+          </DialogDescription>
+        </DialogHeader>
 
         <div ref={contentRef} className="py-4">
           {component.children && component.children.length > 0 && (

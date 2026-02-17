@@ -4,8 +4,8 @@
 
 use super::config::{CompletionModelConfig, CompletionProvider};
 use super::types::{
-    CompletionContext, CompletionFeedback, CompletionResult, CompletionSuggestion, CompletionType,
-    FeedbackStats,
+    CompletionContext, CompletionFeedback, CompletionMode, CompletionResult, CompletionSuggestion,
+    CompletionType, FeedbackStats,
 };
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -535,34 +535,107 @@ impl CompletionService {
         let mut prompt = String::new();
 
         // Detect or use provided language
+        let mode = Self::resolve_mode(context);
         let detected_lang = context
             .language
             .clone()
             .unwrap_or_else(|| Self::detect_language(&context.text));
 
-        if !detected_lang.is_empty() {
-            prompt.push_str(&format!("Language: {}\n", detected_lang));
+        if let Some(surface) = &context.surface {
+            prompt.push_str(&format!("Surface: {:?}\n", surface));
         }
 
-        // Extract relevant context (imports, function signatures, etc.)
-        let structured_context = Self::extract_structured_context(&context.text, &detected_lang);
+        match mode {
+            CompletionMode::Code => {
+                if !detected_lang.is_empty() {
+                    prompt.push_str(&format!("Language: {}\n", detected_lang));
+                }
 
-        if !structured_context.is_empty() {
-            prompt.push_str("Context:\n");
-            prompt.push_str(&structured_context);
-            prompt.push('\n');
-        }
+                // Extract relevant context (imports, function signatures, etc.)
+                let structured_context =
+                    Self::extract_structured_context(&context.text, &detected_lang);
 
-        // Add the text to complete with cursor position hint
-        prompt.push_str("Complete the following code naturally:\n```");
-        if !detected_lang.is_empty() {
-            prompt.push_str(&detected_lang.to_lowercase());
+                if !structured_context.is_empty() {
+                    prompt.push_str("Context:\n");
+                    prompt.push_str(&structured_context);
+                    prompt.push('\n');
+                }
+
+                prompt.push_str("Complete the following code naturally:\n```");
+                if !detected_lang.is_empty() {
+                    prompt.push_str(&detected_lang.to_lowercase());
+                }
+                prompt.push('\n');
+                prompt.push_str(&context.text);
+                prompt.push_str("\n```\n\nProvide only the completion text, no explanation:");
+            }
+            CompletionMode::Chat => {
+                prompt.push_str(
+                    "Continue the user message naturally in the same language and tone. ",
+                );
+                prompt.push_str("Do not repeat existing text.\nText:\n");
+                prompt.push_str(&context.text);
+                prompt.push_str("\nCompletion:");
+            }
+            CompletionMode::Markdown => {
+                prompt.push_str(
+                    "Continue the markdown content naturally. Keep markdown syntax valid.\n",
+                );
+                prompt.push_str("Markdown:\n");
+                prompt.push_str(&context.text);
+                prompt.push_str("\nCompletion:");
+            }
+            CompletionMode::PlainText => {
+                prompt.push_str(
+                    "Continue the text naturally in the same language and writing style.\nText:\n",
+                );
+                prompt.push_str(&context.text);
+                prompt.push_str("\nCompletion:");
+            }
         }
-        prompt.push('\n');
-        prompt.push_str(&context.text);
-        prompt.push_str("\n```\n\nProvide only the completion text, no explanation:");
 
         prompt
+    }
+
+    /// Resolve effective completion mode from request context.
+    pub fn resolve_mode(context: &CompletionContext) -> CompletionMode {
+        let detected_lang = context
+            .language
+            .clone()
+            .unwrap_or_else(|| Self::detect_language(&context.text));
+        Self::infer_mode(context, &detected_lang)
+    }
+
+    fn infer_mode(context: &CompletionContext, detected_lang: &str) -> CompletionMode {
+        if let Some(mode) = &context.mode {
+            return mode.clone();
+        }
+        if !detected_lang.is_empty() || Self::looks_like_code(&context.text) {
+            return CompletionMode::Code;
+        }
+        let text = context.text.trim();
+        if text.contains("```") || text.starts_with('#') || text.contains("\n- ") {
+            return CompletionMode::Markdown;
+        }
+        if text.contains('？') || text.contains('?') || text.contains('!') || text.contains("。")
+        {
+            return CompletionMode::Chat;
+        }
+        CompletionMode::PlainText
+    }
+
+    fn looks_like_code(text: &str) -> bool {
+        let lowered = text.to_lowercase();
+        lowered.contains("function ")
+            || lowered.contains("const ")
+            || lowered.contains("let ")
+            || lowered.contains("class ")
+            || lowered.contains("import ")
+            || lowered.contains("def ")
+            || lowered.contains("fn ")
+            || lowered.contains("return ")
+            || text.contains('{')
+            || text.contains("=>")
     }
 
     /// Detect programming language from code content
@@ -690,6 +763,12 @@ impl CompletionService {
         context.text.hash(&mut hasher);
         if let Some(lang) = &context.language {
             lang.hash(&mut hasher);
+        }
+        if let Some(mode) = &context.mode {
+            format!("{mode:?}").hash(&mut hasher);
+        }
+        if let Some(surface) = &context.surface {
+            format!("{surface:?}").hash(&mut hasher);
         }
         format!("{:x}", hasher.finish())
     }
@@ -923,6 +1002,8 @@ mod tests {
             file_path: None,
             language: Some("rust".to_string()),
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let prompt = service.build_completion_prompt(&context);
@@ -942,12 +1023,14 @@ mod tests {
             file_path: None,
             language: None,
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let prompt = service.build_completion_prompt(&context);
         // When no language is detected, Language: should not appear
         assert!(prompt.contains("hello world"));
-        assert!(prompt.contains("Complete the following code naturally:"));
+        assert!(prompt.contains("Continue the text naturally"));
     }
 
     #[test]
@@ -963,11 +1046,82 @@ mod tests {
                 file_path: None,
                 language: Some(lang.to_string()),
                 ime_state: None,
+                mode: None,
+                surface: None,
             };
 
             let prompt = service.build_completion_prompt(&context);
             assert!(prompt.contains(lang));
         }
+    }
+
+    #[test]
+    fn test_build_completion_prompt_chat_mode() {
+        let service = CompletionService::new();
+
+        let context = CompletionContext {
+            text: "How do I optimize this query?".to_string(),
+            cursor_position: None,
+            file_path: None,
+            language: None,
+            ime_state: None,
+            mode: Some(CompletionMode::Chat),
+            surface: None,
+        };
+
+        let prompt = service.build_completion_prompt(&context);
+        assert!(prompt.contains("Continue the user message naturally"));
+        assert!(!prompt.contains("Complete the following code naturally"));
+    }
+
+    #[test]
+    fn test_build_completion_prompt_code_mode() {
+        let service = CompletionService::new();
+
+        let context = CompletionContext {
+            text: "const value = ".to_string(),
+            cursor_position: None,
+            file_path: None,
+            language: Some("typescript".to_string()),
+            ime_state: None,
+            mode: Some(CompletionMode::Code),
+            surface: None,
+        };
+
+        let prompt = service.build_completion_prompt(&context);
+        assert!(prompt.contains("Language: typescript"));
+        assert!(prompt.contains("Complete the following code naturally"));
+    }
+
+    #[test]
+    fn test_resolve_mode_infers_code_and_chat() {
+        let code_context = CompletionContext {
+            text: "function add(a, b) { return a + b; }".to_string(),
+            cursor_position: None,
+            file_path: None,
+            language: None,
+            ime_state: None,
+            mode: None,
+            surface: None,
+        };
+        let chat_context = CompletionContext {
+            text: "Can you summarize this?".to_string(),
+            cursor_position: None,
+            file_path: None,
+            language: None,
+            ime_state: None,
+            mode: None,
+            surface: None,
+        };
+
+        assert_eq!(
+            CompletionService::resolve_mode(&code_context),
+            CompletionMode::Code
+        );
+        assert_eq!(
+            CompletionService::resolve_mode(&chat_context),
+            CompletionMode::Chat
+        );
     }
 
     #[test]
@@ -980,6 +1134,8 @@ mod tests {
             file_path: None,
             language: None,
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let context2 = CompletionContext {
@@ -988,6 +1144,8 @@ mod tests {
             file_path: None,
             language: None,
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let key1 = service.compute_cache_key(&context1);
@@ -1006,6 +1164,8 @@ mod tests {
             file_path: None,
             language: None,
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let context2 = CompletionContext {
@@ -1014,6 +1174,8 @@ mod tests {
             file_path: None,
             language: None,
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let key1 = service.compute_cache_key(&context1);
@@ -1032,6 +1194,8 @@ mod tests {
             file_path: None,
             language: Some("rust".to_string()),
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let context2 = CompletionContext {
@@ -1040,6 +1204,8 @@ mod tests {
             file_path: None,
             language: Some("python".to_string()),
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let key1 = service.compute_cache_key(&context1);
@@ -1226,6 +1392,8 @@ mod tests {
             file_path: None,
             language: Some("rust".to_string()),
             ime_state: None,
+            mode: None,
+            surface: None,
         };
 
         let key1 = service.compute_cache_key(&context);

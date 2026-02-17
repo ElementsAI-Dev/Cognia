@@ -91,6 +91,30 @@ pub enum PluginPermission {
     PythonExecute,
 }
 
+impl PluginPermission {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PluginPermission::FilesystemRead => "filesystem:read",
+            PluginPermission::FilesystemWrite => "filesystem:write",
+            PluginPermission::NetworkFetch => "network:fetch",
+            PluginPermission::NetworkWebsocket => "network:websocket",
+            PluginPermission::ClipboardRead => "clipboard:read",
+            PluginPermission::ClipboardWrite => "clipboard:write",
+            PluginPermission::Notification => "notification",
+            PluginPermission::ShellExecute => "shell:execute",
+            PluginPermission::ProcessSpawn => "process:spawn",
+            PluginPermission::DatabaseRead => "database:read",
+            PluginPermission::DatabaseWrite => "database:write",
+            PluginPermission::SettingsRead => "settings:read",
+            PluginPermission::SettingsWrite => "settings:write",
+            PluginPermission::SessionRead => "session:read",
+            PluginPermission::SessionWrite => "session:write",
+            PluginPermission::AgentControl => "agent:control",
+            PluginPermission::PythonExecute => "python:execute",
+        }
+    }
+}
+
 /// Plugin author information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginAuthor {
@@ -950,4 +974,123 @@ pub struct PluginApiResponse {
     pub data: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PluginApiErrorCode {
+    InvalidRequest,
+    PermissionRequired,
+    PermissionDenied,
+    NotSupported,
+    NotFound,
+    Conflict,
+    Timeout,
+    Internal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiError {
+    pub code: PluginApiErrorCode,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiInvokeRequest {
+    pub sdk_version: String,
+    pub plugin_id: String,
+    pub request_id: String,
+    pub api: String,
+    #[serde(default)]
+    pub payload: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiCompatInfo {
+    pub sdk_version: String,
+    pub min_supported_sdk: String,
+    pub compatible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiInvokeResponse {
+    pub request_id: String,
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<PluginApiError>,
+    pub runtime_version: String,
+    pub compat: PluginApiCompatInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiBatchItem {
+    pub request_id: String,
+    pub api: String,
+    #[serde(default)]
+    pub payload: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PluginApiBatchStrategy {
+    ContinueOnError,
+    AbortOnError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiBatchInvokeRequest {
+    pub sdk_version: String,
+    pub plugin_id: String,
+    pub strategy: PluginApiBatchStrategy,
+    pub requests: Vec<PluginApiBatchItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginApiBatchInvokeResponse {
+    pub success: bool,
+    pub results: Vec<PluginApiInvokeResponse>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginCapabilityDescriptor {
+    pub api: String,
+    pub supported: bool,
+    pub high_risk: bool,
+    pub required_permissions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginPermissionMutationRequest {
+    pub plugin_id: String,
+    pub permission: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginPermissionEntry {
+    pub plugin_id: String,
+    pub permission: String,
 }

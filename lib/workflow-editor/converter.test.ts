@@ -15,6 +15,7 @@ import type {
   AINodeData,
   ToolNodeData,
   ConditionalNodeData,
+  CodeNodeData,
 } from '@/types/workflow/workflow-editor';
 import type { WorkflowDefinition } from '@/types/workflow';
 
@@ -274,6 +275,48 @@ describe('visualToDefinition', () => {
     expect(definition.steps[0].code).toBe('return input;');
     expect(definition.steps[0].language).toBe('javascript');
   });
+
+  it('should map code sandbox options from node data to step definition', () => {
+    const codeNode: WorkflowNode = {
+      id: 'code-1',
+      type: 'code',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Code',
+        nodeType: 'code',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        language: 'python',
+        code: 'print("hello")',
+        sandbox: {
+          runtime: 'docker',
+          timeoutMs: 30_000,
+          memoryLimitMb: 1024,
+          networkEnabled: false,
+          env: { TOKEN: 'x' },
+          args: ['--flag'],
+          files: { 'data/input.txt': 'ok' },
+        },
+        inputs: {},
+        outputs: {},
+      } as CodeNodeData,
+    };
+
+    const visual = createMinimalWorkflow([codeNode]);
+    const definition = visualToDefinition(visual);
+    const step = definition.steps[0];
+
+    expect(step.codeSandbox).toEqual({
+      runtime: 'docker',
+      timeoutMs: 30_000,
+      memoryLimitMb: 1024,
+      networkEnabled: false,
+      env: { TOKEN: 'x' },
+      args: ['--flag'],
+      files: { 'data/input.txt': 'ok' },
+    });
+  });
 });
 
 describe('definitionToVisual', () => {
@@ -448,6 +491,139 @@ describe('definitionToVisual', () => {
 
     expect((startNode?.data as StartNodeData).workflowInputs).toHaveProperty('userInput');
     expect((endNode?.data as EndNodeData).workflowOutputs).toHaveProperty('result');
+  });
+
+  it('should map codeSandbox from definition to code node', () => {
+    const definition: WorkflowDefinition = {
+      id: 'wf-code-sandbox',
+      name: 'Workflow',
+      description: '',
+      type: 'custom',
+      version: '1.0.0',
+      icon: 'Workflow',
+      category: 'test',
+      tags: [],
+      steps: [
+        {
+          id: 'code-1',
+          name: 'Code',
+          description: '',
+          type: 'code',
+          code: 'print("hello")',
+          language: 'python',
+          codeSandbox: {
+            runtime: 'podman',
+            timeoutMs: 1,
+            memoryLimitMb: 512,
+            networkEnabled: true,
+            env: { KEY: 'value' },
+            args: ['-x'],
+            files: { 'nested/file.txt': 'data' },
+          },
+          inputs: {},
+          outputs: {},
+        },
+      ],
+      inputs: {},
+      outputs: {},
+    };
+
+    const visual = definitionToVisual(definition);
+    const codeNode = visual.nodes.find((node) => node.id === 'code-1');
+    const data = codeNode?.data as CodeNodeData | undefined;
+
+    expect(data?.sandbox).toEqual({
+      runtime: 'podman',
+      timeoutMs: 1,
+      memoryLimitMb: 512,
+      networkEnabled: true,
+      env: { KEY: 'value' },
+      args: ['-x'],
+      files: { 'nested/file.txt': 'data' },
+    });
+  });
+
+  it('should keep compatibility with legacy code sandbox fields', () => {
+    const definition = {
+      id: 'wf-legacy-code-sandbox',
+      name: 'Workflow',
+      description: '',
+      type: 'custom',
+      version: '1.0.0',
+      icon: 'Workflow',
+      category: 'test',
+      tags: [],
+      steps: [
+        {
+          id: 'code-legacy',
+          name: 'Code',
+          description: '',
+          type: 'code',
+          code: 'print("legacy")',
+          language: 'python',
+          runtime: 'native',
+          timeoutMs: 30000,
+          memoryLimitMb: 256,
+          networkEnabled: false,
+          env: { LEGACY: '1' },
+          args: ['--legacy'],
+          files: { 'legacy.txt': 'x' },
+          inputs: {},
+          outputs: {},
+        },
+      ],
+      inputs: {},
+      outputs: {},
+    } as unknown as WorkflowDefinition;
+
+    const visual = definitionToVisual(definition);
+    const codeNode = visual.nodes.find((node) => node.id === 'code-legacy');
+    const data = codeNode?.data as CodeNodeData | undefined;
+
+    expect(data?.sandbox).toEqual({
+      runtime: 'native',
+      timeoutMs: 30000,
+      memoryLimitMb: 256,
+      networkEnabled: false,
+      env: { LEGACY: '1' },
+      args: ['--legacy'],
+      files: { 'legacy.txt': 'x' },
+    });
+  });
+
+  it('should convert chart step to chart node', () => {
+    const definition: WorkflowDefinition = {
+      id: 'chart-def',
+      name: 'Chart Definition',
+      description: '',
+      type: 'custom',
+      version: '1.0.0',
+      icon: 'Workflow',
+      category: 'test',
+      tags: [],
+      steps: [
+        {
+          id: 'step-chart',
+          name: 'Chart',
+          type: 'lineChart',
+          description: '',
+          inputs: { data: { type: 'array', description: 'data' } },
+          outputs: { chart: { type: 'object', description: 'chart' } },
+          chartType: 'line',
+          series: [{ dataKey: 'value', name: 'Value' }],
+        },
+      ],
+      inputs: {},
+      outputs: {},
+      defaultConfig: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const visual = definitionToVisual(definition);
+    const node = visual.nodes.find((item) => item.id === 'step-chart');
+    expect(node?.type).toBe('lineChart');
+    expect((node?.data as { chartType?: string }).chartType).toBe('line');
   });
 });
 
@@ -705,6 +881,70 @@ describe('extended node type conversion', () => {
     expect(definition.steps[0].workflowId).toBe('workflow-123');
     expect(definition.steps[0].inputMapping).toEqual({ input: 'parentInput' });
     expect(definition.steps[0].outputMapping).toEqual({ result: 'subResult' });
+  });
+
+  it('should convert workflow with knowledge retrieval node', () => {
+    const retrievalNode: WorkflowNode = {
+      id: 'retrieval-1',
+      type: 'knowledgeRetrieval',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Knowledge Retrieval',
+        nodeType: 'knowledgeRetrieval',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        queryVariable: { nodeId: 'start-1', variableName: 'query' },
+        knowledgeBaseIds: ['kb-1'],
+        retrievalMode: 'multiple',
+        topK: 5,
+        scoreThreshold: 0.5,
+        rerankingEnabled: true,
+        rerankingModel: 'reranker-v1',
+        inputs: { query: { type: 'string', description: 'query' } },
+        outputs: { docs: { type: 'array', description: 'docs' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([retrievalNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps[0].type).toBe('knowledgeRetrieval');
+    expect(definition.steps[0].knowledgeBaseIds).toEqual(['kb-1']);
+    expect(definition.steps[0].topK).toBe(5);
+  });
+
+  it('should convert workflow with chart node', () => {
+    const chartNode: WorkflowNode = {
+      id: 'chart-1',
+      type: 'barChart',
+      position: { x: 250, y: 200 },
+      data: {
+        label: 'Sales Chart',
+        nodeType: 'barChart',
+        executionStatus: 'idle',
+        isConfigured: true,
+        hasError: false,
+        chartType: 'bar',
+        title: 'Sales',
+        xAxisKey: 'month',
+        yAxisKey: 'value',
+        series: [{ dataKey: 'value', name: 'Revenue' }],
+        showLegend: true,
+        showGrid: true,
+        showTooltip: true,
+        stacked: false,
+        inputs: { data: { type: 'array', description: 'Chart data' } },
+        outputs: { chart: { type: 'object', description: 'Chart output' } },
+      },
+    };
+
+    const visual = createMinimalWorkflow([chartNode]);
+    const definition = visualToDefinition(visual);
+
+    expect(definition.steps[0].type).toBe('barChart');
+    expect(definition.steps[0].chartType).toBe('bar');
+    expect(definition.steps[0].series?.[0].dataKey).toBe('value');
   });
 });
 

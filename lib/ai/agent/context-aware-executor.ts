@@ -17,6 +17,8 @@ import {
   generateTerminalStaticPrompt,
   getSkillRefs,
   generateSkillsStaticPrompt,
+  getMcpToolRefs,
+  generateMcpStaticPrompt,
 } from '@/lib/context';
 import type { ToolOutputRef } from '@/types/system/context';
 
@@ -172,6 +174,17 @@ export async function executeContextAwareAgent(
       }
     } catch {
       // Skills context unavailable — skip silently
+    }
+
+    // Add synced MCP tools awareness (best-effort, non-blocking)
+    try {
+      const mcpRefs = await getMcpToolRefs();
+      if (mcpRefs.length > 0) {
+        const mcpPrompt = generateMcpStaticPrompt(mcpRefs);
+        if (mcpPrompt) promptParts.push(mcpPrompt);
+      }
+    } catch {
+      // MCP context unavailable — skip silently
     }
 
     enhancedSystemPrompt = promptParts.join('\n\n');

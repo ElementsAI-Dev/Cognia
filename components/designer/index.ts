@@ -22,6 +22,7 @@ import { lazy } from 'react';
 // Core components
 export { DesignerPanel } from './core';
 export { V0Designer } from './core';
+export { DesignerShell } from './core';
 export { DesignerCard } from './core';
 export { DesignerBrowser } from './core';
 export { FloatingPromptBar } from './core';

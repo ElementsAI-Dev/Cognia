@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AcademicAnalysisPanel } from './academic-analysis-panel';
 import type { PaperAnalysisType } from '@/types/academic';
 
@@ -32,9 +32,23 @@ jest.mock('lucide-react', () => {
 
 // Mock Collapsible to avoid Radix Primitive.span.SlotClone issues
 jest.mock('@/components/ui/collapsible', () => ({
-  Collapsible: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
-  CollapsibleTrigger: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
-  CollapsibleContent: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+  Collapsible: ({
+    children,
+    open: _open,
+    onOpenChange: _onOpenChange,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement> & { open?: boolean; onOpenChange?: (open: boolean) => void }) => (
+    <div {...props}>{children}</div>
+  ),
+  CollapsibleTrigger: ({
+    children,
+    asChild,
+    ...props
+  }: React.HTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) =>
+    asChild ? <>{children}</> : <button {...props}>{children}</button>,
+  CollapsibleContent: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+    <div {...props}>{children}</div>
+  ),
 }));
 
 // Mock ScrollArea
@@ -127,9 +141,9 @@ describe('AcademicAnalysisPanel', () => {
       const copyButton = screen.queryByRole('button', { name: /copy/i });
       if (copyButton) {
         fireEvent.click(copyButton);
-        // Wait for async clipboard.writeText to resolve
-        await new Promise(process.nextTick);
-        expect(onCopy).toHaveBeenCalledWith('This is the analysis content.');
+        await waitFor(() => {
+          expect(onCopy).toHaveBeenCalledWith('This is the analysis content.');
+        });
       }
     });
 

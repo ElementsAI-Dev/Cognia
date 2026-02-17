@@ -130,6 +130,7 @@ describe('WorkflowScheduleDialog', () => {
           trigger: {
             type: 'cron',
             cronExpression: '0 9 * * *',
+            timezone: 'UTC',
           },
           payload: {
             workflowId: 'workflow-123',
@@ -222,15 +223,23 @@ describe('WorkflowScheduleDialog', () => {
     fireEvent.click(screen.getByText('schedule'));
     
     await waitFor(() => {
-      expect(mockCreateTask).toHaveBeenCalledWith(
-        expect.objectContaining({
-          trigger: {
-            type: 'cron',
-            cronExpression: '0 0 * * *',
-          },
-        })
-      );
-    });
+        expect(mockCreateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            trigger: {
+              type: 'cron',
+              cronExpression: '0 0 * * *',
+              timezone: 'UTC',
+            },
+          })
+        );
+      });
+  });
+
+  it('should render timezone configuration for cron trigger', () => {
+    render(<WorkflowScheduleDialog {...defaultProps} />);
+    fireEvent.click(screen.getByText('scheduleWorkflow'));
+
+    expect(screen.getByText('timezone')).toBeInTheDocument();
   });
 
   it('should not call onScheduled when createTask returns null', async () => {

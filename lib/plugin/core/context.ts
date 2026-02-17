@@ -81,6 +81,7 @@ import { createIPCAPI } from '../messaging/ipc';
 import { createEventAPI } from '../messaging/message-bus';
 import { getPluginI18nLoader } from '../utils/i18n-loader';
 import { getPluginDebugger } from '../devtools/debugger';
+import { invokePluginApi } from './transport';
 
 /**
  * Full plugin context combining base and extended APIs
@@ -443,12 +444,11 @@ function createA2UIAPI(pluginId: string, manager: PluginManager): PluginA2UIAPI 
     },
 
     registerComponent: (component: PluginA2UIComponent) => {
-      manager.getRegistry().registerComponent(pluginId, component);
-      usePluginStore.getState().registerPluginComponent(pluginId, component);
+      manager.getA2UIBridge().registerComponent(pluginId, component);
     },
 
     registerTemplate: (template: A2UITemplateDef) => {
-      manager.getRegistry().registerTemplate(pluginId, template);
+      manager.getA2UIBridge().registerTemplate(pluginId, template);
     },
   };
 }
@@ -600,8 +600,7 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
     options?: NetworkRequestOptions
   ): Promise<NetworkResponse<T>> => {
     rateLimiter.check(pluginId, 'network:fetch');
-    return invoke<NetworkResponse<T>>('plugin_network_fetch', {
-      pluginId,
+    return invokePluginApi<NetworkResponse<T>>(pluginId, 'network:fetch', {
       url,
       options: options || {},
     });
@@ -627,8 +626,7 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
 
     download: async (url: string, destPath: string, _options?: DownloadOptions): Promise<DownloadResult> => {
       rateLimiter.check(pluginId, 'network:download');
-      return invoke<DownloadResult>('plugin_network_download', {
-        pluginId,
+      return invokePluginApi<DownloadResult>(pluginId, 'network:download', {
         url,
         destPath,
       });
@@ -636,8 +634,7 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
 
     upload: async (url: string, filePath: string, _options?: UploadOptions): Promise<NetworkResponse<unknown>> => {
       rateLimiter.check(pluginId, 'network:upload');
-      return invoke<NetworkResponse<unknown>>('plugin_network_upload', {
-        pluginId,
+      return invokePluginApi<NetworkResponse<unknown>>(pluginId, 'network:upload', {
         url,
         filePath,
       });
@@ -651,79 +648,92 @@ function createNetworkAPI(pluginId: string): PluginNetworkAPI {
 
 function createFileSystemAPI(pluginId: string): PluginFileSystemAPI {
   const rateLimiter = getPluginRateLimiter();
-  const dataDir = `~/.cognia/plugins/${pluginId}/data`;
-  const cacheDir = `~/.cognia/plugins/${pluginId}/cache`;
-  const tempDir = `~/.cognia/temp`;
+  const dataDir = `plugins_runtime/${pluginId}/data`;
+  const cacheDir = `plugins_runtime/${pluginId}/cache`;
+  const tempDir = `plugins_runtime/${pluginId}/temp`;
 
   return {
     readText: (path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<string>('plugin_fs_read_text', { pluginId, path });
+      return invokePluginApi<string>(pluginId, 'fs:readText', { path });
     },
 
     readBinary: (path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<Uint8Array>('plugin_fs_read_binary', { pluginId, path });
+      return invokePluginApi<number[]>(pluginId, 'fs:readBinary', { path }).then((bytes) =>
+        Uint8Array.from(bytes)
+      );
     },
 
-    readJson: <T>(path: string) => {
+    readJson: async <T>(path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<T>('plugin_fs_read_json', { pluginId, path });
+      const raw = await invokePluginApi<string>(pluginId, 'fs:readText', { path });
+      return JSON.parse(raw) as T;
     },
 
     writeText: (path: string, content: string) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_write_text', { pluginId, path, content });
+      return invokePluginApi<void>(pluginId, 'fs:writeText', { path, content });
     },
 
     writeBinary: (path: string, content: Uint8Array) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_write_binary', { pluginId, path, content: Array.from(content) });
+      return invokePluginApi<void>(pluginId, 'fs:writeBinary', { path, content: Array.from(content) });
     },
 
-    writeJson: (path: string, data: unknown, pretty = true) => {
+    writeJson: async (path: string, data: unknown, pretty = true) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_write_json', { pluginId, path, data, pretty });
+      const content = pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+      await invokePluginApi<void>(pluginId, 'fs:writeText', { path, content });
     },
 
-    appendText: (path: string, content: string) => {
+    appendText: async (path: string, content: string) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_append_text', { pluginId, path, content });
+      let current = '';
+      try {
+        current = await invokePluginApi<string>(pluginId, 'fs:readText', { path });
+      } catch {
+        current = '';
+      }
+      await invokePluginApi<void>(pluginId, 'fs:writeText', {
+        path,
+        content: `${current}${content}`,
+      });
     },
 
     exists: (path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<boolean>('plugin_fs_exists', { pluginId, path });
+      return invokePluginApi<boolean>(pluginId, 'fs:exists', { path });
     },
 
     mkdir: (path: string, recursive = true) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_mkdir', { pluginId, path, recursive });
+      return invokePluginApi<void>(pluginId, 'fs:mkdir', { path, recursive });
     },
 
     remove: (path: string, recursive = false) => {
       rateLimiter.check(pluginId, 'fs:delete');
-      return invoke<void>('plugin_fs_remove', { pluginId, path, recursive });
+      return invokePluginApi<void>(pluginId, 'fs:remove', { path, recursive });
     },
 
     copy: (src: string, dest: string) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_copy', { pluginId, src, dest });
+      return invokePluginApi<void>(pluginId, 'fs:copy', { src, dest });
     },
 
     move: (src: string, dest: string) => {
       rateLimiter.check(pluginId, 'fs:write');
-      return invoke<void>('plugin_fs_move', { pluginId, src, dest });
+      return invokePluginApi<void>(pluginId, 'fs:move', { src, dest });
     },
 
     readDir: (path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<FileEntry[]>('plugin_fs_read_dir', { pluginId, path });
+      return invokePluginApi<FileEntry[]>(pluginId, 'fs:readDir', { path });
     },
 
     stat: (path: string) => {
       rateLimiter.check(pluginId, 'fs:read');
-      return invoke<FileStat>('plugin_fs_stat', { pluginId, path });
+      return invokePluginApi<FileStat>(pluginId, 'fs:stat', { path });
     },
 
     watch: (path: string, callback: (event: FileWatchEvent) => void) => {
@@ -759,31 +769,36 @@ function createClipboardAPI(_pluginId: string): PluginClipboardAPI {
   return {
     readText: () => {
       rateLimiter.check(_pluginId, 'clipboard:read');
-      return invoke<string>('plugin_clipboard_read_text');
+      return invokePluginApi<string>(_pluginId, 'clipboard:readText', {});
     },
     writeText: (text: string) => {
       rateLimiter.check(_pluginId, 'clipboard:write');
-      return invoke<void>('plugin_clipboard_write_text', { text });
+      return invokePluginApi<void>(_pluginId, 'clipboard:writeText', { text });
     },
     readImage: () => {
       rateLimiter.check(_pluginId, 'clipboard:read');
-      return invoke<Uint8Array | null>('plugin_clipboard_read_image');
+      return invokePluginApi<number[] | null>(_pluginId, 'clipboard:readImage', {}).then((value) =>
+        value ? Uint8Array.from(value) : null
+      );
     },
     writeImage: (data: Uint8Array, format?: 'png' | 'jpeg') => {
       rateLimiter.check(_pluginId, 'clipboard:write');
-      return invoke<void>('plugin_clipboard_write_image', { data: Array.from(data), format });
+      return invokePluginApi<void>(_pluginId, 'clipboard:writeImage', {
+        data: Array.from(data),
+        format,
+      });
     },
     hasText: () => {
       rateLimiter.check(_pluginId, 'clipboard:read');
-      return invoke<boolean>('plugin_clipboard_has_text');
+      return invokePluginApi<boolean>(_pluginId, 'clipboard:hasText', {});
     },
     hasImage: () => {
       rateLimiter.check(_pluginId, 'clipboard:read');
-      return invoke<boolean>('plugin_clipboard_has_image');
+      return invokePluginApi<boolean>(_pluginId, 'clipboard:hasImage', {});
     },
     clear: () => {
       rateLimiter.check(_pluginId, 'clipboard:write');
-      return invoke<void>('plugin_clipboard_clear');
+      return invokePluginApi<void>(_pluginId, 'clipboard:clear', {});
     },
   };
 }
@@ -797,18 +812,27 @@ function createShellAPI(pluginId: string): PluginShellAPI {
   return {
     execute: (command: string, options?: ShellOptions) => {
       rateLimiter.check(pluginId, 'shell:execute');
-      return invoke<ShellResult>('plugin_shell_execute', { pluginId, command, options });
+      return invokePluginApi<ShellResult>(pluginId, 'shell:execute', { command, options });
     },
 
     spawn: (command: string, args?: string[], options?: SpawnOptions): ChildProcess => {
       rateLimiter.check(pluginId, 'process:spawn');
       const processId = `${pluginId}:${Date.now()}`;
       
-      invoke('plugin_shell_spawn', { pluginId, processId, command, args, options })
+      let pid = 0;
+      void invokePluginApi<{ pid?: number }>(pluginId, 'shell:spawn', {
+        processId,
+        command,
+        args,
+        options,
+      })
+        .then((result) => {
+          pid = result.pid || 0;
+        })
         .catch((e) => loggers.sandbox.error('Failed to spawn process:', e));
 
       return {
-        pid: 0,
+        pid,
         stdin: new WritableStream(),
         stdout: new ReadableStream(),
         stderr: new ReadableStream(),
@@ -823,8 +847,8 @@ function createShellAPI(pluginId: string): PluginShellAPI {
       };
     },
 
-    open: (path: string) => invoke<void>('plugin_shell_open', { path }),
-    showInFolder: (path: string) => invoke<void>('plugin_shell_show_in_folder', { path }),
+    open: (path: string) => invokePluginApi<void>(pluginId, 'shell:open', { path }),
+    showInFolder: (path: string) => invokePluginApi<void>(pluginId, 'shell:showInFolder', { path }),
   };
 }
 
@@ -837,48 +861,48 @@ function createDatabaseAPI(pluginId: string): PluginDatabaseAPI {
   return {
     query: <T>(sql: string, params?: unknown[]) => {
       rateLimiter.check(pluginId, 'db:query');
-      return invoke<T[]>('plugin_db_query', { pluginId, sql, params });
+      return invokePluginApi<T[]>(pluginId, 'db:query', { sql, params });
     },
 
     execute: (sql: string, params?: unknown[]) => {
       rateLimiter.check(pluginId, 'db:execute');
-      return invoke<DatabaseResult>('plugin_db_execute', { pluginId, sql, params });
+      return invokePluginApi<DatabaseResult>(pluginId, 'db:execute', { sql, params });
     },
 
     transaction: async <T>(fn: (tx: DatabaseTransaction) => Promise<T>): Promise<T> => {
       const txId = `${pluginId}:${Date.now()}`;
-      await invoke('plugin_db_begin_transaction', { pluginId, txId });
+      await invokePluginApi<void>(pluginId, 'db:beginTransaction', { txId });
       
       try {
         const tx: DatabaseTransaction = {
           query: <R>(sql: string, params?: unknown[]) =>
-            invoke<R[]>('plugin_db_tx_query', { txId, sql, params }),
+            invokePluginApi<R[]>(pluginId, 'db:txQuery', { txId, sql, params }),
           execute: (sql: string, params?: unknown[]) =>
-            invoke<DatabaseResult>('plugin_db_tx_execute', { txId, sql, params }),
+            invokePluginApi<DatabaseResult>(pluginId, 'db:txExecute', { txId, sql, params }),
         };
         
         const result = await fn(tx);
-        await invoke('plugin_db_commit', { txId });
+        await invokePluginApi<void>(pluginId, 'db:commit', { txId });
         return result;
       } catch (error) {
-        await invoke('plugin_db_rollback', { txId });
+        await invokePluginApi<void>(pluginId, 'db:rollback', { txId });
         throw error;
       }
     },
 
     createTable: (name: string, schema: TableSchema) => {
       rateLimiter.check(pluginId, 'db:execute');
-      return invoke<void>('plugin_db_create_table', { pluginId, name, schema });
+      return invokePluginApi<void>(pluginId, 'db:createTable', { name, schema });
     },
 
     dropTable: (name: string) => {
       rateLimiter.check(pluginId, 'db:execute');
-      return invoke<void>('plugin_db_drop_table', { pluginId, name });
+      return invokePluginApi<void>(pluginId, 'db:dropTable', { name });
     },
 
     tableExists: (name: string) => {
       rateLimiter.check(pluginId, 'db:query');
-      return invoke<boolean>('plugin_db_table_exists', { pluginId, name });
+      return invokePluginApi<boolean>(pluginId, 'db:tableExists', { name });
     },
   };
 }
@@ -973,25 +997,25 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
     id,
     title,
     setTitle: (newTitle: string) => {
-      invoke('plugin_window_set_title', { windowId: id, title: newTitle })
+      invokePluginApi<void>(pluginId, 'window:setTitle', { windowId: id, title: newTitle })
         .catch((e) => loggers.manager.error('Failed to set window title:', e));
     },
-    close: () => invoke<void>('plugin_window_close', { windowId: id }),
+    close: () => invokePluginApi<void>(pluginId, 'window:close', { windowId: id }),
     minimize: () => invoke<void>('plugin_window_minimize', { windowId: id }),
     maximize: () => invoke<void>('plugin_window_maximize', { windowId: id }),
     unmaximize: () => invoke<void>('plugin_window_unmaximize', { windowId: id }),
     isMaximized: () => false, // Would need async check
     setSize: (width: number, height: number) =>
-      invoke<void>('plugin_window_set_size', { windowId: id, width, height }),
+      invokePluginApi<void>(pluginId, 'window:setSize', { windowId: id, width, height }),
     getSize: () => ({ width: 800, height: 600 }), // Would need async check
     setPosition: (x: number, y: number) =>
-      invoke<void>('plugin_window_set_position', { windowId: id, x, y }),
+      invokePluginApi<void>(pluginId, 'window:setPosition', { windowId: id, x, y }),
     getPosition: () => ({ x: 0, y: 0 }), // Would need async check
-    center: () => invoke<void>('plugin_window_center', { windowId: id }),
+    center: () => invokePluginApi<void>(pluginId, 'window:center', { windowId: id }),
     setAlwaysOnTop: (flag: boolean) =>
       invoke<void>('plugin_window_set_always_on_top', { windowId: id, flag }),
-    show: () => invoke<void>('plugin_window_show', { windowId: id }),
-    hide: () => invoke<void>('plugin_window_hide', { windowId: id }),
+    show: () => invokePluginApi<void>(pluginId, 'window:show', { windowId: id }),
+    hide: () => invokePluginApi<void>(pluginId, 'window:hide', { windowId: id }),
     onClose: (callback: () => void) => {
       const handler = () => callback();
       window.addEventListener(`plugin-window-close:${id}`, handler);
@@ -1001,10 +1025,7 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
 
   return {
     create: async (options: WindowOptions): Promise<PluginWindow> => {
-      const windowId = await invoke<string>('plugin_window_create', {
-        pluginId,
-        options,
-      });
+      const windowId = await invokePluginApi<string>(pluginId, 'window:create', { options });
       const win = createPluginWindow(windowId, options.title);
       windows.set(windowId, win);
       return win;
@@ -1013,7 +1034,7 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
     getMain: () => createPluginWindow('main', 'Cognia'),
     getAll: () => Array.from(windows.values()),
     focus: (windowId: string) => {
-      invoke('plugin_window_focus', { windowId }).catch((e) => loggers.manager.error('Failed to focus window:', e));
+      invokePluginApi<void>(pluginId, 'window:focus', { windowId }).catch((e) => loggers.manager.error('Failed to focus window:', e));
     },
   };
 }
@@ -1025,16 +1046,16 @@ function createWindowAPI(pluginId: string): PluginWindowAPI {
 function createSecretsAPI(pluginId: string): PluginSecretsAPI {
   return {
     store: (key: string, value: string) =>
-      invoke<void>('plugin_secrets_store', { pluginId, key, value }),
+      invokePluginApi<void>(pluginId, 'secrets:store', { key, value }),
 
     get: (key: string) =>
-      invoke<string | null>('plugin_secrets_get', { pluginId, key }),
+      invokePluginApi<string | null>(pluginId, 'secrets:get', { key }),
 
     delete: (key: string) =>
-      invoke<void>('plugin_secrets_delete', { pluginId, key }),
+      invokePluginApi<void>(pluginId, 'secrets:delete', { key }),
 
     has: (key: string) =>
-      invoke<boolean>('plugin_secrets_has', { pluginId, key }),
+      invokePluginApi<boolean>(pluginId, 'secrets:has', { key }),
   };
 }
 

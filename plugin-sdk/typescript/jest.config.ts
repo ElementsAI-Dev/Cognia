@@ -16,6 +16,7 @@ const config: Config = {
   // Module name mapper for ESM-style .js imports
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@inkjs/ui$': '<rootDir>/__mocks__/inkjs-ui.js',
   },
 
   // Transform ESM-only modules

@@ -73,6 +73,7 @@ export {
   A2UITextArea,
   A2UISelect,
   A2UICheckbox,
+  A2UIRadio,
   A2UIRadioGroup,
   A2UISlider,
   A2UIDatePicker,

@@ -8,6 +8,7 @@ import type { WorkflowNode, WorkflowEdge } from '@/types/workflow/workflow-edito
 
 // Alias repository methods for convenience
 const repo = workflowRepository;
+const mockMigrateWorkflowSchema = jest.fn();
 
 // Mock db
 jest.mock('../schema', () => ({
@@ -48,11 +49,22 @@ jest.mock('../schema', () => ({
   },
 }));
 
+jest.mock('@/lib/workflow-editor/migration', () => ({
+  migrateWorkflowSchema: (...args: unknown[]) => mockMigrateWorkflowSchema(...args),
+}));
+
 const mockDb = db as jest.Mocked<typeof db>;
 
 describe('workflow-repository', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockMigrateWorkflowSchema.mockImplementation((workflow: unknown) => ({
+      workflow,
+      migrated: false,
+      fromVersion: '2.0',
+      toVersion: '2.0',
+      warnings: [],
+    }));
   });
 
   interface MockWorkflow {
@@ -218,9 +230,159 @@ describe('workflow-repository', () => {
       expect(result?.tags).toEqual(['tag1', 'tag2']);
       expect(result?.viewport?.x).toBe(100);
     });
+
+    it('persists migrated workflow on getById when migration requires write-back', async () => {
+      const dbWorkflow = {
+        id: 'workflow-1',
+        name: 'Legacy Workflow',
+        description: 'legacy',
+        category: 'automation',
+        icon: '🔄',
+        tags: JSON.stringify([]),
+        nodes: JSON.stringify([{ id: 'n1', type: 'start', data: { nodeType: 'start' } }]),
+        edges: JSON.stringify([]),
+        settings: JSON.stringify({ autoSave: true }),
+        viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }),
+        version: 1,
+        isTemplate: false,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+      };
+      (mockDb.workflows.get as jest.Mock).mockResolvedValue(dbWorkflow);
+      mockMigrateWorkflowSchema.mockReturnValue({
+        workflow: {
+          id: 'workflow-1',
+          schemaVersion: '2.0',
+          name: 'Legacy Workflow',
+          description: 'legacy',
+          type: 'custom',
+          category: 'automation',
+          icon: '🔄',
+          tags: [],
+          nodes: [{ id: 'n1', type: 'start', data: { nodeType: 'start', isConfigured: true } }],
+          edges: [],
+          settings: { autoSave: true, triggers: [] },
+          viewport: { x: 0, y: 0, zoom: 1 },
+          version: '1',
+          inputs: {},
+          outputs: {},
+          variables: {},
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          isTemplate: false,
+        },
+        migrated: true,
+        fromVersion: '1.0',
+        toVersion: '2.0',
+        warnings: ['normalized workflow schema'],
+      });
+
+      const result = await repo.getById('workflow-1');
+
+      expect(result).toBeDefined();
+      expect(mockDb.workflows.put).toHaveBeenCalledTimes(1);
+      expect(mockDb.workflows.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'workflow-1',
+          settings: expect.any(String),
+          nodes: expect.any(String),
+          edges: expect.any(String),
+        })
+      );
+    });
+
+    it('does not persist workflow on getById when migration has no changes', async () => {
+      const dbWorkflow = {
+        id: 'workflow-2',
+        name: 'Current Workflow',
+        description: 'current',
+        category: 'automation',
+        icon: '🔄',
+        tags: JSON.stringify([]),
+        nodes: JSON.stringify([]),
+        edges: JSON.stringify([]),
+        settings: JSON.stringify({ autoSave: true }),
+        viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }),
+        version: 1,
+        isTemplate: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (mockDb.workflows.get as jest.Mock).mockResolvedValue(dbWorkflow);
+
+      await repo.getById('workflow-2');
+
+      expect(mockDb.workflows.put).not.toHaveBeenCalled();
+    });
   });
 
   // getAll and complex query tests require integration testing with actual Dexie db
+  describe('getAll migration write-back', () => {
+    it('persists only migrated workflows in getAll', async () => {
+      const legacyWorkflow = {
+        id: 'workflow-1',
+        name: 'Legacy',
+        description: 'legacy',
+        category: 'automation',
+        icon: '🔄',
+        tags: JSON.stringify([]),
+        nodes: JSON.stringify([]),
+        edges: JSON.stringify([]),
+        settings: JSON.stringify({ autoSave: true }),
+        viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }),
+        version: 1,
+        isTemplate: false,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+      };
+      const currentWorkflow = {
+        ...legacyWorkflow,
+        id: 'workflow-2',
+        name: 'Current',
+        tags: JSON.stringify(['test', 'automation']),
+        nodes: JSON.stringify(createMockWorkflow({ id: 'workflow-2', name: 'Current' }).nodes),
+        edges: JSON.stringify(createMockWorkflow({ id: 'workflow-2', name: 'Current' }).edges),
+        settings: JSON.stringify(createMockWorkflow({ id: 'workflow-2', name: 'Current' }).settings),
+        viewport: JSON.stringify(createMockWorkflow({ id: 'workflow-2', name: 'Current' }).viewport),
+      };
+      (mockDb.workflows.filter as jest.Mock).mockReturnValue({
+        reverse: jest.fn(() => ({
+          sortBy: jest.fn().mockResolvedValue([legacyWorkflow, currentWorkflow]),
+        })),
+      });
+      mockMigrateWorkflowSchema
+        .mockReturnValueOnce({
+          workflow: {
+            ...createMockWorkflow({ id: 'workflow-1', name: 'Legacy Migrated' }),
+            schemaVersion: '2.0',
+          },
+          migrated: true,
+          fromVersion: '1.0',
+          toVersion: '2.0',
+          warnings: ['migration required'],
+        })
+        .mockReturnValueOnce({
+          workflow: {
+            ...createMockWorkflow({ id: 'workflow-2', name: 'Current' }),
+            schemaVersion: '2.0',
+          },
+          migrated: false,
+          fromVersion: '2.0',
+          toVersion: '2.0',
+          warnings: [],
+        });
+
+      const result = await repo.getAll();
+
+      expect(result).toHaveLength(2);
+      expect(mockDb.workflows.put).toHaveBeenCalledTimes(1);
+      expect(mockDb.workflows.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'workflow-1',
+        })
+      );
+    });
+  });
 
   describe('updateWorkflow', () => {
     it('should update workflow', async () => {
@@ -247,6 +409,34 @@ describe('workflow-repository', () => {
 
       const callArgs = (mockDb.workflows.put as jest.Mock).mock.calls[0][0];
       expect(new Date(callArgs.updatedAt).getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime());
+    });
+  });
+
+  describe('schema version defaults', () => {
+    it('create sets schemaVersion to 2.0', async () => {
+      (mockDb.workflows.add as jest.Mock).mockResolvedValue('workflow-1');
+
+      const result = await repo.create({
+        name: 'Create Workflow',
+      });
+
+      expect(result.schemaVersion).toBe('2.0');
+    });
+
+    it('import sets schemaVersion to 2.0 when source does not provide it', async () => {
+      (mockDb.workflows.add as jest.Mock).mockResolvedValue('workflow-1');
+      const importPayload = JSON.stringify({
+        ...createMockWorkflow({
+          id: 'legacy-id',
+          name: 'Imported Workflow',
+          version: '99',
+        }),
+      });
+
+      const result = await repo.import(importPayload);
+
+      expect(result.schemaVersion).toBe('2.0');
+      expect(result.version).toBe('1');
     });
   });
 

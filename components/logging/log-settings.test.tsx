@@ -1,7 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LogSettings } from './log-settings';
-import { getLoggerConfig, updateLoggerConfig } from '@/lib/logger';
 
 // Mock next-intl
 jest.mock('next-intl', () => ({
@@ -57,22 +56,15 @@ jest.mock('next-intl', () => ({
 }));
 
 // Mock logger functions
-const mockAddTransport = jest.fn();
-const mockRemoveTransport = jest.fn();
-const mockCreateConsoleTransport = jest.fn(() => ({ name: 'console' }));
-const mockCreateIndexedDBTransport = jest.fn((_o?: unknown) => ({ name: 'indexeddb' }));
+const mockApplyLoggingSettings = jest.fn();
+const mockGetLoggingBootstrapState = jest.fn();
 
 jest.mock('@/lib/logger', () => ({
-  getLoggerConfig: jest.fn(),
-  updateLoggerConfig: jest.fn(),
-  addTransport: (t: unknown) => mockAddTransport(t),
-  removeTransport: (n: unknown) => mockRemoveTransport(n),
-  createConsoleTransport: () => mockCreateConsoleTransport(),
-  createIndexedDBTransport: (o?: unknown) => mockCreateIndexedDBTransport(o),
+  getLoggingBootstrapState: (...args: unknown[]) =>
+    (mockGetLoggingBootstrapState as (...innerArgs: unknown[]) => unknown)(...args),
+  applyLoggingSettings: (...args: unknown[]) =>
+    (mockApplyLoggingSettings as (...innerArgs: unknown[]) => unknown)(...args),
 }));
-
-const mockGetLoggerConfig = getLoggerConfig as jest.Mock;
-const mockUpdateLoggerConfig = updateLoggerConfig as jest.Mock;
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -95,7 +87,8 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-const defaultConfig = {
+const defaultBootstrapState = {
+  config: {
   minLevel: 'info',
   includeStackTrace: true,
   includeSource: false,
@@ -105,13 +98,26 @@ const defaultConfig = {
   enableStorage: true,
   enableRemote: false,
   maxStorageEntries: 10000,
+  },
+  transports: {
+    console: true,
+    indexedDB: true,
+    remote: false,
+    langfuse: false,
+    opentelemetry: false,
+  },
+  retention: {
+    maxEntries: 10000,
+    maxAgeDays: 7,
+  },
 };
 
 describe('LogSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
-    mockGetLoggerConfig.mockReturnValue(defaultConfig);
+    mockGetLoggingBootstrapState.mockReturnValue(defaultBootstrapState);
+    mockApplyLoggingSettings.mockImplementation(() => defaultBootstrapState);
   });
 
   describe('Rendering', () => {
@@ -162,41 +168,15 @@ describe('LogSettings', () => {
   });
 
   describe('Configuration Loading', () => {
-    it('loads initial config from getLoggerConfig', () => {
+    it('loads initial config from bootstrap state', () => {
       render(<LogSettings />);
 
-      expect(mockGetLoggerConfig).toHaveBeenCalled();
-    });
-
-    it('loads transport settings from localStorage', () => {
-      const transportSettings = JSON.stringify({
-        console: true,
-        indexedDB: false,
-        langfuse: true,
-      });
-      localStorageMock.getItem.mockReturnValueOnce(transportSettings);
-
-      render(<LogSettings />);
-
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('cognia-logging-transports');
-    });
-
-    it('loads retention settings from localStorage', () => {
-      const retentionSettings = JSON.stringify({
-        maxEntries: 5000,
-        maxAgeDays: 14,
-      });
-      localStorageMock.getItem.mockReturnValueOnce(null); // transports
-      localStorageMock.getItem.mockReturnValueOnce(retentionSettings);
-
-      render(<LogSettings />);
-
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('cognia-logging-retention');
+      expect(mockGetLoggingBootstrapState).toHaveBeenCalled();
     });
   });
 
   describe('Saving Configuration', () => {
-    it('calls updateLoggerConfig when save is clicked', async () => {
+    it('calls applyLoggingSettings when save is clicked', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
 
@@ -210,49 +190,7 @@ describe('LogSettings', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        expect(mockUpdateLoggerConfig).toHaveBeenCalled();
-      });
-    });
-
-    it('saves transport settings to localStorage', async () => {
-      const user = userEvent.setup();
-      render(<LogSettings />);
-
-      // Make a change
-      const switches = screen.getAllByRole('switch');
-      if (switches.length > 0) {
-        await user.click(switches[0]);
-      }
-
-      const saveButton = screen.getByText('Save');
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(localStorageMock.setItem).toHaveBeenCalledWith(
-          'cognia-logging-transports',
-          expect.any(String)
-        );
-      });
-    });
-
-    it('saves retention settings to localStorage', async () => {
-      const user = userEvent.setup();
-      render(<LogSettings />);
-
-      // Make a change
-      const switches = screen.getAllByRole('switch');
-      if (switches.length > 0) {
-        await user.click(switches[0]);
-      }
-
-      const saveButton = screen.getByText('Save');
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(localStorageMock.setItem).toHaveBeenCalledWith(
-          'cognia-logging-retention',
-          expect.any(String)
-        );
+        expect(mockApplyLoggingSettings).toHaveBeenCalled();
       });
     });
 
@@ -361,7 +299,7 @@ describe('LogSettings', () => {
   });
 
   describe('Transport Application', () => {
-    it('calls addTransport for enabled transports on save', async () => {
+    it('applies transport settings on save', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
 
@@ -375,35 +313,16 @@ describe('LogSettings', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        // Console transport should be added (enabled by default)
-        expect(mockAddTransport).toHaveBeenCalled();
-      });
-    });
-
-    it('calls createIndexedDBTransport with retention settings on save', async () => {
-      const user = userEvent.setup();
-      render(<LogSettings />);
-
-      // Make a change
-      const switches = screen.getAllByRole('switch');
-      if (switches.length > 0) {
-        await user.click(switches[0]);
-      }
-
-      const saveButton = screen.getByText('Save');
-      await user.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockCreateIndexedDBTransport).toHaveBeenCalledWith(
+        expect(mockApplyLoggingSettings).toHaveBeenCalledWith(
           expect.objectContaining({
-            maxEntries: expect.any(Number),
-            retentionDays: expect.any(Number),
+            transports: expect.any(Object),
+            retention: expect.any(Object),
           })
         );
       });
     });
 
-    it('calls removeTransport for disabled transports on save', async () => {
+    it('applies logger config and retention settings on save', async () => {
       const user = userEvent.setup();
       render(<LogSettings />);
 
@@ -417,8 +336,15 @@ describe('LogSettings', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        // removeTransport should be called for indexeddb before re-adding
-        expect(mockRemoveTransport).toHaveBeenCalledWith('indexeddb');
+        expect(mockApplyLoggingSettings).toHaveBeenCalledWith(
+          expect.objectContaining({
+            config: expect.any(Object),
+            retention: expect.objectContaining({
+              maxEntries: expect.any(Number),
+              maxAgeDays: expect.any(Number),
+            }),
+          })
+        );
       });
     });
   });

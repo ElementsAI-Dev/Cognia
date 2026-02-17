@@ -31,8 +31,6 @@ export function SandboxSettings() {
     error,
     refreshStatus,
     updateConfig,
-    setRuntime,
-    toggleLanguage,
   } = useSandbox();
 
   const [localConfig, setLocalConfig] = useState<BackendSandboxConfig | null>(null);
@@ -49,17 +47,32 @@ export function SandboxSettings() {
     setIsSaving(true);
     try {
       await updateConfig(localConfig);
+      await refreshStatus();
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleRuntimeChange = async (runtime: RuntimeType) => {
-    await setRuntime(runtime);
+  const handleRuntimeChange = (runtime: RuntimeType) => {
+    setLocalConfig((prev) => prev ? { ...prev, preferred_runtime: runtime } : prev);
   };
 
-  const handleLanguageToggle = async (langId: string, enabled: boolean) => {
-    await toggleLanguage(langId, enabled);
+  const handleLanguageToggle = (langId: string, enabled: boolean) => {
+    setLocalConfig((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const enabledLanguages = new Set(prev.enabled_languages || []);
+      if (enabled) {
+        enabledLanguages.add(langId);
+      } else {
+        enabledLanguages.delete(langId);
+      }
+      return {
+        ...prev,
+        enabled_languages: Array.from(enabledLanguages),
+      };
+    });
   };
 
   if (isLoading) {

@@ -22,12 +22,20 @@ describe('Base Context Types', () => {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        trace: jest.fn(),
+        fatal: jest.fn(),
+        child: jest.fn(),
+        withContext: jest.fn(),
       };
 
       expect(mockLogger.debug).toBeDefined();
       expect(mockLogger.info).toBeDefined();
       expect(mockLogger.warn).toBeDefined();
       expect(mockLogger.error).toBeDefined();
+      expect(mockLogger.trace).toBeDefined();
+      expect(mockLogger.fatal).toBeDefined();
+      expect(mockLogger.child).toBeDefined();
+      expect(mockLogger.withContext).toBeDefined();
     });
 
     it('should call log methods with message and args', () => {
@@ -267,6 +275,7 @@ describe('Base Context Types', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
       };
 
       expect(mockContext.pluginId).toBe('com.example.plugin');
@@ -311,6 +320,7 @@ describe('Base Context Types', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
         python: {
           call: jest.fn(),
           eval: jest.fn(),
@@ -340,6 +350,7 @@ describe('Base Context Types', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
       };
 
       expect(contextWithoutPython.python).toBeUndefined();
@@ -382,6 +393,7 @@ describe('Base Context Types', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
       };
 
       // Simulate plugin usage

@@ -25,12 +25,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
-  getLoggerConfig,
-  updateLoggerConfig,
-  addTransport,
-  removeTransport,
-  createConsoleTransport,
-  createIndexedDBTransport,
+  applyLoggingSettings,
+  getLoggingBootstrapState,
   type LogLevel,
   type UnifiedLoggerConfig,
 } from '@/lib/logger';
@@ -43,10 +39,11 @@ const LOG_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error', 'fata
 
 export function LogSettings({ className }: LogSettingsProps) {
   const t = useTranslations('logging');
+  const bootstrapState = getLoggingBootstrapState();
 
   // Initialize config from current logger settings
   const [config, setConfig] = useState<Partial<UnifiedLoggerConfig>>(() => {
-    const currentConfig = getLoggerConfig();
+    const currentConfig = bootstrapState.config;
     return {
       minLevel: currentConfig.minLevel,
       includeStackTrace: currentConfig.includeStackTrace,
@@ -60,42 +57,10 @@ export function LogSettings({ className }: LogSettingsProps) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // Transport settings (stored separately)
-  const [transports, setTransports] = useState(() => {
-    if (typeof window === 'undefined') {
-      return {
-        console: true,
-        indexedDB: true,
-        remote: false,
-        langfuse: false,
-        opentelemetry: false,
-      };
-    }
-    const stored = localStorage.getItem('cognia-logging-transports');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        // Ignore parse errors
-      }
-    }
-    return { console: true, indexedDB: true, remote: false, langfuse: false, opentelemetry: false };
-  });
+  const [transports, setTransports] = useState(() => bootstrapState.transports);
 
   // Retention settings
-  const [retention, setRetention] = useState(() => {
-    if (typeof window === 'undefined') {
-      return { maxEntries: 10000, maxAgeDays: 7 };
-    }
-    const stored = localStorage.getItem('cognia-logging-retention');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        // Ignore parse errors
-      }
-    }
-    return { maxEntries: 10000, maxAgeDays: 7 };
-  });
+  const [retention, setRetention] = useState(() => bootstrapState.retention);
 
   const handleConfigChange = <K extends keyof UnifiedLoggerConfig>(
     key: K,
@@ -119,37 +84,19 @@ export function LogSettings({ className }: LogSettingsProps) {
     setSaveStatus('saving');
 
     try {
-      // Update logger config
-      updateLoggerConfig(config as UnifiedLoggerConfig);
-
-      // Apply transport changes
-      if (transports.console) {
-        addTransport(createConsoleTransport());
-      } else {
-        removeTransport('console');
-      }
-
-      if (transports.indexedDB) {
-        const idbTransport = createIndexedDBTransport({
-          maxEntries: retention.maxEntries,
-          retentionDays: retention.maxAgeDays,
-        });
-        removeTransport('indexeddb');
-        addTransport(idbTransport);
-      } else {
-        removeTransport('indexeddb');
-      }
-
-      if (!transports.langfuse) {
-        removeTransport('langfuse');
-      }
-      if (!transports.opentelemetry) {
-        removeTransport('opentelemetry');
-      }
-
-      // Store transport and retention settings in localStorage
-      localStorage.setItem('cognia-logging-transports', JSON.stringify(transports));
-      localStorage.setItem('cognia-logging-retention', JSON.stringify(retention));
+      const next = applyLoggingSettings({
+        config,
+        transports,
+        retention,
+        persist: true,
+      });
+      setConfig({
+        minLevel: next.config.minLevel,
+        includeStackTrace: next.config.includeStackTrace,
+        includeSource: next.config.includeSource,
+        bufferSize: next.config.bufferSize,
+        flushInterval: next.config.flushInterval,
+      });
 
       setHasChanges(false);
       setSaveStatus('saved');

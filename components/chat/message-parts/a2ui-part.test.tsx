@@ -7,24 +7,19 @@ import { A2UIPart } from './a2ui-part';
 import type { A2UIPart as A2UIPartType } from '@/types/core/message';
 
 // Mock A2UI hooks
-const mockExtractAndProcess = jest.fn();
+const mockProcessMessage = jest.fn();
 const mockGetSurface = jest.fn();
 
-jest.mock('@/hooks/a2ui', () => ({
-  useA2UI: () => ({
-    extractAndProcess: mockExtractAndProcess,
-    getSurface: mockGetSurface,
-  }),
-}));
-
-// Mock A2UI components
 jest.mock('@/components/a2ui', () => ({
   A2UIInlineSurface: ({ surfaceId }: { surfaceId: string }) => (
     <div data-testid="a2ui-surface" data-surface-id={surfaceId}>
       A2UI Surface
     </div>
   ),
-  hasA2UIContent: (content: string) => content.includes('<a2ui>'),
+  useA2UIMessageIntegration: () => ({
+    processMessage: mockProcessMessage,
+    getSurface: mockGetSurface,
+  }),
 }));
 
 describe('A2UIPart', () => {
@@ -42,6 +37,7 @@ describe('A2UIPart', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockProcessMessage.mockReturnValue('test-surface-1');
     mockGetSurface.mockReturnValue({ id: 'test-surface-1', components: [] });
   });
 
@@ -59,10 +55,10 @@ describe('A2UIPart', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('calls extractAndProcess with part content', () => {
+  it('calls processMessage with part content', () => {
     render(<A2UIPart {...defaultProps} />);
     
-    expect(mockExtractAndProcess).toHaveBeenCalledWith(mockPart.content);
+    expect(mockProcessMessage).toHaveBeenCalledWith(mockPart.content, mockPart.surfaceId);
   });
 
   it('passes surfaceId to A2UIInlineSurface', () => {
@@ -82,7 +78,7 @@ describe('A2UIPart', () => {
     }
   });
 
-  it('does not call extractAndProcess when content has no A2UI', () => {
+  it('still routes content through unified processMessage entry', () => {
     const partWithoutA2UI: A2UIPartType = {
       ...mockPart,
       content: 'Regular content without A2UI',
@@ -90,6 +86,6 @@ describe('A2UIPart', () => {
     
     render(<A2UIPart {...defaultProps} part={partWithoutA2UI} />);
     
-    expect(mockExtractAndProcess).not.toHaveBeenCalled();
+    expect(mockProcessMessage).toHaveBeenCalledWith(partWithoutA2UI.content, partWithoutA2UI.surfaceId);
   });
 });

@@ -28,6 +28,7 @@ import type {
   EmojiCompletionItem,
   MentionCompletionItem,
 } from '@/types/chat/input-completion';
+import type { CompletionMode, CompletionSurface } from '@/types/input-completion';
 import type { MentionItem } from '@/types/mcp';
 import { searchCommands } from '@/lib/chat/slash-command-registry';
 import { searchEmojis } from '@/lib/chat/emoji-data';
@@ -61,8 +62,12 @@ export interface UseInputCompletionUnifiedOptions {
   enableAiCompletion?: boolean;
   /** Callback when AI ghost text is accepted (full or partial) */
   onAiCompletionAccept?: (text: string) => void;
-  /** Enable partial accept (Ctrl+→ word-by-word, Ctrl+↓ line-by-line) */
-  enablePartialAccept?: boolean;
+  /** Callback when hook commits a new text value */
+  onTextCommit?: (text: string) => void;
+  /** Completion request mode hint */
+  mode?: CompletionMode;
+  /** Completion request surface hint */
+  surface?: CompletionSurface;
   /** Recent conversation messages for context-aware AI completion */
   conversationContext?: ConversationMessage[];
 }
@@ -130,7 +135,9 @@ export function useInputCompletionUnified(
     maxSuggestions: maxSuggestionsOverride,
     enableAiCompletion: enableAiOverride,
     onAiCompletionAccept,
-    enablePartialAccept = true,
+    onTextCommit,
+    mode = 'plain_text',
+    surface = 'generic',
     conversationContext,
   } = options;
 
@@ -159,6 +166,7 @@ export function useInputCompletionUnified(
 
   const maxSuggestions = maxSuggestionsOverride ?? settingsStore.maxSuggestions ?? 10;
   const enableAiCompletion = enableAiOverride ?? settingsStore.aiCompletionEnabled ?? true;
+  const enablePartialAccept = settingsStore.enablePartialAccept;
 
   // Check if running in Tauri environment
   const isDesktop = useMemo(() => isTauri(), []);
@@ -172,6 +180,8 @@ export function useInputCompletionUnified(
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const aiDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastAiTriggerRef = useRef<string>('');
+  const aiRequestSequenceRef = useRef(0);
+  const activeAiSuggestionIdRef = useRef<string | null>(null);
 
   // Use existing mention hook for @mention functionality
   const {
@@ -225,6 +235,17 @@ export function useInputCompletionUnified(
     onStateChange?.(state);
   }, [state, onStateChange]);
 
+  // Sync frontend settings as the single source of truth to native runtime config.
+  useEffect(() => {
+    if (!isDesktop) return;
+    nativeCompletion
+      .syncCompletionSettings(settingsStore)
+      .catch((error) => logger.error('Failed to sync native completion config', { error }));
+  }, [
+    isDesktop,
+    settingsStore,
+  ]);
+
   // Initialize AI completion (native on desktop, web provider on web)
   useEffect(() => {
     if (!aiProvider) return;
@@ -268,6 +289,7 @@ export function useInputCompletionUnified(
         if (state.ghostText) {
           setState((prev) => ({ ...prev, ghostText: null }));
         }
+        activeAiSuggestionIdRef.current = null;
         return;
       }
 
@@ -277,36 +299,56 @@ export function useInputCompletionUnified(
       // Avoid duplicate requests
       if (lastAiTriggerRef.current === text) return;
       lastAiTriggerRef.current = text;
+      const requestSeq = ++aiRequestSequenceRef.current;
+      const requestId = `completion-${Date.now()}-${requestSeq}`;
 
       try {
         let suggestionText: string | null = null;
+        let suggestionId: string | null = null;
 
         if (isDesktop) {
           // Native Tauri completion
-          const result = await nativeCompletion.triggerCompletion(text);
+          const result = await nativeCompletion.triggerCompletionV2({
+            request_id: requestId,
+            text,
+            mode,
+            surface,
+          });
+          if (requestSeq !== aiRequestSequenceRef.current) {
+            return;
+          }
           if (result && result.suggestions.length > 0) {
             suggestionText = result.suggestions[0].text;
+            suggestionId = result.suggestions[0].id;
           }
         } else {
           // Web completion provider with conversation context
           const result = await triggerWebCompletion(text, {
-            provider: (settingsStore.aiCompletionProvider as 'openai' | 'groq' | 'ollama' | 'custom') || 'ollama',
+            provider: settingsStore.aiCompletionProvider || 'auto',
             maxTokens: settingsStore.aiCompletionMaxTokens || 64,
             endpoint: settingsStore.aiCompletionEndpoint || undefined,
             apiKey: settingsStore.aiCompletionApiKey || undefined,
             conversationContext,
           });
+          if (requestSeq !== aiRequestSequenceRef.current) {
+            return;
+          }
           if (result && result.suggestions.length > 0) {
             suggestionText = result.suggestions[0].text;
+            suggestionId = result.suggestions[0].id;
           }
         }
 
         if (suggestionText) {
           ghostTextTimestampRef.current = Date.now();
+          activeAiSuggestionIdRef.current = suggestionId;
           setState((prev) => ({
             ...prev,
             ghostText: suggestionText,
           }));
+        } else {
+          activeAiSuggestionIdRef.current = null;
+          setState((prev) => ({ ...prev, ghostText: null }));
         }
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
@@ -314,7 +356,7 @@ export function useInputCompletionUnified(
         }
       }
     },
-    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, settingsStore.aiCompletionEndpoint, settingsStore.aiCompletionApiKey, conversationContext]
+    [isDesktop, aiCompletionActive, aiProvider, state.isOpen, state.ghostText, settingsStore.aiCompletionProvider, settingsStore.aiCompletionMaxTokens, settingsStore.aiCompletionEndpoint, settingsStore.aiCompletionApiKey, conversationContext, mode, surface]
   );
 
   // Detect trigger and update state
@@ -409,12 +451,14 @@ export function useInputCompletionUnified(
       const item = state.items[idx];
 
       if (!item) return;
+      let committedText: string | null = null;
 
       // Handle selection based on item type
       if (item.type === 'mention' && 'data' in item) {
         const mentionItem = item as MentionCompletionItem;
         const result = selectMention(mentionItem.data);
         setCurrentText(result.newText);
+        committedText = result.newText;
       } else if (item.type === 'slash') {
         const slashItem = item as SlashCommandCompletionItem;
         // Replace the /command with the full command
@@ -422,6 +466,7 @@ export function useInputCompletionUnified(
         const afterQuery = currentText.slice(state.triggerPosition + 1 + state.query.length);
         const newText = `${beforeTrigger}/${slashItem.command} ${afterQuery}`;
         setCurrentText(newText);
+        committedText = newText;
       } else if (item.type === 'emoji') {
         const emojiItem = item as EmojiCompletionItem;
         // Replace :query with the actual emoji
@@ -429,6 +474,11 @@ export function useInputCompletionUnified(
         const afterQuery = currentText.slice(state.triggerPosition + 1 + state.query.length);
         const newText = `${beforeTrigger}${emojiItem.emoji}${afterQuery}`;
         setCurrentText(newText);
+        committedText = newText;
+      }
+
+      if (committedText !== null) {
+        onTextCommit?.(committedText);
       }
 
       // Notify callback
@@ -437,7 +487,7 @@ export function useInputCompletionUnified(
       // Close completion
       setState(INITIAL_STATE);
     },
-    [state, currentText, selectMention, onSelect]
+    [state, currentText, selectMention, onSelect, onTextCommit]
   );
 
   // Handle text input change
@@ -474,6 +524,7 @@ export function useInputCompletionUnified(
         // Close completion if no trigger detected
         if (state.isOpen) {
           setState(INITIAL_STATE);
+          activeAiSuggestionIdRef.current = null;
         }
 
         // Trigger AI ghost text completion with debounce
@@ -525,17 +576,25 @@ export function useInputCompletionUnified(
     const accepted = state.ghostText;
     const newText = currentText + accepted;
     setCurrentText(newText);
+    onTextCommit?.(newText);
+    const suggestionId = activeAiSuggestionIdRef.current || `ghost-${ghostTextTimestampRef.current}`;
 
     // Submit feedback to native system
     if (isDesktop && aiCompletionActive) {
       try {
-        await nativeCompletion.acceptSuggestion();
+        if (activeAiSuggestionIdRef.current) {
+          await nativeCompletion.acceptSuggestionV2({
+            suggestion_id: activeAiSuggestionIdRef.current,
+          });
+        } else {
+          await nativeCompletion.acceptSuggestion();
+        }
         const timeToAccept = ghostTextTimestampRef.current > 0
           ? Date.now() - ghostTextTimestampRef.current
           : 0;
         nativeCompletion.submitCompletionFeedback({
           type: 'FullAccept',
-          suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+          suggestion_id: suggestionId,
           time_to_accept_ms: timeToAccept,
         }).catch(() => { /* best-effort */ });
       } catch (error) {
@@ -547,9 +606,10 @@ export function useInputCompletionUnified(
 
     onAiCompletionAccept?.(accepted);
     ghostTextTimestampRef.current = 0;
+    activeAiSuggestionIdRef.current = null;
     setState((prev) => ({ ...prev, ghostText: null }));
     lastAiTriggerRef.current = '';
-  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept, onTextCommit]);
 
   // Accept ghost text word-by-word (Ctrl+→)
   const acceptGhostTextWord = useCallback((): string | null => {
@@ -564,12 +624,14 @@ export function useInputCompletionUnified(
     const remaining = ghost.slice(acceptedPart.length);
     const newText = currentText + acceptedPart;
     setCurrentText(newText);
+    onTextCommit?.(newText);
+    const suggestionId = activeAiSuggestionIdRef.current || `ghost-${ghostTextTimestampRef.current}`;
 
     // Submit partial accept feedback
     if (isDesktop && aiCompletionActive) {
       nativeCompletion.submitCompletionFeedback({
         type: 'PartialAccept',
-        suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+        suggestion_id: suggestionId,
         original_length: ghost.length,
         accepted_length: acceptedPart.length,
       }).catch(() => { /* best-effort */ });
@@ -581,12 +643,13 @@ export function useInputCompletionUnified(
       setState((prev) => ({ ...prev, ghostText: remaining }));
     } else {
       ghostTextTimestampRef.current = 0;
+      activeAiSuggestionIdRef.current = null;
       setState((prev) => ({ ...prev, ghostText: null }));
       lastAiTriggerRef.current = '';
     }
 
     return acceptedPart;
-  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept, onTextCommit]);
 
   // Accept ghost text line-by-line (Ctrl+↓)
   const acceptGhostTextLine = useCallback((): string | null => {
@@ -610,11 +673,13 @@ export function useInputCompletionUnified(
 
     const newText = currentText + acceptedPart;
     setCurrentText(newText);
+    onTextCommit?.(newText);
+    const suggestionId = activeAiSuggestionIdRef.current || `ghost-${ghostTextTimestampRef.current}`;
 
     if (isDesktop && aiCompletionActive) {
       nativeCompletion.submitCompletionFeedback({
         type: 'PartialAccept',
-        suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+        suggestion_id: suggestionId,
         original_length: ghost.length,
         accepted_length: acceptedPart.length,
       }).catch(() => { /* best-effort */ });
@@ -626,26 +691,34 @@ export function useInputCompletionUnified(
       setState((prev) => ({ ...prev, ghostText: remaining }));
     } else {
       ghostTextTimestampRef.current = 0;
+      activeAiSuggestionIdRef.current = null;
       setState((prev) => ({ ...prev, ghostText: null }));
       lastAiTriggerRef.current = '';
     }
 
     return acceptedPart;
-  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept]);
+  }, [state.ghostText, currentText, isDesktop, aiCompletionActive, onAiCompletionAccept, onTextCommit]);
 
   // Dismiss ghost text (Escape)
   const dismissGhostText = useCallback(async () => {
     if (!state.ghostText) return;
+    const suggestionId = activeAiSuggestionIdRef.current || `ghost-${ghostTextTimestampRef.current}`;
 
     if (isDesktop && aiCompletionActive) {
       try {
-        await nativeCompletion.dismissSuggestion();
+        if (activeAiSuggestionIdRef.current) {
+          await nativeCompletion.dismissSuggestionV2({
+            suggestion_id: activeAiSuggestionIdRef.current,
+          });
+        } else {
+          await nativeCompletion.dismissSuggestion();
+        }
         const timeToDismiss = ghostTextTimestampRef.current > 0
           ? Date.now() - ghostTextTimestampRef.current
           : 0;
         nativeCompletion.submitCompletionFeedback({
           type: 'QuickDismiss',
-          suggestion_id: `ghost-${ghostTextTimestampRef.current}`,
+          suggestion_id: suggestionId,
           time_to_dismiss_ms: timeToDismiss,
         }).catch(() => { /* best-effort */ });
       } catch (error) {
@@ -656,6 +729,7 @@ export function useInputCompletionUnified(
     }
 
     ghostTextTimestampRef.current = 0;
+    activeAiSuggestionIdRef.current = null;
     setState((prev) => ({ ...prev, ghostText: null }));
     lastAiTriggerRef.current = '';
   }, [state.ghostText, isDesktop, aiCompletionActive]);

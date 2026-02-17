@@ -64,6 +64,39 @@ jest.mock('@/hooks/agent', () => ({
   useExternalAgent: () => mockUseExternalAgent(),
 }));
 
+jest.mock('./tool-approval-dialog', () => ({
+  ToolApprovalDialog: ({
+    open,
+    request,
+    onApprove,
+    onDeny,
+    onSelectOption,
+    onOpenChange,
+  }: {
+    open: boolean;
+    request: { id: string; toolName: string; acpOptions?: Array<{ optionId: string; name: string }> } | null;
+    onApprove?: (id: string, alwaysAllow?: boolean) => void;
+    onDeny?: (id: string) => void;
+    onSelectOption?: (id: string, optionId: string) => void;
+    onOpenChange?: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div data-testid="tool-approval-dialog">
+        {request?.toolName || 'approval'}
+        <button onClick={() => request && onApprove?.(request.id)}>approve</button>
+        <button onClick={() => request && onDeny?.(request.id)}>deny</button>
+        <button onClick={() => onOpenChange?.(false)}>close</button>
+        <button
+          onClick={() =>
+            request?.acpOptions?.[0] && onSelectOption?.(request.id, request.acpOptions[0].optionId)
+          }
+        >
+          select-option
+        </button>
+      </div>
+    ) : null,
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({
@@ -265,9 +298,11 @@ describe('ExternalAgentManager', () => {
   const baseHookReturn = {
     agents: [],
     activeAgentId: null,
+    activeSession: null,
     isExecuting: false,
     isLoading: false,
     error: null,
+    pendingPermission: null,
     availableCommands: [],
     planEntries: [],
     planStep: null,
@@ -277,10 +312,14 @@ describe('ExternalAgentManager', () => {
     disconnect: jest.fn(),
     execute: jest.fn(),
     setActiveAgent: jest.fn(),
+    respondToPermission: jest.fn(),
     refresh: jest.fn(),
     clearError: jest.fn(),
     configOptions: [],
     setConfigOption: jest.fn(),
+    listSessions: jest.fn().mockResolvedValue([]),
+    forkSession: jest.fn(),
+    resumeSession: jest.fn(),
   };
 
   beforeEach(() => {
@@ -599,5 +638,132 @@ describe('ExternalAgentManager', () => {
         network: { endpoint: 'http://localhost:9999' },
       })
     );
+  });
+
+  it('renders ACP permission dialog and responds with selected option', async () => {
+    const respondToPermission = jest.fn();
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      pendingPermission: {
+        id: 'req-1',
+        requestId: 'req-1',
+        toolInfo: { id: 'tool-1', name: 'write_file' },
+        options: [{ optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' }],
+      },
+      respondToPermission,
+    });
+
+    render(<ExternalAgentManager />);
+
+    expect(screen.getByTestId('tool-approval-dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('select-option'));
+
+    await waitFor(() => {
+      expect(respondToPermission).toHaveBeenCalledWith({
+        requestId: 'req-1',
+        granted: true,
+        optionId: 'allow_once',
+      });
+    });
+  });
+
+  it('falls back to allow option on approve when no default ACP option is marked', async () => {
+    const respondToPermission = jest.fn();
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      pendingPermission: {
+        id: 'req-2',
+        requestId: 'req-2',
+        toolInfo: { id: 'tool-1', name: 'write_file' },
+        options: [
+          { optionId: 'reject_once', name: 'Reject once', kind: 'reject_once' },
+          { optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' },
+        ],
+      },
+      respondToPermission,
+    });
+
+    render(<ExternalAgentManager />);
+
+    fireEvent.click(screen.getByText('approve'));
+
+    await waitFor(() => {
+      expect(respondToPermission).toHaveBeenCalledWith({
+        requestId: 'req-2',
+        granted: true,
+        optionId: 'allow_once',
+      });
+    });
+  });
+
+  it('denies permission when approval dialog is closed', async () => {
+    const respondToPermission = jest.fn();
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      pendingPermission: {
+        id: 'req-3',
+        requestId: 'req-3',
+        toolInfo: { id: 'tool-1', name: 'write_file' },
+        options: [{ optionId: 'allow_once', name: 'Allow once', kind: 'allow_once' }],
+      },
+      respondToPermission,
+    });
+
+    render(<ExternalAgentManager />);
+
+    fireEvent.click(screen.getByText('close'));
+
+    await waitFor(() => {
+      expect(respondToPermission).toHaveBeenCalledWith({
+        requestId: 'req-3',
+        granted: false,
+      });
+    });
+  });
+
+  it('shows session list actions and triggers resume/fork', async () => {
+    const listSessions = jest.fn().mockResolvedValue([{ sessionId: 'session-1', title: 'Session One' }]);
+    const resumeSession = jest.fn();
+    const forkSession = jest.fn();
+
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      activeAgentId: 'agent-1',
+      listSessions,
+      resumeSession,
+      forkSession,
+    });
+
+    render(<ExternalAgentManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session One')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Resume'));
+    fireEvent.click(screen.getByText('Fork'));
+
+    expect(resumeSession).toHaveBeenCalledWith('session-1');
+    expect(forkSession).toHaveBeenCalledWith('session-1');
+  });
+
+  it('hides session extension section when listSessions is unsupported', async () => {
+    const listSessions = jest.fn().mockRejectedValue(new Error('Agent does not support session listing'));
+
+    mockUseExternalAgent.mockReturnValue({
+      ...baseHookReturn,
+      activeAgentId: 'agent-1',
+      listSessions,
+    });
+
+    render(<ExternalAgentManager />);
+
+    await waitFor(() => {
+      expect(listSessions).toHaveBeenCalledWith('agent-1');
+    });
+
+    expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Refresh Sessions')).not.toBeInTheDocument();
   });
 });

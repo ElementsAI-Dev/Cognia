@@ -52,6 +52,7 @@ jest.mock('./use-worker-processor', () => ({
 const mockLoadImage = jest.fn();
 const mockPutImageData = jest.fn();
 const mockLoadImageData = jest.fn();
+const mockResetToOriginal = jest.fn();
 
 jest.mock('./use-image-editor', () => ({
   useImageEditor: jest.fn(() => ({
@@ -66,6 +67,7 @@ jest.mock('./use-image-editor', () => ({
     loadImage: mockLoadImage,
     putImageData: mockPutImageData,
     loadImageData: mockLoadImageData,
+    resetToOriginal: mockResetToOriginal,
     rotate: jest.fn(),
     flipHorizontal: jest.fn(),
     flipVertical: jest.fn(),
@@ -440,9 +442,9 @@ describe('useAdvancedImageEditor', () => {
       expect(result.current.redo).toBeDefined();
     });
 
-    it('should have reset function', () => {
+    it('should have resetToOriginal function', () => {
       const { result } = renderHook(() => useAdvancedImageEditor());
-      expect(result.current.reset).toBeDefined();
+      expect(result.current.resetToOriginal).toBeDefined();
     });
   });
 

@@ -7,8 +7,9 @@
  * for the Socratic Method-based learning mode.
  */
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import {
   GraduationCap,
   HelpCircle,
@@ -28,6 +29,10 @@ import {
   StickyNote,
   History,
   Map,
+  Zap,
+  BookOpen,
+  ExternalLink,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,11 +44,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useLearningMode } from '@/hooks/ui';
 import { useLearningStore } from '@/stores/learning';
+import { useSpeedPassUser } from '@/hooks/learning';
+import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
+import { useSessionStore } from '@/stores/chat';
+import { buildFeatureNavigationUrl, getFeatureRouteById } from '@/lib/ai/routing';
 import { LearningStatisticsPanel } from './learning-statistics-panel';
 import { LearningNotesPanel } from './learning-notes-panel';
 import { LearningHistoryPanel } from './learning-history-panel';
 import { LearningPathDashboard } from './learning-path-dashboard';
 import type { LearningPhase, LearningSubQuestion, LearningGoal } from '@/types/learning';
+import type { LearningSubMode } from '@/types/core/session';
 
 const PHASE_ICONS: Record<LearningPhase, React.ReactNode> = {
   clarification: <HelpCircle className="h-4 w-4" />,
@@ -71,6 +81,7 @@ export const LearningModePanel = memo(function LearningModePanel({
   className,
 }: LearningModePanelProps) {
   const t = useTranslations('learningMode');
+  const router = useRouter();
   const {
     learningSession,
     isLearningActive,
@@ -90,12 +101,66 @@ export const LearningModePanel = memo(function LearningModePanel({
   const [activeTab, setActiveTab] = useState('progress');
   const { getAchievements } = useLearningStore();
   const achievements = getAchievements();
+  const speedPassStore = useSpeedPassStore();
+  const { todayProgress, profile } = useSpeedPassUser();
+  const activeChatSession = useSessionStore((state) =>
+    state.sessions.find((s) => s.id === state.activeSessionId)
+  );
+  const updateSession = useSessionStore((state) => state.updateSession);
+  const speedPassRoute = useMemo(() => getFeatureRouteById('speedpass'), []);
+  const currentSubMode: LearningSubMode = activeChatSession?.learningContext?.subMode || 'socratic';
+  const activeSpeedPassTutorial = speedPassStore.currentTutorialId
+    ? speedPassStore.tutorials[speedPassStore.currentTutorialId]
+    : undefined;
+  const shouldShowSpeedPassPanel = currentSubMode === 'speedpass';
+  const recommendedMode =
+    activeChatSession?.learningContext?.speedpassContext?.recommendedMode || profile.preferredMode;
+
+  const navigateToSpeedPass = useCallback(
+    (message: string) => {
+      if (!speedPassRoute) {
+        router.push('/speedpass');
+        return;
+      }
+
+      const textbookId =
+        speedPassStore.currentTextbookId || Object.keys(speedPassStore.textbooks)[0] || undefined;
+      const url = buildFeatureNavigationUrl(speedPassRoute, { message, textbookId });
+      router.push(url);
+    },
+    [router, speedPassRoute, speedPassStore.currentTextbookId, speedPassStore.textbooks]
+  );
 
   const handleEndLearning = useCallback(() => {
     endLearning();
   }, [endLearning]);
 
-  if (!isLearningActive || !learningSession) {
+  const handleSubModeSwitch = useCallback(
+    (subMode: LearningSubMode) => {
+      if (!activeChatSession) {
+        return;
+      }
+
+      updateSession(activeChatSession.id, {
+        learningContext: {
+          subMode,
+          speedpassContext:
+            subMode === 'speedpass'
+              ? {
+                  ...activeChatSession.learningContext?.speedpassContext,
+                  recommendedMode:
+                    activeChatSession.learningContext?.speedpassContext?.recommendedMode ||
+                    profile.preferredMode,
+                  updatedAt: new Date(),
+                }
+              : activeChatSession.learningContext?.speedpassContext,
+        },
+      });
+    },
+    [activeChatSession, updateSession, profile.preferredMode]
+  );
+
+  if (!shouldShowSpeedPassPanel && (!isLearningActive || !learningSession)) {
     return (
       <Card className={cn('flex flex-col items-center justify-center p-6 relative', className)}>
         {onClose && (
@@ -123,12 +188,108 @@ export const LearningModePanel = memo(function LearningModePanel({
             </Button>
           )}
         </div>
-        <CardDescription className="line-clamp-2">{learningSession.topic}</CardDescription>
-        <p className="text-xs text-muted-foreground mt-1">{getStatusLine()}</p>
+        <CardDescription className="line-clamp-2">
+          {shouldShowSpeedPassPanel ? 'SpeedPass 快速备考子模式' : learningSession?.topic}
+        </CardDescription>
+        <p className="text-xs text-muted-foreground mt-1">
+          {shouldShowSpeedPassPanel
+            ? `今日学习 ${todayProgress.studyMinutes}/${todayProgress.targetMinutes} 分钟`
+            : getStatusLine()}
+        </p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col gap-2 overflow-hidden p-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <div className="mx-4 mt-2 grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            variant={currentSubMode === 'socratic' ? 'default' : 'outline'}
+            onClick={() => handleSubModeSwitch('socratic')}
+          >
+            <GraduationCap className="h-3.5 w-3.5 mr-1" />
+            Socratic
+          </Button>
+          <Button
+            size="sm"
+            variant={currentSubMode === 'speedpass' ? 'default' : 'outline'}
+            onClick={() => handleSubModeSwitch('speedpass')}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1" />
+            SpeedPass
+          </Button>
+        </div>
+
+        {shouldShowSpeedPassPanel ? (
+          <div className="flex-1 overflow-auto p-4">
+            <div className="space-y-4">
+              <Card className="border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    SpeedPass 快捷面板
+                  </CardTitle>
+                  <CardDescription>
+                    推荐模式：{recommendedMode} · 今日目标 {profile.dailyStudyTarget} 分钟
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>今日进度</span>
+                      <span>{todayProgress.percentage}%</span>
+                    </div>
+                    <Progress value={todayProgress.percentage} className="h-2" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigateToSpeedPass('继续速通过程教程')}
+                      className="text-xs"
+                    >
+                      <BookOpen className="h-3.5 w-3.5 mr-1" />
+                      继续教程
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigateToSpeedPass('开始刷题测验')}
+                      className="text-xs"
+                    >
+                      <Brain className="h-3.5 w-3.5 mr-1" />
+                      开始刷题
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => navigateToSpeedPass('打开 speedpass 工作台')}
+                      className="text-xs"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      打开工作台
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">教材数量</p>
+                    <p className="text-lg font-semibold">{Object.keys(speedPassStore.textbooks).length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">当前教程</p>
+                    <p className="text-sm font-medium line-clamp-1">
+                      {activeSpeedPassTutorial?.title || '暂无教程'}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList
             className="grid w-full grid-cols-5 mx-4 mt-2"
             style={{ width: 'calc(100% - 2rem)' }}
@@ -271,7 +432,7 @@ export const LearningModePanel = memo(function LearningModePanel({
                           <SubQuestionItem
                             key={sq.id}
                             subQuestion={sq}
-                            isActive={sq.id === learningSession.currentSubQuestionId}
+                            isActive={sq.id === learningSession?.currentSubQuestionId}
                           />
                         ))
                       )}
@@ -297,14 +458,14 @@ export const LearningModePanel = memo(function LearningModePanel({
 
             <TabsContent value="stats" className="h-full mt-2 overflow-auto">
               <ScrollArea className="h-full">
-                <LearningStatisticsPanel session={learningSession} achievements={achievements} />
+                <LearningStatisticsPanel session={learningSession!} achievements={achievements} />
               </ScrollArea>
             </TabsContent>
 
             <TabsContent value="notes" className="h-full mt-2">
               <LearningNotesPanel
-                sessionId={learningSession.id}
-                notes={learningSession.notes}
+                sessionId={learningSession!.id}
+                notes={learningSession!.notes}
                 className="h-full border-0 shadow-none"
               />
             </TabsContent>
@@ -322,6 +483,7 @@ export const LearningModePanel = memo(function LearningModePanel({
             </TabsContent>
           </div>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );

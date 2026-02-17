@@ -5,6 +5,20 @@
 import { renderHook, act } from '@testing-library/react';
 import { useInputCompletionUnified } from './use-input-completion-unified';
 import type { CompletionProviderType } from '@/types/chat/input-completion';
+import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
+import { DEFAULT_COMPLETION_SETTINGS } from '@/types/chat/input-completion';
+
+const mockTriggerWebCompletion = jest.fn();
+const mockCancelWebCompletion = jest.fn();
+
+jest.mock('@/lib/ai/completion/web-completion-provider', () => ({
+  triggerWebCompletion: (...args: unknown[]) => mockTriggerWebCompletion(...args),
+  cancelWebCompletion: () => mockCancelWebCompletion(),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  isTauri: () => false,
+}));
 
 // Mock useMention hook
 const mockHandleMentionChange = jest.fn();
@@ -90,6 +104,13 @@ jest.mock('@/lib/logger', () => {
 describe('useInputCompletionUnified', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useCompletionSettingsStore.setState({ ...DEFAULT_COMPLETION_SETTINGS });
+    mockTriggerWebCompletion.mockResolvedValue({
+      suggestions: [],
+      latency_ms: 0,
+      model: 'test-model',
+      cached: false,
+    });
   });
 
   describe('initialization', () => {
@@ -394,6 +415,40 @@ describe('useInputCompletionUnified', () => {
 
       expect(result.current.state.isOpen).toBe(false);
     });
+
+    it('should commit selected slash command to controlled text', () => {
+      const onTextCommit = jest.fn();
+      const { result } = renderHook(() =>
+        useInputCompletionUnified({ onTextCommit })
+      );
+
+      act(() => {
+        result.current.handleInputChange('/help', 5);
+      });
+
+      act(() => {
+        result.current.selectItem(0);
+      });
+
+      expect(onTextCommit).toHaveBeenCalledWith('/help ');
+    });
+
+    it('should commit selected emoji to controlled text', () => {
+      const onTextCommit = jest.fn();
+      const { result } = renderHook(() =>
+        useInputCompletionUnified({ onTextCommit })
+      );
+
+      act(() => {
+        result.current.handleInputChange(':smi', 4);
+      });
+
+      act(() => {
+        result.current.selectItem(0);
+      });
+
+      expect(onTextCommit).toHaveBeenCalledWith('😊');
+    });
   });
 
   describe('closeCompletion', () => {
@@ -512,6 +567,185 @@ describe('useInputCompletionUnified', () => {
 
       // Ghost text is null, so no change expected
       expect(result.current.currentText).toBe('hello');
+    });
+
+    it('should route web completion provider with auto when configured', async () => {
+      jest.useFakeTimers();
+      useCompletionSettingsStore.setState({
+        aiCompletionEnabled: true,
+        aiCompletionProvider: 'auto',
+      });
+      mockTriggerWebCompletion.mockResolvedValue({
+        suggestions: [
+          {
+            id: 'auto-1',
+            text: ' world',
+            display_text: ' world',
+            confidence: 0.9,
+            completion_type: 'Line',
+          },
+        ],
+        latency_ms: 12,
+        model: 'auto-model',
+        cached: false,
+      });
+
+      const { result } = renderHook(() =>
+        useInputCompletionUnified({
+          enableAiCompletion: true,
+          providers: [{ type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true, debounceMs: 1, minContextLength: 1 }],
+        })
+      );
+
+      act(() => {
+        result.current.handleInputChange('hello', 5);
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+
+      expect(mockTriggerWebCompletion).toHaveBeenCalledWith(
+        'hello',
+        expect.objectContaining({ provider: 'auto' })
+      );
+      jest.useRealTimers();
+    });
+
+    it('should ignore stale AI responses and keep latest ghost text', async () => {
+      jest.useFakeTimers();
+      let resolveFirst: ((value: unknown) => void) | undefined;
+      let resolveSecond: ((value: unknown) => void) | undefined;
+      mockTriggerWebCompletion
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve;
+            })
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveSecond = resolve;
+            })
+        );
+
+      const { result } = renderHook(() =>
+        useInputCompletionUnified({
+          enableAiCompletion: true,
+          providers: [{ type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true, debounceMs: 1, minContextLength: 1 }],
+        })
+      );
+
+      act(() => {
+        result.current.handleInputChange('first', 5);
+      });
+      act(() => {
+        result.current.triggerAiCompletion();
+      });
+
+      act(() => {
+        result.current.handleInputChange('second', 6);
+      });
+      act(() => {
+        result.current.triggerAiCompletion();
+      });
+
+      await act(async () => {
+        resolveSecond?.({
+          suggestions: [
+            {
+              id: 'new',
+              text: ' latest',
+              display_text: ' latest',
+              confidence: 0.9,
+              completion_type: 'Line',
+            },
+          ],
+          latency_ms: 9,
+          model: 'test',
+          cached: false,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state.ghostText).toBe(' latest');
+
+      await act(async () => {
+        resolveFirst?.({
+          suggestions: [
+            {
+              id: 'old',
+              text: ' stale',
+              display_text: ' stale',
+              confidence: 0.9,
+              completion_type: 'Line',
+            },
+          ],
+          latency_ms: 20,
+          model: 'test',
+          cached: false,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state.ghostText).toBe(' latest');
+      jest.useRealTimers();
+    });
+
+    it('should honor settings store toggle for partial accept', async () => {
+      jest.useFakeTimers();
+      useCompletionSettingsStore.setState({
+        aiCompletionEnabled: true,
+        enablePartialAccept: false,
+      });
+      mockTriggerWebCompletion.mockResolvedValue({
+        suggestions: [
+          {
+            id: 'ghost-1',
+            text: ' world',
+            display_text: ' world',
+            confidence: 0.9,
+            completion_type: 'Line',
+          },
+        ],
+        latency_ms: 10,
+        model: 'model',
+        cached: false,
+      });
+
+      const { result } = renderHook(() =>
+        useInputCompletionUnified({
+          enableAiCompletion: true,
+          providers: [{ type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true, debounceMs: 1, minContextLength: 1 }],
+        })
+      );
+
+      act(() => {
+        result.current.handleInputChange('hello', 5);
+      });
+      act(() => {
+        result.current.triggerAiCompletion();
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.state.ghostText).toBe(' world');
+
+      const event = new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true });
+      Object.defineProperty(event, 'preventDefault', { value: jest.fn() });
+
+      let handled = true;
+      act(() => {
+        handled = result.current.handleKeyDown(event);
+      });
+
+      expect(handled).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(result.current.state.ghostText).toBe(' world');
+      jest.useRealTimers();
     });
   });
 

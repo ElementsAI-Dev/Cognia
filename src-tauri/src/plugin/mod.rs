@@ -5,6 +5,7 @@
 pub mod manager;
 pub mod python;
 pub mod types;
+pub mod api_gateway;
 
 pub use manager::{PluginManager, PythonPluginInfo, PythonRuntimeInfo};
 pub use types::*;

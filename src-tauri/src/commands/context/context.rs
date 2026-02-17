@@ -6,7 +6,47 @@ use crate::context::{
     AppContext, BrowserContext, ContextManager, EditorContext, FileContext, FullContext,
     ScreenContent, UiElement, WindowInfo,
 };
+use crate::commands::media::ocr::OcrState;
+use crate::screenshot::ocr_provider::DocumentHint;
+use crate::screenshot::{OcrOptions, OcrProviderType, ScreenshotCapture, UnifiedOcrResult};
+use log::warn;
 use tauri::State;
+
+async fn extract_ocr_result(
+    ocr_state: &State<'_, OcrState>,
+    image_data: &[u8],
+    language: Option<String>,
+    provider: Option<OcrProviderType>,
+) -> Option<UnifiedOcrResult> {
+    let options = OcrOptions {
+        language,
+        document_hint: Some(DocumentHint::Screenshot),
+        word_level: false,
+        ..Default::default()
+    };
+
+    let manager = ocr_state.manager.read().clone();
+
+    let ocr_result = if let Some(provider) = provider {
+        manager.extract_text(Some(provider), image_data, &options).await
+    } else {
+        manager
+            .extract_text_with_fallback(
+                image_data,
+                &options,
+                &[OcrProviderType::WindowsOcr, OcrProviderType::Tesseract],
+            )
+            .await
+    };
+
+    match ocr_result {
+        Ok(result) => Some(result),
+        Err(error) => {
+            warn!("Screen OCR failed, continuing with UIA-only analysis: {}", error);
+            None
+        }
+    }
+}
 
 /// Get full context information
 #[tauri::command]
@@ -147,13 +187,36 @@ pub async fn context_get_element_at(
 #[tauri::command]
 pub async fn context_analyze_screen(
     manager: State<'_, ContextManager>,
+    ocr_state: State<'_, OcrState>,
     image_data: Vec<u8>,
     width: u32,
     height: u32,
+    provider: Option<OcrProviderType>,
+    language: Option<String>,
 ) -> Result<ScreenContent, String> {
+    let ocr_result = extract_ocr_result(&ocr_state, &image_data, language, provider).await;
     manager
         .get_screen_analyzer()
-        .analyze(&image_data, width, height)
+        .analyze_with_ocr_result(width, height, ocr_result.as_ref())
+}
+
+/// Capture active window and analyze screen content without screenshot side effects
+#[tauri::command]
+pub async fn context_capture_and_analyze_active_window(
+    manager: State<'_, ContextManager>,
+    ocr_state: State<'_, OcrState>,
+    provider: Option<OcrProviderType>,
+    language: Option<String>,
+) -> Result<ScreenContent, String> {
+    let capture = ScreenshotCapture::new();
+    let screenshot = capture.capture_active_window()?;
+
+    let ocr_result = extract_ocr_result(&ocr_state, &screenshot.image_data, language, provider).await;
+    manager.get_screen_analyzer().analyze_with_ocr_result(
+        screenshot.metadata.width,
+        screenshot.metadata.height,
+        ocr_result.as_ref(),
+    )
 }
 
 /// Clear screen content analysis cache

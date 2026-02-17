@@ -7,6 +7,7 @@
 export {
   parseA2UIMessage,
   parseA2UIMessages,
+  parseA2UIInput,
   parseA2UIString,
   parseA2UIJsonl,
   detectA2UIContent,
@@ -18,6 +19,8 @@ export {
   isDeleteSurfaceMessage,
   isSurfaceReadyMessage,
   type A2UIParseResult,
+  type A2UIUnifiedParseResult,
+  type A2UIParseInputOptions,
 } from './parser';
 
 // Data Model

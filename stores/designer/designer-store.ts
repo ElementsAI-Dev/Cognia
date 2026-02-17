@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import { parseCodeToAst } from '@/lib/designer/elements';
+import type { FrameworkType } from '@/lib/designer';
 import type {
   DesignerElement,
   ViewportSize,
@@ -48,6 +49,7 @@ export interface CustomViewportDimensions {
 interface DesignerState {
   // Mode
   mode: DesignerMode;
+  framework: FrameworkType;
 
   // Selected element
   selectedElementId: string | null;
@@ -102,6 +104,7 @@ interface DesignerState {
 interface DesignerActions {
   // Mode
   setMode: (mode: DesignerMode) => void;
+  setFramework: (framework: FrameworkType) => void;
 
   // Selection
   selectElement: (id: string | null) => void;
@@ -127,6 +130,14 @@ interface DesignerActions {
 
   // Code
   setCode: (code: string, addToHistory?: boolean) => void;
+  applyCodeChange: (
+    code: string,
+    options?: {
+      addToHistory?: boolean;
+      parse?: boolean;
+    }
+  ) => Promise<void>;
+  restoreCodeAndParse: (code: string) => Promise<void>;
   syncCodeFromElements: () => void;
   parseCodeToElements: (code: string) => Promise<void>;
 
@@ -173,6 +184,7 @@ interface DesignerActions {
 
 const initialState: DesignerState = {
   mode: 'preview',
+  framework: 'react',
   selectedElementId: null,
   hoveredElementId: null,
   elementTree: null,
@@ -339,6 +351,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
 
   // Mode
   setMode: (mode) => set({ mode }),
+  setFramework: (framework) => set({ framework }),
 
   // Selection
   selectElement: (id) => set({ selectedElementId: id }),
@@ -534,6 +547,21 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
     set({ code, isDirty: false });
   },
 
+  applyCodeChange: async (code, options) => {
+    const { addToHistory = true, parse = true } = options ?? {};
+    const { setCode, parseCodeToElements } = get();
+    setCode(code, addToHistory);
+    if (parse) {
+      await parseCodeToElements(code);
+    }
+  },
+
+  restoreCodeAndParse: async (code) => {
+    const { setCode, parseCodeToElements } = get();
+    setCode(code, false);
+    await parseCodeToElements(code);
+  },
+
   syncCodeFromElements: () => {
     const { elementTree, code } = get();
     if (!elementTree) return;
@@ -556,23 +584,23 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
 
   // History
   undo: () => {
-    const { history, historyIndex, setCode } = get();
+    const { history, historyIndex, restoreCodeAndParse } = get();
     if (historyIndex < 0) return;
 
     const entry = history[historyIndex];
     if (entry) {
-      setCode(entry.previousCode, false);
+      void restoreCodeAndParse(entry.previousCode);
       set({ historyIndex: historyIndex - 1 });
     }
   },
 
   redo: () => {
-    const { history, historyIndex, setCode } = get();
+    const { history, historyIndex, restoreCodeAndParse } = get();
     if (historyIndex >= history.length - 1) return;
 
     const entry = history[historyIndex + 1];
     if (entry) {
-      setCode(entry.newCode, false);
+      void restoreCodeAndParse(entry.newCode);
       set({ historyIndex: historyIndex + 1 });
     }
   },
@@ -673,6 +701,7 @@ export const useDesignerStore = create<DesignerState & DesignerActions>()(
       partialize: (state) => ({
         // Only persist user preferences, not transient state
         mode: state.mode,
+        framework: state.framework,
         viewport: state.viewport,
         zoom: state.zoom,
         showElementTree: state.showElementTree,

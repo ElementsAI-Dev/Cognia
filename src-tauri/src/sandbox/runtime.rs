@@ -5,6 +5,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 use thiserror::Error;
 
@@ -255,6 +256,7 @@ pub struct ExecutionConfig {
     pub cpu_limit_percent: u64,
     pub network_enabled: bool,
     pub max_output_size: usize,
+    pub workspace_dir: Option<PathBuf>,
 }
 
 /// Sandbox runtime trait - implemented by Docker, Podman, Native
@@ -546,6 +548,7 @@ impl SandboxManager {
             cpu_limit_percent: cpu_percent,
             network_enabled,
             max_output_size: self.config.max_output_size,
+            workspace_dir: self.config.workspace_dir.clone(),
         };
 
         log::debug!(
@@ -1062,6 +1065,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+            workspace_dir: None,
         };
 
         assert_eq!(config.timeout.as_secs(), 30);
@@ -1079,6 +1083,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: true,
             max_output_size: 1024,
+            workspace_dir: None,
         };
 
         let cloned = config.clone();

@@ -3,6 +3,7 @@
 //! Monitors mouse events to detect when the user finishes selecting text.
 
 use parking_lot::RwLock;
+#[cfg(not(mobile))]
 use rdev::{Event, EventType};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -66,6 +67,7 @@ impl MouseHook {
         }
     }
 
+    #[cfg(not(mobile))]
     /// Start the mouse hook
     pub fn start(&self) -> Result<(), String> {
         log::debug!("[MouseHook] start() called");
@@ -180,6 +182,14 @@ impl MouseHook {
         Ok(())
     }
 
+    #[cfg(mobile)]
+    /// Start the mouse hook (mobile no-op fallback)
+    pub fn start(&self) -> Result<(), String> {
+        log::info!("[MouseHook] Global mouse hook is unsupported on mobile");
+        self.is_running.store(false, Ordering::SeqCst);
+        Ok(())
+    }
+
     /// Stop the mouse hook
     /// Note: Due to rdev limitations, the listener thread cannot be forcefully terminated.
     /// This method sets a flag to ignore future events and marks the hook as stopped.
@@ -238,11 +248,17 @@ impl Default for MouseHook {
 }
 
 /// Get current mouse position
+#[cfg(not(mobile))]
 fn get_mouse_position() -> (f64, f64) {
     match mouse_position::mouse_position::Mouse::get_mouse_position() {
         mouse_position::mouse_position::Mouse::Position { x, y } => (x as f64, y as f64),
         mouse_position::mouse_position::Mouse::Error => (0.0, 0.0),
     }
+}
+
+#[cfg(mobile)]
+fn get_mouse_position() -> (f64, f64) {
+    (0.0, 0.0)
 }
 
 #[cfg(test)]

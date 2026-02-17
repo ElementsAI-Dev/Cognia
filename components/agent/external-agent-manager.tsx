@@ -7,7 +7,7 @@
  * Provides interface for adding, connecting, and monitoring external agents.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Plus,
   RefreshCw,
@@ -46,9 +46,11 @@ import { useExternalAgent } from '@/hooks/agent';
 import { ExternalAgentCommands } from './external-agent-commands';
 import { ExternalAgentPlan } from './external-agent-plan';
 import { ExternalAgentConfigOptions } from './external-agent-config-options';
+import { ToolApprovalDialog } from './tool-approval-dialog';
 import type {
   ExternalAgentConfig,
   ExternalAgentConnectionStatus,
+  AcpPermissionOption,
 } from '@/types/agent/external-agent';
 import {
   EXTERNAL_AGENT_PRESETS,
@@ -395,12 +397,17 @@ export interface ExternalAgentManagerProps {
 
 export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [sessionList, setSessionList] = useState<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>>([]);
+  const [supportsSessionExtensions, setSupportsSessionExtensions] = useState(true);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const {
     agents,
     activeAgentId,
+    activeSession,
     isExecuting,
     isLoading,
     error,
+    pendingPermission,
     availableCommands,
     planEntries,
     planStep,
@@ -411,7 +418,11 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
     disconnect,
     execute,
     setActiveAgent,
+    respondToPermission,
     setConfigOption,
+    listSessions,
+    forkSession,
+    resumeSession,
     refresh,
     clearError,
   } = useExternalAgent();
@@ -471,6 +482,110 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
     },
     [execute]
   );
+
+  const refreshSessions = useCallback(async () => {
+    if (!activeAgentId) {
+      setSessionList([]);
+      return;
+    }
+    setIsLoadingSessions(true);
+    try {
+      const sessions = await listSessions(activeAgentId);
+      setSessionList(sessions);
+      setSupportsSessionExtensions(true);
+    } catch {
+      setSupportsSessionExtensions(false);
+      setSessionList([]);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  }, [activeAgentId, listSessions]);
+
+  const handleResumeSession = useCallback(
+    async (sessionId: string) => {
+      await resumeSession(sessionId);
+      await refreshSessions();
+    },
+    [resumeSession, refreshSessions]
+  );
+
+  const handleForkSession = useCallback(
+    async (sessionId: string) => {
+      await forkSession(sessionId);
+      await refreshSessions();
+    },
+    [forkSession, refreshSessions]
+  );
+
+  const mapAcpOptions = useCallback((options?: AcpPermissionOption[]) => {
+    return options?.map((option) => ({
+      optionId: option.optionId,
+      name: option.name,
+      description: option.description,
+      kind: option.kind,
+      isDefault: option.isDefault,
+    }));
+  }, []);
+
+  const buildPermissionResponseRequestId = useCallback(() => {
+    if (!pendingPermission) return '';
+    return pendingPermission.requestId || pendingPermission.id;
+  }, [pendingPermission]);
+
+  const pickAllowOptionId = useCallback((options?: AcpPermissionOption[]): string | undefined => {
+    if (!options?.length) {
+      return undefined;
+    }
+    const defaultAllow = options.find((opt) => opt.isDefault && opt.kind.toLowerCase().includes('allow'));
+    if (defaultAllow) {
+      return defaultAllow.optionId;
+    }
+    const allowOnce = options.find((opt) => opt.kind.toLowerCase().includes('allow_once'));
+    if (allowOnce) {
+      return allowOnce.optionId;
+    }
+    return options.find((opt) => opt.kind.toLowerCase().includes('allow'))?.optionId;
+  }, []);
+
+  const handlePermissionApprove = useCallback(async () => {
+    if (!pendingPermission) return;
+    const requestId = buildPermissionResponseRequestId();
+    await respondToPermission({
+      requestId,
+      granted: true,
+      optionId: pickAllowOptionId(pendingPermission.options),
+    });
+  }, [pendingPermission, respondToPermission, buildPermissionResponseRequestId, pickAllowOptionId]);
+
+  const handlePermissionDeny = useCallback(async () => {
+    if (!pendingPermission) return;
+    const requestId = buildPermissionResponseRequestId();
+    await respondToPermission({
+      requestId,
+      granted: false,
+    });
+  }, [pendingPermission, respondToPermission, buildPermissionResponseRequestId]);
+
+  const handlePermissionSelectOption = useCallback(
+    async (_id: string, optionId: string) => {
+      if (!pendingPermission) return;
+      const requestId = buildPermissionResponseRequestId();
+      await respondToPermission({
+        requestId,
+        granted: true,
+        optionId,
+      });
+    },
+    [pendingPermission, respondToPermission, buildPermissionResponseRequestId]
+  );
+
+  useEffect(() => {
+    if (!activeAgentId) {
+      setSessionList([]);
+      return;
+    }
+    void refreshSessions();
+  }, [activeAgentId, refreshSessions]);
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
@@ -542,6 +657,50 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
         )}
       </ScrollArea>
 
+      {/* Session Management (ACP extension) */}
+      {activeAgentId && supportsSessionExtensions && (
+        <div className="rounded-md border p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-medium">Sessions</div>
+            <Button variant="outline" size="sm" onClick={refreshSessions} disabled={isLoadingSessions}>
+              {isLoadingSessions ? 'Loading...' : 'Refresh Sessions'}
+            </Button>
+          </div>
+          {sessionList.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No resumable sessions discovered.</p>
+          ) : (
+            <div className="space-y-2">
+              {sessionList.map((session) => (
+                <div key={session.sessionId} className="flex items-center justify-between rounded border px-2 py-1.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium">{session.title || session.sessionId}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{session.sessionId}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleResumeSession(session.sessionId)}
+                      disabled={isExecuting || activeSession?.id === session.sessionId}
+                    >
+                      Resume
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleForkSession(session.sessionId)}
+                      disabled={isExecuting}
+                    >
+                      Fork
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Config Options */}
       {configOptions.length > 0 && (
         <ExternalAgentConfigOptions
@@ -567,6 +726,37 @@ export function ExternalAgentManager({ className }: ExternalAgentManagerProps) {
 
       {/* Add Agent Dialog */}
       <AddAgentDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} onAdd={handleAddAgent} />
+
+      {/* ACP Permission Dialog */}
+      <ToolApprovalDialog
+        request={
+          pendingPermission
+            ? {
+                id: pendingPermission.requestId || pendingPermission.id,
+                toolName: pendingPermission.title || pendingPermission.toolInfo.name,
+                toolDescription: pendingPermission.reason || pendingPermission.toolInfo.description || '',
+                args: pendingPermission.rawInput || {},
+                riskLevel: pendingPermission.riskLevel === 'critical' ? 'high' : pendingPermission.riskLevel || 'medium',
+                acpOptions: mapAcpOptions(pendingPermission.options),
+              }
+            : null
+        }
+        open={!!pendingPermission}
+        onOpenChange={(open) => {
+          if (!open && pendingPermission) {
+            void handlePermissionDeny();
+          }
+        }}
+        onApprove={() => {
+          void handlePermissionApprove();
+        }}
+        onDeny={() => {
+          void handlePermissionDeny();
+        }}
+        onSelectOption={(id, optionId) => {
+          void handlePermissionSelectOption(id, optionId);
+        }}
+      />
     </div>
   );
 }

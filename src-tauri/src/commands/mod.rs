@@ -10,8 +10,10 @@ pub mod input_completion;
 pub mod media;
 pub mod providers;
 pub mod scheduler;
+pub mod speedpass_runtime;
 pub mod storage;
 pub mod system;
+pub mod workflow_runtime;
 pub mod window;
 
 // Standalone module (already organized)

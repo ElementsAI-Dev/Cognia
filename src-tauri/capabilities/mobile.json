@@ -1,0 +1,28 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mobile",
+  "description": "enables minimal mobile permissions",
+  "platforms": [
+    "android",
+    "iOS"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:default",
+    "notification:default",
+    "log:default",
+    "os:default",
+    "opener:default",
+    "geolocation:allow-get-current-position",
+    "geolocation:allow-watch-position",
+    "geolocation:allow-clear-watch",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "deep-link:default",
+    "stronghold:default"
+  ]
+}

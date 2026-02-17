@@ -40,6 +40,20 @@ export type WorkflowExecutionStatus =
   | 'failed'
   | 'cancelled';
 
+export type WorkflowRuntimeSource = 'browser' | 'tauri';
+
+export type WorkflowCodeRuntime = 'auto' | 'docker' | 'podman' | 'native';
+
+export interface WorkflowCodeSandboxOptions {
+  runtime?: WorkflowCodeRuntime;
+  timeoutMs?: number;
+  memoryLimitMb?: number;
+  networkEnabled?: boolean;
+  env?: Record<string, string>;
+  args?: string[];
+  files?: Record<string, string>;
+}
+
 /**
  * Input/Output schema for workflow steps
  */
@@ -66,7 +80,33 @@ export type WorkflowStepType =
   | 'webhook'
   | 'delay'
   | 'merge'
-  | 'subworkflow';
+  | 'subworkflow'
+  | 'knowledgeRetrieval'
+  | 'parameterExtractor'
+  | 'variableAggregator'
+  | 'questionClassifier'
+  | 'templateTransform'
+  | 'chart'
+  | 'lineChart'
+  | 'barChart'
+  | 'pieChart'
+  | 'areaChart'
+  | 'scatterChart'
+  | 'radarChart';
+
+export interface WorkflowVariableReference {
+  nodeId: string;
+  variableName: string;
+  variablePath?: string[];
+}
+
+export interface WorkflowChartSeriesConfig {
+  dataKey: string;
+  name: string;
+  color?: string;
+  type?: 'line' | 'bar' | 'area';
+  stackId?: string;
+}
 
 /**
  * Workflow step definition
@@ -83,11 +123,16 @@ export interface WorkflowStepDefinition {
   dependencies?: string[];
   optional?: boolean;
   retryCount?: number;
+  continueOnFail?: boolean;
   timeout?: number;
+  errorBranch?: 'stop' | 'continue' | 'fallback';
+  fallbackOutput?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   condition?: string;
   // Code step specific
   code?: string;
-  language?: 'javascript' | 'typescript' | 'python';
+  language?: string;
+  codeSandbox?: WorkflowCodeSandboxOptions;
   // Transform step specific
   transformType?: 'map' | 'filter' | 'reduce' | 'sort' | 'custom';
   expression?: string;
@@ -114,6 +159,45 @@ export interface WorkflowStepDefinition {
   workflowId?: string;
   inputMapping?: Record<string, string>;
   outputMapping?: Record<string, string>;
+  // Dify-inspired step specific
+  queryVariable?: WorkflowVariableReference | null;
+  knowledgeBaseIds?: string[];
+  retrievalMode?: 'single' | 'multiple';
+  topK?: number;
+  scoreThreshold?: number;
+  rerankingEnabled?: boolean;
+  rerankingModel?: string;
+  model?: string;
+  instruction?: string;
+  inputVariable?: WorkflowVariableReference | null;
+  parameters?: Array<{
+    name: string;
+    type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+    description: string;
+    required: boolean;
+    enumValues?: string[];
+  }>;
+  variableRefs?: WorkflowVariableReference[];
+  aggregationMode?: 'first' | 'last' | 'array' | 'merge';
+  outputVariableName?: string;
+  classes?: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
+  template?: string;
+  outputType?: 'string' | 'json';
+  // Chart step specific
+  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter' | 'radar' | 'composed';
+  title?: string;
+  xAxisKey?: string;
+  yAxisKey?: string;
+  series?: WorkflowChartSeriesConfig[];
+  showLegend?: boolean;
+  showGrid?: boolean;
+  showTooltip?: boolean;
+  stacked?: boolean;
+  aspectRatio?: number;
 }
 
 /**
@@ -121,6 +205,7 @@ export interface WorkflowStepDefinition {
  */
 export interface WorkflowDefinition {
   id: string;
+  schemaVersion?: string;
   name: string;
   description: string;
   type: WorkflowType;
@@ -185,6 +270,9 @@ export interface WorkflowExecution {
   duration?: number;
   error?: string;
   logs: WorkflowLog[];
+  runtime?: WorkflowRuntimeSource;
+  triggerId?: string;
+  isReplay?: boolean;
   metadata?: Record<string, unknown>;
 }
 

@@ -193,6 +193,7 @@ export function WorkflowToolbar({
               variant="default"
               size="sm"
               className="h-9 gap-1"
+              data-testid="workflow-run-button"
               onClick={handleRun}
               disabled={!currentWorkflow || hasErrors}
             >
@@ -574,6 +575,7 @@ export function WorkflowToolbar({
                   variant="default"
                   size="sm"
                   className="h-8 gap-1"
+                  data-testid="workflow-run-button"
                   onClick={handleRun}
                   disabled={!currentWorkflow || hasErrors}
                 >
@@ -696,7 +698,13 @@ export function WorkflowToolbar({
           <VariableManagerPanel />
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Triggers">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Triggers"
+                data-testid="workflow-open-trigger-sheet"
+              >
                 <Zap className="h-4 w-4" />
               </Button>
             </SheetTrigger>

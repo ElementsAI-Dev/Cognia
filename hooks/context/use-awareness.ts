@@ -5,90 +5,32 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
+import * as awarenessApi from '@/lib/native/awareness';
+import type {
+  ActivityStats,
+  AppUsageStats,
+  AwarenessState,
+  DailyUsageSummary,
+  FocusSession,
+  Suggestion,
+  SystemState,
+  UserActivity,
+} from '@/lib/native/awareness';
 
 const log = loggers.native;
 
-export interface SystemState {
-  cpu_usage: number;
-  memory_usage: number;
-  memory_total: number;
-  memory_available: number;
-  disk_usage: number;
-  disk_total: number;
-  disk_available: number;
-  battery_level?: number;
-  is_charging?: boolean;
-  power_mode: string;
-  uptime_seconds: number;
-  process_count: number;
-  network_connected: boolean;
-}
-
-export interface Suggestion {
-  id: string;
-  suggestion_type: string;
-  title: string;
-  description: string;
-  action?: string;
-  priority: number;
-  expires_at?: number;
-}
-
-export interface AwarenessState {
-  system: SystemState;
-  recent_activities: UserActivity[];
-  suggestions: Suggestion[];
-  timestamp: number;
-}
-
-export interface UserActivity {
-  id: string;
-  activity_type: string;
-  timestamp: number;
-  app_name?: string;
-  window_title?: string;
-  content?: string;
-  metadata: Record<string, string>;
-}
-
-export interface FocusSession {
-  app_name: string;
-  process_name: string;
-  window_title: string;
-  start_time: number;
-  end_time?: number;
-  duration_ms: number;
-  is_active: boolean;
-}
-
-export interface AppUsageStats {
-  app_name: string;
-  total_time_ms: number;
-  session_count: number;
-  avg_session_ms: number;
-  last_used: number;
-  common_titles: string[];
-}
-
-export interface DailyUsageSummary {
-  date: string;
-  total_active_ms: number;
-  by_app: Record<string, number>;
-  top_apps: [string, number][];
-  switch_count: number;
-}
-
-export interface ActivityStats {
-  total_activities: number;
-  activities_last_hour: number;
-  activities_last_day: number;
-  most_common_type: string | null;
-  most_used_application: string | null;
-  activity_counts: Record<string, number>;
-}
+export type {
+  ActivityStats,
+  AppUsageStats,
+  AwarenessState,
+  DailyUsageSummary,
+  FocusSession,
+  Suggestion,
+  SystemState,
+  UserActivity,
+};
 
 export function useAwareness() {
   const [state, setState] = useState<AwarenessState | null>(null);
@@ -101,7 +43,7 @@ export function useAwareness() {
 
     setIsLoading(true);
     try {
-      const result = await invoke<AwarenessState>('awareness_get_state');
+      const result = await awarenessApi.getState();
       setState(result);
       return result;
     } catch (err) {
@@ -116,7 +58,7 @@ export function useAwareness() {
     if (!isTauri()) return null;
 
     try {
-      const result = await invoke<SystemState>('awareness_get_system_state');
+      const result = await awarenessApi.getSystemState();
       setSystemState(result);
       return result;
     } catch (err) {
@@ -129,7 +71,7 @@ export function useAwareness() {
     if (!isTauri()) return [];
 
     try {
-      const result = await invoke<Suggestion[]>('awareness_get_suggestions');
+      const result = await awarenessApi.getSuggestions();
       setSuggestions(result);
       return result;
     } catch (err) {
@@ -149,13 +91,7 @@ export function useAwareness() {
       if (!isTauri()) return;
 
       try {
-        await invoke('awareness_record_activity', {
-          activityType,
-          appName,
-          windowTitle,
-          content,
-          metadata,
-        });
+        await awarenessApi.recordActivity(activityType, appName, windowTitle, content, metadata);
       } catch (err) {
         log.error('Failed to record activity', err as Error);
       }
@@ -163,11 +99,11 @@ export function useAwareness() {
     []
   );
 
-  const getRecentActivities = useCallback(async (count?: number) => {
+  const getRecentActivities = useCallback(async (count?: number): Promise<UserActivity[]> => {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<UserActivity[]>('awareness_get_recent_activities', { count });
+      return await awarenessApi.getRecentActivities(count);
     } catch (err) {
       log.error('Failed to get recent activities', err as Error);
       return [];
@@ -178,7 +114,7 @@ export function useAwareness() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_start_monitoring');
+      await awarenessApi.startMonitoring();
     } catch (err) {
       log.error('Failed to start monitoring', err as Error);
     }
@@ -188,7 +124,7 @@ export function useAwareness() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_stop_monitoring');
+      await awarenessApi.stopMonitoring();
     } catch (err) {
       log.error('Failed to stop monitoring', err as Error);
     }
@@ -198,7 +134,7 @@ export function useAwareness() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_clear_history');
+      await awarenessApi.clearHistory();
     } catch (err) {
       log.error('Failed to clear history', err as Error);
     }
@@ -211,49 +147,55 @@ export function useAwareness() {
 
     const interval = setInterval(() => {
       fetchSystemState();
-    }, 10000); // Refresh system state every 10 seconds
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [fetchState, fetchSystemState, fetchSuggestions]);
 
-  const getActivitiesByType = useCallback(async (activityType: string) => {
+  const getActivitiesByType = useCallback(async (activityType: string): Promise<UserActivity[]> => {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<UserActivity[]>('awareness_get_activities_by_type', { activityType });
+      return await awarenessApi.getActivitiesByType(activityType);
     } catch (err) {
       log.error('Failed to get activities by type', err as Error);
       return [];
     }
   }, []);
 
-  const getActivitiesInRange = useCallback(async (startMs: number, endMs: number) => {
-    if (!isTauri()) return [];
+  const getActivitiesInRange = useCallback(
+    async (startMs: number, endMs: number): Promise<UserActivity[]> => {
+      if (!isTauri()) return [];
 
-    try {
-      return await invoke<UserActivity[]>('awareness_get_activities_in_range', { startMs, endMs });
-    } catch (err) {
-      log.error('Failed to get activities in range', err as Error);
-      return [];
-    }
-  }, []);
+      try {
+        return await awarenessApi.getActivitiesInRange(startMs, endMs);
+      } catch (err) {
+        log.error('Failed to get activities in range', err as Error);
+        return [];
+      }
+    },
+    []
+  );
 
-  const getActivitiesByApplication = useCallback(async (appName: string) => {
-    if (!isTauri()) return [];
+  const getActivitiesByApplication = useCallback(
+    async (appName: string): Promise<UserActivity[]> => {
+      if (!isTauri()) return [];
 
-    try {
-      return await invoke<UserActivity[]>('awareness_get_activities_by_application', { appName });
-    } catch (err) {
-      log.error('Failed to get activities by application', err as Error);
-      return [];
-    }
-  }, []);
+      try {
+        return await awarenessApi.getActivitiesByApplication(appName);
+      } catch (err) {
+        log.error('Failed to get activities by application', err as Error);
+        return [];
+      }
+    },
+    []
+  );
 
-  const getActivityStats = useCallback(async () => {
+  const getActivityStats = useCallback(async (): Promise<ActivityStats | null> => {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<ActivityStats>('awareness_get_activity_stats');
+      return await awarenessApi.getActivityStats();
     } catch (err) {
       log.error('Failed to get activity stats', err as Error);
       return null;
@@ -264,7 +206,7 @@ export function useAwareness() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_set_activity_tracking_enabled', { enabled });
+      await awarenessApi.setActivityTrackingEnabled(enabled);
     } catch (err) {
       log.error('Failed to set activity tracking enabled', err as Error);
     }
@@ -274,7 +216,7 @@ export function useAwareness() {
     if (!isTauri()) return true;
 
     try {
-      return await invoke<boolean>('awareness_is_activity_tracking_enabled');
+      return await awarenessApi.isActivityTrackingEnabled();
     } catch (err) {
       log.error('Failed to check activity tracking enabled', err as Error);
       return true;
@@ -285,7 +227,7 @@ export function useAwareness() {
     if (!isTauri()) return '';
 
     try {
-      return await invoke<string>('awareness_export_activity_history');
+      return await awarenessApi.exportActivityHistory();
     } catch (err) {
       log.error('Failed to export activity history', err as Error);
       return '';
@@ -296,42 +238,46 @@ export function useAwareness() {
     if (!isTauri()) return 0;
 
     try {
-      return await invoke<number>('awareness_import_activity_history', { json });
+      return await awarenessApi.importActivityHistory(json);
     } catch (err) {
       log.error('Failed to import activity history', err as Error);
       return 0;
     }
   }, []);
 
-  const dismissSuggestion = useCallback(async (action: string) => {
-    if (!isTauri()) return;
+  const dismissSuggestion = useCallback(
+    async (action: string) => {
+      if (!isTauri()) return;
 
-    try {
-      await invoke('awareness_dismiss_suggestion', { action });
-      // Refresh suggestions after dismissing
-      await fetchSuggestions();
-    } catch (err) {
-      log.error('Failed to dismiss suggestion', err as Error);
-    }
-  }, [fetchSuggestions]);
+      try {
+        await awarenessApi.dismissSuggestion(action);
+        await fetchSuggestions();
+      } catch (err) {
+        log.error('Failed to dismiss suggestion', err as Error);
+      }
+    },
+    [fetchSuggestions]
+  );
 
-  const clearDismissedSuggestions = useCallback(async () => {
-    if (!isTauri()) return;
+  const clearDismissedSuggestions = useCallback(
+    async () => {
+      if (!isTauri()) return;
 
-    try {
-      await invoke('awareness_clear_dismissed_suggestions');
-      // Refresh suggestions after clearing
-      await fetchSuggestions();
-    } catch (err) {
-      log.error('Failed to clear dismissed suggestions', err as Error);
-    }
-  }, [fetchSuggestions]);
+      try {
+        await awarenessApi.clearDismissedSuggestions();
+        await fetchSuggestions();
+      } catch (err) {
+        log.error('Failed to clear dismissed suggestions', err as Error);
+      }
+    },
+    [fetchSuggestions]
+  );
 
   const isSuggestionDismissed = useCallback(async (action: string) => {
     if (!isTauri()) return false;
 
     try {
-      return await invoke<boolean>('awareness_is_suggestion_dismissed', { action });
+      return await awarenessApi.isSuggestionDismissed(action);
     } catch (err) {
       log.error('Failed to check suggestion dismissed', err as Error);
       return false;
@@ -342,7 +288,7 @@ export function useAwareness() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<string[]>('awareness_get_dismissed_suggestions');
+      return await awarenessApi.getDismissedSuggestions();
     } catch (err) {
       log.error('Failed to get dismissed suggestions', err as Error);
       return [];
@@ -362,7 +308,6 @@ export function useAwareness() {
     startMonitoring,
     stopMonitoring,
     clearHistory,
-    // Extended activity tracker methods
     getActivitiesByType,
     getActivitiesInRange,
     getActivitiesByApplication,
@@ -371,7 +316,6 @@ export function useAwareness() {
     isActivityTrackingEnabled,
     exportActivityHistory,
     importActivityHistory,
-    // Extended suggestion methods
     dismissSuggestion,
     clearDismissedSuggestions,
     isSuggestionDismissed,
@@ -390,7 +334,7 @@ export function useFocusTracking() {
     if (!isTauri()) return false;
 
     try {
-      const result = await invoke<boolean>('awareness_is_focus_tracking');
+      const result = await awarenessApi.isFocusTracking();
       setIsTracking(result);
       return result;
     } catch (err) {
@@ -403,7 +347,7 @@ export function useFocusTracking() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_start_focus_tracking');
+      await awarenessApi.startFocusTracking();
       setIsTracking(true);
     } catch (err) {
       log.error('Failed to start focus tracking', err as Error);
@@ -414,7 +358,7 @@ export function useFocusTracking() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_stop_focus_tracking');
+      await awarenessApi.stopFocusTracking();
       setIsTracking(false);
     } catch (err) {
       log.error('Failed to stop focus tracking', err as Error);
@@ -426,11 +370,7 @@ export function useFocusTracking() {
       if (!isTauri()) return;
 
       try {
-        await invoke('awareness_record_focus_change', {
-          appName,
-          processName,
-          windowTitle,
-        });
+        await awarenessApi.recordFocusChange(appName, processName, windowTitle);
       } catch (err) {
         log.error('Failed to record focus change', err as Error);
       }
@@ -442,7 +382,7 @@ export function useFocusTracking() {
     if (!isTauri()) return null;
 
     try {
-      const result = await invoke<FocusSession | null>('awareness_get_current_focus');
+      const result = await awarenessApi.getCurrentFocus();
       setCurrentFocus(result);
       return result;
     } catch (err) {
@@ -455,7 +395,7 @@ export function useFocusTracking() {
     if (!isTauri()) return [];
 
     try {
-      const result = await invoke<FocusSession[]>('awareness_get_recent_focus_sessions', { count });
+      const result = await awarenessApi.getRecentFocusSessions(count);
       setRecentSessions(result);
       return result;
     } catch (err) {
@@ -468,7 +408,7 @@ export function useFocusTracking() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<AppUsageStats | null>('awareness_get_app_usage_stats', { appName });
+      return await awarenessApi.getAppUsageStats(appName);
     } catch (err) {
       log.error('Failed to get app stats', err as Error);
       return null;
@@ -479,7 +419,7 @@ export function useFocusTracking() {
     if (!isTauri()) return [];
 
     try {
-      const result = await invoke<AppUsageStats[]>('awareness_get_all_app_usage_stats');
+      const result = await awarenessApi.getAllAppUsageStats();
       setAppStats(result);
       return result;
     } catch (err) {
@@ -492,7 +432,7 @@ export function useFocusTracking() {
     if (!isTauri()) return null;
 
     try {
-      const result = await invoke<DailyUsageSummary>('awareness_get_today_usage_summary');
+      const result = await awarenessApi.getTodayUsageSummary();
       setTodaySummary(result);
       return result;
     } catch (err) {
@@ -505,7 +445,7 @@ export function useFocusTracking() {
     if (!isTauri()) return null;
 
     try {
-      return await invoke<DailyUsageSummary>('awareness_get_daily_usage_summary', { date });
+      return await awarenessApi.getDailyUsageSummary(date);
     } catch (err) {
       log.error('Failed to get daily summary', err as Error);
       return null;
@@ -516,7 +456,7 @@ export function useFocusTracking() {
     if (!isTauri()) return;
 
     try {
-      await invoke('awareness_clear_focus_history');
+      await awarenessApi.clearFocusHistory();
       setRecentSessions([]);
       setAppStats([]);
       setTodaySummary(null);
@@ -551,7 +491,7 @@ export function useFocusTracking() {
     if (!isTauri()) return [];
 
     try {
-      return await invoke<FocusSession[]>('awareness_get_all_focus_sessions');
+      return await awarenessApi.getAllFocusSessions();
     } catch (err) {
       log.error('Failed to get all focus sessions', err as Error);
       return [];
@@ -562,7 +502,7 @@ export function useFocusTracking() {
     if (!isTauri()) return 0;
 
     try {
-      return await invoke<number>('awareness_get_focus_session_count');
+      return await awarenessApi.getFocusSessionCount();
     } catch (err) {
       log.error('Failed to get focus session count', err as Error);
       return 0;
@@ -585,8 +525,8 @@ export function useFocusTracking() {
     fetchTodaySummary,
     fetchDailySummary,
     clearFocusHistory,
-    // Extended focus tracking methods
     fetchAllSessions,
     getSessionCount,
   };
 }
+

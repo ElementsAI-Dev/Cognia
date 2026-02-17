@@ -57,6 +57,12 @@ export type {
   PluginSource,
   PluginPermission,
   PluginAPIPermission,
+  PluginApiErrorCode,
+  PluginApiError,
+  PluginHostCompatInfo,
+  PluginHostInvokeResponse,
+  PluginHostInvokeOptions,
+  PluginHostTransport,
   /** @deprecated Use PluginAPIPermission instead */
   ExtendedPluginPermission,
 } from './core';
@@ -70,6 +76,8 @@ export type {
   PluginConfigSchema,
   PluginConfigProperty,
   PluginActivationEvent,
+  PluginScheduledTaskDef,
+  PluginManifestTaskTrigger,
 } from './manifest';
 
 // =============================================================================
@@ -123,6 +131,15 @@ export { ModeTemplates } from './modes';
 export type {
   PluginMessage,
   PluginHooks,
+  PromptAttachment,
+  PromptSubmitContext,
+  PromptSubmitResult,
+  PreToolUseResult,
+  PostToolUseResult,
+  PreCompactContext,
+  PreCompactResult,
+  ChatResponseData,
+  PostChatReceiveResult,
   HookPriority,
   HookRegistrationOptions,
   HookSandboxExecutionResult,
@@ -323,6 +340,23 @@ export type {
 
 // Extended Context
 export type {
+  // Core domain types
+  ChatMode,
+  PluginUIAttachment,
+  PluginUIMessage,
+  PluginSession,
+  CreateSessionInput,
+  UpdateSessionInput,
+  PluginProject,
+  CreateProjectInput,
+  UpdateProjectInput,
+  KnowledgeFile,
+  PluginArtifact,
+  ArtifactMetadata,
+  CanvasDocumentVersion,
+  CanvasSuggestion,
+  ExportData,
+  ExtensionComponent,
   // Session API
   SessionFilter,
   MessageQueryOptions,

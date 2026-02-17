@@ -43,11 +43,15 @@ impl std::fmt::Display for KernelStatus {
 
 /// Kernel configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct KernelConfig {
     pub timeout_secs: u64,
     pub max_output_size: usize,
     pub startup_timeout_secs: u64,
     pub idle_timeout_secs: u64,
+    pub max_kernels: usize,
+    pub verbose: bool,
+    pub auto_install_packages: bool,
 }
 
 /// Python REPL wrapper script that runs as a persistent process.
@@ -67,6 +71,7 @@ except ImportError:
     pass
 
 _ns = {"__builtins__": __builtins__}
+AUTO_INSTALL_PACKAGES = os.environ.get("COGNIA_AUTO_INSTALL_PACKAGES", "0") == "1"
 
 def _capture_plots():
     dd = []
@@ -148,7 +153,7 @@ def _exec_code(code):
         _run_tree(tree)
     except (ImportError, ModuleNotFoundError) as e:
         mod_name = e.name if hasattr(e, 'name') and e.name else str(e).split("'")[1] if "'" in str(e) else None
-        if mod_name and _auto_install(mod_name):
+        if AUTO_INSTALL_PACKAGES and mod_name and _auto_install(mod_name):
             print(f"[auto-installed '{mod_name}', retrying...]")
             _run_tree(tree)
         else:
@@ -291,18 +296,16 @@ impl JupyterKernel {
             warn!("Kernel {}: Could not detect Python version", self.id);
         }
 
-        // Check if ipykernel is installed
+        // Explicit install policy: kernel startup validates dependency, but never installs.
         debug!("Kernel {}: Checking ipykernel installation", self.id);
-        if !self.check_ipykernel_installed(&python_path)? {
-            info!(
-                "Kernel {}: ipykernel not found, attempting installation",
-                self.id
+        if !self.check_ipykernel_installed_async(&python_path).await? {
+            self.status = KernelStatus::Dead;
+            return Err(
+                "ipykernel is not installed in the selected environment. Run jupyter_ensure_kernel first."
+                    .to_string(),
             );
-            self.install_ipykernel(&python_path)?;
-            info!("Kernel {}: ipykernel installed successfully", self.id);
-        } else {
-            debug!("Kernel {}: ipykernel already installed", self.id);
         }
+        debug!("Kernel {}: ipykernel is installed", self.id);
 
         // Write the REPL script to a temp file
         let temp_dir = std::env::temp_dir();
@@ -318,6 +321,14 @@ impl JupyterKernel {
         // Spawn persistent Python REPL process with piped I/O
         let mut child = TokioCommand::new(&python_path)
             .args(["-u", script_path.to_str().unwrap_or("cognia_repl.py")])
+            .env(
+                "COGNIA_AUTO_INSTALL_PACKAGES",
+                if self.config.auto_install_packages {
+                    "1"
+                } else {
+                    "0"
+                },
+            )
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -339,6 +350,34 @@ impl JupyterKernel {
         self.stdout_reader = Some(BufReader::new(stdout));
         self.script_path = Some(script_path);
 
+        // Startup handshake: ensure REPL is responsive within configured timeout.
+        let startup_exec_id = uuid::Uuid::new_v4().to_string();
+        let startup_cmd = serde_json::json!({
+            "action": "get_variables",
+            "exec_id": startup_exec_id
+        });
+
+        if let Some(stdin) = self.stdin_handle.as_mut() {
+            Self::send_command(stdin, &startup_cmd).await?;
+        }
+
+        let startup_timeout = Duration::from_secs(self.config.startup_timeout_secs.max(1));
+        let startup_result = if let Some(reader) = self.stdout_reader.as_mut() {
+            Self::read_result(reader, startup_timeout, self.config.max_output_size).await
+        } else {
+            Err("Kernel process not started".to_string())
+        };
+
+        if let Err(err) = startup_result {
+            error!(
+                "Kernel {} startup handshake failed (timeout={}s): {}",
+                self.id, self.config.startup_timeout_secs, err
+            );
+            self.status = KernelStatus::Dead;
+            let _ = self.stop().await;
+            return Err(format!("Kernel startup handshake failed: {}", err));
+        }
+
         self.status = KernelStatus::Idle;
         self.last_activity_at = Some(chrono::Utc::now());
         info!(
@@ -352,6 +391,25 @@ impl JupyterKernel {
     /// Execute Python code in the persistent REPL process.
     /// Variables and state persist across calls within the same kernel.
     pub async fn execute(&mut self, code: &str) -> Result<super::KernelExecutionResult, String> {
+        let timeout = Duration::from_secs(self.config.timeout_secs.max(1));
+        self.execute_with_timeout_duration(code, timeout).await
+    }
+
+    /// Execute Python code with an explicit timeout in milliseconds.
+    pub async fn execute_with_timeout_ms(
+        &mut self,
+        code: &str,
+        timeout_ms: u64,
+    ) -> Result<super::KernelExecutionResult, String> {
+        let timeout = Duration::from_millis(timeout_ms.max(1));
+        self.execute_with_timeout_duration(code, timeout).await
+    }
+
+    async fn execute_with_timeout_duration(
+        &mut self,
+        code: &str,
+        timeout: Duration,
+    ) -> Result<super::KernelExecutionResult, String> {
         let code_preview = if code.len() > 100 {
             format!("{}...", &code[..100])
         } else {
@@ -404,7 +462,6 @@ impl JupyterKernel {
         Self::send_command(stdin, &cmd).await?;
 
         // Read result from persistent REPL stdout
-        let timeout = Duration::from_secs(self.config.timeout_secs);
         let max_output = self.config.max_output_size;
         let reader = self
             .stdout_reader
@@ -603,7 +660,12 @@ impl JupyterKernel {
 
         tokio::time::timeout(timeout_duration, read_future)
             .await
-            .map_err(|_| format!("Execution timed out after {}s", timeout_duration.as_secs()))?
+            .map_err(|_| {
+                format!(
+                    "Execution timed out after {}ms",
+                    timeout_duration.as_millis()
+                )
+            })?
     }
 
     /// Get Python executable path
@@ -650,19 +712,21 @@ impl JupyterKernel {
     }
 
     /// Check if ipykernel is installed
-    fn check_ipykernel_installed(&self, python_path: &str) -> Result<bool, String> {
+    async fn check_ipykernel_installed_async(&self, python_path: &str) -> Result<bool, String> {
         trace!("Kernel {}: Checking if ipykernel is installed", self.id);
         let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
+            TokioCommand::new("cmd")
                 .args([
                     "/C",
                     &format!("\"{}\" -c \"import ipykernel\"", python_path),
                 ])
                 .output()
+                .await
         } else {
-            Command::new(python_path)
+            TokioCommand::new(python_path)
                 .args(["-c", "import ipykernel"])
                 .output()
+                .await
         };
 
         match output {
@@ -679,82 +743,6 @@ impl JupyterKernel {
                     "Kernel {}: Failed to check ipykernel installation: {}",
                     self.id, e
                 );
-                Err(e.to_string())
-            }
-        }
-    }
-
-    /// Install ipykernel in the environment
-    fn install_ipykernel(&self, python_path: &str) -> Result<(), String> {
-        info!("Kernel {}: Installing ipykernel", self.id);
-        // Try using uv first, then pip
-        debug!("Kernel {}: Attempting installation via uv", self.id);
-        let uv_result = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args([
-                    "/C",
-                    &format!("uv pip install ipykernel --python \"{}\"", python_path),
-                ])
-                .output()
-        } else {
-            Command::new("sh")
-                .args([
-                    "-c",
-                    &format!("uv pip install ipykernel --python '{}'", python_path),
-                ])
-                .output()
-        };
-
-        if let Ok(out) = uv_result {
-            if out.status.success() {
-                info!(
-                    "Kernel {}: ipykernel installed successfully via uv",
-                    self.id
-                );
-                return Ok(());
-            }
-            debug!(
-                "Kernel {}: uv installation failed, stderr: {}",
-                self.id,
-                String::from_utf8_lossy(&out.stderr)
-            );
-        } else {
-            debug!("Kernel {}: uv command not available", self.id);
-        }
-
-        // Fallback to pip
-        info!(
-            "Kernel {}: Falling back to pip for ipykernel installation",
-            self.id
-        );
-        let pip_result = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args([
-                    "/C",
-                    &format!("\"{}\" -m pip install ipykernel", python_path),
-                ])
-                .output()
-        } else {
-            Command::new(python_path)
-                .args(["-m", "pip", "install", "ipykernel"])
-                .output()
-        };
-
-        match pip_result {
-            Ok(out) if out.status.success() => {
-                info!(
-                    "Kernel {}: ipykernel installed successfully via pip",
-                    self.id
-                );
-                Ok(())
-            }
-            Ok(out) => {
-                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                error!("Kernel {}: pip installation failed: {}", self.id, stderr);
-                Err(stderr)
-            }
-            Err(e) => {
-                error!("Kernel {}: pip command execution failed: {}", self.id, e);
                 Err(e.to_string())
             }
         }
@@ -1022,6 +1010,9 @@ mod tests {
         let config = KernelConfig::default();
         assert_eq!(config.timeout_secs, 60);
         assert_eq!(config.max_output_size, 1024 * 1024);
+        assert_eq!(config.max_kernels, 32);
+        assert!(!config.verbose);
+        assert!(!config.auto_install_packages);
     }
 
     #[test]

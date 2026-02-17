@@ -207,18 +207,18 @@ pub async fn sandbox_toggle_language(
     enabled: bool,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    let mut config = state.config.write().await;
-
-    if enabled {
-        if !config.enabled_languages.contains(&language) {
-            config.enabled_languages.push(language);
-        }
-    } else {
-        config.enabled_languages.retain(|l| l != &language);
-    }
-
-    drop(config);
-    state.save_config().await.map_err(|e| e.to_string())
+    state
+        .patch_config(|config| {
+            if enabled {
+                if !config.enabled_languages.contains(&language) {
+                    config.enabled_languages.push(language.clone());
+                }
+            } else {
+                config.enabled_languages.retain(|l| l != &language);
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Set preferred runtime
@@ -227,10 +227,12 @@ pub async fn sandbox_set_runtime(
     runtime: RuntimeType,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    let mut config = state.config.write().await;
-    config.preferred_runtime = runtime;
-    drop(config);
-    state.save_config().await.map_err(|e| e.to_string())
+    state
+        .patch_config(|config| {
+            config.preferred_runtime = runtime;
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Set default timeout
@@ -239,10 +241,12 @@ pub async fn sandbox_set_timeout(
     timeout_secs: u64,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    let mut config = state.config.write().await;
-    config.default_timeout_secs = timeout_secs;
-    drop(config);
-    state.save_config().await.map_err(|e| e.to_string())
+    state
+        .patch_config(|config| {
+            config.default_timeout_secs = timeout_secs;
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Set memory limit
@@ -251,10 +255,12 @@ pub async fn sandbox_set_memory_limit(
     memory_mb: u64,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    let mut config = state.config.write().await;
-    config.default_memory_limit_mb = memory_mb;
-    drop(config);
-    state.save_config().await.map_err(|e| e.to_string())
+    state
+        .patch_config(|config| {
+            config.default_memory_limit_mb = memory_mb;
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Set network access
@@ -263,10 +269,12 @@ pub async fn sandbox_set_network(
     enabled: bool,
     state: State<'_, SandboxState>,
 ) -> Result<(), String> {
-    let mut config = state.config.write().await;
-    config.network_enabled = enabled;
-    drop(config);
-    state.save_config().await.map_err(|e| e.to_string())
+    state
+        .patch_config(|config| {
+            config.network_enabled = enabled;
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get runtime version information

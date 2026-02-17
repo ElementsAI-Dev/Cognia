@@ -28,6 +28,7 @@ export interface DesignerCollaborationConfig {
   participantColor?: string;
   autoReconnect?: boolean;
   reconnectAttempts?: number;
+  onRemoteCodeChange?: (code: string) => void;
 }
 
 export interface UseDesignerCollaborationReturn {
@@ -46,6 +47,7 @@ export interface UseDesignerCollaborationReturn {
   getCode: () => string | null;
   shareSession: () => string | null;
   joinSession: (sessionId: string) => Promise<void>;
+  importSharedSession: (serialized: string) => Promise<string | null>;
   setParticipantInfo: (name: string, color?: string) => void;
 }
 
@@ -75,7 +77,11 @@ function getRandomColor(): string {
 export function useDesignerCollaboration(
   config: DesignerCollaborationConfig = {}
 ): UseDesignerCollaborationReturn {
-  const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+  const websocketUrl = config.websocketUrl ?? DEFAULT_CONFIG.websocketUrl;
+  const participantName = config.participantName ?? DEFAULT_CONFIG.participantName ?? 'Anonymous';
+  const participantColor = config.participantColor ?? DEFAULT_CONFIG.participantColor ?? getRandomColor();
+  const reconnectAttempts = config.reconnectAttempts ?? DEFAULT_CONFIG.reconnectAttempts ?? 5;
+  const onRemoteCodeChange = config.onRemoteCodeChange;
 
   const [session, setSession] = useState<CollaborativeSession | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -89,8 +95,8 @@ export function useDesignerCollaboration(
   const participantIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const participantInfoRef = useRef({
-    name: mergedConfig.participantName || 'Anonymous',
-    color: mergedConfig.participantColor || getRandomColor(),
+    name: participantName,
+    color: participantColor,
   });
 
   const getParticipantId = useCallback((): string => {
@@ -175,6 +181,15 @@ export function useDesignerCollaboration(
           }
           break;
 
+        case 'content-updated': {
+          if (!sessionIdRef.current) break;
+          const latestCode = storeRef.current.getDocumentContent(sessionIdRef.current);
+          if (latestCode !== null) {
+            onRemoteCodeChange?.(latestCode);
+          }
+          break;
+        }
+
         case 'connected':
           setConnectionState('connected');
           break;
@@ -189,7 +204,7 @@ export function useDesignerCollaboration(
           break;
       }
     },
-    [participants]
+    [participants, onRemoteCodeChange]
   );
 
   const connect = useCallback(
@@ -205,11 +220,11 @@ export function useDesignerCollaboration(
       store.setLocalParticipantId(getParticipantId());
       setParticipants([participant]);
 
-      if (mergedConfig.websocketUrl) {
+      if (websocketUrl) {
         try {
           const provider = new CanvasWebSocketProvider(store, {
-            url: mergedConfig.websocketUrl,
-            reconnectAttempts: mergedConfig.reconnectAttempts,
+            url: websocketUrl,
+            reconnectAttempts,
           });
           providerRef.current = provider;
 
@@ -233,8 +248,8 @@ export function useDesignerCollaboration(
       return newSession.id;
     },
     [
-      mergedConfig.websocketUrl,
-      mergedConfig.reconnectAttempts,
+      websocketUrl,
+      reconnectAttempts,
       createLocalParticipant,
       handleCollaborationEvent,
       getParticipantId,
@@ -327,12 +342,16 @@ export function useDesignerCollaboration(
         const participant = createLocalParticipant();
         store.joinSession(sessionId, participant);
         setParticipants(existingSession.participants);
+        const latestCode = store.getDocumentContent(sessionId);
+        if (latestCode !== null) {
+          onRemoteCodeChange?.(latestCode);
+        }
 
-        if (mergedConfig.websocketUrl && providerRef.current === null) {
+        if (websocketUrl && providerRef.current === null) {
           try {
             const provider = new CanvasWebSocketProvider(store, {
-              url: mergedConfig.websocketUrl,
-              reconnectAttempts: mergedConfig.reconnectAttempts,
+              url: websocketUrl,
+              reconnectAttempts,
             });
             providerRef.current = provider;
 
@@ -356,12 +375,33 @@ export function useDesignerCollaboration(
       }
     },
     [
-      mergedConfig.websocketUrl,
-      mergedConfig.reconnectAttempts,
+      websocketUrl,
+      reconnectAttempts,
+      onRemoteCodeChange,
       createLocalParticipant,
       handleCollaborationEvent,
     ]
   );
+
+  const importSharedSession = useCallback(async (serialized: string): Promise<string | null> => {
+    const store = storeRef.current;
+    const sessionId = store.deserializeState(serialized);
+    if (!sessionId) return null;
+
+    const existingSession = store.getSession(sessionId);
+    if (!existingSession) return null;
+
+    sessionIdRef.current = sessionId;
+    setSession(existingSession);
+    setParticipants(existingSession.participants);
+
+    const latestCode = store.getDocumentContent(sessionId);
+    if (latestCode !== null) {
+      onRemoteCodeChange?.(latestCode);
+    }
+
+    return sessionId;
+  }, [onRemoteCodeChange]);
 
   const setParticipantInfo = useCallback((name: string, color?: string) => {
     participantInfoRef.current = {
@@ -404,6 +444,7 @@ export function useDesignerCollaboration(
     getCode,
     shareSession,
     joinSession,
+    importSharedSession,
     setParticipantInfo,
   };
 }

@@ -7,9 +7,10 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { parseA2UIInput } from '@/lib/a2ui/parser';
 import { useA2UI } from '@/hooks/a2ui';
-import { parseA2UIMessages, detectA2UIContent } from '@/lib/a2ui/parser';
 import { A2UISurface } from './a2ui-surface';
+import { useA2UIMessageIntegration } from './a2ui-message-renderer';
 import type { A2UIToolOutputProps, A2UIStructuredOutputProps } from '@/types/a2ui/renderer';
 
 /**
@@ -23,51 +24,12 @@ export function A2UIToolOutput({
   onAction,
   onDataChange,
 }: A2UIToolOutputProps) {
-  const { processMessages, getSurface } = useA2UI({ onAction, onDataChange });
+  const { processPayload, getSurface } = useA2UIMessageIntegration({ onAction, onDataChange });
+  const [surfaceId, setSurfaceId] = React.useState<string | null>(null);
 
-  // Parse A2UI messages from tool output
-  const { surfaceId, messages } = useMemo(() => {
-    // Handle string output
-    if (typeof output === 'string') {
-      if (!detectA2UIContent(output)) {
-        return { surfaceId: null, messages: [] };
-      }
-      try {
-        const parsed = JSON.parse(output);
-        const result = parseA2UIMessages(parsed);
-        if (result.success && result.messages.length > 0) {
-          const firstMsg = result.messages.find((m) => 'surfaceId' in m);
-          return {
-            surfaceId: firstMsg ? (firstMsg as { surfaceId: string }).surfaceId : `tool-${toolId}`,
-            messages: result.messages,
-          };
-        }
-      } catch {
-        return { surfaceId: null, messages: [] };
-      }
-    }
-
-    // Handle object output that might be A2UI messages directly
-    if (output && typeof output === 'object') {
-      const result = parseA2UIMessages(output);
-      if (result.success && result.messages.length > 0) {
-        const firstMsg = result.messages.find((m) => 'surfaceId' in m);
-        return {
-          surfaceId: firstMsg ? (firstMsg as { surfaceId: string }).surfaceId : `tool-${toolId}`,
-          messages: result.messages,
-        };
-      }
-    }
-
-    return { surfaceId: null, messages: [] };
-  }, [output, toolId]);
-
-  // Process the messages
   useEffect(() => {
-    if (messages.length > 0) {
-      processMessages(messages);
-    }
-  }, [messages, processMessages]);
+    setSurfaceId(processPayload(output, `tool:${toolId}`, `tool-${toolId}`));
+  }, [output, processPayload, toolId]);
 
   // Get the surface
   const surface = surfaceId ? getSurface(surfaceId) : null;
@@ -97,14 +59,7 @@ export function A2UIToolOutput({
  * Check if tool output contains A2UI content
  */
 export function hasA2UIToolOutput(output: unknown): boolean {
-  if (typeof output === 'string') {
-    return detectA2UIContent(output);
-  }
-  if (output && typeof output === 'object') {
-    const result = parseA2UIMessages(output);
-    return result.success && result.messages.length > 0;
-  }
-  return false;
+  return parseA2UIInput(output).messages.length > 0;
 }
 
 /**

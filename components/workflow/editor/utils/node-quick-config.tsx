@@ -47,6 +47,7 @@ import {
   Link,
 } from 'lucide-react';
 import { SaveTemplateDialog } from './node-template-manager';
+import { WORKFLOW_TOOL_CATALOG } from '../tool-catalog';
 import type {
   WorkflowNodeData,
   AINodeData,
@@ -172,17 +173,23 @@ export function NodeQuickConfig({
               <Label className="text-xs">{t('tool')}</Label>
               <Select
                 value={toolData.toolName || ''}
-                onValueChange={(value) => handleQuickUpdate({ toolName: value })}
+                onValueChange={(value) => {
+                  const tool = WORKFLOW_TOOL_CATALOG.find((item) => item.name === value);
+                  handleQuickUpdate({
+                    toolName: value,
+                    toolCategory: tool?.category,
+                  });
+                }}
               >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder={t('selectTool')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="web_search">Web Search</SelectItem>
-                  <SelectItem value="rag_search">RAG Search</SelectItem>
-                  <SelectItem value="calculator">Calculator</SelectItem>
-                  <SelectItem value="file_read">File Read</SelectItem>
-                  <SelectItem value="file_write">File Write</SelectItem>
+                  {WORKFLOW_TOOL_CATALOG.map((tool) => (
+                    <SelectItem key={tool.name} value={tool.name}>
+                      {tool.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

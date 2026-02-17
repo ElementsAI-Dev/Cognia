@@ -10,6 +10,11 @@ import type {
 } from '@/types/plugin/plugin-extended';
 import { createPluginSystemLogger } from '@/lib/plugin/core/logger';
 import { requestPluginPermission } from '@/lib/plugin/security/permission-requests';
+import {
+  grantPluginPermission as grantHostPermission,
+  listPluginPermissions as listHostPermissions,
+  revokePluginPermission as revokeHostPermission,
+} from '@/lib/plugin/core/transport';
 
 // Permission grants by plugin
 const grantedPermissions = new Map<string, Set<PluginAPIPermission>>();
@@ -17,11 +22,16 @@ const grantedPermissions = new Map<string, Set<PluginAPIPermission>>();
 // Permission mapping from manifest permissions to API permissions
 const permissionMapping: Record<string, PluginAPIPermission[]> = {
   'network:fetch': [],
+  'filesystem:read': [],
+  'filesystem:write': [],
   'fs:read': [],
   'fs:write': [],
   'clipboard:read': [],
   'clipboard:write': [],
   'shell:execute': [],
+  'process:spawn': [],
+  'database:read': [],
+  'database:write': [],
   'secrets:read': [],
   'secrets:write': [],
   // API permissions
@@ -47,6 +57,24 @@ const permissionMapping: Record<string, PluginAPIPermission[]> = {
   'notification:show': ['notification:show'],
 };
 
+const legacyAliases: Record<string, string[]> = {
+  storage: ['settings:read', 'settings:write'],
+  network: ['network:fetch'],
+  filesystem: ['filesystem:read', 'filesystem:write'],
+  shell: ['shell:execute'],
+  database: ['database:read', 'database:write'],
+  clipboard: ['clipboard:read', 'clipboard:write'],
+  notifications: ['notification'],
+  secrets: ['settings:read', 'settings:write'],
+};
+
+function expandManifestPermission(permission: string): string[] {
+  if (legacyAliases[permission]) {
+    return legacyAliases[permission];
+  }
+  return [permission];
+}
+
 /**
  * Initialize permissions for a plugin based on its manifest
  */
@@ -55,10 +83,13 @@ export function initializePluginPermissions(pluginId: string, manifestPermission
   
   // Map manifest permissions to API permissions
   for (const perm of manifestPermissions) {
-    const mapped = permissionMapping[perm];
-    if (mapped) {
-      for (const p of mapped) {
-        permissions.add(p);
+    const expanded = expandManifestPermission(perm);
+    for (const item of expanded) {
+      const mapped = permissionMapping[item];
+      if (mapped) {
+        for (const p of mapped) {
+          permissions.add(p);
+        }
       }
     }
   }
@@ -82,6 +113,9 @@ export function createPermissionAPI(
   if (!grantedPermissions.has(pluginId)) {
     initializePluginPermissions(pluginId, manifestPermissions);
   }
+
+  // Prime host-side grants list (best effort).
+  void listHostPermissions(pluginId).catch(() => undefined);
 
   const getPermissions = () => grantedPermissions.get(pluginId) || new Set();
 
@@ -108,6 +142,7 @@ export function createPermissionAPI(
 
       if (granted) {
         existing.add(permission);
+        void grantHostPermission(pluginId, permission).catch(() => undefined);
         logger.info(`Granted permission: ${permission}`);
       } else {
         logger.info(`Denied permission: ${permission}`);
@@ -145,6 +180,7 @@ export function grantPermission(pluginId: string, permission: PluginAPIPermissio
   const permissions = grantedPermissions.get(pluginId) || new Set();
   permissions.add(permission);
   grantedPermissions.set(pluginId, permissions);
+  void grantHostPermission(pluginId, permission).catch(() => undefined);
 }
 
 /**
@@ -155,4 +191,5 @@ export function revokePermission(pluginId: string, permission: PluginAPIPermissi
   if (permissions) {
     permissions.delete(permission);
   }
+  void revokeHostPermission(pluginId, permission).catch(() => undefined);
 }

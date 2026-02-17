@@ -131,6 +131,21 @@ export interface ProtocolAdapter {
   getConfigOptions?: (sessionId: string) => AcpConfigOption[] | undefined;
 
   /**
+   * Optional: List sessions (ACP extension / unstable)
+   */
+  listSessions?: () => Promise<Array<{ sessionId: string; title?: string; createdAt?: string; updatedAt?: string }>>;
+
+  /**
+   * Optional: Fork session (ACP extension / unstable)
+   */
+  forkSession?: (sessionId: string) => Promise<ExternalAgentSession>;
+
+  /**
+   * Optional: Resume session (ACP extension / unstable)
+   */
+  resumeSession?: (sessionId: string, options?: SessionCreateOptions) => Promise<ExternalAgentSession>;
+
+  /**
    * Optional: Get available auth methods (ACP)
    */
   getAuthMethods?: () => AcpAuthMethod[];

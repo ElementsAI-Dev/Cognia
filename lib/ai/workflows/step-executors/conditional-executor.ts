@@ -4,6 +4,7 @@
  */
 
 import type { WorkflowStepDefinition, WorkflowExecution } from './types';
+import { evaluateRestrictedBooleanExpression } from './expression-evaluator';
 
 export async function executeConditionalStep(
   step: WorkflowStepDefinition,
@@ -14,11 +15,8 @@ export async function executeConditionalStep(
     return input;
   }
 
-  // Simple condition evaluation
-  // In a real implementation, this could use a proper expression parser
   try {
-    const conditionFn = new Function(...Object.keys(input), `return ${step.condition}`);
-    const result = conditionFn(...Object.values(input));
+    const result = evaluateRestrictedBooleanExpression(step.condition, input);
     return { conditionResult: result, ...input };
   } catch (_error) {
     throw new Error(`Failed to evaluate condition: ${step.condition}`);

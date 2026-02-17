@@ -72,6 +72,7 @@ interface DesignerToolbarProps {
   onAIEdit?: () => void;
   onExport?: () => void;
   onOpenInCanvas?: () => void;
+  onCodeChange?: (code: string) => void;
   showAIChatPanel?: boolean;
   onToggleAIChat?: () => void;
   showGridOverlay?: boolean;
@@ -79,7 +80,18 @@ interface DesignerToolbarProps {
   onOpenTemplates?: () => void;
 }
 
-export function DesignerToolbar({ className, onAIEdit, onExport: _onExport, onOpenInCanvas, showAIChatPanel, onToggleAIChat, showGridOverlay, onToggleGridOverlay, onOpenTemplates }: DesignerToolbarProps) {
+export function DesignerToolbar({
+  className,
+  onAIEdit,
+  onExport: _onExport,
+  onOpenInCanvas,
+  onCodeChange,
+  showAIChatPanel,
+  onToggleAIChat,
+  showGridOverlay,
+  onToggleGridOverlay,
+  onOpenTemplates,
+}: DesignerToolbarProps) {
   const t = useTranslations('designer');
   const [showSuggestionsPanel, setShowSuggestionsPanel] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
@@ -365,9 +377,13 @@ export function DesignerToolbar({ className, onAIEdit, onExport: _onExport, onOp
             <AISuggestionsPanel
               code={code}
               onCodeChange={(newCode) => {
-                // Update through store
-                const { setCode } = useDesignerStore.getState();
+                if (onCodeChange) {
+                  onCodeChange(newCode);
+                  return;
+                }
+                const { setCode, parseCodeToElements } = useDesignerStore.getState();
                 setCode(newCode);
+                void parseCodeToElements(newCode);
               }}
               onClose={() => setShowSuggestionsPanel(false)}
             />

@@ -4,6 +4,7 @@
 //! and integration with the virtual environment system.
 
 use crate::skill_seekers::types::*;
+use crate::skill::SkillService;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use serde_json;
@@ -845,12 +846,14 @@ impl SkillSeekersService {
         &self,
         job_id: &str,
         args: Vec<String>,
-        _enhance: Option<EnhanceConfig>,
+        enhance: Option<EnhanceConfig>,
         package: Option<PackageConfig>,
         auto_install: bool,
     ) -> Result<()> {
         let python_path = self.get_python_path();
         let job_id_owned = job_id.to_string();
+        let source = Self::extract_source_from_args(&args);
+        let enhanced_requested = enhance.is_some();
         let app_handle = self.app_handle.clone();
         let store = Arc::clone(&self.store);
         let active_jobs = Arc::clone(&self.active_jobs);
@@ -975,7 +978,43 @@ impl SkillSeekersService {
                 if status.success() {
                     // Find the generated skill path
                     let skill_path = output_dir.join(&job.name).to_string_lossy().to_string();
-                    job.complete(skill_path);
+                    let skill_path_buf = PathBuf::from(&skill_path);
+                    let skill_md_path = skill_path_buf.join("SKILL.md");
+                    let page_count = job
+                        .progress
+                        .pages_total
+                        .or(if job.progress.pages_scraped > 0 {
+                            Some(job.progress.pages_scraped)
+                        } else {
+                            None
+                        });
+
+                    job.complete(skill_path.clone());
+
+                    let generated_skill = GeneratedSkill {
+                        id: job.id.clone(),
+                        name: job.name.clone(),
+                        description: Self::extract_skill_description(&skill_md_path, &job.name),
+                        source_type: job.source_type,
+                        source: source.clone(),
+                        output_dir: skill_path,
+                        skill_md_path: skill_md_path.to_string_lossy().to_string(),
+                        package_path: None,
+                        created_at: job.completed_at.clone().unwrap_or_else(Utc::now),
+                        enhanced_at: if enhanced_requested {
+                            Some(Utc::now())
+                        } else {
+                            None
+                        },
+                        installed: false,
+                        installed_skill_id: None,
+                        file_size: Self::calculate_path_size(&skill_path_buf),
+                        page_count,
+                    };
+
+                    store
+                        .skills
+                        .insert(generated_skill.id.clone(), generated_skill);
                 } else {
                     job.fail(error_output.clone());
                 }
@@ -1019,22 +1058,65 @@ impl SkillSeekersService {
             if let Some(skill_dir) = skill_dir {
                 // Enhancement is handled inline by CLI if --enhance flag was passed
                 // Package if requested and not already done
+                let mut package_path: Option<String> = None;
                 if let Some(pkg_config) = package {
-                    if let Err(e) = self
+                    match self
                         .package_skill(PackageSkillInput {
                             skill_dir: skill_dir.clone(),
                             config: pkg_config,
                         })
                         .await
                     {
-                        log::warn!("Failed to package skill: {}", e);
+                        Ok(path) => package_path = Some(path),
+                        Err(e) => log::warn!("Failed to package skill: {}", e),
                     }
                 }
 
                 // Auto-install to library if requested
+                let mut installed = false;
+                let mut installed_skill_id: Option<String> = None;
                 if auto_install {
-                    // TODO: Call skill installation service
-                    log::info!("Auto-install requested for {}", skill_dir);
+                    match SkillService::new(self.app_data_dir.clone()) {
+                        Ok(skill_service) => {
+                            match skill_service
+                                .install_local_skill(Path::new(&skill_dir), None)
+                                .await
+                            {
+                                Ok(installed_skill) => {
+                                    installed = true;
+                                    installed_skill_id = Some(installed_skill.id);
+                                    log::info!("Auto-installed generated skill from {}", skill_dir);
+                                }
+                                Err(e) => {
+                                    log::warn!(
+                                        "Failed to auto-install generated skill {}: {}",
+                                        skill_dir,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to initialize skill service for auto-install: {}", e);
+                        }
+                    }
+                }
+
+                if package_path.is_some() || installed {
+                    let mut store = store.write().await;
+                    if let Some(generated_skill) = store.skills.get_mut(&job_id_owned) {
+                        if let Some(path) = package_path {
+                            generated_skill.package_path = Some(path);
+                        }
+
+                        if installed {
+                            generated_skill.installed = true;
+                            generated_skill.installed_skill_id = installed_skill_id;
+                        }
+                    }
+
+                    let content = serde_json::to_string_pretty(&*store)?;
+                    fs::write(&store_path, content)?;
                 }
             }
         }
@@ -1095,6 +1177,81 @@ impl SkillSeekersService {
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
             Err(anyhow!("Command failed: {}", stderr))
+        }
+    }
+
+    fn extract_source_from_args(args: &[String]) -> String {
+        Self::find_arg_value(args, "--url")
+            .or_else(|| Self::find_arg_value(args, "--repo"))
+            .or_else(|| Self::find_arg_value(args, "--pdf"))
+            .or_else(|| Self::find_arg_value(args, "--config"))
+            .unwrap_or_else(|| "unknown".to_string())
+    }
+
+    fn find_arg_value(args: &[String], key: &str) -> Option<String> {
+        args.windows(2)
+            .find(|pair| pair[0] == key)
+            .map(|pair| pair[1].clone())
+    }
+
+    fn extract_skill_description(skill_md_path: &Path, fallback_name: &str) -> String {
+        let content = match fs::read_to_string(skill_md_path) {
+            Ok(content) => content,
+            Err(_) => return format!("Generated skill for {}", fallback_name),
+        };
+
+        let mut in_frontmatter = false;
+        let mut frontmatter_done = false;
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed == "---" {
+                if !in_frontmatter && !frontmatter_done {
+                    in_frontmatter = true;
+                    continue;
+                }
+                if in_frontmatter {
+                    in_frontmatter = false;
+                    frontmatter_done = true;
+                    continue;
+                }
+            }
+
+            if in_frontmatter && trimmed.to_lowercase().starts_with("description:") {
+                if let Some((_, value)) = trimmed.split_once(':') {
+                    let clean = value.trim().trim_matches('"').trim_matches('\'').trim();
+                    if !clean.is_empty() {
+                        return clean.to_string();
+                    }
+                }
+            }
+
+            if frontmatter_done && !trimmed.is_empty() && !trimmed.starts_with('#') {
+                return trimmed.to_string();
+            }
+        }
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("# ") {
+                return trimmed.trim_start_matches("# ").trim().to_string();
+            }
+        }
+
+        format!("Generated skill for {}", fallback_name)
+    }
+
+    fn calculate_path_size(path: &Path) -> u64 {
+        match fs::metadata(path) {
+            Ok(metadata) if metadata.is_file() => metadata.len(),
+            Ok(metadata) if metadata.is_dir() => match fs::read_dir(path) {
+                Ok(entries) => entries
+                    .filter_map(|entry| entry.ok())
+                    .map(|entry| Self::calculate_path_size(&entry.path()))
+                    .sum(),
+                Err(_) => 0,
+            },
+            _ => 0,
         }
     }
 
@@ -1219,6 +1376,49 @@ mod tests {
         let p = progress.unwrap();
         assert_eq!(p.phase, JobPhase::Done);
         assert_eq!(p.percent, 100);
+    }
+
+    #[test]
+    fn test_extract_source_from_args() {
+        let args = vec![
+            "scrape".to_string(),
+            "--url".to_string(),
+            "https://example.com/docs".to_string(),
+            "--name".to_string(),
+            "example".to_string(),
+        ];
+
+        let source = SkillSeekersService::extract_source_from_args(&args);
+        assert_eq!(source, "https://example.com/docs");
+    }
+
+    #[test]
+    fn test_extract_skill_description_prefers_frontmatter() {
+        let temp_dir = tempdir().unwrap();
+        let skill_md = temp_dir.path().join("SKILL.md");
+
+        fs::write(
+            &skill_md,
+            "---\ndescription: \"Frontmatter description\"\n---\n# Title\nBody text",
+        )
+        .unwrap();
+
+        let description = SkillSeekersService::extract_skill_description(&skill_md, "fallback");
+        assert_eq!(description, "Frontmatter description");
+    }
+
+    #[test]
+    fn test_calculate_path_size_recursive() {
+        let temp_dir = tempdir().unwrap();
+        let root = temp_dir.path();
+        let nested = root.join("nested");
+        fs::create_dir_all(&nested).unwrap();
+
+        fs::write(root.join("a.txt"), b"12345").unwrap();
+        fs::write(nested.join("b.txt"), b"1234567890").unwrap();
+
+        let size = SkillSeekersService::calculate_path_size(root);
+        assert_eq!(size, 15);
     }
 
     #[tokio::test]

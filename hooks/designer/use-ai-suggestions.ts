@@ -27,7 +27,7 @@ export interface UseAISuggestionsReturn {
   isLoading: boolean;
   isApplying: string | null;
   error: string | null;
-  fetchSuggestions: (type: SuggestionType) => Promise<void>;
+  fetchSuggestions: (type: SuggestionType) => Promise<AISuggestion[]>;
   applySuggestion: (suggestion: AISuggestion) => Promise<DesignerAIResult>;
   applyAllSuggestions: (suggestions: AISuggestion[]) => Promise<DesignerAIResult>;
   clearSuggestions: () => void;
@@ -82,14 +82,15 @@ export function useAISuggestions(
   );
 
   const fetchSuggestions = useCallback(
-    async (type: SuggestionType) => {
+    async (type: SuggestionType): Promise<AISuggestion[]> => {
       if (!hasApiKey) {
         handleError('No API key configured. Please add your API key in Settings.');
-        return;
+        return [];
       }
 
       setIsLoading(true);
       setError(null);
+      let nextSuggestions: AISuggestion[] = [];
 
       try {
         const config = getConfig();
@@ -111,7 +112,8 @@ export function useAISuggestions(
         }
 
         if (result.success && result.suggestions) {
-          setSuggestions(result.suggestions);
+          nextSuggestions = result.suggestions;
+          setSuggestions(nextSuggestions);
         } else {
           handleError(result.error || 'Failed to fetch suggestions');
         }
@@ -120,6 +122,8 @@ export function useAISuggestions(
       } finally {
         setIsLoading(false);
       }
+
+      return nextSuggestions;
     },
     [code, getConfig, hasApiKey, handleError]
   );

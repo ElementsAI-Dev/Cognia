@@ -13,6 +13,7 @@
 
 import { createContext, useContext, useCallback, useMemo } from 'react';
 import type { A2UIComponent } from '@/types/artifact/a2ui';
+import { getValueByPath } from '@/lib/a2ui/data-model';
 import type {
   A2UIActionsContextValue,
   A2UIDataContextValue,
@@ -83,21 +84,8 @@ export function useA2UIBinding<T>(path: string, defaultValue: T): [T, (value: T)
   const { setDataValue } = useA2UIActions();
 
   const value = useMemo(() => {
-    const segments = path.split('/').filter(Boolean);
-    let current: unknown = dataModel;
-
-    for (const segment of segments) {
-      if (current === null || current === undefined) {
-        return defaultValue;
-      }
-      if (typeof current === 'object') {
-        current = (current as Record<string, unknown>)[segment];
-      } else {
-        return defaultValue;
-      }
-    }
-
-    return (current as T) ?? defaultValue;
+    const resolved = getValueByPath<T>(dataModel, path);
+    return resolved ?? defaultValue;
   }, [dataModel, path, defaultValue]);
 
   const setValue = useCallback(

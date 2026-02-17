@@ -18,8 +18,13 @@ import {
   CheckCircle,
   XCircle,
   Info,
+  RefreshCcw,
+  Link2,
+  Unplug,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -51,9 +56,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+import { cn, isTauri } from '@/lib/utils';
 import { useWorkflowEditorStore } from '@/stores/workflow';
+import { toast } from 'sonner';
+import {
+  getTriggerSyncBadgeVariant,
+  resolveTriggerBackend,
+  workflowTriggerSyncService,
+} from '@/lib/workflow-editor/trigger-sync-service';
+import { getCronExpressionOptions } from '@/types/scheduler';
 import type {
+  TriggerBackend,
   TriggerType,
   WorkflowTrigger,
   TriggerConfig,
@@ -62,16 +75,7 @@ import type {
 export type { TriggerType, WorkflowTrigger, TriggerConfig };
 
 // Common cron presets
-const CRON_PRESETS = [
-  { label: 'Every minute', value: '* * * * *' },
-  { label: 'Every 5 minutes', value: '*/5 * * * *' },
-  { label: 'Every 15 minutes', value: '*/15 * * * *' },
-  { label: 'Every hour', value: '0 * * * *' },
-  { label: 'Every day at midnight', value: '0 0 * * *' },
-  { label: 'Every day at 9am', value: '0 9 * * *' },
-  { label: 'Every Monday at 9am', value: '0 9 * * 1' },
-  { label: 'Every month (1st day)', value: '0 0 1 * *' },
-];
+const CRON_PRESETS = getCronExpressionOptions(12);
 
 // Event types
 const EVENT_TYPES = [
@@ -90,6 +94,7 @@ interface WorkflowTriggerPanelProps {
 export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
   const t = useTranslations('workflowEditor');
   const { currentWorkflow, updateWorkflowSettings } = useWorkflowEditorStore();
+  const [syncingTriggerIds, setSyncingTriggerIds] = useState<Record<string, boolean>>({});
 
   // Get triggers from workflow settings or initialize empty
   const triggers = useMemo<WorkflowTrigger[]>(() => {
@@ -98,14 +103,36 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
 
   const [expandedTrigger, setExpandedTrigger] = useState<string | null>(null);
 
+  const setTriggerSyncing = useCallback((triggerId: string, syncing: boolean) => {
+    setSyncingTriggerIds((current) => {
+      if (!syncing) {
+        const { [triggerId]: _removed, ...rest } = current;
+        return rest;
+      }
+      return { ...current, [triggerId]: true };
+    });
+  }, []);
+
   // Add new trigger
   const handleAddTrigger = useCallback((type: TriggerType) => {
+    const baseConfig: TriggerConfig = {
+      syncStatus: 'idle',
+    };
+
+    const resolvedBackend = resolveTriggerBackend({
+      type,
+      config: baseConfig,
+    } as Pick<WorkflowTrigger, 'type' | 'config'>);
+
     const newTrigger: WorkflowTrigger = {
       id: `trigger-${Date.now()}`,
       type,
       name: `${type.charAt(0).toUpperCase() + type.slice(1)} Trigger`,
       enabled: true,
-      config: {},
+      config: {
+        ...baseConfig,
+        backend: resolvedBackend,
+      },
     };
 
     const updatedTriggers = [...triggers, newTrigger];
@@ -115,25 +142,116 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
 
   // Update trigger
   const handleUpdateTrigger = useCallback((triggerId: string, updates: Partial<WorkflowTrigger>) => {
-    const updatedTriggers = triggers.map(t =>
-      t.id === triggerId ? { ...t, ...updates } : t
-    );
+    const updatedTriggers = triggers.map((existing) => {
+      if (existing.id !== triggerId) return existing;
+
+      const merged: WorkflowTrigger = { ...existing, ...updates };
+      if (updates.config) {
+        const configChanged = JSON.stringify(existing.config || {}) !== JSON.stringify(updates.config);
+        if (configChanged && merged.config.bindingTaskId && updates.config.syncStatus === undefined) {
+          merged.config = {
+            ...merged.config,
+            syncStatus: 'out_of_sync',
+          };
+        }
+      }
+      return merged;
+    });
     updateWorkflowSettings({ triggers: updatedTriggers });
   }, [triggers, updateWorkflowSettings]);
 
   // Delete trigger
-  const handleDeleteTrigger = useCallback((triggerId: string) => {
-    const updatedTriggers = triggers.filter(t => t.id !== triggerId);
-    updateWorkflowSettings({ triggers: updatedTriggers });
+  const handleDeleteTrigger = useCallback(async (triggerId: string) => {
+    const trigger = triggers.find((item) => item.id === triggerId);
+    if (trigger?.config.bindingTaskId) {
+      const unsynced = await workflowTriggerSyncService.unsyncTrigger(trigger);
+      const replaced = triggers.map((item) => (item.id === triggerId ? unsynced : item));
+      updateWorkflowSettings({ triggers: replaced.filter((item) => item.id !== triggerId) });
+      return;
+    }
+    updateWorkflowSettings({ triggers: triggers.filter((item) => item.id !== triggerId) });
   }, [triggers, updateWorkflowSettings]);
 
   // Toggle trigger enabled
-  const handleToggleTrigger = useCallback((triggerId: string) => {
-    const trigger = triggers.find(t => t.id === triggerId);
+  const handleToggleTrigger = useCallback(async (triggerId: string) => {
+    const trigger = triggers.find((t) => t.id === triggerId);
     if (trigger) {
-      handleUpdateTrigger(triggerId, { enabled: !trigger.enabled });
+      const enabled = !trigger.enabled;
+      if (!enabled && trigger.config.bindingTaskId) {
+        const unsynced = await workflowTriggerSyncService.unsyncTrigger(trigger);
+        handleUpdateTrigger(triggerId, {
+          ...unsynced,
+          enabled,
+        });
+        return;
+      }
+
+      handleUpdateTrigger(triggerId, {
+        enabled,
+        config: {
+          ...trigger.config,
+          syncStatus: enabled ? 'out_of_sync' : 'idle',
+        },
+      });
     }
   }, [triggers, handleUpdateTrigger]);
+
+  const handleSyncTrigger = useCallback(
+    async (trigger: WorkflowTrigger) => {
+      if (!currentWorkflow) {
+        return;
+      }
+
+      setTriggerSyncing(trigger.id, true);
+      try {
+        const syncing: WorkflowTrigger = {
+          ...trigger,
+          config: {
+            ...trigger.config,
+            syncStatus: 'syncing',
+            lastSyncError: undefined,
+          },
+        };
+        handleUpdateTrigger(trigger.id, syncing);
+
+        const synced = await workflowTriggerSyncService.syncTrigger(currentWorkflow, trigger);
+        handleUpdateTrigger(trigger.id, synced);
+
+        if (synced.config.syncStatus === 'error') {
+          toast.error('Trigger sync failed', {
+            description: synced.config.lastSyncError || 'Unknown trigger sync error',
+          });
+        } else {
+          toast.success('Trigger synced');
+        }
+      } catch (error) {
+        toast.error('Trigger sync failed', {
+          description: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        setTriggerSyncing(trigger.id, false);
+      }
+    },
+    [currentWorkflow, handleUpdateTrigger, setTriggerSyncing]
+  );
+
+  const handleUnsyncTrigger = useCallback(
+    async (trigger: WorkflowTrigger) => {
+      setTriggerSyncing(trigger.id, true);
+      try {
+        const unsynced = await workflowTriggerSyncService.unsyncTrigger(trigger);
+        handleUpdateTrigger(trigger.id, unsynced);
+        toast.success('Trigger unsynced');
+      } catch (error) {
+        toast.error('Failed to unsync trigger', {
+          description: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        setTriggerSyncing(trigger.id, false);
+      }
+    },
+    [handleUpdateTrigger, setTriggerSyncing]
+  );
 
   const getTriggerIcon = (type: TriggerType) => {
     switch (type) {
@@ -184,6 +302,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                     variant="outline"
                     size="sm"
                     className="h-auto py-3 flex flex-col gap-1"
+                    data-testid="workflow-add-trigger-manual"
                     onClick={() => handleAddTrigger('manual')}
                   >
                     <Play className="h-5 w-5 text-blue-500" />
@@ -203,6 +322,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                     variant="outline"
                     size="sm"
                     className="h-auto py-3 flex flex-col gap-1"
+                    data-testid="workflow-add-trigger-schedule"
                     onClick={() => handleAddTrigger('schedule')}
                   >
                     <Clock className="h-5 w-5 text-purple-500" />
@@ -222,6 +342,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                     variant="outline"
                     size="sm"
                     className="h-auto py-3 flex flex-col gap-1"
+                    data-testid="workflow-add-trigger-event"
                     onClick={() => handleAddTrigger('event')}
                   >
                     <Zap className="h-5 w-5 text-amber-500" />
@@ -241,6 +362,7 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                     variant="outline"
                     size="sm"
                     className="h-auto py-3 flex flex-col gap-1"
+                    data-testid="workflow-add-trigger-webhook"
                     onClick={() => handleAddTrigger('webhook')}
                   >
                     <Webhook className="h-5 w-5 text-green-500" />
@@ -302,6 +424,9 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                               )}
                               {trigger.enabled ? 'Active' : 'Disabled'}
                             </Badge>
+                            <Badge variant={getTriggerSyncBadgeVariant(trigger.config.syncStatus)}>
+                              {trigger.config.syncStatus || 'idle'}
+                            </Badge>
                           </div>
                         </div>
                       </CardHeader>
@@ -329,6 +454,34 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                           />
                         )}
 
+                        {(trigger.type === 'schedule' || trigger.type === 'event') && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Runtime backend</Label>
+                            <Select
+                              value={
+                                resolveTriggerBackend(trigger)
+                              }
+                              onValueChange={(value) =>
+                                handleUpdateTrigger(trigger.id, {
+                                  config: {
+                                    ...trigger.config,
+                                    backend: value as TriggerBackend,
+                                    syncStatus: 'out_of_sync',
+                                  },
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="app">App Scheduler</SelectItem>
+                                {isTauri() && <SelectItem value="system">System Scheduler</SelectItem>}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
                         {trigger.type === 'event' && (
                           <EventTriggerConfig
                             config={trigger.config}
@@ -344,26 +497,92 @@ export function WorkflowTriggerPanel({ className }: WorkflowTriggerPanelProps) {
                           />
                         )}
 
+                        {trigger.config.bindingTaskId && (
+                          <div className="rounded-md border bg-muted/40 p-2 text-xs">
+                            <div className="mb-1 flex items-center gap-1 font-medium">
+                              <Link2 className="h-3.5 w-3.5" />
+                              Bound Task
+                            </div>
+                            <div className="font-mono">{trigger.config.bindingTaskId}</div>
+                            {trigger.config.runtimeSource && (
+                              <div className="text-muted-foreground mt-1">
+                                source: {trigger.config.runtimeSource}
+                              </div>
+                            )}
+                            {trigger.config.lastSyncedAt && (
+                              <div className="text-muted-foreground">
+                                synced: {new Date(trigger.config.lastSyncedAt).toLocaleString()}
+                              </div>
+                            )}
+                            {trigger.config.lastSyncError && (
+                              <div className="mt-1 text-destructive">{trigger.config.lastSyncError}</div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Actions */}
-                        <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center justify-between gap-2 pt-2">
                           <div className="flex items-center gap-2">
                             <Switch
                               checked={trigger.enabled}
-                              onCheckedChange={() => handleToggleTrigger(trigger.id)}
+                              onCheckedChange={() => {
+                                void handleToggleTrigger(trigger.id);
+                              }}
                             />
                             <Label className="text-xs">
                               {trigger.enabled ? 'Enabled' : 'Disabled'}
                             </Label>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteTrigger(trigger.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            Delete
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {(trigger.type === 'schedule' || trigger.type === 'event') && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7"
+                                  data-testid={`workflow-sync-trigger-${trigger.id}`}
+                                  disabled={Boolean(syncingTriggerIds[trigger.id]) || !trigger.enabled}
+                                  onClick={() => {
+                                    void handleSyncTrigger(trigger);
+                                  }}
+                                >
+                                  {syncingTriggerIds[trigger.id] ? (
+                                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                  ) : (
+                                    <RefreshCcw className="h-3.5 w-3.5 mr-1" />
+                                  )}
+                                  Sync
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7"
+                                  data-testid={`workflow-unsync-trigger-${trigger.id}`}
+                                  disabled={
+                                    Boolean(syncingTriggerIds[trigger.id]) ||
+                                    !trigger.config.bindingTaskId
+                                  }
+                                  onClick={() => {
+                                    void handleUnsyncTrigger(trigger);
+                                  }}
+                                >
+                                  <Unplug className="h-3.5 w-3.5 mr-1" />
+                                  Unsync
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-destructive hover:text-destructive"
+                              onClick={() => {
+                                void handleDeleteTrigger(trigger.id);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </CollapsibleContent>
@@ -424,6 +643,7 @@ function ScheduleTriggerConfig({ config, onChange }: ScheduleTriggerConfigProps)
             onChange={(e) => onChange({ ...config, cronExpression: e.target.value })}
             placeholder="* * * * *"
             className="h-8 text-sm font-mono"
+            data-testid="workflow-trigger-cron-expression"
           />
           <p className="text-xs text-muted-foreground">
             Format: minute hour day month weekday
@@ -433,23 +653,12 @@ function ScheduleTriggerConfig({ config, onChange }: ScheduleTriggerConfigProps)
 
       <div className="space-y-1.5">
         <Label className="text-xs">Timezone</Label>
-        <Select
+        <TimezoneSelect
           value={config.timezone || 'UTC'}
           onValueChange={(value) => onChange({ ...config, timezone: value })}
-        >
-          <SelectTrigger className="h-8 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="UTC">UTC</SelectItem>
-            <SelectItem value="America/New_York">Eastern Time</SelectItem>
-            <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-            <SelectItem value="Europe/London">London</SelectItem>
-            <SelectItem value="Europe/Paris">Paris</SelectItem>
-            <SelectItem value="Asia/Shanghai">Shanghai</SelectItem>
-            <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-          </SelectContent>
-        </Select>
+          testId="workflow-trigger-timezone"
+          triggerClassName="h-8 text-sm"
+        />
       </div>
     </div>
   );

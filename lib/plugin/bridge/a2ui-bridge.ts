@@ -9,9 +9,11 @@ import type {
   A2UIPluginComponentProps,
   PluginContext,
 } from '@/types/plugin';
-import type { A2UIComponent as _A2UIComponent, A2UISurfaceType } from '@/types/artifact/a2ui';
+import type { A2UISurfaceType } from '@/types/artifact/a2ui';
 import { useA2UIStore } from '@/stores/a2ui';
+import { usePluginStore } from '@/stores/plugin';
 import { registerComponent, unregisterComponent } from '@/lib/a2ui/catalog';
+import { globalEventEmitter } from '@/lib/a2ui/events';
 import type { PluginRegistry } from '../core/registry';
 import type { PluginLifecycleHooks } from '../messaging/hooks-system';
 import { loggers } from '../core/logger';
@@ -34,6 +36,7 @@ export class PluginA2UIBridge {
   private config: A2UIBridgeConfig;
   private registeredComponents: Map<string, string> = new Map(); // type -> pluginId
   private registeredTemplates: Map<string, string> = new Map(); // templateId -> pluginId
+  private missingContextWarnings: Set<string> = new Set();
   private unsubscribers: Array<() => void> = [];
 
   constructor(config: A2UIBridgeConfig) {
@@ -46,18 +49,11 @@ export class PluginA2UIBridge {
   // ===========================================================================
 
   private setupEventListeners(): void {
-    const _a2uiStore = useA2UIStore.getState();
-
-    // Subscribe to A2UI events and forward to plugins
-    // This would integrate with the A2UI event system
-    
-    // For now, we'll use a polling approach or integrate with store subscriptions
+    // Surface lifecycle forwarding
     const unsubscribe = useA2UIStore.subscribe((state, prevState) => {
-      // Detect surface changes
       const currentSurfaces = Object.keys(state.surfaces);
       const prevSurfaces = Object.keys(prevState.surfaces);
 
-      // New surfaces
       for (const surfaceId of currentSurfaces) {
         if (!prevSurfaces.includes(surfaceId)) {
           const surface = state.surfaces[surfaceId];
@@ -76,7 +72,24 @@ export class PluginA2UIBridge {
       }
     });
 
-    this.unsubscribers.push(unsubscribe);
+    const unsubscribeAction = globalEventEmitter.onAction((action) => {
+      void this.config.hooksManager.dispatchOnA2UIAction({
+        surfaceId: action.surfaceId,
+        action: action.action,
+        componentId: action.componentId,
+        data: action.data,
+      });
+    });
+
+    const unsubscribeDataChange = globalEventEmitter.onDataChange((change) => {
+      this.config.hooksManager.dispatchOnA2UIDataChange({
+        surfaceId: change.surfaceId,
+        path: change.path,
+        value: change.value,
+      });
+    });
+
+    this.unsubscribers.push(unsubscribe, unsubscribeAction, unsubscribeDataChange);
   }
 
   // ===========================================================================
@@ -109,19 +122,22 @@ export class PluginA2UIBridge {
     // Track registration
     this.registeredComponents.set(type, pluginId);
     this.config.registry.registerComponent(pluginId, component);
+    usePluginStore.getState().registerPluginComponent(pluginId, component);
   }
 
   /**
    * Unregister a plugin component
    */
   unregisterComponent(componentType: string): void {
-    if (!this.registeredComponents.has(componentType)) {
+    const ownerPluginId = this.registeredComponents.get(componentType);
+    if (!ownerPluginId) {
       return;
     }
 
     unregisterComponent(componentType as never);
     this.registeredComponents.delete(componentType);
     this.config.registry.unregisterComponent(componentType);
+    usePluginStore.getState().unregisterPluginComponent(ownerPluginId, componentType);
   }
 
   /**
@@ -143,38 +159,35 @@ export class PluginA2UIBridge {
     pluginComponent: PluginA2UIComponent
   ): React.ComponentType<A2UIPluginComponentProps> {
     const OriginalComponent = pluginComponent.component;
-
+    const bridge = this;
     const contextResolver = this.config.contextResolver;
 
     // Return a wrapper that injects plugin context
     return function PluginComponentWrapper(props: A2UIPluginComponentProps) {
-      // Try to resolve the real plugin context from the manager
       const resolvedContext = contextResolver?.(pluginId);
+      if (!resolvedContext) {
+        const warningKey = `${pluginId}:${pluginComponent.type}`;
+        if (!bridge.missingContextWarnings.has(warningKey)) {
+          bridge.missingContextWarnings.add(warningKey);
+          loggers.manager.error(
+            `[PluginA2UIBridge] Missing plugin context for component "${pluginComponent.type}" from plugin "${pluginId}". Rendering degraded fallback.`
+          );
+        }
+
+        return React.createElement(
+          'div',
+          {
+            role: 'alert',
+            'data-plugin-a2ui-fallback': pluginId,
+            className: 'rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive',
+          },
+          `Plugin component "${pluginComponent.type}" is unavailable because plugin context is missing.`
+        );
+      }
 
       const enhancedProps: A2UIPluginComponentProps = {
         ...props,
-        pluginContext: resolvedContext || {
-          pluginId,
-          pluginPath: '',
-          config: {},
-          logger: console as never,
-          storage: {} as never,
-          events: {} as never,
-          ui: {} as never,
-          a2ui: {} as never,
-          agent: {} as never,
-          settings: {} as never,
-          network: {} as never,
-          fs: {} as never,
-          clipboard: {} as never,
-          shell: {} as never,
-          db: {} as never,
-          shortcuts: {} as never,
-          contextMenu: {} as never,
-          window: {} as never,
-          secrets: {} as never,
-          scheduler: {} as never,
-        },
+        pluginContext: resolvedContext,
       };
 
       // Use React.createElement instead of JSX (this is a .ts file)
@@ -197,10 +210,7 @@ export class PluginA2UIBridge {
     }
 
     this.registeredTemplates.set(templateId, pluginId);
-    this.config.registry.registerTemplate(pluginId, {
-      ...template,
-      id: templateId,
-    });
+    this.config.registry.registerTemplate(pluginId, template);
   }
 
   /**
@@ -268,6 +278,11 @@ export class PluginA2UIBridge {
       surfaceId,
       data: dataModel,
       merge: false,
+    });
+
+    a2uiStore.processMessage({
+      type: 'surfaceReady',
+      surfaceId,
     });
   }
 

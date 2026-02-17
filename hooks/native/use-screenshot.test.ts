@@ -50,6 +50,10 @@ describe('useScreenshot', () => {
       expect(typeof result.current.captureRegion).toBe('function');
       expect(typeof result.current.extractText).toBe('function');
       expect(typeof result.current.saveToFile).toBe('function');
+      expect(typeof result.current.updateConfig).toBe('function');
+      expect(typeof result.current.setOpenEditorAfterCapture).toBe('function');
+      expect(typeof result.current.ingestExternalCapture).toBe('function');
+      expect(typeof result.current.openEditorAfterCapture).toBe('boolean');
     });
 
     it('should expose pure API wrappers', () => {

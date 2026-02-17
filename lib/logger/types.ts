@@ -40,6 +40,20 @@ export interface StructuredLogEntry {
   module: string;
   /** Trace ID for request correlation */
   traceId?: string;
+  /** Request ID for operation correlation */
+  requestId?: string;
+  /** Runtime execution ID */
+  executionId?: string;
+  /** Workflow ID (if applicable) */
+  workflowId?: string;
+  /** Workflow/runtime step ID */
+  stepId?: string;
+  /** Structured runtime event ID */
+  eventId?: string;
+  /** Machine-readable status/event code */
+  code?: string;
+  /** Runtime source (browser/tauri/native/etc) */
+  runtime?: string;
   /** Session ID */
   sessionId?: string;
   /** Additional structured data */
@@ -54,6 +68,22 @@ export interface StructuredLogEntry {
   };
   /** Tags for filtering */
   tags?: string[];
+}
+
+/**
+ * Redaction configuration
+ */
+export interface LoggerRedactionConfig {
+  /** Enable redaction before dispatching to transports */
+  enabled: boolean;
+  /** Replacement token for redacted values */
+  replacement: string;
+  /** Case-insensitive key patterns that should be redacted */
+  redactKeys: string[];
+  /** Text patterns (as regex strings) that should be redacted */
+  redactPatterns: string[];
+  /** Maximum object traversal depth for recursive redaction */
+  maxDepth: number;
 }
 
 /**
@@ -82,6 +112,8 @@ export interface UnifiedLoggerConfig {
   bufferSize: number;
   /** Flush interval in milliseconds */
   flushInterval: number;
+  /** Redaction configuration */
+  redaction: LoggerRedactionConfig;
 }
 
 /**
@@ -97,6 +129,34 @@ export const DEFAULT_UNIFIED_CONFIG: UnifiedLoggerConfig = {
   includeSource: process.env.NODE_ENV === 'development',
   bufferSize: 100,
   flushInterval: 1000,
+  redaction: {
+    enabled: true,
+    replacement: '[REDACTED]',
+    redactKeys: [
+      'password',
+      'passwd',
+      'pwd',
+      'token',
+      'access_token',
+      'refresh_token',
+      'secret',
+      'api_key',
+      'apikey',
+      'authorization',
+      'cookie',
+      'session',
+      'client_secret',
+      'private_key',
+      'bearer',
+    ],
+    redactPatterns: [
+      // Generic bearer/JWT-like token fragments
+      'Bearer\\s+[A-Za-z0-9\\-._~+/]+=*',
+      // API key style assignments
+      '(api[_-]?key|token|secret)\\s*[:=]\\s*[A-Za-z0-9\\-._~+/=]{8,}',
+    ],
+    maxDepth: 8,
+  },
 };
 
 /**

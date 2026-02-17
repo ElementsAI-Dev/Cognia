@@ -175,10 +175,94 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           retention-days: 7
 
+  android-release:
+    name: Build Release (android)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: release-android
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Android signing secrets
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEY_BASE64" || (echo "Missing secret: ANDROID_KEY_BASE64" && exit 1)
+          test -n "$ANDROID_KEY_ALIAS" || (echo "Missing secret: ANDROID_KEY_ALIAS" && exit 1)
+          test -n "$ANDROID_KEY_PASSWORD" || (echo "Missing secret: ANDROID_KEY_PASSWORD" && exit 1)
+
+      - name: Prepare Android keystore
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p src-tauri/gen/android
+          echo "$ANDROID_KEY_BASE64" | base64 --decode > src-tauri/gen/android/release.keystore
+          cat > src-tauri/gen/android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Build Android release (AAB + APK)
+        run: pnpm tauri android build --ci --aab --apk --split-per-abi --target aarch64 armv7 i686 x86_64
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: |
+            src-tauri/gen/android/app/build/outputs/**/*.aab
+            src-tauri/gen/android/app/build/outputs/**/*.apk
+            src-tauri/target/*/release/bundle/android/**/*.aab
+            src-tauri/target/*/release/bundle/android/**/*.apk
+          retention-days: 7
+          if-no-files-found: warn
+
   # Create GitHub Release
   create-release:
     name: Create GitHub Release
-    needs: build-release
+    needs: [build-release, android-release]
     runs-on: ubuntu-latest
 
     permissions:
@@ -249,6 +333,8 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.exe
             artifacts/**/*.dmg
+            artifacts/**/*.aab
+            artifacts/**/*.apk
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

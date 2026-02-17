@@ -7,8 +7,33 @@ import { toast } from 'sonner';
 import type { SliceCreator, WorkflowSliceActions, WorkflowSliceState } from '../types';
 import { createEmptyVisualWorkflow } from '@/types/workflow/workflow-editor';
 import { workflowRepository } from '@/lib/db/repositories';
+import { workflowTriggerSyncService } from '@/lib/workflow-editor/trigger-sync-service';
+import { migrateWorkflowSchema } from '@/lib/workflow-editor/migration';
+import type { WorkflowTrigger } from '@/types/workflow/workflow-editor';
 
 let metaHistoryTimer: ReturnType<typeof setTimeout> | undefined;
+const saveLocks = new Map<string, Promise<void>>();
+
+function normalizeTriggerForCompare(trigger: WorkflowTrigger): Record<string, unknown> {
+  return {
+    ...trigger,
+    config: {
+      ...trigger.config,
+      lastSyncedAt: trigger.config.lastSyncedAt
+        ? new Date(trigger.config.lastSyncedAt).toISOString()
+        : undefined,
+    },
+  };
+}
+
+function areTriggersEquivalent(a: WorkflowTrigger[] = [], b: WorkflowTrigger[] = []): boolean {
+  if (a.length !== b.length) return false;
+
+  const sortById = (left: WorkflowTrigger, right: WorkflowTrigger) => left.id.localeCompare(right.id);
+  const left = [...a].sort(sortById).map(normalizeTriggerForCompare);
+  const right = [...b].sort(sortById).map(normalizeTriggerForCompare);
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 export const workflowSliceInitialState: WorkflowSliceState = {
   currentWorkflow: null,
@@ -80,37 +105,96 @@ export const createWorkflowSlice: SliceCreator<WorkflowSliceActions> = (set, get
     },
 
     saveWorkflow: async () => {
-      const { currentWorkflow, savedWorkflows } = get();
+      const { currentWorkflow } = get();
       if (!currentWorkflow) return;
 
+      const existingSave = saveLocks.get(currentWorkflow.id);
+      if (existingSave) {
+        await existingSave;
+        return;
+      }
+
+      const savePromise = (async () => {
+        try {
+          const migrated = migrateWorkflowSchema(currentWorkflow).workflow;
+          let saved = await workflowRepository.save({
+            ...migrated,
+            updatedAt: new Date(),
+          });
+
+          const currentTriggers = saved.settings.triggers || [];
+          let syncErrorCount = 0;
+          let syncFailedMessage: string | null = null;
+
+          if (currentTriggers.length > 0) {
+            try {
+              const syncedTriggers = await workflowTriggerSyncService.syncAll(saved);
+              syncErrorCount = syncedTriggers.filter((trigger) => trigger.config.syncStatus === 'error').length;
+
+              if (!areTriggersEquivalent(currentTriggers, syncedTriggers)) {
+                saved = await workflowRepository.save({
+                  ...saved,
+                  settings: {
+                    ...saved.settings,
+                    triggers: syncedTriggers,
+                  },
+                  updatedAt: new Date(),
+                });
+              }
+            } catch (syncError) {
+              syncFailedMessage =
+                syncError instanceof Error ? syncError.message : String(syncError);
+            }
+          }
+
+          const latestState = get();
+          const latestSavedWorkflows = latestState.savedWorkflows;
+          const existingIndex = latestSavedWorkflows.findIndex((w) => w.id === saved.id);
+          const newSavedWorkflows =
+            existingIndex >= 0
+              ? latestSavedWorkflows.map((w, i) => (i === existingIndex ? saved : w))
+              : [...latestSavedWorkflows, saved];
+
+          const shouldUpdateCurrentWorkflow = latestState.currentWorkflow?.id === saved.id;
+
+          set({
+            currentWorkflow: shouldUpdateCurrentWorkflow ? saved : latestState.currentWorkflow,
+            savedWorkflows: newSavedWorkflows,
+            isDirty: false,
+          });
+
+          if (syncFailedMessage) {
+            toast.warning('Workflow saved, but trigger sync failed', {
+              description: syncFailedMessage,
+            });
+            return;
+          }
+
+          if (syncErrorCount > 0) {
+            toast.warning('Workflow saved with trigger sync errors', {
+              description: `${syncErrorCount} trigger(s) need attention`,
+            });
+            return;
+          }
+
+          toast.success('Workflow saved successfully');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          toast.error('Failed to save workflow', {
+            description: message,
+            action: {
+              label: 'Retry',
+              onClick: () => get().saveWorkflow(),
+            },
+          });
+        }
+      })();
+
+      saveLocks.set(currentWorkflow.id, savePromise);
       try {
-        const saved = await workflowRepository.save({
-          ...currentWorkflow,
-          updatedAt: new Date(),
-        });
-
-        const existingIndex = savedWorkflows.findIndex((w) => w.id === saved.id);
-        const newSavedWorkflows =
-          existingIndex >= 0
-            ? savedWorkflows.map((w, i) => (i === existingIndex ? saved : w))
-            : [...savedWorkflows, saved];
-
-        set({
-          currentWorkflow: saved,
-          savedWorkflows: newSavedWorkflows,
-          isDirty: false,
-        });
-
-        toast.success('Workflow saved successfully');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        toast.error('Failed to save workflow', {
-          description: message,
-          action: {
-            label: 'Retry',
-            onClick: () => get().saveWorkflow(),
-          },
-        });
+        await savePromise;
+      } finally {
+        saveLocks.delete(currentWorkflow.id);
       }
     },
 

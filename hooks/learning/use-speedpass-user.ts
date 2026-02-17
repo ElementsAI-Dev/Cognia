@@ -7,6 +7,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useSpeedPassStore } from '@/stores/learning/speedpass-store';
+import { DEFAULT_SPEEDPASS_USER_ID } from '@/types/learning/speedpass';
 
 // ============================================================================
 // Types
@@ -56,7 +57,7 @@ export interface Achievement {
 // ============================================================================
 
 const DEFAULT_USER_PROFILE: SpeedPassUserProfile = {
-  id: 'local-user',
+  id: DEFAULT_SPEEDPASS_USER_ID,
   displayName: '学习者',
   preferredMode: 'speed',
   studyGoal: 'good',

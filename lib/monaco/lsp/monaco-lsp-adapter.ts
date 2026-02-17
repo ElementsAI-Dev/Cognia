@@ -11,14 +11,18 @@ import type {
   LspDiagnostic,
   LspDocumentSymbol,
   LspRange,
+  LspRequestMeta,
   LspSessionStatus,
   LspSymbolInformation,
+  LspTextDocumentContentChangeEvent,
+  LspTextDocumentSyncOptions,
   LspTextEdit,
   LspWorkspaceEdit,
 } from '@/types/designer/lsp';
 import {
   hasLspCapability,
   isTauriRuntime,
+  lspCancelRequest,
   lspChangeDocument,
   lspCloseDocument,
   lspCodeActions,
@@ -58,6 +62,7 @@ export interface MonacoLspAdapterOptions {
   editor: Monaco.editor.IStandaloneCodeEditor;
   languageId: string;
   rootUri?: string;
+  protocolV2Enabled?: boolean;
   onStatusChange?: (status: LspSessionStatus, detail?: string) => void;
 }
 
@@ -107,6 +112,49 @@ function toLspRange(range: Monaco.IRange): LspRange {
       character: Math.max(0, range.endColumn - 1),
     },
   };
+}
+
+function toLspContentChanges(
+  changes: readonly Monaco.editor.IModelContentChange[]
+): LspTextDocumentContentChangeEvent[] {
+  return changes.map((change) => ({
+    range: {
+      start: {
+        line: Math.max(0, change.range.startLineNumber - 1),
+        character: Math.max(0, change.range.startColumn - 1),
+      },
+      end: {
+        line: Math.max(0, change.range.endLineNumber - 1),
+        character: Math.max(0, change.range.endColumn - 1),
+      },
+    },
+    rangeLength: change.rangeLength,
+    text: change.text,
+  }));
+}
+
+function resolveTextDocumentSyncKind(
+  capabilities: LspCapabilities,
+  protocolV2Enabled: boolean
+): 'full' | 'incremental' {
+  if (!protocolV2Enabled) {
+    return 'full';
+  }
+
+  const sync = capabilities.textDocumentSync;
+  if (sync === 2) {
+    return 'incremental';
+  }
+  if (sync === 0 || sync === 1) {
+    return 'full';
+  }
+  if (isRecord(sync)) {
+    const change = (sync as LspTextDocumentSyncOptions).change;
+    if (change === 2) {
+      return 'incremental';
+    }
+  }
+  return 'full';
 }
 
 function hoverToMarkdown(
@@ -421,7 +469,14 @@ function resolveFeatureSupport(capabilities: LspCapabilities): MonacoLspFeatureS
 }
 
 export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): MonacoLspAdapter {
-  const { monaco, editor, languageId, rootUri = 'file:///workspace', onStatusChange } = options;
+  const {
+    monaco,
+    editor,
+    languageId,
+    rootUri = 'file:///workspace',
+    protocolV2Enabled = true,
+    onStatusChange,
+  } = options;
   const disposables: Monaco.IDisposable[] = [];
   let unlistenDiagnostics: (() => void) | null = null;
   let sessionId: string | null = null;
@@ -429,10 +484,115 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
   let currentVersion = 1;
   let currentCapabilities: LspCapabilities = {};
   let currentFeatureSupport: MonacoLspFeatureSupport = { ...EMPTY_FEATURE_SUPPORT };
+  let syncQueue: Promise<void> = Promise.resolve();
+  let nextRequestSequence = 1;
+  let isDisposed = false;
+  const latestRequestSerial = new Map<string, number>();
   const model = editor.getModel();
 
   const updateStatus = (status: LspSessionStatus, detail?: string) => {
     onStatusChange?.(status, detail);
+  };
+
+  const nextFeatureSerial = (featureKey: string): number => {
+    const nextSerial = (latestRequestSerial.get(featureKey) ?? 0) + 1;
+    latestRequestSerial.set(featureKey, nextSerial);
+    return nextSerial;
+  };
+
+  const isStaleFeatureRequest = (featureKey: string, requestSerial: number): boolean =>
+    (latestRequestSerial.get(featureKey) ?? 0) !== requestSerial;
+
+  const nextClientRequestId = (featureKey: string): string =>
+    `${featureKey}:${Date.now()}:${nextRequestSequence++}`;
+
+  const featureTimeoutMs = (featureKey: string): number =>
+    featureKey === 'workspaceSymbols' ? 15_000 : 10_000;
+
+  const runCancelableRequest = async <T>(
+    featureKey: string,
+    token: Monaco.CancellationToken | undefined,
+    fallback: T,
+    request: (meta: LspRequestMeta) => Promise<T>
+  ): Promise<T> => {
+    const activeSessionId = sessionId;
+    if (!activeSessionId) {
+      return fallback;
+    }
+
+    const requestSerial = nextFeatureSerial(featureKey);
+    const clientRequestId = nextClientRequestId(featureKey);
+    const requestMeta: LspRequestMeta = {
+      clientRequestId,
+      timeoutMs: featureTimeoutMs(featureKey),
+    };
+
+    let cancellationRequested = false;
+    const cancelRequest = () => {
+      if (cancellationRequested) {
+        return;
+      }
+      cancellationRequested = true;
+      void lspCancelRequest(activeSessionId, clientRequestId).catch(() => {
+        // Ignore cancellation transport errors.
+      });
+    };
+
+    let cancelDisposable: Monaco.IDisposable | undefined;
+    if (token) {
+      if (token.isCancellationRequested) {
+        cancelRequest();
+        return fallback;
+      }
+      cancelDisposable = token.onCancellationRequested(cancelRequest);
+    }
+
+    try {
+      const result = await request(requestMeta);
+      if (token?.isCancellationRequested || cancellationRequested) {
+        return fallback;
+      }
+      if (sessionId !== activeSessionId || isStaleFeatureRequest(featureKey, requestSerial)) {
+        return fallback;
+      }
+      return result;
+    } catch (error) {
+      if (token?.isCancellationRequested || cancellationRequested) {
+        return fallback;
+      }
+      throw error;
+    } finally {
+      cancelDisposable?.dispose();
+    }
+  };
+
+  const enqueueDocumentSync = (
+    text: string,
+    version: number,
+    changes: LspTextDocumentContentChangeEvent[]
+  ) => {
+    const activeSessionId = sessionId;
+    if (!activeSessionId || !model || isDisposed) {
+      return;
+    }
+
+    const syncKind = resolveTextDocumentSyncKind(currentCapabilities, protocolV2Enabled);
+    const contentChanges = syncKind === 'incremental' ? changes : undefined;
+    syncQueue = syncQueue
+      .then(async () => {
+        if (!sessionId || sessionId !== activeSessionId || isDisposed) {
+          return;
+        }
+        await lspChangeDocument(
+          activeSessionId,
+          { uri: model.uri.toString(), version },
+          text,
+          contentChanges
+        );
+      })
+      .catch(() => {
+        updateStatus('fallback', 'LSP document sync failed');
+      });
   };
 
   const start = async (): Promise<MonacoLspStartResult> => {
@@ -447,6 +607,7 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
       };
     }
 
+    isDisposed = false;
     updateStatus('starting');
     try {
       const session = await lspStartSession({
@@ -476,20 +637,12 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
         text: model.getValue(),
       });
 
-      const modelChangeDisposable = model.onDidChangeContent(async () => {
+      const modelChangeDisposable = model.onDidChangeContent((event) => {
         if (!sessionId) {
           return;
         }
         currentVersion += 1;
-        try {
-          await lspChangeDocument(
-            sessionId,
-            { uri: model.uri.toString(), version: currentVersion },
-            model.getValue()
-          );
-        } catch {
-          updateStatus('fallback', 'LSP document sync failed');
-        }
+        enqueueDocumentSync(model.getValue(), currentVersion, toLspContentChanges(event.changes));
       });
       disposables.push(modelChangeDisposable);
 
@@ -503,10 +656,11 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
 
         const completionDisposable = monaco.languages.registerCompletionItemProvider(languageId, {
           triggerCharacters,
-          provideCompletionItems: async (completionModel, position) => {
+          provideCompletionItems: async (completionModel, position, _context, token) => {
             if (!sessionId) {
               return { suggestions: [] };
             }
+            const activeSessionId = sessionId;
             const word = completionModel.getWordUntilPosition(position);
             const range: Monaco.IRange = {
               startLineNumber: position.lineNumber,
@@ -515,11 +669,18 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
               endColumn: word.endColumn,
             };
 
-            const response = await lspCompletion(
-              sessionId,
-              { uri: completionModel.uri.toString() },
-              position.lineNumber - 1,
-              position.column - 1
+            const response = await runCancelableRequest(
+              'completion',
+              token,
+              { items: [] },
+              (meta) =>
+                lspCompletion(
+                  activeSessionId,
+                  { uri: completionModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
             );
 
             return {
@@ -544,15 +705,23 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
 
       if (currentFeatureSupport.hover) {
         const hoverDisposable = monaco.languages.registerHoverProvider(languageId, {
-          provideHover: async (hoverModel, position) => {
+          provideHover: async (hoverModel, position, token) => {
             if (!sessionId) {
               return null;
             }
-            const response = await lspHover(
-              sessionId,
-              { uri: hoverModel.uri.toString() },
-              position.lineNumber - 1,
-              position.column - 1
+            const activeSessionId = sessionId;
+            const response = await runCancelableRequest(
+              'hover',
+              token,
+              null,
+              (meta) =>
+                lspHover(
+                  activeSessionId,
+                  { uri: hoverModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
             );
 
             if (!response) {
@@ -574,15 +743,23 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
 
       if (currentFeatureSupport.definition) {
         const definitionDisposable = monaco.languages.registerDefinitionProvider(languageId, {
-          provideDefinition: async (defModel, position) => {
+          provideDefinition: async (defModel, position, token) => {
             if (!sessionId) {
               return null;
             }
-            const locations = await lspDefinition(
-              sessionId,
-              { uri: defModel.uri.toString() },
-              position.lineNumber - 1,
-              position.column - 1
+            const activeSessionId = sessionId;
+            const locations = await runCancelableRequest(
+              'definition',
+              token,
+              null,
+              (meta) =>
+                lspDefinition(
+                  activeSessionId,
+                  { uri: defModel.uri.toString() },
+                  position.lineNumber - 1,
+                  position.column - 1,
+                  meta
+                )
             );
             if (!locations || locations.length === 0) {
               return null;
@@ -631,10 +808,11 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
         const codeActionDisposable = monaco.languages.registerCodeActionProvider(
           languageId,
           {
-            provideCodeActions: async (codeActionModel, range, context) => {
+            provideCodeActions: async (codeActionModel, range, context, token) => {
               if (!sessionId) {
                 return { actions: [], dispose: () => {} };
               }
+              const activeSessionId = sessionId;
 
               const diagnostics: LspDiagnostic[] = context.markers.map((marker) => ({
                 range: {
@@ -653,11 +831,18 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
                 message: marker.message,
               }));
 
-              const items = await lspCodeActions(
-                sessionId,
-                { uri: codeActionModel.uri.toString() },
-                toLspRange(range),
-                diagnostics
+              const items = await runCancelableRequest(
+                'codeActions',
+                token,
+                [],
+                (meta) =>
+                  lspCodeActions(
+                    activeSessionId,
+                    { uri: codeActionModel.uri.toString() },
+                    toLspRange(range),
+                    diagnostics,
+                    meta
+                  )
               );
 
               const actions = items.map((item) =>
@@ -729,6 +914,9 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
         if (event.uri !== model.uri.toString()) {
           return;
         }
+        if (typeof event.version === 'number' && event.version < currentVersion) {
+          return;
+        }
 
         monaco.editor.setModelMarkers(
           model,
@@ -757,6 +945,7 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
   };
 
   const dispose = async () => {
+    isDisposed = true;
     for (const disposable of disposables) {
       disposable.dispose();
     }
@@ -765,6 +954,10 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     if (unlistenDiagnostics) {
       unlistenDiagnostics();
       unlistenDiagnostics = null;
+    }
+
+    if (model) {
+      monaco.editor.setModelMarkers(model, 'lsp', []);
     }
 
     if (sessionId && model) {
@@ -781,6 +974,9 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     }
     sessionId = null;
     executeCommandId = null;
+    currentVersion = 1;
+    syncQueue = Promise.resolve();
+    latestRequestSerial.clear();
     currentCapabilities = {};
     currentFeatureSupport = { ...EMPTY_FEATURE_SUPPORT };
   };
@@ -793,7 +989,17 @@ export function createMonacoLspAdapter(options: MonacoLspAdapterOptions): Monaco
     if (!trimmedQuery) {
       return [];
     }
-    return lspWorkspaceSymbols(sessionId, trimmedQuery);
+    const activeSessionId = sessionId;
+    const requestSerial = nextFeatureSerial('workspaceSymbols');
+    const meta: LspRequestMeta = {
+      clientRequestId: nextClientRequestId('workspaceSymbols'),
+      timeoutMs: featureTimeoutMs('workspaceSymbols'),
+    };
+    const symbols = await lspWorkspaceSymbols(activeSessionId, trimmedQuery, meta);
+    if (sessionId !== activeSessionId || isStaleFeatureRequest('workspaceSymbols', requestSerial)) {
+      return [];
+    }
+    return symbols;
   };
 
   return {

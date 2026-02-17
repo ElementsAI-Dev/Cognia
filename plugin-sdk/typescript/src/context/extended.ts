@@ -9,6 +9,193 @@
 import type { PluginAPIPermission } from '../core/types';
 
 // =============================================================================
+// CORE DOMAIN TYPES (LOCAL, SDK-ONLY)
+// =============================================================================
+
+export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
+
+export type PluginMessageRole = 'user' | 'assistant' | 'system' | 'tool';
+
+export interface PluginUIAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'audio' | 'video' | 'file' | 'document' | 'archive';
+  url: string;
+  size: number;
+  mimeType: string;
+}
+
+export interface PluginUIMessage {
+  id: string;
+  role: PluginMessageRole;
+  content: string;
+  createdAt: Date;
+  model?: string;
+  provider?: string;
+  attachments?: PluginUIAttachment[];
+  branchId?: string;
+  parentMessageId?: string;
+  metadata?: Record<string, unknown>;
+  error?: string;
+}
+
+export interface PluginSession {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  provider: string;
+  model: string;
+  mode: ChatMode;
+  systemPrompt?: string;
+  projectId?: string;
+  messageCount?: number;
+  lastMessagePreview?: string;
+  tags?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
+}
+
+export interface CreateSessionInput {
+  title?: string;
+  provider?: string;
+  model?: string;
+  mode?: ChatMode;
+  systemPrompt?: string;
+  projectId?: string;
+}
+
+export interface UpdateSessionInput {
+  title?: string;
+  provider?: string;
+  model?: string;
+  mode?: ChatMode;
+  systemPrompt?: string;
+  projectId?: string;
+  tags?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
+}
+
+export interface KnowledgeFile {
+  id: string;
+  name: string;
+  type: 'text' | 'pdf' | 'code' | 'markdown' | 'json' | 'word' | 'excel' | 'csv' | 'html';
+  content: string;
+  size: number;
+  mimeType?: string;
+  originalSize?: number;
+  pageCount?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PluginProject {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  customInstructions?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+  defaultMode?: ChatMode;
+  tags?: string[];
+  isArchived?: boolean;
+  archivedAt?: Date;
+  knowledgeBase: KnowledgeFile[];
+  sessionIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  lastAccessedAt: Date;
+  sessionCount: number;
+  messageCount: number;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  customInstructions?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+  defaultMode?: ChatMode;
+  tags?: string[];
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  customInstructions?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+  defaultMode?: ChatMode;
+  tags?: string[];
+  isArchived?: boolean;
+}
+
+export interface ArtifactMetadata {
+  runnable?: boolean;
+  dependencies?: string[];
+  wordCount?: number;
+  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter';
+  dataSource?: string;
+  previewable?: boolean;
+  sandboxed?: boolean;
+}
+
+export interface PluginArtifact {
+  id: string;
+  sessionId: string;
+  messageId: string;
+  type: 'code' | 'document' | 'svg' | 'html' | 'react' | 'mermaid' | 'chart' | 'math' | 'jupyter';
+  title: string;
+  content: string;
+  language?: ArtifactLanguage;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+  metadata?: ArtifactMetadata;
+}
+
+export interface CanvasDocumentVersion {
+  id: string;
+  content: string;
+  title: string;
+  createdAt: Date;
+  description?: string;
+  isAutoSave?: boolean;
+}
+
+export interface CanvasSuggestion {
+  id: string;
+  type: 'edit' | 'comment' | 'fix' | 'improve';
+  range: {
+    startLine: number;
+    endLine: number;
+    startColumn?: number;
+    endColumn?: number;
+  };
+  originalText: string;
+  suggestedText: string;
+  explanation: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface ExportData {
+  session?: PluginSession;
+  messages?: PluginUIMessage[];
+  project?: PluginProject;
+  exportedAt: Date;
+  metadata?: Record<string, unknown>;
+}
+
+export type ExtensionComponent = (props: ExtensionProps) => unknown;
+
+// =============================================================================
 // SESSION API TYPES
 // =============================================================================
 
@@ -17,7 +204,7 @@ import type { PluginAPIPermission } from '../core/types';
  */
 export interface SessionFilter {
   projectId?: string;
-  mode?: string; // ChatMode
+  mode?: ChatMode;
   hasMessages?: boolean;
   createdAfter?: Date;
   createdBefore?: Date;
@@ -99,20 +286,20 @@ export interface SessionStats {
  * ```
  */
 export interface PluginSessionAPI {
-  getCurrentSession: () => unknown; // Session | null
+  getCurrentSession: () => PluginSession | null;
   getCurrentSessionId: () => string | null;
-  getSession: (id: string) => Promise<unknown>; // Session | null
-  createSession: (options?: unknown) => Promise<unknown>; // CreateSessionInput
-  updateSession: (id: string, updates: unknown) => Promise<void>; // UpdateSessionInput
+  getSession: (id: string) => Promise<PluginSession | null>;
+  createSession: (options?: CreateSessionInput) => Promise<PluginSession>;
+  updateSession: (id: string, updates: UpdateSessionInput) => Promise<void>;
   switchSession: (id: string) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
-  listSessions: (filter?: SessionFilter) => Promise<unknown[]>; // Session[]
-  getMessages: (sessionId: string, options?: MessageQueryOptions) => Promise<unknown[]>; // UIMessage[]
-  addMessage: (sessionId: string, content: string, options?: SendMessageOptions) => Promise<unknown>; // UIMessage
-  updateMessage: (sessionId: string, messageId: string, updates: unknown) => Promise<void>; // Partial<UIMessage>
+  listSessions: (filter?: SessionFilter) => Promise<PluginSession[]>;
+  getMessages: (sessionId: string, options?: MessageQueryOptions) => Promise<PluginUIMessage[]>;
+  addMessage: (sessionId: string, content: string, options?: SendMessageOptions) => Promise<PluginUIMessage>;
+  updateMessage: (sessionId: string, messageId: string, updates: Partial<PluginUIMessage>) => Promise<void>;
   deleteMessage: (sessionId: string, messageId: string) => Promise<void>;
-  onSessionChange: (handler: (session: unknown) => void) => () => void; // Session | null
-  onMessagesChange: (sessionId: string, handler: (messages: unknown[]) => void) => () => void; // UIMessage[]
+  onSessionChange: (handler: (session: PluginSession | null) => void) => () => void;
+  onMessagesChange: (sessionId: string, handler: (messages: PluginUIMessage[]) => void) => () => void;
   getSessionStats: (sessionId: string) => Promise<SessionStats>;
 }
 
@@ -140,7 +327,7 @@ export interface ProjectFilter {
 export interface ProjectFileInput {
   name: string;
   content: string;
-  type?: string; // KnowledgeFile['type']
+  type?: KnowledgeFile['type'];
   mimeType?: string;
 }
 
@@ -170,24 +357,24 @@ export interface ProjectFileInput {
  * ```
  */
 export interface PluginProjectAPI {
-  getCurrentProject: () => unknown; // Project | null
+  getCurrentProject: () => PluginProject | null;
   getCurrentProjectId: () => string | null;
-  getProject: (id: string) => Promise<unknown>; // Project | null
-  createProject: (options: unknown) => Promise<unknown>; // CreateProjectInput
-  updateProject: (id: string, updates: unknown) => Promise<void>; // UpdateProjectInput
+  getProject: (id: string) => Promise<PluginProject | null>;
+  createProject: (options: CreateProjectInput) => Promise<PluginProject>;
+  updateProject: (id: string, updates: UpdateProjectInput) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   setActiveProject: (id: string | null) => Promise<void>;
-  listProjects: (filter?: ProjectFilter) => Promise<unknown[]>; // Project[]
+  listProjects: (filter?: ProjectFilter) => Promise<PluginProject[]>;
   archiveProject: (id: string) => Promise<void>;
   unarchiveProject: (id: string) => Promise<void>;
-  addKnowledgeFile: (projectId: string, file: ProjectFileInput) => Promise<unknown>; // KnowledgeFile
+  addKnowledgeFile: (projectId: string, file: ProjectFileInput) => Promise<KnowledgeFile>;
   removeKnowledgeFile: (projectId: string, fileId: string) => Promise<void>;
   updateKnowledgeFile: (projectId: string, fileId: string, content: string) => Promise<void>;
-  getKnowledgeFiles: (projectId: string) => Promise<unknown[]>; // KnowledgeFile[]
+  getKnowledgeFiles: (projectId: string) => Promise<KnowledgeFile[]>;
   linkSession: (projectId: string, sessionId: string) => Promise<void>;
   unlinkSession: (projectId: string, sessionId: string) => Promise<void>;
   getProjectSessions: (projectId: string) => Promise<string[]>;
-  onProjectChange: (handler: (project: unknown) => void) => () => void; // Project | null
+  onProjectChange: (handler: (project: PluginProject | null) => void) => () => void;
   addTag: (projectId: string, tag: string) => Promise<void>;
   removeTag: (projectId: string, tag: string) => Promise<void>;
 }
@@ -457,7 +644,7 @@ export interface CustomExporter {
   format: string;
   extension: string;
   mimeType: string;
-  export: (data: unknown) => Promise<Blob | string>; // ExportData
+  export: (data: ExportData) => Promise<Blob | string>;
 }
 
 /**
@@ -500,7 +687,7 @@ export interface ExportResult {
 export interface PluginExportAPI {
   exportSession: (sessionId: string, options: ExportOptions) => Promise<ExportResult>;
   exportProject: (projectId: string, options: ExportOptions) => Promise<ExportResult>;
-  exportMessages: (messages: unknown[], options: ExportOptions) => Promise<ExportResult>; // UIMessage[]
+  exportMessages: (messages: PluginUIMessage[], options: ExportOptions) => Promise<ExportResult>;
   download: (result: ExportResult, filename?: string) => void;
   registerExporter: (exporter: CustomExporter) => () => void;
   getAvailableFormats: () => ExportFormat[];
@@ -603,8 +790,8 @@ export interface PluginCanvasDocument {
   type: 'code' | 'text';
   createdAt: Date;
   updatedAt: Date;
-  suggestions?: unknown[]; // CanvasSuggestion[]
-  versions?: unknown[]; // CanvasDocumentVersion[]
+  suggestions?: CanvasSuggestion[];
+  versions?: CanvasDocumentVersion[];
 }
 
 /**
@@ -666,7 +853,7 @@ export interface PluginCanvasAPI {
   setContent: (content: string, id?: string) => void;
   saveVersion: (id: string, description?: string) => Promise<string>;
   restoreVersion: (documentId: string, versionId: string) => void;
-  getVersions: (id: string) => unknown[]; // CanvasDocumentVersion[]
+  getVersions: (id: string) => CanvasDocumentVersion[];
   onCanvasChange: (handler: (doc: PluginCanvasDocument | null) => void) => () => void;
   onContentChange: (handler: (content: string) => void) => () => void;
 }
@@ -704,8 +891,8 @@ export interface ArtifactFilter {
 export interface ArtifactRenderer {
   type: string;
   name: string;
-  canRender: (artifact: unknown) => boolean; // Artifact
-  render: (artifact: unknown, container: HTMLElement) => () => void; // Artifact
+  canRender: (artifact: PluginArtifact) => boolean;
+  render: (artifact: PluginArtifact, container: HTMLElement) => () => void;
 }
 
 /**
@@ -740,15 +927,15 @@ export interface ArtifactRenderer {
  * ```
  */
 export interface PluginArtifactAPI {
-  getActiveArtifact: () => unknown; // Artifact | null
-  getArtifact: (id: string) => unknown; // Artifact | null
+  getActiveArtifact: () => PluginArtifact | null;
+  getArtifact: (id: string) => PluginArtifact | null;
   createArtifact: (options: CreateArtifactOptions) => Promise<string>;
-  updateArtifact: (id: string, updates: unknown) => void; // Partial<Artifact>
+  updateArtifact: (id: string, updates: Partial<PluginArtifact>) => void;
   deleteArtifact: (id: string) => void;
-  listArtifacts: (filter?: ArtifactFilter) => unknown[]; // Artifact[]
+  listArtifacts: (filter?: ArtifactFilter) => PluginArtifact[];
   openArtifact: (id: string) => void;
   closeArtifact: () => void;
-  onArtifactChange: (handler: (artifact: unknown) => void) => () => void; // Artifact | null
+  onArtifactChange: (handler: (artifact: PluginArtifact | null) => void) => () => void;
   registerRenderer: (type: string, renderer: ArtifactRenderer) => () => void;
 }
 
@@ -960,15 +1147,21 @@ export type ExtensionPoint =
   | 'statusbar.left'
   | 'statusbar.center'
   | 'statusbar.right'
+  | 'chat.header'
+  | 'chat.footer'
   | 'chat.input.above'
   | 'chat.input.below'
   | 'chat.input.actions'
+  | 'chat.message.before'
+  | 'chat.message.after'
   | 'chat.message.actions'
   | 'chat.message.footer'
   | 'artifact.toolbar'
   | 'artifact.actions'
   | 'canvas.toolbar'
   | 'canvas.sidebar'
+  | 'panel.header'
+  | 'panel.footer'
   | 'settings.general'
   | 'settings.appearance'
   | 'settings.ai'
@@ -990,7 +1183,7 @@ export interface ExtensionRegistration {
   id: string;
   pluginId: string;
   point: ExtensionPoint;
-  component: unknown; // React.ComponentType<ExtensionProps>
+  component: ExtensionComponent;
   options: ExtensionOptions;
 }
 
@@ -1026,7 +1219,7 @@ export interface ExtensionProps {
 export interface PluginExtensionAPI {
   registerExtension: (
     point: ExtensionPoint,
-    component: unknown, // React.ComponentType<ExtensionProps>
+    component: ExtensionComponent,
     options?: ExtensionOptions
   ) => () => void;
   getExtensions: (point: ExtensionPoint) => ExtensionRegistration[];

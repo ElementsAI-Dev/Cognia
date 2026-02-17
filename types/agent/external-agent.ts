@@ -573,6 +573,45 @@ export interface AcpToolCallLocation {
 }
 
 /**
+ * ACP fs/read_text_file params
+ * @see https://agentclientprotocol.com/protocol/file-system
+ */
+export interface AcpReadTextFileParams {
+  /** Absolute file path */
+  path: string;
+  /** 1-based line number to start from */
+  line?: number;
+  /** Maximum number of lines to return */
+  limit?: number;
+  /** Optional metadata */
+  _meta?: Record<string, unknown>;
+}
+
+/**
+ * ACP terminal/create params
+ * @see https://agentclientprotocol.com/protocol/terminals
+ */
+export interface AcpTerminalCreateParams {
+  sessionId: string;
+  command: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+  outputByteLimit?: number;
+  _meta?: Record<string, unknown>;
+}
+
+/**
+ * ACP terminal/output params
+ * @see https://agentclientprotocol.com/protocol/terminals
+ */
+export interface AcpTerminalOutputParams {
+  terminalId: string;
+  outputByteLimit?: number;
+  _meta?: Record<string, unknown>;
+}
+
+/**
  * Permission option kind
  * @see https://agentclientprotocol.com/protocol/tool-calls
  */
@@ -592,6 +631,12 @@ export interface AcpPermissionOption {
   name: string;
   /** Kind hint for UI treatment */
   kind: AcpPermissionOptionKind;
+  /** Optional description */
+  description?: string;
+  /** Whether this is the default option */
+  isDefault?: boolean;
+  /** Optional metadata */
+  _meta?: Record<string, unknown>;
 }
 
 /**
@@ -645,6 +690,18 @@ export interface AcpTerminalExitStatus {
 }
 
 /**
+ * ACP terminal/output result
+ * @see https://agentclientprotocol.com/protocol/terminals
+ */
+export interface AcpTerminalOutputResult {
+  output: string;
+  truncated: boolean;
+  exitStatus: AcpTerminalExitStatus;
+  /** Backward-compatible field */
+  exitCode?: number | null;
+}
+
+/**
  * Union of all ACP session update types
  */
 export type AcpSessionUpdate =
@@ -688,12 +745,20 @@ export interface AcpToolInfo {
  */
 export interface AcpPermissionRequest {
   id: string;
+  requestId?: string;
   sessionId?: string;
+  toolCallId?: string;
+  title?: string;
+  kind?: AcpToolCallKind;
   toolInfo: AcpToolInfo;
+  options?: AcpPermissionOption[];
+  rawInput?: Record<string, unknown>;
+  locations?: AcpToolCallLocation[];
   reason?: string;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
   autoApproveTimeout?: number;
   metadata?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 }
 
 /**
@@ -1183,6 +1248,9 @@ export interface ExternalAgentToolUseStartEvent extends ExternalAgentEventBase {
   type: 'tool_use_start';
   toolUseId: string;
   toolName: string;
+  kind?: AcpToolCallKind;
+  rawInput?: Record<string, unknown>;
+  locations?: AcpToolCallLocation[];
 }
 
 /**
@@ -1211,6 +1279,12 @@ export interface ExternalAgentToolResultEvent extends ExternalAgentEventBase {
   toolUseId: string;
   result: string | Record<string, unknown>;
   isError?: boolean;
+  toolName?: string;
+  kind?: AcpToolCallKind;
+  rawInput?: Record<string, unknown>;
+  rawOutput?: Record<string, unknown>;
+  locations?: AcpToolCallLocation[];
+  status?: AcpToolCallStatus;
 }
 
 /**
@@ -1318,6 +1392,7 @@ export interface ExternalAgentDoneEvent extends ExternalAgentEventBase {
   type: 'done';
   success: boolean;
   tokenUsage?: ExternalAgentTokenUsage;
+  stopReason?: AcpStopReason;
 }
 
 /**
@@ -1433,6 +1508,13 @@ export interface ExternalAgentExecutionOptions {
   onProgress?: (progress: number, message?: string) => void;
   /** Abort signal */
   signal?: AbortSignal;
+  /** Agent trace context for event correlation */
+  traceContext?: {
+    sessionId?: string;
+    turnId?: string;
+    tags?: string[];
+    metadata?: Record<string, unknown>;
+  };
 }
 
 // ============================================================================

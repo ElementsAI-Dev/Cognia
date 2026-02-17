@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
 import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
+import type { CompletionProviderConfig } from '@/types/chat/input-completion';
 
 export interface EditorTextareaConfig {
   fontFamily: string;
@@ -63,6 +64,11 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
       setTextareaMounted(!!textareaRef.current);
     }, [textareaRef]);
 
+    const aiOnlyProviders = useMemo<CompletionProviderConfig[]>(
+      () => [{ type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true }],
+      []
+    );
+
     // AI ghost text completion for LaTeX
     const {
       state: completionState,
@@ -71,19 +77,22 @@ export const EditorTextarea = forwardRef<HTMLTextAreaElement, EditorTextareaProp
       acceptGhostText,
       dismissGhostText,
     } = useInputCompletionUnified({
+      providers: enableAiCompletion ? aiOnlyProviders : undefined,
       enableAiCompletion: enableAiCompletion && !readOnly,
-      onAiCompletionAccept: (text) => {
-        // Simulate onChange event with the accepted text
+      onTextCommit: (text) => {
+        // Simulate onChange event with committed text
         const textarea = textareaRef.current;
         if (textarea) {
           const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
             window.HTMLTextAreaElement.prototype,
             'value'
           )?.set;
-          nativeInputValueSetter?.call(textarea, value + text);
-          textarea.dispatchEvent(new Event('change', { bubbles: true }));
+          nativeInputValueSetter?.call(textarea, text);
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
       },
+      mode: 'code',
+      surface: 'latex_editor',
     });
 
     const ghostText = completionState.ghostText;

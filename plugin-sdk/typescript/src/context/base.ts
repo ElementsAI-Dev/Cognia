@@ -21,6 +21,7 @@ import type {
   PluginBrowserAPI,
   PluginSchedulerAPI,
 } from '../api';
+import type { PluginHostTransport } from '../core';
 
 /**
  * Logger API
@@ -41,6 +42,10 @@ export interface PluginLogger {
   info: (message: string, ...args: unknown[]) => void;
   warn: (message: string, ...args: unknown[]) => void;
   error: (message: string, ...args: unknown[]) => void;
+  trace?: (message: string, ...args: unknown[]) => void;
+  fatal?: (message: string, ...args: unknown[]) => void;
+  child?: (scope: string) => PluginLogger;
+  withContext?: (context: Record<string, unknown>) => PluginLogger;
 }
 
 /**
@@ -243,4 +248,7 @@ export interface PluginContext {
 
   /** Scheduler API for scheduled tasks */
   scheduler: PluginSchedulerAPI;
+
+  /** Host bridge transport (v2 gateway) */
+  host?: PluginHostTransport;
 }

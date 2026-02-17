@@ -9,6 +9,7 @@ import type {
   StepExecutorConfig,
   StepExecutorCallbacks,
 } from './types';
+import { evaluateRestrictedBooleanExpression } from './expression-evaluator';
 
 export async function executeLoopStep(
   step: WorkflowStepDefinition,
@@ -45,8 +46,11 @@ export async function executeLoopStep(
       let conditionResult = true;
       while (conditionResult && iteration < maxIterations) {
         try {
-          const conditionFn = new Function('iteration', 'input', `return ${step.condition}`);
-          conditionResult = conditionFn(iteration, input);
+          conditionResult = evaluateRestrictedBooleanExpression(step.condition, {
+            ...input,
+            iteration,
+            input,
+          });
           if (conditionResult) {
             results.push({ [step.iteratorVariable || 'iteration']: iteration });
             iteration++;

@@ -65,11 +65,7 @@ import {
   getRecordingPath,
 } from '@/lib/native/screen-recording';
 import type { RecordingStats } from '@/lib/native/screen-recording';
-import {
-  showRecordingToolbar,
-  hideRecordingToolbar,
-  updateRecordingToolbarState,
-} from '@/lib/native/recording-toolbar';
+import { parseRecordingError } from '@/lib/native/recording-errors';
 import { isTauri } from '@/lib/native/utils';
 
 export type RecordingMode = 'fullscreen' | 'window' | 'region';
@@ -413,11 +409,12 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           listeners.push(unlistenCancelled);
 
           // Listen for recording errors
-          const unlistenError = await listen<{ error: string; code: string }>(
+          const unlistenError = await listen<unknown>(
             'recording-error',
             (event) => {
+              const parsed = parseRecordingError(event.payload);
               set({
-                error: event.payload.error,
+                error: parsed.message,
                 status: 'Idle',
                 recordingId: null,
               });
@@ -465,15 +462,12 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             isLoading: false,
           });
 
-          // Show recording toolbar
-          await showRecordingToolbar();
-          await updateRecordingToolbarState(true, false, 0);
-
           // Status will be updated via events automatically
           return recordingId;
         } catch (error) {
+          const parsed = parseRecordingError(error);
           set({
-            error: error instanceof Error ? error.message : 'Failed to start recording',
+            error: parsed.message,
             isLoading: false,
           });
           return null;
@@ -485,11 +479,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           await pauseRecording();
           await get().updateStatus();
-          // Update toolbar state to paused
-          const duration = get().duration;
-          await updateRecordingToolbarState(true, true, duration);
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to pause' });
+          const parsed = parseRecordingError(error);
+          set({ error: parsed.message });
         }
       },
 
@@ -498,11 +490,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
         try {
           await resumeRecording();
           await get().updateStatus();
-          // Update toolbar state to resumed
-          const duration = get().duration;
-          await updateRecordingToolbarState(true, false, duration);
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to resume' });
+          const parsed = parseRecordingError(error);
+          set({ error: parsed.message });
         }
       },
 
@@ -520,14 +510,11 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
           });
           await get().updateStatus();
 
-          // Hide recording toolbar
-          await hideRecordingToolbar();
-          await updateRecordingToolbarState(false, false, 0);
-
           return metadata;
         } catch (error) {
+          const parsed = parseRecordingError(error);
           set({
-            error: error instanceof Error ? error.message : 'Failed to stop',
+            error: parsed.message,
             isLoading: false,
           });
           return null;
@@ -543,12 +530,9 @@ export const useScreenRecordingStore = create<ScreenRecordingStore>()(
             duration: 0,
           });
           await get().updateStatus();
-
-          // Hide recording toolbar
-          await hideRecordingToolbar();
-          await updateRecordingToolbarState(false, false, 0);
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to cancel' });
+          const parsed = parseRecordingError(error);
+          set({ error: parsed.message });
         }
       },
 

@@ -107,16 +107,34 @@ export const DEFAULT_KERNEL_CONFIG: KernelConfig = {
 
 /** Kernel service configuration (Tauri backend) */
 export interface KernelServiceConfig {
+  /** Execution timeout in seconds */
+  timeout_secs?: number;
+  /** Max output size in bytes */
+  max_output_size?: number;
   /** Timeout for kernel startup in seconds */
-  startup_timeout_secs: number;
-  /** Timeout for code execution in seconds */
-  execution_timeout_secs: number;
+  startup_timeout_secs?: number;
   /** Timeout for idle kernels before cleanup in seconds */
-  idle_timeout_secs: number;
+  idle_timeout_secs?: number;
   /** Maximum number of kernels */
-  max_kernels: number;
+  max_kernels?: number;
   /** Enable verbose logging */
+  verbose?: boolean;
+  /** Whether REPL can auto-install missing packages during execution */
+  auto_install_packages?: boolean;
+
+  /** Legacy compatibility fields */
+  execution_timeout_secs?: number;
+  max_output_bytes?: number;
+}
+
+export interface NormalizedKernelServiceConfig {
+  timeoutSecs: number;
+  maxOutputSize: number;
+  startupTimeoutSecs: number;
+  idleTimeoutSecs: number;
+  maxKernels: number;
   verbose: boolean;
+  autoInstallPackages: boolean;
 }
 
 /** Notebook file metadata */
@@ -176,6 +194,23 @@ export const DEFAULT_EXECUTION_OPTIONS: NotebookExecutionOptions = {
   timeout: 60000,
   clearOutputs: true,
 };
+
+export function normalizeKernelServiceConfig(
+  config: KernelServiceConfig | null | undefined
+): NormalizedKernelServiceConfig {
+  const timeoutSecs = config?.timeout_secs ?? config?.execution_timeout_secs ?? 60;
+  const maxOutputSize = config?.max_output_size ?? config?.max_output_bytes ?? 1024 * 1024;
+
+  return {
+    timeoutSecs,
+    maxOutputSize,
+    startupTimeoutSecs: config?.startup_timeout_secs ?? 30,
+    idleTimeoutSecs: config?.idle_timeout_secs ?? 3600,
+    maxKernels: config?.max_kernels ?? 32,
+    verbose: config?.verbose ?? false,
+    autoInstallPackages: config?.auto_install_packages ?? false,
+  };
+}
 
 /** Session creation options */
 export interface CreateSessionOptions {

@@ -41,13 +41,32 @@ export type ActivityType =
   | { Custom: string };
 
 export interface UserActivity {
-  id: string;
+  id?: string;
   activity_type: ActivityType;
+  description: string;
+  application?: string;
+  target?: string;
+  duration_ms?: number;
   timestamp: number;
-  app_name?: string;
-  window_title?: string;
-  content?: string;
   metadata: Record<string, string>;
+}
+
+export interface LegacyUserActivityInput {
+  activityType: string;
+  appName?: string;
+  windowTitle?: string;
+  content?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface RecordActivityInput {
+  activity_type: string;
+  description: string;
+  application?: string;
+  target?: string;
+  metadata?: Record<string, string>;
+  timestamp?: number;
+  duration_ms?: number;
 }
 
 export type SuggestionType =
@@ -111,13 +130,66 @@ export interface ActivityStats {
   activity_counts: Record<string, number>;
 }
 
+type UserActivityLike = Partial<UserActivity> & {
+  activityType?: string;
+  appName?: string;
+  windowTitle?: string;
+  content?: string;
+  app_name?: string;
+  window_title?: string;
+};
+
+function normalizeRecordActivityInput(
+  input: RecordActivityInput | LegacyUserActivityInput
+): RecordActivityInput {
+  if ("activity_type" in input) {
+    return {
+      activity_type: input.activity_type,
+      description: input.description,
+      application: input.application,
+      target: input.target,
+      metadata: input.metadata ?? {},
+      timestamp: input.timestamp,
+      duration_ms: input.duration_ms,
+    };
+  }
+
+  return {
+    activity_type: input.activityType,
+    description: input.content ?? input.windowTitle ?? input.activityType,
+    application: input.appName,
+    target: input.windowTitle,
+    metadata: input.metadata ?? {},
+  };
+}
+
+function normalizeUserActivity(activity: UserActivityLike): UserActivity {
+  return {
+    id: activity.id,
+    activity_type: (activity.activity_type ?? activity.activityType ?? "Custom") as ActivityType,
+    description:
+      activity.description ??
+      activity.content ??
+      (typeof activity.activity_type === "string" ? activity.activity_type : "Activity"),
+    application: activity.application ?? activity.app_name ?? activity.appName,
+    target: activity.target ?? activity.window_title ?? activity.windowTitle,
+    duration_ms: activity.duration_ms,
+    timestamp: activity.timestamp ?? Date.now(),
+    metadata: activity.metadata ?? {},
+  };
+}
+
 // ============== State Functions ==============
 
 /**
  * Get current awareness state
  */
 export async function getState(): Promise<AwarenessState> {
-  return invoke("awareness_get_state");
+  const state = await invoke<AwarenessState>("awareness_get_state");
+  return {
+    ...state,
+    recent_activities: state.recent_activities.map(normalizeUserActivity),
+  };
 }
 
 /**
@@ -139,19 +211,39 @@ export async function getSuggestions(): Promise<Suggestion[]> {
 /**
  * Record an activity
  */
+export async function recordActivity(activity: RecordActivityInput): Promise<void>;
+export async function recordActivity(activity: LegacyUserActivityInput): Promise<void>;
 export async function recordActivity(
   activityType: string,
   appName?: string,
   windowTitle?: string,
   content?: string,
   metadata?: Record<string, string>
+): Promise<void>;
+export async function recordActivity(
+  activityOrType: string | RecordActivityInput | LegacyUserActivityInput,
+  appName?: string,
+  windowTitle?: string,
+  content?: string,
+  metadata?: Record<string, string>
 ): Promise<void> {
+  const payload =
+    typeof activityOrType === "string"
+      ? {
+          activity_type: activityOrType,
+          description: content ?? activityOrType,
+          application: appName,
+          target: windowTitle,
+          metadata: metadata ?? {},
+        }
+      : normalizeRecordActivityInput(activityOrType);
+
   return invoke("awareness_record_activity", {
-    activityType,
-    appName,
-    windowTitle,
-    content,
-    metadata,
+    activityType: payload.activity_type,
+    description: payload.description,
+    application: payload.application,
+    target: payload.target,
+    metadata: payload.metadata,
   });
 }
 
@@ -159,7 +251,8 @@ export async function recordActivity(
  * Get recent activities
  */
 export async function getRecentActivities(count?: number): Promise<UserActivity[]> {
-  return invoke("awareness_get_recent_activities", { count });
+  const activities = await invoke<UserActivity[]>("awareness_get_recent_activities", { count });
+  return activities.map(normalizeUserActivity);
 }
 
 /**
@@ -282,21 +375,31 @@ export async function clearFocusHistory(): Promise<void> {
  * Get activities by type
  */
 export async function getActivitiesByType(activityType: string): Promise<UserActivity[]> {
-  return invoke("awareness_get_activities_by_type", { activityType });
+  const activities = await invoke<UserActivity[]>("awareness_get_activities_by_type", {
+    activityType,
+  });
+  return activities.map(normalizeUserActivity);
 }
 
 /**
  * Get activities in time range
  */
 export async function getActivitiesInRange(startMs: number, endMs: number): Promise<UserActivity[]> {
-  return invoke("awareness_get_activities_in_range", { startMs, endMs });
+  const activities = await invoke<UserActivity[]>("awareness_get_activities_in_range", {
+    startMs,
+    endMs,
+  });
+  return activities.map(normalizeUserActivity);
 }
 
 /**
  * Get activities by application
  */
 export async function getActivitiesByApplication(appName: string): Promise<UserActivity[]> {
-  return invoke("awareness_get_activities_by_application", { appName });
+  const activities = await invoke<UserActivity[]>("awareness_get_activities_by_application", {
+    appName,
+  });
+  return activities.map(normalizeUserActivity);
 }
 
 /**

@@ -85,6 +85,9 @@ impl Default for KernelConfig {
             max_output_size: 1024 * 1024, // 1MB
             startup_timeout_secs: 30,
             idle_timeout_secs: 3600, // 1 hour
+            max_kernels: 32,
+            verbose: false,
+            auto_install_packages: false,
         }
     }
 }

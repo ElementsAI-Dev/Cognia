@@ -378,10 +378,22 @@ async function executeSubAgentOnExternal(
     subAgent.context = context;
 
     // Build execution options
+    const parentSessionId =
+      typeof executorConfig.parentContext?.sessionId === 'string'
+        ? (executorConfig.parentContext.sessionId as string)
+        : undefined;
     const execOptions: ExternalAgentExecutionOptions = {
       systemPrompt: buildSubAgentSystemPrompt(subAgent, context),
       permissionMode: subAgent.config.externalAgentPermissionMode || 'default',
       timeout: subAgent.config.timeout,
+      traceContext: {
+        sessionId: parentSessionId,
+        tags: ['sub-agent-external-agent'],
+        metadata: {
+          parentAgentId: subAgent.parentAgentId,
+          subAgentId: subAgent.id,
+        },
+      },
       onProgress: (progress, message) => {
         subAgent.progress = progress;
         addLog(subAgent, 'debug', message || `Progress: ${progress}%`);

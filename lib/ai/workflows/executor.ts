@@ -128,6 +128,17 @@ function addLog(
   onLog?.(log);
 }
 
+function executeStructuredPassthroughStep(
+  step: WorkflowStepDefinition,
+  input: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    result: input,
+    stepType: step.type,
+    passthrough: true,
+  };
+}
+
 /**
  * Get steps that are ready to execute (all dependencies completed)
  */
@@ -242,6 +253,20 @@ async function executeStep(
         break;
       case 'subworkflow':
         result = await executeSubworkflowStep(step, stepInput, config, callbacks);
+        break;
+      case 'knowledgeRetrieval':
+      case 'parameterExtractor':
+      case 'variableAggregator':
+      case 'questionClassifier':
+      case 'templateTransform':
+      case 'chart':
+      case 'lineChart':
+      case 'barChart':
+      case 'pieChart':
+      case 'areaChart':
+      case 'scatterChart':
+      case 'radarChart':
+        result = executeStructuredPassthroughStep(step, stepInput);
         break;
       default:
         throw new Error(`Unknown step type: ${step.type}`);
@@ -380,7 +405,11 @@ export async function executeWorkflow(
 
   // Persist initial execution state to database
   try {
-    await workflowRepository.createExecution(workflow.id, input);
+    await workflowRepository.createExecution(workflow.id, input, {
+      executionId: execution.id,
+      status: 'running',
+      startedAt: execution.startedAt,
+    });
     log.info('[Workflow Executor] Execution record created', {
       executionId: execution.id,
       workflowId: workflow.id,

@@ -647,6 +647,69 @@ describe('useBackgroundAgentStore', () => {
     });
   });
 
+  describe('sync helpers', () => {
+    it('upsertAgentSnapshot should clone snapshot to avoid external mutation aliasing', () => {
+      const { result } = renderHook(() => useBackgroundAgentStore());
+
+      let source: ReturnType<typeof result.current.createAgent>;
+      act(() => {
+        source = result.current.createAgent({
+          sessionId: 'session-1',
+          name: 'Snapshot Source',
+          task: 'Task',
+        });
+      });
+      const snapshot = {
+        ...source!,
+        logs: [...source!.logs],
+      };
+
+      act(() => {
+        result.current.upsertAgentSnapshot(snapshot);
+      });
+
+      snapshot.name = 'Mutated Name';
+      snapshot.logs.push({
+        id: 'external-log',
+        timestamp: new Date(),
+        level: 'info',
+        message: 'external mutation',
+        source: 'system',
+      });
+
+      const stored = result.current.agents[source!.id];
+      expect(stored.name).toBe('Snapshot Source');
+      expect(stored.logs.some((log) => log.id === 'external-log')).toBe(false);
+    });
+
+    it('syncQueueState should clone queue items to avoid mutable aliasing', () => {
+      const { result } = renderHook(() => useBackgroundAgentStore());
+
+      const queueItems = [
+        {
+          agentId: 'agent-1',
+          priority: 1,
+          queuedAt: new Date('2024-01-01T00:00:00.000Z'),
+        },
+      ];
+
+      act(() => {
+        result.current.syncQueueState({ items: queueItems, isPaused: true });
+      });
+
+      queueItems[0].priority = 999;
+      queueItems.push({
+        agentId: 'agent-2',
+        priority: 2,
+        queuedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      expect(result.current.queue.isPaused).toBe(true);
+      expect(result.current.queue.items).toHaveLength(1);
+      expect(result.current.queue.items[0].priority).toBe(1);
+    });
+  });
+
   describe('reset', () => {
     it('should reset the store to initial state', () => {
       const { result } = renderHook(() => useBackgroundAgentStore());

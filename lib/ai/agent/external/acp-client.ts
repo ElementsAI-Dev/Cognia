@@ -12,6 +12,13 @@ import { isTauri } from '@/lib/utils';
 import { proxyFetch } from '@/lib/network/proxy-fetch';
 import { loggers } from '@/lib/logger';
 import {
+  acpTerminalCreate,
+  acpTerminalKill,
+  acpTerminalOutput,
+  acpTerminalRelease,
+  acpTerminalWaitForExit,
+} from '@/lib/native/external-agent';
+import {
   BaseProtocolAdapter,
   type SessionCreateOptions,
 } from './protocol-adapter';
@@ -38,6 +45,15 @@ import type {
   AcpSessionModelState,
   AcpSessionModesState,
   AcpConfigOption,
+  AcpReadTextFileParams,
+  AcpTerminalCreateParams,
+  AcpTerminalOutputParams,
+  AcpTerminalOutputResult,
+  AcpPermissionRequest,
+  AcpPermissionOption,
+  AcpToolCallKind,
+  AcpToolCallStatus,
+  AcpToolCallLocation,
 } from '@/types/agent/external-agent';
 
 // ============================================================================
@@ -143,6 +159,17 @@ interface AcpNewSessionResult {
 }
 
 /**
+ * ACP unstable session/list item
+ * (supported by Zed ACP adapters and compatible implementations)
+ */
+interface AcpSessionListItem {
+  sessionId: string;
+  title?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * ACP session/prompt request params
  * @see https://agentclientprotocol.com/protocol/prompt-turn
  */
@@ -232,7 +259,14 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     resolve: (response: { outcome: { outcome: string; optionId?: string } }) => void;
     reject: (error: Error) => void;
     timeout: ReturnType<typeof setTimeout>;
+    request: AcpPermissionRequest;
   }> = new Map();
+
+  // Extension method handlers for custom "_" methods
+  private extensionHandlers: Map<string, (params?: Record<string, unknown>) => Promise<unknown> | unknown> = new Map();
+
+  // Cached unsupported methods discovered via probing (-32601)
+  private unsupportedMethods: Set<string> = new Set();
 
   /**
    * Connect to an ACP agent
@@ -549,7 +583,13 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     // Clear state
     this.processId = undefined;
     this._sessions.clear();
+    for (const [, pending] of this.pendingPermissions) {
+      clearTimeout(pending.timeout);
+      pending.resolve({ outcome: { outcome: 'cancelled' } });
+    }
+    this.pendingPermissions.clear();
     this.pendingRequests.clear();
+    this.unsupportedMethods.clear();
     this._connectionStatus = 'disconnected';
 
     log.info('Disconnected');
@@ -599,7 +639,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       status: 'active',
       permissionMode: initialMode,
       capabilities: this._capabilities,
-      tools: this._tools,
+      tools: this._tools ?? [],
       messages: [],
       createdAt: new Date(),
       lastActivityAt: new Date(),
@@ -631,7 +671,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
 
     // Clean up any pending permissions for this session
     for (const [requestId, pending] of this.pendingPermissions) {
-      if (requestId.startsWith(sessionId)) {
+      if (pending.request.sessionId === sessionId || requestId.startsWith(sessionId)) {
         clearTimeout(pending.timeout);
         pending.resolve({ outcome: { outcome: 'cancelled' } });
         this.pendingPermissions.delete(requestId);
@@ -794,9 +834,37 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         outcome: {
           outcome: response.granted ? 'selected' : 'cancelled',
           optionId: response.optionId,
-        },
+          },
+      });
+      this.emitEvent({
+        type: 'permission_response',
+        sessionId: pending.request.sessionId || _sessionId,
+        timestamp: new Date(),
+        response,
       });
       this.pendingPermissions.delete(response.requestId);
+      return;
+    }
+
+    // Backward-compatible fallback for legacy request ID format
+    for (const [requestId, entry] of this.pendingPermissions.entries()) {
+      if (entry.request.id === response.requestId || entry.request.requestId === response.requestId) {
+        clearTimeout(entry.timeout);
+        entry.resolve({
+          outcome: {
+            outcome: response.granted ? 'selected' : 'cancelled',
+            optionId: response.optionId,
+          },
+        });
+        this.emitEvent({
+          type: 'permission_response',
+          sessionId: entry.request.sessionId || _sessionId,
+          timestamp: new Date(),
+          response,
+        });
+        this.pendingPermissions.delete(requestId);
+        return;
+      }
     }
   }
 
@@ -831,7 +899,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           timestamp: new Date(),
           success: result.stopReason !== 'cancelled' && result.stopReason !== 'refusal',
           stopReason: result.stopReason,
-        } as ExternalAgentEvent & { stopReason: AcpStopReason });
+        });
       })
       .catch((error) => {
         // Emit error event on failure
@@ -975,7 +1043,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       status: 'active',
       permissionMode: (options?.permissionMode || 'default') as AcpPermissionMode,
       capabilities: this._capabilities,
-      tools: this._tools,
+      tools: this._tools ?? [],
       messages: [],
       createdAt: new Date(),
       lastActivityAt: new Date(),
@@ -984,6 +1052,136 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
 
     this._sessions.set(session.id, session);
     return session;
+  }
+
+  /**
+   * List existing sessions (ACP extension / unstable)
+   */
+  async listSessions(): Promise<AcpSessionListItem[]> {
+    const method = 'session/list';
+    if (this.unsupportedMethods.has(method)) {
+      throw new Error('Agent does not support session listing');
+    }
+
+    try {
+      const result = await this.sendRequest<{ sessions?: AcpSessionListItem[] } | AcpSessionListItem[]>(
+        method,
+        {}
+      );
+      if (Array.isArray(result)) {
+        return result;
+      }
+      return result.sessions ?? [];
+    } catch (error) {
+      if (this.isMethodNotFoundError(error)) {
+        this.unsupportedMethods.add(method);
+        throw new Error('Agent does not support session listing');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Fork a session (ACP extension / unstable)
+   */
+  async forkSession(sessionId: string): Promise<ExternalAgentSession> {
+    const method = 'session/fork';
+    if (this._agentCapabilities?.sessionCapabilities && !this._agentCapabilities.sessionCapabilities.fork) {
+      throw new Error('Agent does not advertise session forking support');
+    }
+    if (this.unsupportedMethods.has(method)) {
+      throw new Error('Agent does not support session forking');
+    }
+
+    try {
+      const result = await this.sendRequest<AcpNewSessionResult>(
+        method,
+        { sessionId } as Record<string, unknown>
+      );
+      const forkedSession: ExternalAgentSession = {
+        id: result.sessionId,
+        agentId: this._config!.id,
+        status: 'active',
+        permissionMode: 'default',
+        capabilities: this._capabilities,
+        tools: this._tools ?? [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+        metadata: {
+          models: result.models,
+          modes: result.modes,
+          configOptions: result.configOptions,
+        },
+      };
+      this._sessions.set(forkedSession.id, forkedSession);
+      return forkedSession;
+    } catch (error) {
+      if (this.isMethodNotFoundError(error)) {
+        this.unsupportedMethods.add(method);
+        throw new Error('Agent does not support session forking');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Resume a session (ACP extension / unstable)
+   */
+  async resumeSession(sessionId: string, options?: SessionCreateOptions): Promise<ExternalAgentSession> {
+    const method = 'session/resume';
+    if (this._agentCapabilities?.sessionCapabilities && !this._agentCapabilities.sessionCapabilities.resume) {
+      if (this._agentCapabilities.loadSession) {
+        return this.loadSession(sessionId, options);
+      }
+      throw new Error('Agent does not advertise session resume support');
+    }
+    if (this.unsupportedMethods.has(method)) {
+      if (this._agentCapabilities?.loadSession) {
+        return this.loadSession(sessionId, options);
+      }
+      throw new Error('Agent does not support session resume');
+    }
+
+    try {
+      const result = await this.sendRequest<AcpNewSessionResult>(
+        method,
+        {
+          sessionId,
+          cwd: options?.cwd || this._config?.process?.cwd || '/',
+          mcpServers: options?.mcpServers,
+        } as Record<string, unknown>
+      );
+
+      const resumedSession: ExternalAgentSession = {
+        id: result.sessionId || sessionId,
+        agentId: this._config!.id,
+        status: 'active',
+        permissionMode: (options?.permissionMode || 'default') as AcpPermissionMode,
+        capabilities: this._capabilities,
+        tools: this._tools ?? [],
+        messages: [],
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
+        metadata: {
+          ...options?.metadata,
+          models: result.models,
+          modes: result.modes,
+          configOptions: result.configOptions,
+        },
+      };
+      this._sessions.set(resumedSession.id, resumedSession);
+      return resumedSession;
+    } catch (error) {
+      if (this.isMethodNotFoundError(error)) {
+        this.unsupportedMethods.add(method);
+        if (this._agentCapabilities?.loadSession) {
+          return this.loadSession(sessionId, options);
+        }
+        throw new Error('Agent does not support session resume');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1000,6 +1198,49 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Register an ACP extension method handler (method starts with "_")
+   */
+  registerExtensionHandler(
+    method: string,
+    handler: (params?: Record<string, unknown>) => Promise<unknown> | unknown
+  ): void {
+    if (!method.startsWith('_')) {
+      throw new Error('ACP extension methods must start with "_"');
+    }
+    this.extensionHandlers.set(method, handler);
+  }
+
+  /**
+   * Unregister an ACP extension method handler
+   */
+  unregisterExtensionHandler(method: string): void {
+    this.extensionHandlers.delete(method);
+  }
+
+  /**
+   * Best-effort detection of JSON-RPC method-not-found errors.
+   */
+  private isMethodNotFoundError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes('-32601') || /method not found/i.test(message);
+  }
+
+  private normalizePermissionOptionKind(kind: string | undefined): string {
+    return (kind || '').toLowerCase();
+  }
+
+  private pickAllowPermissionOption(options?: AcpPermissionOption[]): AcpPermissionOption | undefined {
+    if (!options?.length) return undefined;
+    const preferred = options.find((opt) => this.normalizePermissionOptionKind(opt.kind).includes('allow_once'));
+    if (preferred) return preferred;
+    const defaultAllow = options.find(
+      (opt) => opt.isDefault && this.normalizePermissionOptionKind(opt.kind).includes('allow')
+    );
+    if (defaultAllow) return defaultAllow;
+    return options.find((opt) => this.normalizePermissionOptionKind(opt.kind).includes('allow'));
   }
 
   // ============================================================================
@@ -1181,7 +1422,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
 
       switch (method) {
         case 'fs/read_text_file':
-          result = await this.handleReadTextFile(params as { path: string });
+          result = await this.handleReadTextFile(params as unknown as AcpReadTextFileParams);
           break;
 
         case 'fs/write_text_file':
@@ -1189,25 +1430,15 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           break;
 
         case 'session/request_permission':
-          result = await this.handlePermissionRequest(params as {
-            sessionId: string;
-            toolCallId: string;
-            title: string;
-            kind: string;
-          });
+          result = await this.handlePermissionRequest(params as unknown as AcpPermissionRequest);
           break;
 
         case 'terminal/create':
-          result = await this.handleTerminalCreate(params as {
-            sessionId: string;
-            command: string;
-            args?: string[];
-            cwd?: string;
-          });
+          result = await this.handleTerminalCreate(params as unknown as AcpTerminalCreateParams);
           break;
 
         case 'terminal/output':
-          result = await this.handleTerminalOutput(params as { terminalId: string });
+          result = await this.handleTerminalOutput(params as unknown as AcpTerminalOutputParams);
           break;
 
         case 'terminal/kill':
@@ -1223,7 +1454,17 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           break;
 
         default:
-          throw new Error(`Unknown method: ${method}`);
+          if (method.startsWith('_')) {
+            const extensionHandler = this.extensionHandlers.get(method);
+            if (!extensionHandler) {
+              await this.sendErrorResponse(id, -32601, `Method not found: ${method}`);
+              return;
+            }
+            result = await extensionHandler(params);
+            break;
+          }
+          await this.sendErrorResponse(id, -32601, `Method not found: ${method}`);
+          return;
       }
 
       // Send success response
@@ -1262,10 +1503,20 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    * Handle fs/read_text_file request
    * @see https://agentclientprotocol.com/protocol/file-system
    */
-  private async handleReadTextFile(params: { path: string }): Promise<{ content: string }> {
+  private async handleReadTextFile(params: AcpReadTextFileParams): Promise<{ content: string }> {
     if (isTauri()) {
       const { readTextFile } = await import('@tauri-apps/plugin-fs');
-      const content = await readTextFile(params.path);
+      const fullContent = await readTextFile(params.path);
+      const hasLineParams = typeof params.line === 'number' || typeof params.limit === 'number';
+      if (!hasLineParams) {
+        return { content: fullContent };
+      }
+
+      const lines = fullContent.split(/\r?\n/);
+      const start = Math.max((params.line ?? 1) - 1, 0);
+      const limit = params.limit !== undefined ? Math.max(params.limit, 0) : undefined;
+      const end = limit !== undefined ? start + limit : lines.length;
+      const content = lines.slice(start, end).join('\n');
       return { content };
     } else {
       // In browser, use fetch for local files (limited)
@@ -1295,30 +1546,71 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    * Promise which will resolve when the UI responds or timeout occurs.
    */
   private async handlePermissionRequest(params: {
-    sessionId: string;
-    toolCallId: string;
-    title: string;
-    kind: string;
+    sessionId?: string;
+    toolCallId?: string;
+    title?: string;
+    kind?: string;
+    requestId?: string;
+    options?: AcpPermissionOption[];
+    rawInput?: Record<string, unknown>;
+    locations?: AcpToolCallLocation[];
+    _meta?: Record<string, unknown>;
+    toolInfo?: AcpToolInfo;
+    id?: string;
+    reason?: string;
+    riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+    autoApproveTimeout?: number;
+    metadata?: Record<string, unknown>;
   }): Promise<{ outcome: { outcome: string; optionId?: string } }> {
-    const session = this._sessions.get(params.sessionId);
-    if (!session) {
+    const sessionId = params.sessionId || '';
+    const session = sessionId ? this._sessions.get(sessionId) : undefined;
+    if (sessionId && !session) {
       return { outcome: { outcome: 'cancelled' } };
     }
 
+    const toolInfo: AcpToolInfo = params.toolInfo || {
+      id: params.toolCallId || 'tool_call',
+      name: params.title || 'Tool request',
+      category: params.kind,
+    };
+    const requestId = params.requestId || params.id || (sessionId && toolInfo.id ? `${sessionId}:${toolInfo.id}` : `permission:${Date.now()}`);
+    const request: AcpPermissionRequest = {
+      id: requestId,
+      requestId,
+      sessionId: sessionId || undefined,
+      toolCallId: params.toolCallId || toolInfo.id,
+      title: params.title || toolInfo.name,
+      kind: (params.kind || toolInfo.category || 'other') as AcpToolCallKind,
+      toolInfo,
+      options: params.options,
+      rawInput: params.rawInput,
+      locations: params.locations,
+      _meta: params._meta,
+      reason: params.reason || `Tool "${params.title || toolInfo.name}" requires permission`,
+      riskLevel: params.riskLevel,
+      autoApproveTimeout: params.autoApproveTimeout,
+      metadata: params.metadata,
+    };
+
+    const allowOption = this.pickAllowPermissionOption(request.options);
+
     // Check if permission mode allows auto-approval
-    if (session.permissionMode === 'bypassPermissions') {
-      return { outcome: { outcome: 'selected', optionId: 'allow_once' } };
+    if (session?.permissionMode === 'bypassPermissions') {
+      if (request.options?.length && !allowOption) {
+        return { outcome: { outcome: 'cancelled' } };
+      }
+      return { outcome: { outcome: 'selected', optionId: allowOption?.optionId } };
     }
 
     // Auto-approve in acceptEdits mode for file operations
-    if (session.permissionMode === 'acceptEdits' && params.kind === 'file_write') {
-      return { outcome: { outcome: 'selected', optionId: 'allow_once' } };
+    const kind = request.kind || 'other';
+    const isWriteKind = kind === 'file_write' || kind === 'write';
+    if (session?.permissionMode === 'acceptEdits' && isWriteKind && allowOption) {
+      return { outcome: { outcome: 'selected', optionId: allowOption.optionId } };
     }
 
     // Create a Promise that waits for UI response
     return new Promise((resolve, reject) => {
-      const requestId = `${params.sessionId}:${params.toolCallId}`;
-      
       // Set timeout for permission request (5 minutes)
       const timeoutId = setTimeout(() => {
         if (this.pendingPermissions.has(requestId)) {
@@ -1332,23 +1624,15 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         resolve,
         reject,
         timeout: timeoutId,
+        request,
       });
 
       // Emit permission request event for UI to handle
       this.emitEvent({
         type: 'permission_request',
-        sessionId: params.sessionId,
+        sessionId,
         timestamp: new Date(),
-        request: {
-          id: requestId,
-          sessionId: params.sessionId,
-          toolInfo: {
-            id: params.toolCallId,
-            name: params.title,
-            category: params.kind,
-          },
-          reason: `Tool "${params.title}" requires permission`,
-        },
+        request,
       });
     });
   }
@@ -1361,23 +1645,19 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    * Handle terminal/create request from agent
    * @see https://agentclientprotocol.com/protocol/terminals
    */
-  private async handleTerminalCreate(params: {
-    sessionId: string;
-    command: string;
-    args?: string[];
-    cwd?: string;
-  }): Promise<{ terminalId: string }> {
+  private async handleTerminalCreate(params: AcpTerminalCreateParams): Promise<{ terminalId: string }> {
     if (!isTauri()) {
       throw new Error('Terminal support requires Tauri desktop environment');
     }
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    const terminalId = await invoke<string>('acp_terminal_create', {
-      sessionId: params.sessionId,
-      command: params.command,
-      args: params.args || [],
-      cwd: params.cwd,
-    });
+    const terminalId = await acpTerminalCreate(
+      params.sessionId,
+      params.command,
+      params.args || [],
+      params.cwd,
+      params.env,
+      params.outputByteLimit
+    );
 
     return { terminalId };
   }
@@ -1386,19 +1666,12 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
    * Handle terminal/output request from agent
    * @see https://agentclientprotocol.com/protocol/terminals
    */
-  private async handleTerminalOutput(params: { terminalId: string }): Promise<{
-    output: string;
-    exitCode?: number;
-  }> {
+  private async handleTerminalOutput(params: AcpTerminalOutputParams): Promise<AcpTerminalOutputResult> {
     if (!isTauri()) {
       throw new Error('Terminal support requires Tauri desktop environment');
     }
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    const result = await invoke<{ output: string; exitCode?: number }>('acp_terminal_output', {
-      terminalId: params.terminalId,
-    });
-
+    const result = await acpTerminalOutput(params.terminalId, params.outputByteLimit);
     return result;
   }
 
@@ -1411,10 +1684,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       throw new Error('Terminal support requires Tauri desktop environment');
     }
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('acp_terminal_kill', {
-      terminalId: params.terminalId,
-    });
+    await acpTerminalKill(params.terminalId);
   }
 
   /**
@@ -1426,10 +1696,7 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
       throw new Error('Terminal support requires Tauri desktop environment');
     }
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('acp_terminal_release', {
-      terminalId: params.terminalId,
-    });
+    await acpTerminalRelease(params.terminalId);
   }
 
   /**
@@ -1439,18 +1706,16 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
   private async handleTerminalWaitForExit(params: {
     terminalId: string;
     timeout?: number;
-  }): Promise<{ exitCode: number }> {
+  }): Promise<{ exitCode: number | null; exitStatus: { exitCode: number | null; signal: string | null } }> {
     if (!isTauri()) {
       throw new Error('Terminal support requires Tauri desktop environment');
     }
 
-    const { invoke } = await import('@tauri-apps/api/core');
-    const exitCode = await invoke<number>('acp_terminal_wait_for_exit', {
-      terminalId: params.terminalId,
-      timeout: params.timeout,
-    });
-
-    return { exitCode };
+    const waitResult = await acpTerminalWaitForExit(params.terminalId, params.timeout);
+    return {
+      exitCode: waitResult.exitStatus.exitCode,
+      exitStatus: waitResult.exitStatus,
+    };
   }
 
   /**
@@ -1517,6 +1782,9 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           timestamp,
           toolUseId: update.toolCallId,
           toolName: update.title,
+          kind: update.kind,
+          rawInput: update.rawInput,
+          locations: update.locations,
         };
 
       case 'tool_call_update': {
@@ -1538,6 +1806,12 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
             toolUseId: update.toolCallId,
             result: extractToolCallText(),
             isError: update.status === 'error' || update.status === 'failed',
+            toolName: update.title,
+            kind: update.kind,
+            rawInput: update.rawInput,
+            rawOutput: update.rawOutput,
+            locations: update.locations,
+            status: update.status,
           };
         }
 
@@ -1674,6 +1948,15 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
         return this.handleSessionUpdate(sessionId, timestamp, params.update as AcpSessionUpdate);
 
       case 'session/started':
+        if (Array.isArray(params.tools)) {
+          this._tools = params.tools as AcpToolInfo[];
+          if (sessionId) {
+            const startedSession = this._sessions.get(sessionId);
+            if (startedSession) {
+              startedSession.tools = this._tools;
+            }
+          }
+        }
         return {
           type: 'session_start',
           sessionId,
@@ -1728,6 +2011,9 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           timestamp,
           toolUseId: params.toolUseId as string,
           toolName: params.toolName as string,
+          kind: params.kind as AcpToolCallKind,
+          rawInput: params.rawInput as Record<string, unknown> | undefined,
+          locations: params.locations as AcpToolCallLocation[] | undefined,
         };
 
       case 'tool/delta':
@@ -1756,23 +2042,44 @@ export class AcpClientAdapter extends BaseProtocolAdapter {
           toolUseId: params.toolUseId as string,
           result: params.result as string | Record<string, unknown>,
           isError: params.isError as boolean,
+          toolName: params.toolName as string | undefined,
+          kind: params.kind as AcpToolCallKind | undefined,
+          rawInput: params.rawInput as Record<string, unknown> | undefined,
+          rawOutput: params.rawOutput as Record<string, unknown> | undefined,
+          locations: params.locations as AcpToolCallLocation[] | undefined,
+          status: params.status as AcpToolCallStatus | undefined,
         };
 
       case 'permission/request':
-        return {
-          type: 'permission_request',
-          sessionId,
-          timestamp,
-          request: {
-            id: params.requestId as string,
+        {
+          const requestId = (params.requestId as string) || `${sessionId}:${String(params.toolCallId || 'tool_call')}`;
+          return {
+            type: 'permission_request',
             sessionId,
-            toolInfo: params.toolInfo as AcpToolInfo,
-            reason: params.reason as string,
-            riskLevel: params.riskLevel as 'low' | 'medium' | 'high' | 'critical',
-            autoApproveTimeout: params.autoApproveTimeout as number,
-            metadata: params.metadata as Record<string, unknown>,
-          },
-        };
+            timestamp,
+            request: {
+              id: requestId,
+              requestId,
+              sessionId,
+              toolCallId: params.toolCallId as string,
+              title: params.title as string,
+              kind: params.kind as AcpToolCallKind,
+              toolInfo: (params.toolInfo as AcpToolInfo) || {
+                id: (params.toolCallId as string) || 'tool_call',
+                name: (params.title as string) || 'Tool request',
+                category: params.kind as string,
+              },
+              options: params.options as AcpPermissionOption[] | undefined,
+              rawInput: params.rawInput as Record<string, unknown> | undefined,
+              locations: params.locations as AcpToolCallLocation[] | undefined,
+              reason: params.reason as string,
+              riskLevel: params.riskLevel as 'low' | 'medium' | 'high' | 'critical',
+              autoApproveTimeout: params.autoApproveTimeout as number,
+              metadata: params.metadata as Record<string, unknown>,
+              _meta: params._meta as Record<string, unknown>,
+            },
+          };
+        }
 
       case 'thinking':
         return {

@@ -504,6 +504,7 @@ export const createExternalAgentActionsSlice = (
 
         set((state) => {
           const terminal = state.terminals[terminalId];
+          const nextExitCode = result.exitCode ?? result.exitStatus.exitCode ?? null;
           if (terminal) {
             return {
               terminals: {
@@ -511,7 +512,7 @@ export const createExternalAgentActionsSlice = (
                 [terminalId]: {
                   ...terminal,
                   output: result.output,
-                  exitCode: result.exitCode,
+                  exitCode: nextExitCode,
                 },
               },
             };
@@ -565,13 +566,14 @@ export const createExternalAgentActionsSlice = (
         }
       },
 
-      waitForTerminalExit: async (terminalId: string, timeout?: number): Promise<number> => {
+      waitForTerminalExit: async (terminalId: string, timeout?: number): Promise<number | null> => {
         if (!isTauri()) {
           throw new Error('ACP terminal is only available in Tauri environment');
         }
 
         try {
-          const exitCode = await acpTerminalWaitForExit(terminalId, timeout);
+          const waitResult = await acpTerminalWaitForExit(terminalId, timeout);
+          const exitCode = waitResult.exitCode ?? waitResult.exitStatus.exitCode ?? null;
           set((state) => {
             const terminal = state.terminals[terminalId];
             if (terminal) {
@@ -666,6 +668,7 @@ export const createExternalAgentActionsSlice = (
               const output = await acpTerminalOutput(id);
               const isRunning = await acpTerminalIsRunning(id);
               const existing = get().terminals[id];
+              const exitCode = output.exitCode ?? output.exitStatus.exitCode ?? null;
 
               terminals[id] = {
                 id,
@@ -673,7 +676,7 @@ export const createExternalAgentActionsSlice = (
                 command: info.command,
                 isRunning,
                 output: output.output,
-                exitCode: output.exitCode,
+                exitCode,
                 createdAt: existing?.createdAt ?? Date.now(),
               };
             } catch {

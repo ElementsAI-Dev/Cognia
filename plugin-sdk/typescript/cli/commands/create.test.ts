@@ -21,7 +21,7 @@ jest.mock('ink', () => ({
 }));
 
 jest.mock('react', () => ({
-  createElement: jest.fn(),
+  createElement: jest.fn((component, props) => ({ component, props })),
 }));
 
 const mockFs = fs as jest.Mocked<typeof fs>;
@@ -256,6 +256,52 @@ describe('createCommand', () => {
       await createCommand('test-plugin', { ...defaultOptions, interactive: true });
 
       expect(render).toHaveBeenCalled();
+    });
+
+    it('should generate scheduler scaffold and scheduledTasks when selected in wizard', async () => {
+      const { render } = require('ink');
+      const renderMock = render as jest.Mock;
+      const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+      renderMock.mockImplementationOnce((element: { props: { onComplete: (data: unknown) => Promise<void> } }) => {
+        void element.props.onComplete({
+          name: 'scheduler-plugin',
+          template: 'custom',
+          capabilities: ['scheduler'],
+          permissions: ['network:fetch'],
+          typescript: true,
+          git: false,
+          install: false,
+          examples: true,
+        });
+
+        return {
+          waitUntilExit: () => Promise.resolve(),
+        };
+      });
+
+      await createCommand(undefined, { ...defaultOptions, interactive: true });
+
+      const pluginJsonCall = mockFs.writeFileSync.mock.calls.find(
+        (call) => (call[0] as string).includes('plugin.json')
+      );
+      expect(pluginJsonCall).toBeDefined();
+      const manifest = JSON.parse(pluginJsonCall![1] as string);
+      expect(manifest.capabilities).toContain('scheduler');
+      expect(manifest.scheduledTasks).toBeDefined();
+      expect(manifest.scheduledTasks[0].handler).toBe('dailyMaintenance');
+
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith(
+        expect.stringContaining('scheduler'),
+        expect.objectContaining({ recursive: true })
+      );
+      const schedulerFileCall = mockFs.writeFileSync.mock.calls.find(
+        (call) => (call[0] as string).includes('scheduler') && (call[0] as string).includes('index.ts')
+      );
+      expect(schedulerFileCall).toBeDefined();
+      expect(String(schedulerFileCall![1])).toContain('registerScheduler');
+
+      mockLog.mockRestore();
     });
   });
 });

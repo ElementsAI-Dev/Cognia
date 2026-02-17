@@ -178,6 +178,7 @@ jest.mock('./form/a2ui-checkbox', () => ({
 }));
 
 jest.mock('./form/a2ui-radio', () => ({
+  A2UIRadio: () => <div data-testid="a2ui-radio-single" />,
   A2UIRadioGroup: () => <div data-testid="a2ui-radio" />,
 }));
 
@@ -247,7 +248,7 @@ describe('A2UIRenderer', () => {
   });
 
   it('should not render when visibility is false', () => {
-    const { useA2UIVisibility } = jest.requireMock('./a2ui-context');
+    const { useA2UIVisibility } = jest.requireMock('@/hooks/a2ui/use-a2ui-context');
     useA2UIVisibility.mockReturnValueOnce(false);
 
     const component = { id: 'hidden1', component: 'Text', visible: false };
@@ -283,6 +284,11 @@ describe('A2UIRenderer', () => {
     });
   });
 
+  it('should render single Radio component', () => {
+    render(<A2UIRenderer component={{ id: 'radio1', component: 'Radio' }} />);
+    expect(screen.getByTestId('a2ui-radio-single')).toBeInTheDocument();
+  });
+
   it('should render data components', () => {
     // Chart is lazy-loaded (React.lazy), tested separately
     const components = [
@@ -297,11 +303,11 @@ describe('A2UIRenderer', () => {
     });
   });
 
-  it('should render lazy Chart component with Suspense fallback', () => {
+  it('should render lazy Chart component with Suspense fallback', async () => {
     const component = { id: 'chart1', component: 'Chart' };
     const { container } = render(<A2UIRenderer component={component} />);
-    // Lazy component shows Suspense fallback (animate-pulse div) until resolved
     expect(container.querySelector('.animate-pulse') || screen.queryByTestId('a2ui-chart')).toBeTruthy();
+    expect(await screen.findByTestId('a2ui-chart')).toBeInTheDocument();
   });
 });
 

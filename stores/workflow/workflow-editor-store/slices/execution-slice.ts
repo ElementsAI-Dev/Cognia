@@ -1,27 +1,54 @@
 /**
  * Execution Slice
- * Handles workflow execution state management
+ * Handles workflow execution state management via WorkflowOrchestrator (single execution entry).
  */
 
 import { toast } from 'sonner';
 import { nanoid } from 'nanoid';
+
 import type {
   SliceCreator,
   ExecutionSliceActions,
   ExecutionSliceState,
   WorkflowExecutionState,
-  ProviderName,
+  VisualWorkflow,
 } from '../types';
-import {
-  executeVisualWorkflow,
-  pauseVisualWorkflow,
-  resumeVisualWorkflow,
-  cancelVisualWorkflow,
-} from '@/lib/workflow-editor';
-import { loggers } from '@/lib/logger';
-import { useSettingsStore } from '@/stores/settings';
+import type { WorkflowRuntimeExecutionResult } from '@/lib/workflow-editor/runtime-adapter';
+
 import { workflowRepository } from '@/lib/db/repositories';
-import type { WorkflowExecutionHistoryRecord } from '@/types/workflow/workflow-editor';
+import { workflowOrchestrator } from '@/lib/workflow-editor/orchestrator';
+import { loggers } from '@/lib/logger';
+
+function createNodeStateMap(
+  workflow: VisualWorkflow
+): WorkflowExecutionState['nodeStates'] {
+  return workflow.nodes.reduce<WorkflowExecutionState['nodeStates']>((acc, node) => {
+    acc[node.id] = {
+      nodeId: node.id,
+      status: 'pending',
+      logs: [],
+      retryCount: 0,
+    };
+    return acc;
+  }, {});
+}
+
+function toRuntimeResult(state: WorkflowExecutionState): WorkflowRuntimeExecutionResult {
+  return {
+    executionId: state.executionId,
+    workflowId: state.workflowId,
+    runtime: state.runtime,
+    status: state.status,
+    input: state.input,
+    output: state.output,
+    nodeStates: state.nodeStates,
+    startedAt: state.startedAt,
+    completedAt: state.completedAt,
+    error: state.error,
+    triggerId: state.triggerId,
+    isReplay: state.isReplay,
+  };
+}
 
 export const executionSliceInitialState: ExecutionSliceState = {
   isExecuting: false,
@@ -29,262 +56,382 @@ export const executionSliceInitialState: ExecutionSliceState = {
 };
 
 export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, get) => {
-  return {
-    startExecution: async (input) => {
-      const { currentWorkflow } = get();
-      if (!currentWorkflow) return;
+  const runExecution = async (
+    input: Record<string, unknown>,
+    options?: { isReplay?: boolean; triggerId?: string }
+  ): Promise<void> => {
+    const { currentWorkflow } = get();
+    if (!currentWorkflow) {
+      return;
+    }
 
-      const errors = get().validate();
-      if (errors.some((e) => e.severity === 'error')) {
-        const errorMessage = errors
-          .filter((e) => e.severity === 'error')
-          .map((e) => e.message)
-          .join(', ');
-        
-        toast.error('Workflow validation failed', {
-          description: errorMessage,
-        });
-        
-        set({
-          executionState: {
-            executionId: `exec-${nanoid(8)}`,
-            workflowId: currentWorkflow.id,
-            status: 'failed',
-            progress: 0,
-            nodeStates: {},
-            startedAt: new Date(),
-            input,
-            error: `Validation failed: ${errorMessage}`,
-            logs: [
-              {
-                timestamp: new Date(),
-                level: 'error',
-                message: `Workflow validation failed: ${errorMessage}`,
-              },
-            ],
-          },
-        });
-        return;
-      }
+    const errors = get().validate();
+    if (errors.some((error) => error.severity === 'error')) {
+      const errorMessage = errors
+        .filter((error) => error.severity === 'error')
+        .map((error) => error.message)
+        .join(', ');
 
-      // Initialize execution state
-      const executionState: WorkflowExecutionState = {
+      toast.error('Workflow validation failed', {
+        description: errorMessage,
+      });
+
+      const failedState: WorkflowExecutionState = {
         executionId: `exec-${nanoid(8)}`,
         workflowId: currentWorkflow.id,
-        status: 'running',
+        runtime: workflowOrchestrator.runtime,
+        status: 'failed',
         progress: 0,
-        nodeStates: {},
+        nodeStates: createNodeStateMap(currentWorkflow),
         startedAt: new Date(),
+        completedAt: new Date(),
         input,
+        error: `Validation failed: ${errorMessage}`,
+        triggerId: options?.triggerId,
+        isReplay: options?.isReplay,
         logs: [
           {
             timestamp: new Date(),
-            level: 'info',
-            message: 'Starting workflow execution...',
+            level: 'error',
+            message: `Workflow validation failed: ${errorMessage}`,
           },
         ],
       };
 
-      // Initialize node states
-      currentWorkflow.nodes.forEach((node) => {
-        executionState.nodeStates[node.id] = {
-          nodeId: node.id,
-          status: 'pending',
-          logs: [],
-          retryCount: 0,
-        };
-      });
-
       set({
-        isExecuting: true,
-        executionState,
+        isExecuting: false,
+        executionState: failedState,
         showExecutionPanel: true,
       });
 
-      // Get provider settings from store
-      const settings = useSettingsStore.getState();
-      const providerSettings = settings.providerSettings[settings.defaultProvider];
-      if (!providerSettings) {
-        const error = 'No provider configured for workflow execution';
-        toast.error(error);
-        
-        get().updateNodeExecutionState(currentWorkflow.nodes[0].id, {
-          status: 'failed',
-          error,
-        });
-        get().addExecutionLog({
-          timestamp: new Date(),
-          level: 'error',
-          message: error,
-        });
-        set({
-          isExecuting: false,
-          executionState: {
-            ...get().executionState!,
-            status: 'failed',
-            error,
-            completedAt: new Date(),
-          },
-        });
-        return;
-      }
+      return;
+    }
 
-      // Execute the workflow
-      try {
-        const result = await executeVisualWorkflow(
-          currentWorkflow,
-          input,
-          {
-            provider: settings.defaultProvider as ProviderName,
-            model: providerSettings.defaultModel || 'gpt-4o',
-            apiKey: providerSettings.apiKey || '',
-            baseURL: providerSettings.baseURL,
-            temperature: 0.7,
-            maxRetries: currentWorkflow.settings.maxRetries || 3,
-            stepTimeout: currentWorkflow.settings.maxExecutionTime || 300000,
-          },
-          {
-            onProgress: (execution, progress) => {
-              const currentState = get().executionState;
-              if (currentState) {
-                set({
-                  executionState: {
-                    ...currentState,
-                    progress: Math.round(progress * 100),
-                    currentNodeId: execution.steps.find((s) => s.status === 'running')?.stepId,
-                  },
+    const initialExecutionState: WorkflowExecutionState = {
+      executionId: `exec-${nanoid(8)}`,
+      workflowId: currentWorkflow.id,
+      runtime: workflowOrchestrator.runtime,
+      status: 'running',
+      progress: 0,
+      nodeStates: createNodeStateMap(currentWorkflow),
+      startedAt: new Date(),
+      input,
+      triggerId: options?.triggerId,
+      isReplay: options?.isReplay,
+      logs: [
+        {
+          timestamp: new Date(),
+          level: 'info',
+          message: 'Starting workflow execution...',
+        },
+      ],
+    };
+
+    set({
+      isExecuting: true,
+      executionState: initialExecutionState,
+      showExecutionPanel: true,
+    });
+
+    try {
+      const appendExecutionLog = (entry: WorkflowExecutionState['logs'][number]): void => {
+        const current = get().executionState;
+        if (!current) {
+          return;
+        }
+        if (
+          entry.eventId &&
+          current.logs.some((existing) => existing.eventId && existing.eventId === entry.eventId)
+        ) {
+          return;
+        }
+        const last = current.logs[current.logs.length - 1];
+        if (
+          !entry.eventId &&
+          last &&
+          last.level === entry.level &&
+          last.message === entry.message
+        ) {
+          return;
+        }
+        get().addExecutionLog(entry);
+      };
+
+      const result = await workflowOrchestrator.run({
+        workflow: currentWorkflow,
+        input,
+        triggerId: options?.triggerId,
+        isReplay: options?.isReplay,
+        onEvent: (event) => {
+          const currentState = get().executionState;
+          if (!currentState) {
+            return;
+          }
+
+          switch (event.type) {
+            case 'execution_started':
+              set({
+                executionState: {
+                  ...currentState,
+                  executionId: event.executionId,
+                  runtime: event.runtime,
+                  status: 'running',
+                  startedAt: currentState.startedAt || event.timestamp,
+                },
+              });
+              break;
+            case 'execution_progress':
+              set({
+                executionState: {
+                  ...currentState,
+                  progress: event.progress ?? currentState.progress,
+                },
+              });
+              break;
+            case 'step_started':
+              if (event.stepId) {
+                get().updateNodeExecutionState(event.stepId, {
+                  status: 'running',
+                  startedAt: event.timestamp,
+                });
+                appendExecutionLog({
+                  timestamp: event.timestamp,
+                  level: 'info',
+                  message: `Executing step: ${event.stepId}`,
+                  eventId: event.eventId,
+                  traceId: event.traceId,
+                  requestId: event.requestId,
+                  executionId: event.executionId,
+                  workflowId: event.workflowId,
+                  stepId: event.stepId,
+                  runtime: event.runtime,
+                  code: event.code,
                 });
               }
-            },
-            onStepStart: (execution, stepId) => {
-              get().updateNodeExecutionState(stepId, {
-                status: 'running',
-                startedAt: new Date(),
+              break;
+            case 'step_completed':
+              if (event.stepId) {
+                get().updateNodeExecutionState(event.stepId, {
+                  status: 'completed',
+                  completedAt: event.timestamp,
+                  output: event.data,
+                });
+                appendExecutionLog({
+                  timestamp: event.timestamp,
+                  level: 'info',
+                  message: `Step completed: ${event.stepId}`,
+                  eventId: event.eventId,
+                  traceId: event.traceId,
+                  requestId: event.requestId,
+                  executionId: event.executionId,
+                  workflowId: event.workflowId,
+                  stepId: event.stepId,
+                  runtime: event.runtime,
+                  code: event.code,
+                });
+              }
+              break;
+            case 'step_failed':
+              if (event.stepId) {
+                get().updateNodeExecutionState(event.stepId, {
+                  status: 'failed',
+                  completedAt: event.timestamp,
+                  error: event.error,
+                });
+                appendExecutionLog({
+                  timestamp: event.timestamp,
+                  level: 'error',
+                  message: `Step failed: ${event.stepId} - ${event.error || 'unknown error'}`,
+                  eventId: event.eventId,
+                  traceId: event.traceId,
+                  requestId: event.requestId,
+                  executionId: event.executionId,
+                  workflowId: event.workflowId,
+                  stepId: event.stepId,
+                  runtime: event.runtime,
+                  code: event.code,
+                });
+              }
+              break;
+            case 'execution_log':
+              appendExecutionLog({
+                timestamp: event.timestamp,
+                level: event.level === 'error' || event.level === 'warn' || event.level === 'debug'
+                  ? event.level
+                  : event.error
+                    ? 'error'
+                    : 'info',
+                message: event.message || 'Runtime log',
+                data: event.data,
+                eventId: event.eventId,
+                traceId: event.traceId,
+                requestId: event.requestId,
+                executionId: event.executionId,
+                workflowId: event.workflowId,
+                stepId: event.stepId,
+                runtime: event.runtime,
+                code: event.code,
               });
-              get().addExecutionLog({
-                timestamp: new Date(),
-                level: 'info',
-                message: `Executing step: ${stepId}`,
-              });
-            },
-            onStepComplete: (execution, stepId, output) => {
-              get().updateNodeExecutionState(stepId, {
-                status: 'completed',
-                completedAt: new Date(),
-                output: output as Record<string, unknown>,
-              });
-              get().addExecutionLog({
-                timestamp: new Date(),
-                level: 'info',
-                message: `Step completed: ${stepId}`,
-              });
-            },
-            onStepError: (execution, stepId, error) => {
-              get().updateNodeExecutionState(stepId, {
-                status: 'failed',
-                error,
-                completedAt: new Date(),
-              });
-              get().addExecutionLog({
-                timestamp: new Date(),
-                level: 'error',
-                message: `Step failed: ${stepId} - ${error}`,
-              });
-            },
-            onComplete: (execution) => {
-              const currentState = get().executionState;
+              break;
+            case 'execution_completed':
               set({
-                isExecuting: false,
                 executionState: {
-                  ...currentState!,
+                  ...currentState,
                   status: 'completed',
                   progress: 100,
-                  output: execution.output as Record<string, unknown>,
-                  completedAt: new Date(),
-                  logs: [
-                    ...currentState!.logs,
-                    {
-                      timestamp: new Date(),
-                      level: 'info',
-                      message: 'Workflow execution completed successfully',
-                    },
-                  ],
+                  completedAt: event.timestamp,
                 },
               });
-              toast.success('Workflow completed successfully');
-
-              // Persist to IndexedDB
-              get().persistExecution();
-            },
-            onError: (execution, error) => {
-              const currentState = get().executionState;
+              appendExecutionLog({
+                timestamp: event.timestamp,
+                level: 'info',
+                message: 'Workflow execution completed successfully',
+              });
+              break;
+            case 'execution_failed':
               set({
-                isExecuting: false,
                 executionState: {
-                  ...currentState!,
+                  ...currentState,
                   status: 'failed',
-                  error,
-                  completedAt: new Date(),
-                  logs: [
-                    ...currentState!.logs,
-                    {
-                      timestamp: new Date(),
-                      level: 'error',
-                      message: `Workflow execution failed: ${error}`,
-                    },
-                  ],
+                  completedAt: event.timestamp,
+                  error: event.error || currentState.error,
                 },
               });
-              toast.error('Workflow execution failed', {
-                description: error,
+              appendExecutionLog({
+                timestamp: event.timestamp,
+                level: 'error',
+                message: event.error
+                  ? `Workflow execution failed: ${event.error}`
+                  : 'Workflow execution failed',
               });
-
-              // Persist to IndexedDB
-              get().persistExecution();
-            },
+              break;
+            case 'execution_cancelled':
+              set({
+                executionState: {
+                  ...currentState,
+                  status: 'cancelled',
+                  completedAt: event.timestamp,
+                },
+              });
+              break;
+            default:
+              break;
           }
-        );
+        },
+      });
 
-        // Update final state
-        if (result.success) {
-          const currentState = get().executionState;
-          set({
-            isExecuting: false,
-            executionState: {
-              ...currentState!,
-              status: 'completed',
-              progress: 100,
-              output: result.output as Record<string, unknown>,
-              completedAt: new Date(),
-            },
-          });
-        } else {
-          throw new Error(result.error || 'Workflow execution failed');
-        }
-      } catch (error) {
-        const currentState = get().executionState;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        set({
-          isExecuting: false,
-          executionState: {
-            ...currentState!,
-            status: 'failed',
-            error: errorMessage,
-            completedAt: new Date(),
-          },
-        });
+      const currentState = get().executionState;
+      const completionLog: WorkflowExecutionState['logs'][number] = {
+        timestamp: new Date(),
+        level: result.status === 'completed' ? 'info' : 'error',
+        message:
+          result.status === 'completed'
+            ? 'Workflow execution completed successfully'
+            : `Workflow execution ended with status: ${result.status}`,
+      };
+      const existingLogs = currentState?.logs || [];
+      const lastLog = existingLogs[existingLogs.length - 1];
+      const mergedLogs: WorkflowExecutionState['logs'] =
+        lastLog && lastLog.level === completionLog.level && lastLog.message === completionLog.message
+          ? existingLogs
+          : [...existingLogs, completionLog];
+
+      const finalState: WorkflowExecutionState = {
+        executionId: result.executionId,
+        workflowId: result.workflowId,
+        runtime: result.runtime,
+        status: result.status,
+        progress:
+          result.status === 'completed'
+            ? 100
+            : currentState?.progress || (result.status === 'failed' ? 100 : 0),
+        currentNodeId: currentState?.currentNodeId,
+        nodeStates: result.nodeStates,
+        startedAt: result.startedAt || currentState?.startedAt,
+        completedAt: result.completedAt || new Date(),
+        duration:
+          result.startedAt && result.completedAt
+            ? result.completedAt.getTime() - result.startedAt.getTime()
+            : undefined,
+        input,
+        output: result.output,
+        error: result.error,
+        triggerId: result.triggerId,
+        isReplay: result.isReplay,
+        logs: mergedLogs,
+      };
+
+      set({
+        isExecuting: false,
+        executionState: finalState,
+      });
+
+      await workflowOrchestrator.persistExecution({
+        result: toRuntimeResult(finalState),
+        logs: finalState.logs,
+      });
+
+      if (finalState.status === 'completed') {
+        toast.success('Workflow completed successfully');
+      } else if (finalState.status === 'failed') {
         toast.error('Workflow execution failed', {
-          description: errorMessage,
+          description: finalState.error,
         });
       }
+    } catch (error) {
+      const currentState = get().executionState;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      const failedState: WorkflowExecutionState = {
+        ...(currentState || initialExecutionState),
+        status: 'failed',
+        isReplay: options?.isReplay,
+        triggerId: options?.triggerId,
+        runtime: currentState?.runtime || workflowOrchestrator.runtime,
+        error: errorMessage,
+        completedAt: new Date(),
+        logs: [
+          ...(currentState?.logs || initialExecutionState.logs),
+          {
+            timestamp: new Date(),
+            level: 'error',
+            message: `Workflow execution failed: ${errorMessage}`,
+          },
+        ],
+      };
+
+      set({
+        isExecuting: false,
+        executionState: failedState,
+      });
+
+      try {
+        await workflowOrchestrator.persistExecution({
+          result: toRuntimeResult(failedState),
+          logs: failedState.logs,
+        });
+      } catch (persistError) {
+        loggers.store.error('Failed to persist failed execution', persistError as Error);
+      }
+
+      toast.error('Workflow execution failed', {
+        description: errorMessage,
+      });
+    }
+  };
+
+  return {
+    startExecution: async (input) => {
+      await runExecution(input);
     },
 
     pauseExecution: () => {
       const { executionState } = get();
-      if (!executionState || executionState.status !== 'running') return;
+      if (!executionState || executionState.status !== 'running') {
+        return;
+      }
 
-      // Call the actual pause function
-      pauseVisualWorkflow(executionState.executionId);
+      void workflowOrchestrator.pause(executionState.executionId);
 
       set({
         executionState: {
@@ -292,15 +439,17 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           status: 'paused',
         },
       });
+
       toast.info('Workflow paused');
     },
 
     resumeExecution: () => {
       const { executionState } = get();
-      if (!executionState || executionState.status !== 'paused') return;
+      if (!executionState || executionState.status !== 'paused') {
+        return;
+      }
 
-      // Call the actual resume function
-      resumeVisualWorkflow(executionState.executionId);
+      void workflowOrchestrator.resume(executionState.executionId);
 
       set({
         executionState: {
@@ -308,33 +457,50 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           status: 'running',
         },
       });
+
       toast.info('Workflow resumed');
     },
 
     cancelExecution: () => {
       const { executionState } = get();
-      if (!executionState) return;
+      if (!executionState) {
+        return;
+      }
 
-      // Call the actual cancel function
-      cancelVisualWorkflow(executionState.executionId);
+      void workflowOrchestrator.cancel(executionState.executionId);
+
+      const nextState: WorkflowExecutionState = {
+        ...executionState,
+        status: 'cancelled',
+        completedAt: new Date(),
+        logs: [
+          ...executionState.logs,
+          {
+            timestamp: new Date(),
+            level: 'warn',
+            message: 'Workflow cancelled by user',
+          },
+        ],
+      };
 
       set({
         isExecuting: false,
-        executionState: {
-          ...executionState,
-          status: 'cancelled',
-          completedAt: new Date(),
-        },
+        executionState: nextState,
       });
-      toast.info('Workflow cancelled');
 
-      // Persist to IndexedDB
-      get().persistExecution();
+      void workflowOrchestrator.persistExecution({
+        result: toRuntimeResult(nextState),
+        logs: nextState.logs,
+      });
+
+      toast.info('Workflow cancelled');
     },
 
     updateNodeExecutionState: (nodeId, state) => {
       const { executionState } = get();
-      if (!executionState) return;
+      if (!executionState) {
+        return;
+      }
 
       const nodeState = executionState.nodeStates[nodeId] || {
         nodeId,
@@ -357,7 +523,9 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
 
     addExecutionLog: (log) => {
       const { executionState } = get();
-      if (!executionState) return;
+      if (!executionState) {
+        return;
+      }
 
       set({
         executionState: {
@@ -368,45 +536,16 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
     },
 
     persistExecution: async () => {
-      const { executionState, currentWorkflow } = get();
-      if (!executionState || !currentWorkflow) return;
+      const { executionState } = get();
+      if (!executionState) {
+        return;
+      }
 
       try {
-        const record: WorkflowExecutionHistoryRecord = {
-          id: executionState.executionId,
-          workflowId: currentWorkflow.id,
-          status: executionState.status as WorkflowExecutionHistoryRecord['status'],
-          input: executionState.input,
-          output: executionState.output,
-          nodeStates: executionState.nodeStates,
+        await workflowOrchestrator.persistExecution({
+          result: toRuntimeResult(executionState),
           logs: executionState.logs,
-          error: executionState.error,
-          startedAt: executionState.startedAt ? new Date(executionState.startedAt) : new Date(),
-          completedAt: executionState.completedAt ? new Date(executionState.completedAt) : undefined,
-        };
-
-        // Try update first (in case it was already created), then create
-        const existing = await workflowRepository.getExecution(record.id);
-        if (existing) {
-          await workflowRepository.updateExecution(record.id, {
-            status: record.status,
-            output: record.output,
-            nodeStates: record.nodeStates,
-            logs: record.logs,
-            error: record.error,
-            completedAt: record.completedAt,
-          });
-        } else {
-          await workflowRepository.createExecution(currentWorkflow.id, record.input || {});
-          await workflowRepository.updateExecution(record.id, {
-            status: record.status,
-            output: record.output,
-            nodeStates: record.nodeStates,
-            logs: record.logs,
-            error: record.error,
-            completedAt: record.completedAt,
-          });
-        }
+        });
       } catch (error) {
         loggers.store.error('Failed to persist execution', error as Error);
       }
@@ -420,19 +559,13 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           return;
         }
 
-        if (!record.input || Object.keys(record.input).length === 0) {
-          toast.info('Re-running workflow with empty input');
-        }
-
-        // Ensure the correct workflow is loaded
         const { currentWorkflow } = get();
         if (!currentWorkflow || currentWorkflow.id !== record.workflowId) {
           toast.error('Load the matching workflow first');
           return;
         }
 
-        // Start execution with the same input
-        get().startExecution(record.input || {});
+        await runExecution(record.input || {}, { isReplay: true });
         toast.info('Replaying execution with saved input');
       } catch (error) {
         loggers.store.error('Failed to replay execution', error as Error);
@@ -443,7 +576,6 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
     clearExecutionState: () => {
       const { executionState, currentWorkflow, recordExecution } = get();
 
-      // Record execution statistics before clearing
       if (
         executionState &&
         currentWorkflow &&
@@ -465,9 +597,9 @@ export const createExecutionSlice: SliceCreator<ExecutionSliceActions> = (set, g
           startedAt: new Date(startTime),
           completedAt: new Date(endTime),
           duration: endTime - startTime,
-          nodesExecuted: nodeStates.filter((s) => s.status === 'completed').length,
-          nodesFailed: nodeStates.filter((s) => s.status === 'failed').length,
-          nodesSkipped: nodeStates.filter((s) => s.status === 'skipped').length,
+          nodesExecuted: nodeStates.filter((state) => state.status === 'completed').length,
+          nodesFailed: nodeStates.filter((state) => state.status === 'failed').length,
+          nodesSkipped: nodeStates.filter((state) => state.status === 'skipped').length,
           errorMessage: executionState.error,
         });
       }

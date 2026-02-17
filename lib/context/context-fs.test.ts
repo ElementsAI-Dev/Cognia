@@ -7,6 +7,7 @@ import {
   readContextFile,
   tailContextFile,
   searchContextFiles,
+  searchContextFileEntries,
   grepContextFiles,
   deleteContextFile,
   getContextStats,
@@ -190,6 +191,21 @@ describe('ContextFS', () => {
 
       expect(ascResults[0].source).toBe('a');
       expect(descResults[0].source).toBe('b');
+    });
+
+    it('should return entry path and metadata', async () => {
+      const file = await writeContextFile('content', {
+        category: 'mcp',
+        source: 'server-1',
+        filename: 'server-1_tool.json',
+      });
+
+      const entries = await searchContextFileEntries({ category: 'mcp' });
+
+      expect(entries).toHaveLength(1);
+      expect(entries[0].path).toBe(file.path);
+      expect(entries[0].metadata.source).toBe('server-1');
+      expect(entries[0].metadata.filename).toBe('server-1_tool.json');
     });
   });
 

@@ -7,6 +7,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useSkillSync, useSkillSyncAvailable } from '@/hooks/skills';
+import { createLogger } from '@/lib/logger';
+
+const skillSyncLogger = createLogger('providers:skill-sync');
 
 export function SkillSyncInitializer() {
   const hasInitialized = useRef(false);
@@ -24,7 +27,9 @@ export function SkillSyncInitializer() {
         await syncFromNative();
         await syncToNative();
       } catch (error) {
-        console.error('[SkillSyncInitializer] Sync failed:', error);
+        skillSyncLogger.error('Skill sync failed', error, {
+          action: 'syncFromNativeAndToNative',
+        });
       }
     };
 

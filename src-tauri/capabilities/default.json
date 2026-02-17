@@ -2,10 +2,19 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ],
   "windows": [
     "main",
     "chat-widget",
-    "assistant-bubble"
+    "assistant-bubble",
+    "selection-toolbar",
+    "region-selector",
+    "recording-toolbar",
+    "recording-click-overlay"
   ],
   "permissions": [
     "core:default",

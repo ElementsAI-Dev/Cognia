@@ -18,27 +18,43 @@ describe('Testing Utilities', () => {
     it('should create a logger with all log methods', () => {
       const logger = createMockLogger();
 
+      expect(typeof logger.trace).toBe('function');
       expect(typeof logger.debug).toBe('function');
       expect(typeof logger.info).toBe('function');
       expect(typeof logger.warn).toBe('function');
       expect(typeof logger.error).toBe('function');
+      expect(typeof logger.fatal).toBe('function');
+      expect(typeof logger.child).toBe('function');
+      expect(typeof logger.withContext).toBe('function');
     });
 
     it('should capture log calls', () => {
       const logger = createMockLogger();
 
+      logger.trace?.('trace message');
       logger.info('test message', { data: 'value' });
       logger.error('error message');
+      logger.fatal?.('fatal message');
 
-      expect(logger.logs).toHaveLength(2);
+      expect(logger.logs).toHaveLength(4);
       expect(logger.logs[0]).toEqual({
+        level: 'trace',
+        message: 'trace message',
+        args: [],
+      });
+      expect(logger.logs[1]).toEqual({
         level: 'info',
         message: 'test message',
         args: [{ data: 'value' }],
       });
-      expect(logger.logs[1]).toEqual({
+      expect(logger.logs[2]).toEqual({
         level: 'error',
         message: 'error message',
+        args: [],
+      });
+      expect(logger.logs[3]).toEqual({
+        level: 'fatal',
+        message: 'fatal message',
         args: [],
       });
     });
@@ -61,6 +77,7 @@ describe('Testing Utilities', () => {
       logger.info('info msg');
       logger.warn('warn msg');
       logger.error('error msg');
+      logger.fatal?.('fatal msg');
 
       const errors = logger.getByLevel('error');
       expect(errors).toHaveLength(1);
@@ -68,6 +85,9 @@ describe('Testing Utilities', () => {
 
       const warnings = logger.getByLevel('warn');
       expect(warnings).toHaveLength(1);
+
+      const fatals = logger.getByLevel('fatal');
+      expect(fatals).toHaveLength(1);
     });
   });
 

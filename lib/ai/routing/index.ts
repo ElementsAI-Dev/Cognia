@@ -12,6 +12,10 @@ export {
   mightTriggerFeatureRouting,
   buildFeatureNavigationUrl,
 } from './feature-router';
+export {
+  storeFeatureNavigationContext,
+  consumeFeatureNavigationContext,
+} from './feature-navigation-context';
 
 export {
   FEATURE_ROUTES,

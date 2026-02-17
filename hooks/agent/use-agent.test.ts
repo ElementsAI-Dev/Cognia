@@ -5,6 +5,12 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAgent, useConfiguredAgent } from './use-agent';
 import { z } from 'zod';
+import { useSkillStore } from '@/stores';
+import {
+  buildMultiSkillSystemPrompt,
+  createSkillTools,
+  getAutoLoadSkillsForTools,
+} from '@/lib/skills/executor';
 
 // Mock stores
 jest.mock('@/stores', () => ({
@@ -65,6 +71,12 @@ jest.mock('@/stores/agent', () => ({
 const mockExecuteAgent = jest.fn();
 const mockExecuteAgentLoop = jest.fn();
 const mockCreateAgent = jest.fn();
+const mockUseSkillStore = useSkillStore as jest.MockedFunction<typeof useSkillStore>;
+const mockBuildMultiSkillSystemPrompt =
+  buildMultiSkillSystemPrompt as jest.MockedFunction<typeof buildMultiSkillSystemPrompt>;
+const mockCreateSkillTools = createSkillTools as jest.MockedFunction<typeof createSkillTools>;
+const mockGetAutoLoadSkillsForTools =
+  getAutoLoadSkillsForTools as jest.MockedFunction<typeof getAutoLoadSkillsForTools>;
 
 jest.mock('@/lib/ai/agent', () => ({
   executeAgent: (...args: unknown[]) => mockExecuteAgent(...args),
@@ -81,11 +93,24 @@ jest.mock('@/lib/ai/agent', () => ({
 jest.mock('@/lib/skills/executor', () => ({
   buildMultiSkillSystemPrompt: jest.fn(() => ''),
   createSkillTools: jest.fn(() => ({})),
+  getAutoLoadSkillsForTools: jest.fn(() => []),
 }));
 
 describe('useAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockUseSkillStore.mockImplementation((selector) => {
+      const state = {
+        activeSkillIds: [],
+        skills: {},
+      };
+      return selector(state as never);
+    });
+
+    mockBuildMultiSkillSystemPrompt.mockReturnValue('');
+    mockCreateSkillTools.mockReturnValue({});
+    mockGetAutoLoadSkillsForTools.mockReturnValue([]);
   });
 
   describe('initialization', () => {
@@ -234,6 +259,62 @@ describe('useAgent', () => {
       });
 
       expect(result.current.error).toBe('Loop failed');
+    });
+
+    it('should pass merged tools to planning execution', async () => {
+      mockUseSkillStore.mockImplementation((selector) => {
+        const state = {
+          activeSkillIds: ['skill-1'],
+          skills: {
+            'skill-1': { id: 'skill-1', name: 'Skill One' },
+          },
+        };
+        return selector(state as never);
+      });
+
+      mockCreateSkillTools.mockReturnValue({
+        skill_tool: {
+          name: 'skill_tool',
+          description: 'Skill-backed tool',
+          parameters: z.object({}),
+          execute: jest.fn(),
+        },
+      });
+
+      mockExecuteAgentLoop.mockResolvedValueOnce({
+        success: true,
+        tasks: [],
+        totalSteps: 1,
+        duration: 50,
+      });
+
+      const { result } = renderHook(() =>
+        useAgent({
+          enablePlanning: true,
+          tools: {
+            registered_tool: {
+              name: 'registered_tool',
+              description: 'Registered tool',
+              parameters: z.object({}),
+              execute: jest.fn(),
+            },
+          },
+        })
+      );
+
+      await act(async () => {
+        await result.current.runWithPlanning('Complete task');
+      });
+
+      expect(mockExecuteAgentLoop).toHaveBeenCalledWith(
+        'Complete task',
+        expect.objectContaining({
+          tools: expect.objectContaining({
+            skill_tool: expect.any(Object),
+            registered_tool: expect.any(Object),
+          }),
+        })
+      );
     });
   });
 

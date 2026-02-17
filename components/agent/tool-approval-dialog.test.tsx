@@ -338,4 +338,58 @@ describe('ToolApprovalDialog', () => {
       expect(codeBlock).toHaveTextContent('{}');
     });
   });
+
+  describe('ACP options', () => {
+    it('renders ACP option buttons with names', () => {
+      const requestWithOptions: ToolApprovalRequest = {
+        ...mockRequest,
+        acpOptions: [
+          {
+            optionId: 'allow_once',
+            name: 'Allow once',
+            kind: 'allow_once',
+            isDefault: true,
+            description: 'Allow this tool for this call',
+          },
+          {
+            optionId: 'reject_once',
+            name: 'Reject once',
+            kind: 'reject_once',
+          },
+        ],
+      };
+
+      render(<ToolApprovalDialog {...defaultProps} request={requestWithOptions} />);
+
+      expect(screen.getByText('Allow once')).toBeInTheDocument();
+      expect(screen.getByText('Reject once')).toBeInTheDocument();
+    });
+
+    it('calls onSelectOption with optionId when ACP option is selected', () => {
+      const onSelectOption = jest.fn();
+      const requestWithOptions: ToolApprovalRequest = {
+        ...mockRequest,
+        acpOptions: [
+          {
+            optionId: 'allow_once',
+            name: 'Allow once',
+            kind: 'allow_once',
+            isDefault: true,
+          },
+        ],
+      };
+
+      render(
+        <ToolApprovalDialog
+          {...defaultProps}
+          request={requestWithOptions}
+          onSelectOption={onSelectOption}
+        />
+      );
+
+      fireEvent.click(screen.getByText('Allow once'));
+
+      expect(onSelectOption).toHaveBeenCalledWith('request-1', 'allow_once');
+    });
+  });
 });

@@ -81,6 +81,10 @@ function parseTimelineEntry(row: DBAgentTrace): TimelineEntry | null {
 }
 
 const EVENT_CONFIG: Record<string, { icon: typeof Play; color: string; label: string }> = {
+  session_start: { icon: Play, color: 'text-blue-500', label: 'Session Start' },
+  session_end: { icon: CheckCircle2, color: 'text-green-500', label: 'Session End' },
+  permission_request: { icon: AlertCircle, color: 'text-amber-500', label: 'Permission Request' },
+  permission_response: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Permission Response' },
   step_start: { icon: Play, color: 'text-blue-500', label: 'Step Start' },
   step_finish: { icon: CheckCircle2, color: 'text-green-500', label: 'Step Finish' },
   tool_call_request: { icon: Wrench, color: 'text-orange-500', label: 'Tool Request' },

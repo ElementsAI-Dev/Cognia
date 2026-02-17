@@ -119,6 +119,74 @@ describe('BackgroundAgentManager', () => {
     });
   });
 
+  describe('hydrateAgent', () => {
+    it('hydrates queued snapshot and rebuilds queue entry', () => {
+      const sourceAgent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'Hydrate Source',
+        task: 'Task',
+      });
+      sourceAgent.status = 'queued';
+      sourceAgent.queuedAt = new Date('2024-01-01T00:00:00.000Z');
+
+      const hydrated = manager.hydrateAgent(sourceAgent);
+
+      expect(hydrated).not.toBe(sourceAgent);
+      expect(hydrated.status).toBe('queued');
+      const queueItem = manager
+        .getQueueState()
+        .items.find((item) => item.agentId === sourceAgent.id);
+      expect(queueItem).toBeDefined();
+    });
+
+    it('normalizes running snapshot to queued when requested', () => {
+      const sourceAgent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'Running Source',
+        task: 'Task',
+      });
+      sourceAgent.status = 'running';
+      sourceAgent.executionState.activeSubAgents = ['sub-1'];
+
+      const hydrated = manager.hydrateAgent(sourceAgent, {
+        normalizeRunningToQueued: true,
+      });
+
+      expect(hydrated.status).toBe('queued');
+      expect(hydrated.executionState.activeSubAgents).toEqual([]);
+      const queueItem = manager
+        .getQueueState()
+        .items.find((item) => item.agentId === sourceAgent.id);
+      expect(queueItem).toBeDefined();
+    });
+
+    it('replaces stale queued entry when hydrated snapshot becomes terminal', () => {
+      const sourceAgent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'Transition Source',
+        task: 'Task',
+      });
+      sourceAgent.status = 'queued';
+      manager.hydrateAgent(sourceAgent);
+
+      const completedSnapshot = {
+        ...sourceAgent,
+        status: 'completed' as const,
+        executionState: {
+          ...sourceAgent.executionState,
+          activeSubAgents: [],
+        },
+      };
+      manager.hydrateAgent(completedSnapshot);
+
+      const queueItem = manager
+        .getQueueState()
+        .items.find((item) => item.agentId === sourceAgent.id);
+      expect(queueItem).toBeUndefined();
+      expect(manager.getAgent(sourceAgent.id)?.status).toBe('completed');
+    });
+  });
+
   describe('updateAgent', () => {
     it('updates existing agent', () => {
       const agent = manager.createAgent({
@@ -214,6 +282,26 @@ describe('BackgroundAgentManager', () => {
       // Queue may or may not have items depending on implementation
       expect(queueState).toBeDefined();
       expect(typeof queueState.maxConcurrent).toBe('number');
+    });
+
+    it('allows re-queueing queued agents without duplicates', () => {
+      manager.pauseQueue();
+      const agent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'Retry Agent',
+        task: 'Task',
+      });
+
+      agent.status = 'queued';
+      const first = manager.queueAgent(agent.id);
+      const second = manager.queueAgent(agent.id);
+
+      expect(first).toBe(true);
+      expect(second).toBe(true);
+
+      const queueState = manager.getQueueState();
+      const occurrences = queueState.items.filter((item) => item.agentId === agent.id).length;
+      expect(occurrences).toBe(1);
     });
   });
 
@@ -379,6 +467,28 @@ describe('BackgroundAgentManager', () => {
       manager.resumeQueue();
       expect(manager.getQueueState().isPaused).toBe(false);
     });
+
+    it('returns queue state snapshots without mutable aliasing', () => {
+      manager.pauseQueue();
+      const agent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'Snapshot Agent',
+        task: 'Task',
+      });
+      manager.queueAgent(agent.id);
+
+      const snapshot = manager.getQueueState();
+      snapshot.isPaused = false;
+      snapshot.items.push({
+        agentId: 'fake',
+        priority: 999,
+        queuedAt: new Date(),
+      });
+
+      const latest = manager.getQueueState();
+      expect(latest.isPaused).toBe(true);
+      expect(latest.items.some((item) => item.agentId === 'fake')).toBe(false);
+    });
   });
 
   describe('clearCompleted', () => {
@@ -432,6 +542,39 @@ describe('BackgroundAgentManager', () => {
       expect(agent.notifications[0].read).toBe(true);
     });
 
+    it('emits notification event when marking notification as read', () => {
+      const emitter = getBackgroundAgentEventEmitter();
+      const notificationHandler = jest.fn();
+      const unsubscribe = emitter.on('agent:notification', notificationHandler);
+
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Agent',
+        task: 'Task',
+      });
+
+      agent.notifications.push({
+        id: 'n1',
+        agentId: agent.id,
+        type: 'progress',
+        title: 'T1',
+        message: 'M1',
+        timestamp: new Date(),
+        read: false,
+      });
+
+      manager.markNotificationRead(agent.id, 'n1');
+
+      expect(notificationHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agent: expect.objectContaining({ id: agent.id }),
+          notification: expect.objectContaining({ id: 'n1', read: true }),
+        })
+      );
+
+      unsubscribe();
+    });
+
     it('marks all notifications as read', () => {
       const agent = manager.createAgent({
         sessionId: 's1',
@@ -466,6 +609,47 @@ describe('BackgroundAgentManager', () => {
       newManager.restoreState();
 
       expect(newManager.getAgent(agent.id)).toBeDefined();
+    });
+
+    it('restores running agents as queued and rebuilds queue', () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Running Persistent Agent',
+        task: 'Task',
+      });
+      agent.config.persistState = true;
+      agent.status = 'running';
+
+      manager.persistState();
+
+      const newManager = new BackgroundAgentManager(3, { enabled: false });
+      newManager.pauseQueue();
+      newManager.restoreState();
+
+      const restored = newManager.getAgent(agent.id);
+      expect(restored).toBeDefined();
+      expect(restored?.status).toBe('queued');
+      expect(newManager.getQueueState().items.some((item) => item.agentId === agent.id)).toBe(true);
+    });
+
+    it('restores paused agents without forcing queue transitions', () => {
+      const agent = manager.createAgent({
+        sessionId: 's1',
+        name: 'Paused Persistent Agent',
+        task: 'Task',
+      });
+      agent.config.persistState = true;
+      agent.status = 'paused';
+
+      manager.persistState();
+
+      const newManager = new BackgroundAgentManager(3, { enabled: false });
+      newManager.restoreState();
+
+      const restored = newManager.getAgent(agent.id);
+      expect(restored).toBeDefined();
+      expect(restored?.status).toBe('paused');
+      expect(newManager.getQueueState().items.some((item) => item.agentId === agent.id)).toBe(false);
     });
 
     it('clears persisted state', () => {
@@ -506,6 +690,39 @@ describe('BackgroundAgentManager', () => {
       });
 
       expect(manager).toBeDefined();
+    });
+
+    it('uses apiKey provider when constructing orchestrator config', async () => {
+      const apiKeyProvider = jest.fn(() => 'provider-api-key');
+      const orchestratorModule = jest.requireMock('./agent-orchestrator') as {
+        AgentOrchestrator: jest.Mock;
+      };
+
+      manager.setProviders({ apiKey: apiKeyProvider });
+
+      const agent = manager.createAgent({
+        sessionId: 'session-1',
+        name: 'API Key Agent',
+        task: 'Test task',
+        config: {
+          provider: 'openai',
+          model: 'gpt-4o',
+        },
+      });
+
+      await (
+        manager as unknown as {
+          executeAgentInternal: (internalAgent: unknown) => Promise<void>;
+        }
+      ).executeAgentInternal(agent);
+
+      expect(apiKeyProvider).toHaveBeenCalledWith('openai');
+      expect(orchestratorModule.AgentOrchestrator).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'openai',
+          apiKey: 'provider-api-key',
+        })
+      );
     });
   });
 });
@@ -598,6 +815,24 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
           agent: expect.objectContaining({ id: agent.id }),
         })
       );
+
+      unsubscribe();
+    });
+
+    it('emits immutable agent snapshots to listeners', () => {
+      const emitter = getBackgroundAgentEventEmitter();
+      const unsubscribe = emitter.on('agent:created', ({ agent }) => {
+        agent.name = 'Mutated By Listener';
+      });
+
+      const created = manager.createAgent({
+        sessionId: 's1',
+        name: 'Original Name',
+        task: 'Task',
+      });
+
+      const stored = manager.getAgent(created.id);
+      expect(stored?.name).toBe('Original Name');
 
       unsubscribe();
     });
@@ -758,6 +993,27 @@ describe('BackgroundAgentManager - Enhanced Features', () => {
 
       // Running count should not go negative
       expect(manager.getQueueState().currentlyRunning).toBeGreaterThanOrEqual(0);
+    });
+
+    it('cancelAllAgents cancels active and queued agents', () => {
+      const running = manager.createAgent({
+        sessionId: 's1',
+        name: 'Running',
+        task: 'Task',
+      });
+      const queued = manager.createAgent({
+        sessionId: 's1',
+        name: 'Queued',
+        task: 'Task',
+      });
+      running.status = 'running';
+      queued.status = 'queued';
+
+      const cancelledCount = manager.cancelAllAgents();
+
+      expect(cancelledCount).toBe(2);
+      expect(running.status).toBe('cancelled');
+      expect(queued.status).toBe('cancelled');
     });
   });
 

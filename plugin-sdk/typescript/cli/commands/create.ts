@@ -207,6 +207,19 @@ async function generateTemplateFilesFromWizard(
       type: 'frontend',
       capabilities: data.capabilities,
       permissions: data.permissions,
+      ...(data.capabilities.includes('scheduler')
+        ? {
+            scheduledTasks: [
+              {
+                name: 'daily-maintenance',
+                description: 'Run daily maintenance logic',
+                handler: 'dailyMaintenance',
+                trigger: { type: 'cron', expression: '0 6 * * *' },
+                defaultEnabled: true,
+              },
+            ],
+          }
+        : {}),
     }, null, 2)
   );
 
@@ -257,6 +270,14 @@ async function generateTemplateFilesFromWizard(
     );
   }
 
+  if (data.capabilities.includes('scheduler')) {
+    fs.mkdirSync(path.join(targetDir, 'scheduler'), { recursive: true });
+    fs.writeFileSync(
+      path.join(targetDir, 'scheduler', `index.${ext}`),
+      getSchedulerFile(data.typescript)
+    );
+  }
+
   // Generate README
   fs.writeFileSync(
     path.join(targetDir, 'README.md'),
@@ -272,9 +293,10 @@ function getMainFileFromWizard(name: string, data: CreateWizardData): string {
   const hasTools = data.capabilities.includes('tools');
   const hasCommands = data.capabilities.includes('commands');
   const hasHooks = data.capabilities.includes('hooks');
+  const hasScheduler = data.capabilities.includes('scheduler');
 
   return `${importType}import { definePlugin } from '@cognia/plugin-sdk';
-${hasTools ? "import { tools } from './tools';\n" : ''}${hasCommands ? "import { commands } from './commands';\n" : ''}${hasHooks ? "import { hooks } from './hooks';\n" : ''}
+${hasTools ? "import { tools } from './tools';\n" : ''}${hasCommands ? "import { commands } from './commands';\n" : ''}${hasHooks ? "import { hooks } from './hooks';\n" : ''}${hasScheduler ? "import { registerScheduler } from './scheduler';\n" : ''}
 export default definePlugin({
   id: '${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}',
   name: '${name}',
@@ -282,6 +304,7 @@ export default definePlugin({
 ${hasTools ? '  tools,\n' : ''}${hasCommands ? '  commands,\n' : ''}${hasHooks ? '  hooks,\n' : ''}
   activate(context) {
     context.logger.info('Plugin activated: ${name}');
+${hasScheduler ? '    registerScheduler(context);\n' : ''}
     return {
       onEnable: async () => {
         context.logger.info('Plugin enabled');
@@ -400,7 +423,7 @@ function getPluginManifest(name: string, template: string): object {
     main: 'dist/index.js',
     type: 'frontend',
     capabilities: [] as string[],
-    permissions: ['storage', 'network'],
+    permissions: ['network:fetch', 'filesystem:read'],
   };
 
   switch (template) {
@@ -527,6 +550,34 @@ function getHooksFile(typescript: boolean): string {
     console.log('Message sent:', message);
   },
 };
+`;
+}
+
+function getSchedulerFile(typescript: boolean): string {
+  const typeImport = typescript ? "import type { PluginContext } from '@cognia/plugin-sdk';\n\n" : '';
+  const contextType = typescript ? ': PluginContext' : '';
+
+  return `${typeImport}export function registerScheduler(context${contextType}) {
+  context.scheduler.registerHandler('dailyMaintenance', async (_args, taskContext) => {
+    taskContext.log('info', 'Running daily maintenance task');
+
+    return {
+      success: true,
+      output: {
+        completedAt: new Date().toISOString(),
+      },
+    };
+  });
+
+  context.scheduler.createTask({
+    name: 'Daily Maintenance',
+    description: 'Runs once per day to perform maintenance tasks',
+    trigger: { type: 'cron', expression: '0 6 * * *' },
+    handler: 'dailyMaintenance',
+  }).catch((error) => {
+    context.logger.error('Failed to register scheduled task', error);
+  });
+}
 `;
 }
 

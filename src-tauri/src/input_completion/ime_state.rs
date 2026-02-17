@@ -26,7 +26,7 @@ pub enum InputMode {
 }
 
 /// Current IME state
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImeState {
     /// Whether IME is currently active/open
     pub is_active: bool,

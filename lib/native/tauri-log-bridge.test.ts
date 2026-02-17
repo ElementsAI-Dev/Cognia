@@ -3,7 +3,9 @@
  */
 
 import {
+  cleanupTauriLogBridge,
   forwardTauriLog,
+  initTauriLogBridge,
   isTauriLogBridgeActive,
   type TauriLogEvent,
 } from './tauri-log-bridge';
@@ -42,10 +44,16 @@ jest.mock('@tauri-apps/api/event', () => ({
 
 // Import mocks after setup
 import { loggers, logContext } from '@/lib/logger';
+import { isTauri } from '@/lib/utils';
+import { listen } from '@tauri-apps/api/event';
 
 describe('tauri-log-bridge', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await cleanupTauriLogBridge();
   });
 
   describe('TauriLogEvent interface', () => {
@@ -66,6 +74,30 @@ describe('tauri-log-bridge', () => {
 
   describe('isTauriLogBridgeActive', () => {
     it('should return false when not initialized', () => {
+      expect(isTauriLogBridgeActive()).toBe(false);
+    });
+  });
+
+  describe('init/cleanup', () => {
+    it('initializes bridge and registers listener in tauri environment', async () => {
+      (isTauri as jest.Mock).mockReturnValue(true);
+      (listen as jest.Mock).mockResolvedValue(() => {});
+
+      await initTauriLogBridge();
+
+      expect(listen).toHaveBeenCalledWith('log://message', expect.any(Function));
+      expect(isTauriLogBridgeActive()).toBe(true);
+    });
+
+    it('cleans up listener and marks bridge inactive', async () => {
+      const unlisten = jest.fn();
+      (isTauri as jest.Mock).mockReturnValue(true);
+      (listen as jest.Mock).mockResolvedValue(unlisten);
+
+      await initTauriLogBridge();
+      await cleanupTauriLogBridge();
+
+      expect(unlisten).toHaveBeenCalled();
       expect(isTauriLogBridgeActive()).toBe(false);
     });
   });
@@ -228,6 +260,26 @@ describe('tauri-log-bridge', () => {
         'Test',
         expect.objectContaining({
           tauriTimestamp: '2024-01-01T12:00:00Z',
+        })
+      );
+    });
+
+    it('should parse field aliases from payload', () => {
+      forwardTauriLog({
+        lvl: 'WARN',
+        module: 'app_lib::alias::module',
+        msg: 'Alias payload',
+        ts: '2024-01-01T12:00:00Z',
+        trace_id: 'trace-from-alias',
+        metadata: { alias: true },
+      });
+
+      expect(loggers.native.child).toHaveBeenCalledWith('alias:module');
+      expect(logContext.setTraceId).toHaveBeenCalledWith('trace-from-alias');
+      expect(mockChildLogger.warn).toHaveBeenCalledWith(
+        'Alias payload',
+        expect.objectContaining({
+          alias: true,
         })
       );
     });

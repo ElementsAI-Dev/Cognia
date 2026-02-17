@@ -2,8 +2,22 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NativeToolsSettings } from './native-tools-settings';
+
+const mockSetNativeToolsConfig = jest.fn();
+const mockUpdateScreenshotConfig = jest.fn();
+const mockSetRefreshIntervalMs = jest.fn();
+const mockStartFocusTracking = jest.fn();
+const mockStopFocusTracking = jest.fn();
+let mockOpenEditorAfterCapture = false;
+const mockNativeToolsConfig = {
+  clipboardHistoryEnabled: true,
+  clipboardHistorySize: 100,
+  screenshotOcrEnabled: true,
+  focusTrackingEnabled: true,
+  contextRefreshInterval: 5,
+};
 
 // Mock isTauri
 jest.mock('@/lib/native/utils', () => ({
@@ -113,20 +127,42 @@ jest.mock('@/components/ui/separator', () => ({
 jest.mock('@/stores/system', () => ({
   useNativeStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
-      nativeToolsConfig: {
-        clipboardHistoryEnabled: true,
-        clipboardHistorySize: 100,
-        screenshotOcrEnabled: true,
-        focusTrackingEnabled: true,
-        contextRefreshInterval: 5,
-      },
-      setNativeToolsConfig: jest.fn(),
+      nativeToolsConfig: mockNativeToolsConfig,
+      setNativeToolsConfig: mockSetNativeToolsConfig,
     }),
+}));
+
+jest.mock('@/stores/context', () => ({
+  useContextStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      setRefreshIntervalMs: mockSetRefreshIntervalMs,
+    }),
+}));
+
+jest.mock('@/stores/media', () => ({
+  useScreenshotStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      config: {
+        openEditorAfterCapture: mockOpenEditorAfterCapture,
+      },
+      updateConfig: mockUpdateScreenshotConfig,
+    }),
+}));
+
+jest.mock('@/lib/native/awareness', () => ({
+  startFocusTracking: () => mockStartFocusTracking(),
+  stopFocusTracking: () => mockStopFocusTracking(),
 }));
 
 describe('NativeToolsSettings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOpenEditorAfterCapture = false;
+    mockNativeToolsConfig.clipboardHistoryEnabled = true;
+    mockNativeToolsConfig.clipboardHistorySize = 100;
+    mockNativeToolsConfig.screenshotOcrEnabled = true;
+    mockNativeToolsConfig.focusTrackingEnabled = true;
+    mockNativeToolsConfig.contextRefreshInterval = 5;
   });
 
   it('renders without crashing', () => {
@@ -185,6 +221,53 @@ describe('NativeToolsSettings', () => {
     render(<NativeToolsSettings />);
     const sliders = screen.getAllByTestId('slider');
     expect(sliders.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('syncs context refresh interval to context store milliseconds', () => {
+    render(<NativeToolsSettings />);
+    expect(mockSetRefreshIntervalMs).toHaveBeenCalledWith(5000);
+  });
+
+  it('updates native config when context refresh slider changes', () => {
+    render(<NativeToolsSettings />);
+    const sliders = screen.getAllByTestId('slider');
+    fireEvent.change(sliders[1], { target: { value: '12' } });
+    expect(mockSetNativeToolsConfig).toHaveBeenCalledWith({ contextRefreshInterval: 12 });
+  });
+
+  it('updates native config when screenshot OCR switch toggles', () => {
+    render(<NativeToolsSettings />);
+    const switches = screen.getAllByTestId('switch');
+    fireEvent.click(switches[1]);
+    expect(mockSetNativeToolsConfig).toHaveBeenCalledWith({ screenshotOcrEnabled: false });
+  });
+
+  it('updates screenshot open-editor setting when switch toggles', () => {
+    render(<NativeToolsSettings />);
+    const switches = screen.getAllByTestId('switch');
+    fireEvent.click(switches[2]);
+    expect(mockUpdateScreenshotConfig).toHaveBeenCalledWith({ openEditorAfterCapture: true });
+  });
+
+  it('calls focus tracking API when focus tracking switch toggles', async () => {
+    render(<NativeToolsSettings />);
+    const switches = screen.getAllByTestId('switch');
+    fireEvent.click(switches[3]);
+
+    await waitFor(() => {
+      expect(mockStopFocusTracking).toHaveBeenCalled();
+    });
+  });
+
+  it('calls start focus tracking when toggled on from disabled state', async () => {
+    mockNativeToolsConfig.focusTrackingEnabled = false;
+    render(<NativeToolsSettings />);
+    const switches = screen.getAllByTestId('switch');
+    fireEvent.click(switches[3]);
+
+    await waitFor(() => {
+      expect(mockStartFocusTracking).toHaveBeenCalled();
+    });
   });
 });
 

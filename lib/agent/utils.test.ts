@@ -138,6 +138,10 @@ describe('TASK_PRIORITY_COLORS', () => {
 
 describe('REPLAY_EVENT_ICONS', () => {
   it('should have entries for common event types', () => {
+    expect(REPLAY_EVENT_ICONS.session_start).toBeDefined();
+    expect(REPLAY_EVENT_ICONS.session_end).toBeDefined();
+    expect(REPLAY_EVENT_ICONS.permission_request).toBeDefined();
+    expect(REPLAY_EVENT_ICONS.permission_response).toBeDefined();
     expect(REPLAY_EVENT_ICONS.step_start).toBeDefined();
     expect(REPLAY_EVENT_ICONS.step_finish).toBeDefined();
     expect(REPLAY_EVENT_ICONS.tool_call_request).toBeDefined();
@@ -150,6 +154,10 @@ describe('REPLAY_EVENT_ICONS', () => {
 
 describe('LIVE_TRACE_EVENT_ICONS', () => {
   it('should have entries including checkpoint events', () => {
+    expect(LIVE_TRACE_EVENT_ICONS.session_start).toBeDefined();
+    expect(LIVE_TRACE_EVENT_ICONS.session_end).toBeDefined();
+    expect(LIVE_TRACE_EVENT_ICONS.permission_request).toBeDefined();
+    expect(LIVE_TRACE_EVENT_ICONS.permission_response).toBeDefined();
     expect(LIVE_TRACE_EVENT_ICONS.checkpoint_create).toBeDefined();
     expect(LIVE_TRACE_EVENT_ICONS.checkpoint_restore).toBeDefined();
     expect(LIVE_TRACE_EVENT_ICONS.step_start).toBeDefined();
@@ -165,6 +173,10 @@ describe('LIVE_TRACE_EVENT_COLORS', () => {
   });
 
   it('should have entries for checkpoint events', () => {
+    expect(LIVE_TRACE_EVENT_COLORS.session_start).toBe('text-blue-500');
+    expect(LIVE_TRACE_EVENT_COLORS.session_end).toBe('text-emerald-500');
+    expect(LIVE_TRACE_EVENT_COLORS.permission_request).toBe('text-amber-500');
+    expect(LIVE_TRACE_EVENT_COLORS.permission_response).toBe('text-green-500');
     expect(LIVE_TRACE_EVENT_COLORS.checkpoint_create).toBe('text-sky-500');
     expect(LIVE_TRACE_EVENT_COLORS.checkpoint_restore).toBe('text-orange-500');
   });

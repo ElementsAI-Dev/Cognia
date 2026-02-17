@@ -53,18 +53,19 @@ const CAPABILITIES = [
   { label: 'hooks', value: 'hooks', description: 'Lifecycle hooks' },
   { label: 'components', value: 'components', description: 'React UI components' },
   { label: 'a2ui', value: 'a2ui', description: 'A2UI templates' },
+  { label: 'scheduler', value: 'scheduler', description: 'Scheduled task runner' },
 ];
 
 const PERMISSIONS = [
-  { label: 'storage', value: 'storage', description: 'Local storage access', defaultSelected: true },
-  { label: 'network', value: 'network', description: 'HTTP requests', defaultSelected: true },
-  { label: 'filesystem', value: 'filesystem', description: 'File system access' },
-  { label: 'shell', value: 'shell', description: 'Run shell commands' },
-  { label: 'database', value: 'database', description: 'SQLite database' },
-  { label: 'clipboard', value: 'clipboard', description: 'Clipboard access' },
-  { label: 'notifications', value: 'notifications', description: 'System notifications' },
-  { label: 'shortcuts', value: 'shortcuts', description: 'Keyboard shortcuts' },
-  { label: 'secrets', value: 'secrets', description: 'Secure credential storage' },
+  { label: 'network:fetch', value: 'network:fetch', description: 'HTTP requests', defaultSelected: true },
+  { label: 'filesystem:read', value: 'filesystem:read', description: 'Read files', defaultSelected: true },
+  { label: 'filesystem:write', value: 'filesystem:write', description: 'Write files' },
+  { label: 'shell:execute', value: 'shell:execute', description: 'Run shell commands' },
+  { label: 'process:spawn', value: 'process:spawn', description: 'Spawn processes' },
+  { label: 'database:read', value: 'database:read', description: 'Read plugin database' },
+  { label: 'database:write', value: 'database:write', description: 'Write plugin database' },
+  { label: 'clipboard:read', value: 'clipboard:read', description: 'Read clipboard' },
+  { label: 'clipboard:write', value: 'clipboard:write', description: 'Write clipboard' },
 ];
 
 const WIZARD_STEPS = [
@@ -103,7 +104,7 @@ export function InitWizard({
       description: defaults.description,
       author: defaults.author,
       capabilities: ['tools'],
-      permissions: ['storage', 'network'],
+      permissions: ['network:fetch', 'filesystem:read'],
     },
     onComplete,
     onCancel: () => {

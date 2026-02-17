@@ -196,16 +196,54 @@ const ERROR_SUGGESTIONS: Record<RecordingErrorCode, { en: string; zh: string }> 
   },
 };
 
+function normalizeErrorCode(raw: unknown): RecordingErrorCode {
+  if (typeof raw !== 'string') return 'UNKNOWN';
+  const normalized = raw
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase() as RecordingErrorCode;
+  return normalized in ERROR_MESSAGES ? normalized : 'UNKNOWN';
+}
+
 /**
  * Parse error from backend response
  */
 export function parseRecordingError(error: unknown): RecordingError {
+  if (error instanceof Error) {
+    const code = extractErrorCode(error.message);
+    return {
+      code,
+      message: error.message,
+    };
+  }
+
+  if (error && typeof error === 'object' && !Array.isArray(error)) {
+    const objectError = error as Record<string, unknown>;
+    const message =
+      (typeof objectError.error === 'string' && objectError.error) ||
+      (typeof objectError.message === 'string' && objectError.message) ||
+      String(error);
+    return {
+      code: normalizeErrorCode(objectError.code),
+      message,
+      details:
+        typeof objectError.details === 'string' ? objectError.details : undefined,
+      suggestion:
+        typeof objectError.suggestion === 'string'
+          ? objectError.suggestion
+          : undefined,
+    };
+  }
+
   // Try to parse JSON error from backend
   if (typeof error === 'string') {
     try {
       const parsed = JSON.parse(error);
-      if (parsed.code && parsed.message) {
-        return parsed as RecordingError;
+      if (parsed && typeof parsed === 'object') {
+        const parsedObject = parsed as Record<string, unknown>;
+        if (parsedObject.code || parsedObject.message || parsedObject.error) {
+          return parseRecordingError(parsedObject);
+        }
       }
     } catch {
       // Not JSON, try to extract error code from message
@@ -215,14 +253,6 @@ export function parseRecordingError(error: unknown): RecordingError {
         message: error,
       };
     }
-  }
-
-  if (error instanceof Error) {
-    const code = extractErrorCode(error.message);
-    return {
-      code,
-      message: error.message,
-    };
   }
 
   return {

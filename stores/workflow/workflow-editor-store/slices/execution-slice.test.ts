@@ -29,6 +29,18 @@ jest.mock('@/types/workflow/workflow-editor', () => ({
 }));
 
 jest.mock('@/lib/logger', () => ({
+  createLogger: jest.fn(() => ({
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    child: jest.fn(() => ({
+      error: jest.fn(),
+      warn: jest.fn(),
+      info: jest.fn(),
+      debug: jest.fn(),
+    })),
+  })),
   loggers: {
     store: {
       error: jest.fn(),
@@ -45,10 +57,40 @@ jest.mock('@/lib/workflow-editor', () => ({
   resumeVisualWorkflow: jest.fn(),
   cancelVisualWorkflow: jest.fn(),
   validateVisualWorkflow: jest.fn(() => []),
+  validateCompleteWorkflow: jest.fn(() => ({
+    structureValidation: { errors: [], warnings: [] },
+    ioValidation: { errors: [], warnings: [] },
+  })),
+}));
+
+const mockOrchestratorRun = jest.fn();
+const mockOrchestratorPersistExecution = jest.fn().mockResolvedValue(undefined);
+const mockOrchestratorPause = jest.fn().mockResolvedValue(undefined);
+const mockOrchestratorResume = jest.fn().mockResolvedValue(undefined);
+const mockOrchestratorCancel = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@/lib/workflow-editor/orchestrator', () => ({
+  workflowOrchestrator: {
+    runtime: 'browser',
+    run: (...args: unknown[]) => mockOrchestratorRun(...args),
+    persistExecution: (...args: unknown[]) => mockOrchestratorPersistExecution(...args),
+    pause: (...args: unknown[]) => mockOrchestratorPause(...args),
+    resume: (...args: unknown[]) => mockOrchestratorResume(...args),
+    cancel: (...args: unknown[]) => mockOrchestratorCancel(...args),
+  },
 }));
 
 jest.mock('@/lib/workflow-editor/layout', () => ({
   autoLayout: jest.fn((nodes: unknown[]) => nodes),
+}));
+
+jest.mock('@/lib/workflow-editor/trigger-sync-service', () => ({
+  workflowTriggerSyncService: {
+    ensureTriggerTask: jest.fn().mockResolvedValue(undefined),
+    removeTriggerTask: jest.fn().mockResolvedValue(undefined),
+    ensureBindings: jest.fn().mockResolvedValue(undefined),
+    syncAllWorkflowTriggers: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 jest.mock('@/stores/settings', () => ({
@@ -119,10 +161,8 @@ describe('execution-slice (loggers integration)', () => {
         });
       });
 
-      // Mock repository.getExecution to throw (simulates DB failure)
-      (workflowRepository.getExecution as jest.Mock).mockRejectedValueOnce(
-        new Error('DB read failed')
-      );
+      // Mock orchestrator persistence to throw (simulates persistence failure)
+      mockOrchestratorPersistExecution.mockRejectedValueOnce(new Error('Persist failed'));
 
       await act(async () => {
         await result.current.persistExecution();
@@ -156,6 +196,140 @@ describe('execution-slice (loggers integration)', () => {
         'Failed to replay execution',
         expect.any(Error)
       );
+    });
+  });
+
+  describe('event convergence', () => {
+    it('handles execution_completed event branch idempotently', async () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.createWorkflow('Test');
+      });
+
+      mockOrchestratorRun.mockImplementationOnce(async (params: {
+        workflow: { id: string };
+        input: Record<string, unknown>;
+        onEvent?: (event: {
+          type: string;
+          executionId: string;
+          workflowId: string;
+          runtime: 'browser' | 'tauri';
+          timestamp: Date;
+        }) => void;
+      }) => {
+        const now = new Date();
+        params.onEvent?.({
+          type: 'execution_started',
+          executionId: 'exec-completed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+        });
+        params.onEvent?.({
+          type: 'execution_completed',
+          executionId: 'exec-completed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+        });
+        params.onEvent?.({
+          type: 'execution_completed',
+          executionId: 'exec-completed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+        });
+        return {
+          executionId: 'exec-completed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser' as const,
+          status: 'completed' as const,
+          input: params.input,
+          output: { ok: true },
+          nodeStates: {},
+          startedAt: now,
+          completedAt: now,
+        };
+      });
+
+      await act(async () => {
+        await result.current.startExecution({});
+      });
+
+      const messages = (result.current.executionState?.logs || []).map((log) => log.message);
+      const completionLogs = messages.filter((message) =>
+        message.includes('Workflow execution completed successfully')
+      );
+      expect(completionLogs).toHaveLength(1);
+      expect(result.current.executionState?.status).toBe('completed');
+    });
+
+    it('handles execution_failed event branch idempotently', async () => {
+      const { result } = renderHook(() => useWorkflowEditorStore());
+
+      act(() => {
+        result.current.createWorkflow('Test');
+      });
+
+      mockOrchestratorRun.mockImplementationOnce(async (params: {
+        workflow: { id: string };
+        input: Record<string, unknown>;
+        onEvent?: (event: {
+          type: string;
+          executionId: string;
+          workflowId: string;
+          runtime: 'browser' | 'tauri';
+          timestamp: Date;
+          error?: string;
+        }) => void;
+      }) => {
+        const now = new Date();
+        params.onEvent?.({
+          type: 'execution_started',
+          executionId: 'exec-failed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+        });
+        params.onEvent?.({
+          type: 'execution_failed',
+          executionId: 'exec-failed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+          error: 'boom',
+        });
+        params.onEvent?.({
+          type: 'execution_failed',
+          executionId: 'exec-failed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser',
+          timestamp: now,
+          error: 'boom',
+        });
+        return {
+          executionId: 'exec-failed-1',
+          workflowId: params.workflow.id,
+          runtime: 'browser' as const,
+          status: 'failed' as const,
+          input: params.input,
+          output: {},
+          nodeStates: {},
+          startedAt: now,
+          completedAt: now,
+          error: 'boom',
+        };
+      });
+
+      await act(async () => {
+        await result.current.startExecution({});
+      });
+
+      const messages = (result.current.executionState?.logs || []).map((log) => log.message);
+      const failedLogs = messages.filter((message) => message.includes('Workflow execution failed'));
+      expect(failedLogs).toHaveLength(1);
+      expect(result.current.executionState?.status).toBe('failed');
     });
   });
 

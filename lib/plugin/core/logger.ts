@@ -2,13 +2,12 @@
  * Plugin System Logger
  *
  * Centralized logging for the plugin system using the unified logger.
- * This module provides backward-compatible API while delegating to @/lib/logger.
  */
 
 import { createLogger, type Logger } from '@/lib/logger';
+import type { PluginLogger } from '@/types/plugin';
 
-// Re-export LogLevel for backward compatibility
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 interface LoggerOptions {
   prefix?: string;
@@ -16,56 +15,95 @@ interface LoggerOptions {
   minLevel?: LogLevel;
 }
 
-// Base plugin logger using unified system
+type PluginLoggerExtended = PluginLogger & {
+  trace: (message: string, ...args: unknown[]) => void;
+  fatal: (message: string, ...args: unknown[]) => void;
+  child: (scope: string) => PluginLoggerExtended;
+  withContext: (context: Record<string, unknown>) => PluginLoggerExtended;
+};
+
 const pluginBaseLogger = createLogger('plugin');
 
-/**
- * Create a wrapper that provides the old API while using unified logger
- */
-function createLoggerWrapper(logger: Logger) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Error));
+}
+
+function normalizeArgs(args: unknown[]): { error?: Error | unknown; data?: Record<string, unknown> } {
+  if (args.length === 0) {
+    return {};
+  }
+
+  let extractedError: Error | unknown;
+  const merged: Record<string, unknown> = {};
+  const extras: unknown[] = [];
+
+  for (const arg of args) {
+    if (arg instanceof Error && extractedError === undefined) {
+      extractedError = arg;
+      continue;
+    }
+
+    if (isPlainObject(arg)) {
+      Object.assign(merged, arg);
+      continue;
+    }
+
+    extras.push(arg);
+  }
+
+  if (extras.length === 1) {
+    merged.arg = extras[0];
+  } else if (extras.length > 1) {
+    merged.args = extras;
+  }
+
   return {
-    debug: (message: string, ...args: unknown[]) => {
-      const data = args.length > 0 ? { args } : undefined;
-      logger.debug(message, data);
-    },
-    info: (message: string, ...args: unknown[]) => {
-      const data = args.length > 0 ? { args } : undefined;
-      logger.info(message, data);
-    },
-    warn: (message: string, ...args: unknown[]) => {
-      const data = args.length > 0 ? { args } : undefined;
-      logger.warn(message, data);
-    },
-    error: (message: string, ...args: unknown[]) => {
-      const firstArg = args[0];
-      if (firstArg instanceof Error) {
-        const data = args.length > 1 ? { args: args.slice(1) } : undefined;
-        logger.error(message, firstArg, data);
-      } else {
-        const data = args.length > 0 ? { args } : undefined;
-        logger.error(message, undefined, data);
-      }
-    },
+    error: extractedError,
+    data: Object.keys(merged).length > 0 ? merged : undefined,
   };
 }
 
-/**
- * Create a logger instance for a specific plugin module
- * @deprecated Use createLogger from @/lib/logger directly for new code
- */
-export function createPluginSystemLogger(module: string, _options?: LoggerOptions) {
+function createLoggerWrapper(logger: Logger): PluginLoggerExtended {
+  const wrapper: PluginLoggerExtended = {
+    trace: (message: string, ...args: unknown[]) => {
+      const { data } = normalizeArgs(args);
+      logger.trace(message, data);
+    },
+    debug: (message: string, ...args: unknown[]) => {
+      const { data } = normalizeArgs(args);
+      logger.debug(message, data);
+    },
+    info: (message: string, ...args: unknown[]) => {
+      const { data } = normalizeArgs(args);
+      logger.info(message, data);
+    },
+    warn: (message: string, ...args: unknown[]) => {
+      const { data } = normalizeArgs(args);
+      logger.warn(message, data);
+    },
+    error: (message: string, ...args: unknown[]) => {
+      const { error, data } = normalizeArgs(args);
+      logger.error(message, error, data);
+    },
+    fatal: (message: string, ...args: unknown[]) => {
+      const { error, data } = normalizeArgs(args);
+      logger.fatal(message, error, data);
+    },
+    child: (scope: string) => createLoggerWrapper(logger.child(scope)),
+    withContext: (context: Record<string, unknown>) =>
+      createLoggerWrapper(logger.withContext(context)),
+  };
+
+  return wrapper;
+}
+
+export function createPluginSystemLogger(module: string, _options?: LoggerOptions): PluginLoggerExtended {
   const childLogger = pluginBaseLogger.child(module);
   return createLoggerWrapper(childLogger);
 }
 
-/**
- * Default plugin system logger
- */
 export const pluginLogger = createPluginSystemLogger('system');
 
-/**
- * Module-specific loggers - all using unified logger system
- */
 export const loggers = {
   manager: createPluginSystemLogger('manager'),
   loader: createPluginSystemLogger('loader'),
@@ -91,3 +129,4 @@ export const loggers = {
 };
 
 export type PluginSystemLogger = ReturnType<typeof createPluginSystemLogger>;
+

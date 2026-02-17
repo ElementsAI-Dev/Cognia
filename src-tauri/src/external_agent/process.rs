@@ -4,6 +4,8 @@
 //! Based on patterns from skill_seekers/service.rs and mcp/transport/stdio.rs
 
 use std::collections::HashMap;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -54,9 +56,25 @@ pub struct ExternalAgentProcess {
     stdout_rx: mpsc::Receiver<String>,
     /// Channel for receiving stderr lines
     stderr_rx: mpsc::Receiver<String>,
+    /// Last known process exit code
+    last_exit_code: Option<i32>,
+    /// Last known process exit signal
+    last_exit_signal: Option<String>,
 }
 
 impl ExternalAgentProcess {
+    fn update_exit_from_status(&mut self, status: std::process::ExitStatus) {
+        self.last_exit_code = status.code();
+        #[cfg(unix)]
+        {
+            self.last_exit_signal = status.signal().map(|s| s.to_string());
+        }
+        #[cfg(not(unix))]
+        {
+            self.last_exit_signal = None;
+        }
+    }
+
     /// Get the process ID
     pub fn get_pid(&self) -> Option<u32> {
         self.pid
@@ -116,7 +134,12 @@ impl ExternalAgentProcess {
     pub async fn is_running(&mut self) -> bool {
         match self.child.try_wait() {
             Ok(None) => true,
-            _ => {
+            Ok(Some(status)) => {
+                self.update_exit_from_status(status);
+                self.state = ExternalAgentProcessState::Stopped;
+                false
+            }
+            Err(_) => {
                 self.state = ExternalAgentProcessState::Stopped;
                 false
             }
@@ -130,6 +153,8 @@ impl ExternalAgentProcess {
             .kill()
             .await
             .map_err(|e| format!("Failed to kill process: {}", e))?;
+        self.last_exit_code = None;
+        self.last_exit_signal = Some("killed".to_string());
         self.state = ExternalAgentProcessState::Stopped;
         Ok(())
     }
@@ -144,7 +169,9 @@ impl ExternalAgentProcess {
             "command": config.command,
             "args": config.args,
             "cwd": config.cwd,
-            "env": config.env
+            "env": config.env,
+            "exitCode": self.last_exit_code,
+            "exitSignal": self.last_exit_signal.clone()
         })
     }
 }
@@ -260,6 +287,8 @@ impl ExternalAgentProcessManager {
             stdin,
             stdout_rx,
             stderr_rx,
+            last_exit_code: None,
+            last_exit_signal: None,
         };
 
         // Store in manager
@@ -405,5 +434,49 @@ impl ExternalAgentProcessManager {
         let mut process = process.lock().await;
         process.set_failed();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use tokio::time::{sleep, Duration};
+
+    #[tokio::test]
+    async fn test_process_records_real_exit_code() {
+        let manager = ExternalAgentProcessManager::new();
+
+        #[cfg(windows)]
+        let config = ExternalAgentSpawnConfig {
+            id: "exit-code-test".to_string(),
+            command: "cmd".to_string(),
+            args: vec!["/c".to_string(), "exit".to_string(), "5".to_string()],
+            env: HashMap::new(),
+            cwd: None,
+        };
+        #[cfg(not(windows))]
+        let config = ExternalAgentSpawnConfig {
+            id: "exit-code-test".to_string(),
+            command: "sh".to_string(),
+            args: vec!["-c".to_string(), "exit 5".to_string()],
+            env: HashMap::new(),
+            cwd: None,
+        };
+
+        let id = manager.spawn(config).await.expect("spawn should succeed");
+        sleep(Duration::from_millis(120)).await;
+
+        let is_running = manager
+            .is_running(&id)
+            .await
+            .expect("is_running should succeed");
+        assert!(!is_running);
+
+        let info = manager
+            .get_info(&id)
+            .await
+            .expect("get_info should succeed");
+        assert_eq!(info.get("exitCode").and_then(|v| v.as_i64()), Some(5));
     }
 }

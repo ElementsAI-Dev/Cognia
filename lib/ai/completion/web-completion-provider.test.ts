@@ -37,7 +37,7 @@ describe('web-completion-provider', () => {
   });
 
   describe('defaults', () => {
-    it('should use Ollama endpoint by default', async () => {
+    it('should route default auto provider to Ollama first', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ response: 'test' }),
@@ -191,6 +191,59 @@ describe('web-completion-provider', () => {
           'https://api.groq.com/openai/v1/chat/completions',
           expect.any(Object)
         );
+      });
+    });
+
+    describe('Auto provider', () => {
+      it('should fallback to OpenAI-compatible endpoint when local Ollama returns empty', async () => {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ response: '' }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({
+              choices: [{ message: { content: 'cloud completion' } }],
+            }),
+          });
+
+        const result = await triggerWebCompletion('test', {
+          provider: 'auto',
+          apiKey: 'sk-test',
+          endpoint: 'https://api.openai.com/v1',
+        });
+
+        expect(mockFetch).toHaveBeenNthCalledWith(
+          1,
+          'http://localhost:11434/api/generate',
+          expect.any(Object)
+        );
+        expect(mockFetch).toHaveBeenNthCalledWith(
+          2,
+          'https://api.openai.com/v1/chat/completions',
+          expect.objectContaining({
+            headers: expect.objectContaining({
+              Authorization: 'Bearer sk-test',
+            }),
+          })
+        );
+        expect(result.suggestions).toHaveLength(1);
+        expect(result.suggestions[0].text).toBe('cloud completion');
+      });
+
+      it('should return empty suggestions when no API key is available for fallback', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ response: '' }),
+        });
+
+        const result = await triggerWebCompletion('test', {
+          provider: 'auto',
+        });
+
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(result.suggestions).toHaveLength(0);
       });
     });
 

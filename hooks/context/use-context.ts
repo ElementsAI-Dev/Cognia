@@ -2,14 +2,14 @@
  * Context Hook
  *
  * Provides access to context awareness functionality.
- * Uses types from lib/native/context.ts for consistency.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { isTauri } from '@/lib/native/utils';
 import * as contextApi from '@/lib/native/context';
-import type { FullContext } from '@/lib/native/context';
+import type { FullContext, ScreenAnalyzeOptions, ScreenContent } from '@/lib/native/context';
 import { useContextStore } from '@/stores/context';
+import { useNativeStore } from '@/stores/system';
 import { loggers } from '@/lib/logger';
 
 const log = loggers.native;
@@ -30,35 +30,150 @@ export type {
   UiElementType,
   TextBlock,
   ScreenContent,
+  ScreenAnalyzeOptions,
 } from '@/lib/native/context';
 
+function getWindowFingerprint(context: FullContext | null): string | null {
+  const window = context?.window;
+  if (!window) return null;
+
+  return [
+    window.handle,
+    window.process_id,
+    window.process_name,
+    window.title,
+    window.width,
+    window.height,
+  ].join('|');
+}
+
 export function useContext() {
-  // Extract stable action references to avoid re-creating callbacks on every render
   const setStoreContext = useContextStore((s) => s.setContext);
   const setStoreError = useContextStore((s) => s.setError);
   const setStoreIsLoading = useContextStore((s) => s.setIsLoading);
   const clearStoreContext = useContextStore((s) => s.clearContext);
   const setStoreCacheDurationMs = useContextStore((s) => s.setCacheDurationMs);
   const setStoreUiElements = useContextStore((s) => s.setUiElements);
-  // Read config values reactively (these are primitives, so stable across renders unless changed)
+  const setStoreScreenContent = useContextStore((s) => s.setScreenContent);
+  const setStoreIsAnalyzingScreen = useContextStore((s) => s.setIsAnalyzingScreen);
+  const setStoreScreenAnalysisError = useContextStore((s) => s.setScreenAnalysisError);
+  const clearStoreScreenAnalysis = useContextStore((s) => s.clearScreenAnalysis);
+
   const autoRefreshEnabled = useContextStore((s) => s.autoRefreshEnabled);
   const refreshIntervalMs = useContextStore((s) => s.refreshIntervalMs);
-  // Full store reference kept for pass-through in return value
+  const screenContent = useContextStore((s) => s.screenContent);
+  const isAnalyzingScreen = useContextStore((s) => s.isAnalyzingScreen);
+  const screenAnalysisError = useContextStore((s) => s.screenAnalysisError);
+  const lastScreenAnalysisAt = useContextStore((s) => s.lastScreenAnalysisAt);
   const store = useContextStore();
+
+  const screenshotOcrEnabled = useNativeStore((s) => s.nativeToolsConfig.screenshotOcrEnabled);
 
   const [localContext, setLocalContext] = useState<FullContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const screenAnalysisInFlightRef = useRef(false);
+  const lastWindowFingerprintRef = useRef<string | null>(null);
+  const lastScreenAnalysisAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    lastScreenAnalysisAtRef.current = lastScreenAnalysisAt;
+  }, [lastScreenAnalysisAt]);
+
+  const analyzeScreen = useCallback(
+    async (
+      imageData: Uint8Array | number[],
+      width: number,
+      height: number,
+      options?: ScreenAnalyzeOptions
+    ): Promise<ScreenContent | null> => {
+      if (!isTauri()) return null;
+
+      setStoreIsAnalyzingScreen(true);
+      setStoreScreenAnalysisError(null);
+      try {
+        const result = await contextApi.analyzeScreen(imageData, width, height, options);
+        setStoreScreenContent(result);
+        lastScreenAnalysisAtRef.current = Date.now();
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setStoreScreenAnalysisError(message);
+        log.error('Failed to analyze screen', err as Error);
+        return null;
+      } finally {
+        setStoreIsAnalyzingScreen(false);
+      }
+    },
+    [setStoreIsAnalyzingScreen, setStoreScreenAnalysisError, setStoreScreenContent]
+  );
+
+  const captureAndAnalyzeScreen = useCallback(
+    async (options?: ScreenAnalyzeOptions): Promise<ScreenContent | null> => {
+      if (!isTauri()) return null;
+      if (screenAnalysisInFlightRef.current) return null;
+
+      screenAnalysisInFlightRef.current = true;
+      setStoreIsAnalyzingScreen(true);
+      setStoreScreenAnalysisError(null);
+
+      try {
+        const result = await contextApi.captureAndAnalyzeActiveWindow(options);
+        setStoreScreenContent(result);
+        lastScreenAnalysisAtRef.current = Date.now();
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setStoreScreenAnalysisError(message);
+        log.error('Failed to capture and analyze active window', err as Error);
+        return null;
+      } finally {
+        screenAnalysisInFlightRef.current = false;
+        setStoreIsAnalyzingScreen(false);
+      }
+    },
+    [setStoreIsAnalyzingScreen, setStoreScreenAnalysisError, setStoreScreenContent]
+  );
+
+  const shouldAnalyzeScreenForContext = useCallback(
+    (context: FullContext | null) => {
+      if (!screenshotOcrEnabled || !context?.window) return false;
+      if (screenAnalysisInFlightRef.current) return false;
+
+      const fingerprint = getWindowFingerprint(context);
+      const now = Date.now();
+      const changed = fingerprint !== null && fingerprint !== lastWindowFingerprintRef.current;
+      const expired =
+        !lastScreenAnalysisAtRef.current ||
+        now - lastScreenAnalysisAtRef.current >= refreshIntervalMs;
+
+      if (changed && fingerprint) {
+        lastWindowFingerprintRef.current = fingerprint;
+      }
+
+      return changed || expired;
+    },
+    [refreshIntervalMs, screenshotOcrEnabled]
+  );
+
   const fetchContext = useCallback(async () => {
     if (!isTauri()) return null;
 
     setIsLoading(true);
+    setStoreIsLoading(true);
     setError(null);
+    setStoreError(null);
+
     try {
       const result = await contextApi.getFullContext();
       setLocalContext(result);
       setStoreContext(result);
+
+      if (shouldAnalyzeScreenForContext(result)) {
+        void captureAndAnalyzeScreen();
+      }
+
       return result;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -69,7 +184,13 @@ export function useContext() {
       setIsLoading(false);
       setStoreIsLoading(false);
     }
-  }, [setStoreContext, setStoreError, setStoreIsLoading]);
+  }, [
+    captureAndAnalyzeScreen,
+    setStoreContext,
+    setStoreError,
+    setStoreIsLoading,
+    shouldAnalyzeScreenForContext,
+  ]);
 
   const getWindowInfo = useCallback(async () => {
     if (!isTauri()) return null;
@@ -170,16 +291,19 @@ export function useContext() {
     }
   }, [clearStoreContext]);
 
-  const updateCacheDuration = useCallback(async (ms: number) => {
-    if (!isTauri()) return;
+  const updateCacheDuration = useCallback(
+    async (ms: number) => {
+      if (!isTauri()) return;
 
-    try {
-      await contextApi.setCacheDuration(ms);
-      setStoreCacheDurationMs(ms);
-    } catch (err) {
-      log.error('Failed to set cache duration', err as Error);
-    }
-  }, [setStoreCacheDurationMs]);
+      try {
+        await contextApi.setCacheDuration(ms);
+        setStoreCacheDurationMs(ms);
+      } catch (err) {
+        log.error('Failed to set cache duration', err as Error);
+      }
+    },
+    [setStoreCacheDurationMs]
+  );
 
   const fetchCacheDuration = useCallback(async () => {
     if (!isTauri()) return 500;
@@ -227,18 +351,36 @@ export function useContext() {
     }
   }, []);
 
-  // Auto-refresh context periodically
+  const clearScreenAnalysis = useCallback(async () => {
+    if (!isTauri()) return;
+
+    try {
+      await contextApi.clearScreenCache();
+      clearStoreScreenAnalysis();
+      lastScreenAnalysisAtRef.current = null;
+      lastWindowFingerprintRef.current = null;
+    } catch (err) {
+      log.error('Failed to clear screen analysis cache', err as Error);
+    }
+  }, [clearStoreScreenAnalysis]);
+
   useEffect(() => {
     if (!autoRefreshEnabled) return;
 
-    fetchContext();
-
+    void fetchContext();
     const interval = setInterval(() => {
-      fetchContext();
+      void fetchContext();
     }, refreshIntervalMs);
 
     return () => clearInterval(interval);
   }, [fetchContext, autoRefreshEnabled, refreshIntervalMs]);
+
+  useEffect(() => {
+    if (!screenshotOcrEnabled) {
+      clearStoreScreenAnalysis();
+      lastScreenAnalysisAtRef.current = null;
+    }
+  }, [clearStoreScreenAnalysis, screenshotOcrEnabled]);
 
   return {
     context: localContext,
@@ -254,13 +396,18 @@ export function useContext() {
     findWindowsByTitle,
     findWindowsByProcess,
     clearCache,
-    // New functions
     updateCacheDuration,
     fetchCacheDuration,
     analyzeUi,
     getTextAtPosition,
     getElementAtPosition,
-    // Store access
+    analyzeScreen,
+    captureAndAnalyzeScreen,
+    clearScreenAnalysis,
+    screenContent,
+    isAnalyzingScreen,
+    screenAnalysisError,
+    lastScreenAnalysisAt,
     store,
   };
 }

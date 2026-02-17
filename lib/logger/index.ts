@@ -32,11 +32,27 @@ export {
   initLogger,
   addTransport,
   removeTransport,
+  getTransport,
+  getTransports,
   updateLoggerConfig,
   getLoggerConfig,
   flushLogs,
   shutdownLogger,
 } from './core';
+
+// Bootstrap exports
+export {
+  bootstrapLogger,
+  applyLoggingSettings,
+  getLoggingBootstrapState,
+  getIndexedDBTransport,
+  listRegisteredTransports,
+  LOGGING_TRANSPORTS_STORAGE_KEY,
+  LOGGING_RETENTION_STORAGE_KEY,
+  type LoggingBootstrapState,
+  type LoggingRetentionSettings,
+  type LoggingTransportSettings,
+} from './bootstrap';
 
 // Context exports
 export {
@@ -59,6 +75,7 @@ export type {
   StructuredLogEntry,
   Transport,
   UnifiedLoggerConfig,
+  LoggerRedactionConfig,
   LogFilter,
   LogStats,
 } from './types';

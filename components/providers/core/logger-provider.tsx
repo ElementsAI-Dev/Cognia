@@ -1,61 +1,56 @@
 'use client';
 
 /**
- * LoggerProvider - React Context wrapper for the unified logging system
- * 
- * This provider integrates with the unified logger system at @/lib/logger
- * and provides React hooks for easy access to logging functions.
- * 
- * @deprecated For new code, prefer importing directly from @/lib/logger
+ * LoggerProvider - React Context wrapper for the unified logging system.
+ *
+ * @deprecated For new code, prefer importing directly from @/lib/logger.
  */
 
-import { createContext, useContext, useCallback, ReactNode, useState, useMemo, useEffect } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
 import { LOG_LEVEL_PRIORITY } from '@/types';
 import {
-  loggers,
-  IndexedDBTransport,
-  updateLoggerConfig,
   addTransport as addUnifiedTransport,
+  applyLoggingSettings,
+  bootstrapLogger,
+  getIndexedDBTransport,
+  loggers,
   removeTransport as removeUnifiedTransport,
-  type StructuredLogEntry,
   type LogLevel as UnifiedLogLevel,
+  type StructuredLogEntry,
 } from '@/lib/logger';
 
-// Re-export types for backward compatibility
+// Re-export types for backward compatibility.
 export type { AppLogLevel, LogEntry, LoggerConfig, LogTransport } from '@/types';
-
-// Alias for backward compatibility
 export type LogLevel = AppLogLevel;
 
-// Logger context value
 interface LoggerContextValue {
-  // Logging functions
   debug: (message: string, data?: unknown, context?: Record<string, unknown>) => void;
   info: (message: string, data?: unknown, context?: Record<string, unknown>) => void;
   warn: (message: string, data?: unknown, context?: Record<string, unknown>) => void;
   error: (message: string, error?: Error | unknown, context?: Record<string, unknown>) => void;
   fatal: (message: string, error?: Error | unknown, context?: Record<string, unknown>) => void;
-
-  // Log management
   getLogs: (filter?: { level?: LogLevel; since?: Date; limit?: number }) => Promise<LogEntry[]>;
   clearLogs: () => Promise<void>;
   exportLogs: (format?: 'json' | 'text') => Promise<string>;
-
-  // Configuration
   config: LoggerConfig;
   updateConfig: (config: Partial<LoggerConfig>) => void;
   addTransport: (transport: LogTransport) => void;
   removeTransport: (name: string) => void;
-
-  // Statistics
   getStats: () => { total: number; byLevel: Record<LogLevel, number> };
 }
 
-// Create context
 const LoggerContext = createContext<LoggerContextValue | undefined>(undefined);
 
-// Default configuration
 const DEFAULT_CONFIG: LoggerConfig = {
   minLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   enableConsole: true,
@@ -65,7 +60,6 @@ const DEFAULT_CONFIG: LoggerConfig = {
   includeStackTrace: process.env.NODE_ENV === 'development',
 };
 
-// Convert StructuredLogEntry to legacy LogEntry format
 function convertToLegacyEntry(entry: StructuredLogEntry): LogEntry {
   return {
     id: entry.id,
@@ -81,59 +75,57 @@ function convertToLegacyEntry(entry: StructuredLogEntry): LogEntry {
 
 interface LoggerProviderProps {
   children: ReactNode;
-  /** Custom logger configuration */
   config?: Partial<LoggerConfig>;
-  /** Custom transports to add */
   transports?: LogTransport[];
-  /** Session ID for log tracking */
   sessionId?: string;
 }
 
-/**
- * Logger Provider Component
- * Now delegates to unified logger system while maintaining backward compatibility
- */
 export function LoggerProvider({
   children,
   config: userConfig = {},
-  transports: _userTransports = [],
+  transports: userTransports = [],
   sessionId: _sessionId,
 }: LoggerProviderProps) {
-  const [config, setConfig] = useState<LoggerConfig>({ ...DEFAULT_CONFIG, ...userConfig });
+  const [initialBootstrap] = useState(() => bootstrapLogger(userConfig));
+  const [config, setConfig] = useState<LoggerConfig>(() => ({
+    ...DEFAULT_CONFIG,
+    ...initialBootstrap.config,
+    ...userConfig,
+  }));
   const [stats, setStats] = useState({ total: 0, byLevel: {} as Record<LogLevel, number> });
-  
-  // Initialize IndexedDB transport for log retrieval
-  const [indexedDBTransport] = useState(() => new IndexedDBTransport());
+  const attachedTransportNamesRef = useRef(new Set<string>());
 
-  // Session ID is passed to log entries directly via the unified logger context
-  // The unified logger uses its own session management
-
-  // Sync config with unified logger
   useEffect(() => {
-    updateLoggerConfig({
-      minLevel: config.minLevel as UnifiedLogLevel,
-      includeStackTrace: config.includeStackTrace,
-      includeSource: process.env.NODE_ENV === 'development',
+    if (userTransports.length === 0) {
+      return;
+    }
+    userTransports.forEach((transport) => {
+      if (attachedTransportNamesRef.current.has(transport.name)) {
+        return;
+      }
+      attachedTransportNamesRef.current.add(transport.name);
+      addUnifiedTransport({
+        name: transport.name,
+        log: (entry) => transport.log(convertToLegacyEntry(entry)),
+      });
     });
-  }, [config]);
+  }, [userTransports]);
 
-  // Core logging function using unified logger
   const log = useCallback(
     (level: LogLevel, message: string, data?: unknown, context?: Record<string, unknown>) => {
-      // Check if we should log this level
       if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[config.minLevel]) {
         return;
       }
-      
-      const combinedData = { 
-        ...context, 
-        ...(typeof data === 'object' && data !== null && !(data instanceof Error) 
-          ? data as Record<string, unknown> 
-          : data !== undefined && !(data instanceof Error) 
-            ? { value: data } 
-            : {}) 
+
+      const combinedData = {
+        ...context,
+        ...(typeof data === 'object' && data !== null && !(data instanceof Error)
+          ? (data as Record<string, unknown>)
+          : data !== undefined && !(data instanceof Error)
+            ? { value: data }
+            : {}),
       };
-      
+
       switch (level) {
         case 'debug':
           loggers.app.debug(message, combinedData);
@@ -152,7 +144,6 @@ export function LoggerProvider({
           break;
       }
 
-      // Update stats
       setStats((prev) => ({
         total: prev.total + 1,
         byLevel: {
@@ -164,7 +155,6 @@ export function LoggerProvider({
     [config.minLevel]
   );
 
-  // Convenience methods
   const debug = useCallback(
     (message: string, data?: unknown, context?: Record<string, unknown>) => {
       log('debug', message, data, context);
@@ -200,43 +190,47 @@ export function LoggerProvider({
     [log]
   );
 
-  // Log management - now using IndexedDB transport from unified logger
   const getLogs = useCallback(
     async (filter?: { level?: LogLevel; since?: Date; limit?: number }): Promise<LogEntry[]> => {
+      const indexedDBTransport = getIndexedDBTransport();
+      if (!indexedDBTransport) {
+        return [];
+      }
+
       const structuredLogs = await indexedDBTransport.getLogs({
         level: filter?.level as UnifiedLogLevel,
         limit: filter?.limit,
       });
-      
+
       let logs = structuredLogs.map(convertToLegacyEntry);
-
       if (filter?.since) {
-        logs = logs.filter((l) => l.timestamp >= filter.since!);
+        logs = logs.filter((entry) => entry.timestamp >= filter.since!);
       }
-
       return logs;
     },
-    [indexedDBTransport]
+    []
   );
 
   const clearLogs = useCallback(async () => {
-    await indexedDBTransport.clear();
+    const indexedDBTransport = getIndexedDBTransport();
+    if (indexedDBTransport) {
+      await indexedDBTransport.clear();
+    }
     setStats({ total: 0, byLevel: {} as Record<LogLevel, number> });
-  }, [indexedDBTransport]);
+  }, []);
 
   const exportLogs = useCallback(
     async (format: 'json' | 'text' = 'json'): Promise<string> => {
       const logs = await getLogs();
-
       if (format === 'json') {
         return JSON.stringify(logs, null, 2);
       }
 
       return logs
         .map(
-          (l) =>
-            `[${l.timestamp.toISOString()}] [${l.level.toUpperCase()}] ${l.message}${
-              l.data ? ` ${JSON.stringify(l.data)}` : ''
+          (entry) =>
+            `[${entry.timestamp.toISOString()}] [${entry.level.toUpperCase()}] ${entry.message}${
+              entry.data ? ` ${JSON.stringify(entry.data)}` : ''
             }`
         )
         .join('\n');
@@ -244,13 +238,29 @@ export function LoggerProvider({
     [getLogs]
   );
 
-  // Configuration management
   const updateConfig = useCallback((updates: Partial<LoggerConfig>) => {
-    setConfig((prev) => ({ ...prev, ...updates }));
+    setConfig((prev) => {
+      const merged = { ...prev, ...updates };
+      applyLoggingSettings({
+        config: {
+          minLevel: merged.minLevel as UnifiedLogLevel,
+          includeStackTrace: merged.includeStackTrace,
+          enableConsole: merged.enableConsole,
+          enableStorage: merged.enableStorage,
+          enableRemote: merged.enableRemote,
+          maxStorageEntries: merged.maxStorageEntries,
+        },
+        transports: {
+          console: merged.enableConsole,
+          indexedDB: merged.enableStorage,
+          remote: merged.enableRemote,
+        },
+      });
+      return merged;
+    });
   }, []);
 
   const addTransport = useCallback((transport: LogTransport) => {
-    // Wrap legacy transport for unified logger
     addUnifiedTransport({
       name: transport.name,
       log: (entry) => {
@@ -263,9 +273,7 @@ export function LoggerProvider({
     removeUnifiedTransport(name);
   }, []);
 
-  const getStats = useCallback(() => {
-    return stats;
-  }, [stats]);
+  const getStats = useCallback(() => stats, [stats]);
 
   const value = useMemo(
     (): LoggerContextValue => ({
@@ -303,9 +311,6 @@ export function LoggerProvider({
   return <LoggerContext.Provider value={value}>{children}</LoggerContext.Provider>;
 }
 
-/**
- * Hook to access logger
- */
 export function useLogger(): LoggerContextValue {
   const context = useContext(LoggerContext);
   if (!context) {
@@ -314,9 +319,6 @@ export function useLogger(): LoggerContextValue {
   return context;
 }
 
-/**
- * Hook for quick logging without full context
- */
 export function useLog() {
   const { debug, info, warn, error, fatal } = useLogger();
 
@@ -326,7 +328,7 @@ export function useLog() {
     warn,
     error,
     fatal,
-    log: info, // Alias for convenience
+    log: info,
   };
 }
 

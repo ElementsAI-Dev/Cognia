@@ -46,6 +46,7 @@ pub use windows_ocr::{OcrBounds, OcrLine, OcrWord, WinOcrResult, WindowsOcr};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
+use std::path::PathBuf;
 
 /// Screenshot configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +67,16 @@ pub struct ScreenshotConfig {
     pub show_notification: bool,
     /// OCR language (e.g., "eng", "chi_sim", "jpn")
     pub ocr_language: String,
+    /// Whether to auto-save screenshots after capture
+    #[serde(default)]
+    pub auto_save: bool,
+    /// Filename template for auto-saved screenshots, supports {timestamp} and {mode}
+    #[serde(default = "default_filename_template")]
+    pub filename_template: String,
+}
+
+fn default_filename_template() -> String {
+    "screenshot_{timestamp}".to_string()
 }
 
 impl Default for ScreenshotConfig {
@@ -79,6 +90,8 @@ impl Default for ScreenshotConfig {
             copy_to_clipboard: true,
             show_notification: true,
             ocr_language: "eng".to_string(),
+            auto_save: false,
+            filename_template: default_filename_template(),
         }
     }
 }
@@ -176,8 +189,8 @@ impl ScreenshotManager {
     {
         let config = self.config.read().clone();
         self.apply_capture_delay(&config).await;
-        let result = capture_fn(&self.capture)?;
-        self.post_capture_actions(&result, &config).await?;
+        let mut result = capture_fn(&self.capture)?;
+        self.post_capture_actions(&mut result, &config).await?;
         Ok(result)
     }
 
@@ -220,9 +233,11 @@ impl ScreenshotManager {
     /// Post-capture actions (clipboard, notification, etc.)
     async fn post_capture_actions(
         &self,
-        result: &ScreenshotResult,
+        result: &mut ScreenshotResult,
         config: &ScreenshotConfig,
     ) -> Result<(), String> {
+        self.auto_save_if_enabled(result, config)?;
+
         // Copy to clipboard if enabled
         if config.copy_to_clipboard {
             self.copy_to_clipboard(&result.image_data)?;
@@ -231,16 +246,98 @@ impl ScreenshotManager {
         // Show notification if enabled
         if config.show_notification {
             let _ = self.app_handle.emit(
-                "screenshot-captured",
+                "screenshot-notification",
                 serde_json::json!({
                     "width": result.metadata.width,
                     "height": result.metadata.height,
                     "mode": result.metadata.mode,
+                    "filePath": result.metadata.file_path,
                 }),
             );
         }
 
         Ok(())
+    }
+
+    fn auto_save_if_enabled(
+        &self,
+        result: &mut ScreenshotResult,
+        config: &ScreenshotConfig,
+    ) -> Result<(), String> {
+        if !config.auto_save {
+            return Ok(());
+        }
+
+        let path = self.resolve_auto_save_path(config, &result.metadata)?;
+        let saved_path = self.save_to_file(&result.image_data, &path)?;
+        result.metadata.file_path = Some(saved_path);
+        Ok(())
+    }
+
+    fn resolve_auto_save_path(
+        &self,
+        config: &ScreenshotConfig,
+        metadata: &ScreenshotMetadata,
+    ) -> Result<String, String> {
+        let base_dir = if let Some(save_directory) = &config.save_directory {
+            let trimmed = save_directory.trim();
+            if trimmed.is_empty() {
+                self.default_screenshot_dir()?
+            } else {
+                PathBuf::from(trimmed)
+            }
+        } else {
+            self.default_screenshot_dir()?
+        };
+
+        let filename = self.render_filename(config, metadata);
+        Ok(base_dir.join(filename).to_string_lossy().to_string())
+    }
+
+    fn default_screenshot_dir(&self) -> Result<PathBuf, String> {
+        let app_data_dir = self
+            .app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+        Ok(app_data_dir.join("screenshots"))
+    }
+
+    fn render_filename(&self, config: &ScreenshotConfig, metadata: &ScreenshotMetadata) -> String {
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+        let mode = if metadata.mode.is_empty() {
+            "screenshot".to_string()
+        } else {
+            metadata.mode.clone()
+        };
+
+        let template = if config.filename_template.trim().is_empty() {
+            default_filename_template()
+        } else {
+            config.filename_template.clone()
+        };
+
+        let rendered = template
+            .replace("{timestamp}", &timestamp)
+            .replace("{mode}", &mode);
+        let sanitized = Self::sanitize_filename(&rendered);
+        if std::path::Path::new(&sanitized).extension().is_some() {
+            sanitized
+        } else {
+            format!("{}.{}", sanitized, config.format)
+        }
+    }
+
+    fn sanitize_filename(name: &str) -> String {
+        let invalid = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
+        let mut out = name
+            .chars()
+            .map(|ch| if invalid.contains(&ch) { '_' } else { ch })
+            .collect::<String>();
+        if out.trim().is_empty() {
+            out = default_filename_template();
+        }
+        out
     }
 
     /// Copy image to clipboard
@@ -266,8 +363,13 @@ impl ScreenshotManager {
 
     /// Save screenshot to file
     pub fn save_to_file(&self, image_data: &[u8], path: &str) -> Result<String, String> {
-        std::fs::write(path, image_data).map_err(|e| e.to_string())?;
-        Ok(path.to_string())
+        let target_path = PathBuf::from(path);
+        if let Some(parent) = target_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        std::fs::write(&target_path, image_data).map_err(|e| e.to_string())?;
+        Ok(target_path.to_string_lossy().to_string())
     }
 
     /// Get list of available monitors
@@ -481,8 +583,8 @@ impl ScreenshotManager {
     ) -> Result<ScreenshotResult, String> {
         let config = self.config.read().clone();
         self.apply_capture_delay(&config).await;
-        let result = self.window_manager.read().capture_window_by_hwnd(hwnd)?;
-        self.post_capture_actions(&result, &config).await?;
+        let mut result = self.window_manager.read().capture_window_by_hwnd(hwnd)?;
+        self.post_capture_actions(&mut result, &config).await?;
         self.add_to_history(&result);
         Ok(result)
     }
@@ -649,6 +751,8 @@ mod tests {
         assert!(config.copy_to_clipboard);
         assert!(config.show_notification);
         assert_eq!(config.ocr_language, "eng");
+        assert!(!config.auto_save);
+        assert_eq!(config.filename_template, "screenshot_{timestamp}");
     }
 
     #[test]
@@ -662,6 +766,8 @@ mod tests {
             copy_to_clipboard: false,
             show_notification: false,
             ocr_language: "chi_sim".to_string(),
+            auto_save: true,
+            filename_template: "custom_{mode}_{timestamp}".to_string(),
         };
 
         assert_eq!(config.save_directory, Some("/custom/path".to_string()));
@@ -672,6 +778,8 @@ mod tests {
         assert!(!config.copy_to_clipboard);
         assert!(!config.show_notification);
         assert_eq!(config.ocr_language, "chi_sim");
+        assert!(config.auto_save);
+        assert_eq!(config.filename_template, "custom_{mode}_{timestamp}");
     }
 
     #[test]
@@ -692,6 +800,8 @@ mod tests {
         assert_eq!(config.format, deserialized.format);
         assert_eq!(config.quality, deserialized.quality);
         assert_eq!(config.ocr_language, deserialized.ocr_language);
+        assert_eq!(config.auto_save, deserialized.auto_save);
+        assert_eq!(config.filename_template, deserialized.filename_template);
     }
 
     // ==================== CaptureRegion Tests ====================

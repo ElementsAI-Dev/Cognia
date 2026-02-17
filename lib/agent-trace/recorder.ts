@@ -16,6 +16,7 @@ import { vcsService, type VcsType } from '@/lib/native/vcs';
 import { getCurrentSpanId, getCurrentTraceId } from '@/lib/ai/observability/tracing';
 import { countLines, fnv1a32 } from './utils';
 import { createCheckpoint } from './checkpoint-manager';
+import { useAgentTraceStore, type AgentTraceEvent as LiveAgentTraceEvent } from '@/stores/agent-trace/agent-trace-store';
 
 /** Current agent trace format version */
 export const AGENT_TRACE_VERSION = '0.1.0';
@@ -143,8 +144,101 @@ async function enforceMaxRecordsLimit(): Promise<void> {
   }
 }
 
+function isAgentTraceRecordingEnabled(): boolean {
+  return Boolean(useSettingsStore.getState().agentTraceSettings.enabled);
+}
+
+function toNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function safeStringify(value: unknown): string | undefined {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function toTokenUsageSnapshot(value: unknown): LiveAgentTraceEvent['tokenUsage'] {
+  if (!value || typeof value !== 'object') return undefined;
+  const usage = value as Record<string, unknown>;
+  const promptTokens = toNumber(usage.promptTokens ?? usage.prompt_tokens) ?? 0;
+  const completionTokens = toNumber(usage.completionTokens ?? usage.completion_tokens) ?? 0;
+  const totalTokens = toNumber(usage.totalTokens ?? usage.total_tokens) ?? (promptTokens + completionTokens);
+  if (promptTokens === 0 && completionTokens === 0 && totalTokens === 0) return undefined;
+  return { promptTokens, completionTokens, totalTokens };
+}
+
+function deriveStepNumber(stepId?: string, metadata?: Record<string, unknown>): number | undefined {
+  const fromMetadata = toNumber(metadata?.stepNumber);
+  if (fromMetadata !== undefined) return fromMetadata;
+  if (!stepId) return undefined;
+  const matched = stepId.match(/(\d+)/);
+  return matched ? toNumber(matched[1]) : undefined;
+}
+
+function syncRecordToLiveStore(record: AgentTraceRecord, sessionId?: string): void {
+  if (!sessionId || !isAgentTraceRecordingEnabled()) return;
+
+  const metadata =
+    record.metadata && typeof record.metadata === 'object'
+      ? (record.metadata as Record<string, unknown>)
+      : undefined;
+  const tokenUsage = toTokenUsageSnapshot(metadata?.tokenUsage ?? metadata?.usage);
+  const duration = record.duration ?? toNumber(metadata?.latencyMs);
+  const success = typeof metadata?.success === 'boolean' ? metadata.success : undefined;
+  const modelId = typeof metadata?.modelId === 'string' ? metadata.modelId : undefined;
+  const error = typeof metadata?.error === 'string' ? metadata.error : undefined;
+  const toolName = typeof metadata?.toolName === 'string' ? metadata.toolName : undefined;
+  const toolArgs =
+    typeof metadata?.toolArgs === 'string'
+      ? metadata.toolArgs
+      : metadata?.toolArgs !== undefined
+        ? safeStringify(metadata.toolArgs)
+        : undefined;
+  const responsePreview =
+    typeof metadata?.responsePreview === 'string' ? metadata.responsePreview : undefined;
+
+  const event: LiveAgentTraceEvent = {
+    id: record.id,
+    sessionId,
+    eventType: record.eventType ?? 'response',
+    timestamp: new Date(record.timestamp).getTime(),
+    stepNumber: deriveStepNumber(record.stepId, metadata),
+    toolName,
+    toolArgs,
+    success,
+    error,
+    duration,
+    tokenUsage,
+    costEstimate: record.costEstimate,
+    responsePreview,
+    modelId,
+  };
+
+  const store = useAgentTraceStore.getState();
+  if (!store.getActiveSession(sessionId)) {
+    store.startSession(sessionId, modelId);
+  }
+  store.addEvent(event);
+
+  if (event.eventType === 'response' || event.eventType === 'error' || event.eventType === 'session_end') {
+    const sessionEndReason = typeof metadata?.reason === 'string' ? metadata.reason : undefined;
+    const shouldError =
+      event.eventType === 'error' ||
+      success === false ||
+      sessionEndReason === 'error';
+    store.endSession(sessionId, shouldError ? 'error' : 'completed');
+  }
+}
+
 export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<string> {
   const id = nanoid();
+  if (!isAgentTraceRecordingEnabled()) {
+    return id;
+  }
 
   // Use vcs directly if provided, otherwise extract from vcsContext
   const vcsInfo = input.vcs ?? input.vcsContext?.vcs;
@@ -189,6 +283,7 @@ export async function recordAgentTrace(input: RecordAgentTraceInput): Promise<st
     vcsType: vcsInfo?.type,
     vcsRevision: vcsInfo?.revision,
   });
+  syncRecordToLiveStore(record, input.sessionId);
 
   await enforceMaxRecordsLimit();
 
@@ -334,6 +429,9 @@ export interface RecordAgentTraceEventInput {
 
 export async function recordAgentTraceEvent(input: RecordAgentTraceEventInput): Promise<string> {
   const id = nanoid();
+  if (!isAgentTraceRecordingEnabled()) {
+    return id;
+  }
   const vcsInfo = input.vcsContext?.vcs;
   const traceContext = resolveTraceContext(input);
 
@@ -383,6 +481,7 @@ export async function recordAgentTraceEvent(input: RecordAgentTraceEventInput): 
     vcsType: vcsInfo?.type,
     vcsRevision: vcsInfo?.revision,
   });
+  syncRecordToLiveStore(record, input.sessionId);
 
   await enforceMaxRecordsLimit();
 
@@ -393,7 +492,8 @@ export async function recordAgentTraceFromToolCall(input: RecordFromToolCallInpu
   const { toolName, toolArgs, toolResult, tokenUsage, latencyMs } = input;
 
   // Get agent trace settings from store
-  const { traceShellCommands, traceCodeEdits, traceFailedCalls } = useSettingsStore.getState().agentTraceSettings;
+  const { enabled, traceShellCommands, traceCodeEdits, traceFailedCalls } = useSettingsStore.getState().agentTraceSettings;
+  if (!enabled) return;
 
   // Check if this is a successful result
   const isSuccess = isSuccessResult(toolResult);

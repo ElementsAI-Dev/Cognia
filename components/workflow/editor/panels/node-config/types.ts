@@ -27,6 +27,7 @@ import type {
   QuestionClassifierNodeData,
   TemplateTransformNodeData,
 } from '@/types/workflow/workflow-editor';
+import { WORKFLOW_TOOL_CATALOG } from '../../tool-catalog';
 
 // Re-export for convenience
 export type {
@@ -76,29 +77,7 @@ export interface IOSchemaEditorProps {
 }
 
 // Available tools from registry - grouped by category
-export const AVAILABLE_TOOLS = [
-  // Search tools
-  { name: 'web_search', label: 'Web Search', category: 'search', description: 'Search the web for information' },
-  { name: 'rag_search', label: 'RAG Search', category: 'search', description: 'Search knowledge base' },
-  // System tools
-  { name: 'calculator', label: 'Calculator', category: 'system', description: 'Perform calculations' },
-  // Document tools
-  { name: 'document_summarize', label: 'Document Summarize', category: 'file', description: 'Summarize documents' },
-  { name: 'document_chunk', label: 'Document Chunk', category: 'file', description: 'Split documents into chunks' },
-  { name: 'document_analyze', label: 'Document Analyze', category: 'file', description: 'Analyze document structure' },
-  // File tools
-  { name: 'file_read', label: 'File Read', category: 'file', description: 'Read file contents' },
-  { name: 'file_write', label: 'File Write', category: 'file', description: 'Write to file' },
-  { name: 'file_list', label: 'File List', category: 'file', description: 'List directory contents' },
-  { name: 'file_exists', label: 'File Exists', category: 'file', description: 'Check if file exists' },
-  { name: 'file_delete', label: 'File Delete', category: 'file', description: 'Delete file' },
-  { name: 'file_copy', label: 'File Copy', category: 'file', description: 'Copy file' },
-  { name: 'file_rename', label: 'File Rename', category: 'file', description: 'Rename/move file' },
-  { name: 'file_info', label: 'File Info', category: 'file', description: 'Get file information' },
-  { name: 'file_search', label: 'File Search', category: 'file', description: 'Search for files' },
-  { name: 'file_append', label: 'File Append', category: 'file', description: 'Append to file' },
-  { name: 'directory_create', label: 'Directory Create', category: 'file', description: 'Create directory' },
-];
+export const AVAILABLE_TOOLS = WORKFLOW_TOOL_CATALOG;
 
 // Color palettes
 export const GROUP_COLORS = [

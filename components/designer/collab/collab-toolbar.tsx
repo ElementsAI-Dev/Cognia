@@ -5,7 +5,7 @@
  * Integrates useDesignerCollaboration hook and shows collaboration status
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Users, Share2, Link2, LogOut, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,8 @@ export interface CollabToolbarProps {
   initialCode?: string;
   /** @deprecated Code updates are handled through the collaboration hook directly */
   onCodeUpdate?: (code: string) => void;
+  onRemoteCodeChange?: (code: string) => void;
+  sharedSessionSerialized?: string;
   websocketUrl?: string;
 }
 
@@ -41,7 +43,9 @@ export function CollabToolbar({
   className,
   documentId,
   initialCode = '',
-  onCodeUpdate: _onCodeUpdate,
+  onCodeUpdate,
+  onRemoteCodeChange,
+  sharedSessionSerialized,
   websocketUrl,
 }: CollabToolbarProps) {
   const t = useTranslations('designer.collaboration');
@@ -49,6 +53,7 @@ export function CollabToolbar({
   const [shareLink, setShareLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [participantName, setParticipantName] = useState('');
+  const attemptedSharedJoinRef = useRef(false);
 
   const {
     session,
@@ -60,10 +65,27 @@ export function CollabToolbar({
     disconnect,
     shareSession,
     setParticipantInfo,
+    importSharedSession,
+    joinSession,
   } = useDesignerCollaboration({
     websocketUrl,
     participantName: participantName || 'Anonymous',
+    onRemoteCodeChange: (code) => {
+      onRemoteCodeChange?.(code);
+      onCodeUpdate?.(code);
+    },
   });
+
+  useEffect(() => {
+    if (!sharedSessionSerialized || attemptedSharedJoinRef.current || isConnected) return;
+    attemptedSharedJoinRef.current = true;
+    void (async () => {
+      const importedSessionId = await importSharedSession(sharedSessionSerialized);
+      if (importedSessionId) {
+        await joinSession(importedSessionId);
+      }
+    })();
+  }, [sharedSessionSerialized, isConnected, importSharedSession, joinSession]);
 
   // Start collaboration session
   const handleStartSession = useCallback(async () => {
@@ -86,7 +108,7 @@ export function CollabToolbar({
   const handleShare = useCallback(() => {
     const serialized = shareSession();
     if (serialized && session) {
-      const url = `${window.location.origin}/designer/collab/${session.id}`;
+      const url = `${window.location.origin}/designer/join?session=${encodeURIComponent(serialized)}`;
       setShareLink(url);
       setShowSharePopover(true);
     }

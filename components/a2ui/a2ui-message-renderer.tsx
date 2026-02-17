@@ -5,13 +5,62 @@
  * Detects and renders A2UI content within chat messages
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useA2UI } from '@/hooks/a2ui';
-import { detectA2UIContent, extractA2UIFromResponse } from '@/lib/a2ui/parser';
+import { detectA2UIContent, parseA2UIInput } from '@/lib/a2ui/parser';
 import { A2UIInlineSurface } from './a2ui-surface';
 import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 import type { A2UIMessageRendererProps } from '@/types/a2ui/renderer';
+
+const PROCESSED_A2UI_CACHE_SIZE = 200;
+const processedA2UIMessageCache = new Map<string, string | null>();
+
+function fingerprintContent(content: string): string {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    hash = (hash * 31 + content.charCodeAt(i)) | 0;
+  }
+  return `${content.length}:${hash}`;
+}
+
+function toCacheSeed(payload: unknown): string {
+  if (typeof payload === 'string') {
+    return payload;
+  }
+  try {
+    return JSON.stringify(payload) ?? String(payload);
+  } catch {
+    return String(payload);
+  }
+}
+
+function getCachedSurfaceId(key: string): string | null | undefined {
+  if (!processedA2UIMessageCache.has(key)) {
+    return undefined;
+  }
+
+  const cachedValue = processedA2UIMessageCache.get(key);
+  processedA2UIMessageCache.delete(key);
+  processedA2UIMessageCache.set(key, cachedValue ?? null);
+  return cachedValue;
+}
+
+function setCachedSurfaceId(key: string, surfaceId: string | null): void {
+  if (processedA2UIMessageCache.has(key)) {
+    processedA2UIMessageCache.delete(key);
+  }
+
+  processedA2UIMessageCache.set(key, surfaceId);
+
+  while (processedA2UIMessageCache.size > PROCESSED_A2UI_CACHE_SIZE) {
+    const oldestKey = processedA2UIMessageCache.keys().next().value as string | undefined;
+    if (!oldestKey) {
+      break;
+    }
+    processedA2UIMessageCache.delete(oldestKey);
+  }
+}
 
 /**
  * Renders A2UI content embedded in a chat message
@@ -26,19 +75,11 @@ export function A2UIMessageRenderer({
   onAction,
   onDataChange,
 }: A2UIMessageRendererProps) {
-  const { processMessages, getSurface } = useA2UI({ onAction, onDataChange });
-  const processedContentRef = useRef<string | null>(null);
+  const { processMessage, getSurface } = useA2UIMessageIntegration({ onAction, onDataChange });
+  const [processedSurfaceId, setProcessedSurfaceId] = useState<string | null>(null);
 
   // Detect if content has A2UI
   const hasA2UI = useMemo(() => detectA2UIContent(content), [content]);
-
-  // Extract and process A2UI content from the message
-  const a2uiResult = useMemo(() => {
-    if (!hasA2UI) {
-      return null;
-    }
-    return extractA2UIFromResponse(content);
-  }, [content, hasA2UI]);
 
   // Extract non-A2UI text content
   const textContent = useMemo(() => {
@@ -58,16 +99,17 @@ export function A2UIMessageRenderer({
     return text.trim();
   }, [content, hasA2UI]);
 
-  // Process the A2UI messages when detected (using already-parsed result)
+  // Process A2UI content through the shared integration entry.
   useEffect(() => {
-    if (a2uiResult && content !== processedContentRef.current) {
-      processedContentRef.current = content;
-      processMessages(a2uiResult.messages);
+    if (!hasA2UI) {
+      setProcessedSurfaceId(null);
+      return;
     }
-  }, [a2uiResult, content, processMessages]);
 
-  // Generate a surface ID based on message ID
-  const surfaceId = a2uiResult?.surfaceId || `msg-${messageId}`;
+    setProcessedSurfaceId(processMessage(content, messageId));
+  }, [content, hasA2UI, messageId, processMessage]);
+
+  const surfaceId = processedSurfaceId ?? `msg-${messageId}`;
   const surface = hasA2UI ? getSurface(surfaceId) : null;
 
   // If no A2UI content and no text, return null
@@ -111,32 +153,68 @@ export function useA2UIMessageIntegration(options?: {
   onDataChange?: (change: A2UIDataModelChange) => void;
 }) {
   const a2ui = useA2UI(options);
+  const { processMessages, getSurface } = a2ui;
 
-  const processMessage = (content: string, messageId: string) => {
-    if (detectA2UIContent(content)) {
-      const surfaceId = a2ui.extractAndProcess(content);
-      return surfaceId || `msg-${messageId}`;
+  const processPayload = useCallback(
+    (payload: unknown, identity: string, fallbackSurfaceId?: string): string | null => {
+      const parsed = parseA2UIInput(payload, { fallbackSurfaceId });
+      if (parsed.messages.length === 0) {
+        return null;
+      }
+
+      const payloadFingerprint = fingerprintContent(toCacheSeed(payload));
+      const cacheKey = `${identity}:${payloadFingerprint}`;
+      const cachedSurfaceId = getCachedSurfaceId(cacheKey);
+      if (cachedSurfaceId !== undefined) {
+        return cachedSurfaceId;
+      }
+
+      processMessages(parsed.messages);
+      setCachedSurfaceId(cacheKey, parsed.surfaceId);
+      return parsed.surfaceId;
+    },
+    [processMessages]
+  );
+
+  const processMessage = useCallback(
+    (content: string, messageId: string) => {
+      if (!detectA2UIContent(content)) {
+        return null;
+      }
+
+      return processPayload(content, `message:${messageId}`, `msg-${messageId}`) ?? `msg-${messageId}`;
+    },
+    [processPayload]
+  );
+
+  const renderA2UIContent = useCallback(
+    (surfaceId: string) => {
+      const surface = getSurface(surfaceId);
+      if (!surface) return null;
+
+      return (
+        <A2UIInlineSurface
+          surfaceId={surfaceId}
+          onAction={options?.onAction}
+          onDataChange={options?.onDataChange}
+        />
+      );
+    },
+    [getSurface, options?.onAction, options?.onDataChange]
+  );
+
+  const hasA2UIContentInPayload = useCallback((payload: unknown) => {
+    if (typeof payload === 'string') {
+      return detectA2UIContent(payload);
     }
-    return null;
-  };
-
-  const renderA2UIContent = (surfaceId: string) => {
-    const surface = a2ui.getSurface(surfaceId);
-    if (!surface) return null;
-
-    return (
-      <A2UIInlineSurface
-        surfaceId={surfaceId}
-        onAction={options?.onAction}
-        onDataChange={options?.onDataChange}
-      />
-    );
-  };
+    return parseA2UIInput(payload).messages.length > 0;
+  }, []);
 
   return {
     ...a2ui,
+    processPayload,
     processMessage,
     renderA2UIContent,
-    hasA2UIContent: detectA2UIContent,
+    hasA2UIContent: hasA2UIContentInPayload,
   };
 }

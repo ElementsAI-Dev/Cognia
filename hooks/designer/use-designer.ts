@@ -1,17 +1,17 @@
 /**
- * useDesigner - Unified hook for designer functionality
- * Combines designer store with AI editing capabilities
+ * useDesigner - compatibility adapter for legacy consumers.
+ * Internally proxies to the unified useDesignerSession hook.
  */
 
-import { useState, useCallback } from 'react';
-import { useDesignerStore, useSettingsStore } from '@/stores';
+import { useCallback, useMemo, useState } from 'react';
+import { useDesignerStore } from '@/stores';
 import {
-  executeDesignerAIEdit,
   generateDesignerComponent,
-  getDesignerAIConfig,
   getDefaultTemplate,
   type DesignerAIResult,
 } from '@/lib/designer';
+import { useDesignerAIConfig } from './use-designer-ai-config';
+import { useDesignerSession } from './use-designer-session';
 
 export interface UseDesignerOptions {
   initialCode?: string;
@@ -57,23 +57,8 @@ export interface UseDesignerReturn {
 
 export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn {
   const { initialCode, onCodeChange } = options;
-
-  // Local state for code and history
-  const [code, setCodeState] = useState(initialCode || getDefaultTemplate().code);
-  const [history, setHistory] = useState<string[]>([initialCode || getDefaultTemplate().code]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [isDirty, setIsDirty] = useState(false);
-
-  // AI state
-  const [isAIProcessing, setIsAIProcessing] = useState(false);
-  const [aiError, setAIError] = useState<string | null>(null);
   const [aiPrompt, setAIPrompt] = useState('');
 
-  // Settings for AI
-  const providerSettings = useSettingsStore((state) => state.providerSettings);
-  const defaultProvider = useSettingsStore((state) => state.defaultProvider);
-
-  // Designer store state
   const mode = useDesignerStore((state) => state.mode);
   const setMode = useDesignerStore((state) => state.setMode);
   const viewport = useDesignerStore((state) => state.viewport);
@@ -84,120 +69,89 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
   const toggleElementTree = useDesignerStore((state) => state.toggleElementTree);
   const showStylePanel = useDesignerStore((state) => state.showStylePanel);
   const toggleStylePanel = useDesignerStore((state) => state.toggleStylePanel);
+  const isDirty = useDesignerStore((state) => state.isDirty);
 
-  // Set code with optional history tracking
+  const {
+    code,
+    history,
+    historyIndex,
+    canUndo,
+    canRedo,
+    isAIProcessing,
+    aiError,
+    updateCode,
+    executeAIEdit,
+    clearAIError,
+    undo,
+    redo,
+  } = useDesignerSession({
+    initialCode: initialCode ?? getDefaultTemplate().code,
+    onCodeChange,
+  });
+
+  const { getConfig } = useDesignerAIConfig();
+
+  // Legacy API expects history as snapshots, not entries.
+  const legacyHistory = useMemo(() => {
+    if (history.length === 0) {
+      return [code];
+    }
+    const snapshots: string[] = [history[0]?.previousCode || code];
+    for (const entry of history) {
+      snapshots.push(entry.newCode);
+    }
+    return snapshots;
+  }, [history, code]);
+
+  const legacyHistoryIndex = useMemo(() => {
+    if (history.length === 0) return 0;
+    return Math.max(0, historyIndex + 1);
+  }, [history.length, historyIndex]);
+
   const setCode = useCallback(
-    (newCode: string, addHistory = true) => {
-      setCodeState(newCode);
-      setIsDirty(true);
-      onCodeChange?.(newCode);
-
-      if (addHistory) {
-        setHistory((prev) => {
-          const newHistory = prev.slice(0, historyIndex + 1);
-          newHistory.push(newCode);
-          return newHistory.slice(-50); // Keep last 50 entries
-        });
-        setHistoryIndex((prev) => Math.min(prev + 1, 49));
-      }
+    (newCode: string) => {
+      updateCode(newCode, { addToHistory: true, parseMode: 'debounced' });
     },
-    [historyIndex, onCodeChange]
+    [updateCode]
   );
 
-  // Add to history explicitly
   const addToHistory = useCallback(
     (newCode: string) => {
-      setHistory((prev) => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push(newCode);
-        return newHistory.slice(-50);
-      });
-      setHistoryIndex((prev) => Math.min(prev + 1, 49));
+      updateCode(newCode, { addToHistory: true, parseMode: 'none' });
     },
-    [historyIndex]
+    [updateCode]
   );
 
-  // Undo
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCodeState(history[newIndex]);
-      onCodeChange?.(history[newIndex]);
-    }
-  }, [history, historyIndex, onCodeChange]);
-
-  // Redo
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setCodeState(history[newIndex]);
-      onCodeChange?.(history[newIndex]);
-    }
-  }, [history, historyIndex, onCodeChange]);
-
-  // Clear AI error
-  const clearAIError = useCallback(() => {
-    setAIError(null);
-  }, []);
-
-  // Execute AI edit
-  const executeAIEdit = useCallback(async (): Promise<DesignerAIResult> => {
+  const executeAIEditCompat = useCallback(async (): Promise<DesignerAIResult> => {
     if (!aiPrompt.trim()) {
       return { success: false, error: 'No prompt provided' };
     }
 
-    setIsAIProcessing(true);
-    setAIError(null);
-
-    try {
-      const config = getDesignerAIConfig(defaultProvider, providerSettings);
-      const result = await executeDesignerAIEdit(aiPrompt, code, config);
-
-      if (result.success && result.code) {
-        setCode(result.code);
-        setAIPrompt('');
-      } else if (result.error) {
-        setAIError(result.error);
-      }
-
-      return result;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'AI edit failed';
-      setAIError(errorMsg);
-      return { success: false, error: errorMsg };
-    } finally {
-      setIsAIProcessing(false);
+    const nextCode = await executeAIEdit(aiPrompt);
+    if (nextCode) {
+      setAIPrompt('');
+      return { success: true, code: nextCode };
     }
-  }, [aiPrompt, code, defaultProvider, providerSettings, setCode]);
 
-  // Generate component from description
+    return { success: false, error: aiError || 'AI edit failed' };
+  }, [aiPrompt, executeAIEdit, aiError]);
+
   const generateFromPrompt = useCallback(
     async (description: string): Promise<DesignerAIResult> => {
-      setIsAIProcessing(true);
-      setAIError(null);
-
       try {
-        const config = getDesignerAIConfig(defaultProvider, providerSettings);
-        const result = await generateDesignerComponent(description, config);
-
+        const result = await generateDesignerComponent(description, getConfig());
         if (result.success && result.code) {
-          setCode(result.code);
-        } else if (result.error) {
-          setAIError(result.error);
+          updateCode(result.code, { addToHistory: true, parseMode: 'immediate' });
         }
-
         return result;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Generation failed';
-        setAIError(errorMsg);
-        return { success: false, error: errorMsg };
-      } finally {
-        setIsAIProcessing(false);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Generation failed',
+        };
       }
     },
-    [defaultProvider, providerSettings, setCode]
+    [getConfig, updateCode]
   );
 
   return {
@@ -207,10 +161,10 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
     isDirty,
 
     // History
-    history,
-    historyIndex,
-    canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1,
+    history: legacyHistory,
+    historyIndex: legacyHistoryIndex,
+    canUndo,
+    canRedo,
     undo,
     redo,
     addToHistory,
@@ -220,7 +174,7 @@ export function useDesigner(options: UseDesignerOptions = {}): UseDesignerReturn
     aiError,
     aiPrompt,
     setAIPrompt,
-    executeAIEdit,
+    executeAIEdit: executeAIEditCompat,
     generateFromPrompt,
     clearAIError,
 

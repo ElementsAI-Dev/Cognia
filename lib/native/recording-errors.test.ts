@@ -104,6 +104,25 @@ describe('recording-errors', () => {
       expect(result.message).toBe('FFmpeg not found');
     });
 
+    it('should parse structured object payload', () => {
+      const result = parseRecordingError({
+        error: 'Failed to start recording',
+        code: 'FFMPEG_START_FAILED',
+        details: 'spawn ffmpeg failed',
+      });
+      expect(result.code).toBe('FFMPEG_START_FAILED');
+      expect(result.message).toBe('Failed to start recording');
+      expect(result.details).toBe('spawn ffmpeg failed');
+    });
+
+    it('should normalize camelCase backend code in object payload', () => {
+      const result = parseRecordingError({
+        error: 'No active recording',
+        code: 'NotRecording',
+      });
+      expect(result.code).toBe('NOT_RECORDING');
+    });
+
     it('should return UNKNOWN for unrecognized error', () => {
       const result = parseRecordingError('Some random error message');
       expect(result.code).toBe('UNKNOWN');

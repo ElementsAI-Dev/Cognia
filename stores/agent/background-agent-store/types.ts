@@ -16,6 +16,10 @@ export interface BackgroundAgentState {
   isPanelOpen: boolean;
   selectedAgentId: string | null;
 
+  // Sync helpers
+  upsertAgentSnapshot: (agent: BackgroundAgent) => void;
+  syncQueueState: (queue: Partial<BackgroundAgentQueueState>) => void;
+
   // Agent CRUD
   createAgent: (input: CreateBackgroundAgentInput) => BackgroundAgent;
   updateAgent: (id: string, updates: UpdateBackgroundAgentInput) => void;

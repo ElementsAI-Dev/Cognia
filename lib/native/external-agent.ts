@@ -29,9 +29,23 @@ export type TerminalState =
   | { type: 'Error'; message: string }
 
 /** Terminal output result */
+export interface TerminalExitStatus {
+  exitCode: number | null
+  signal: string | null
+}
+
+/** Terminal output result */
 export interface TerminalOutputResult {
   output: string
-  exitCode: number | null
+  truncated: boolean
+  exitStatus: TerminalExitStatus
+  exitCode?: number | null
+}
+
+/** Terminal wait result */
+export interface TerminalWaitResult {
+  exitStatus: TerminalExitStatus
+  exitCode?: number | null
 }
 
 /** Terminal info */
@@ -41,6 +55,7 @@ export interface TerminalInfo {
   command: string
   state: TerminalState
   exitCode: number | null
+  exitStatus?: TerminalExitStatus
 }
 
 /** External agent event payloads */
@@ -57,6 +72,7 @@ export interface ExternalAgentStdoutEvent {
 export interface ExternalAgentExitEvent {
   agentId: string
   code: number
+  signal?: string | null
 }
 
 export interface ExternalAgentStateChangeEvent {
@@ -183,18 +199,28 @@ export async function acpTerminalCreate(
   sessionId: string,
   command: string,
   args: string[] = [],
-  cwd?: string
+  cwd?: string,
+  env?: Record<string, string>,
+  outputByteLimit?: number
 ): Promise<string> {
-  return invoke<string>('acp_terminal_create', { sessionId, command, args, cwd })
+  return invoke<string>('acp_terminal_create', {
+    sessionId,
+    command,
+    args,
+    cwd,
+    env,
+    outputByteLimit,
+  })
 }
 
 /**
  * Get output from an ACP terminal
  */
 export async function acpTerminalOutput(
-  terminalId: string
+  terminalId: string,
+  outputByteLimit?: number
 ): Promise<TerminalOutputResult> {
-  return invoke<TerminalOutputResult>('acp_terminal_output', { terminalId })
+  return invoke<TerminalOutputResult>('acp_terminal_output', { terminalId, outputByteLimit })
 }
 
 /**
@@ -217,8 +243,8 @@ export async function acpTerminalRelease(terminalId: string): Promise<void> {
 export async function acpTerminalWaitForExit(
   terminalId: string,
   timeout?: number
-): Promise<number> {
-  return invoke<number>('acp_terminal_wait_for_exit', { terminalId, timeout })
+): Promise<TerminalWaitResult> {
+  return invoke<TerminalWaitResult>('acp_terminal_wait_for_exit', { terminalId, timeout })
 }
 
 /**
@@ -372,12 +398,12 @@ export async function executeCommand(
       }, 100)
 
       try {
-        const exitCode = await acpTerminalWaitForExit(terminalId, options?.timeout)
+        const waitResult = await acpTerminalWaitForExit(terminalId, options?.timeout)
         clearInterval(pollInterval)
 
         // Get final output
         const result = await acpTerminalOutput(terminalId)
-        return { output: result.output, exitCode }
+        return { output: result.output, exitCode: waitResult.exitStatus.exitCode ?? -1 }
       } catch (error) {
         clearInterval(pollInterval)
         throw error
@@ -385,9 +411,9 @@ export async function executeCommand(
     }
 
     // Simple wait without polling
-    const exitCode = await acpTerminalWaitForExit(terminalId, options?.timeout)
+    const waitResult = await acpTerminalWaitForExit(terminalId, options?.timeout)
     const result = await acpTerminalOutput(terminalId)
-    return { output: result.output, exitCode }
+    return { output: result.output, exitCode: waitResult.exitStatus.exitCode ?? -1 }
   } finally {
     // Always release the terminal
     await acpTerminalRelease(terminalId).catch(() => {
@@ -410,7 +436,7 @@ export async function createInteractiveTerminal(
   read: () => Promise<TerminalOutputResult>
   isRunning: () => Promise<boolean>
   kill: () => Promise<void>
-  waitForExit: (timeout?: number) => Promise<number>
+  waitForExit: (timeout?: number) => Promise<TerminalWaitResult>
   release: () => Promise<void>
 }> {
   const terminalId = await acpTerminalCreate(sessionId, command, args, cwd)

@@ -89,6 +89,42 @@ describe('Awareness - State Functions', () => {
       expect(mockInvoke).toHaveBeenCalledWith('awareness_get_state');
       expect(result).toEqual(mockState);
     });
+
+    it('should normalize legacy activity fields in state response', async () => {
+      mockInvoke.mockResolvedValue({
+        system: {
+          cpu_usage: 10,
+          memory_usage: 20,
+          memory_total: 100,
+          memory_available: 80,
+          disk_usage: 30,
+          disk_total: 1000,
+          disk_available: 700,
+          power_mode: 'balanced',
+          uptime_seconds: 1000,
+          process_count: 50,
+          network_connected: true,
+        },
+        recent_activities: [
+          {
+            id: 'a1',
+            activity_type: 'Search',
+            app_name: 'Chrome',
+            window_title: 'Search Results',
+            content: 'query',
+            timestamp: Date.now(),
+            metadata: {},
+          },
+        ],
+        suggestions: [],
+        timestamp: Date.now(),
+      });
+
+      const result = await getState();
+      expect(result.recent_activities[0].application).toBe('Chrome');
+      expect(result.recent_activities[0].target).toBe('Search Results');
+      expect(result.recent_activities[0].description).toBe('query');
+    });
   });
 
   describe('getSystemState', () => {
@@ -147,9 +183,9 @@ describe('Awareness - Activity Functions', () => {
 
       expect(mockInvoke).toHaveBeenCalledWith('awareness_record_activity', {
         activityType: 'TextSelection',
-        appName: 'VSCode',
-        windowTitle: 'main.ts',
-        content: 'selected text',
+        description: 'selected text',
+        application: 'VSCode',
+        target: 'main.ts',
         metadata: { key: 'value' },
       });
     });
@@ -161,10 +197,50 @@ describe('Awareness - Activity Functions', () => {
 
       expect(mockInvoke).toHaveBeenCalledWith('awareness_record_activity', {
         activityType: 'Screenshot',
-        appName: undefined,
-        windowTitle: undefined,
-        content: undefined,
-        metadata: undefined,
+        description: 'Screenshot',
+        application: undefined,
+        target: undefined,
+        metadata: {},
+      });
+    });
+
+    it('should accept unified object input', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await recordActivity({
+        activity_type: 'CodeAction',
+        description: 'Run formatter',
+        application: 'VSCode',
+        target: 'main.ts',
+        metadata: { source: 'command' },
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_record_activity', {
+        activityType: 'CodeAction',
+        description: 'Run formatter',
+        application: 'VSCode',
+        target: 'main.ts',
+        metadata: { source: 'command' },
+      });
+    });
+
+    it('should accept legacy object input', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await recordActivity({
+        activityType: 'Search',
+        appName: 'Chrome',
+        windowTitle: 'Search',
+        content: 'query',
+        metadata: { engine: 'google' },
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith('awareness_record_activity', {
+        activityType: 'Search',
+        description: 'query',
+        application: 'Chrome',
+        target: 'Search',
+        metadata: { engine: 'google' },
       });
     });
   });
@@ -175,6 +251,7 @@ describe('Awareness - Activity Functions', () => {
         {
           id: 'act-1',
           activity_type: 'TextSelection',
+          description: 'Selected text',
           timestamp: Date.now(),
           metadata: {},
         },
@@ -191,6 +268,25 @@ describe('Awareness - Activity Functions', () => {
 
       await getRecentActivities();
       expect(mockInvoke).toHaveBeenCalledWith('awareness_get_recent_activities', { count: undefined });
+    });
+
+    it('should normalize legacy list item fields', async () => {
+      mockInvoke.mockResolvedValue([
+        {
+          id: 'legacy-1',
+          activity_type: 'Copy',
+          appName: 'VSCode',
+          windowTitle: 'main.ts',
+          content: 'copied text',
+          timestamp: Date.now(),
+          metadata: {},
+        },
+      ]);
+
+      const result = await getRecentActivities(1);
+      expect(result[0].application).toBe('VSCode');
+      expect(result[0].target).toBe('main.ts');
+      expect(result[0].description).toBe('copied text');
     });
   });
 
@@ -380,7 +476,13 @@ describe('Awareness - Extended Activity Tracker Functions', () => {
   describe('getActivitiesByType', () => {
     it('should call invoke with activity type parameter', async () => {
       const mockActivities: UserActivity[] = [
-        { id: 'act-1', activity_type: 'TextSelection', timestamp: Date.now(), metadata: {} },
+        {
+          id: 'act-1',
+          activity_type: 'TextSelection',
+          description: 'Selection',
+          timestamp: Date.now(),
+          metadata: {},
+        },
       ];
       mockInvoke.mockResolvedValue(mockActivities);
 

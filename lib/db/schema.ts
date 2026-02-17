@@ -219,6 +219,7 @@ export interface DBContextFile {
   path: string;
   category: string;
   source: string;
+  filename?: string;
   content: string;
   sizeBytes: number;
   estimatedTokens: number;

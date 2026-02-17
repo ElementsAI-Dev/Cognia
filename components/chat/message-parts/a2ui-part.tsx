@@ -5,10 +5,9 @@
  * Detects and processes A2UI content from AI responses
  */
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { useA2UI } from '@/hooks/a2ui';
-import { A2UIInlineSurface, hasA2UIContent } from '@/components/a2ui';
+import { A2UIInlineSurface, useA2UIMessageIntegration } from '@/components/a2ui';
 import type { A2UIPart as A2UIPartType } from '@/types/core/message';
 import type { A2UIUserAction, A2UIDataModelChange } from '@/types/artifact/a2ui';
 
@@ -22,21 +21,27 @@ interface A2UIPartProps {
 
 export function A2UIPart({
   part,
+  _messageId,
   className,
   onAction,
   onDataChange,
 }: A2UIPartProps) {
-  const { extractAndProcess, getSurface } = useA2UI({ onAction, onDataChange });
+  const { processMessage, getSurface } = useA2UIMessageIntegration({ onAction, onDataChange });
+  const [resolvedSurfaceId, setResolvedSurfaceId] = React.useState<string>(part.surfaceId);
 
-  // Process A2UI content when the part is rendered
+  // Process part content via unified A2UI integration.
   useEffect(() => {
-    if (part.content && hasA2UIContent(part.content)) {
-      extractAndProcess(part.content);
+    if (part.content) {
+      const messageIdentity = _messageId ?? part.surfaceId;
+      const processedSurfaceId = processMessage(part.content, messageIdentity);
+      setResolvedSurfaceId(processedSurfaceId ?? part.surfaceId);
+      return;
     }
-  }, [part.content, extractAndProcess]);
+    setResolvedSurfaceId(part.surfaceId);
+  }, [_messageId, part.content, part.surfaceId, processMessage]);
 
   // Get the surface
-  const surface = getSurface(part.surfaceId);
+  const surface = getSurface(resolvedSurfaceId);
 
   // If no surface yet, return null (will render after processing)
   if (!surface) {
@@ -46,7 +51,7 @@ export function A2UIPart({
   return (
     <div className={cn('a2ui-part my-2', className)}>
       <A2UIInlineSurface
-        surfaceId={part.surfaceId}
+        surfaceId={resolvedSurfaceId}
         onAction={onAction}
         onDataChange={onDataChange}
       />

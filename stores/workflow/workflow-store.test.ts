@@ -4,6 +4,7 @@
 
 import { act, renderHook } from '@testing-library/react';
 import { useWorkflowStore } from './workflow-store';
+import { useWorkflowEditorStore } from './workflow-editor-store';
 import type { WorkflowExecution, PPTPresentation } from '@/types/workflow';
 
 const createMockExecution = (overrides: Partial<WorkflowExecution> = {}): WorkflowExecution => ({
@@ -50,6 +51,12 @@ describe('useWorkflowStore', () => {
     act(() => {
       result.current.reset();
     });
+    const editorStore = useWorkflowEditorStore.getState();
+    if (editorStore.reset) {
+      act(() => {
+        editorStore.reset();
+      });
+    }
   });
 
   describe('execution management', () => {
@@ -114,6 +121,147 @@ describe('useWorkflowStore', () => {
       const session1Execs = result.current.getExecutionsBySession('session-1');
       expect(session1Execs).toHaveLength(1);
       expect(session1Execs[0].id).toBe('exec-1');
+    });
+
+    it('bridges editor execution state into legacy execution store', () => {
+      const editorWorkflow = {
+        id: 'wf-bridge-1',
+        name: 'Bridge Workflow',
+        type: 'custom',
+        settings: {
+          retryOnFailure: true,
+          maxRetries: 3,
+          logLevel: 'info',
+        },
+      };
+
+      act(() => {
+        useWorkflowEditorStore.setState({
+          currentWorkflow: editorWorkflow as never,
+          executionState: {
+            executionId: 'editor-exec-1',
+            workflowId: 'wf-bridge-1',
+            runtime: 'browser',
+            status: 'running',
+            progress: 40,
+            currentNodeId: 'node-1',
+            nodeStates: {
+              'node-1': {
+                nodeId: 'node-1',
+                status: 'running',
+                logs: [],
+                retryCount: 0,
+              },
+            },
+            input: { topic: 'bridge' },
+            logs: [],
+          } as never,
+        });
+      });
+
+      const bridged = useWorkflowStore.getState().executions['editor-exec-1'];
+      expect(bridged).toBeDefined();
+      expect(bridged.workflowId).toBe('wf-bridge-1');
+      expect(bridged.status).toBe('executing');
+      expect(bridged.progress).toBe(40);
+      expect(useWorkflowStore.getState().activeExecutionId).toBe('editor-exec-1');
+    });
+
+    it('updates existing history record for final editor execution status', () => {
+      const editorWorkflow = {
+        id: 'wf-bridge-2',
+        name: 'Bridge Workflow 2',
+        type: 'custom',
+        settings: {
+          retryOnFailure: true,
+          maxRetries: 3,
+          logLevel: 'info',
+        },
+      };
+
+      act(() => {
+        useWorkflowEditorStore.setState({
+          currentWorkflow: editorWorkflow as never,
+          executionState: {
+            executionId: 'editor-exec-2',
+            workflowId: 'wf-bridge-2',
+            runtime: 'browser',
+            status: 'completed',
+            progress: 100,
+            nodeStates: {},
+            input: {},
+            output: { first: true },
+            logs: [],
+            completedAt: new Date(),
+          } as never,
+        });
+      });
+
+      expect(useWorkflowStore.getState().history).toHaveLength(1);
+      expect(useWorkflowStore.getState().history[0].output).toEqual({ first: true });
+
+      act(() => {
+        useWorkflowEditorStore.setState({
+          currentWorkflow: editorWorkflow as never,
+          executionState: {
+            executionId: 'editor-exec-2',
+            workflowId: 'wf-bridge-2',
+            runtime: 'browser',
+            status: 'completed',
+            progress: 100,
+            nodeStates: {},
+            input: {},
+            output: { first: false, second: true },
+            logs: [],
+            completedAt: new Date(),
+          } as never,
+        });
+      });
+
+      expect(useWorkflowStore.getState().history).toHaveLength(1);
+      expect(useWorkflowStore.getState().history[0].output).toEqual({
+        first: false,
+        second: true,
+      });
+    });
+
+    it('clears activeExecutionId when editor execution state is removed', () => {
+      const editorWorkflow = {
+        id: 'wf-bridge-3',
+        name: 'Bridge Workflow 3',
+        type: 'custom',
+        settings: {
+          retryOnFailure: true,
+          maxRetries: 3,
+          logLevel: 'info',
+        },
+      };
+
+      act(() => {
+        useWorkflowEditorStore.setState({
+          currentWorkflow: editorWorkflow as never,
+          executionState: {
+            executionId: 'editor-exec-3',
+            workflowId: 'wf-bridge-3',
+            runtime: 'browser',
+            status: 'running',
+            progress: 20,
+            nodeStates: {},
+            input: {},
+            logs: [],
+          } as never,
+        });
+      });
+
+      expect(useWorkflowStore.getState().activeExecutionId).toBe('editor-exec-3');
+
+      act(() => {
+        useWorkflowEditorStore.setState({
+          executionState: null,
+        });
+      });
+
+      expect(useWorkflowStore.getState().activeExecutionId).toBeNull();
     });
   });
 

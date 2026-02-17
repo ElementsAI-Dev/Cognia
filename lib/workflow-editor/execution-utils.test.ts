@@ -24,6 +24,7 @@ describe('Workflow Execution Utilities', () => {
   const mockExecutionState: WorkflowExecutionState = {
     executionId: 'exec-123',
     workflowId: 'workflow-456',
+    runtime: 'browser',
     status: 'running',
     progress: 50,
     nodeStates: {

@@ -167,10 +167,9 @@ export function ChatInput({
     parseToolCalls,
   } = useInputCompletionUnified({
     onMentionsChange,
-    onAiCompletionAccept: (text) => {
-      // When ghost text is accepted, update the controlled value
-      onChange(value + text);
-    },
+    onTextCommit: onChange,
+    mode: 'chat',
+    surface: 'chat_input',
     conversationContext,
   });
 
@@ -419,10 +418,6 @@ export function ChatInput({
     // Delegate to unified completion keyboard handler
     const handled = handleCompletionKeyDown(e.nativeEvent);
     if (handled) {
-      // If ghost text was accepted, sync the value
-      if (e.key === 'Tab' && ghostText) {
-        onChange(value + ghostText);
-      }
       return;
     }
 

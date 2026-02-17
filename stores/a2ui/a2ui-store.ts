@@ -20,7 +20,7 @@ import {
   isDeleteSurfaceMessage,
   isSurfaceReadyMessage,
 } from '@/lib/a2ui/parser';
-import { setValueByPath, deepMerge, deepClone } from '@/lib/a2ui/data-model';
+import { setValueByPath, getValueByPath, deepMerge, deepClone } from '@/lib/a2ui/data-model';
 import { globalEventEmitter, createUserAction, createDataModelChange } from '@/lib/a2ui/events';
 
 /**
@@ -106,6 +106,50 @@ const initialState: A2UIState = {
   errors: {},
 };
 
+function normalizePersistedSurfaces(
+  persistedSurfaces: unknown
+): Record<string, A2UISurfaceState> {
+  if (!persistedSurfaces || typeof persistedSurfaces !== 'object') {
+    return {};
+  }
+
+  const normalized: Record<string, A2UISurfaceState> = {};
+  for (const [surfaceId, value] of Object.entries(
+    persistedSurfaces as Record<string, unknown>
+  )) {
+    if (!value || typeof value !== 'object') {
+      continue;
+    }
+
+    const surface = value as Partial<A2UISurfaceState>;
+    const components =
+      surface.components && typeof surface.components === 'object'
+        ? (surface.components as Record<string, A2UIComponent>)
+        : {};
+    const dataModel =
+      surface.dataModel && typeof surface.dataModel === 'object'
+        ? (surface.dataModel as Record<string, unknown>)
+        : {};
+    const hasRenderableTree = Object.keys(components).length > 0;
+
+    normalized[surfaceId] = {
+      id: typeof surface.id === 'string' ? surface.id : surfaceId,
+      type: surface.type ?? 'inline',
+      catalogId: surface.catalogId,
+      title: surface.title,
+      components,
+      dataModel,
+      rootId: surface.rootId ?? 'root',
+      createdAt: typeof surface.createdAt === 'number' ? surface.createdAt : Date.now(),
+      updatedAt: typeof surface.updatedAt === 'number' ? surface.updatedAt : Date.now(),
+      // Metadata-only persistence cannot be treated as "ready"
+      ready: Boolean(surface.ready) && hasRenderableTree,
+    };
+  }
+
+  return normalized;
+}
+
 /**
  * A2UI Store
  */
@@ -141,11 +185,13 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
         const { [surfaceId]: _, ...remainingSurfaces } = state.surfaces;
         const { [surfaceId]: __, ...remainingErrors } = state.errors;
         const { [surfaceId]: ___, ...remainingLoading } = state.loadingSurfaces;
+        const { [surfaceId]: ____, ...remainingStreaming } = state.streamingSurfaces;
 
         return {
           surfaces: remainingSurfaces,
           errors: remainingErrors,
           loadingSurfaces: remainingLoading,
+          streamingSurfaces: remainingStreaming,
           activeSurfaceId:
             state.activeSurfaceId === surfaceId
               ? (Object.keys(remainingSurfaces)[0] ?? null)
@@ -234,21 +280,7 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
     getDataValue: <T = unknown>(surfaceId: string, path: string): T | undefined => {
       const surface = get().surfaces[surfaceId];
       if (!surface) return undefined;
-
-      // Inline implementation to avoid circular dependency
-      const segments = path.split('/').filter(Boolean);
-      let current: unknown = surface.dataModel;
-
-      for (const segment of segments) {
-        if (current === null || current === undefined) return undefined;
-        if (typeof current === 'object') {
-          current = (current as Record<string, unknown>)[segment];
-        } else {
-          return undefined;
-        }
-      }
-
-      return current as T;
+      return getValueByPath<T>(surface.dataModel, path);
     },
 
     // Message processing
@@ -292,16 +324,19 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
       for (const sid of surfaceIds) {
         setSurfaceStreaming(sid, true);
       }
-      // Process messages with delay for progressive rendering
-      for (let i = 0; i < messages.length; i++) {
-        processMessage(messages[i]);
-        if (delayMs > 0 && i < messages.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+      try {
+        // Process messages with delay for progressive rendering
+        for (let i = 0; i < messages.length; i++) {
+          processMessage(messages[i]);
+          if (delayMs > 0 && i < messages.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
         }
-      }
-      // Clear streaming state
-      for (const sid of surfaceIds) {
-        setSurfaceStreaming(sid, false);
+      } finally {
+        // Always clear streaming state
+        for (const sid of surfaceIds) {
+          setSurfaceStreaming(sid, false);
+        }
       }
     },
 
@@ -403,6 +438,43 @@ export const useA2UIStore = create<A2UIState & A2UIActions>()(
     },
   }), {
     name: 'cognia-a2ui-surfaces',
+    version: 2,
+    migrate: (persistedState) => {
+      if (!persistedState || typeof persistedState !== 'object') {
+        return persistedState as A2UIState & A2UIActions;
+      }
+
+      const rawState = persistedState as {
+        surfaces?: unknown;
+        activeSurfaceId?: unknown;
+      };
+      const normalizedSurfaces = normalizePersistedSurfaces(rawState.surfaces);
+      const activeSurfaceId =
+        typeof rawState.activeSurfaceId === 'string' &&
+        normalizedSurfaces[rawState.activeSurfaceId]
+          ? rawState.activeSurfaceId
+          : null;
+
+      return {
+        ...persistedState,
+        surfaces: normalizedSurfaces,
+        activeSurfaceId,
+      } as A2UIState & A2UIActions;
+    },
+    onRehydrateStorage: () => (state) => {
+      if (!state) {
+        return;
+      }
+
+      const normalizedSurfaces = normalizePersistedSurfaces(state.surfaces);
+      const activeSurfaceId =
+        state.activeSurfaceId && normalizedSurfaces[state.activeSurfaceId]
+          ? state.activeSurfaceId
+          : (Object.keys(normalizedSurfaces)[0] ?? null);
+
+      state.surfaces = normalizedSurfaces;
+      state.activeSurfaceId = activeSurfaceId;
+    },
     partialize: (state) => {
       // LRU: only persist the 20 most recently used surfaces (metadata only)
       const MAX_PERSISTED_SURFACES = 20;

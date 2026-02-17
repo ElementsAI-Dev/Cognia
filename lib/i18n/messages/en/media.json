@@ -397,6 +397,7 @@
       "countdown": "Countdown",
       "countdownSeconds": "Countdown Seconds",
       "showIndicator": "Show Recording Indicator",
+      "pauseOnMinimize": "Pause On Minimize",
       "maxDuration": "Maximum Duration",
       "maxDurationUnlimited": "Unlimited",
       "saveDirectory": "Save Directory",

@@ -232,11 +232,14 @@ jest.mock('@/components/a2ui', () => ({
 
 // Mock A2UI parser
 jest.mock('@/lib/a2ui/parser', () => ({
-  parseA2UIMessages: jest.fn((data: unknown) => {
-    if (Array.isArray(data) && data.length > 0 && data[0].type === 'createSurface') {
-      return { success: true, messages: data };
+  parseA2UIInput: jest.fn((data: unknown) => {
+    if (
+      (typeof data === 'string' && data.includes('createSurface')) ||
+      (Array.isArray(data) && data.length > 0 && data[0].type === 'createSurface')
+    ) {
+      return { surfaceId: 'tool-surface', messages: [{ type: 'createSurface', surfaceId: 'tool-surface', surfaceType: 'inline' }], errors: [] };
     }
-    return { success: false, messages: [] };
+    return { surfaceId: null, messages: [], errors: [] };
   }),
 }));
 

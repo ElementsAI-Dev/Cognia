@@ -91,6 +91,7 @@ async function persistToDb(
       path,
       category: metadata.category,
       source: metadata.source,
+      filename: metadata.filename,
       content,
       sizeBytes: metadata.sizeBytes,
       estimatedTokens: metadata.estimatedTokens ?? 0,
@@ -134,6 +135,7 @@ export async function initContextFS(): Promise<void> {
         id: record.id,
         category: record.category as ContextCategory,
         source: record.source,
+        filename: record.filename || record.path.split('/').pop(),
         createdAt: record.createdAt,
         accessedAt: record.lastAccessedAt,
         sizeBytes: record.sizeBytes,
@@ -263,6 +265,7 @@ export async function writeContextFile(
     id,
     category: options.category,
     source: options.source,
+    filename,
     createdAt: new Date(),
     accessedAt: new Date(),
     sizeBytes: finalContent.length,
@@ -348,9 +351,19 @@ export async function tailContextFile(
 export async function searchContextFiles(
   options: SearchContextOptions = {}
 ): Promise<ContextFileMetadata[]> {
-  let results: ContextFileMetadata[] = [];
+  const entries = await searchContextFileEntries(options);
+  return entries.map((entry) => entry.metadata);
+}
+
+/**
+ * Search context files and include paths with metadata.
+ */
+export async function searchContextFileEntries(
+  options: SearchContextOptions = {}
+): Promise<Array<{ path: string; metadata: ContextFileMetadata }>> {
+  let results: Array<{ path: string; metadata: ContextFileMetadata }> = [];
   
-  for (const [_path, metadata] of metadataIndex) {
+  for (const [path, metadata] of metadataIndex) {
     // Category filter
     if (options.category && metadata.category !== options.category) {
       continue;
@@ -379,14 +392,14 @@ export async function searchContextFiles(
       continue;
     }
     
-    results.push(metadata);
+    results.push({ path, metadata });
   }
   
   // Sort
   if (options.sortBy) {
     results.sort((a, b) => {
-      const aVal = a[options.sortBy!];
-      const bVal = b[options.sortBy!];
+      const aVal = a.metadata[options.sortBy!];
+      const bVal = b.metadata[options.sortBy!];
       if (aVal instanceof Date && bVal instanceof Date) {
         return options.sortOrder === 'desc' 
           ? bVal.getTime() - aVal.getTime()

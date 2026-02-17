@@ -9,6 +9,7 @@
 
 pub mod error;
 pub mod ffmpeg;
+pub mod click_highlight;
 mod history;
 pub mod progress;
 mod recorder;
@@ -19,6 +20,7 @@ pub mod window_snap;
 
 pub use error::RecordingError;
 pub use ffmpeg::{FFmpegInfo, FFmpegInstallGuide, HardwareAcceleration};
+pub use click_highlight::RecordingClickOverlay;
 pub use history::{RecordingHistory, RecordingHistoryEntry};
 pub use recorder::ScreenRecorder;
 pub use storage::{

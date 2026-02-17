@@ -173,6 +173,7 @@ describe('A2UI Types', () => {
         contextMenu: {} as any,
         window: {} as any,
         secrets: {} as any,
+        scheduler: {} as any,
       };
 
       const props: A2UIPluginComponentProps = {

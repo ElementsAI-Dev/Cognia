@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Instant;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::time::timeout;
 
@@ -14,6 +14,7 @@ use super::languages::LanguageConfig;
 use super::runtime::{
     ExecutionConfig, ExecutionRequest, ExecutionResult, RuntimeType, SandboxError, SandboxRuntime,
 };
+use super::workspace::{create_workspace, write_execution_files};
 
 /// Docker runtime for sandboxed execution
 pub struct DockerRuntime {
@@ -28,6 +29,18 @@ impl DockerRuntime {
         }
     }
 
+    fn container_name(request: &ExecutionRequest) -> String {
+        let suffix = request
+            .id
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .take(16)
+            .collect::<String>()
+            .to_lowercase();
+        let suffix = if suffix.is_empty() { "run".to_string() } else { suffix };
+        format!("cognia-sandbox-{}", suffix)
+    }
+
     /// Build the docker run command
     fn build_command(
         &self,
@@ -37,8 +50,13 @@ impl DockerRuntime {
         work_dir: &std::path::Path,
     ) -> Command {
         let mut cmd = Command::new(&self.docker_path);
+        let container_name = Self::container_name(request);
 
         cmd.arg("run").arg("--rm").arg("--interactive");
+        cmd.arg("--name").arg(&container_name);
+        cmd.arg("--label").arg("cognia-sandbox=true");
+        cmd.arg("--label")
+            .arg(format!("cognia-sandbox.execution-id={}", request.id));
 
         // Security: drop all capabilities
         cmd.arg("--cap-drop=ALL");
@@ -188,36 +206,10 @@ impl SandboxRuntime for DockerRuntime {
 
         let start = Instant::now();
 
-        // Create temporary directory for code
-        let temp_dir = tempfile::tempdir()?;
-        let work_dir = temp_dir.path().to_path_buf();
-        log::trace!("Created temp directory: {:?}", work_dir);
-
-        // Write main code file
-        let code_path = work_dir.join(language_config.file_name);
-        log::trace!(
-            "Writing code to {:?} ({} bytes)",
-            code_path,
-            request.code.len()
-        );
-        tokio::fs::write(&code_path, &request.code).await?;
-
-        // Write additional files
-        if !request.files.is_empty() {
-            log::debug!("Writing {} additional file(s)", request.files.len());
-        }
-        for (name, content) in &request.files {
-            let file_path = work_dir.join(name);
-            if let Some(parent) = file_path.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-            log::trace!(
-                "Writing additional file: {} ({} bytes)",
-                name,
-                content.len()
-            );
-            tokio::fs::write(&file_path, content).await?;
-        }
+        let workspace = create_workspace(exec_config.workspace_dir.as_deref(), &request.id).await?;
+        let work_dir = workspace.path().to_path_buf();
+        log::trace!("Created execution workspace: {:?}", work_dir);
+        let _ = write_execution_files(&work_dir, request, language_config).await?;
 
         // Build and run command
         log::debug!(
@@ -250,16 +242,38 @@ impl SandboxRuntime for DockerRuntime {
             "Waiting for execution with timeout: {}s",
             exec_config.timeout.as_secs()
         );
-        let result = timeout(exec_config.timeout, child.wait_with_output()).await;
+        let mut stdout_pipe = child
+            .stdout
+            .take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stdout".to_string()))?;
+        let mut stderr_pipe = child
+            .stderr
+            .take()
+            .ok_or_else(|| SandboxError::ExecutionFailed("failed to capture stderr".to_string()))?;
+
+        let stdout_task = tokio::spawn(async move {
+            let mut bytes = Vec::new();
+            let _ = stdout_pipe.read_to_end(&mut bytes).await;
+            bytes
+        });
+        let stderr_task = tokio::spawn(async move {
+            let mut bytes = Vec::new();
+            let _ = stderr_pipe.read_to_end(&mut bytes).await;
+            bytes
+        });
+
+        let result = timeout(exec_config.timeout, child.wait()).await;
 
         let execution_time_ms = start.elapsed().as_millis() as u64;
         log::debug!("Docker execution completed in {}ms", execution_time_ms);
 
         match result {
-            Ok(Ok(output)) => {
-                let exit_code = output.status.code().unwrap_or(-1);
-                let mut stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let mut stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            Ok(Ok(status)) => {
+                let exit_code = status.code().unwrap_or(-1);
+                let stdout_bytes = stdout_task.await.unwrap_or_default();
+                let stderr_bytes = stderr_task.await.unwrap_or_default();
+                let mut stdout = String::from_utf8_lossy(&stdout_bytes).to_string();
+                let mut stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
 
                 log::debug!(
                     "Docker execution result: id={}, exit_code={}, stdout_len={}, stderr_len={}",
@@ -305,9 +319,12 @@ impl SandboxRuntime for DockerRuntime {
             }
             Ok(Err(e)) => {
                 log::error!("Docker execution error: id={}, error={}", request.id, e);
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
                 Err(SandboxError::ExecutionFailed(e.to_string()))
             }
             Err(_) => {
+                let container_name = Self::container_name(request);
                 log::warn!(
                     "Docker execution timeout: id={}, timeout={}s",
                     request.id,
@@ -315,17 +332,23 @@ impl SandboxRuntime for DockerRuntime {
                 );
                 // Timeout - kill the container
                 log::debug!(
-                    "Attempting to kill timed-out container: cognia-sandbox-{}",
-                    &request.id[..8.min(request.id.len())]
+                    "Attempting to kill timed-out container: {}",
+                    container_name
                 );
                 let _ = Command::new(&self.docker_path)
                     .arg("kill")
-                    .arg(format!(
-                        "cognia-sandbox-{}",
-                        &request.id[..8.min(request.id.len())]
-                    ))
+                    .arg(&container_name)
                     .output()
                     .await;
+                let _ = Command::new(&self.docker_path)
+                    .args(["rm", "-f"])
+                    .arg(&container_name)
+                    .output()
+                    .await;
+                let _ = child.start_kill();
+                let _ = child.wait().await;
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
 
                 Ok(ExecutionResult::timeout(
                     request.id.clone(),
@@ -340,7 +363,7 @@ impl SandboxRuntime for DockerRuntime {
     }
 
     async fn cleanup(&self) -> Result<(), SandboxError> {
-        log::debug!("Docker cleanup: pruning orphaned containers with label cognia-sandbox");
+        log::debug!("Docker cleanup: pruning orphaned containers with label cognia-sandbox=true");
         // Clean up any orphaned containers
         let result = Command::new(&self.docker_path)
             .args([
@@ -348,7 +371,7 @@ impl SandboxRuntime for DockerRuntime {
                 "prune",
                 "-f",
                 "--filter",
-                "label=cognia-sandbox",
+                "label=cognia-sandbox=true",
             ])
             .output()
             .await;
@@ -471,6 +494,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -496,6 +520,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: true,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -521,6 +546,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -544,6 +570,7 @@ mod tests {
             cpu_limit_percent: 75,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -567,6 +594,7 @@ mod tests {
             cpu_limit_percent: 25, // Lower CPU limit
             network_enabled: false,
             max_output_size: 1024,
+        workspace_dir: None,
         };
         let work_dir = PathBuf::from("/tmp/test");
 
@@ -675,6 +703,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
 
         let result = runtime
@@ -705,6 +734,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
 
         let result = runtime
@@ -733,6 +763,7 @@ mod tests {
             cpu_limit_percent: 50,
             network_enabled: false,
             max_output_size: 1024 * 1024,
+        workspace_dir: None,
         };
 
         let result = runtime

@@ -10,6 +10,8 @@ import type {
   AINodeData,
   ToolNodeData,
   ConditionalNodeData,
+  HumanNodeData,
+  ParallelNodeData,
   StartNodeData,
   EndNodeData,
   CodeNodeData,
@@ -19,24 +21,87 @@ import type {
   DelayNodeData,
   MergeNodeData,
   SubworkflowNodeData,
+  KnowledgeRetrievalNodeData,
+  ParameterExtractorNodeData,
+  VariableAggregatorNodeData,
+  QuestionClassifierNodeData,
+  TemplateTransformNodeData,
+  ChartNodeData,
 } from '@/types/workflow/workflow-editor';
 import type {
   WorkflowDefinition,
+  WorkflowCodeSandboxOptions,
   WorkflowStepDefinition,
   WorkflowIOSchema,
 } from '@/types/workflow';
+
+function normalizeCodeSandboxOptions(
+  raw: unknown
+): WorkflowCodeSandboxOptions | undefined {
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+
+  const value = raw as Record<string, unknown>;
+  const runtime =
+    typeof value.runtime === 'string' ? (value.runtime as WorkflowCodeSandboxOptions['runtime']) : undefined;
+  const timeoutMs = typeof value.timeoutMs === 'number' ? value.timeoutMs : undefined;
+  const memoryLimitMb =
+    typeof value.memoryLimitMb === 'number' ? value.memoryLimitMb : undefined;
+  const networkEnabled =
+    typeof value.networkEnabled === 'boolean' ? value.networkEnabled : undefined;
+  const env =
+    value.env && typeof value.env === 'object' && !Array.isArray(value.env)
+      ? (value.env as Record<string, string>)
+      : undefined;
+  const args = Array.isArray(value.args)
+    ? value.args.filter((item): item is string => typeof item === 'string')
+    : undefined;
+  const files =
+    value.files && typeof value.files === 'object' && !Array.isArray(value.files)
+      ? (value.files as Record<string, string>)
+      : undefined;
+
+  if (
+    runtime === undefined &&
+    timeoutMs === undefined &&
+    memoryLimitMb === undefined &&
+    networkEnabled === undefined &&
+    env === undefined &&
+    args === undefined &&
+    files === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    runtime,
+    timeoutMs,
+    memoryLimitMb,
+    networkEnabled,
+    env,
+    args,
+    files,
+  };
+}
+
+function extractLegacyCodeSandbox(raw: Record<string, unknown>): WorkflowCodeSandboxOptions | undefined {
+  return normalizeCodeSandboxOptions({
+    runtime: raw.runtime,
+    timeoutMs: raw.timeoutMs,
+    memoryLimitMb: raw.memoryLimitMb,
+    networkEnabled: raw.networkEnabled,
+    env: raw.env,
+    args: raw.args,
+    files: raw.files,
+  });
+}
 
 /**
  * Convert a visual workflow to an executable workflow definition
  */
 export function visualToDefinition(visual: VisualWorkflow): WorkflowDefinition {
   const steps: WorkflowStepDefinition[] = [];
-  const nodeMap = new Map<string, WorkflowNode>();
-  
-  // Build node map
-  visual.nodes.forEach(node => {
-    nodeMap.set(node.id, node);
-  });
 
   // Build adjacency list for dependencies
   const incomingEdges = new Map<string, string[]>();
@@ -46,16 +111,18 @@ export function visualToDefinition(visual: VisualWorkflow): WorkflowDefinition {
     incomingEdges.set(edge.target, existing);
   });
 
-  // Convert nodes to steps (skip start and end nodes)
+  // Convert executable nodes to steps (decorative/container nodes are editor-only)
   visual.nodes.forEach(node => {
-    if (node.type === 'start' || node.type === 'end') {
+    if (
+      node.type === 'start' ||
+      node.type === 'end' ||
+      node.type === 'group' ||
+      node.type === 'annotation'
+    ) {
       return;
     }
 
-    const step = nodeToStep(node, incomingEdges.get(node.id) || []);
-    if (step) {
-      steps.push(step);
-    }
+    steps.push(nodeToStep(node, incomingEdges.get(node.id) || []));
   });
 
   // Get inputs from start node
@@ -91,16 +158,18 @@ export function visualToDefinition(visual: VisualWorkflow): WorkflowDefinition {
 /**
  * Convert a workflow node to a step definition
  */
-function nodeToStep(
-  node: WorkflowNode,
-  dependencies: string[]
-): WorkflowStepDefinition | null {
+function nodeToStep(node: WorkflowNode, dependencies: string[]): WorkflowStepDefinition {
   const data = node.data;
   const baseStep: Partial<WorkflowStepDefinition> = {
     id: node.id,
     name: data.label,
     description: data.description || '',
     dependencies: dependencies.filter(d => d !== 'start-1'), // Filter out start node
+    retryCount: data.errorConfig?.retryOnFailure ? data.errorConfig.maxRetries : undefined,
+    continueOnFail: data.errorConfig?.continueOnFail,
+    timeout: data.errorConfig?.timeout,
+    errorBranch: data.errorConfig?.errorBranch,
+    fallbackOutput: data.errorConfig?.fallbackOutput,
   };
 
   switch (data.nodeType) {
@@ -121,6 +190,10 @@ function nodeToStep(
         ...baseStep,
         type: 'tool',
         toolName: toolData.toolName,
+        metadata: {
+          parameterMapping: toolData.parameterMapping || {},
+          toolCategory: toolData.toolCategory,
+        },
         inputs: toolData.inputs || {},
         outputs: toolData.outputs || {},
       } as WorkflowStepDefinition;
@@ -138,20 +211,33 @@ function nodeToStep(
     }
 
     case 'human': {
+      const humanData = data as HumanNodeData;
       return {
         ...baseStep,
         type: 'human',
-        inputs: (data as unknown as AINodeData).inputs || {},
-        outputs: (data as unknown as AINodeData).outputs || {},
+        inputs: humanData.inputs || {},
+        outputs: humanData.outputs || {},
+        metadata: {
+          approvalMessage: humanData.approvalMessage,
+          approvalOptions: humanData.approvalOptions,
+          defaultAction: humanData.defaultAction,
+          assignee: humanData.assignee,
+        },
       } as WorkflowStepDefinition;
     }
 
     case 'parallel': {
+      const parallelData = data as ParallelNodeData;
       return {
         ...baseStep,
         type: 'parallel',
-        inputs: (data as unknown as AINodeData).inputs || {},
-        outputs: (data as unknown as AINodeData).outputs || {},
+        inputs: parallelData.inputs || {},
+        outputs: parallelData.outputs || {},
+        metadata: {
+          branches: parallelData.branches,
+          waitForAll: parallelData.waitForAll,
+          maxConcurrency: parallelData.maxConcurrency,
+        },
       } as WorkflowStepDefinition;
     }
 
@@ -166,8 +252,22 @@ function nodeToStep(
       return createExtendedStep(data, baseStep);
     }
 
+    case 'knowledgeRetrieval':
+    case 'parameterExtractor':
+    case 'variableAggregator':
+    case 'questionClassifier':
+    case 'templateTransform':
+    case 'chart':
+    case 'lineChart':
+    case 'barChart':
+    case 'pieChart':
+    case 'areaChart':
+    case 'scatterChart':
+    case 'radarChart':
+      return createExtendedStep(data, baseStep);
+
     default:
-      return null;
+      throw new Error(`Unsupported workflow node type for execution: ${data.nodeType}`);
   }
 }
 
@@ -184,11 +284,14 @@ function createExtendedStep(
   switch (data.nodeType) {
     case 'code': {
       const codeData = data as import('@/types/workflow/workflow-editor').CodeNodeData;
+      const legacySandbox = extractLegacyCodeSandbox(codeData as unknown as Record<string, unknown>);
+      const sandbox = normalizeCodeSandboxOptions(codeData.sandbox) || legacySandbox;
       return {
         ...baseStep,
         type: 'code',
         code: codeData.code || '',
         language: codeData.language || 'javascript',
+        codeSandbox: sandbox,
         inputs,
         outputs,
       } as WorkflowStepDefinition;
@@ -273,15 +376,104 @@ function createExtendedStep(
       } as WorkflowStepDefinition;
     }
 
-    default:
-      // Fallback for any unexpected type - use tool type as last resort
+    case 'knowledgeRetrieval': {
+      const retrievalData = data as KnowledgeRetrievalNodeData;
       return {
         ...baseStep,
-        type: 'tool',
-        toolName: `${data.nodeType}_executor`,
+        type: 'knowledgeRetrieval',
+        queryVariable: retrievalData.queryVariable,
+        knowledgeBaseIds: retrievalData.knowledgeBaseIds,
+        retrievalMode: retrievalData.retrievalMode,
+        topK: retrievalData.topK,
+        scoreThreshold: retrievalData.scoreThreshold,
+        rerankingEnabled: retrievalData.rerankingEnabled,
+        rerankingModel: retrievalData.rerankingModel,
         inputs,
         outputs,
       } as WorkflowStepDefinition;
+    }
+
+    case 'parameterExtractor': {
+      const extractorData = data as ParameterExtractorNodeData;
+      return {
+        ...baseStep,
+        type: 'parameterExtractor',
+        model: extractorData.model,
+        instruction: extractorData.instruction,
+        inputVariable: extractorData.inputVariable,
+        parameters: extractorData.parameters,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'variableAggregator': {
+      const aggregatorData = data as VariableAggregatorNodeData;
+      return {
+        ...baseStep,
+        type: 'variableAggregator',
+        variableRefs: aggregatorData.variableRefs,
+        aggregationMode: aggregatorData.aggregationMode,
+        outputVariableName: aggregatorData.outputVariableName,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'questionClassifier': {
+      const classifierData = data as QuestionClassifierNodeData;
+      return {
+        ...baseStep,
+        type: 'questionClassifier',
+        model: classifierData.model,
+        inputVariable: classifierData.inputVariable,
+        classes: classifierData.classes,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'templateTransform': {
+      const templateData = data as TemplateTransformNodeData;
+      return {
+        ...baseStep,
+        type: 'templateTransform',
+        template: templateData.template,
+        variableRefs: templateData.variableRefs,
+        outputType: templateData.outputType,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    case 'chart':
+    case 'lineChart':
+    case 'barChart':
+    case 'pieChart':
+    case 'areaChart':
+    case 'scatterChart':
+    case 'radarChart': {
+      const chartData = data as ChartNodeData;
+      return {
+        ...baseStep,
+        type: data.nodeType,
+        chartType: chartData.chartType,
+        title: chartData.title,
+        xAxisKey: chartData.xAxisKey,
+        yAxisKey: chartData.yAxisKey,
+        series: chartData.series,
+        showLegend: chartData.showLegend,
+        showGrid: chartData.showGrid,
+        showTooltip: chartData.showTooltip,
+        stacked: chartData.stacked,
+        aspectRatio: chartData.aspectRatio,
+        inputs,
+        outputs,
+      } as WorkflowStepDefinition;
+    }
+
+    default:
+      throw new Error(`Unsupported workflow node type for step conversion: ${data.nodeType}`);
   }
 }
 
@@ -398,6 +590,35 @@ export function definitionToVisual(definition: WorkflowDefinition): VisualWorkfl
   };
 }
 
+function chartNodeTypeToChartType(
+  type:
+    | 'chart'
+    | 'lineChart'
+    | 'barChart'
+    | 'pieChart'
+    | 'areaChart'
+    | 'scatterChart'
+    | 'radarChart'
+): ChartNodeData['chartType'] {
+  switch (type) {
+    case 'lineChart':
+      return 'line';
+    case 'barChart':
+      return 'bar';
+    case 'pieChart':
+      return 'pie';
+    case 'areaChart':
+      return 'area';
+    case 'scatterChart':
+      return 'scatter';
+    case 'radarChart':
+      return 'radar';
+    case 'chart':
+    default:
+      return 'bar';
+  }
+}
+
 /**
  * Convert a step definition to a workflow node
  */
@@ -410,13 +631,24 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     hasError: false,
   };
 
-  let nodeType = step.type;
+  const commonErrorConfig = {
+    retryOnFailure: (step.retryCount || 0) > 0,
+    maxRetries: step.retryCount || 0,
+    retryInterval: 1000,
+    continueOnFail: step.continueOnFail ?? false,
+    fallbackOutput: step.fallbackOutput,
+    errorBranch: step.errorBranch || 'stop',
+    timeout: step.timeout,
+  } as const;
+
+  let nodeType = step.type as WorkflowNode['type'];
   let data: WorkflowNodeData;
 
   switch (step.type) {
     case 'ai':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'ai',
         aiPrompt: step.aiPrompt || '',
         inputs: step.inputs,
@@ -426,20 +658,30 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
       } as AINodeData;
       break;
 
-    case 'tool':
+    case 'tool': {
+      const toolMetadata = step.metadata as
+        | { parameterMapping?: Record<string, string>; toolCategory?: string }
+        | undefined;
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'tool',
-        toolName: step.toolName || '',
+        toolName:
+          step.toolName ||
+          (step as unknown as { tool_name?: string }).tool_name ||
+          '',
+        toolCategory: toolMetadata?.toolCategory,
         inputs: step.inputs,
         outputs: step.outputs,
-        parameterMapping: {},
+        parameterMapping: toolMetadata?.parameterMapping || {},
       } as ToolNodeData;
       break;
+    }
 
     case 'conditional':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'conditional',
         condition: step.condition || '',
         conditionType: 'expression',
@@ -451,39 +693,60 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'human':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'human',
-        approvalMessage: 'Please review and approve',
-        approvalOptions: ['Approve', 'Reject'],
+        approvalMessage:
+          (step.metadata as { approvalMessage?: string } | undefined)?.approvalMessage ||
+          'Please review and approve',
+        approvalOptions:
+          (step.metadata as { approvalOptions?: string[] } | undefined)?.approvalOptions || [
+            'Approve',
+            'Reject',
+          ],
+        defaultAction: (step.metadata as { defaultAction?: 'approve' | 'reject' | 'timeout' } | undefined)
+          ?.defaultAction,
+        assignee: (step.metadata as { assignee?: string } | undefined)?.assignee,
         inputs: step.inputs,
         outputs: step.outputs,
-      } as WorkflowNodeData;
+      } as HumanNodeData;
       break;
 
     case 'parallel':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'parallel',
-        branches: [],
-        waitForAll: true,
+        branches: (step.metadata as { branches?: string[] } | undefined)?.branches || [],
+        waitForAll: (step.metadata as { waitForAll?: boolean } | undefined)?.waitForAll ?? true,
+        maxConcurrency: (step.metadata as { maxConcurrency?: number } | undefined)?.maxConcurrency,
         inputs: step.inputs,
         outputs: step.outputs,
-      } as WorkflowNodeData;
+      } as ParallelNodeData;
       break;
 
     case 'code':
+      {
+      const legacySandbox = extractLegacyCodeSandbox(step as unknown as Record<string, unknown>);
+      const sandbox =
+        normalizeCodeSandboxOptions((step as { codeSandbox?: unknown }).codeSandbox) ||
+        legacySandbox;
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'code',
         code: (step as unknown as { code?: string }).code || '',
         language: (step as unknown as { language?: string }).language || 'javascript',
+        sandbox,
         inputs: step.inputs,
         outputs: step.outputs,
       } as CodeNodeData;
       break;
+      }
 
     case 'transform':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'transform',
         transformType: (step as unknown as { transformType?: string }).transformType || 'custom',
         expression: (step as unknown as { expression?: string }).expression || '',
@@ -495,6 +758,7 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'loop':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'loop',
         loopType: (step as unknown as { loopType?: string }).loopType || 'forEach',
         iteratorVariable: (step as unknown as { iteratorVariable?: string }).iteratorVariable || 'item',
@@ -509,6 +773,7 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'webhook':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'webhook',
         webhookUrl: (step as unknown as { webhookUrl?: string }).webhookUrl || '',
         method: (step as unknown as { method?: string }).method || 'POST',
@@ -522,6 +787,7 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'delay':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'delay',
         delayType: (step as unknown as { delayType?: string }).delayType || 'fixed',
         delayMs: (step as unknown as { delayMs?: number }).delayMs || 1000,
@@ -533,6 +799,7 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'merge':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'merge',
         mergeStrategy: (step as unknown as { mergeStrategy?: string }).mergeStrategy || 'merge',
         inputs: step.inputs,
@@ -543,6 +810,7 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
     case 'subworkflow':
       data = {
         ...baseData,
+        errorConfig: commonErrorConfig,
         nodeType: 'subworkflow',
         workflowId: (step as unknown as { workflowId?: string }).workflowId || '',
         inputMapping: (step as unknown as { inputMapping?: Record<string, string> }).inputMapping || {},
@@ -552,14 +820,105 @@ function stepToNode(step: WorkflowStepDefinition, position: { x: number; y: numb
       } as SubworkflowNodeData;
       break;
 
-    default:
+    case 'knowledgeRetrieval':
       data = {
         ...baseData,
-        nodeType: 'ai',
-        aiPrompt: '',
+        errorConfig: commonErrorConfig,
+        nodeType: 'knowledgeRetrieval',
+        queryVariable: step.queryVariable || null,
+        knowledgeBaseIds: step.knowledgeBaseIds || [],
+        retrievalMode: step.retrievalMode || 'single',
+        topK: step.topK || 3,
+        scoreThreshold: step.scoreThreshold || 0,
+        rerankingEnabled: step.rerankingEnabled ?? false,
+        rerankingModel: step.rerankingModel,
         inputs: step.inputs,
         outputs: step.outputs,
-      } as AINodeData;
+      } as KnowledgeRetrievalNodeData;
+      break;
+
+    case 'parameterExtractor':
+      data = {
+        ...baseData,
+        errorConfig: commonErrorConfig,
+        nodeType: 'parameterExtractor',
+        model: step.model,
+        instruction: step.instruction || '',
+        inputVariable: step.inputVariable || null,
+        parameters: step.parameters || [],
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as ParameterExtractorNodeData;
+      break;
+
+    case 'variableAggregator':
+      data = {
+        ...baseData,
+        errorConfig: commonErrorConfig,
+        nodeType: 'variableAggregator',
+        variableRefs: step.variableRefs || [],
+        aggregationMode: step.aggregationMode || 'merge',
+        outputVariableName: step.outputVariableName || 'result',
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as VariableAggregatorNodeData;
+      break;
+
+    case 'questionClassifier':
+      data = {
+        ...baseData,
+        errorConfig: commonErrorConfig,
+        nodeType: 'questionClassifier',
+        model: step.model,
+        inputVariable: step.inputVariable || null,
+        classes: step.classes || [],
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as QuestionClassifierNodeData;
+      break;
+
+    case 'templateTransform':
+      data = {
+        ...baseData,
+        errorConfig: commonErrorConfig,
+        nodeType: 'templateTransform',
+        template: step.template || '',
+        variableRefs: step.variableRefs || [],
+        outputType: step.outputType || 'string',
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as TemplateTransformNodeData;
+      break;
+
+    case 'chart':
+    case 'lineChart':
+    case 'barChart':
+    case 'pieChart':
+    case 'areaChart':
+    case 'scatterChart':
+    case 'radarChart':
+      nodeType = step.type;
+      data = {
+        ...baseData,
+        errorConfig: commonErrorConfig,
+        nodeType: step.type,
+        chartType: step.chartType || chartNodeTypeToChartType(step.type),
+        title: step.title,
+        xAxisKey: step.xAxisKey,
+        yAxisKey: step.yAxisKey,
+        series: step.series || [],
+        showLegend: step.showLegend ?? true,
+        showGrid: step.showGrid ?? true,
+        showTooltip: step.showTooltip ?? true,
+        stacked: step.stacked ?? false,
+        aspectRatio: step.aspectRatio,
+        inputs: step.inputs,
+        outputs: step.outputs,
+      } as ChartNodeData;
+      break;
+
+    default:
+      throw new Error(`Unsupported workflow step type for node conversion: ${step.type}`);
   }
 
   return {

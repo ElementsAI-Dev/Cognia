@@ -200,10 +200,69 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  android-validate:
+    name: Build (android debug apk)
+    needs: validate
+    if: needs.validate.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          cache-on-failure: true
+          shared-key: android-validate
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Android debug APK
+        run: pnpm tauri android build --debug --apk --target aarch64
+
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-android-debug-apk
+          path: |
+            src-tauri/gen/android/app/build/outputs/**/*.apk
+            src-tauri/target/*/debug/bundle/android/**/*.apk
+          retention-days: 14
+          if-no-files-found: warn
+
   # Summary job
   build-summary:
     name: Build Summary
-    needs: build-tauri
+    needs: [build-tauri, android-validate]
     runs-on: ubuntu-latest
     if: always()
 
@@ -218,5 +277,6 @@ jobs:
           echo "| Windows | x64 | ${{ needs.build-tauri.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | x64 | ${{ needs.build-tauri.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | arm64 | ${{ needs.build-tauri.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Android | debug APK | ${{ needs.android-validate.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 Artifacts are available for download in the Actions tab" >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useRef, useEffect, useState } from 'react';
+import { forwardRef, useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { useSpeech } from '@/hooks/media/use-speech';
 import { useInputCompletionUnified } from '@/hooks/chat/use-input-completion-unified';
 import { useCompletionSettingsStore } from '@/stores/settings/completion-settings-store';
 import { GhostTextOverlay } from '@/components/chat/ghost-text-overlay';
+import type { CompletionProviderConfig } from '@/types/chat/input-completion';
 
 interface ChatWidgetInputProps {
   value: string;
@@ -54,6 +55,10 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
 
     // AI ghost text completion
     const ghostTextOpacity = useCompletionSettingsStore((s) => s.ghostTextOpacity);
+    const aiOnlyProviders = useMemo<CompletionProviderConfig[]>(
+      () => [{ type: 'ai-text', trigger: 'contextual', priority: 50, enabled: true }],
+      []
+    );
     const {
       state: completionState,
       handleInputChange: handleCompletionChange,
@@ -61,9 +66,10 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
       acceptGhostText,
       dismissGhostText,
     } = useInputCompletionUnified({
-      onAiCompletionAccept: (text) => {
-        onChange(value + text);
-      },
+      providers: aiOnlyProviders,
+      onTextCommit: onChange,
+      mode: 'chat',
+      surface: 'chat_widget',
     });
 
     const ghostText = completionState.ghostText;
@@ -110,10 +116,6 @@ export const ChatWidgetInput = forwardRef<HTMLTextAreaElement, ChatWidgetInputPr
         // Delegate to unified completion keyboard handler first
         const handled = handleCompletionKeyDown(e.nativeEvent);
         if (handled) {
-          // If ghost text was accepted via Tab, sync the value
-          if (e.key === 'Tab' && ghostText) {
-            onChange(value + ghostText);
-          }
           return;
         }
         // Fall through to parent handler

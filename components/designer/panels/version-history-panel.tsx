@@ -109,7 +109,7 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
   const historyIndex = useDesignerStore((state) => state.historyIndex);
   const undo = useDesignerStore((state) => state.undo);
   const redo = useDesignerStore((state) => state.redo);
-  const setCode = useDesignerStore((state) => state.setCode);
+  const restoreCodeAndParse = useDesignerStore((state) => state.restoreCodeAndParse);
   
   // Diff view state
   const [selectedDiffEntry, setSelectedDiffEntry] = useState<DesignerHistoryEntry | null>(null);
@@ -120,9 +120,9 @@ export function VersionHistoryPanel({ className }: VersionHistoryPanelProps) {
   const restoreVersion = useCallback(
     (entry: DesignerHistoryEntry, index: number) => {
       if (index === historyIndex) return;
-      setCode(entry.newCode, false);
+      void restoreCodeAndParse(entry.newCode);
     },
-    [historyIndex, setCode]
+    [historyIndex, restoreCodeAndParse]
   );
 
   const getDiffSummary = useCallback((entry: DesignerHistoryEntry): string => {

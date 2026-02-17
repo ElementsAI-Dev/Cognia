@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from '@/lib/native/utils';
 import { loggers } from '@/lib/logger';
+import { normalizeKernelServiceConfig as normalizeServiceConfig } from '@/types/jupyter';
 
 const log = loggers.app;
 import type {
@@ -20,6 +21,7 @@ import type {
   CreateSessionOptions,
   NotebookExecutionOptions,
   KernelServiceConfig,
+  NormalizedKernelServiceConfig,
   NotebookFileInfo,
 } from '@/types/jupyter';
 
@@ -56,7 +58,7 @@ export async function createSession(
     throw new Error('Jupyter kernel requires Tauri environment');
   }
 
-  // Optionally ensure kernel is installed
+  // Explicit install policy: only ensure ipykernel when caller opts in.
   if (options.autoInstallKernel) {
     await ensureKernel(options.envPath);
   }
@@ -340,13 +342,14 @@ export async function cleanup(): Promise<void> {
 // ==================== Configuration ====================
 
 /** Get the current kernel configuration */
-export async function getKernelConfig(): Promise<KernelServiceConfig | null> {
+export async function getKernelConfig(): Promise<NormalizedKernelServiceConfig | null> {
   if (!isTauri()) {
     return null;
   }
 
   try {
-    return await invoke<KernelServiceConfig>('jupyter_get_config');
+    const config = await invoke<KernelServiceConfig>('jupyter_get_config');
+    return normalizeServiceConfig(config);
   } catch (error) {
     log.warn('Jupyter: Failed to get kernel config', { error });
     return null;

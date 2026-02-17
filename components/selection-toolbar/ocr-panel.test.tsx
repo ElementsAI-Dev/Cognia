@@ -2,6 +2,11 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OCRPanel } from "./ocr-panel";
 
+const mockInvoke = jest.fn();
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
 declare global {
   var __TAURI_INTERNALS__: Record<string, unknown> | undefined;
 }
@@ -36,6 +41,7 @@ describe("OCRPanel", () => {
 
     // FileReader mock
     global.FileReader = MockFileReader as unknown as typeof FileReader;
+    mockInvoke.mockReset();
   });
 
   it("returns null when closed", () => {
@@ -79,5 +85,96 @@ describe("OCRPanel", () => {
         screen.getByText("OCR is only available in the desktop app")
       ).toBeInTheDocument();
     });
+  });
+
+  it("runs region-capture OCR chain directly in Tauri mode", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", { value: {}, writable: true });
+
+    mockInvoke.mockImplementation((command: string) => {
+      switch (command) {
+        case "ocr_get_providers":
+          return Promise.resolve({
+            providers: [
+              {
+                provider_type: "windows_ocr",
+                display_name: "Windows OCR",
+                available: true,
+                languages: ["en-US"],
+                is_local: true,
+              },
+            ],
+            default_provider: "windows_ocr",
+          });
+        case "screenshot_start_region_selection":
+          return Promise.resolve({ x: 10, y: 20, width: 100, height: 60 });
+        case "screenshot_capture_region_with_history":
+          return Promise.resolve({ image_base64: "YmFzZTY0" });
+        case "ocr_extract_text":
+          return Promise.resolve({
+            text: "Extracted from capture",
+            confidence: 0.91,
+            language: "en-US",
+            provider: "windows_ocr",
+            processing_time_ms: 12,
+          });
+        default:
+          return Promise.resolve();
+      }
+    });
+
+    render(<OCRPanel isOpen onClose={jest.fn()} />);
+
+    await userEvent.click(screen.getByText("Capture"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Extracted from capture")).toBeInTheDocument();
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith("screenshot_capture_region_with_history", {
+      x: 10,
+      y: 20,
+      width: 100,
+      height: 60,
+    });
+  });
+
+  it("silently exits when region selection is cancelled", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", { value: {}, writable: true });
+
+    mockInvoke.mockImplementation((command: string) => {
+      switch (command) {
+        case "ocr_get_providers":
+          return Promise.resolve({
+            providers: [
+              {
+                provider_type: "windows_ocr",
+                display_name: "Windows OCR",
+                available: true,
+                languages: ["en-US"],
+                is_local: true,
+              },
+            ],
+            default_provider: "windows_ocr",
+          });
+        case "screenshot_start_region_selection":
+          return Promise.reject(new Error("Selection cancelled"));
+        default:
+          return Promise.resolve();
+      }
+    });
+
+    render(<OCRPanel isOpen onClose={jest.fn()} />);
+
+    await userEvent.click(screen.getByText("Capture"));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("screenshot_start_region_selection");
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "screenshot_capture_region_with_history",
+      expect.anything()
+    );
+    expect(screen.queryByText("Selection cancelled")).not.toBeInTheDocument();
   });
 });

@@ -18,7 +18,9 @@ export interface MockLogger extends PluginLogger {
   /** Clear all logs */
   clear(): void;
   /** Get logs by level */
-  getByLevel(level: 'debug' | 'info' | 'warn' | 'error'): Array<{ message: string; args: unknown[] }>;
+  getByLevel(
+    level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+  ): Array<{ message: string; args: unknown[] }>;
 }
 
 /**
@@ -27,8 +29,11 @@ export interface MockLogger extends PluginLogger {
 export function createMockLogger(): MockLogger {
   const logs: Array<{ level: string; message: string; args: unknown[] }> = [];
 
-  return {
+  const logger: MockLogger = {
     logs,
+    trace: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'trace', message, args });
+    },
     debug: (message: string, ...args: unknown[]) => {
       logs.push({ level: 'debug', message, args });
     },
@@ -41,6 +46,11 @@ export function createMockLogger(): MockLogger {
     error: (message: string, ...args: unknown[]) => {
       logs.push({ level: 'error', message, args });
     },
+    fatal: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'fatal', message, args });
+    },
+    child: (_scope: string) => logger,
+    withContext: (_context: Record<string, unknown>) => logger,
     clear: () => {
       logs.length = 0;
     },
@@ -48,6 +58,8 @@ export function createMockLogger(): MockLogger {
       return logs.filter((l) => l.level === level).map(({ message, args }) => ({ message, args }));
     },
   };
+
+  return logger;
 }
 
 /**
@@ -268,6 +280,7 @@ export function createMockContext(options: MockContextOptions = {}): MockPluginC
     contextMenu: createMockContextMenuAPI(),
     window: createMockWindowAPI(),
     secrets: createMockSecretsAPI(),
+    scheduler: createMockSchedulerAPI(),
     reset: () => {
       logger.clear();
       storage.clear();
@@ -557,5 +570,36 @@ function createMockSecretsAPI() {
     store: async (key: string, value: string) => { secrets.set(key, value); },
     delete: async (key: string) => { secrets.delete(key); },
     has: async (key: string) => secrets.has(key),
+  };
+}
+
+function createMockSchedulerAPI() {
+  return {
+    createTask: async () => ({
+      id: 'task-1',
+      pluginId: 'test-plugin',
+      name: 'mock-task',
+      handler: 'mock-handler',
+      trigger: { type: 'interval' as const, seconds: 60 },
+      status: 'active' as const,
+      runCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+    updateTask: async () => null,
+    deleteTask: async () => true,
+    getTask: async () => null,
+    listTasks: async () => [],
+    pauseTask: async () => true,
+    resumeTask: async () => true,
+    runTaskNow: async () => 'exec-1',
+    cancelExecution: async () => true,
+    getExecutions: async () => [],
+    getExecution: async () => null,
+    getLatestExecution: async () => null,
+    registerHandler: () => () => {},
+    unregisterHandler: () => {},
+    hasHandler: () => false,
+    getHandlers: () => [],
   };
 }

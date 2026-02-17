@@ -40,23 +40,11 @@ export function ToolNodeConfig({ data, onUpdate }: NodeConfigProps<ToolNodeData>
             <SelectValue placeholder={t('selectTool')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="web_search">🔍 Web Search</SelectItem>
-            <SelectItem value="rag_search">📚 RAG Search</SelectItem>
-            <SelectItem value="calculator">🧮 Calculator</SelectItem>
-            <SelectItem value="document_summarize">📄 Document Summarize</SelectItem>
-            <SelectItem value="document_chunk">✂️ Document Chunk</SelectItem>
-            <SelectItem value="document_analyze">🔬 Document Analyze</SelectItem>
-            <SelectItem value="file_read">📖 File Read</SelectItem>
-            <SelectItem value="file_write">✏️ File Write</SelectItem>
-            <SelectItem value="file_list">📁 File List</SelectItem>
-            <SelectItem value="file_exists">❓ File Exists</SelectItem>
-            <SelectItem value="file_delete">🗑️ File Delete</SelectItem>
-            <SelectItem value="file_copy">📋 File Copy</SelectItem>
-            <SelectItem value="file_rename">📝 File Rename</SelectItem>
-            <SelectItem value="file_info">ℹ️ File Info</SelectItem>
-            <SelectItem value="file_search">🔎 File Search</SelectItem>
-            <SelectItem value="file_append">➕ File Append</SelectItem>
-            <SelectItem value="directory_create">📂 Directory Create</SelectItem>
+            {AVAILABLE_TOOLS.map((tool) => (
+              <SelectItem key={tool.name} value={tool.name}>
+                {tool.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

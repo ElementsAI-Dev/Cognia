@@ -31,7 +31,8 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useScheduler } from '@/hooks/scheduler';
 import type { TaskTriggerType } from '@/types/scheduler';
-import { CRON_PRESETS as CANONICAL_CRON_PRESETS } from '@/types/scheduler';
+import { getCronExpressionOptions } from '@/types/scheduler';
+import { TimezoneSelect } from '@/components/scheduler/timezone-select';
 
 interface WorkflowScheduleDialogProps {
   workflowId: string;
@@ -41,10 +42,7 @@ interface WorkflowScheduleDialogProps {
 }
 
 // Use canonical presets, mapped to Select-compatible format
-const CRON_PRESETS = CANONICAL_CRON_PRESETS.slice(0, 10).map((p) => ({
-  label: p.label,
-  value: p.expression,
-}));
+const CRON_PRESETS = getCronExpressionOptions(10);
 
 export function WorkflowScheduleDialog({
   workflowId,
@@ -62,6 +60,7 @@ export function WorkflowScheduleDialog({
   const [taskName, setTaskName] = useState(`${workflowName} - Scheduled`);
   const [triggerType, setTriggerType] = useState<TaskTriggerType>('cron');
   const [cronExpression, setCronExpression] = useState('0 9 * * *');
+  const [timezone, setTimezone] = useState('UTC');
   const [intervalMs, setIntervalMs] = useState(3600000); // 1 hour
   const [runAt, setRunAt] = useState<string>('');
   const [notifyOnComplete, setNotifyOnComplete] = useState(true);
@@ -73,7 +72,7 @@ export function WorkflowScheduleDialog({
       const trigger = (() => {
         switch (triggerType) {
           case 'cron':
-            return { type: 'cron' as const, cronExpression };
+            return { type: 'cron' as const, cronExpression, timezone };
           case 'interval':
             return { type: 'interval' as const, intervalMs };
           case 'once':
@@ -111,6 +110,7 @@ export function WorkflowScheduleDialog({
     taskName,
     triggerType,
     cronExpression,
+    timezone,
     intervalMs,
     runAt,
     notifyOnComplete,
@@ -198,6 +198,15 @@ export function WorkflowScheduleDialog({
                   <p className="text-xs text-muted-foreground">
                     {t('cronHelp')}
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('timezone')}</Label>
+                  <TimezoneSelect
+                    value={timezone}
+                    onValueChange={setTimezone}
+                    testId="workflow-schedule-timezone"
+                    includeOffset
+                  />
                 </div>
               </TabsContent>
 

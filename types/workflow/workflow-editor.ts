@@ -4,7 +4,7 @@
  */
 
 import type { Node, Edge, Viewport } from '@xyflow/react';
-import type { WorkflowIOSchema, WorkflowType } from './workflow';
+import type { WorkflowCodeSandboxOptions, WorkflowIOSchema, WorkflowType } from './workflow';
 
 // =====================
 // Node Types
@@ -294,8 +294,9 @@ export interface WebhookNodeData extends BaseNodeData {
  */
 export interface CodeNodeData extends BaseNodeData {
   nodeType: 'code';
-  language: 'javascript' | 'typescript' | 'python';
+  language: string;
   code: string;
+  sandbox?: WorkflowCodeSandboxOptions;
   inputs: Record<string, WorkflowIOSchema>;
   outputs: Record<string, WorkflowIOSchema>;
 }
@@ -525,6 +526,7 @@ export type WorkflowEdge = Edge<WorkflowEdgeData>;
  */
 export interface VisualWorkflow {
   id: string;
+  schemaVersion?: string;
   name: string;
   description: string;
   type: WorkflowType;
@@ -551,6 +553,10 @@ export interface VisualWorkflow {
  */
 export type TriggerType = 'manual' | 'schedule' | 'event' | 'webhook';
 
+export type TriggerBackend = 'none' | 'app' | 'system';
+
+export type TriggerSyncStatus = 'idle' | 'syncing' | 'synced' | 'out_of_sync' | 'error';
+
 export interface TriggerConfig {
   cronExpression?: string;
   timezone?: string;
@@ -560,6 +566,12 @@ export interface TriggerConfig {
   webhookPath?: string;
   webhookMethod?: 'GET' | 'POST' | 'PUT';
   webhookSecret?: string;
+  backend?: TriggerBackend;
+  bindingTaskId?: string;
+  syncStatus?: TriggerSyncStatus;
+  lastSyncedAt?: Date;
+  lastSyncError?: string;
+  runtimeSource?: 'app-scheduler' | 'system-scheduler';
 }
 
 export interface WorkflowTrigger {
@@ -679,6 +691,14 @@ export interface ExecutionLog {
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
   data?: unknown;
+  eventId?: string;
+  traceId?: string;
+  requestId?: string;
+  executionId?: string;
+  workflowId?: string;
+  stepId?: string;
+  runtime?: 'browser' | 'tauri';
+  code?: string;
 }
 
 /**
@@ -687,6 +707,7 @@ export interface ExecutionLog {
 export interface WorkflowExecutionState {
   executionId: string;
   workflowId: string;
+  runtime: 'browser' | 'tauri';
   status: EditorExecutionStatus;
   progress: number;
   currentNodeId?: string;
@@ -697,6 +718,8 @@ export interface WorkflowExecutionState {
   input: Record<string, unknown>;
   output?: Record<string, unknown>;
   error?: string;
+  triggerId?: string;
+  isReplay?: boolean;
   logs: ExecutionLog[];
 }
 
@@ -989,6 +1012,10 @@ export function createDefaultNodeData(type: WorkflowNodeType, label?: string): W
         nodeType: 'code',
         language: 'javascript',
         code: '// Your code here\nreturn input;',
+        sandbox: {
+          runtime: 'auto',
+          networkEnabled: false,
+        },
         inputs: {},
         outputs: {},
       } as CodeNodeData;
@@ -1199,6 +1226,7 @@ export function createEmptyVisualWorkflow(name: string = 'New Workflow'): Visual
 
   return {
     id: `workflow-${Date.now()}`,
+    schemaVersion: '2.0',
     name,
     description: '',
     type: 'custom',
@@ -1688,7 +1716,7 @@ export function createWorkflowExport(
   }
 ): WorkflowExport {
   return {
-    version: '1.0.0',
+    version: '2.0.0',
     exportedAt: new Date(),
     workflow: JSON.parse(JSON.stringify(workflow)),
     templates: options?.includeTemplates,

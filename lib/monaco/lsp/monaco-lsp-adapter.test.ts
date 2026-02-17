@@ -10,6 +10,7 @@ jest.mock('./lsp-client', () => ({
     return !!capability && typeof capability === 'object';
   }),
   isTauriRuntime: jest.fn(),
+  lspCancelRequest: jest.fn(),
   lspChangeDocument: jest.fn(),
   lspCloseDocument: jest.fn(),
   lspCodeActions: jest.fn(),
@@ -32,6 +33,7 @@ import type * as Monaco from 'monaco-editor';
 import { createMonacoLspAdapter } from './monaco-lsp-adapter';
 import {
   isTauriRuntime,
+  lspCancelRequest,
   lspChangeDocument,
   lspCloseDocument,
   lspCodeActions,
@@ -52,6 +54,7 @@ import type { LspPublishDiagnosticsEvent } from '@/types/designer/lsp';
 
 describe('monaco-lsp-adapter', () => {
   const mockIsTauriRuntime = isTauriRuntime as jest.MockedFunction<typeof isTauriRuntime>;
+  const mockLspCancelRequest = lspCancelRequest as jest.MockedFunction<typeof lspCancelRequest>;
   const mockLspStartSession = lspStartSession as jest.MockedFunction<typeof lspStartSession>;
   const mockLspOpenDocument = lspOpenDocument as jest.MockedFunction<typeof lspOpenDocument>;
   const mockLspChangeDocument = lspChangeDocument as jest.MockedFunction<typeof lspChangeDocument>;
@@ -71,15 +74,24 @@ describe('monaco-lsp-adapter', () => {
   let diagnosticsCallback: ((event: LspPublishDiagnosticsEvent) => void) | null = null;
   const unlistenDiagnostics = jest.fn();
   const modelChangeDisposable = { dispose: jest.fn() };
-  let modelChangeHandler: (() => void) | null = null;
+  let modelChangeHandler:
+    | ((event: { changes: Array<{ range: Monaco.IRange; rangeLength: number; text: string }> }) => void)
+    | null = null;
 
   const mockModel = {
     uri: { toString: () => 'file:///workspace/index.tsx' },
     getValue: jest.fn(() => 'const value = 1;'),
-    onDidChangeContent: jest.fn((handler: () => void) => {
+    getWordUntilPosition: jest.fn(() => ({ startColumn: 1, endColumn: 1 })),
+    onDidChangeContent: jest.fn(
+      (
+        handler: (event: {
+          changes: Array<{ range: Monaco.IRange; rangeLength: number; text: string }>;
+        }) => void
+      ) => {
       modelChangeHandler = handler;
       return modelChangeDisposable;
-    }),
+      }
+    ),
   };
 
   const mockEditor = {
@@ -165,9 +177,11 @@ describe('monaco-lsp-adapter', () => {
         codeActionProvider: { codeActionKinds: ['quickfix'] },
         documentFormattingProvider: true,
         workspaceSymbolProvider: true,
+        textDocumentSync: 2,
       },
     });
     mockLspOpenDocument.mockResolvedValue(undefined);
+    mockLspCancelRequest.mockResolvedValue(undefined);
     mockLspChangeDocument.mockResolvedValue(undefined);
     mockLspCompletion.mockResolvedValue({ items: [{ label: 'foo', kind: 3 }] });
     mockLspHover.mockResolvedValue({ contents: 'hover info' });
@@ -252,11 +266,34 @@ describe('monaco-lsp-adapter', () => {
     expect(onStatusChange).toHaveBeenLastCalledWith('connected', undefined);
 
     expect(modelChangeHandler).toBeTruthy();
-    await modelChangeHandler?.();
+    await modelChangeHandler?.({
+      changes: [
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 2,
+          },
+          rangeLength: 1,
+          text: 'b',
+        },
+      ],
+    });
     expect(mockLspChangeDocument).toHaveBeenCalledWith(
       'session-1',
       { uri: 'file:///workspace/index.tsx', version: 2 },
-      'const value = 1;'
+      'const value = 1;',
+      [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+          rangeLength: 1,
+          text: 'b',
+        },
+      ]
     );
 
     diagnosticsCallback?.({
@@ -365,7 +402,14 @@ describe('monaco-lsp-adapter', () => {
     ]);
 
     await expect(adapter.workspaceSymbols('MyComp')).resolves.toHaveLength(1);
-    expect(mockLspWorkspaceSymbols).toHaveBeenCalledWith('session-1', 'MyComp');
+    expect(mockLspWorkspaceSymbols).toHaveBeenCalledWith(
+      'session-1',
+      'MyComp',
+      expect.objectContaining({
+        clientRequestId: expect.stringMatching(/^workspaceSymbols:/),
+        timeoutMs: 15000,
+      })
+    );
 
     mockLspStartSession.mockResolvedValueOnce({
       sessionId: 'session-2',
@@ -380,5 +424,179 @@ describe('monaco-lsp-adapter', () => {
     });
     await noWorkspaceAdapter.start();
     await expect(noWorkspaceAdapter.workspaceSymbols('x')).resolves.toEqual([]);
+  });
+
+  it('falls back to full document sync when protocol v2 is disabled', async () => {
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+      protocolV2Enabled: false,
+    });
+
+    await adapter.start();
+    await modelChangeHandler?.({
+      changes: [
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 2,
+          },
+          rangeLength: 1,
+          text: 'x',
+        },
+      ],
+    });
+
+    expect(mockLspChangeDocument).toHaveBeenCalledWith(
+      'session-1',
+      { uri: 'file:///workspace/index.tsx', version: 2 },
+      'const value = 1;',
+      undefined
+    );
+  });
+
+  it('cancels completion request when monaco token is canceled', async () => {
+    let resolveCompletion: ((value: { items: Array<{ label: string; kind: number }> }) => void) | undefined;
+    const deferred = new Promise<{ items: Array<{ label: string; kind: number }> }>((resolve) => {
+      resolveCompletion = resolve;
+    });
+    mockLspCompletion.mockReturnValueOnce(deferred);
+
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+    });
+    await adapter.start();
+
+    const completionProvider = (mockMonaco.languages.registerCompletionItemProvider as jest.Mock).mock.calls[0][1];
+    const listeners: Array<() => void> = [];
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: (callback: () => void) => {
+        listeners.push(callback);
+        return { dispose: jest.fn() };
+      },
+    };
+
+    const providePromise = completionProvider.provideCompletionItems(
+      mockModel,
+      { lineNumber: 1, column: 1 },
+      undefined,
+      token
+    );
+
+    listeners.forEach((listener) => listener());
+    resolveCompletion?.({
+      items: [{ label: 'foo', kind: 3 }],
+    });
+    await providePromise;
+
+    expect(mockLspCancelRequest).toHaveBeenCalledWith(
+      'session-1',
+      expect.stringMatching(/^completion:/)
+    );
+  });
+
+  it('queues didChange notifications in order', async () => {
+    let resolveFirst: (() => void) | undefined;
+    mockLspChangeDocument.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    mockLspChangeDocument.mockResolvedValueOnce(undefined);
+
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+    });
+    await adapter.start();
+
+    modelChangeHandler?.({
+      changes: [
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 2,
+          },
+          rangeLength: 1,
+          text: 'x',
+        },
+      ],
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    modelChangeHandler?.({
+      changes: [
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 2,
+            endLineNumber: 1,
+            endColumn: 3,
+          },
+          rangeLength: 1,
+          text: 'y',
+        },
+      ],
+    });
+
+    expect(mockLspChangeDocument).toHaveBeenCalledTimes(1);
+    resolveFirst?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockLspChangeDocument).toHaveBeenCalledTimes(2);
+    await adapter.dispose();
+  });
+
+  it('ignores stale diagnostics by version', async () => {
+    const adapter = createMonacoLspAdapter({
+      monaco: mockMonaco,
+      editor: mockEditor as unknown as Monaco.editor.IStandaloneCodeEditor,
+      languageId: 'typescript',
+    });
+    await adapter.start();
+
+    await modelChangeHandler?.({
+      changes: [
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 2,
+          },
+          rangeLength: 1,
+          text: 'x',
+        },
+      ],
+    });
+    (mockMonaco.editor.setModelMarkers as jest.Mock).mockClear();
+
+    diagnosticsCallback?.({
+      sessionId: 'session-1',
+      uri: 'file:///workspace/index.tsx',
+      version: 1,
+      diagnostics: [
+        {
+          message: 'stale',
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+        },
+      ],
+    });
+
+    expect(mockMonaco.editor.setModelMarkers).not.toHaveBeenCalled();
+    await adapter.dispose();
   });
 });

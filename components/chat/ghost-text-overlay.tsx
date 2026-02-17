@@ -28,8 +28,8 @@ export interface GhostTextOverlayProps {
 export function GhostTextOverlay({
   text,
   textareaRef,
-  onAccept,
-  onDismiss,
+  onAccept: _onAccept,
+  onDismiss: _onDismiss,
   opacity = 0.5,
   className,
 }: GhostTextOverlayProps) {
@@ -120,22 +120,6 @@ export function GhostTextOverlay({
       textarea.removeEventListener('scroll', updatePosition);
     };
   }, [textareaRef, text]);
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        onAccept();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onDismiss();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onAccept, onDismiss]);
 
   if (!text) return null;
 

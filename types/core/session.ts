@@ -10,6 +10,21 @@ import type { ChatViewMode, FlowChatCanvasState, MultiModelConfig } from '../cha
 export type { ProviderName, UIMessage, ChatViewMode, FlowChatCanvasState };
 
 export type ChatMode = 'chat' | 'agent' | 'research' | 'learning';
+export type LearningSubMode = 'socratic' | 'speedpass';
+
+export interface LearningSpeedPassContext {
+  sourceMessage?: string;
+  availableTimeMinutes?: number;
+  targetScore?: number;
+  examDate?: string;
+  recommendedMode?: 'extreme' | 'speed' | 'comprehensive';
+  updatedAt?: Date;
+}
+
+export interface LearningContext {
+  subMode: LearningSubMode;
+  speedpassContext?: LearningSpeedPassContext;
+}
 
 export type ChatGoalStatus = 'active' | 'completed' | 'paused';
 
@@ -158,6 +173,9 @@ export interface Session {
 
   // Active skill IDs for this session (per-session skill tracking)
   activeSkillIds?: string[];
+
+  // Learning mode context (socratic/speedpass sub-mode)
+  learningContext?: LearningContext;
 }
 
 export interface SessionWithMessages extends Session {
@@ -183,6 +201,7 @@ export interface CreateSessionInput {
     sessionCount: number;
     generatedAt: Date;
   };
+  learningContext?: LearningContext;
 }
 
 export interface UpdateSessionInput {
@@ -214,6 +233,7 @@ export interface UpdateSessionInput {
   isArchived?: boolean;
   archivedAt?: Date;
   activeSkillIds?: string[];
+  learningContext?: LearningContext;
 }
 
 export interface CreateGoalInput {

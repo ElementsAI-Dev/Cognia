@@ -2,8 +2,9 @@
 
 use crate::input_completion::types::CompletionStats;
 use crate::input_completion::{
-    CompletionConfig, CompletionFeedback, CompletionResult, CompletionStatus, CompletionSuggestion,
-    ImeState, InputCompletionManager,
+    CompletionConfig, CompletionFeedback, CompletionRequestV2, CompletionResult,
+    CompletionResultV2, CompletionStatus, CompletionSuggestion, CompletionSuggestionRef, ImeState,
+    InputCompletionManager,
 };
 use tauri::State;
 
@@ -48,11 +49,29 @@ pub fn input_completion_accept(
     Ok(manager.accept_suggestion())
 }
 
+/// Accept a suggestion by id (v2).
+#[tauri::command]
+pub fn input_completion_accept_v2(
+    manager: State<'_, InputCompletionManager>,
+    suggestion: CompletionSuggestionRef,
+) -> Result<Option<CompletionSuggestion>, String> {
+    Ok(manager.accept_suggestion_v2(suggestion))
+}
+
 /// Dismiss the current suggestion
 #[tauri::command]
 pub fn input_completion_dismiss(manager: State<'_, InputCompletionManager>) -> Result<(), String> {
     manager.dismiss_suggestion();
     Ok(())
+}
+
+/// Dismiss a suggestion by id (v2). Returns true when a suggestion existed.
+#[tauri::command]
+pub fn input_completion_dismiss_v2(
+    manager: State<'_, InputCompletionManager>,
+    suggestion: Option<CompletionSuggestionRef>,
+) -> Result<bool, String> {
+    Ok(manager.dismiss_suggestion_v2(suggestion))
 }
 
 /// Get the completion status
@@ -88,6 +107,15 @@ pub async fn input_completion_trigger(
     text: String,
 ) -> Result<CompletionResult, String> {
     manager.trigger_completion(&text).await
+}
+
+/// Trigger completion with metadata-rich v2 request.
+#[tauri::command]
+pub async fn input_completion_trigger_v2(
+    manager: State<'_, InputCompletionManager>,
+    request: CompletionRequestV2,
+) -> Result<CompletionResultV2, String> {
+    manager.trigger_completion_v2(request).await
 }
 
 /// Check if input completion is running

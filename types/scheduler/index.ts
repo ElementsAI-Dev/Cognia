@@ -46,6 +46,13 @@ export interface CronPreset {
   description: string;
 }
 
+export interface CronExpressionOption {
+  id: string;
+  label: string;
+  value: string;
+  description?: string;
+}
+
 /**
  * Task trigger configuration
  */
@@ -395,6 +402,16 @@ export const TIMEZONE_OPTIONS = [
   { value: 'Europe/Berlin', label: 'Central European Time (Berlin)', offset: '+01:00' },
   { value: 'Australia/Sydney', label: 'Australian Eastern Time (Sydney)', offset: '+10:00' },
 ];
+
+export function getCronExpressionOptions(limit?: number): CronExpressionOption[] {
+  const presets = typeof limit === 'number' ? CRON_PRESETS.slice(0, limit) : CRON_PRESETS;
+  return presets.map((preset) => ({
+    id: preset.id,
+    label: preset.label,
+    value: preset.expression,
+    description: preset.description,
+  }));
+}
 
 // Re-export system scheduler types with aliased names to avoid conflicts
 export {

@@ -23,6 +23,8 @@ const mockTestConnection = jest.fn().mockResolvedValue({
   suggestions: [{ id: 'test', text: 'test' }],
   latency_ms: 120,
 });
+const mockSyncCompletionSettings = jest.fn().mockResolvedValue(undefined);
+const mockIsTauri = jest.fn(() => false);
 
 const mockConfig = { ...DEFAULT_COMPLETION_CONFIG };
 
@@ -41,6 +43,14 @@ let mockHookState: Record<string, unknown> = {
 
 jest.mock('@/hooks/input-completion', () => ({
   useInputCompletion: () => mockHookState,
+}));
+
+jest.mock('@/lib/native/input-completion', () => ({
+  syncCompletionSettings: (...args: unknown[]) => mockSyncCompletionSettings(...args),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  isTauri: () => mockIsTauri(),
 }));
 
 // Mock UI components
@@ -214,6 +224,7 @@ describe('CompletionSettings', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsTauri.mockReturnValue(false);
     // Reset mock hook state
     mockHookState = {
       config: { ...DEFAULT_COMPLETION_CONFIG },
@@ -365,7 +376,7 @@ describe('CompletionSettings', () => {
 
     it('displays debounce label with value', () => {
       render(<CompletionSettings />);
-      expect(screen.getByText(/Debounce:/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Debounce:/).length).toBeGreaterThan(0);
     });
 
     it('displays min context length label with value', () => {
@@ -456,6 +467,24 @@ describe('CompletionSettings', () => {
         expect(mockUpdateConfig).toHaveBeenCalled();
         expect(onSave).toHaveBeenCalled();
       });
+      expect(mockSyncCompletionSettings).not.toHaveBeenCalled();
+    });
+
+    it('syncs unified settings to native runtime when running in tauri', async () => {
+      mockIsTauri.mockReturnValue(true);
+      render(<CompletionSettings />);
+
+      // Make a change first
+      const switches = screen.getAllByTestId('switch');
+      fireEvent.click(switches[0]);
+
+      // Click save
+      fireEvent.click(screen.getByText('Save Changes'));
+
+      await waitFor(() => {
+        expect(mockUpdateConfig).toHaveBeenCalled();
+        expect(mockSyncCompletionSettings).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('resets config to defaults when reset button is clicked', () => {
@@ -483,15 +512,15 @@ describe('CompletionSettings', () => {
 
     it('updates provider select', () => {
       render(<CompletionSettings />);
-      const selectTrigger = screen.getByTestId('select-trigger');
+      const selectTrigger = screen.getAllByTestId('select-trigger')[0];
       fireEvent.click(selectTrigger);
 
       // Check that select options exist
-      expect(screen.getByTestId('select-item-ollama')).toBeInTheDocument();
-      expect(screen.getByTestId('select-item-openai')).toBeInTheDocument();
-      expect(screen.getByTestId('select-item-groq')).toBeInTheDocument();
-      expect(screen.getByTestId('select-item-auto')).toBeInTheDocument();
-      expect(screen.getByTestId('select-item-custom')).toBeInTheDocument();
+      expect(screen.getAllByTestId('select-item-ollama').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('select-item-openai').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('select-item-groq').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('select-item-auto').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('select-item-custom').length).toBeGreaterThan(0);
     });
 
     it('updates model ID input', () => {

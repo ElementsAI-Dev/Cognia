@@ -9,6 +9,7 @@ jest.mock('@tauri-apps/api/core', () => ({
 }));
 
 import * as api from './input-completion';
+import { DEFAULT_COMPLETION_SETTINGS } from '@/types/chat/input-completion';
 
 describe('input-completion API', () => {
   beforeEach(() => {
@@ -90,11 +91,41 @@ describe('input-completion API', () => {
     });
   });
 
+  describe('acceptSuggestionV2', () => {
+    it('should call v2 accept command with suggestion ref', async () => {
+      const mockSuggestion = {
+        text: 'accepted text',
+        display_text: 'accepted text',
+        confidence: 0.85,
+        completion_type: 'Line',
+        id: 'accept-id',
+      };
+      mockInvoke.mockResolvedValue(mockSuggestion);
+
+      const result = await api.acceptSuggestionV2({ suggestion_id: 'accept-id' });
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_accept_v2', {
+        suggestion: { suggestion_id: 'accept-id' },
+      });
+      expect(result).toEqual(mockSuggestion);
+    });
+  });
+
   describe('dismissSuggestion', () => {
     it('should call dismiss command', async () => {
       mockInvoke.mockResolvedValue(undefined);
       await api.dismissSuggestion();
       expect(mockInvoke).toHaveBeenCalledWith('input_completion_dismiss');
+    });
+  });
+
+  describe('dismissSuggestionV2', () => {
+    it('should call v2 dismiss command', async () => {
+      mockInvoke.mockResolvedValue(true);
+      const result = await api.dismissSuggestionV2({ suggestion_id: 'dismiss-id' });
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_dismiss_v2', {
+        suggestion: { suggestion_id: 'dismiss-id' },
+      });
+      expect(result).toBe(true);
     });
   });
 
@@ -220,6 +251,32 @@ describe('input-completion API', () => {
     });
   });
 
+  describe('triggerCompletionV2', () => {
+    it('should trigger completion with v2 request', async () => {
+      const mockResult = {
+        request_id: 'req-1',
+        surface: 'chat_input',
+        mode: 'chat',
+        suggestions: [],
+        latency_ms: 80,
+        model: 'test-model',
+        cached: false,
+      };
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const request = {
+        request_id: 'req-1',
+        text: 'hello',
+        mode: 'chat' as const,
+        surface: 'chat_input' as const,
+      };
+
+      const result = await api.triggerCompletionV2(request);
+      expect(mockInvoke).toHaveBeenCalledWith('input_completion_trigger_v2', { request });
+      expect(result).toEqual(mockResult);
+    });
+  });
+
   describe('isInputCompletionRunning', () => {
     beforeEach(() => {
       jest.resetModules();
@@ -241,6 +298,44 @@ describe('input-completion API', () => {
       const result = await isInputCompletionRunning();
       expect(mockInvoke).toHaveBeenCalledWith('input_completion_is_running');
       expect(result).toBe(false);
+    });
+  });
+
+  describe('settings sync adapters', () => {
+    it('maps unified settings to native config with local-only trigger mode', () => {
+      const mapped = api.mapSettingsToCompletionConfig({
+        ...DEFAULT_COMPLETION_SETTINGS,
+        aiCompletionEnabled: true,
+        aiCompletionProvider: 'auto',
+        aiCompletionDebounce: 250,
+        aiCompletionMaxTokens: 96,
+      });
+
+      expect(mapped.enabled).toBe(true);
+      expect(mapped.model.provider).toBe('auto');
+      expect(mapped.trigger.debounce_ms).toBe(250);
+      expect(mapped.trigger.input_capture_mode).toBe('local_only');
+      expect(mapped.model.max_tokens).toBe(96);
+    });
+
+    it('syncs unified settings through input_completion_update_config', async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await api.syncCompletionSettings({
+        ...DEFAULT_COMPLETION_SETTINGS,
+        aiCompletionEnabled: true,
+        aiCompletionProvider: 'groq',
+      });
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'input_completion_update_config',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            enabled: true,
+            model: expect.objectContaining({ provider: 'groq' }),
+          }),
+        })
+      );
     });
   });
 });

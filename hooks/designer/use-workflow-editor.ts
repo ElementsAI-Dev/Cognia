@@ -1,32 +1,13 @@
 /**
  * useWorkflowEditor Hook
- * Provides workflow editor functionality with execution integration
- * 
- * This hook wraps useWorkflowEditorStore and useWorkflow to provide a unified API for:
- * - Auto-save functionality (configurable interval)
- * - Workflow execution with step-by-step tracking and logging
- * - Import/export utilities
- * - Validation with error handling
- * 
- * Use this hook when you need a simplified interface for workflow editing with execution.
- * For direct store access with more control, use useWorkflowEditorStore directly.
- * 
- * @example
- * ```tsx
- * const { currentWorkflow, executeWorkflow, isDirty } = useWorkflowEditor({
- *   autoSave: true,
- *   autoSaveInterval: 30000,
- *   onExecutionComplete: (execution) => console.log('Done:', execution),
- * });
- * ```
+ * Unified workflow editor API backed by workflow editor store + orchestrator single entry.
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+
 import { useWorkflowEditorStore } from '@/stores/workflow';
-import { useWorkflow } from './use-workflow';
-import { visualToDefinition } from '@/lib/workflow-editor/converter';
-import type { VisualWorkflow, ValidationError } from '@/types/workflow/workflow-editor';
-import type { WorkflowExecution } from '@/types/workflow';
+import type { WorkflowExecution, WorkflowExecutionStatus } from '@/types/workflow';
+import type { VisualWorkflow, EditorExecutionStatus } from '@/types/workflow/workflow-editor';
 
 interface UseWorkflowEditorOptions {
   autoSave?: boolean;
@@ -36,13 +17,10 @@ interface UseWorkflowEditorOptions {
 }
 
 interface UseWorkflowEditorReturn {
-  // State
   currentWorkflow: VisualWorkflow | null;
   isExecuting: boolean;
   isDirty: boolean;
-  validationErrors: ValidationError[];
-
-  // Actions
+  validationErrors: import('@/types/workflow/workflow-editor').ValidationError[];
   createWorkflow: (name?: string) => void;
   loadWorkflow: (workflow: VisualWorkflow) => void;
   saveWorkflow: () => Promise<void>;
@@ -51,10 +29,83 @@ interface UseWorkflowEditorReturn {
   resumeExecution: () => void;
   cancelExecution: () => void;
   validate: () => boolean;
-
-  // Utilities
   exportWorkflow: () => string | null;
   importWorkflow: (json: string) => boolean;
+}
+
+function toWorkflowExecutionStatus(status: EditorExecutionStatus): WorkflowExecutionStatus {
+  if (status === 'running') {
+    return 'executing';
+  }
+
+  if (
+    status === 'idle' ||
+    status === 'paused' ||
+    status === 'completed' ||
+    status === 'failed' ||
+    status === 'cancelled'
+  ) {
+    return status;
+  }
+
+  return 'planning';
+}
+
+function toWorkflowExecution(
+  workflow: VisualWorkflow,
+  executionState: NonNullable<ReturnType<typeof useWorkflowEditorStore.getState>['executionState']>
+): WorkflowExecution {
+  return {
+    id: executionState.executionId,
+    workflowId: workflow.id,
+    workflowName: workflow.name,
+    workflowType: workflow.type,
+    sessionId: executionState.executionId,
+    status: toWorkflowExecutionStatus(executionState.status),
+    config: workflow.settings as unknown as Record<string, unknown>,
+    input: executionState.input,
+    output: executionState.output,
+    progress: executionState.progress,
+    startedAt: executionState.startedAt,
+    completedAt: executionState.completedAt,
+    duration: executionState.duration,
+    error: executionState.error,
+    runtime: executionState.runtime,
+    triggerId: executionState.triggerId,
+    isReplay: executionState.isReplay,
+    steps: Object.values(executionState.nodeStates).map((nodeState) => ({
+      stepId: nodeState.nodeId,
+      status:
+        nodeState.status === 'waiting'
+          ? 'waiting_approval'
+          : (nodeState.status as
+              | 'pending'
+              | 'running'
+              | 'completed'
+              | 'failed'
+              | 'skipped'),
+      startedAt: nodeState.startedAt,
+      completedAt: nodeState.completedAt,
+      duration: nodeState.duration,
+      input: nodeState.input,
+      output: nodeState.output,
+      error: nodeState.error,
+      retryCount: nodeState.retryCount,
+      logs: nodeState.logs.map((log) => ({
+        timestamp: log.timestamp,
+        level: log.level,
+        message: log.message,
+        stepId: nodeState.nodeId,
+        data: log.data,
+      })),
+    })),
+    logs: executionState.logs.map((log) => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      message: log.message,
+      data: log.data,
+    })),
+  };
 }
 
 export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWorkflowEditorReturn {
@@ -69,74 +120,44 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     currentWorkflow,
     isDirty,
     isExecuting,
+    executionState,
     validationErrors,
     createWorkflow,
     loadWorkflow,
     saveWorkflow,
     validate,
     startExecution,
-    pauseExecution: pauseEditorExecution,
-    resumeExecution: resumeEditorExecution,
-    cancelExecution: cancelEditorExecution,
-    updateNodeExecutionState,
-    addExecutionLog,
-    clearExecutionState,
+    pauseExecution,
+    resumeExecution,
+    cancelExecution,
   } = useWorkflowEditorStore();
 
-  const {
-    run: runWorkflow,
-    pause: pauseWorkflowExecution,
-    resume: resumeWorkflowExecution,
-    cancel: cancelWorkflowExecution,
-    isRunning,
-  } = useWorkflow({
-    onStepStart: (execution, stepId) => {
-      updateNodeExecutionState(stepId, {
-        status: 'running',
-        startedAt: new Date(),
-      });
-    },
-    onStepComplete: (execution, stepId, output) => {
-      updateNodeExecutionState(stepId, {
-        status: 'completed',
-        completedAt: new Date(),
-        output: output as Record<string, unknown>,
-      });
-    },
-    onStepError: (execution, stepId, error) => {
-      updateNodeExecutionState(stepId, {
-        status: 'failed',
-        error,
-      });
-    },
-    onProgress: (execution, progress) => {
-      addExecutionLog({
-        timestamp: new Date(),
-        level: 'info',
-        message: `Progress: ${Math.round(progress * 100)}%`,
-      });
-    },
-    onComplete: (execution) => {
-      clearExecutionState();
-      onExecutionComplete?.(execution);
-    },
-    onError: (execution, error) => {
-      clearExecutionState();
-      onExecutionError?.(error);
-    },
-    onLog: (log) => {
-      addExecutionLog({
-        timestamp: new Date(),
-        level: log.level,
-        message: log.message,
-        data: log.data,
-      });
-    },
-  });
+  const lastNotifiedStatus = useRef<EditorExecutionStatus | null>(null);
 
-  // Auto-save effect
   useEffect(() => {
-    if (!autoSave || !isDirty || !currentWorkflow) return;
+    if (!executionState || !currentWorkflow) {
+      return;
+    }
+
+    if (lastNotifiedStatus.current === executionState.status) {
+      return;
+    }
+
+    lastNotifiedStatus.current = executionState.status;
+
+    if (executionState.status === 'completed') {
+      onExecutionComplete?.(toWorkflowExecution(currentWorkflow, executionState));
+    }
+
+    if (executionState.status === 'failed') {
+      onExecutionError?.(executionState.error || 'Workflow execution failed');
+    }
+  }, [executionState, currentWorkflow, onExecutionComplete, onExecutionError]);
+
+  useEffect(() => {
+    if (!autoSave || !isDirty || !currentWorkflow) {
+      return;
+    }
 
     const timer = setTimeout(() => {
       void saveWorkflow();
@@ -145,69 +166,43 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     return () => clearTimeout(timer);
   }, [autoSave, autoSaveInterval, isDirty, currentWorkflow, saveWorkflow]);
 
-  // Execute workflow
   const executeWorkflow = useCallback(
     async (input: Record<string, unknown> = {}): Promise<WorkflowExecution | null> => {
-      if (!currentWorkflow) return null;
+      if (!currentWorkflow) {
+        return null;
+      }
 
-      // Validate first
       const errors = validate();
-      if (errors.some((e) => e.severity === 'error')) {
+      if (errors.some((error) => error.severity === 'error')) {
         onExecutionError?.('Workflow has validation errors');
         return null;
       }
 
-      // Convert to executable definition
-      const definition = visualToDefinition(currentWorkflow);
+      await startExecution(input);
 
-      // Start execution tracking
-      startExecution(input);
-
-      try {
-        // Run the workflow
-        const result = await runWorkflow(definition.id, input);
-        return result.execution;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        onExecutionError?.(errorMessage);
-        clearExecutionState();
+      const finalExecutionState = useWorkflowEditorStore.getState().executionState;
+      if (!finalExecutionState) {
         return null;
       }
+
+      return toWorkflowExecution(currentWorkflow, finalExecutionState);
     },
-    [currentWorkflow, validate, startExecution, runWorkflow, onExecutionError, clearExecutionState]
+    [currentWorkflow, onExecutionError, startExecution, validate]
   );
 
-  // Pause execution
-  const pauseExecution = useCallback(() => {
-    pauseEditorExecution();
-    pauseWorkflowExecution();
-  }, [pauseEditorExecution, pauseWorkflowExecution]);
-
-  // Resume execution
-  const resumeExecution = useCallback(() => {
-    resumeEditorExecution();
-    resumeWorkflowExecution();
-  }, [resumeEditorExecution, resumeWorkflowExecution]);
-
-  // Cancel execution
-  const cancelExecution = useCallback(() => {
-    cancelEditorExecution();
-    cancelWorkflowExecution();
-  }, [cancelEditorExecution, cancelWorkflowExecution]);
-
-  // Validate workflow
   const validateWorkflow = useCallback((): boolean => {
     const errors = validate();
-    return !errors.some((e) => e.severity === 'error');
+    return !errors.some((error) => error.severity === 'error');
   }, [validate]);
 
-  // Export workflow as JSON
   const exportWorkflow = useCallback((): string | null => {
-    if (!currentWorkflow) return null;
+    if (!currentWorkflow) {
+      return null;
+    }
+
     return JSON.stringify(currentWorkflow, null, 2);
   }, [currentWorkflow]);
 
-  // Import workflow from JSON
   const importWorkflow = useCallback(
     (json: string): boolean => {
       try {
@@ -222,13 +217,10 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
   );
 
   return {
-    // State
     currentWorkflow,
-    isExecuting: isExecuting || isRunning,
+    isExecuting,
     isDirty,
     validationErrors,
-
-    // Actions
     createWorkflow,
     loadWorkflow,
     saveWorkflow,
@@ -237,8 +229,6 @@ export function useWorkflowEditor(options: UseWorkflowEditorOptions = {}): UseWo
     resumeExecution,
     cancelExecution,
     validate: validateWorkflow,
-
-    // Utilities
     exportWorkflow,
     importWorkflow,
   };

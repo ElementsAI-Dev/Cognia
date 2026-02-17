@@ -41,6 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useLearningMode } from '@/hooks/ui';
+import { useSessionStore } from '@/stores/chat';
 import type {
   DifficultyLevel,
   LearningStyle,
@@ -49,7 +50,9 @@ import type {
   LearningPathDuration,
 } from '@/types/learning';
 import { detectLearningType } from '@/lib/learning';
+import { detectSpeedLearningMode } from '@/lib/learning/speedpass';
 import { cn } from '@/lib/utils';
+import type { LearningSubMode } from '@/types/core/session';
 
 interface LearningStartDialogProps {
   open: boolean;
@@ -64,6 +67,8 @@ export const LearningStartDialog = memo(function LearningStartDialog({
 }: LearningStartDialogProps) {
   const t = useTranslations('learningMode');
   const { startLearning } = useLearningMode();
+  const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const updateSession = useSessionStore((state) => state.updateSession);
 
   const [topic, setTopic] = useState('');
   const [background, setBackground] = useState('');
@@ -77,6 +82,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const [category, setCategory] = useState<LearningCategory>('other');
   const [estimatedDuration, setEstimatedDuration] = useState<LearningPathDuration>('weeks');
   const [detectionConfidence, setDetectionConfidence] = useState<number>(0);
+  const [pathType, setPathType] = useState<LearningSubMode>('socratic');
+  const [speedPassAvailableMinutes, setSpeedPassAvailableMinutes] = useState('');
+  const [speedPassTargetScore, setSpeedPassTargetScore] = useState('');
+  const [speedPassExamDate, setSpeedPassExamDate] = useState('');
 
   // Auto-detect learning type on topic blur
   const handleTopicBlur = useCallback(() => {
@@ -118,17 +127,51 @@ export const LearningStartDialog = memo(function LearningStartDialog({
   const handleStart = useCallback(() => {
     if (!topic.trim()) return;
 
-    startLearning({
-      topic: topic.trim(),
-      backgroundKnowledge: background.trim() || undefined,
-      learningGoals: goals.length > 0 ? goals : undefined,
-      preferredDifficulty: difficulty,
-      preferredStyle: learningStyle,
-      durationType,
-      category,
-      estimatedDuration: durationType === 'journey' ? estimatedDuration : undefined,
-      autoDetectType: false, // We've already detected
-    });
+    if (pathType === 'socratic') {
+      startLearning({
+        topic: topic.trim(),
+        backgroundKnowledge: background.trim() || undefined,
+        learningGoals: goals.length > 0 ? goals : undefined,
+        preferredDifficulty: difficulty,
+        preferredStyle: learningStyle,
+        durationType,
+        category,
+        estimatedDuration: durationType === 'journey' ? estimatedDuration : undefined,
+        autoDetectType: false, // We've already detected
+      });
+    }
+
+    if (activeSessionId) {
+      const parsedAvailableMinutes = Number.parseInt(speedPassAvailableMinutes, 10);
+      const parsedTargetScore = Number.parseInt(speedPassTargetScore, 10);
+      const modeDetection = detectSpeedLearningMode(topic, {
+        availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
+          ? parsedAvailableMinutes
+          : undefined,
+        targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
+      });
+
+      updateSession(activeSessionId, {
+        learningContext: {
+          subMode: pathType,
+          speedpassContext:
+            pathType === 'speedpass'
+              ? {
+                  sourceMessage: topic.trim(),
+                  availableTimeMinutes: Number.isFinite(parsedAvailableMinutes)
+                    ? parsedAvailableMinutes
+                    : undefined,
+                  targetScore: Number.isFinite(parsedTargetScore) ? parsedTargetScore : undefined,
+                  examDate: speedPassExamDate
+                    ? new Date(`${speedPassExamDate}T00:00:00`).toISOString()
+                    : undefined,
+                  recommendedMode: modeDetection.recommendedMode,
+                  updatedAt: new Date(),
+                }
+              : undefined,
+        },
+      });
+    }
 
     // Reset form
     setTopic('');
@@ -141,6 +184,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setCategory('other');
     setEstimatedDuration('weeks');
     setDetectionConfidence(0);
+    setPathType('socratic');
+    setSpeedPassAvailableMinutes('');
+    setSpeedPassTargetScore('');
+    setSpeedPassExamDate('');
 
     onOpenChange(false);
     onStart?.();
@@ -153,7 +200,13 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     durationType,
     category,
     estimatedDuration,
+    pathType,
     startLearning,
+    activeSessionId,
+    speedPassAvailableMinutes,
+    speedPassTargetScore,
+    speedPassExamDate,
+    updateSession,
     onOpenChange,
     onStart,
   ]);
@@ -171,6 +224,10 @@ export const LearningStartDialog = memo(function LearningStartDialog({
     setCategory('other');
     setEstimatedDuration('weeks');
     setDetectionConfidence(0);
+    setPathType('socratic');
+    setSpeedPassAvailableMinutes('');
+    setSpeedPassTargetScore('');
+    setSpeedPassExamDate('');
   }, [onOpenChange]);
 
   return (
@@ -199,6 +256,81 @@ export const LearningStartDialog = memo(function LearningStartDialog({
               placeholder={t('startDialog.topicPlaceholder')}
             />
           </div>
+
+          {/* Learning Path Type */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              学习路径类型
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPathType('socratic')}
+                className={cn(
+                  'flex flex-col items-start gap-1 p-3 rounded-lg border-2 transition-colors text-left',
+                  pathType === 'socratic'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <span className="text-sm font-medium">Socratic</span>
+                <span className="text-xs text-muted-foreground">对话式引导理解与拆解</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPathType('speedpass')}
+                className={cn(
+                  'flex flex-col items-start gap-1 p-3 rounded-lg border-2 transition-colors text-left',
+                  pathType === 'speedpass'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                )}
+              >
+                <span className="text-sm font-medium">SpeedPass</span>
+                <span className="text-xs text-muted-foreground">目标导向备考与刷题速通</span>
+              </button>
+            </div>
+          </div>
+
+          {pathType === 'speedpass' && (
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="speedpass-minutes">可用时长(分钟)</Label>
+                  <Input
+                    id="speedpass-minutes"
+                    type="number"
+                    min={0}
+                    value={speedPassAvailableMinutes}
+                    onChange={(e) => setSpeedPassAvailableMinutes(e.target.value)}
+                    placeholder="120"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="speedpass-target">目标分数</Label>
+                  <Input
+                    id="speedpass-target"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={speedPassTargetScore}
+                    onChange={(e) => setSpeedPassTargetScore(e.target.value)}
+                    placeholder="75"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="speedpass-exam-date">考试日期</Label>
+                <Input
+                  id="speedpass-exam-date"
+                  type="date"
+                  value={speedPassExamDate}
+                  onChange={(e) => setSpeedPassExamDate(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Learning Type Selection */}
           <div className="space-y-2">

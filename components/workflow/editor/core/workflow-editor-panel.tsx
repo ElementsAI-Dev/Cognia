@@ -79,7 +79,6 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
 
   const {
     currentWorkflow,
-    isDirty,
     showNodePalette,
     showConfigPanel,
     showExecutionPanel,
@@ -98,11 +97,9 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     createWorkflow,
     setViewport,
     pushHistory,
-    saveWorkflow,
   } = useWorkflowEditorStore(
     useShallow((state) => ({
       currentWorkflow: state.currentWorkflow,
-      isDirty: state.isDirty,
       showNodePalette: state.showNodePalette,
       showConfigPanel: state.showConfigPanel,
       showExecutionPanel: state.showExecutionPanel,
@@ -121,7 +118,6 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
       createWorkflow: state.createWorkflow,
       setViewport: state.setViewport,
       pushHistory: state.pushHistory,
-      saveWorkflow: state.saveWorkflow,
     }))
   );
 
@@ -137,18 +133,6 @@ function WorkflowEditorContent({ className }: WorkflowEditorPanelProps) {
     if (!currentWorkflow) return;
     setReactFlowViewport(currentWorkflow.viewport);
   }, [currentWorkflow?.id, currentWorkflow, setReactFlowViewport]);
-
-  // Auto-save
-  useEffect(() => {
-    if (!currentWorkflow?.settings.autoSave) return;
-    if (!isDirty) return;
-
-    const timer = setTimeout(() => {
-      void saveWorkflow();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [currentWorkflow?.id, currentWorkflow?.settings.autoSave, isDirty, saveWorkflow]);
 
   // Keyboard shortcuts - pass view callbacks for zoom/fit
   useWorkflowKeyboardShortcuts({

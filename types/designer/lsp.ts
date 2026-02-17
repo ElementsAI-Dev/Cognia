@@ -6,6 +6,21 @@ export type LspSessionStatus = 'disabled' | 'starting' | 'connected' | 'fallback
 
 export type LspCapabilityValue = boolean | Record<string, unknown>;
 
+export type LspTextDocumentSyncKind = 0 | 1 | 2;
+
+export interface LspTextDocumentSyncOptions {
+  openClose?: boolean;
+  change?: LspTextDocumentSyncKind;
+  willSave?: boolean;
+  willSaveWaitUntil?: boolean;
+  save?: boolean | { includeText?: boolean };
+}
+
+export interface LspRequestMeta {
+  clientRequestId?: string;
+  timeoutMs?: number;
+}
+
 export interface LspCapabilities {
   completionProvider?: Record<string, unknown>;
   hoverProvider?: LspCapabilityValue;
@@ -14,7 +29,7 @@ export interface LspCapabilities {
   codeActionProvider?: LspCapabilityValue;
   documentFormattingProvider?: LspCapabilityValue;
   workspaceSymbolProvider?: LspCapabilityValue;
-  textDocumentSync?: unknown;
+  textDocumentSync?: LspTextDocumentSyncKind | LspTextDocumentSyncOptions;
 }
 
 export interface LspStartSessionRequest {
@@ -56,6 +71,12 @@ export interface LspCommand {
 export interface LspTextEdit {
   range: LspRange;
   newText: string;
+}
+
+export interface LspTextDocumentContentChangeEvent {
+  range?: LspRange;
+  rangeLength?: number;
+  text: string;
 }
 
 export interface LspWorkspaceEdit {

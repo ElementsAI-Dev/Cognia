@@ -135,6 +135,7 @@ import {
   isAudioModel,
   isVideoModel,
 } from '@/lib/ai';
+import { detectSpeedLearningMode, isSpeedLearningIntent } from '@/lib/learning/speedpass';
 import { RoutingIndicator } from '../ui/routing-indicator';
 
 import type { ModelSelection } from '@/types/provider/auto-router';
@@ -149,6 +150,17 @@ import { ErrorBoundaryProvider } from '@/components/providers/core/error-boundar
 import type { AgentModeConfig } from '@/types/agent/agent-mode';
 
 const log = loggers.chat;
+
+function resolveSpeedPassTargetScore(mode: 'extreme' | 'speed' | 'comprehensive'): number {
+  switch (mode) {
+    case 'extreme':
+      return 60;
+    case 'speed':
+      return 75;
+    case 'comprehensive':
+      return 85;
+  }
+}
 
 /**
  * Props for the {@link ChatContainer} component.
@@ -1396,12 +1408,43 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
       const effectiveContent = preChatResult.effectiveContent;
       const hookAdditionalContext = preChatResult.hookAdditionalContext;
 
-      // Check for feature routing intent (navigate to feature pages)
-      const featureResult = await checkFeatureIntent(effectiveContent);
-      if (featureResult.detected && featureResult.feature) {
-        // If feature intent detected with high confidence, the dialog will show
-        // and the message will be sent after user confirms or continues
-        return;
+      const shouldSwitchToSpeedPassSubMode =
+        currentMode === 'learning' && isSpeedLearningIntent(effectiveContent);
+
+      if (shouldSwitchToSpeedPassSubMode && session) {
+        const modeDetection = detectSpeedLearningMode(effectiveContent);
+        const existingSpeedPassContext = session.learningContext?.speedpassContext;
+        const detectedExamDate = modeDetection.detectedUrgencyDays;
+        const examDate =
+          typeof detectedExamDate === 'number'
+            ? new Date(Date.now() + detectedExamDate * 24 * 60 * 60 * 1000).toISOString()
+            : existingSpeedPassContext?.examDate;
+
+        updateSession(session.id, {
+          learningContext: {
+            subMode: 'speedpass',
+            speedpassContext: {
+              ...existingSpeedPassContext,
+              sourceMessage: effectiveContent,
+              availableTimeMinutes:
+                modeDetection.detectedTime ?? existingSpeedPassContext?.availableTimeMinutes,
+              targetScore:
+                existingSpeedPassContext?.targetScore ??
+                resolveSpeedPassTargetScore(modeDetection.recommendedMode),
+              examDate,
+              recommendedMode: modeDetection.recommendedMode,
+              updatedAt: new Date(),
+            },
+          },
+        });
+      } else {
+        // Check for feature routing intent (navigate to feature pages)
+        const featureResult = await checkFeatureIntent(effectiveContent);
+        if (featureResult.detected && featureResult.feature) {
+          // If feature intent detected with high confidence, the dialog will show
+          // and the message will be sent after user confirms or continues
+          return;
+        }
       }
 
       // Check for learning/research intent (works in all modes)
@@ -2387,7 +2430,15 @@ export function ChatContainer({ sessionId }: ChatContainerProps) {
         }}
         modelName={currentModel}
         providerId={currentProvider}
-        modeName={currentMode === 'chat' ? 'Chat' : currentMode === 'agent' ? 'Agent' : 'Research'}
+        modeName={
+          currentMode === 'chat'
+            ? 'Chat'
+            : currentMode === 'agent'
+              ? 'Agent'
+              : currentMode === 'learning'
+                ? 'Learning'
+                : 'Research'
+        }
         onModeClick={() => {
           // Cycle through modes: chat -> agent -> research -> chat
           const modes: ChatMode[] = ['chat', 'agent', 'research'];

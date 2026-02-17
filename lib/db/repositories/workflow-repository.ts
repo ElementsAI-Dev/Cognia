@@ -7,6 +7,7 @@ import { createWorkflowExport } from '@/types/workflow/workflow-editor';
 import type { VisualWorkflow, WorkflowNode, WorkflowEdge, WorkflowSettings, WorkflowExport, WorkflowExecutionHistoryRecord, EditorExecutionStatus } from '@/types/workflow/workflow-editor';
 import type { Viewport } from '@xyflow/react';
 import { nanoid } from 'nanoid';
+import { migrateWorkflowSchema } from '@/lib/workflow-editor/migration';
 
 // Default workflow settings
 const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
@@ -31,10 +32,16 @@ function isWorkflowExport(data: unknown): data is WorkflowExport {
   return Boolean(workflow && typeof workflow === 'object');
 }
 
-// Convert DBWorkflow to VisualWorkflow
-function toVisualWorkflow(dbWorkflow: DBWorkflow): VisualWorkflow {
-  return {
+interface HydratedWorkflowResult {
+  workflow: VisualWorkflow;
+  needsWriteBack: boolean;
+  raw: DBWorkflow;
+}
+
+function hydrateWorkflow(dbWorkflow: DBWorkflow): HydratedWorkflowResult {
+  const legacyWorkflow: VisualWorkflow = {
     id: dbWorkflow.id,
+    schemaVersion: '1.0',
     name: dbWorkflow.name,
     description: dbWorkflow.description || '',
     type: 'custom',
@@ -53,6 +60,38 @@ function toVisualWorkflow(dbWorkflow: DBWorkflow): VisualWorkflow {
     updatedAt: dbWorkflow.updatedAt,
     isTemplate: dbWorkflow.isTemplate,
   };
+
+  const migrated = migrateWorkflowSchema(legacyWorkflow);
+  const migratedWorkflow = migrated.workflow;
+
+  const needsWriteBack =
+    migrated.warnings.length > 0 ||
+    JSON.stringify(legacyWorkflow.nodes) !== JSON.stringify(migratedWorkflow.nodes) ||
+    JSON.stringify(legacyWorkflow.settings) !== JSON.stringify(migratedWorkflow.settings) ||
+    JSON.stringify(legacyWorkflow.viewport) !== JSON.stringify(migratedWorkflow.viewport);
+
+  return {
+    workflow: migratedWorkflow,
+    needsWriteBack,
+    raw: dbWorkflow,
+  };
+}
+
+// Convert DBWorkflow to VisualWorkflow
+function toVisualWorkflow(dbWorkflow: DBWorkflow): VisualWorkflow {
+  return hydrateWorkflow(dbWorkflow).workflow;
+}
+
+async function persistMigratedWorkflow(result: HydratedWorkflowResult): Promise<void> {
+  if (!result.needsWriteBack) return;
+
+  await db.workflows.put({
+    ...result.raw,
+    nodes: JSON.stringify(result.workflow.nodes),
+    edges: JSON.stringify(result.workflow.edges),
+    settings: result.workflow.settings ? JSON.stringify(result.workflow.settings) : undefined,
+    viewport: result.workflow.viewport ? JSON.stringify(result.workflow.viewport) : undefined,
+  });
 }
 
 // Convert VisualWorkflow to DBWorkflow
@@ -120,6 +159,17 @@ export interface CreateWorkflowInput {
   isTemplate?: boolean;
 }
 
+export interface CreateWorkflowExecutionInput {
+  executionId?: string;
+  status?: WorkflowExecutionHistoryRecord['status'];
+  startedAt?: Date;
+  completedAt?: Date;
+  output?: Record<string, unknown>;
+  nodeStates?: Record<string, import('@/types/workflow/workflow-editor').NodeExecutionState>;
+  logs?: import('@/types/workflow/workflow-editor').ExecutionLog[];
+  error?: string;
+}
+
 export interface UpdateWorkflowInput {
   name?: string;
   description?: string;
@@ -142,7 +192,9 @@ export const workflowRepository = {
       .reverse()
       .sortBy('updatedAt');
 
-    return workflows.map(toVisualWorkflow);
+    const hydrated = workflows.map((workflow) => hydrateWorkflow(workflow));
+    await Promise.all(hydrated.map((result) => persistMigratedWorkflow(result)));
+    return hydrated.map((result) => result.workflow);
   },
 
   /**
@@ -154,7 +206,9 @@ export const workflowRepository = {
       .reverse()
       .sortBy('updatedAt');
 
-    return templates.map(toVisualWorkflow);
+    const hydrated = templates.map((workflow) => hydrateWorkflow(workflow));
+    await Promise.all(hydrated.map((result) => persistMigratedWorkflow(result)));
+    return hydrated.map((result) => result.workflow);
   },
 
   /**
@@ -166,7 +220,9 @@ export const workflowRepository = {
       .reverse()
       .sortBy('updatedAt');
 
-    return workflows.map(toVisualWorkflow);
+    const hydrated = workflows.map((workflow) => hydrateWorkflow(workflow));
+    await Promise.all(hydrated.map((result) => persistMigratedWorkflow(result)));
+    return hydrated.map((result) => result.workflow);
   },
 
   /**
@@ -174,7 +230,11 @@ export const workflowRepository = {
    */
   async getById(id: string): Promise<VisualWorkflow | undefined> {
     const workflow = await db.workflows.get(id);
-    return workflow ? toVisualWorkflow(workflow) : undefined;
+    if (!workflow) return undefined;
+
+    const hydrated = hydrateWorkflow(workflow);
+    await persistMigratedWorkflow(hydrated);
+    return hydrated.workflow;
   },
 
   /**
@@ -184,6 +244,7 @@ export const workflowRepository = {
     const now = new Date();
     const workflow: VisualWorkflow = {
       id: `workflow-${nanoid()}`,
+      schemaVersion: '2.0',
       name: input.name,
       description: input.description || '',
       type: 'custom',
@@ -315,7 +376,9 @@ export const workflowRepository = {
       )
       .toArray();
 
-    return workflows.map(toVisualWorkflow);
+    const hydrated = workflows.map((workflow) => hydrateWorkflow(workflow));
+    await Promise.all(hydrated.map((result) => persistMigratedWorkflow(result)));
+    return hydrated.map((result) => result.workflow);
   },
 
   /**
@@ -331,6 +394,7 @@ export const workflowRepository = {
     const workflow: VisualWorkflow = {
       ...imported,
       id: `workflow-${nanoid()}`,
+      schemaVersion: imported.schemaVersion || '2.0',
       version: '1',
       createdAt: now,
       updatedAt: now,
@@ -358,15 +422,21 @@ export const workflowRepository = {
    */
   async createExecution(
     workflowId: string,
-    input: Record<string, unknown> = {}
+    input: Record<string, unknown> = {},
+    options: CreateWorkflowExecutionInput = {}
   ): Promise<WorkflowExecutionHistoryRecord> {
-    const now = new Date();
+    const now = options.startedAt || new Date();
     const execution: WorkflowExecutionHistoryRecord = {
-      id: `exec-${nanoid()}`,
+      id: options.executionId || `exec-${nanoid()}`,
       workflowId,
-      status: 'pending',
+      status: options.status || 'pending',
       input,
+      output: options.output,
+      nodeStates: options.nodeStates,
+      logs: options.logs,
+      error: options.error,
       startedAt: now,
+      completedAt: options.completedAt,
     };
 
     await db.workflowExecutions.add(toDBWorkflowExecution(execution));

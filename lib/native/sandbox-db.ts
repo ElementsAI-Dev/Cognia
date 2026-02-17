@@ -5,7 +5,6 @@
  * including execution history, code snippets, sessions, and statistics.
  */
 
-import { invoke } from '@tauri-apps/api/core';
 import type {
   CodeSnippet,
   CreateSnippetRequest,
@@ -23,6 +22,37 @@ import type {
   SandboxStatus,
   SnippetFilter,
 } from '@/types/system/sandbox';
+import {
+  checkRuntime as coreCheckRuntime,
+  cleanupSandbox as coreCleanupSandbox,
+  deleteSession as coreDeleteSession,
+  endSession as coreEndSession,
+  executeCode as coreExecuteCode,
+  executeCodeWithOptions as coreExecuteCodeWithOptions,
+  executeWithLimits as coreExecuteWithLimits,
+  executeWithStdin as coreExecuteWithStdin,
+  getAvailableRuntimes as coreGetAvailableRuntimes,
+  getBackendSandboxConfig as coreGetBackendSandboxConfig,
+  getCurrentSession as coreGetCurrentSession,
+  getRuntimeInfo as coreGetRuntimeInfo,
+  getSandboxStatus as coreGetSandboxStatus,
+  getSession as coreGetSession,
+  getSessionExecutions as coreGetSessionExecutions,
+  getSupportedLanguages as coreGetSupportedLanguages,
+  invokeSandboxCommand,
+  listSessions as coreListSessions,
+  prepareLanguage as corePrepareLanguage,
+  quickExecute as coreQuickExecute,
+  setCurrentSession as coreSetCurrentSession,
+  setDefaultMemoryLimit as coreSetDefaultMemoryLimit,
+  setDefaultTimeout as coreSetDefaultTimeout,
+  setNetworkEnabled as coreSetNetworkEnabled,
+  setPreferredRuntime as coreSetPreferredRuntime,
+  startSession as coreStartSession,
+  toggleLanguage as coreToggleLanguage,
+  updateBackendSandboxConfig as coreUpdateBackendSandboxConfig,
+  updateSession as coreUpdateSession,
+} from './sandbox-core';
 
 // ==================== Execution ====================
 
@@ -32,7 +62,7 @@ import type {
 export async function executeCode(
   request: ExecutionRequest
 ): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_execute', { request });
+  return coreExecuteCode(request);
 }
 
 /**
@@ -43,11 +73,7 @@ export async function executeCodeWithOptions(
   tags: string[] = [],
   saveToHistory: boolean = true
 ): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_options', {
-    request,
-    tags,
-    saveToHistory,
-  });
+  return coreExecuteCodeWithOptions(request, tags, saveToHistory);
 }
 
 /**
@@ -57,7 +83,7 @@ export async function quickExecute(
   language: string,
   code: string
 ): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_quick_execute', { language, code });
+  return coreQuickExecute(language, code);
 }
 
 /**
@@ -68,11 +94,7 @@ export async function executeWithStdin(
   code: string,
   stdin: string
 ): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_stdin', {
-    language,
-    code,
-    stdin,
-  });
+  return coreExecuteWithStdin(language, code, stdin);
 }
 
 /**
@@ -84,12 +106,7 @@ export async function executeWithLimits(
   timeoutSecs: number,
   memoryMb: number
 ): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_execute_with_limits', {
-    language,
-    code,
-    timeoutSecs,
-    memoryMb,
-  });
+  return coreExecuteWithLimits(language, code, timeoutSecs, memoryMb);
 }
 
 // ==================== Configuration ====================
@@ -98,14 +115,14 @@ export async function executeWithLimits(
  * Get sandbox status
  */
 export async function getSandboxStatus(): Promise<SandboxStatus> {
-  return invoke<SandboxStatus>('sandbox_get_status');
+  return coreGetSandboxStatus();
 }
 
 /**
  * Get sandbox configuration
  */
 export async function getBackendSandboxConfig(): Promise<BackendSandboxConfig> {
-  return invoke<BackendSandboxConfig>('sandbox_get_config');
+  return coreGetBackendSandboxConfig();
 }
 
 /**
@@ -114,56 +131,56 @@ export async function getBackendSandboxConfig(): Promise<BackendSandboxConfig> {
 export async function updateBackendSandboxConfig(
   config: BackendSandboxConfig
 ): Promise<void> {
-  return invoke<void>('sandbox_update_config', { config });
+  return coreUpdateBackendSandboxConfig(config);
 }
 
 /**
  * Get available runtimes
  */
 export async function getAvailableRuntimes(): Promise<RuntimeType[]> {
-  return invoke<RuntimeType[]>('sandbox_get_runtimes');
+  return coreGetAvailableRuntimes();
 }
 
 /**
  * Get supported languages
  */
 export async function getSupportedLanguages(): Promise<Language[]> {
-  return invoke<Language[]>('sandbox_get_languages');
+  return coreGetSupportedLanguages();
 }
 
 /**
  * Check if a runtime is available
  */
 export async function checkRuntime(runtime: RuntimeType): Promise<boolean> {
-  return invoke<boolean>('sandbox_check_runtime', { runtime });
+  return coreCheckRuntime(runtime);
 }
 
 /**
  * Set preferred runtime
  */
 export async function setPreferredRuntime(runtime: RuntimeType): Promise<void> {
-  return invoke<void>('sandbox_set_runtime', { runtime });
+  return coreSetPreferredRuntime(runtime);
 }
 
 /**
  * Set default timeout
  */
 export async function setDefaultTimeout(timeoutSecs: number): Promise<void> {
-  return invoke<void>('sandbox_set_timeout', { timeoutSecs });
+  return coreSetDefaultTimeout(timeoutSecs);
 }
 
 /**
  * Set default memory limit
  */
 export async function setDefaultMemoryLimit(memoryMb: number): Promise<void> {
-  return invoke<void>('sandbox_set_memory_limit', { memoryMb });
+  return coreSetDefaultMemoryLimit(memoryMb);
 }
 
 /**
  * Set network access
  */
 export async function setNetworkEnabled(enabled: boolean): Promise<void> {
-  return invoke<void>('sandbox_set_network', { enabled });
+  return coreSetNetworkEnabled(enabled);
 }
 
 /**
@@ -173,14 +190,14 @@ export async function toggleLanguage(
   language: string,
   enabled: boolean
 ): Promise<void> {
-  return invoke<void>('sandbox_toggle_language', { language, enabled });
+  return coreToggleLanguage(language, enabled);
 }
 
 /**
  * Prepare/pull image for a language
  */
 export async function prepareLanguage(language: string): Promise<void> {
-  return invoke<void>('sandbox_prepare_language', { language });
+  return corePrepareLanguage(language);
 }
 
 /**
@@ -189,16 +206,14 @@ export async function prepareLanguage(language: string): Promise<void> {
 export async function getRuntimeInfo(
   runtime: RuntimeType
 ): Promise<[RuntimeType, string] | null> {
-  return invoke<[RuntimeType, string] | null>('sandbox_get_runtime_info', {
-    runtime,
-  });
+  return coreGetRuntimeInfo(runtime);
 }
 
 /**
  * Cleanup sandbox resources
  */
 export async function cleanupSandbox(): Promise<void> {
-  return invoke<void>('sandbox_cleanup');
+  return coreCleanupSandbox();
 }
 
 // ==================== Sessions ====================
@@ -210,31 +225,28 @@ export async function startSession(
   name: string,
   description?: string
 ): Promise<ExecutionSession> {
-  return invoke<ExecutionSession>('sandbox_start_session', {
-    name,
-    description,
-  });
+  return coreStartSession(name, description);
 }
 
 /**
  * Get current session ID
  */
 export async function getCurrentSession(): Promise<string | null> {
-  return invoke<string | null>('sandbox_get_current_session');
+  return coreGetCurrentSession();
 }
 
 /**
  * Set current session
  */
 export async function setCurrentSession(sessionId: string | null): Promise<void> {
-  return invoke<void>('sandbox_set_current_session', { sessionId });
+  return coreSetCurrentSession(sessionId);
 }
 
 /**
  * End current session
  */
 export async function endSession(): Promise<void> {
-  return invoke<void>('sandbox_end_session');
+  return coreEndSession();
 }
 
 /**
@@ -243,7 +255,7 @@ export async function endSession(): Promise<void> {
 export async function listSessions(
   activeOnly: boolean = false
 ): Promise<ExecutionSession[]> {
-  return invoke<ExecutionSession[]>('sandbox_list_sessions', { activeOnly });
+  return coreListSessions(activeOnly);
 }
 
 /**
@@ -252,7 +264,7 @@ export async function listSessions(
 export async function getSession(
   id: string
 ): Promise<ExecutionSession | null> {
-  return invoke<ExecutionSession | null>('sandbox_get_session', { id });
+  return coreGetSession(id);
 }
 
 /**
@@ -262,7 +274,7 @@ export async function deleteSession(
   id: string,
   deleteExecutions: boolean = false
 ): Promise<void> {
-  return invoke<void>('sandbox_delete_session', { id, deleteExecutions });
+  return coreDeleteSession(id, deleteExecutions);
 }
 
 /**
@@ -273,11 +285,7 @@ export async function updateSession(
   name: string,
   description?: string
 ): Promise<void> {
-  return invoke<void>('sandbox_update_session', {
-    session_id: sessionId,
-    name,
-    description,
-  });
+  return coreUpdateSession(sessionId, name, description);
 }
 
 /**
@@ -286,9 +294,7 @@ export async function updateSession(
 export async function getSessionExecutions(
   sessionId: string
 ): Promise<SandboxExecutionRecord[]> {
-  return invoke<SandboxExecutionRecord[]>('sandbox_get_session_executions', {
-    session_id: sessionId,
-  });
+  return coreGetSessionExecutions(sessionId);
 }
 
 // ==================== Execution History ====================
@@ -299,7 +305,7 @@ export async function getSessionExecutions(
 export async function getExecution(
   id: string
 ): Promise<SandboxExecutionRecord | null> {
-  return invoke<SandboxExecutionRecord | null>('sandbox_get_execution', { id });
+  return invokeSandboxCommand<SandboxExecutionRecord | null>('sandbox_get_execution', { id });
 }
 
 /**
@@ -308,7 +314,7 @@ export async function getExecution(
 export async function queryExecutions(
   filter: ExecutionFilter = {}
 ): Promise<SandboxExecutionRecord[]> {
-  return invoke<SandboxExecutionRecord[]>('sandbox_query_executions', { filter });
+  return invokeSandboxCommand<SandboxExecutionRecord[]>('sandbox_query_executions', { filter });
 }
 
 /**
@@ -317,21 +323,21 @@ export async function queryExecutions(
 export async function getRecentExecutions(
   limit: number = 50
 ): Promise<SandboxExecutionRecord[]> {
-  return invoke<SandboxExecutionRecord[]>('sandbox_get_recent_executions', { limit });
+  return invokeSandboxCommand<SandboxExecutionRecord[]>('sandbox_get_recent_executions', { limit });
 }
 
 /**
  * Delete an execution
  */
 export async function deleteExecution(id: string): Promise<boolean> {
-  return invoke<boolean>('sandbox_delete_execution', { id });
+  return invokeSandboxCommand<boolean>('sandbox_delete_execution', { id });
 }
 
 /**
  * Toggle execution favorite status
  */
 export async function toggleExecutionFavorite(id: string): Promise<boolean> {
-  return invoke<boolean>('sandbox_toggle_favorite', { id });
+  return invokeSandboxCommand<boolean>('sandbox_toggle_favorite', { id });
 }
 
 /**
@@ -341,7 +347,7 @@ export async function addExecutionTags(
   id: string,
   tags: string[]
 ): Promise<void> {
-  return invoke<void>('sandbox_add_execution_tags', { id, tags });
+  return invokeSandboxCommand<void>('sandbox_add_execution_tags', { id, tags });
 }
 
 /**
@@ -351,7 +357,7 @@ export async function removeExecutionTags(
   id: string,
   tags: string[]
 ): Promise<void> {
-  return invoke<void>('sandbox_remove_execution_tags', { id, tags });
+  return invokeSandboxCommand<void>('sandbox_remove_execution_tags', { id, tags });
 }
 
 /**
@@ -361,7 +367,9 @@ export async function removeExecutionTags(
 export async function clearExecutionHistory(
   beforeDate?: string
 ): Promise<number> {
-  return invoke<number>('sandbox_clear_history', { beforeDate });
+  return invokeSandboxCommand<number>('sandbox_clear_history', {
+    before_date: beforeDate,
+  });
 }
 
 // ==================== Code Snippets ====================
@@ -372,14 +380,14 @@ export async function clearExecutionHistory(
 export async function createSnippet(
   request: CreateSnippetRequest
 ): Promise<CodeSnippet> {
-  return invoke<CodeSnippet>('sandbox_create_snippet', { request });
+  return invokeSandboxCommand<CodeSnippet>('sandbox_create_snippet', { request });
 }
 
 /**
  * Get snippet by ID
  */
 export async function getSnippet(id: string): Promise<CodeSnippet | null> {
-  return invoke<CodeSnippet | null>('sandbox_get_snippet', { id });
+  return invokeSandboxCommand<CodeSnippet | null>('sandbox_get_snippet', { id });
 }
 
 /**
@@ -388,21 +396,21 @@ export async function getSnippet(id: string): Promise<CodeSnippet | null> {
 export async function querySnippets(
   filter: SnippetFilter = {}
 ): Promise<CodeSnippet[]> {
-  return invoke<CodeSnippet[]>('sandbox_query_snippets', { filter });
+  return invokeSandboxCommand<CodeSnippet[]>('sandbox_query_snippets', { filter });
 }
 
 /**
  * Update a snippet
  */
 export async function updateSnippet(snippet: CodeSnippet): Promise<void> {
-  return invoke<void>('sandbox_update_snippet', { snippet });
+  return invokeSandboxCommand<void>('sandbox_update_snippet', { snippet });
 }
 
 /**
  * Delete a snippet
  */
 export async function deleteSnippet(id: string): Promise<boolean> {
-  return invoke<boolean>('sandbox_delete_snippet', { id });
+  return invokeSandboxCommand<boolean>('sandbox_delete_snippet', { id });
 }
 
 /**
@@ -415,12 +423,12 @@ export async function createSnippetFromExecution(
   category?: string,
   isTemplate: boolean = false
 ): Promise<CodeSnippet> {
-  return invoke<CodeSnippet>('sandbox_create_snippet_from_execution', {
-    executionId,
+  return invokeSandboxCommand<CodeSnippet>('sandbox_create_snippet_from_execution', {
+    execution_id: executionId,
     title,
     description,
     category,
-    isTemplate,
+    is_template: isTemplate,
   });
 }
 
@@ -428,7 +436,7 @@ export async function createSnippetFromExecution(
  * Execute a snippet
  */
 export async function executeSnippet(id: string): Promise<SandboxExecutionResult> {
-  return invoke<SandboxExecutionResult>('sandbox_execute_snippet', { id });
+  return invokeSandboxCommand<SandboxExecutionResult>('sandbox_execute_snippet', { id });
 }
 
 // ==================== Statistics ====================
@@ -439,7 +447,7 @@ export async function executeSnippet(id: string): Promise<SandboxExecutionResult
 export async function getLanguageStats(
   language: string
 ): Promise<LanguageStats | null> {
-  return invoke<LanguageStats | null>('sandbox_get_language_stats', {
+  return invokeSandboxCommand<LanguageStats | null>('sandbox_get_language_stats', {
     language,
   });
 }
@@ -448,14 +456,14 @@ export async function getLanguageStats(
  * Get all language statistics
  */
 export async function getAllLanguageStats(): Promise<LanguageStats[]> {
-  return invoke<LanguageStats[]>('sandbox_get_all_language_stats');
+  return invokeSandboxCommand<LanguageStats[]>('sandbox_get_all_language_stats');
 }
 
 /**
  * Get overall sandbox statistics
  */
 export async function getSandboxStats(): Promise<SandboxStats> {
-  return invoke<SandboxStats>('sandbox_get_stats');
+  return invokeSandboxCommand<SandboxStats>('sandbox_get_stats');
 }
 
 /**
@@ -464,7 +472,7 @@ export async function getSandboxStats(): Promise<SandboxStats> {
 export async function getDailyExecutionCounts(
   days: number = 30
 ): Promise<DailyExecutionCount[]> {
-  const result = await invoke<[string, number][]>('sandbox_get_daily_counts', {
+  const result = await invokeSandboxCommand<[string, number][]>('sandbox_get_daily_counts', {
     days,
   });
   return result.map(([date, count]) => ({ date, count }));
@@ -476,35 +484,35 @@ export async function getDailyExecutionCounts(
  * Export all sandbox data to JSON
  */
 export async function exportSandboxData(): Promise<string> {
-  return invoke<string>('sandbox_export_data');
+  return invokeSandboxCommand<string>('sandbox_export_data');
 }
 
 /**
  * Get all unique tags
  */
 export async function getAllTags(): Promise<string[]> {
-  return invoke<string[]>('sandbox_get_all_tags');
+  return invokeSandboxCommand<string[]>('sandbox_get_all_tags');
 }
 
 /**
  * Get all unique categories
  */
 export async function getAllCategories(): Promise<string[]> {
-  return invoke<string[]>('sandbox_get_all_categories');
+  return invokeSandboxCommand<string[]>('sandbox_get_all_categories');
 }
 
 /**
  * Get database size in bytes
  */
 export async function getDatabaseSize(): Promise<number> {
-  return invoke<number>('sandbox_get_db_size');
+  return invokeSandboxCommand<number>('sandbox_get_db_size');
 }
 
 /**
  * Vacuum database to reclaim space
  */
 export async function vacuumDatabase(): Promise<void> {
-  return invoke<void>('sandbox_vacuum_db');
+  return invokeSandboxCommand<void>('sandbox_vacuum_db');
 }
 
 // ==================== Helper Functions ====================

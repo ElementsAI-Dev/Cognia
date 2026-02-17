@@ -20,6 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  ScanText,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NativeToolHeader } from '../layout/native-tool-header';
@@ -30,7 +32,17 @@ interface ContextPanelProps {
 
 export function ContextPanel({ className }: ContextPanelProps) {
   const t = useTranslations('contextPanel');
-  const { context, isLoading, error, fetchContext } = useContext();
+  const {
+    context,
+    isLoading,
+    error,
+    fetchContext,
+    captureAndAnalyzeScreen,
+    screenContent,
+    isAnalyzingScreen,
+    screenAnalysisError,
+    lastScreenAnalysisAt,
+  } = useContext();
   const contextHistory = useContextStore((s) => s.contextHistory);
   const historyIndex = useContextStore((s) => s.historyIndex);
   const viewHistoryEntry = useContextStore((s) => s.viewHistoryEntry);
@@ -156,6 +168,76 @@ export function ContextPanel({ className }: ContextPanelProps) {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <ScanText className="h-4 w-4" />
+                  {t('screenPerception')}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    void captureAndAnalyzeScreen();
+                  }}
+                  disabled={isAnalyzingScreen}
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5 mr-1', isAnalyzingScreen && 'animate-spin')} />
+                  {isAnalyzingScreen ? t('analyzing') : t('reanalyze')}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {screenAnalysisError && (
+                <p className="text-xs text-destructive">{t('screenAnalysisError')}: {screenAnalysisError}</p>
+              )}
+
+              {!screenContent && !isAnalyzingScreen && !screenAnalysisError && (
+                <p className="text-xs text-muted-foreground">{t('screenPerceptionEmpty')}</p>
+              )}
+
+              {screenContent && (
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="secondary" className="text-xs">
+                      {t('textBlocksCount', { count: screenContent.text_blocks.length })}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {t('uiElementsCount', { count: screenContent.ui_elements.length })}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {t('confidenceLabel', { value: `${Math.round(screenContent.confidence * 100)}%` })}
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs line-clamp-3 text-muted-foreground">
+                    {screenContent.text || t('noScreenText')}
+                  </p>
+
+                  {screenContent.text_blocks.length > 0 && (
+                    <div className="space-y-1">
+                      {screenContent.text_blocks.slice(0, 5).map((block, index) => (
+                        <div key={`${block.x}-${block.y}-${index}`} className="text-xs rounded border px-2 py-1">
+                          <p className="line-clamp-1">{block.text}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            ({block.x},{block.y}) {block.width}x{block.height} · {Math.round(block.confidence * 100)}%
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-muted-foreground">
+                    {t('screenAnalysisTime')}{' '}
+                    {new Date(lastScreenAnalysisAt ?? screenContent.timestamp).toLocaleTimeString()}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
           {context?.app && (
             <Card>

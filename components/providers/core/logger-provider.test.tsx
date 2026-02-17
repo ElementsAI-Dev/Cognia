@@ -24,6 +24,36 @@ afterAll(() => {
 // Mock @/lib/logger so loggers.app.* calls go through console directly
 const mockGetLogs = jest.fn().mockResolvedValue([]);
 const mockClear = jest.fn().mockResolvedValue(undefined);
+const mockApplyLoggingSettings = jest.fn();
+const mockBootstrapLogger = jest.fn(() => ({
+  config: {
+    minLevel: 'debug',
+    includeStackTrace: true,
+    includeSource: false,
+    enableConsole: true,
+    enableStorage: true,
+    enableRemote: false,
+    maxStorageEntries: 1000,
+  },
+  transports: {
+    console: true,
+    indexedDB: true,
+    remote: false,
+    langfuse: false,
+    opentelemetry: false,
+  },
+  retention: {
+    maxEntries: 10000,
+    maxAgeDays: 7,
+  },
+}));
+const mockGetBootstrapState = jest.fn(() => mockBootstrapLogger());
+const mockIndexedDBTransport = {
+  name: 'indexeddb',
+  log: jest.fn(),
+  getLogs: mockGetLogs,
+  clear: mockClear,
+};
 
 jest.mock('@/lib/logger', () => {
   const createMockLogger = () => ({
@@ -40,12 +70,13 @@ jest.mock('@/lib/logger', () => {
   const appLogger = createMockLogger();
   return {
     loggers: { app: appLogger },
-    IndexedDBTransport: jest.fn().mockImplementation(() => ({
-      name: 'indexeddb',
-      log: jest.fn(),
-      getLogs: mockGetLogs,
-      clear: mockClear,
-    })),
+    bootstrapLogger: (...args: unknown[]) =>
+      (mockBootstrapLogger as (...innerArgs: unknown[]) => unknown)(...args),
+    getLoggingBootstrapState: (...args: unknown[]) =>
+      (mockGetBootstrapState as (...innerArgs: unknown[]) => unknown)(...args),
+    getIndexedDBTransport: () => mockIndexedDBTransport,
+    applyLoggingSettings: (...args: unknown[]) =>
+      (mockApplyLoggingSettings as (...innerArgs: unknown[]) => unknown)(...args),
     updateLoggerConfig: jest.fn(),
     addTransport: jest.fn(),
     removeTransport: jest.fn(),

@@ -4,6 +4,7 @@
 
 import {
   parseA2UIMessages,
+  parseA2UIInput,
   parseA2UIString,
   detectA2UIContent,
   extractA2UIFromResponse,
@@ -42,6 +43,59 @@ describe('A2UI Parser', () => {
       const message = { type: 'invalid', surfaceId: 'test' };
       const result = parseA2UIMessages(message);
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('parseA2UIInput', () => {
+    it('should parse A2UI JSON string', () => {
+      const result = parseA2UIInput(
+        JSON.stringify([{ type: 'createSurface', surfaceId: 'input-1', surfaceType: 'inline' }])
+      );
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.surfaceId).toBe('input-1');
+      expect(result.errors).toEqual([]);
+    });
+
+    it('should parse object payload directly', () => {
+      const result = parseA2UIInput({
+        type: 'createSurface',
+        surfaceId: 'input-2',
+        surfaceType: 'inline',
+      });
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.surfaceId).toBe('input-2');
+    });
+
+    it('should parse A2UI code block in mixed text', () => {
+      const result = parseA2UIInput(
+        'prefix\n```json\n{"type":"createSurface","surfaceId":"input-3","surfaceType":"inline"}\n```\nsuffix'
+      );
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.surfaceId).toBe('input-3');
+    });
+
+    it('should parse tool-result-like content payload', () => {
+      const result = parseA2UIInput({
+        content: [
+          {
+            type: 'text',
+            text: '[{"type":"createSurface","surfaceId":"input-4","surfaceType":"inline"}]',
+          },
+        ],
+      });
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.surfaceId).toBe('input-4');
+    });
+
+    it('should return parse errors for invalid JSON-like A2UI input', () => {
+      const result = parseA2UIInput('{"type":"createSurface","surfaceId":');
+
+      expect(result.messages).toHaveLength(0);
+      expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 

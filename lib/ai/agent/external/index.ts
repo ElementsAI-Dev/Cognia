@@ -14,3 +14,4 @@ export * from './protocol-adapter';
 export * from './manager';
 export * from './translators';
 export * from './presets';
+export * from './agent-trace-bridge';

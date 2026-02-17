@@ -12,6 +12,8 @@ import { isTauri } from '@/lib/native/utils';
 import { getSystemInfo } from '@/lib/native/system';
 import { isNotificationPermissionGranted } from '@/lib/native/notification';
 import { checkForUpdates } from '@/lib/native/updater';
+import { cleanupTauriLogBridge, initTauriLogBridge } from '@/lib/native/tauri-log-bridge';
+import { loggers } from '@/lib/logger';
 import {
   initializeDeepLinks,
   registerHandler,
@@ -30,12 +32,17 @@ export function NativeProvider({
   const router = useRouter();
 
   useEffect(() => {
+    let shouldCleanupBridge = false;
+
     const initNative = async () => {
       const store = useNativeStore.getState();
       const inTauri = isTauri();
       store.setIsDesktop(inTauri);
 
       if (!inTauri) return;
+
+      await initTauriLogBridge();
+      shouldCleanupBridge = true;
 
       // Get system info
       const info = await getSystemInfo();
@@ -53,7 +60,9 @@ export function NativeProvider({
             store.setUpdateAvailable(true, updateInfo.version);
           }
         } catch (error) {
-          console.warn('Failed to check for updates:', error);
+          loggers.native.warn('Failed to check for updates', {
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -95,11 +104,17 @@ export function NativeProvider({
 
       // Initialize and process any startup deep links
       await initializeDeepLinks((parsed: ParsedDeepLink) => {
-        console.log('Deep link received:', parsed);
+        loggers.native.info('Deep link received', { parsed });
       });
     };
 
-    initNative();
+    void initNative();
+
+    return () => {
+      if (shouldCleanupBridge) {
+        void cleanupTauriLogBridge();
+      }
+    };
   }, [checkUpdatesOnMount, router]);
 
   return <>{children}</>;

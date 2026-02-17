@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SettingsProfiles } from './settings-profiles';
 import type { SettingsProfile } from '@/stores/settings/settings-profiles-store';
 
@@ -719,9 +719,11 @@ describe('SettingsProfiles', () => {
       
       // Simulate FileReader onload
       if (mockFileReader.onload) {
-        mockFileReader.onload({
-          target: { result: '{"version":"1.0","profile":{"name":"Test"}}' },
-        } as unknown as ProgressEvent<FileReader>);
+        await act(async () => {
+          mockFileReader.onload!({
+            target: { result: '{"version":"1.0","profile":{"name":"Test"}}' },
+          } as unknown as ProgressEvent<FileReader>);
+        });
       }
       
       expect(mockImportProfile).toHaveBeenCalled();
@@ -762,9 +764,11 @@ describe('SettingsProfiles', () => {
       
       // Trigger onload
       if (mockFileReader.onload) {
-        mockFileReader.onload({
-          target: { result: 'invalid' },
-        } as unknown as ProgressEvent<FileReader>);
+        await act(async () => {
+          mockFileReader.onload!({
+            target: { result: 'invalid' },
+          } as unknown as ProgressEvent<FileReader>);
+        });
       }
       
       expect(mockImportProfile).toHaveBeenCalledWith('invalid');
@@ -791,9 +795,11 @@ describe('SettingsProfiles', () => {
       
       // Trigger onload
       if (mockFileReader.onload) {
-        mockFileReader.onload({
-          target: { result: '{"version":"1.0"}' },
-        } as unknown as ProgressEvent<FileReader>);
+        await act(async () => {
+          mockFileReader.onload!({
+            target: { result: '{"version":"1.0"}' },
+          } as unknown as ProgressEvent<FileReader>);
+        });
       }
       
       expect(mockImportProfile).toHaveBeenCalledWith('{"version":"1.0"}');
