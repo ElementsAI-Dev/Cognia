@@ -4,6 +4,7 @@
  */
 
 import { parseExpression } from '@babel/parser';
+import type { Node } from '@babel/types';
 
 type EvalContext = Record<string, unknown>;
 
@@ -54,7 +55,7 @@ function toNumber(value: unknown): number {
 }
 
 function evaluateCall(
-  callee: any,
+  callee: Node,
   args: unknown[],
   context: EvalContext
 ): unknown {
@@ -124,11 +125,11 @@ function evaluateCall(
 function evaluateBinary(operator: string, left: unknown, right: unknown): unknown {
   switch (operator) {
     case '==':
-      return left == right; // eslint-disable-line eqeqeq
+      return left == right;  
     case '===':
       return left === right;
     case '!=':
-      return left != right; // eslint-disable-line eqeqeq
+      return left != right;  
     case '!==':
       return left !== right;
     case '>':
@@ -157,7 +158,7 @@ function evaluateBinary(operator: string, left: unknown, right: unknown): unknow
   }
 }
 
-function evaluateNode(node: any, context: EvalContext): unknown {
+function evaluateNode(node: Node, context: EvalContext): unknown {
   switch (node.type) {
     case 'NumericLiteral':
     case 'StringLiteral':
@@ -194,7 +195,7 @@ function evaluateNode(node: any, context: EvalContext): unknown {
       return output;
     }
     case 'ArrayExpression':
-      return node.elements.map((element: any) => {
+      return node.elements.map((element) => {
         if (!element) return null;
         if (element.type === 'SpreadElement') {
           throw new Error('Spread element is not supported');
@@ -261,7 +262,7 @@ function evaluateNode(node: any, context: EvalContext): unknown {
     case 'CallExpression':
       return evaluateCall(
         node.callee,
-        node.arguments.map((arg: any) => {
+        node.arguments.map((arg) => {
           if (arg.type === 'SpreadElement') {
             throw new Error('Spread arguments are not supported');
           }
